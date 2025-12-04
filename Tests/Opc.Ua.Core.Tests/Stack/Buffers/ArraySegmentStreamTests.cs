@@ -34,7 +34,7 @@ using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Tests;
 
-namespace Opc.Ua.Buffers.Tests
+namespace Opc.Ua.Types.Buffers.Tests
 {
     /// <summary>
     /// Tests for <see cref="ArrayPoolBufferWriter{T}"/> where T is <see cref="byte"/>.
@@ -146,7 +146,6 @@ namespace Opc.Ua.Buffers.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var random = new Random(42);
             int length;
             byte[] buffer = new byte[chunkSize];
 
@@ -166,7 +165,7 @@ namespace Opc.Ua.Buffers.Tests
                 }
 
                 // write next chunk
-                switch (random.Next(3))
+                switch (UnsecureRandom.Shared.Next(3))
                 {
                     case 0:
                         for (int v = 0; v < chunkSize; v++)
@@ -206,14 +205,14 @@ namespace Opc.Ua.Buffers.Tests
             long position;
             for (int i = 0; i <= byte.MaxValue; i++)
             {
-                if (random.Next(2) == 0)
+                if (UnsecureRandom.Shared.Next(2) == 0)
                 {
                     position = writer.Seek(chunkSize * i, SeekOrigin.Begin);
                     Assert.That(position, Is.EqualTo(chunkSize * i));
                 }
 
                 int bytesRead;
-                switch (random.Next(3))
+                switch (UnsecureRandom.Shared.Next(3))
                 {
                     case 0:
                         for (int v = 0; v < chunkSize; v++)

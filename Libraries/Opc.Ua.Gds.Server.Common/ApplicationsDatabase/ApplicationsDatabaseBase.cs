@@ -146,9 +146,14 @@ namespace Opc.Ua.Gds.Server.Database
                             (string)application.ApplicationId.Identifier,
                             NamespaceIndex);
                         break;
-                    default:
+                    case IdType.Numeric:
+                    case IdType.Opaque:
                         throw new ArgumentException(
                             "The ApplicationId has invalid type {0}",
+                            nameof(application));
+                    default:
+                        throw new ArgumentException(
+                            "The ApplicationId has unexpected type {0}",
                             nameof(application));
                 }
             }
@@ -203,7 +208,7 @@ namespace Opc.Ua.Gds.Server.Database
 
         public virtual bool SetApplicationCertificate(
             NodeId applicationId,
-            string certificateType,
+            string certificateTypeId,
             byte[] certificate)
         {
             ValidateApplicationNodeId(applicationId);

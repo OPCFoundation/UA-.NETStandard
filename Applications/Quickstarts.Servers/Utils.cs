@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
@@ -46,7 +47,7 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Applies custom settings to quickstart servers for CTT run.
         /// </summary>
-        public static void ApplyCTTMode(TextWriter output, StandardServer server)
+        public static async Task ApplyCTTModeAsync(TextWriter output, StandardServer server)
         {
             var methodsToCall = new CallMethodRequestCollection();
             int index = server.CurrentInstance.NamespaceUris.GetIndex(Alarms.Namespaces.Alarms);
@@ -67,12 +68,11 @@ namespace Quickstarts.Servers
                         Timestamp = DateTime.UtcNow,
                         TimeoutHint = 10000
                     };
-                    var context = new OperationContext(requestHeader, RequestType.Call);
-                    server.CurrentInstance.NodeManager.Call(
+                    var context = new OperationContext(requestHeader, null, RequestType.Call);
+                    (CallMethodResultCollection results, DiagnosticInfoCollection diagnosticInfos) = await server.CurrentInstance.NodeManager.CallAsync(
                         context,
-                        methodsToCall,
-                        out CallMethodResultCollection results,
-                        out DiagnosticInfoCollection diagnosticInfos);
+                        methodsToCall)
+                        .ConfigureAwait(false);
                     foreach (CallMethodResult result in results)
                     {
                         if (ServiceResult.IsBad(result.StatusCode))
@@ -112,6 +112,15 @@ namespace Quickstarts.Servers
             ReferenceServer.ReferenceServer server)
         {
             server.UseSamplingGroupsInReferenceNodeManager = true;
+        }
+
+        /// <summary>
+        /// Enable provisioning mode in the ReferenceServer.
+        /// </summary>
+        public static void EnableProvisioningMode(
+            ReferenceServer.ReferenceServer server)
+        {
+            server.ProvisioningMode = true;
         }
 
         /// <summary>

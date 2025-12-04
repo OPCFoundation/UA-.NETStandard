@@ -36,7 +36,7 @@ using Opc.Ua.PubSub;
 
 namespace Quickstarts.ConsoleReferencePublisher
 {
-    internal class PublishedValuesWrites
+    internal sealed class PublishedValuesWrites
     {
         /// <summary>
         /// It should match the namespace index from configuration file
@@ -129,6 +129,11 @@ namespace Quickstarts.ConsoleReferencePublisher
                             break;
                         case kDataSetNameAllTypes:
                             m_allTypesFields.AddRange(publishedDataSet.DataSetMetaData.Fields);
+                            break;
+                        default:
+                            m_logger.LogInformation(
+                                "PublishedValuesWrites.Start: {DataSet} unknown.",
+                                publishedDataSet.Name);
                             break;
                     }
                 }
@@ -308,6 +313,9 @@ namespace Quickstarts.ConsoleReferencePublisher
                             case "DateTime":
                                 IncrementValue(variable, NamespaceIndexSimple);
                                 break;
+                            default:
+                                m_logger.LogDebug("{Variable} not processed.", variable.Name);
+                                break;
                         }
                     }
 
@@ -332,6 +340,7 @@ namespace Quickstarts.ConsoleReferencePublisher
         /// <param name="namespaceIndex"></param>
         /// <param name="maxAllowedValue"></param>
         /// <param name="step"></param>
+        /// <exception cref="ServiceResultException"></exception>
         private void IncrementValue(
             FieldMetaData variable,
             ushort namespaceIndex,
@@ -351,7 +360,8 @@ namespace Quickstarts.ConsoleReferencePublisher
 
             bool valueUpdated = false;
 
-            switch (TypeInfo.GetBuiltInType(variable.DataType))
+            BuiltInType builtInType = TypeInfo.GetBuiltInType(variable.DataType);
+            switch (builtInType)
             {
                 case BuiltInType.Boolean:
                     if (variable.ValueRank == ValueRanks.Scalar)
@@ -505,6 +515,10 @@ namespace Quickstarts.ConsoleReferencePublisher
                         valueUpdated = true;
                     }
                     break;
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    break;
+                default:
+                    throw ServiceResultException.Unexpected($"Unexpected BuiltInType {builtInType}");
             }
 
             if (valueUpdated)

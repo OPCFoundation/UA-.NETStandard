@@ -48,6 +48,7 @@
     <File Path=".dockerignore" />
     <File Path=".editorconfig" />
     <File Path=".gitattributes" />
+    <File Path=".github/copilot-instructions.md" />
     <File Path=".gitignore" />
     <File Path="azure-pipelines-preview.yml" />
     <File Path="azure-pipelines.yml" />
@@ -60,6 +61,7 @@
     <File Path="Tests/codecoverage.cmd" />
     <File Path="Tests/codecoverage.sh" />
     <File Path="Tests/coverlet.runsettings.xml" />
+    <File Path="Tests/customtest.bat" />
     <File Path="version.json" />
     <File Path="version.props" />
   </Folder>
@@ -100,6 +102,7 @@
   <Folder Name="/Stack/">
     <Project Path="Stack/Opc.Ua.Bindings.Https/Opc.Ua.Bindings.Https.csproj" />
     <Project Path="Stack/Opc.Ua.Core/Opc.Ua.Core.csproj" />
+    <Project Path="Stack/Opc.Ua.Types/Opc.Ua.Types.csproj" />
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="Tests/Opc.Ua.Client.ComplexTypes.Tests/Opc.Ua.Client.ComplexTypes.Tests.csproj" />
@@ -110,5 +113,6 @@
     <Project Path="Tests/Opc.Ua.PubSub.Tests/Opc.Ua.PubSub.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Security.Certificates.Tests/Opc.Ua.Security.Certificates.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Server.Tests/Opc.Ua.Server.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.Types.Tests/Opc.Ua.Types.Tests.csproj" />
   </Folder>
 </Solution>

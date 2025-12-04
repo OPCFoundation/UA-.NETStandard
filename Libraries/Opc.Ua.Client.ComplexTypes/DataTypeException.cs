@@ -34,7 +34,6 @@ namespace Opc.Ua.Client.ComplexTypes
     /// <summary>
     /// Exception is thrown if the data type is not found.
     /// </summary>
-    [Serializable]
     public class DataTypeNotFoundException : Exception
     {
         /// <summary>
@@ -107,7 +106,6 @@ namespace Opc.Ua.Client.ComplexTypes
     /// <summary>
     /// DataType is not supported due to structure or value rank.
     /// </summary>
-    [Serializable]
     public class DataTypeNotSupportedException : Exception
     {
         /// <summary>

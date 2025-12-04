@@ -10,7 +10,10 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+#nullable enable
+
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -22,7 +25,8 @@ namespace Opc.Ua.Bindings
     /// Implements the UA-SC security and UA Binary encoding.
     /// The socket layer requires a IMessageSocketFactory implementation.
     /// </summary>
-    public class UaSCUaBinaryTransportChannel : ITransportChannel, IMessageSocketChannel
+    public class UaSCUaBinaryTransportChannel : ITransportChannel, ISecureChannel,
+        IMessageSocketChannel
     {
         private const int kChannelCloseDefault = 1_000;
 
@@ -54,372 +58,296 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && !m_disposed)
             {
-                UaSCUaBinaryClientChannel channel = Interlocked.Exchange(ref m_channel, null);
-                Utils.SilentDispose(channel);
+                m_disposed = true;
+                m_connecting.Wait();
+                try
+                {
+                    m_channel?.Dispose();
+                    m_channel = null;
+                }
+                finally
+                {
+                    m_connecting.Release();
+                    m_connecting.Dispose();
+                }
             }
         }
 
         /// <summary>
         /// Returns the channel's underlying message socket if connected / available.
         /// </summary>
-        public IMessageSocket Socket => m_channel?.Socket;
+        public IMessageSocket? Socket => m_channel?.Socket;
 
-        /// <summary>
-        /// Called when the token changes
-        /// </summary>
+        /// <inheritdoc/>
         public event ChannelTokenActivatedEventHandler OnTokenActivated
         {
             add => m_OnTokenActivated += value;
             remove => m_OnTokenActivated -= value;
         }
 
-        /// <summary>
-        /// A masking indicating which features are implemented.
-        /// </summary>
+        /// <inheritdoc/>
         public TransportChannelFeatures SupportedFeatures =>
-            TransportChannelFeatures.Open |
-            TransportChannelFeatures.BeginOpen |
-            TransportChannelFeatures.BeginSendRequest |
-            TransportChannelFeatures.SendRequestAsync |
-            (Socket?.MessageSocketFeatures ?? 0);
+            Socket?.MessageSocketFeatures ?? TransportChannelFeatures.None;
 
-        /// <summary>
-        /// Gets the description for the endpoint used by the channel.
-        /// </summary>
-        public EndpointDescription EndpointDescription => m_settings.Description;
+        /// <inheritdoc/>
+        public EndpointDescription EndpointDescription
+            => m_settings?.Description ?? throw BadNotConnected();
 
-        /// <summary>
-        /// Gets the configuration for the channel.
-        /// </summary>
-        public EndpointConfiguration EndpointConfiguration => m_settings.Configuration;
+        /// <inheritdoc/>
+        public EndpointConfiguration EndpointConfiguration
+            => m_settings?.Configuration ?? throw BadNotConnected();
 
-        /// <summary>
-        /// Gets the context used when serializing messages exchanged via the channel.
-        /// </summary>
-        public IServiceMessageContext MessageContext => m_quotas.MessageContext;
+        /// <inheritdoc/>
+        public IServiceMessageContext MessageContext
+            => m_quotas?.MessageContext ?? throw BadNotConnected();
 
-        /// <summary>
-        ///  Gets the channel's current security token.
-        /// </summary>
-        public ChannelToken CurrentToken => m_channel?.CurrentToken;
+        /// <inheritdoc/>
+        public ChannelToken? CurrentToken => m_channel?.CurrentToken;
 
-        /// <summary>
-        /// Gets or sets the default timeout for requests send via the channel.
-        /// </summary>
+        /// <inheritdoc/>
         public int OperationTimeout { get; set; }
 
-        /// <summary>
-        /// Initializes a secure channel with the endpoint identified by the URL.
-        /// </summary>
-        /// <param name="url">The URL for the endpoint.</param>
-        /// <param name="settings">The settings to use when creating the channel.</param>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        public void Initialize(Uri url, TransportChannelSettings settings)
+        /// <inheritdoc/>
+        public ValueTask OpenAsync(
+            Uri url,
+            TransportChannelSettings settings,
+            CancellationToken ct)
         {
-            SaveSettings(url, settings);
-            Interlocked.Exchange(ref m_channel, CreateChannel(m_telemetry));
+            return OpenInternalAsync(url, null, settings, ct);
         }
 
-        /// <summary>
-        /// Initializes a secure channel with the endpoint identified by the connection.
-        /// </summary>
-        /// <param name="connection">The connection to use.</param>
-        /// <param name="settings">The settings to use when creating the channel.</param>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        public void Initialize(
+        /// <inheritdoc/>
+        public ValueTask OpenAsync(
             ITransportWaitingConnection connection,
-            TransportChannelSettings settings)
+            TransportChannelSettings settings,
+            CancellationToken ct)
         {
-            SaveSettings(connection.EndpointUrl, settings);
-            Interlocked.Exchange(ref m_channel, CreateChannel(m_telemetry, connection));
+            return OpenInternalAsync(connection.EndpointUrl, connection, settings, ct);
         }
 
-        /// <summary>
-        /// Opens a secure channel with the endpoint identified by the URL.
-        /// </summary>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        public void Open()
+        /// <inheritdoc/>
+        public async ValueTask ReconnectAsync(
+            ITransportWaitingConnection? connection,
+            CancellationToken ct)
         {
-            // opens when the first request is called to preserve previous behavior.
-        }
-
-        /// <summary>
-        /// Begins an asynchronous operation to open a secure channel with the endpoint identified by the URL.
-        /// </summary>
-        /// <param name="callback">The callback to call when the operation completes.</param>
-        /// <param name="callbackData">The callback data to return with the callback.</param>
-        /// <returns>
-        /// The result which must be passed to the EndOpen method.
-        /// </returns>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="Open"/>
-        public IAsyncResult BeginOpen(AsyncCallback callback, object callbackData)
-        {
-            lock (m_lock)
+            if (m_disposed)
             {
-                // create the channel.
-                Interlocked.Exchange(ref m_channel, CreateChannel(null));
+                throw new ObjectDisposedException(nameof(UaSCUaBinaryTransportChannel));
+            }
+            if (m_url == null)
+            {
+                throw BadNotConnected();
+            }
+            UaSCUaBinaryClientChannel? previousChannel = null;
+            await m_connecting.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                m_logger.LogInformation(
+                    "TransportChannel RECONNECT: Reconnecting to {Url}.",
+                    m_url);
 
-                // begin connect operation.
-                return m_channel.BeginConnect(m_url, OperationTimeout, callback, callbackData);
+                // the new channel must be connected first because WinSock
+                // will reuse sockets and this can result in messages sent
+                // over the old socket arriving as messages on the new socket.
+                // if this happens the new channel is shutdown because of a
+                // security violation. Therefore close the previous channel
+                // in the finally block after the new channel is connected.
+                previousChannel = m_channel;
+                m_channel = null;
+                UaSCUaBinaryClientChannel newChannel = CreateChannel(m_telemetry, connection);
+
+                // Connect the new channel
+                await newChannel.ConnectAsync(
+                    m_url,
+                    OperationTimeout,
+                    ct).ConfigureAwait(false);
+
+                m_channel = newChannel;
+                m_logger.LogInformation(
+                    "TransportChannel RECONNECT: Reconnected to {Url}.",
+                    m_url);
+            }
+            finally
+            {
+                m_connecting.Release(); // Give access again to the new channel
+
+                // close previous channel.
+                if (previousChannel != null)
+                {
+                    m_logger.LogDebug(
+                       "TransportChannel RECONNECT: Closing old channel to {Url}.",
+                       m_url);
+                    try
+                    {
+                        await previousChannel.CloseAsync(
+                            kChannelCloseDefault,
+                            default).ConfigureAwait(false);
+                    }
+                    catch (Exception e)
+                    {
+                        // do nothing.
+                        m_logger.LogDebug(
+                            e,
+                            "Exception while closing old channel during Reconnect.");
+                    }
+                    Utils.SilentDispose(previousChannel);
+                }
             }
         }
 
-        /// <summary>
-        /// Completes an asynchronous operation to open a secure channel.
-        /// </summary>
-        /// <param name="result">The result returned from the BeginOpen call.</param>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="Open"/>
-        public void EndOpen(IAsyncResult result)
+        /// <inheritdoc/>
+        public async ValueTask CloseAsync(CancellationToken ct)
         {
-            m_channel.EndConnect(result);
-        }
-
-        /// <summary>
-        /// Closes any existing secure channel and opens a new one.
-        /// </summary>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <remarks>
-        /// Calling this method will cause outstanding requests over the current secure channel to fail.
-        /// </remarks>
-        public void Reconnect()
-        {
-            Reconnect(null);
-        }
-
-        /// <summary>
-        /// Closes any existing secure channel and opens a new one.
-        /// </summary>
-        /// <param name="connection">A reverse connection, null otherwise.</param>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <remarks>
-        /// Calling this method will cause outstanding requests over the current secure channel to fail.
-        /// </remarks>
-        public void Reconnect(ITransportWaitingConnection connection)
-        {
-            m_logger.LogInformation("TransportChannel RECONNECT: Reconnecting to {Url}.", m_url);
-
-            lock (m_lock)
+            if (m_disposed)
             {
-                // the new channel must be created first because WinSock will reuse sockets and this
-                // can result in messages sent over the old socket arriving as messages on the new socket.
-                // if this happens the new channel is shutdown because of a security violation.
-                UaSCUaBinaryClientChannel channel = Interlocked.Exchange(ref m_channel, null);
+                throw new ObjectDisposedException(nameof(UaSCUaBinaryTransportChannel));
+            }
+            await m_connecting.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                UaSCUaBinaryClientChannel? channel = m_channel;
+                // Indicate we are closed
+                m_channel = null;
+                m_url = null;
 
-                try
+                if (channel != null)
                 {
-                    // reconnect.
-                    Interlocked.Exchange(ref m_channel, CreateChannel(m_telemetry, connection));
-
-                    // begin connect operation.
-                    IAsyncResult result = m_channel.BeginConnect(
-                        m_url,
-                        OperationTimeout,
-                        null,
-                        null);
-                    m_channel.EndConnect(result);
-                }
-                finally
-                {
-                    // close existing channel.
-                    if (channel != null)
+                    try
                     {
-                        try
-                        {
-                            channel.Close(kChannelCloseDefault);
-                        }
-                        catch (Exception e)
-                        {
-                            // do nothing.
-                            m_logger.LogTrace(e, "Ignoring exception while closing transport channel during Reconnect.");
-                        }
-                        finally
-                        {
-                            channel.Dispose();
-                        }
+                        await channel.CloseAsync(kChannelCloseDefault, ct) // TODO: Configurable
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception e)
+                    {
+                        m_logger.LogError(e, "Ignoring error during close of channel.");
                     }
                 }
             }
-        }
-
-        /// <summary>
-        /// Begins an asynchronous operation to close the existing secure channel and open a new one.
-        /// </summary>
-        /// <param name="callback">The callback to call when the operation completes.</param>
-        /// <param name="callbackData">The callback data to return with the callback.</param>
-        /// <returns>
-        /// The result which must be passed to the EndReconnect method.
-        /// </returns>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="Reconnect()"/>
-        /// <exception cref="NotImplementedException"></exception>
-        public IAsyncResult BeginReconnect(AsyncCallback callback, object callbackData)
-        {
-            throw new NotImplementedException();
-        }
-
-        /// <summary>
-        /// Completes an asynchronous operation to close the existing secure channel and open a new one.
-        /// </summary>
-        /// <param name="result">The result returned from the BeginReconnect call.</param>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="Reconnect()"/>
-        /// <exception cref="NotImplementedException"></exception>
-        public void EndReconnect(IAsyncResult result)
-        {
-            throw new NotImplementedException();
-        }
-
-        /// <summary>
-        /// Closes the secure channel.
-        /// </summary>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        public void Close()
-        {
-            UaSCUaBinaryClientChannel channel = Interlocked.Exchange(ref m_channel, null);
-            channel?.Close(kChannelCloseDefault);
-        }
-
-        /// <summary>
-        /// Closes the secure channel (async).
-        /// </summary>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        public Task CloseAsync(CancellationToken ct)
-        {
-            UaSCUaBinaryClientChannel channel = Interlocked.Exchange(ref m_channel, null);
-            if (channel != null)
+            finally
             {
-                return channel.CloseAsync(kChannelCloseDefault, ct);
+                m_connecting.Release();
             }
-            return Task.CompletedTask;
         }
 
-        /// <summary>
-        /// Begins an asynchronous operation to close the secure channel.
-        /// </summary>
-        /// <param name="callback">The callback to call when the operation completes.</param>
-        /// <param name="callbackData">The callback data to return with the callback.</param>
-        /// <returns>
-        /// The result which must be passed to the EndClose method.
-        /// </returns>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="Close"/>
-        /// <exception cref="NotImplementedException"></exception>
-        public IAsyncResult BeginClose(AsyncCallback callback, object callbackData)
-        {
-            throw new NotImplementedException();
-        }
-
-        /// <summary>
-        /// Completes an asynchronous operation to close the secure channel.
-        /// </summary>
-        /// <param name="result">The result returned from the BeginClose call.</param>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="Close"/>
-        /// <exception cref="NotImplementedException"></exception>
-        public void EndClose(IAsyncResult result)
-        {
-            throw new NotImplementedException();
-        }
-
-        /// <summary>
-        /// Sends a request over the secure channel.
-        /// </summary>
-        /// <param name="request">The request to send.</param>
-        /// <returns>The response returned by the server.</returns>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        public IServiceResponse SendRequest(IServiceRequest request)
-        {
-            IAsyncResult result = BeginSendRequest(request, null, null);
-            return EndSendRequest(result);
-        }
-
-        /// <summary>
-        /// Sends a request over the secure channel (async version).
-        /// </summary>
-        /// <param name="request">The request to send.</param>
-        /// <param name="ct">The cancellation token.</param>
-        /// <returns>The response returned by the server.</returns>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        public Task<IServiceResponse> SendRequestAsync(
+        /// <inheritdoc/>
+        public ValueTask<IServiceResponse> SendRequestAsync(
             IServiceRequest request,
             CancellationToken ct)
         {
-            IAsyncResult operation = BeginSendRequest(request, null, null);
-            return EndSendRequestAsync(operation, ct);
+            UaSCUaBinaryClientChannel? channel = m_channel;
+            if (channel != null)
+            {
+                return channel.SendRequestAsync(request, OperationTimeout, ct);
+            }
+            return SendRequestInternalAsync(request, ct);
         }
 
         /// <summary>
-        /// Begins an asynchronous operation to send a request over the secure channel.
+        /// Wait under on the connection lock until connect or close completes
+        /// and send or throw then.
         /// </summary>
-        /// <param name="request">The request to send.</param>
-        /// <param name="callback">The callback to call when the operation completes.</param>
-        /// <param name="callbackData">The callback data to return with the callback.</param>
-        /// <returns>
-        /// The result which must be passed to the EndSendRequest method.
-        /// </returns>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="SendRequest"/>
-        public IAsyncResult BeginSendRequest(
+        /// <returns></returns>
+        /// <exception cref="ServiceResultException"></exception>
+        private async ValueTask<IServiceResponse> SendRequestInternalAsync(
             IServiceRequest request,
-            AsyncCallback callback,
-            object callbackData)
+            CancellationToken ct)
         {
-            UaSCUaBinaryClientChannel channel = m_channel;
-
-            if (channel == null)
+            if (m_disposed)
             {
-                channel = CreateChannel(m_telemetry);
-                UaSCUaBinaryClientChannel currentChannel = Interlocked.CompareExchange(
-                    ref m_channel,
-                    channel,
-                    null);
-                if (currentChannel != null)
+                // right now this can happen if Dispose is called
+                // Before channel users (e.g. keep alive requests)
+                // are cancelled and stopped.
+                // TODO: Areas like this should be fixed eventually.
+                throw BadNotConnected();
+                // throw new ObjectDisposedException(nameof(UaSCUaBinaryTransportChannel));
+            }
+            UaSCUaBinaryClientChannel? channel;
+            await m_connecting.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                // Get under lock
+                channel = m_channel;
+                if (channel == null)
                 {
-                    Utils.SilentDispose(channel);
-                    channel = currentChannel;
+                    // Channel was closed
+                    throw BadNotConnected();
                 }
             }
-
-            return channel.BeginSendRequest(request, OperationTimeout, callback, callbackData);
+            finally
+            {
+                m_connecting.Release();
+            }
+            return await channel.SendRequestAsync(
+                request,
+                OperationTimeout,
+                ct).ConfigureAwait(false);
         }
 
         /// <summary>
-        /// Completes an asynchronous operation to send a request over the secure channel.
+        /// Create and connect the channel. Reset to non open state in case
+        /// of failure
         /// </summary>
-        /// <param name="result">The result returned from the BeginSendRequest call.</param>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="SendRequest"/>
-        public IServiceResponse EndSendRequest(IAsyncResult result)
+        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ObjectDisposedException"></exception>
+        private async ValueTask OpenInternalAsync(
+            Uri endpointUrl,
+            ITransportWaitingConnection? connection,
+            TransportChannelSettings settings,
+            CancellationToken ct)
         {
-            UaSCUaBinaryClientChannel channel =
-                m_channel
-                ?? throw ServiceResultException.Create(
-                    StatusCodes.BadSecureChannelClosed,
-                    "Channel has been closed.");
+            if (m_disposed)
+            {
+                throw new ObjectDisposedException(nameof(UaSCUaBinaryTransportChannel));
+            }
+            UaSCUaBinaryClientChannel? channel;
+            await m_connecting.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                if (m_channel != null || m_url != null)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadTcpInternalError,
+                        "Channel is already open.");
+                }
+                SaveSettings(endpointUrl, settings);
+                channel = CreateChannel(m_telemetry, connection);
+                m_channel = channel;
+            }
+            finally
+            {
+                m_connecting.Release();
+            }
 
-            return channel.EndSendRequest(result);
-        }
-
-        /// <summary>
-        /// Completes an asynchronous operation to send a request over the secure channel.
-        /// </summary>
-        /// <param name="result">The result returned from the BeginSendRequest call.</param>
-        /// <param name="ct">Cancellation token to cancel operation with</param>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="SendRequest"/>
-        public Task<IServiceResponse> EndSendRequestAsync(IAsyncResult result, CancellationToken ct)
-        {
-            UaSCUaBinaryClientChannel channel =
-                m_channel
-                ?? throw ServiceResultException.Create(
-                    StatusCodes.BadSecureChannelClosed,
-                    "Channel has been closed.");
-
-            return channel.EndSendRequestAsync(result, ct);
+            //
+            // We do not hold the lock while connecting to let send requests get
+            // queued to the channel. The inner channel allows queueing during
+            // state connecting, which will then be played as soon as connect
+            // completes. Therefore it is safe to now call SendRequestAsync with
+            // the caveat that these requests may then fail if connect fails.
+            //
+            try
+            {
+                await channel.ConnectAsync(m_url!, OperationTimeout, ct).ConfigureAwait(false);
+            }
+            catch
+            {
+                await m_connecting.WaitAsync(ct).ConfigureAwait(false);
+                try
+                {
+                    Debug.Assert(m_channel == channel,
+                        "Should have thrown if m_channel was null");
+                    // Reset as not opened to allow OpenAsync again.
+                    m_channel = null;
+                    m_url = null;
+                    throw;
+                }
+                finally
+                {
+                    m_connecting.Release();
+                }
+            }
         }
 
         /// <summary>
@@ -427,12 +355,18 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="url">The URL.</param>
         /// <param name="settings">The settings.</param>
+        /// <exception cref="ArgumentException"></exception>
         private void SaveSettings(Uri url, TransportChannelSettings settings)
         {
             // save the settings.
             m_url = url;
             m_settings = settings;
+
             OperationTimeout = settings.Configuration.OperationTimeout;
+            if (OperationTimeout <= 0)
+            {
+                throw new ArgumentException("Timeout must be greater than 0");
+            }
 
             // initialize the quotas.
             EndpointConfiguration configuration = m_settings.Configuration;
@@ -470,17 +404,27 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="telemetry">Telemetry context</param>
         /// <param name="connection">A reverse connection, null otherwise.</param>
-        /// <exception cref="ArgumentException"></exception>
-        private UaSCUaBinaryClientChannel CreateChannel(ITelemetryContext telemetry,
-            ITransportWaitingConnection connection = null)
+        /// <exception cref="ServiceResultException"></exception>
+        private UaSCUaBinaryClientChannel CreateChannel(
+            ITelemetryContext telemetry,
+            ITransportWaitingConnection? connection = null)
         {
-            IMessageSocket socket = null;
+            if (m_url == null ||
+                m_settings == null ||
+                m_quotas == null ||
+                m_bufferManager == null)
+            {
+                throw BadNotConnected();
+            }
+
+            IMessageSocket? socket = null;
             if (connection != null)
             {
                 socket = connection.Handle as IMessageSocket;
                 if (socket == null)
                 {
-                    throw new ArgumentException("Connection Handle is not of type IMessageSocket.");
+                    throw ServiceResultException.Unexpected(
+                        "Waiting Connection Handle is not of type IMessageSocket.");
                 }
             }
 
@@ -505,21 +449,31 @@ namespace Opc.Ua.Bindings
             }
 
             // Register the token changed event handler with the internal channel
-            channel.OnTokenActivated = (current, previous) => m_OnTokenActivated?.Invoke(
-                this,
-                current,
-                previous);
+            channel.OnTokenActivated =
+                (current, previous) => m_OnTokenActivated?.Invoke(
+                    this,
+                    current,
+                    previous);
             return channel;
         }
 
-        private readonly Lock m_lock = new();
+        private ServiceResultException BadNotConnected()
+        {
+            return ServiceResultException.Create(
+                StatusCodes.BadNotConnected,
+                "{0} not open.",
+                nameof(UaSCUaBinaryTransportChannel));
+        }
+
+        private readonly SemaphoreSlim m_connecting = new(1, 1);
         private readonly ILogger m_logger;
-        private Uri m_url;
-        private TransportChannelSettings m_settings;
-        private ChannelQuotas m_quotas;
-        private BufferManager m_bufferManager;
-        private UaSCUaBinaryClientChannel m_channel;
-        private event ChannelTokenActivatedEventHandler m_OnTokenActivated;
+        private Uri? m_url;
+        private TransportChannelSettings? m_settings;
+        private ChannelQuotas? m_quotas;
+        private BufferManager? m_bufferManager;
+        private UaSCUaBinaryClientChannel? m_channel;
+        private bool m_disposed;
+        private event ChannelTokenActivatedEventHandler? m_OnTokenActivated;
         private readonly IMessageSocketFactory m_messageSocketFactory;
         private readonly ITelemetryContext m_telemetry;
     }

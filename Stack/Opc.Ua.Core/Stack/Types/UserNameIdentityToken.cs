@@ -76,7 +76,6 @@ namespace Opc.Ua
             // handle ECC encryption.
             else
             {
-#if ECC_SUPPORT
                 // check if the complete chain is included in the sender issuers.
                 if (senderIssuerCertificates != null &&
                     senderIssuerCertificates.Count > 0 &&
@@ -105,9 +104,6 @@ namespace Opc.Ua
 
                 m_password = secret.Encrypt(DecryptedPassword, receiverNonce);
                 m_encryptionAlgorithm = null;
-#else
-                throw new NotSupportedException("Platform does not support ECC curves");
-#endif
             }
         }
 
@@ -189,7 +185,6 @@ namespace Opc.Ua
             // handle ECC encryption.
             else
             {
-#if ECC_SUPPORT
                 var secret = new EncryptedSecret(
                     context,
                     securityPolicyUri,
@@ -207,9 +202,6 @@ namespace Opc.Ua
                     0,
                     m_password.Length,
                     context.Telemetry);
-#else
-                throw new NotSupportedException("Platform does not support ECC curves");
-#endif
             }
         }
 

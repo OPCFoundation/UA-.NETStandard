@@ -24,18 +24,15 @@
     <PackageReference Include="System.IO.Compression" />
     <PackageReference Include="System.Private.Uri" />
   </ItemGroup>
-  <PropertyGroup Condition="'$(DisableECCTests)' != 'true'">
-    <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(NetStandardTests)' == 'true'">
     <DefineConstants>$(DefineConstants);NET_STANDARD_TESTS</DefineConstants>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
-    <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
   </PropertyGroup>
   <ItemGroup Condition="'$(SignAssembly)' != 'true'">
     <PackageReference Include="EmbedIO" />
   </ItemGroup>
+  <PropertyGroup Condition="'$(SignAssembly)' != 'true'">
+    <DefineConstants>$(DefineConstants);EMBED_IO_INCLUDED</DefineConstants>
+  </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
     <Compile Include="..\Common\Logging.cs" />

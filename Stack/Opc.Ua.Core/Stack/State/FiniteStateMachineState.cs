@@ -777,7 +777,7 @@ namespace Opc.Ua
         }
 
         private uint m_causeId;
-        private ILogger m_logger = Utils.Null.Logger;
+        private ILogger m_logger = LoggerUtils.Null.Logger;
     }
 
     /// <summary>

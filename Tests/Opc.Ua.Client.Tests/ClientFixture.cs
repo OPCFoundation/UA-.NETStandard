@@ -75,7 +75,10 @@ namespace Opc.Ua.Client.Tests
             }
             else
             {
-                SessionFactory = new TraceableSessionFactory(telemetry);
+                SessionFactory = new DefaultSessionFactory(telemetry)
+                {
+                    ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText
+                };
             }
         }
 
@@ -83,7 +86,10 @@ namespace Opc.Ua.Client.Tests
         {
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<ClientFixture>();
-            SessionFactory = new DefaultSessionFactory(telemetry);
+            SessionFactory = new DefaultSessionFactory(telemetry)
+            {
+                ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText
+            };
         }
 
         /// <inheritdoc/>
@@ -151,7 +157,7 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
             if (!haveAppCertificate)
             {
-                throw new Exception("Application instance certificate invalid!");
+                throw new InvalidOperationException("Application instance certificate invalid!");
             }
 
             ReverseConnectManager = new ReverseConnectManager(m_telemetry);
@@ -162,7 +168,6 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public async Task StartReverseConnectHostAsync()
         {
-            var random = new Random();
             int testPort = ServerFixtureUtils.GetNextFreeIPPort();
             bool retryStartServer = false;
             int serverStartRetries = 25;
@@ -182,12 +187,12 @@ namespace Opc.Ua.Client.Tests
                     {
                         throw;
                     }
-                    testPort = random.Next(
+                    testPort = UnsecureRandom.Shared.Next(
                         ServerFixtureUtils.MinTestPort,
                         ServerFixtureUtils.MaxTestPort);
                     retryStartServer = true;
                 }
-                await Task.Delay(random.Next(100, 1000)).ConfigureAwait(false);
+                await Task.Delay(UnsecureRandom.Shared.Next(100, 1000)).ConfigureAwait(false);
             } while (retryStartServer);
         }
 
@@ -195,7 +200,7 @@ namespace Opc.Ua.Client.Tests
         /// Connects the specified endpoint URL.
         /// </summary>
         /// <param name="endpointUrl">The endpoint URL.</param>
-        /// <param name="ct"">Cancellation token to cancel operation with</param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ServiceResultException"></exception>
@@ -213,8 +218,8 @@ namespace Opc.Ua.Client.Tests
                     nameof(endpointUrl));
             }
 
-            bool serverHalted;
-            do
+            const int maxAttempts = 5;
+            for (int attempt = 0; ; attempt++)
             {
                 try
                 {
@@ -233,12 +238,17 @@ namespace Opc.Ua.Client.Tests
 
                     return await ConnectAsync(endpoint).ConfigureAwait(false);
                 }
-                catch (ServiceResultException e) when (e.StatusCode == StatusCodes.BadServerHalted)
+                catch (ServiceResultException e) when ((e.StatusCode is
+                    StatusCodes.BadServerHalted or
+                    StatusCodes.BadSecureChannelClosed or
+                    StatusCodes.BadNoCommunication) &&
+                    attempt < maxAttempts)
                 {
-                    serverHalted = true;
+                    attempt++;
+                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt + 1);
                     await Task.Delay(1000, ct).ConfigureAwait(false);
                 }
-            } while (serverHalted);
+            }
 
             throw new ServiceResultException(StatusCodes.BadNoCommunication);
         }
@@ -261,8 +271,8 @@ namespace Opc.Ua.Client.Tests
                 getEndpointsUrl = CoreClientUtils.GetDiscoveryUrl(uri);
             }
 
-            bool serverHalted;
-            do
+            const int maxAttempts = 5;
+            for (int attempt = 0; ; attempt++)
             {
                 try
                 {
@@ -273,12 +283,16 @@ namespace Opc.Ua.Client.Tests
                     ).ConfigureAwait(false);
                     return await ConnectAsync(endpoint, userIdentity).ConfigureAwait(false);
                 }
-                catch (ServiceResultException e) when (e.StatusCode == StatusCodes.BadServerHalted)
+                catch (ServiceResultException e) when ((e.StatusCode is
+                    StatusCodes.BadServerHalted or
+                    StatusCodes.BadSecureChannelClosed or
+                    StatusCodes.BadNoCommunication) &&
+                    attempt < maxAttempts)
                 {
-                    serverHalted = true;
+                    m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt + 1);
                     await Task.Delay(1000).ConfigureAwait(false);
                 }
-            } while (serverHalted);
+            }
 
             throw new ServiceResultException(StatusCodes.BadNoCommunication);
         }
@@ -317,7 +331,6 @@ namespace Opc.Ua.Client.Tests
 
             session.KeepAlive += Session_KeepAlive;
 
-            session.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
             EndpointUrl = session.ConfiguredEndpoint.EndpointUrl.ToString();
 
             return session;
@@ -346,7 +359,7 @@ namespace Opc.Ua.Client.Tests
         /// <param name="endpoint">The configured endpoint</param>
         public ISession CreateSession(ITransportChannel channel, ConfiguredEndpoint endpoint)
         {
-            return SessionFactory.Create(Config, channel, endpoint, null);
+            return SessionFactory.Create(channel, Config, endpoint, null);
         }
 
         /// <summary>
@@ -387,7 +400,7 @@ namespace Opc.Ua.Client.Tests
             foreach (EndpointDescription endpoint in endpoints)
             {
                 // check for a match on the URL scheme.
-                if (endpoint.EndpointUrl.StartsWith(url.Scheme))
+                if (endpoint.EndpointUrl.StartsWith(url.Scheme, StringComparison.Ordinal))
                 {
                     // skip unsupported security policies
                     if (!configuration.SecurityConfiguration.SupportedSecurityPolicies.Contains(
@@ -418,16 +431,22 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Get endpoints from discovery endpoint.
         /// </summary>
-        /// <param name="url">The url of the discovery endpoint.</param>
-        public async Task<EndpointDescriptionCollection> GetEndpointsAsync(Uri url)
+        public async Task<EndpointDescriptionCollection> GetEndpointsAsync(
+            Uri url,
+            CancellationToken ct = default)
         {
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = OperationTimeout;
 
-            using var client = DiscoveryClient.Create(url, endpointConfiguration, m_telemetry);
-            EndpointDescriptionCollection result = await client.GetEndpointsAsync(null)
+            using DiscoveryClient client = await DiscoveryClient.CreateAsync(
+                url,
+                endpointConfiguration,
+                m_telemetry,
+                ct: ct).ConfigureAwait(false);
+            client.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
+            EndpointDescriptionCollection result = await client.GetEndpointsAsync(null, ct)
                 .ConfigureAwait(false);
-            await client.CloseAsync().ConfigureAwait(false);
+            await client.CloseAsync(ct).ConfigureAwait(false);
             return result;
         }
 
@@ -436,7 +455,8 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public void StartActivityListenerInternal(bool disableActivityLogging)
         {
-            string expectedName = m_telemetry.GetActivitySource().Name;
+            ActivitySource activitySource = m_telemetry.GetActivitySource();
+            string expectedName = activitySource.Name;
 
             if (disableActivityLogging)
             {
@@ -498,7 +518,7 @@ namespace Opc.Ua.Client.Tests
                 m_logger.LogError(
                     "Session '{SessionName}' keep alive error: {StatusCode}",
                     session.SessionName,
-                    e.Status);
+                    e.Status.ToLongString());
             }
         }
     }

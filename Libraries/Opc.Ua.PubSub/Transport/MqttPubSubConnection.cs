@@ -259,7 +259,7 @@ namespace Opc.Ua.PubSub.Transport
             {
                 lock (Lock)
                 {
-                    if (m_publisherMqttClient != null && m_publisherMqttClient.IsConnected)
+                    if (m_publisherMqttClient.IsConnected)
                     {
                         // get the encoded bytes
                         byte[] bytes = networkMessage.Encode(MessageContext);
@@ -546,7 +546,10 @@ namespace Opc.Ua.PubSub.Transport
                             {
                                 DisposeCerts(certificates);
                                 Utils.SilentDispose(client);
-                            })
+                            },
+                            default,
+                            TaskContinuationOptions.None,
+                            TaskScheduler.Default)
                             .ConfigureAwait(false);
                     }
                     else
@@ -708,6 +711,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Transform pub sub setting into MqttNet enum
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         private static MqttQualityOfServiceLevel GetMqttQualityOfServiceLevel(
             BrokerTransportQualityOfService brokerTransportQualityOfService)
         {
@@ -719,8 +723,14 @@ namespace Opc.Ua.PubSub.Transport
                     return MqttQualityOfServiceLevel.AtMostOnce;
                 case BrokerTransportQualityOfService.ExactlyOnce:
                     return MqttQualityOfServiceLevel.ExactlyOnce;
-                default:
+                case BrokerTransportQualityOfService.NotSpecified:
+                case BrokerTransportQualityOfService.BestEffort:
                     return MqttQualityOfServiceLevel.AtLeastOnce;
+                default:
+                    throw new ArgumentOutOfRangeException(
+                        nameof(brokerTransportQualityOfService),
+                        brokerTransportQualityOfService,
+                        "Unexpected service level");
             }
         }
 
@@ -779,112 +789,105 @@ namespace Opc.Ua.PubSub.Transport
                 UrlScheme = connectionUri.Scheme;
             }
 
-            ITransportProtocolConfiguration transportProtocolConfiguration
-                = new MqttClientProtocolConfiguration(
-                PubSubConnectionConfiguration.ConnectionProperties, m_logger);
+            var transportProtocolConfiguration =
+                new MqttClientProtocolConfiguration(PubSubConnectionConfiguration.ConnectionProperties, m_logger);
 
-            if (transportProtocolConfiguration is MqttClientProtocolConfiguration mqttProtocolConfiguration)
+            var mqttProtocolVersion = (MqttProtocolVersion)
+                transportProtocolConfiguration
+                    .ProtocolVersion;
+            // create uniques client id
+            string clientId = $"ClientId_{UnsecureRandom.Shared.Next():D10}";
+
+            // MQTTS mqttConnection.
+            if (connectionUri.Scheme == Utils.UriSchemeMqtts)
             {
-                var mqttProtocolVersion = (MqttProtocolVersion)
-                    ((MqttClientProtocolConfiguration)transportProtocolConfiguration)
-                        .ProtocolVersion;
-                // create uniques client id
-                string clientId = $"ClientId_{new Random().Next():D10}";
+                MqttTlsOptions mqttTlsOptions = transportProtocolConfiguration.MqttTlsOptions;
 
-                // MQTTS mqttConnection.
-                if (connectionUri.Scheme == Utils.UriSchemeMqtts)
+                var x509Certificate2s = new List<X509Certificate2>();
+                if (mqttTlsOptions?.Certificates != null)
                 {
-                    MqttTlsOptions mqttTlsOptions = (
-                        (MqttClientProtocolConfiguration)transportProtocolConfiguration
-                    ).MqttTlsOptions;
-
-                    var x509Certificate2s = new List<X509Certificate2>();
-                    if (mqttTlsOptions?.Certificates != null)
+                    foreach (X509Certificate x509cert in mqttTlsOptions?.Certificates
+                        .X509Certificates)
                     {
-                        foreach (X509Certificate x509cert in mqttTlsOptions?.Certificates
-                            .X509Certificates)
+                        if (x509cert is X509Certificate2 x509Certificate2)
                         {
-                            if (x509cert is X509Certificate2 x509Certificate2)
-                            {
-                                x509Certificate2s.Add(
-                                    X509CertificateLoader.LoadCertificate(
-                                        x509Certificate2.RawData));
-                            }
+                            x509Certificate2s.Add(
+                                CertificateFactory.Create(x509Certificate2.RawData));
                         }
                     }
-
-                    MqttClientOptionsBuilder mqttClientOptionsBuilder
-                        = new MqttClientOptionsBuilder()
-                        .WithTcpServer(BrokerHostName, BrokerPort)
-                        .WithKeepAlivePeriod(mqttKeepAlive)
-                        .WithProtocolVersion(mqttProtocolVersion)
-                        .WithClientId(clientId)
-                        .WithTlsOptions(o => o.UseTls(true)
-                            .WithClientCertificates(x509Certificate2s)
-                            .WithSslProtocols(
-                                mqttTlsOptions?.SslProtocolVersion ??
-                                System.Security.Authentication.SslProtocols.None)
-                            .WithAllowUntrustedCertificates(
-                                mqttTlsOptions?.AllowUntrustedCertificates ?? false)
-                            .WithIgnoreCertificateChainErrors(
-                                mqttTlsOptions?.IgnoreCertificateChainErrors ?? false)
-                            .WithIgnoreCertificateRevocationErrors(
-                                mqttTlsOptions?.IgnoreRevocationListErrors ?? false)
-                            .WithCertificateValidationHandler(ValidateBrokerCertificate));
-
-                    // Set user credentials.
-                    if (mqttProtocolConfiguration.UseCredentials)
-                    {
-                        mqttClientOptionsBuilder.WithCredentials(
-                            new System.Net.NetworkCredential(
-                                string.Empty,
-                                mqttProtocolConfiguration.UserName).Password,
-                            new System.Net.NetworkCredential(
-                                string.Empty,
-                                mqttProtocolConfiguration.Password).Password);
-
-                        // Set ClientId for Azure.
-                        if (mqttProtocolConfiguration.UseAzureClientId)
-                        {
-                            mqttClientOptionsBuilder.WithClientId(
-                                mqttProtocolConfiguration.AzureClientId);
-                        }
-                    }
-
-                    mqttOptions = mqttClientOptionsBuilder.Build();
-
-                    // Create the certificate validator for broker certificates.
-                    m_certificateValidator = CreateCertificateValidator(mqttTlsOptions, Telemetry);
-                    m_certificateValidator.CertificateValidation
-                        += CertificateValidator_CertificateValidation;
-                    m_mqttClientTlsOptions = mqttOptions?.ChannelOptions?.TlsOptions;
                 }
-                // MQTT mqttConnection
-                else if (connectionUri.Scheme == Utils.UriSchemeMqtt)
+
+                MqttClientOptionsBuilder mqttClientOptionsBuilder
+                    = new MqttClientOptionsBuilder()
+                    .WithTcpServer(BrokerHostName, BrokerPort)
+                    .WithKeepAlivePeriod(mqttKeepAlive)
+                    .WithProtocolVersion(mqttProtocolVersion)
+                    .WithClientId(clientId)
+                    .WithTlsOptions(o => o.UseTls(true)
+                        .WithClientCertificates(x509Certificate2s)
+                        .WithSslProtocols(
+                            mqttTlsOptions?.SslProtocolVersion ??
+                            System.Security.Authentication.SslProtocols.None)
+                        .WithAllowUntrustedCertificates(
+                            mqttTlsOptions?.AllowUntrustedCertificates ?? false)
+                        .WithIgnoreCertificateChainErrors(
+                            mqttTlsOptions?.IgnoreCertificateChainErrors ?? false)
+                        .WithIgnoreCertificateRevocationErrors(
+                            mqttTlsOptions?.IgnoreRevocationListErrors ?? false)
+                        .WithCertificateValidationHandler(ValidateBrokerCertificate));
+
+                // Set user credentials.
+                if (transportProtocolConfiguration.UseCredentials)
                 {
-                    MqttClientOptionsBuilder mqttClientOptionsBuilder
-                        = new MqttClientOptionsBuilder()
-                        .WithTcpServer(BrokerHostName, BrokerPort)
-                        .WithKeepAlivePeriod(mqttKeepAlive)
-                        .WithClientId(clientId)
-                        .WithProtocolVersion(mqttProtocolVersion);
+                    mqttClientOptionsBuilder.WithCredentials(
+                        new System.Net.NetworkCredential(
+                            string.Empty,
+                            transportProtocolConfiguration.UserName).Password,
+                        new System.Net.NetworkCredential(
+                            string.Empty,
+                            transportProtocolConfiguration.Password).Password);
 
-                    // Set user credentials.
-                    if (mqttProtocolConfiguration.UseCredentials)
+                    // Set ClientId for Azure.
+                    if (transportProtocolConfiguration.UseAzureClientId)
                     {
-                        // Following Password usage in both cases is correct since it is the Password position
-                        // to be taken into account for the UserName to be read properly
-                        mqttClientOptionsBuilder.WithCredentials(
-                            new System.Net.NetworkCredential(
-                                string.Empty,
-                                mqttProtocolConfiguration.UserName).Password,
-                            new System.Net.NetworkCredential(
-                                string.Empty,
-                                mqttProtocolConfiguration.Password).Password);
+                        mqttClientOptionsBuilder.WithClientId(
+                            transportProtocolConfiguration.AzureClientId);
                     }
-
-                    mqttOptions = mqttClientOptionsBuilder.Build();
                 }
+
+                mqttOptions = mqttClientOptionsBuilder.Build();
+
+                // Create the certificate validator for broker certificates.
+                m_certificateValidator = CreateCertificateValidator(mqttTlsOptions, Telemetry);
+                m_certificateValidator.CertificateValidation
+                    += CertificateValidator_CertificateValidation;
+                m_mqttClientTlsOptions = mqttOptions?.ChannelOptions?.TlsOptions;
+            }
+            // MQTT mqttConnection
+            else if (connectionUri.Scheme == Utils.UriSchemeMqtt)
+            {
+                MqttClientOptionsBuilder mqttClientOptionsBuilder
+                    = new MqttClientOptionsBuilder()
+                    .WithTcpServer(BrokerHostName, BrokerPort)
+                    .WithKeepAlivePeriod(mqttKeepAlive)
+                    .WithClientId(clientId)
+                    .WithProtocolVersion(mqttProtocolVersion);
+
+                // Set user credentials.
+                if (transportProtocolConfiguration.UseCredentials)
+                {
+                    // Following Password usage in both cases is correct since it is the Password position
+                    // to be taken into account for the UserName to be read properly
+                    mqttClientOptionsBuilder.WithCredentials(
+                        new System.Net.NetworkCredential(
+                            string.Empty,
+                            transportProtocolConfiguration.UserName).Password,
+                        new System.Net.NetworkCredential(
+                            string.Empty,
+                            transportProtocolConfiguration.Password).Password);
+                }
+
+                mqttOptions = mqttClientOptionsBuilder.Build();
             }
 
             return mqttOptions;
@@ -926,7 +929,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="context">The context of the validation</param>
         private bool ValidateBrokerCertificate(MqttClientCertificateValidationEventArgs context)
         {
-            X509Certificate2 brokerCertificate = X509CertificateLoader.LoadCertificate(
+            X509Certificate2 brokerCertificate = CertificateFactory.Create(
                 context.Certificate.GetRawCertData());
 
             try
@@ -937,7 +940,7 @@ namespace Opc.Ua.PubSub.Transport
                     return Application.OnValidateBrokerCertificate(brokerCertificate);
                 }
 
-                m_certificateValidator?.Validate(brokerCertificate);
+                m_certificateValidator?.ValidateAsync(brokerCertificate, default).GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {

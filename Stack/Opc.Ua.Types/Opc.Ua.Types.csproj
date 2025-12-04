@@ -1,0 +1,50 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(LibTypesTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.Types</PackageId>
+    <AssemblyName>$(AssemblyPrefix).Types</AssemblyName>
+    <RootNamespace>Opc.Ua</RootNamespace>
+    <Description>OPC UA Type Library</Description>
+    <IsPackable>true</IsPackable>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageLicenseFile></PackageLicenseFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Types.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Schema\Opc.Ua.Types.bsd" />
+    <None Remove="Schema\Opc.Ua.Types.xsd" />
+    <None Remove="Schema\BuiltInTypes.bsd" />
+    <None Remove="Schema\StandardTypes.bsd" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Schema\UANodeSet.xsd" />
+    <EmbeddedResource Include="Schema\Opc.Ua.Types.bsd" />
+    <EmbeddedResource Include="Schema\Opc.Ua.Types.xsd" />
+    <EmbeddedResource Include="Schema\BuiltInTypes.bsd" />
+    <EmbeddedResource Include="Schema\StandardTypes.bsd" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Collections.Immutable" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0' OR '$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48'">
+    <PackageReference Include="Microsoft.Bcl.HashCode" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48' OR '$(TargetFramework)' == 'netstandard2.1'">
+    <PackageReference Include="System.Text.Json" />
+  </ItemGroup>
+  <!-- Polyfills for .NET Standard 2.0 and .net 4.8 -->
+  <ItemGroup>
+    <PackageReference Include="PolySharp" PrivateAssets="All" />
+  </ItemGroup>
+  <PropertyGroup>
+    <PolySharpUsePublicAccessibilityForGeneratedTypes>true</PolySharpUsePublicAccessibilityForGeneratedTypes>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <Target Name="GetPackagingOutputs" />
+</Project>

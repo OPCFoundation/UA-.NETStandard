@@ -109,13 +109,18 @@ namespace Opc.Ua.Server
                 List<ISubscription> subscriptions = null;
                 List<SessionPublishQueue> publishQueues = null;
 
-                lock (m_lock)
+                m_semaphoreSlim.Wait();
+                try
                 {
                     publishQueues = [.. m_publishQueues.Values];
                     m_publishQueues.Clear();
 
                     subscriptions = [.. m_subscriptions.Values];
                     m_subscriptions.Clear();
+                }
+                finally
+                {
+                    m_semaphoreSlim.Release();
                 }
 
                 foreach (SessionPublishQueue publishQueue in publishQueues)
@@ -130,6 +135,7 @@ namespace Opc.Ua.Server
 
                 Utils.SilentDispose(m_shutdownEvent);
                 Utils.SilentDispose(m_conditionRefreshEvent);
+                Utils.SilentDispose(m_semaphoreSlim);
             }
         }
 
@@ -217,33 +223,46 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Starts up the manager makes it ready to create subscriptions.
         /// </summary>
-        public virtual void Startup()
+        public virtual async ValueTask StartupAsync(CancellationToken cancellationToken = default)
         {
-            lock (m_lock)
+            await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
                 // restore subscriptions on startup
-                RestoreSubscriptions();
+                await RestoreSubscriptionsAsync(cancellationToken)
+                    .ConfigureAwait(false);
 
                 m_shutdownEvent.Reset();
 
-                Task.Factory.StartNew(
+                // TODO: Ensure shutdown awaits completion and a cancellation token is passed
+                _ = Task.Factory.StartNew(
                     () => PublishSubscriptions(m_publishingResolution),
-                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
+                    default,
+                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
+                    TaskScheduler.Default);
 
                 m_conditionRefreshEvent.Reset();
 
-                Task.Factory.StartNew(
-                    ConditionRefreshWorker,
-                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
+                // TODO: Ensure shutdown awaits completion and a cancellation token is passed
+                _ = Task.Factory.StartNew(
+                    ConditionRefreshWorkerAsync,
+                    default,
+                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
+                    TaskScheduler.Default);
+            }
+            finally
+            {
+                m_semaphoreSlim.Release();
             }
         }
 
         /// <summary>
         /// Closes all subscriptions and rejects any new requests.
         /// </summary>
-        public virtual void Shutdown()
+        public virtual async ValueTask ShutdownAsync(CancellationToken cancellationToken = default)
         {
-            lock (m_lock)
+            await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
                 // stop the publishing thread.
                 m_shutdownEvent.Set();
@@ -260,7 +279,8 @@ namespace Opc.Ua.Server
                 m_publishQueues.Clear();
 
                 // store subscriptions to be able to restore them after a restart
-                StoreSubscriptions();
+                await StoreSubscriptionsAsync(cancellationToken)
+                    .ConfigureAwait(false);
 
                 // dispose of subscriptions objects.
                 foreach (ISubscription subscription in m_subscriptions.Values)
@@ -270,14 +290,18 @@ namespace Opc.Ua.Server
 
                 m_subscriptions.Clear();
             }
+            finally
+            {
+                m_semaphoreSlim.Release();
+            }
         }
 
         /// <summary>
         /// Stores durable subscriptions to  be able to restore them after a restart
         /// </summary>
-        public virtual void StoreSubscriptions()
+        public virtual async ValueTask StoreSubscriptionsAsync(CancellationToken cancellationToken = default)
         {
-            // only store subscriptions if durable subscriptions are enabeld
+            // only store subscriptions if durable subscriptions are enabled
             if (!m_durableSubscriptionsEnabled || m_subscriptionStore == null)
             {
                 return;
@@ -316,7 +340,7 @@ namespace Opc.Ua.Server
         /// Restore durable subscriptions after a server restart
         /// </summary>
         /// <exception cref="InvalidOperationException"></exception>
-        public virtual void RestoreSubscriptions()
+        public virtual async ValueTask RestoreSubscriptionsAsync(CancellationToken cancellationToken = default)
         {
             if (m_server.IsRunning)
             {
@@ -357,7 +381,8 @@ namespace Opc.Ua.Server
 
                 try
                 {
-                    subscription = RestoreSubscription(storedSubscription);
+                    subscription = await RestoreSubscriptionAsync(storedSubscription, cancellationToken)
+                        .ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -381,7 +406,9 @@ namespace Opc.Ua.Server
         /// Restore a subscription after a restart
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        protected virtual ISubscription RestoreSubscription(IStoredSubscription storedSubscription)
+        protected virtual async ValueTask<ISubscription> RestoreSubscriptionAsync(
+            IStoredSubscription storedSubscription,
+            CancellationToken cancellationToken = default)
         {
             if (m_subscriptions.Count >= m_maxSubscriptionCount)
             {
@@ -410,7 +437,8 @@ namespace Opc.Ua.Server
                 storedSubscription.MaxNotificationsPerPublish);
 
             // create the subscription.
-            var subscription = new Subscription(m_server, storedSubscription);
+            var subscription = await Subscription.RestoreAsync(m_server, storedSubscription, cancellationToken)
+                .ConfigureAwait(false);
 
             uint publishingIntervalCount;
 
@@ -500,12 +528,17 @@ namespace Opc.Ua.Server
                     // mark the subscriptions as abandoned.
                     else
                     {
-                        lock (m_lock)
+                        m_semaphoreSlim.Wait();
+                        try
                         {
                             (m_abandonedSubscriptions ??= []).Add(subscription);
                             m_logger.LogWarning(
                                 "Subscription ABANDONED, Id={SubscriptionId}.",
                                 subscription.Id);
+                        }
+                        finally
+                        {
+                            m_semaphoreSlim.Release();
                         }
                     }
                 }
@@ -593,12 +626,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Completes a refresh conditions request.
         /// </summary>
-        private void DoConditionRefresh(ISubscription subscription)
+        private async ValueTask DoConditionRefreshAsync(ISubscription subscription, CancellationToken cancellationToken = default)
         {
             try
             {
                 m_logger.LogTrace("Subscription ConditionRefresh started, Id={SubscriptionId}.", subscription.Id);
-                subscription.ConditionRefresh();
+                await subscription.ConditionRefreshAsync(cancellationToken)
+                    .ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -609,7 +643,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Completes a refresh conditions request.
         /// </summary>
-        private void DoConditionRefresh2(ISubscription subscription, uint monitoredItemId)
+        private async ValueTask DoConditionRefresh2Async(ISubscription subscription, uint monitoredItemId, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -617,7 +651,8 @@ namespace Opc.Ua.Server
                     "Subscription ConditionRefresh2 started, Id={SubscriptionId}, MonitoredItemId={MonitoredItemId}.",
                     subscription.Id,
                     monitoredItemId);
-                subscription.ConditionRefresh2(monitoredItemId);
+                await subscription.ConditionRefresh2Async(monitoredItemId, cancellationToken)
+                    .ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -633,7 +668,8 @@ namespace Opc.Ua.Server
         {
             ISubscription subscription = null;
 
-            lock (m_lock)
+            m_semaphoreSlim.Wait();
+            try
             {
                 // remove from publish queue.
                 if (m_subscriptions.TryGetValue(subscriptionId, out subscription))
@@ -674,6 +710,10 @@ namespace Opc.Ua.Server
 
                 // remove subscription.
                 m_subscriptions.TryRemove(subscriptionId, out _);
+            }
+            finally
+            {
+                m_semaphoreSlim.Release();
             }
 
             if (subscription != null)
@@ -739,19 +779,16 @@ namespace Opc.Ua.Server
         {
             var publishingDiagnostics = new Dictionary<double, uint>();
 
-            lock (m_lock)
+            foreach (ISubscription subscription in m_subscriptions.Values)
             {
-                foreach (ISubscription subscription in m_subscriptions.Values)
+                double publishingInterval = subscription.PublishingInterval;
+
+                if (!publishingDiagnostics.TryGetValue(publishingInterval, out uint total))
                 {
-                    double publishingInterval = subscription.PublishingInterval;
-
-                    if (!publishingDiagnostics.TryGetValue(publishingInterval, out uint total))
-                    {
-                        total = 0;
-                    }
-
-                    publishingDiagnostics[publishingInterval] = total + 1;
+                    total = 0;
                 }
+
+                publishingDiagnostics[publishingInterval] = total + 1;
             }
 
             return (uint)publishingDiagnostics.Count;
@@ -816,7 +853,8 @@ namespace Opc.Ua.Server
                 priority,
                 publishingEnabled);
 
-            lock (m_lock)
+            m_semaphoreSlim.Wait();
+            try
             {
                 // save subscription.
                 if (!m_subscriptions.TryAdd(subscriptionId, subscription))
@@ -843,10 +881,14 @@ namespace Opc.Ua.Server
                             return queue;
                         }
                 );
-
-                // get the count for the diagnostics.
-                publishingIntervalCount = GetPublishingIntervalCount();
             }
+            finally
+            {
+                m_semaphoreSlim.Release();
+            }
+
+            // get the count for the diagnostics.
+            publishingIntervalCount = GetPublishingIntervalCount();
 
             lock (m_statusMessagesLock)
             {
@@ -906,6 +948,8 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
+                    m_logger.LogError(e, "Error occurred in DeleteSubscriptions");
+
                     var result = ServiceResult.Create(
                         e,
                         StatusCodes.BadUnexpectedError,
@@ -929,77 +973,6 @@ namespace Opc.Ua.Server
             {
                 diagnosticInfos.Clear();
             }
-        }
-
-        /// <summary>
-        /// Publishes a subscription.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public NotificationMessage Publish(
-            OperationContext context,
-            SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
-            AsyncPublishOperation operation,
-            out uint subscriptionId,
-            out UInt32Collection availableSequenceNumbers,
-            out bool moreNotifications,
-            out StatusCodeCollection acknowledgeResults,
-            out DiagnosticInfoCollection acknowledgeDiagnosticInfos)
-        {
-            availableSequenceNumbers = null;
-            moreNotifications = false;
-
-            // get publish queue for session.
-            if (!m_publishQueues.TryGetValue(context.Session.Id, out SessionPublishQueue queue))
-            {
-                if (m_subscriptions.IsEmpty)
-                {
-                    throw new ServiceResultException(StatusCodes.BadNoSubscription);
-                }
-
-                throw new ServiceResultException(StatusCodes.BadSessionClosed);
-            }
-
-            // acknowledge previous messages.
-            queue.Acknowledge(
-                context,
-                subscriptionAcknowledgements,
-                out acknowledgeResults,
-                out acknowledgeDiagnosticInfos);
-
-            // update diagnostics.
-            if (context.Session != null)
-            {
-                lock (context.Session.DiagnosticsLock)
-                {
-                    SessionDiagnosticsDataType diagnostics = context.Session.SessionDiagnostics;
-                    diagnostics.CurrentPublishRequestsInQueue++;
-                }
-            }
-
-            // save results for asynchronous operation.
-            if (operation != null)
-            {
-                operation.Response.Results = acknowledgeResults;
-                operation.Response.DiagnosticInfos = acknowledgeDiagnosticInfos;
-            }
-
-            // gets the next message that is ready to publish.
-            NotificationMessage message = GetNextMessage(
-                context,
-                queue,
-                operation,
-                out subscriptionId,
-                out availableSequenceNumbers,
-                out moreNotifications);
-
-            // if no message and no async operation then a timeout occurred.
-            if (message == null && operation == null)
-            {
-                throw new ServiceResultException(StatusCodes.BadTimeout);
-            }
-
-            // return message.
-            return message;
         }
 
         /// <summary>
@@ -1027,176 +1000,132 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Completes the publish.
+        /// Publishes a subscription.
         /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="operation">The asynchronous operation.</param>
-        /// <returns>
-        /// True if successful. False if the request has been requeued.
-        /// </returns>
         /// <exception cref="ServiceResultException"></exception>
-        public bool CompletePublish(OperationContext context, AsyncPublishOperation operation)
+        public async Task<PublishResponse> PublishAsync(
+            OperationContext context,
+            SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
+            CancellationToken cancellationToken = default)
         {
             // get publish queue for session.
             if (!m_publishQueues.TryGetValue(context.Session.Id, out SessionPublishQueue queue))
             {
+                if (m_subscriptions.IsEmpty)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNoSubscription);
+                }
+
                 throw new ServiceResultException(StatusCodes.BadSessionClosed);
             }
 
-            UInt32Collection availableSequenceNumbers = null;
+            // acknowledge previous messages.
+            queue.Acknowledge(
+                context,
+                subscriptionAcknowledgements,
+                out StatusCodeCollection acknowledgeResults,
+                out DiagnosticInfoCollection acknowledgeDiagnosticInfos);
 
-            NotificationMessage message = null;
-
-            m_logger.LogTrace("Publish #{ClientHandle} ReceivedFromClient", context.ClientHandle);
-            bool requeue = false;
-
-            uint subscriptionId;
-            bool moreNotifications;
-            do
+            // update diagnostics.
+            if (context.Session != null)
             {
-                // wait for a subscription to publish.
-                ISubscription subscription = queue.CompletePublish(
-                    requeue,
-                    operation,
-                    operation.Calldata);
-
-                if (subscription == null)
+                lock (context.Session.DiagnosticsLock)
                 {
-                    return false;
-                }
-
-                subscriptionId = subscription.Id;
-                moreNotifications = false;
-
-                // publish notifications.
-                try
-                {
-                    requeue = false;
-
-                    message = subscription.Publish(
-                        context,
-                        out availableSequenceNumbers,
-                        out moreNotifications);
-
-                    // a null message indicates a false alarm and that there were no notifications
-                    // to publish and that the request needs to be requeued.
-                    if (message != null)
-                    {
-                        break;
-                    }
-
-                    m_logger.LogTrace(
-                        "Publish False Alarm - Request #{ClientHandle} Requeued.",
-                        context.ClientHandle);
-                    requeue = true;
-                }
-                finally
-                {
-                    queue.PublishCompleted(subscription, moreNotifications);
-                }
-            } while (requeue);
-
-            // fill in response if operation completed.
-            if (message != null)
-            {
-                operation.Response.SubscriptionId = subscriptionId;
-                operation.Response.AvailableSequenceNumbers = availableSequenceNumbers;
-                operation.Response.MoreNotifications = moreNotifications;
-                operation.Response.NotificationMessage = message;
-
-                // update diagnostics.
-                if (context.Session != null)
-                {
-                    lock (context.Session.DiagnosticsLock)
-                    {
-                        SessionDiagnosticsDataType diagnostics = context.Session.SessionDiagnostics;
-                        diagnostics.CurrentPublishRequestsInQueue--;
-                    }
+                    SessionDiagnosticsDataType diagnostics = context.Session.SessionDiagnostics;
+                    diagnostics.CurrentPublishRequestsInQueue++;
                 }
             }
-
-            return true;
-        }
-
-        /// <summary>
-        /// Publishes a subscription.
-        /// </summary>
-        public NotificationMessage GetNextMessage(
-            OperationContext context,
-            SessionPublishQueue queue,
-            AsyncPublishOperation operation,
-            out uint subscriptionId,
-            out UInt32Collection availableSequenceNumbers,
-            out bool moreNotifications)
-        {
-            subscriptionId = 0;
-            availableSequenceNumbers = null;
-            moreNotifications = false;
-
-            NotificationMessage message = null;
 
             try
             {
                 m_logger.LogTrace("Publish #{ClientHandle} ReceivedFromClient", context.ClientHandle);
 
-                if (ReturnPendingStatusMessage(context, out message, out subscriptionId))
+                // check for any pending status messages that need to be sent.
+                if (ReturnPendingStatusMessage(context, out NotificationMessage statusMessage, out uint statusSubscriptionId))
                 {
-                    return message;
+                    return new PublishResponse
+                    {
+                        SubscriptionId = statusSubscriptionId,
+                        MoreNotifications = false,
+                        NotificationMessage = statusMessage,
+                        Results = acknowledgeResults,
+                        DiagnosticInfos = acknowledgeDiagnosticInfos
+                    };
                 }
 
                 bool requeue = false;
 
                 do
                 {
-                    // wait for a subscription to publish.
-                    ISubscription subscription = queue.Publish(
-                        context.ClientHandle,
+                    // blocks until a subscription is available or timeout expires.
+                    ISubscription subscription = await queue.PublishAsync(
+                        context.ChannelContext.SecureChannelId,
                         context.OperationDeadline,
                         requeue,
-                        operation);
+                        cancellationToken).ConfigureAwait(false);
 
-                    if (subscription == null)
+                    // check for pending status message that may have arrived while waiting.
+                    if (ReturnPendingStatusMessage(context, out statusMessage, out statusSubscriptionId))
                     {
-                        // check for pending status message.
-                        if (ReturnPendingStatusMessage(context, out message, out subscriptionId))
+                        if (subscription != null)
                         {
-                            return message;
+                            // requeue the subscription that was ready to publish.
+                            queue.Requeue(subscription);
                         }
 
-                        m_logger.LogTrace("Publish #{ClientHandle} Timeout", context.ClientHandle);
-                        return null;
+                        return new PublishResponse
+                        {
+                            SubscriptionId = statusSubscriptionId,
+                            MoreNotifications = false,
+                            NotificationMessage = statusMessage,
+                            Results = acknowledgeResults,
+                            DiagnosticInfos = acknowledgeDiagnosticInfos
+                        };
                     }
 
-                    subscriptionId = subscription.Id;
-                    moreNotifications = false;
+                    // false alarm or race condition, requeue the request.
+                    if (subscription == null)
+                    {
+                        requeue = true;
+                        continue;
+                    }
+
+                    bool moreNotifications = false;
 
                     // publish notifications.
                     try
                     {
-                        requeue = false;
-
-                        message = subscription.Publish(
+                        NotificationMessage message = subscription.Publish(
                             context,
-                            out availableSequenceNumbers,
+                            out UInt32Collection availableSequenceNumbers,
                             out moreNotifications);
 
-                        // a null message indicates a false alarm and that there were no notifications
-                        // to publish and that the request needs to be requeued.
+                        // a null message indicates a false alarm; requeue and wait for the next one.
                         if (message != null)
                         {
-                            break;
+                            return new PublishResponse
+                            {
+                                SubscriptionId = subscription.Id,
+                                AvailableSequenceNumbers = availableSequenceNumbers,
+                                MoreNotifications = moreNotifications,
+                                NotificationMessage = message,
+                                Results = acknowledgeResults,
+                                DiagnosticInfos = acknowledgeDiagnosticInfos
+                            };
                         }
 
+                        requeue = true;
                         m_logger.LogTrace(
                             "Publish False Alarm - Request #{ClientHandle} Requeued.",
                             context.ClientHandle);
-                        requeue = true;
                     }
                     finally
                     {
                         queue.PublishCompleted(subscription, moreNotifications);
                     }
                 } while (requeue);
+
+                throw new ServiceResultException(StatusCodes.BadTimeout);
             }
             finally
             {
@@ -1210,8 +1139,6 @@ namespace Opc.Ua.Server
                     }
                 }
             }
-
-            return message;
         }
 
         /// <summary>
@@ -1303,7 +1230,7 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
             }
 
-            if (subscription.SessionId != context.SessionId)
+            if (subscription.SessionId != (context as ISessionSystemContext)?.SessionId)
             {
                 // user tries to access subscription of different session
                 return StatusCodes.BadUserAccessDenied;
@@ -1370,6 +1297,11 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
+                    if (e is not ServiceResultException)
+                    {
+                        m_logger.LogError(e, "Error occurred in SetPublishingMode");
+                    }
+
                     var result = ServiceResult.Create(
                         e,
                         StatusCodes.BadUnexpectedError,
@@ -1488,7 +1420,8 @@ namespace Opc.Ua.Server
                     }
 
                     // transfer session, add subscription to publish queue
-                    lock (m_lock)
+                    m_semaphoreSlim.Wait();
+                    try
                     {
                         subscription.TransferSession(context, sendInitialValues);
 
@@ -1516,6 +1449,10 @@ namespace Opc.Ua.Server
                                 m_maxPublishRequestCount);
                         }
                         publishQueue.Add(subscription);
+                    }
+                    finally
+                    {
+                        m_semaphoreSlim.Release();
                     }
 
                     lock (m_statusMessagesLock)
@@ -1583,7 +1520,8 @@ namespace Opc.Ua.Server
                             }
                         }
 
-                        lock (m_lock)
+                        m_semaphoreSlim.Wait();
+                        try
                         {
                             // trigger publish response to return status immediately
                             if (m_publishQueues.TryGetValue(
@@ -1608,6 +1546,10 @@ namespace Opc.Ua.Server
                                 // check to remove queued requests if no subscriptions are active
                                 ownerPublishQueue.RemoveQueuedRequests();
                             }
+                        }
+                        finally
+                        {
+                            m_semaphoreSlim.Release();
                         }
                     }
 
@@ -1820,13 +1762,12 @@ namespace Opc.Ua.Server
         /// Changes the monitoring mode for a set of items.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void SetMonitoringMode(
+        public ValueTask<(StatusCodeCollection results, DiagnosticInfoCollection diagnosticInfos)> SetMonitoringModeAsync(
             OperationContext context,
             uint subscriptionId,
             MonitoringMode monitoringMode,
             UInt32Collection monitoredItemIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken cancellationToken = default)
         {
             // find subscription.
             if (!m_subscriptions.TryGetValue(subscriptionId, out ISubscription subscription))
@@ -1835,12 +1776,11 @@ namespace Opc.Ua.Server
             }
 
             // create the items.
-            subscription.SetMonitoringMode(
+            return subscription.SetMonitoringModeAsync(
                 context,
                 monitoringMode,
                 monitoredItemIds,
-                out results,
-                out diagnosticInfos);
+                cancellationToken);
         }
 
         /// <summary>
@@ -2103,7 +2043,8 @@ namespace Opc.Ua.Server
                     SessionPublishQueue[] queues = null;
                     ISubscription[] abandonedSubscriptions = null;
 
-                    lock (m_lock)
+                    m_semaphoreSlim.Wait();
+                    try
                     {
                         // collect active session queues.
                         queues = new SessionPublishQueue[m_publishQueues.Count];
@@ -2120,6 +2061,10 @@ namespace Opc.Ua.Server
                                 abandonedSubscriptions[ii] = m_abandonedSubscriptions[ii];
                             }
                         }
+                    }
+                    finally
+                    {
+                        m_semaphoreSlim.Release();
                     }
 
                     // check the publish timer for each subscription.
@@ -2142,7 +2087,7 @@ namespace Opc.Ua.Server
                                 continue;
                             }
 
-                            (subscriptionsToDelete ??= []).Add(subscription);
+                            subscriptionsToDelete.Add(subscription);
                             SubscriptionExpired(subscription);
                             m_logger.LogInformation(
                                 "Subscription - Abandoned Subscription Id={SubscriptionId} Delete Scheduled.",
@@ -2152,12 +2097,17 @@ namespace Opc.Ua.Server
                         // schedule cleanup on a background thread.
                         if (subscriptionsToDelete.Count > 0)
                         {
-                            lock (m_lock)
+                            m_semaphoreSlim.Wait();
+                            try
                             {
                                 for (int ii = 0; ii < subscriptionsToDelete.Count; ii++)
                                 {
                                     m_abandonedSubscriptions.Remove(subscriptionsToDelete[ii]);
                                 }
+                            }
+                            finally
+                            {
+                                m_semaphoreSlim.Release();
                             }
 
                             CleanupSubscriptions(m_server, subscriptionsToDelete, m_logger);
@@ -2188,7 +2138,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// A single thread to execute the condition refresh.
         /// </summary>
-        private void ConditionRefreshWorker()
+        private async Task ConditionRefreshWorkerAsync()
         {
             try
             {
@@ -2218,13 +2168,15 @@ namespace Opc.Ua.Server
                     }
                     else if (conditionRefreshTask.MonitoredItemId == 0)
                     {
-                        DoConditionRefresh(conditionRefreshTask.Subscription);
+                        await DoConditionRefreshAsync(conditionRefreshTask.Subscription)
+                            .ConfigureAwait(false);
                     }
                     else
                     {
-                        DoConditionRefresh2(
+                        await DoConditionRefresh2Async(
                             conditionRefreshTask.Subscription,
-                            conditionRefreshTask.MonitoredItemId);
+                            conditionRefreshTask.MonitoredItemId)
+                            .ConfigureAwait(false);
                     }
 
                     // use shutdown event to end loop
@@ -2324,7 +2276,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        private readonly Lock m_lock = new();
+        private readonly SemaphoreSlim m_semaphoreSlim = new(1, 1);
         private uint m_lastSubscriptionId;
         private readonly ILogger m_logger;
         private readonly IServerInternal m_server;

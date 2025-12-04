@@ -181,10 +181,7 @@ namespace Opc.Ua.Gds.Client
             {
                 if (Certificate != null)
                 {
-#if ECC_SUPPORT
                     // TODO  use X509Utils.GetPublicKeySize(Certificate); everywhere
-
-#endif
                     return X509Utils.GetRSAPublicKeySize(Certificate);
                 }
 
@@ -202,7 +199,9 @@ namespace Opc.Ua.Gds.Client
                 {
                     try
                     {
-                        return X509Utils.GetApplicationUriFromCertificate(Certificate);
+                        IReadOnlyList<string> applicationUris
+                            = X509Utils.GetApplicationUrisFromCertificate(Certificate);
+                        return applicationUris.Count > 0 ? applicationUris[0] : null;
                     }
                     catch (Exception e)
                     {

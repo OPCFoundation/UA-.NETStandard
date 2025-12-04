@@ -1,4 +1,4 @@
-name: Build and Test .NET 9.0
+name: Build and Test .NET 10.0
 
 on:
   push:
@@ -17,16 +17,16 @@ jobs:
     name: test-${{matrix.os}}-${{matrix.csproj}}
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false    
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macOS-latest]    
-        csproj: [Security.Certificates, Core, Server, Client, Client.ComplexTypes, PubSub, Configuration, Gds]
+        os: [ubuntu-latest, windows-latest, macOS-latest]
+        csproj: [Security.Certificates, Types, Core, Server, Client, Client.ComplexTypes, PubSub, Configuration, Gds]
         include:
-          - framework: 'net9.0'
-            dotnet-version: '9.0.x'
+          - framework: 'net10.0'
+            dotnet-version: '10.0.x'
             configuration: 'Release'
-            customtesttarget: net9.0
-           
+            customtesttarget: net10.0
+
     env:
       OS: ${{ matrix.os }}
       DOTNET_VERSION: ${{ matrix.dotnet-version }}
@@ -34,12 +34,12 @@ jobs:
       CSPROJ: ${{ matrix.csproj }}
       CSPROJECT: "./Tests/Opc.Ua.${{ matrix.csproj }}.Tests/Opc.Ua.${{ matrix.csproj }}.Tests.csproj"
       TESTRESULTS: "TestResults-${{matrix.csproj}}-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}"
-      
+
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0
-    
+
     - name: Setup .NET ${{ matrix.dotnet-version }}
       uses: actions/setup-dotnet@v5
       with:
@@ -51,13 +51,13 @@ jobs:
 
     - name: Build
       run: dotnet build ${{ env.CSPROJECT }} --force --framework ${{ matrix.framework }} --configuration ${{ matrix.configuration }} /p:CustomTestTarget=${{ matrix.customtesttarget }}
-      
+
     - name: Test
       # note: /p:CollectCoverage=true is only used to disable deterministic builds
       run: dotnet test ${{ env.CSPROJECT }} --no-build --framework ${{ matrix.framework }} --logger trx --configuration ${{ matrix.configuration }} /p:CollectCoverage=true /p:CustomTestTarget=${{ matrix.customtesttarget }} --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory ${{ env.TESTRESULTS }} 
 
     - name: Upload test results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: dotnet-results-${{matrix.csproj}}-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}
         path: ${{ env.TESTRESULTS }}
@@ -73,6 +73,6 @@ jobs:
         env_vars: CSPROJ,OS,DOTNET_VERSION,CONFIGURATION
         fail_ci_if_error: false
         #path_to_write_report: "./coverage/codecov_report-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}/"
-        verbose: true      
+        verbose: true
       # Use always() to always run this step to publish test results when there are test failures
       if: ${{ always() }}

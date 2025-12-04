@@ -224,7 +224,9 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
+#pragma warning disable CA1725 // .net framework changed the name
         public override int Read(Span<byte> buffer)
+#pragma warning restore CA1725
         {
             int count = buffer.Length;
             int offset = 0;
@@ -313,9 +315,9 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public override long Seek(long offset, SeekOrigin origin)
+        public override long Seek(long offset, SeekOrigin loc)
         {
-            switch (origin)
+            switch (loc)
             {
                 case SeekOrigin.Begin:
                     break;
@@ -409,7 +411,9 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
+#pragma warning disable CA1725 // .net framework changed the name
         public override void Write(ReadOnlySpan<byte> buffer)
+#pragma warning restore CA1725 // .net framework changed the name
         {
             int count = buffer.Length;
             int offset = 0;

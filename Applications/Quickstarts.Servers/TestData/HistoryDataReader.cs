@@ -140,8 +140,7 @@ namespace TestData
             QualifiedName dataEncoding,
             DataValueCollection values)
         {
-            DataValue value;
-            do
+            while (true)
             {
                 // check for limit.
                 if (m_request.NumValuesPerNode > 0 && values.Count >= m_request.NumValuesPerNode)
@@ -149,7 +148,7 @@ namespace TestData
                     return false;
                 }
 
-                value = m_source.NextRaw(
+                DataValue value = m_source.NextRaw(
                     m_lastTime,
                     m_isForward,
                     m_request.IsReadModified,
@@ -174,9 +173,7 @@ namespace TestData
 
                 // add value.
                 AddValue(timestampsToReturn, indexRange, dataEncoding, values, value);
-            } while (value != null);
-
-            return true;
+            }
         }
 
         /// <summary>

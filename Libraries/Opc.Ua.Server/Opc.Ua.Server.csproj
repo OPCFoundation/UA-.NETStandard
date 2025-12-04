@@ -11,15 +11,11 @@
     <PackageLicenseFile></PackageLicenseFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Server.Tests" />
+  </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
-    <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
-  </PropertyGroup>
-  <!-- select ECC support -->
-  <PropertyGroup Condition="'$(TargetFramework)' != 'netstandard2.0'">
-    <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />

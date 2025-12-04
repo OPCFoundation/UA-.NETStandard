@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
@@ -74,8 +73,7 @@ namespace Opc.Ua.Client.Tests
                 // start Ref server
                 ServerFixture = new ServerFixture<ReferenceServer>(
                     enableTracing,
-                    disableActivityLogging,
-                    Telemetry)
+                    disableActivityLogging)
                 {
                     UriScheme = UriScheme,
                     SecurityNone = securityNone,
@@ -249,7 +247,7 @@ namespace Opc.Ua.Client.Tests
             }
             else
             {
-                mi = new MonitoredItem
+                mi = new MonitoredItem(Session.MessageContext.Telemetry)
                 {
                     AttributeId = Attributes.Value,
                     StartNodeId = VariableIds.Server_ServerStatus_CurrentTime,
@@ -300,7 +298,7 @@ namespace Opc.Ua.Client.Tests
 
             uint id = subscription.Id;
 
-            var mi = new MonitoredItem
+            var mi = new MonitoredItem(Session.MessageContext.Telemetry)
             {
                 AttributeId = Attributes.Value,
                 StartNodeId = VariableIds.Server_ServerStatus_CurrentTime,
@@ -479,8 +477,8 @@ namespace Opc.Ua.Client.Tests
             {
                 // if durable subscription the server will restore the subscription
                 TestContext.Out.WriteLine("------- Server stopping --------");
-                ReferenceServer.Stop();
-                ReferenceServer.Start(ServerFixture.Config);
+                await ReferenceServer.StopAsync().ConfigureAwait(false);
+                await ReferenceServer.StartAsync(ServerFixture.Config).ConfigureAwait(false);
                 TestContext.Out.WriteLine("------- Server restarted --------");
             }
             else
@@ -490,8 +488,8 @@ namespace Opc.Ua.Client.Tests
             }
 
             DateTime restartTime = DateTime.UtcNow;
-#if !DEBUG
-            ISession transferSession= await ClientFixture
+#if !DEBUG_CONNECT_FAILED
+            ISession transferSession = await ClientFixture
                 .ConnectAsync(
                     ServerUrl,
                     SecurityPolicies.Basic256Sha256,
@@ -800,7 +798,7 @@ namespace Opc.Ua.Client.Tests
             return values;
         }
 
-        private static MonitoredItem CreateEventMonitoredItem(uint queueSize)
+        private MonitoredItem CreateEventMonitoredItem(uint queueSize)
         {
             var whereClause = new ContentFilter();
 
@@ -817,7 +815,7 @@ namespace Opc.Ua.Client.Tests
                         Value = new Variant(new NodeId(ObjectTypeIds.BaseEventType)) }
                 ]);
 
-            return new MonitoredItem
+            return new MonitoredItem(Session.MessageContext.Telemetry)
             {
                 AttributeId = Attributes.EventNotifier,
                 StartNodeId = ObjectIds.Server,

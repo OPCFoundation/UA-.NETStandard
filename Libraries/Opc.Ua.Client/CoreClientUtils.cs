@@ -83,9 +83,11 @@ namespace Opc.Ua.Client
             endpointConfiguration.OperationTimeout = discoverTimeout;
 
             // Connect to the local discovery server and find the available servers.
-            using (var client = DiscoveryClient.Create(
+            using (DiscoveryClient client = await DiscoveryClient.CreateAsync(
                     new Uri(Utils.Format(Utils.DiscoveryUrls[0], "localhost")),
-                    endpointConfiguration, telemetry))
+                    endpointConfiguration,
+                    telemetry,
+                    ct: ct).ConfigureAwait(false))
             {
                 ApplicationDescriptionCollection servers =
                     await client.FindServersAsync(null, ct).ConfigureAwait(false);
@@ -127,7 +129,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Finds the endpoint that best matches the current settings.
         /// </summary>
-        public static ValueTask<EndpointDescription> SelectEndpointAsync(
+        public static ValueTask<EndpointDescription?> SelectEndpointAsync(
             ApplicationConfiguration application,
             ITransportWaitingConnection connection,
             bool useSecurity,
@@ -146,7 +148,8 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Finds the endpoint that best matches the current settings.
         /// </summary>
-        public static async ValueTask<EndpointDescription> SelectEndpointAsync(
+        /// <exception cref="ServiceResultException"></exception>
+        public static async ValueTask<EndpointDescription?> SelectEndpointAsync(
             ApplicationConfiguration application,
             ITransportWaitingConnection connection,
             bool useSecurity,
@@ -159,11 +162,13 @@ namespace Opc.Ua.Client
                 ? discoverTimeout
                 : DefaultDiscoverTimeout;
 
-            using var client = DiscoveryClient.Create(
+            using DiscoveryClient client = await DiscoveryClient.CreateAsync(
                 application,
                 connection,
-                endpointConfiguration);
-            var url = new Uri(client.Endpoint.EndpointUrl);
+                endpointConfiguration,
+                ct: ct).ConfigureAwait(false);
+            var url = new Uri(client.Endpoint?.EndpointUrl ??
+                throw ServiceResultException.Unexpected("Endpoint missing"));
             EndpointDescriptionCollection endpoints =
                 await client.GetEndpointsAsync(null, ct).ConfigureAwait(false);
             return SelectEndpoint(
@@ -184,7 +189,7 @@ namespace Opc.Ua.Client
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>The best available endpoint.</returns>
-        public static ValueTask<EndpointDescription> SelectEndpointAsync(
+        public static ValueTask<EndpointDescription?> SelectEndpointAsync(
             ApplicationConfiguration application,
             string discoveryUrl,
             bool useSecurity,
@@ -210,7 +215,8 @@ namespace Opc.Ua.Client
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>The best available endpoint.</returns>
-        public static async ValueTask<EndpointDescription> SelectEndpointAsync(
+        /// <exception cref="ServiceResultException"></exception>
+        public static async ValueTask<EndpointDescription?> SelectEndpointAsync(
             ApplicationConfiguration application,
             string discoveryUrl,
             bool useSecurity,
@@ -222,29 +228,37 @@ namespace Opc.Ua.Client
             var endpointConfiguration = EndpointConfiguration.Create(application);
             endpointConfiguration.OperationTimeout = discoverTimeout;
 
-            using var client = DiscoveryClient.Create(application, uri, endpointConfiguration);
+            using DiscoveryClient client = await DiscoveryClient.CreateAsync(
+                application,
+                uri,
+                endpointConfiguration,
+                ct: ct).ConfigureAwait(false);
+
             // Connect to the server's discovery endpoint and find the available configuration.
-            var url = new Uri(client.Endpoint.EndpointUrl);
+            var url = new Uri(client.Endpoint?.EndpointUrl ??
+                throw ServiceResultException.Unexpected("Endpoint missing"));
             EndpointDescriptionCollection endpoints =
                 await client.GetEndpointsAsync(null, ct).ConfigureAwait(false);
-            EndpointDescription selectedEndpoint = SelectEndpoint(
+            EndpointDescription? selectedEndpoint = SelectEndpoint(
                 application,
                 url,
                 endpoints,
                 useSecurity,
                 telemetry);
 
-            Uri endpointUrl = Utils.ParseUri(selectedEndpoint.EndpointUrl);
-            if (endpointUrl != null && endpointUrl.Scheme == uri.Scheme)
+            if (selectedEndpoint != null)
             {
-                var builder = new UriBuilder(endpointUrl)
+                Uri? endpointUrl = Utils.ParseUri(selectedEndpoint.EndpointUrl);
+                if (endpointUrl != null && endpointUrl.Scheme == uri.Scheme)
                 {
-                    Host = uri.IdnHost,
-                    Port = uri.Port
-                };
-                selectedEndpoint.EndpointUrl = builder.ToString();
+                    var builder = new UriBuilder(endpointUrl)
+                    {
+                        Host = uri.IdnHost,
+                        Port = uri.Port
+                    };
+                    selectedEndpoint.EndpointUrl = builder.ToString();
+                }
             }
-
             return selectedEndpoint;
         }
 
@@ -252,14 +266,14 @@ namespace Opc.Ua.Client
         /// Select the best supported endpoint from an
         /// EndpointDescriptionCollection, with or without security.
         /// </summary>
-        public static EndpointDescription SelectEndpoint(
+        public static EndpointDescription? SelectEndpoint(
             ApplicationConfiguration configuration,
             Uri url,
             EndpointDescriptionCollection endpoints,
             bool useSecurity,
             ITelemetryContext telemetry)
         {
-            EndpointDescription selectedEndpoint = null;
+            EndpointDescription? selectedEndpoint = null;
 
             // select the best endpoint to use based on the selected URL and the UseSecurity checkbox.
             for (int ii = 0; ii < endpoints.Count; ii++)

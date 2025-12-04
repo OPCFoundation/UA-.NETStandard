@@ -36,20 +36,13 @@ namespace Opc.Ua.Security.Certificates
     /// <summary>
     /// Builds a Certificate.
     /// </summary>
-    public abstract class CertificateBuilderBase
-        : IX509Certificate,
-            ICertificateBuilder,
-
-            ICertificateBuilderIssuer,
-
-            ICertificateBuilderCreateForRSAAny
-#if ECC_SUPPORT
-            ,
-            ICertificateBuilderCreateForECDsa,
-            ICertificateBuilderECDsaPublicKey,
-            ICertificateBuilderECCParameter,
-            ICertificateBuilderCreateForECDsaAny
-#endif
+    public abstract class CertificateBuilderBase :
+        IX509Certificate,
+        ICertificateBuilder,
+        ICertificateBuilderIssuer,
+        ICertificateBuilderCreateForRSAAny,
+        ICertificateBuilderCreateForECDsa,
+        ICertificateBuilderCreateForECDsaAny
     {
         /// <summary>
         /// Initialize a Certificate builder.
@@ -114,13 +107,11 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public abstract X509Certificate2 CreateForRSA(X509SignatureGenerator generator);
 
-#if ECC_SUPPORT
         /// <inheritdoc/>
         public abstract X509Certificate2 CreateForECDsa();
 
         /// <inheritdoc/>
         public abstract X509Certificate2 CreateForECDsa(X509SignatureGenerator generator);
-#endif
 
         /// <inheritdoc/>
         public ICertificateBuilder SetSerialNumberLength(int length)
@@ -239,7 +230,6 @@ namespace Opc.Ua.Security.Certificates
             return this;
         }
 
-#if ECC_SUPPORT
         /// <inheritdoc/>
         public virtual ICertificateBuilderCreateForECDsaAny SetECCurve(ECCurve curve)
         {
@@ -262,7 +252,6 @@ namespace Opc.Ua.Security.Certificates
             m_ecdsaPublicKey = publicKey ?? throw new ArgumentNullException(nameof(publicKey));
             return this;
         }
-#endif
 
         /// <inheritdoc/>
         public abstract ICertificateBuilderCreateForRSAAny SetRSAPublicKey(byte[] publicKey);
@@ -283,32 +272,29 @@ namespace Opc.Ua.Security.Certificates
             return this;
         }
 
-#if ECC_SUPPORT
-
         /// <summary>
         /// Set the hash algorithm depending on the curve size
         /// </summary>
         private void SetHashAlgorithmSize(ECCurve curve)
         {
             if (curve.Oid.FriendlyName
-                    .CompareTo(ECCurve.NamedCurves.nistP384.Oid.FriendlyName) == 0 ||
+                    .Equals(ECCurve.NamedCurves.nistP384.Oid.FriendlyName, StringComparison.Ordinal) ||
                 curve.Oid.FriendlyName
-                    .CompareTo(ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName) == 0 ||
+                    .Equals(ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName, StringComparison.Ordinal) ||
                 // special case for linux where friendly name could be ECDSA_P384 instead of nistP384
                 (curve.Oid?.Value != null &&
-                    curve.Oid.Value.CompareTo(ECCurve.NamedCurves.nistP384.Oid.Value) == 0))
+                    curve.Oid.Value.Equals(ECCurve.NamedCurves.nistP384.Oid.Value, StringComparison.Ordinal)))
             {
                 SetHashAlgorithm(HashAlgorithmName.SHA384);
             }
             if (curve.Oid.FriendlyName
-                    .CompareTo(ECCurve.NamedCurves.nistP521.Oid.FriendlyName) == 0 ||
+                    .Equals(ECCurve.NamedCurves.nistP521.Oid.FriendlyName, StringComparison.Ordinal) ||
                 (curve.Oid.FriendlyName
-                    .CompareTo(ECCurve.NamedCurves.brainpoolP512r1.Oid.FriendlyName) == 0))
+                    .Equals(ECCurve.NamedCurves.brainpoolP512r1.Oid.FriendlyName, StringComparison.Ordinal)))
             {
                 SetHashAlgorithm(HashAlgorithmName.SHA512);
             }
         }
-#endif
 
         /// <summary>
         /// The issuer CA certificate.
@@ -389,7 +375,6 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private protected int m_keySize;
 
-#if ECC_SUPPORT
         /// <summary>
         /// The ECDsa public to use when if a certificate is signed.
         /// </summary>
@@ -399,6 +384,5 @@ namespace Opc.Ua.Security.Certificates
         /// The ECCurve to use.
         /// </summary>
         private protected ECCurve? m_curve;
-#endif
     }
 }

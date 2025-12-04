@@ -70,7 +70,6 @@ namespace Opc.Ua.Gds.Tests
                 SecurityPolicies.Aes256_Sha256_RsaPss,
                 null
             },
-#if ECC_SUPPORT
             new object[]
             {
                 nameof(OpcUa.ObjectTypeIds.EccNistP256ApplicationCertificateType),
@@ -99,7 +98,6 @@ namespace Opc.Ua.Gds.Tests
                 SecurityPolicies.ECC_brainpoolP384r1,
                 ECCurve.NamedCurves.brainpoolP384r1
             }
-#endif
         ];
 
         public PushTest(string certificateTypeString, NodeId certificateType, string securityPolicyUri, ECCurve? curve)
@@ -163,10 +161,10 @@ namespace Opc.Ua.Gds.Tests
             // start GDS first clean, then restart server
             // to ensure the application cert is not 'fresh'
             m_telemetry = NUnitTelemetryContext.Create();
-            m_server = await TestUtils.StartGDSAsync(true, m_telemetry, CertificateStoreType.Directory).ConfigureAwait(false);
-            m_server.StopServer();
+            m_server = await TestUtils.StartGDSAsync(true, CertificateStoreType.Directory).ConfigureAwait(false);
+            await m_server.StopServerAsync().ConfigureAwait(false);
             await Task.Delay(1000).ConfigureAwait(false);
-            m_server = await TestUtils.StartGDSAsync(false, m_telemetry, CertificateStoreType.Directory).ConfigureAwait(false);
+            m_server = await TestUtils.StartGDSAsync(false, CertificateStoreType.Directory).ConfigureAwait(false);
 
             m_randomSource = new RandomSource(kRandomStart);
 
@@ -190,7 +188,7 @@ namespace Opc.Ua.Gds.Tests
 
             await RegisterPushServerApplicationAsync(m_pushClient.PushClient.EndpointUrl, telemetry).ConfigureAwait(false);
 
-            m_selfSignedServerCert = X509CertificateLoader.LoadCertificate(
+            m_selfSignedServerCert = CertificateFactory.Create(
                 m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
             m_domainNames = [.. X509Utils.GetDomainsFromCertificate(m_selfSignedServerCert)];
 
@@ -209,14 +207,19 @@ namespace Opc.Ua.Gds.Tests
                 await UnRegisterPushServerApplicationAsync().ConfigureAwait(false);
                 await m_gdsClient.DisconnectClientAsync().ConfigureAwait(false);
                 await m_pushClient.DisconnectClientAsync().ConfigureAwait(false);
-                m_server.StopServer();
+                await m_server.StopServerAsync().ConfigureAwait(false);
             }
             catch
             {
             }
-            m_gdsClient = null;
-            m_pushClient = null;
-            m_server = null;
+            finally
+            {
+                m_pushClient.Dispose();
+                m_gdsClient.Dispose();
+                m_gdsClient = null;
+                m_pushClient = null;
+                m_server = null;
+            }
         }
 
         [SetUp]
@@ -497,7 +500,7 @@ namespace Opc.Ua.Gds.Tests
             using X509Certificate2 invalidCert = CertificateFactory
                 .CreateCertificate("uri:x:y:z", "TestApp", "CN=Push Server Test", null)
                 .CreateForRSA();
-            using X509Certificate2 serverCert = X509CertificateLoader.LoadCertificate(
+            using X509Certificate2 serverCert = CertificateFactory.Create(
                 m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
             if (!X509Utils.CompareDistinguishedName(serverCert.Subject, serverCert.Issuer))
             {
@@ -625,7 +628,7 @@ namespace Opc.Ua.Gds.Tests
                 NUnit.Framework.Assert.Ignore("Test only supported for RSA");
             }
             await ConnectPushClientAsync(true).ConfigureAwait(false);
-            using X509Certificate2 serverCert = X509CertificateLoader.LoadCertificate(
+            using X509Certificate2 serverCert = CertificateFactory.Create(
                 m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
             if (!X509Utils.CompareDistinguishedName(serverCert.Subject, serverCert.Issuer))
             {
@@ -754,7 +757,6 @@ namespace Opc.Ua.Gds.Tests
 
             X509Certificate2 newCert;
 
-#if ECC_SUPPORT
             ECCurve? curve = EccUtils.GetCurveFromCertificateTypeId(m_certificateType);
 
             if (curve != null)
@@ -771,7 +773,6 @@ namespace Opc.Ua.Gds.Tests
             // RSA Certificate
             else
             {
-#endif
                 newCert = CertificateFactory
                     .CreateCertificate(
                         m_applicationRecord.ApplicationUri,
@@ -779,9 +780,7 @@ namespace Opc.Ua.Gds.Tests
                         m_selfSignedServerCert.Subject + "1",
                         null)
                     .CreateForRSA();
-#if ECC_SUPPORT
             }
-#endif
 
             byte[] privateKey = null;
             if (keyFormat == "PFX")
@@ -917,7 +916,7 @@ namespace Opc.Ua.Gds.Tests
 
             NUnit.Framework.Assert.That(certificateTypeIds.Length == certificates.Length);
             Assert.NotNull(certificates[0]);
-            using X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(certificates[0]);
+            using X509Certificate2 x509 = CertificateFactory.Create(certificates[0]);
             Assert.NotNull(x509);
         }
 
@@ -1123,7 +1122,7 @@ namespace Opc.Ua.Gds.Tests
                 issuerCertificates = [];
                 foreach (byte[] cert in trustList.IssuerCertificates)
                 {
-                    issuerCertificates.Add(X509CertificateLoader.LoadCertificate(cert));
+                    issuerCertificates.Add(CertificateFactory.Create(cert));
                 }
             }
             if ((masks & (int)TrustListMasks.IssuerCrls) != 0)
@@ -1139,7 +1138,7 @@ namespace Opc.Ua.Gds.Tests
                 trustedCertificates = [];
                 foreach (byte[] cert in trustList.TrustedCertificates)
                 {
-                    trustedCertificates.Add(X509CertificateLoader.LoadCertificate(cert));
+                    trustedCertificates.Add(CertificateFactory.Create(cert));
                 }
             }
             if ((masks & (int)TrustListMasks.TrustedCrls) != 0)
@@ -1280,7 +1279,6 @@ namespace Opc.Ua.Gds.Tests
             var certificateStoreIdentifier = new CertificateStoreIdentifier(tempStorePath, false);
             Assert.IsTrue(EraseStore(certificateStoreIdentifier, telemetry));
             const string subjectName = "CN=CA Test Cert, O=OPC Foundation";
-#if ECC_SUPPORT
             ECCurve? curve = EccUtils.GetCurveFromCertificateTypeId(m_certificateType);
 
             if (curve != null)
@@ -1296,21 +1294,19 @@ namespace Opc.Ua.Gds.Tests
             // RSA Certificate
             else
             {
-#endif
                 m_caCert = await CertificateFactory
                     .CreateCertificate(null, null, subjectName, null)
                     .SetCAConstraint()
                     .CreateForRSA()
                     .AddToStoreAsync(certificateStoreIdentifier, telemetry: telemetry)
                     .ConfigureAwait(false);
-#if ECC_SUPPORT
             }
-#endif
 
             // initialize cert revocation list (CRL)
             X509CRL caCrl = await CertificateGroup
                 .RevokeCertificateAsync(certificateStoreIdentifier, m_caCert, null, m_telemetry)
                 .ConfigureAwait(false);
+            Assert.That(caCrl, Is.Not.Null);
         }
 
         private static bool EraseStore(CertificateStoreIdentifier storeIdentifier, ITelemetryContext telemetry)

@@ -146,7 +146,7 @@ namespace Opc.Ua.Server
         /// <param name="logger">A contextual logger to log to</param>
         public static void ReportAuditWriteUpdateEvent(
             this IAuditEventServer server,
-            SystemContext systemContext,
+            ISystemContext systemContext,
             WriteValue writeValue,
             object oldValue,
             StatusCode statusCode,
@@ -158,7 +158,8 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            if (systemContext?.OperationContext == null || systemContext?.UserIdentity == null)
+            if (systemContext is not ISessionSystemContext session ||
+                session.UserIdentity == null)
             {
                 return;
             }
@@ -192,7 +193,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ClientUserId,
-                    systemContext?.UserIdentity?.DisplayName,
+                    session.UserIdentity.DisplayName,
                     false);
                 e.SetChildValue(
                     systemContext,
@@ -645,7 +646,7 @@ namespace Opc.Ua.Server
             {
                 if (StatusCode.IsBad(sre.InnerResult.Code))
                 {
-                    AuditCertificateEventState auditCertificateEventState = null;
+                    AuditCertificateEventState auditCertificateEventState;
                     switch (sre.StatusCode)
                     {
                         case StatusCodes.BadCertificateTimeInvalid:
@@ -680,40 +681,40 @@ namespace Opc.Ua.Server
                             auditCertificateEventState = new AuditCertificateMismatchEventState(
                                 null);
                             break;
+                        default:
+                            return;
                     }
-                    if (auditCertificateEventState != null)
-                    {
-                        auditCertificateEventState.Initialize(
-                            systemContext,
-                            null,
-                            EventSeverity.Min,
-                            sre.Message,
-                            false,
-                            DateTime.UtcNow
-                        ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
-                        auditCertificateEventState.SetChildValue(
-                            systemContext,
-                            BrowseNames.SourceName,
-                            "Security/Certificate",
-                            false);
+                    auditCertificateEventState.Initialize(
+                        systemContext,
+                        null,
+                        EventSeverity.Min,
+                        sre.Message,
+                        false,
+                        DateTime.UtcNow
+                    ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
-                        // set AuditSecurityEventType fields
-                        auditCertificateEventState.SetChildValue(
-                            systemContext,
-                            BrowseNames.StatusCodeId,
-                            sre.InnerResult.StatusCode,
-                            false);
+                    auditCertificateEventState.SetChildValue(
+                        systemContext,
+                        BrowseNames.SourceName,
+                        "Security/Certificate",
+                        false);
 
-                        // set AuditCertificateEventType fields
-                        auditCertificateEventState.SetChildValue(
-                            systemContext,
-                            BrowseNames.Certificate,
-                            clientCertificate?.RawData,
-                            false);
+                    // set AuditSecurityEventType fields
+                    auditCertificateEventState.SetChildValue(
+                        systemContext,
+                        BrowseNames.StatusCodeId,
+                        sre.InnerResult.StatusCode,
+                        false);
 
-                        server.ReportAuditEvent(systemContext, auditCertificateEventState);
-                    }
+                    // set AuditCertificateEventType fields
+                    auditCertificateEventState.SetChildValue(
+                        systemContext,
+                        BrowseNames.Certificate,
+                        clientCertificate?.RawData,
+                        false);
+
+                    server.ReportAuditEvent(systemContext, auditCertificateEventState);
                 }
             }
             catch (Exception ex)
@@ -1857,7 +1858,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ClientUserId,
-                    systemContext?.UserIdentity?.DisplayName,
+                    (systemContext as ISessionSystemContext)?.UserIdentity?.DisplayName,
                     false);
                 e.SetChildValue(
                     systemContext,
@@ -2027,7 +2028,7 @@ namespace Opc.Ua.Server
             e.SetChildValue(
                 systemContext,
                 BrowseNames.ClientUserId,
-                systemContext?.UserIdentity?.DisplayName,
+                (systemContext as ISessionSystemContext)?.UserIdentity?.DisplayName,
                 false);
             e.SetChildValue(
                 systemContext,

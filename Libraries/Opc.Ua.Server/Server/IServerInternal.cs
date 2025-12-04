@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
@@ -127,6 +129,12 @@ namespace Opc.Ua.Server
         AggregateManager AggregateManager { get; }
 
         /// <summary>
+        /// A manager for modelling rules supported by the server.
+        /// </summary>
+        /// <value>The modelling rules manager.</value>
+        ModellingRulesManager ModellingRulesManager { get; }
+
+        /// <summary>
         /// The manager for active sessions.
         /// </summary>
         /// <value>The session manager.</value>
@@ -216,6 +224,19 @@ namespace Opc.Ua.Server
         void CloseSession(OperationContext context, NodeId sessionId, bool deleteSubscriptions);
 
         /// <summary>
+        /// Closes the specified session.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="sessionId">The session identifier.</param>
+        /// <param name="deleteSubscriptions">if set to <c>true</c> subscriptions are to be deleted.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        ValueTask CloseSessionAsync(
+            OperationContext context,
+            NodeId sessionId,
+            bool deleteSubscriptions,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Deletes the specified subscription.
         /// </summary>
         /// <param name="subscriptionId">The subscription identifier.</param>
@@ -292,6 +313,12 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="aggregateManager">The AggregateManager.</param>
         void SetAggregateManager(AggregateManager aggregateManager);
+
+        /// <summary>
+        /// Stores the ModellingRulesManager in the datastore.
+        /// </summary>
+        /// <param name="modellingRulesManager">The ModellingRulesManager.</param>
+        void SetModellingRulesManager(ModellingRulesManager modellingRulesManager);
 
         /// <summary>
         /// Updates the server status safely.

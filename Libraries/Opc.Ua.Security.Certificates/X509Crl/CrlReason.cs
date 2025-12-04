@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Security.Certificates
 {
     /// <summary>
@@ -48,7 +50,9 @@ namespace Opc.Ua.Security.Certificates
     ///      privilegeWithdrawn(9),
     ///      aACompromise(10) }
     /// </remarks>
+#pragma warning disable CA1027 // Flags does not work with asn.1 enumerated types
     public enum CRLReason
+#pragma warning restore CA1027
     {
         /// <summary> Unspecified </summary>
         Unspecified = 0,

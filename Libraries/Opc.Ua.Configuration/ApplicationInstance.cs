@@ -36,9 +36,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-#if ECC_SUPPORT
 using System.Security.Cryptography;
-#endif
 
 namespace Opc.Ua.Configuration
 {
@@ -161,12 +159,21 @@ namespace Opc.Ua.Configuration
                 await LoadApplicationConfigurationAsync(false).ConfigureAwait(false);
             }
 
-            server.Start(ApplicationConfiguration);
+            await server.StartAsync(ApplicationConfiguration).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Stops the UA server.
         /// </summary>
+        public ValueTask StopAsync()
+        {
+            return Server.StopAsync();
+        }
+
+        /// <summary>
+        /// Stops the UA server.
+        /// </summary>
+        [Obsolete("Use StopAsync")]
         public void Stop()
         {
             Server.Stop();
@@ -332,7 +339,7 @@ namespace Opc.Ua.Configuration
         /// </summary>
         /// <param name="silent">if set to <c>true</c> no dialogs will be displayed.</param>
         /// <param name="lifeTimeInMonths">The lifetime in months.</param>
-        /// <param name="ct">Cancelation token to cancel operation with</param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <exception cref="ServiceResultException"></exception>
         public async ValueTask<bool> CheckApplicationInstanceCertificatesAsync(
             bool silent,
@@ -358,11 +365,16 @@ namespace Opc.Ua.Configuration
                     "Need at least one Application Certificate.");
             }
 
+            // Note: The FindAsync method searches certificates in this order: thumbprint, subjectName, then applicationUri.
+            // When SubjectName or Thumbprint is specified, certificates may be loaded even if their ApplicationUri
+            // doesn't match ApplicationConfiguration.ApplicationUri, however each certificate is validated individually
+            // in CheckApplicationInstanceCertificateAsync (called via CheckOrCreateCertificateAsync) to ensure it contains
+            // the configuration's ApplicationUri.
             bool result = true;
             foreach (CertificateIdentifier certId in securityConfiguration.ApplicationCertificates)
             {
                 ushort minimumKeySize = certId.GetMinKeySize(securityConfiguration);
-                bool nextResult = await CheckCertificateTypeAsync(
+                bool nextResult = await CheckOrCreateCertificateAsync(
                         certId,
                         silent,
                         minimumKeySize,
@@ -376,10 +388,14 @@ namespace Opc.Ua.Configuration
         }
 
         /// <summary>
-        /// Check certificate type
+        /// Checks, validates, and optionally creates an application certificate.
+        /// Loads the certificate, validates it against configured requirements (ApplicationUri, key size, domains),
+        /// and creates a new certificate if none exists and auto-creation is enabled.
+        /// Note: FindAsync searches certificates in order: thumbprint, subjectName, applicationUri.
+        /// The applicationUri parameter is only used if thumbprint and subjectName don't find a match.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private async Task<bool> CheckCertificateTypeAsync(
+        private async Task<bool> CheckOrCreateCertificateAsync(
             CertificateIdentifier id,
             bool silent,
             ushort minimumKeySize,
@@ -447,8 +463,8 @@ namespace Opc.Ua.Configuration
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadConfigurationError,
-                        "Cannot access certificate private key. Subject={0}",
-                        certificate.Subject);
+                        "Cannot access private key for certificate with thumbprint={0}",
+                        certificate.Thumbprint);
                 }
 
                 // check for missing thumbprint.
@@ -695,7 +711,7 @@ namespace Opc.Ua.Configuration
                 await configuration
                     .CertificateValidator.ValidateAsync(
                         certificate.HasPrivateKey
-                            ? X509CertificateLoader.LoadCertificate(certificate.RawData)
+                            ? CertificateFactory.Create(certificate.RawData)
                             : certificate,
                         ct)
                     .ConfigureAwait(false);
@@ -738,28 +754,41 @@ namespace Opc.Ua.Configuration
                 return false;
             }
 
-            // check uri.
-            string applicationUri = X509Utils.GetApplicationUriFromCertificate(certificate);
-
-            if (string.IsNullOrEmpty(applicationUri))
+            // Validate that the certificate contains the configuration's ApplicationUri
+            if (!X509Utils.CompareApplicationUriWithCertificate(
+                certificate,
+                configuration.ApplicationUri,
+                out IReadOnlyList<string> certificateUris))
             {
-                const string message =
-                    "The Application URI could not be read from the certificate. Use certificate anyway?";
-                if (!await ApproveMessageAsync(message, silent).ConfigureAwait(false))
+                if (certificateUris.Count == 0)
                 {
-                    return false;
+                    const string message =
+                        "The Application URI could not be found in the certificate. Use certificate anyway?";
+                    if (!await ApproveMessageAsync(message, silent).ConfigureAwait(false))
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    string message = Utils.Format(
+                        "The certificate with subject '{0}' does not contain the ApplicationUri '{1}' " +
+                        "from the configuration. Certificate contains: {2}. Use certificate anyway?",
+                        certificate.Subject,
+                        configuration.ApplicationUri,
+                        string.Join(", ", certificateUris));
+
+                    if (!await ApproveMessageAsync(message, silent).ConfigureAwait(false))
+                    {
+                        return false;
+                    }
                 }
             }
-            else if (!configuration.ApplicationUri.Equals(applicationUri, StringComparison.Ordinal))
-            {
-                m_logger.LogInformation(
-                    "Updated the ApplicationUri: {PreviousApplicationUri} --> {NewApplicationUri}",
-                    configuration.ApplicationUri,
-                    applicationUri);
-                configuration.ApplicationUri = applicationUri;
-            }
 
-            m_logger.LogInformation("Using the ApplicationUri: {ApplicationUri}", applicationUri);
+            m_logger.LogInformation(
+                "Certificate {Certificate} validated for ApplicationUri: {ApplicationUri}",
+                certificate.AsLogSafeString(),
+                configuration.ApplicationUri);
 
             // update configuration.
             id.Certificate = certificate;
@@ -864,7 +893,7 @@ namespace Opc.Ua.Configuration
         /// <param name="configuration">The configuration.</param>
         /// <param name="id">The certificate identifier.</param>
         /// <param name="lifeTimeInMonths">The lifetime in months.</param>
-        /// <param name="ct">Cancelation token to cancel operation with</param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>The new certificate</returns>
         /// <exception cref="ServiceResultException"></exception>
         private async Task<X509Certificate2> CreateApplicationInstanceCertificateAsync(
@@ -913,11 +942,6 @@ namespace Opc.Ua.Configuration
             }
             else
             {
-#if !ECC_SUPPORT
-                throw new ServiceResultException(
-                    StatusCodes.BadConfigurationError,
-                    "The Ecc certificate type is not supported.");
-#else
                 ECCurve? curve =
                     EccUtils.GetCurveFromCertificateTypeId(id.CertificateType)
                     ?? throw new ServiceResultException(
@@ -930,7 +954,6 @@ namespace Opc.Ua.Configuration
                     "Certificate {Certificate} created for {Curve}.",
                     id.Certificate.AsLogSafeString(),
                     curve.Value.Oid.FriendlyName);
-#endif
             }
 
             ICertificatePasswordProvider passwordProvider = configuration
@@ -979,7 +1002,7 @@ namespace Opc.Ua.Configuration
         /// </summary>
         /// <param name="configuration">The configuration instance that stores the configurable information for a UA application.</param>
         /// <param name="id">The certificate identifier.</param>
-        /// <param name="ct">Cancelation token to cancel operation with</param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
         private async Task DeleteApplicationInstanceCertificateAsync(
             ApplicationConfiguration configuration,
             CertificateIdentifier id,
@@ -1166,9 +1189,7 @@ namespace Opc.Ua.Configuration
                     }
 
                     // add new certificate.
-                    X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(
-                        certificate.RawData);
-
+                    using X509Certificate2 publicKey = CertificateFactory.Create(certificate.RawData);
                     await store.AddAsync(publicKey, ct: ct).ConfigureAwait(false);
 
                     m_logger.LogInformation("Added application certificate to trusted peer store.");

@@ -84,26 +84,29 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the FindServers service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="endpointUrl">The endpoint URL.</param>
         /// <param name="localeIds">The locale ids.</param>
         /// <param name="serverUris">The server uris.</param>
-        /// <param name="servers">List of Servers that meet criteria specified in the request.</param>
+        /// <param name="ct">The cancellation token</param>
         /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
+        /// Returns a <see cref="FindServersResponse"/> object
         /// </returns>
-        public override ResponseHeader FindServers(
+        public override async Task<FindServersResponse> FindServersAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             string endpointUrl,
             StringCollection localeIds,
             StringCollection serverUris,
-            out ApplicationDescriptionCollection servers)
+            CancellationToken ct)
         {
-            servers = [];
+            ApplicationDescriptionCollection servers = [];
 
             ValidateRequest(requestHeader);
 
-            lock (Lock)
+            await m_semaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
+            try
             {
                 // parse the url provided by the client.
                 IList<BaseAddress> baseAddresses = BaseAddresses;
@@ -119,7 +122,11 @@ namespace Opc.Ua.Server
                 if (baseAddresses.Count == 0)
                 {
                     servers = [];
-                    return CreateResponse(requestHeader, StatusCodes.Good);
+                    return new FindServersResponse
+                    {
+                        ResponseHeader = CreateResponse(requestHeader, StatusCodes.Good),
+                        Servers = servers
+                    };
                 }
 
                 // build list of unique servers.
@@ -165,33 +172,44 @@ namespace Opc.Ua.Server
                     servers.Add(application);
                 }
             }
+            finally
+            {
+                m_semaphoreSlim.Release();
+            }
 
-            return CreateResponse(requestHeader, StatusCodes.Good);
+            return new FindServersResponse
+            {
+                ResponseHeader = CreateResponse(requestHeader, StatusCodes.Good),
+                Servers = servers
+            };
         }
 
         /// <summary>
         /// Invokes the GetEndpoints service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="endpointUrl">The endpoint URL.</param>
         /// <param name="localeIds">The locale ids.</param>
         /// <param name="profileUris">The profile uris.</param>
-        /// <param name="endpoints">The endpoints supported by the server.</param>
+        /// <param name="ct">The cancellation token</param>
         /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
+        /// Returns a <see cref="GetEndpointsResponse"/> object
         /// </returns>
-        public override ResponseHeader GetEndpoints(
+        public override async Task<GetEndpointsResponse> GetEndpointsAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             string endpointUrl,
             StringCollection localeIds,
             StringCollection profileUris,
-            out EndpointDescriptionCollection endpoints)
+            CancellationToken ct)
         {
-            endpoints = null;
+            EndpointDescriptionCollection endpoints = null;
 
             ValidateRequest(requestHeader);
 
-            lock (Lock)
+            await m_semaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
+            try
             {
                 // filter by profile.
                 IList<BaseAddress> baseAddresses = FilterByProfile(profileUris, BaseAddresses);
@@ -199,8 +217,16 @@ namespace Opc.Ua.Server
                 // get the descriptions.
                 endpoints = GetEndpointDescriptions(endpointUrl, baseAddresses, localeIds);
             }
+            finally
+            {
+                m_semaphoreSlim.Release();
+            }
 
-            return CreateResponse(requestHeader, StatusCodes.Good);
+            return new GetEndpointsResponse
+            {
+                ResponseHeader = CreateResponse(requestHeader, StatusCodes.Good),
+                Endpoints = endpoints
+            };
         }
 
         /// <summary>
@@ -287,6 +313,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the CreateSession service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="clientDescription">Application description for the client application.</param>
         /// <param name="serverUri">The server URI.</param>
@@ -296,19 +323,12 @@ namespace Opc.Ua.Server
         /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="requestedSessionTimeout">The requested session timeout.</param>
         /// <param name="maxResponseMessageSize">Size of the max response message.</param>
-        /// <param name="sessionId">The unique public identifier assigned by the Server to the Session.</param>
-        /// <param name="authenticationToken">The unique private identifier assigned by the Server to the Session.</param>
-        /// <param name="revisedSessionTimeout">The revised session timeout.</param>
-        /// <param name="serverNonce">The server nonce.</param>
-        /// <param name="serverCertificate">The server certificate.</param>
-        /// <param name="serverEndpoints">The server endpoints.</param>
-        /// <param name="serverSoftwareCertificates">The server software certificates.</param>
-        /// <param name="serverSignature">The server signature.</param>
-        /// <param name="maxRequestMessageSize">Size of the max request message.</param>
+        /// <param name="ct">The cancellation token</param>
         /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
+        /// Returns a <see cref="CreateSessionResponse"/> object
         /// </returns>
-        public override ResponseHeader CreateSession(
+        public override async Task<CreateSessionResponse> CreateSessionAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             ApplicationDescription clientDescription,
             string serverUri,
@@ -318,25 +338,19 @@ namespace Opc.Ua.Server
             byte[] clientCertificate,
             double requestedSessionTimeout,
             uint maxResponseMessageSize,
-            out NodeId sessionId,
-            out NodeId authenticationToken,
-            out double revisedSessionTimeout,
-            out byte[] serverNonce,
-            out byte[] serverCertificate,
-            out EndpointDescriptionCollection serverEndpoints,
-            out SignedSoftwareCertificateCollection serverSoftwareCertificates,
-            out SignatureData serverSignature,
-            out uint maxRequestMessageSize)
+            CancellationToken ct)
         {
-            sessionId = 0;
-            revisedSessionTimeout = 0;
-            serverNonce = null;
-            serverCertificate = null;
-            serverSoftwareCertificates = null;
-            serverSignature = null;
-            maxRequestMessageSize = (uint)MessageContext.MaxMessageSize;
+            NodeId sessionId;
+            NodeId authenticationToken;
+            double revisedSessionTimeout = 0;
+            byte[] serverNonce;
+            byte[] serverCertificate = null;
+            EndpointDescriptionCollection serverEndpoints = null;
+            SignedSoftwareCertificateCollection serverSoftwareCertificates = null;
+            SignatureData serverSignature = null;
+            uint maxRequestMessageSize = (uint)MessageContext.MaxMessageSize;
 
-            OperationContext context = ValidateRequest(requestHeader, RequestType.CreateSession);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.CreateSession);
             ISession session = null;
             try
             {
@@ -380,31 +394,27 @@ namespace Opc.Ua.Server
 
                         if (context.SecurityPolicyUri != SecurityPolicies.None)
                         {
-                            string certificateApplicationUri = X509Utils
-                                .GetApplicationUriFromCertificate(
-                                    parsedClientCertificate);
-
-                            // verify if applicationUri from ApplicationDescription matches the applicationUri in the client certificate.
-                            if (!string.IsNullOrEmpty(certificateApplicationUri) &&
-                                !string.IsNullOrEmpty(clientDescription.ApplicationUri) &&
-                                certificateApplicationUri != clientDescription.ApplicationUri)
+                            // verify if applicationUri from ApplicationDescription matches the applicationUris in the client certificate.
+                            if (!string.IsNullOrEmpty(clientDescription.ApplicationUri))
                             {
-                                // report the AuditCertificateDataMismatch event for invalid uri
-                                ServerInternal?.ReportAuditCertificateDataMismatchEvent(
-                                    parsedClientCertificate,
-                                    null,
-                                    clientDescription.ApplicationUri,
-                                    StatusCodes.BadCertificateUriInvalid,
-                                    m_logger);
+                                if (!X509Utils.CompareApplicationUriWithCertificate(parsedClientCertificate, clientDescription.ApplicationUri))
+                                {
+                                    // report the AuditCertificateDataMismatch event for invalid uri
+                                    ServerInternal?.ReportAuditCertificateDataMismatchEvent(
+                                        parsedClientCertificate,
+                                        null,
+                                        clientDescription.ApplicationUri,
+                                        StatusCodes.BadCertificateUriInvalid,
+                                        m_logger);
 
-                                throw ServiceResultException.Create(
-                                    StatusCodes.BadCertificateUriInvalid,
-                                    "The URI specified in the ApplicationDescription {0} does not match the URI in the Certificate: {1}.",
-                                    clientDescription.ApplicationUri,
-                                    certificateApplicationUri);
+                                    throw ServiceResultException.Create(
+                                        StatusCodes.BadCertificateUriInvalid,
+                                        "The URI specified in the ApplicationDescription {0} does not match the URIs in the Certificate.",
+                                        clientDescription.ApplicationUri);
+                                }
+
+                                await CertificateValidator.ValidateAsync(clientCertificateChain, ct).ConfigureAwait(false);
                             }
-
-                            CertificateValidator.Validate(clientCertificateChain);
                         }
                     }
                     catch (Exception e)
@@ -437,21 +447,25 @@ namespace Opc.Ua.Server
                         context.SecurityPolicyUri);
 
                 // create the session.
-                session = ServerInternal.SessionManager.CreateSession(
-                    context,
-                    instanceCertificate,
-                    sessionName,
-                    clientNonce,
-                    clientDescription,
-                    endpointUrl,
-                    parsedClientCertificate,
-                    clientIssuerCertificates,
-                    requestedSessionTimeout,
-                    maxResponseMessageSize,
-                    out sessionId,
-                    out authenticationToken,
-                    out serverNonce,
-                    out revisedSessionTimeout);
+                CreateSessionResult result = await ServerInternal.SessionManager.CreateSessionAsync(
+                        context,
+                        instanceCertificate,
+                        sessionName,
+                        clientNonce,
+                        clientDescription,
+                        endpointUrl,
+                        parsedClientCertificate,
+                        clientIssuerCertificates,
+                        requestedSessionTimeout,
+                        maxResponseMessageSize,
+                        ct)
+                    .ConfigureAwait(false);
+
+                session = result.Session;
+                sessionId = result.SessionId;
+                authenticationToken = result.AuthenticationToken;
+                serverNonce = result.ServerNonce;
+                revisedSessionTimeout = result.RevisedSessionTimeout;
 
                 if (endpointUrl != null)
                 {
@@ -483,7 +497,6 @@ namespace Opc.Ua.Server
                     }
                 }
 
-#if ECC_SUPPORT
                 var parameters =
                     ExtensionObject.ToEncodeable(
                         requestHeader.AdditionalHeader) as AdditionalParametersType;
@@ -492,8 +505,9 @@ namespace Opc.Ua.Server
                 {
                     parameters = CreateSessionProcessAdditionalParameters(session, parameters);
                 }
-#endif
-                lock (Lock)
+
+                await m_semaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
+                try
                 {
                     // return the application instance certificate for the server.
                     if (requireEncryption)
@@ -530,6 +544,10 @@ namespace Opc.Ua.Server
                             dataToSign);
                     }
                 }
+                finally
+                {
+                    m_semaphoreSlim.Release();
+                }
 
                 lock (ServerInternal.DiagnosticsWriteLock)
                 {
@@ -548,14 +566,24 @@ namespace Opc.Ua.Server
 
                 ResponseHeader responseHeader = CreateResponse(requestHeader, StatusCodes.Good);
 
-#if ECC_SUPPORT
                 if (parameters != null)
                 {
                     responseHeader.AdditionalHeader = new ExtensionObject(parameters);
                 }
-#endif
 
-                return responseHeader;
+                return new CreateSessionResponse
+                {
+                    ResponseHeader = responseHeader,
+                    SessionId = sessionId,
+                    AuthenticationToken = authenticationToken,
+                    RevisedSessionTimeout = revisedSessionTimeout,
+                    ServerNonce = serverNonce,
+                    ServerCertificate = serverCertificate,
+                    ServerEndpoints = serverEndpoints,
+                    ServerSoftwareCertificates = serverSoftwareCertificates,
+                    ServerSignature = serverSignature,
+                    MaxRequestMessageSize = maxRequestMessageSize
+                };
             }
             catch (ServiceResultException e)
             {
@@ -594,7 +622,6 @@ namespace Opc.Ua.Server
             }
         }
 
-#if ECC_SUPPORT
         /// <summary>
         /// Process additional parameters during the ECC session creation and set the session's UserToken security policy
         /// </summary>
@@ -667,39 +694,36 @@ namespace Opc.Ua.Server
 
             return response;
         }
-#endif
 
         /// <summary>
         /// Invokes the ActivateSession service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="clientSignature">The client signature.</param>
         /// <param name="clientSoftwareCertificates">The client software certificates.</param>
         /// <param name="localeIds">The locale ids.</param>
         /// <param name="userIdentityToken">The user identity token.</param>
         /// <param name="userTokenSignature">The user token signature.</param>
-        /// <param name="serverNonce">The server nonce.</param>
-        /// <param name="results">The results.</param>
-        /// <param name="diagnosticInfos">The diagnostic infos.</param>
+        /// <param name="ct">The cancellationToken</param>
         /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
+        /// Returns a <see cref="ActivateSessionResponse"/> object
         /// </returns>
-        public override ResponseHeader ActivateSession(
+        public override async Task<ActivateSessionResponse> ActivateSessionAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             SignatureData clientSignature,
             SignedSoftwareCertificateCollection clientSoftwareCertificates,
             StringCollection localeIds,
             ExtensionObject userIdentityToken,
             SignatureData userTokenSignature,
-            out byte[] serverNonce,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct)
         {
-            serverNonce = null;
-            results = null;
-            diagnosticInfos = null;
+            byte[] serverNonce;
+            StatusCodeCollection results = null;
+            DiagnosticInfoCollection diagnosticInfos = null;
 
-            OperationContext context = ValidateRequest(requestHeader, RequestType.ActivateSession);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.ActivateSession);
             // validate client's software certificates.
             var softwareCertificates = new List<SoftwareCertificate>();
 
@@ -764,15 +788,16 @@ namespace Opc.Ua.Server
                 ValidateSoftwareCertificates(softwareCertificates);
 
                 // activate the session.
-                bool identityChanged = ServerInternal.SessionManager.ActivateSession(
-                    context,
-                    requestHeader.AuthenticationToken,
-                    clientSignature,
-                    softwareCertificates,
-                    userIdentityToken,
-                    userTokenSignature,
-                    localeIds,
-                    out serverNonce);
+                (bool identityChanged, serverNonce) = await ServerInternal.SessionManager.ActivateSessionAsync(
+                        context,
+                        requestHeader.AuthenticationToken,
+                        clientSignature,
+                        softwareCertificates,
+                        userIdentityToken,
+                        userTokenSignature,
+                        localeIds,
+                        ct)
+                    .ConfigureAwait(false);
 
                 if (identityChanged)
                 {
@@ -781,12 +806,10 @@ namespace Opc.Ua.Server
 
                 ISession session = ServerInternal.SessionManager
                     .GetSession(requestHeader.AuthenticationToken);
-#if ECC_SUPPORT
                 var parameters =
                     ExtensionObject.ToEncodeable(
                         requestHeader.AdditionalHeader) as AdditionalParametersType;
                 parameters = ActivateSessionProcessAdditionalParameters(session, parameters);
-#endif
 
                 m_logger.LogInformation("Server - SESSION ACTIVATED.");
 
@@ -799,13 +822,17 @@ namespace Opc.Ua.Server
 
                 ResponseHeader responseHeader = CreateResponse(requestHeader, StatusCodes.Good);
 
-#if ECC_SUPPORT
                 if (parameters != null)
                 {
                     responseHeader.AdditionalHeader = new ExtensionObject(parameters);
                 }
-#endif
-                return responseHeader;
+                return new ActivateSessionResponse
+                {
+                    ResponseHeader = responseHeader,
+                    ServerNonce = serverNonce,
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos
+                };
             }
             catch (ServiceResultException e)
             {
@@ -881,9 +908,9 @@ namespace Opc.Ua.Server
                 case StatusCodes.BadCertificatePolicyCheckFailed:
                 case StatusCodes.BadApplicationSignatureInvalid:
                     return true;
+                default:
+                    return false;
             }
-
-            return false;
         }
 
         /// <summary>
@@ -917,25 +944,26 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Invokes the CloseSession service.
+        /// Invokes the CloseSession service using a task based request.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="deleteSubscriptions">if set to <c>true</c> subscriptions are deleted.</param>
-        /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
-        /// </returns>
-        public override ResponseHeader CloseSession(
+        /// <param name="ct">The cancellation token.</param>
+        public override async Task<CloseSessionResponse> CloseSessionAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
-            bool deleteSubscriptions)
+            bool deleteSubscriptions,
+            CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.CloseSession);
-
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.CloseSession);
             try
             {
                 ISession session = ServerInternal.SessionManager
                     .GetSession(requestHeader.AuthenticationToken);
 
-                ServerInternal.CloseSession(context, context.Session.Id, deleteSubscriptions);
+                await ServerInternal.CloseSessionAsync(context, context.Session.Id, deleteSubscriptions, ct)
+                    .ConfigureAwait(false);
 
                 // report the audit event for close session
                 ServerInternal.ReportAuditCloseSessionEvent(
@@ -944,20 +972,21 @@ namespace Opc.Ua.Server
                     m_logger,
                     "Session/CloseSession");
 
-                return CreateResponse(requestHeader, context.StringTable);
+                return new CloseSessionResponse
+                {
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                };
             }
             catch (ServiceResultException e)
             {
                 lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
-
                     if (IsSecurityError(e.StatusCode))
                     {
                         ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
                     }
                 }
-
                 throw TranslateException(context, e);
             }
             finally
@@ -969,85 +998,30 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the Cancel service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="requestHandle">The request handle assigned to the request.</param>
-        /// <param name="cancelCount">The number of cancelled requests.</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
+        /// Returns a <see cref="CancelResponse"/> object
         /// </returns>
-        public override ResponseHeader Cancel(
+        public override Task<CancelResponse> CancelAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint requestHandle,
-            out uint cancelCount)
+            CancellationToken ct)
         {
-            cancelCount = 0;
-
-            OperationContext context = ValidateRequest(requestHeader, RequestType.Cancel);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Cancel);
 
             try
             {
-                m_serverInternal.RequestManager.CancelRequests(requestHandle, out cancelCount);
+                m_serverInternal.RequestManager.CancelRequests(requestHandle, out uint cancelCount);
 
-                return CreateResponse(requestHeader, context.StringTable);
-            }
-            catch (ServiceResultException e)
-            {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                return Task.FromResult(new CancelResponse
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
-                    }
-                }
-
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
-        }
-
-        /// <summary>
-        /// Invokes the Browse service.
-        /// </summary>
-        /// <param name="requestHeader">The request header.</param>
-        /// <param name="view">The view.</param>
-        /// <param name="requestedMaxReferencesPerNode">The maximum number of references to return for each node.</param>
-        /// <param name="nodesToBrowse">The list of nodes to browse.</param>
-        /// <param name="results">The list of results for the passed starting nodes and filters.</param>
-        /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
-        /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
-        /// </returns>
-        public override ResponseHeader Browse(
-            RequestHeader requestHeader,
-            ViewDescription view,
-            uint requestedMaxReferencesPerNode,
-            BrowseDescriptionCollection nodesToBrowse,
-            out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            results = null;
-            diagnosticInfos = null;
-
-            OperationContext context = ValidateRequest(requestHeader, RequestType.Browse);
-
-            try
-            {
-                ValidateOperationLimits(nodesToBrowse, OperationLimits.MaxNodesPerBrowse);
-
-                m_serverInternal.NodeManager.Browse(
-                    context,
-                    view,
-                    requestedMaxReferencesPerNode,
-                    nodesToBrowse,
-                    out results,
-                    out diagnosticInfos);
-
-                return CreateResponse(requestHeader, context.StringTable);
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
+                    CancelCount = cancelCount
+                });
             }
             catch (ServiceResultException e)
             {
@@ -1073,13 +1047,14 @@ namespace Opc.Ua.Server
         /// Invokes the Browse service using async Task based request.
         /// </summary>
         public override async Task<BrowseResponse> BrowseAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             ViewDescription view,
             uint requestedMaxReferencesPerNode,
             BrowseDescriptionCollection nodesToBrowse,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.Browse);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Browse);
 
             try
             {
@@ -1122,71 +1097,16 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Invokes the BrowseNext service.
-        /// </summary>
-        /// <param name="requestHeader">The request header.</param>
-        /// <param name="releaseContinuationPoints">if set to <c>true</c> the continuation points are released.</param>
-        /// <param name="continuationPoints">A list of continuation points returned in a previous Browse or BrewseNext call.</param>
-        /// <param name="results">The list of resulted references for browse.</param>
-        /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
-        /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
-        /// </returns>
-        public override ResponseHeader BrowseNext(
-            RequestHeader requestHeader,
-            bool releaseContinuationPoints,
-            ByteStringCollection continuationPoints,
-            out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            results = null;
-            diagnosticInfos = null;
-
-            OperationContext context = ValidateRequest(requestHeader, RequestType.BrowseNext);
-
-            try
-            {
-                ValidateOperationLimits(continuationPoints, OperationLimits.MaxNodesPerBrowse);
-
-                m_serverInternal.NodeManager.BrowseNext(
-                    context,
-                    releaseContinuationPoints,
-                    continuationPoints,
-                    out results,
-                    out diagnosticInfos);
-
-                return CreateResponse(requestHeader, context.StringTable);
-            }
-            catch (ServiceResultException e)
-            {
-                lock (ServerInternal.DiagnosticsWriteLock)
-                {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
-                    }
-                }
-
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
-        }
-
-        /// <summary>
         /// Invokes the BrowseNext service using async Task based request.
         /// </summary>
         public override async Task<BrowseNextResponse> BrowseNextAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             bool releaseContinuationPoints,
             ByteStringCollection continuationPoints,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.BrowseNext);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.BrowseNext);
 
             try
             {
@@ -1230,29 +1150,33 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the RegisterNodes service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="nodesToRegister">The list of NodeIds to register.</param>
-        /// <param name="registeredNodeIds">The list of NodeIds identifying the registered nodes. </param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
+        /// Returns a <see cref="RegisterNodesResponse"/> object
         /// </returns>
-        public override ResponseHeader RegisterNodes(
+        public override Task<RegisterNodesResponse> RegisterNodesAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             NodeIdCollection nodesToRegister,
-            out NodeIdCollection registeredNodeIds)
+            CancellationToken ct)
         {
-            registeredNodeIds = null;
-
-            OperationContext context = ValidateRequest(requestHeader, RequestType.RegisterNodes);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.RegisterNodes);
 
             try
             {
                 ValidateOperationLimits(nodesToRegister, OperationLimits.MaxNodesPerRegisterNodes);
 
                 m_serverInternal.NodeManager
-                    .RegisterNodes(context, nodesToRegister, out registeredNodeIds);
+                    .RegisterNodes(context, nodesToRegister, out NodeIdCollection registeredNodeIds);
 
-                return CreateResponse(requestHeader, context.StringTable);
+                return Task.FromResult(new RegisterNodesResponse
+                {
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
+                    RegisteredNodeIds = registeredNodeIds
+                });
             }
             catch (ServiceResultException e)
             {
@@ -1277,16 +1201,20 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the UnregisterNodes service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="nodesToUnregister">The list of NodeIds to unregister</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
+        /// Returns a <see cref="UnregisterNodesResponse"/> object
         /// </returns>
-        public override ResponseHeader UnregisterNodes(
+        public override Task<UnregisterNodesResponse> UnregisterNodesAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
-            NodeIdCollection nodesToUnregister)
+            NodeIdCollection nodesToUnregister,
+            CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.UnregisterNodes);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.UnregisterNodes);
 
             try
             {
@@ -1296,71 +1224,10 @@ namespace Opc.Ua.Server
 
                 m_serverInternal.NodeManager.UnregisterNodes(context, nodesToUnregister);
 
-                return CreateResponse(requestHeader, context.StringTable);
-            }
-            catch (ServiceResultException e)
-            {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                return Task.FromResult(new UnregisterNodesResponse
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
-                    }
-                }
-
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
-        }
-
-        /// <summary>
-        /// Invokes the TranslateBrowsePathsToNodeIds service.
-        /// </summary>
-        /// <param name="requestHeader">The request header.</param>
-        /// <param name="browsePaths">The list of browse paths for which NodeIds are being requested.</param>
-        /// <param name="results">The list of results for the list of browse paths.</param>
-        /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
-        /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
-        /// </returns>
-        public override ResponseHeader TranslateBrowsePathsToNodeIds(
-            RequestHeader requestHeader,
-            BrowsePathCollection browsePaths,
-            out BrowsePathResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            results = null;
-            diagnosticInfos = null;
-
-            OperationContext context = ValidateRequest(
-                requestHeader,
-                RequestType.TranslateBrowsePathsToNodeIds);
-
-            try
-            {
-                ValidateOperationLimits(
-                    browsePaths,
-                    OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
-
-                foreach (BrowsePath bp in browsePaths)
-                {
-                    ValidateOperationLimits(
-                        bp.RelativePath.Elements.Count,
-                        OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
-                }
-
-                m_serverInternal.NodeManager.TranslateBrowsePathsToNodeIds(
-                    context,
-                    browsePaths,
-                    out results,
-                    out diagnosticInfos);
-
-                return CreateResponse(requestHeader, context.StringTable);
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                });
             }
             catch (ServiceResultException e)
             {
@@ -1386,11 +1253,13 @@ namespace Opc.Ua.Server
         /// Invokes the TranslateBrowsePathsToNodeIds service using async Task based request.
         /// </summary>
         public override async Task<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             BrowsePathCollection browsePaths,
             CancellationToken ct)
         {
             OperationContext context = ValidateRequest(
+                secureChannelContext,
                 requestHeader,
                 RequestType.TranslateBrowsePathsToNodeIds);
 
@@ -1442,74 +1311,17 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Invokes the Read service.
-        /// </summary>
-        /// <param name="requestHeader">The request header.</param>
-        /// <param name="maxAge">The Maximum age of the value to be read in milliseconds.</param>
-        /// <param name="timestampsToReturn">The type of timestamps to be returned for the requested Variables.</param>
-        /// <param name="nodesToRead">The list of Nodes and their Attributes to read.</param>
-        /// <param name="results">The list of returned Attribute values</param>
-        /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
-        /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
-        /// </returns>
-        public override ResponseHeader Read(
-            RequestHeader requestHeader,
-            double maxAge,
-            TimestampsToReturn timestampsToReturn,
-            ReadValueIdCollection nodesToRead,
-            out DataValueCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.Read);
-
-            try
-            {
-                ValidateOperationLimits(nodesToRead, OperationLimits.MaxNodesPerRead);
-
-                m_serverInternal.NodeManager.Read(
-                    context,
-                    maxAge,
-                    timestampsToReturn,
-                    nodesToRead,
-                    out results,
-                    out diagnosticInfos);
-
-                return CreateResponse(requestHeader, context.StringTable);
-            }
-            catch (ServiceResultException e)
-            {
-                lock (ServerInternal.DiagnosticsWriteLock)
-                {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
-                    }
-                }
-
-                ServerInternal.ReportAuditEvent(context, "Read", e, m_logger);
-
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
-        }
-
-        /// <summary>
         /// Invokes the Read service using async Task based request.
         /// </summary>
         public override async Task<ReadResponse> ReadAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             double maxAge,
             TimestampsToReturn timestampsToReturn,
             ReadValueIdCollection nodesToRead,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.Read);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Read);
 
             try
             {
@@ -1553,81 +1365,10 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Invokes the HistoryRead service.
-        /// </summary>
-        /// <param name="requestHeader">The request header.</param>
-        /// <param name="historyReadDetails">The history read details.</param>
-        /// <param name="timestampsToReturn">The timestamps to return.</param>
-        /// <param name="releaseContinuationPoints">if set to <c>true</c> continuation points are released.</param>
-        /// <param name="nodesToRead">The nodes to read.</param>
-        /// <param name="results">The results.</param>
-        /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
-        /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
-        /// </returns>
-        public override ResponseHeader HistoryRead(
-            RequestHeader requestHeader,
-            ExtensionObject historyReadDetails,
-            TimestampsToReturn timestampsToReturn,
-            bool releaseContinuationPoints,
-            HistoryReadValueIdCollection nodesToRead,
-            out HistoryReadResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.HistoryRead);
-
-            try
-            {
-                if (historyReadDetails?.Body is ReadEventDetails)
-                {
-                    ValidateOperationLimits(
-                        nodesToRead,
-                        OperationLimits.MaxNodesPerHistoryReadEvents);
-                }
-                else
-                {
-                    ValidateOperationLimits(
-                        nodesToRead,
-                        OperationLimits.MaxNodesPerHistoryReadData);
-                }
-
-                m_serverInternal.NodeManager.HistoryRead(
-                    context,
-                    historyReadDetails,
-                    timestampsToReturn,
-                    releaseContinuationPoints,
-                    nodesToRead,
-                    out results,
-                    out diagnosticInfos);
-
-                return CreateResponse(requestHeader, context.StringTable);
-            }
-            catch (ServiceResultException e)
-            {
-                lock (ServerInternal.DiagnosticsWriteLock)
-                {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
-                    }
-                }
-
-                ServerInternal.ReportAuditEvent(context, "HistoryRead", e, m_logger);
-
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
-        }
-
-        /// <summary>
         /// Invokes the HistoryRead service using async Task based request.
         /// </summary>
         public override async Task<HistoryReadResponse> HistoryReadAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             ExtensionObject historyReadDetails,
             TimestampsToReturn timestampsToReturn,
@@ -1635,7 +1376,7 @@ namespace Opc.Ua.Server
             HistoryReadValueIdCollection nodesToRead,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.HistoryRead);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.HistoryRead);
 
             try
             {
@@ -1692,61 +1433,15 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Invokes the Write service.
-        /// </summary>
-        /// <param name="requestHeader">The request header.</param>
-        /// <param name="nodesToWrite">The list of Nodes, Attributes, and values to write.</param>
-        /// <param name="results">The list of write result status codes for each write operation.</param>
-        /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
-        /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
-        /// </returns>
-        public override ResponseHeader Write(
-            RequestHeader requestHeader,
-            WriteValueCollection nodesToWrite,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.Write);
-
-            try
-            {
-                ValidateOperationLimits(nodesToWrite, OperationLimits.MaxNodesPerWrite);
-
-                m_serverInternal.NodeManager
-                    .Write(context, nodesToWrite, out results, out diagnosticInfos);
-
-                return CreateResponse(requestHeader, context.StringTable);
-            }
-            catch (ServiceResultException e)
-            {
-                lock (ServerInternal.DiagnosticsWriteLock)
-                {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
-                    }
-                }
-
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
-        }
-
-        /// <summary>
         /// Invokes the Write service using async Task based request.
         /// </summary>
         public override async Task<WriteResponse> WriteAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             WriteValueCollection nodesToWrite,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.Write);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Write);
 
             try
             {
@@ -1785,67 +1480,15 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Invokes the HistoryUpdate service.
-        /// </summary>
-        /// <param name="requestHeader">The request header.</param>
-        /// <param name="historyUpdateDetails">The details defined for the update.</param>
-        /// <param name="results">The list of update results for the history update details.</param>
-        /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
-        /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
-        /// </returns>
-        public override ResponseHeader HistoryUpdate(
-            RequestHeader requestHeader,
-            ExtensionObjectCollection historyUpdateDetails,
-            out HistoryUpdateResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.HistoryUpdate);
-
-            try
-            {
-                // check only for BadNothingToDo here
-                // MaxNodesPerHistoryUpdateEvents & MaxNodesPerHistoryUpdateData
-                // must be checked in NodeManager (TODO)
-                ValidateOperationLimits(historyUpdateDetails);
-
-                m_serverInternal.NodeManager.HistoryUpdate(
-                    context,
-                    historyUpdateDetails,
-                    out results,
-                    out diagnosticInfos);
-
-                return CreateResponse(requestHeader, context.StringTable);
-            }
-            catch (ServiceResultException e)
-            {
-                lock (ServerInternal.DiagnosticsWriteLock)
-                {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
-                    }
-                }
-
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
-        }
-
-        /// <summary>
         /// Invokes the HistoryUpdate service using async Task based request.
         /// </summary>
         public override async Task<HistoryUpdateResponse> HistoryUpdateAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             ExtensionObjectCollection historyUpdateDetails,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.HistoryUpdate);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.HistoryUpdate);
 
             try
             {
@@ -1887,6 +1530,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the CreateSubscription service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="requestedPublishingInterval">The cyclic rate that the Subscription is being requested to return Notifications to the Client.</param>
         /// <param name="requestedLifetimeCount">The client-requested lifetime count for the Subscription</param>
@@ -1894,14 +1538,12 @@ namespace Opc.Ua.Server
         /// <param name="maxNotificationsPerPublish">The maximum number of notifications that the Client wishes to receive in a single Publish response.</param>
         /// <param name="publishingEnabled">If set to <c>true</c> publishing is enabled for the Subscription.</param>
         /// <param name="priority">The relative priority of the Subscription.</param>
-        /// <param name="subscriptionId">The Server-assigned identifier for the Subscription.</param>
-        /// <param name="revisedPublishingInterval">The actual publishing interval that the Server will use.</param>
-        /// <param name="revisedLifetimeCount">The revised lifetime count.</param>
-        /// <param name="revisedMaxKeepAliveCount">The revised max keep alive count.</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
+        /// Returns a <see cref="CreateSubscriptionResponse"/> object
         /// </returns>
-        public override ResponseHeader CreateSubscription(
+        public override Task<CreateSubscriptionResponse> CreateSubscriptionAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             double requestedPublishingInterval,
             uint requestedLifetimeCount,
@@ -1909,12 +1551,10 @@ namespace Opc.Ua.Server
             uint maxNotificationsPerPublish,
             bool publishingEnabled,
             byte priority,
-            out uint subscriptionId,
-            out double revisedPublishingInterval,
-            out uint revisedLifetimeCount,
-            out uint revisedMaxKeepAliveCount)
+            CancellationToken ct)
         {
             OperationContext context = ValidateRequest(
+                secureChannelContext,
                 requestHeader,
                 RequestType.CreateSubscription);
 
@@ -1928,12 +1568,19 @@ namespace Opc.Ua.Server
                     maxNotificationsPerPublish,
                     publishingEnabled,
                     priority,
-                    out subscriptionId,
-                    out revisedPublishingInterval,
-                    out revisedLifetimeCount,
-                    out revisedMaxKeepAliveCount);
+                    out uint subscriptionId,
+                    out double revisedPublishingInterval,
+                    out uint revisedLifetimeCount,
+                    out uint revisedMaxKeepAliveCount);
 
-                return CreateResponse(requestHeader, context.StringTable);
+                return Task.FromResult(new CreateSubscriptionResponse
+                {
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
+                    SubscriptionId = subscriptionId,
+                    RevisedPublishingInterval = revisedPublishingInterval,
+                    RevisedLifetimeCount = revisedLifetimeCount,
+                    RevisedMaxKeepAliveCount = revisedMaxKeepAliveCount
+                });
             }
             catch (ServiceResultException e)
             {
@@ -1958,22 +1605,20 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the TransferSubscriptions service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="subscriptionIds">The list of Subscriptions to transfer.</param>
         /// <param name="sendInitialValues">If the initial values should be sent.</param>
-        /// <param name="results">The list of result StatusCodes for the Subscriptions to transfer.</param>
-        /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
-        public override ResponseHeader TransferSubscriptions(
+        /// <param name="ct">The cancellation token.</param>
+        public override Task<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
             bool sendInitialValues,
-            out TransferResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct)
         {
-            results = null;
-            diagnosticInfos = null;
-
             OperationContext context = ValidateRequest(
+                secureChannelContext,
                 requestHeader,
                 RequestType.TransferSubscriptions);
 
@@ -1985,10 +1630,15 @@ namespace Opc.Ua.Server
                     context,
                     subscriptionIds,
                     sendInitialValues,
-                    out results,
-                    out diagnosticInfos);
+                    out TransferResultCollection results,
+                    out DiagnosticInfoCollection diagnosticInfos);
 
-                return CreateResponse(requestHeader, context.StringTable);
+                return Task.FromResult(new TransferSubscriptionsResponse
+                {
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos
+                });
             }
             catch (ServiceResultException e)
             {
@@ -2013,20 +1663,21 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the DeleteSubscriptions service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="subscriptionIds">The list of Subscriptions to delete.</param>
-        /// <param name="results">The list of result StatusCodes for the Subscriptions to delete.</param>
-        /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
+        /// Returns a <see cref="DeleteSubscriptionsResponse"/> object
         /// </returns>
-        public override ResponseHeader DeleteSubscriptions(
+        public override Task<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct)
         {
             OperationContext context = ValidateRequest(
+                secureChannelContext,
                 requestHeader,
                 RequestType.DeleteSubscriptions);
 
@@ -2037,10 +1688,15 @@ namespace Opc.Ua.Server
                 ServerInternal.SubscriptionManager.DeleteSubscriptions(
                     context,
                     subscriptionIds,
-                    out results,
-                    out diagnosticInfos);
+                    out StatusCodeCollection results,
+                    out DiagnosticInfoCollection diagnosticInfos);
 
-                return CreateResponse(requestHeader, context.StringTable);
+                return Task.FromResult(new DeleteSubscriptionsResponse
+                {
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos
+                });
             }
             catch (ServiceResultException e)
             {
@@ -2063,30 +1719,22 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Invokes the Publish service.
+        /// Invokes the Publish service using async Task based request.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="subscriptionAcknowledgements">The list of acknowledgements for one or more Subscriptions.</param>
-        /// <param name="subscriptionId">The subscription identifier.</param>
-        /// <param name="availableSequenceNumbers">The available sequence numbers.</param>
-        /// <param name="moreNotifications">If set to <c>true</c> the number of Notifications that were ready to be sent could not be sent in a single response.</param>
-        /// <param name="notificationMessage">The NotificationMessage that contains the list of Notifications.</param>
-        /// <param name="results">The list of results for the acknowledgements.</param>
-        /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
+        /// Returns a <see cref="PublishResponse"/>
         /// </returns>
-        public override ResponseHeader Publish(
+        public override async Task<PublishResponse> PublishAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
-            out uint subscriptionId,
-            out UInt32Collection availableSequenceNumbers,
-            out bool moreNotifications,
-            out NotificationMessage notificationMessage,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.Publish);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Publish);
 
             try
             {
@@ -2095,7 +1743,7 @@ namespace Opc.Ua.Server
                 if (DateTime.UtcNow > requestHeader.Timestamp.AddMilliseconds(100))
                 {
                     m_logger.LogTrace(m_eventId,
-                        "WARNING. Unexpected delay receiving Publish request. Time={Now:hh:mm:ss.fff}, ReceiveTime={Timestamp:hh:mm:ss.fff}",
+                        "WARNING. Unexpected delay receiving Publish request. Time={0:hh:mm:ss.fff}, ReceiveTime={1:hh:mm:ss.fff}",
                         DateTime.UtcNow,
                         requestHeader.Timestamp);
                 }
@@ -2106,21 +1754,18 @@ namespace Opc.Ua.Server
                     requestHeader.RequestHandle,
                     requestHeader.Timestamp);
 
-                notificationMessage = ServerInternal.SubscriptionManager.Publish(
+                PublishResponse response = await ServerInternal.SubscriptionManager.PublishAsync(
                     context,
                     subscriptionAcknowledgements,
-                    null,
-                    out subscriptionId,
-                    out availableSequenceNumbers,
-                    out moreNotifications,
-                    out results,
-                    out diagnosticInfos);
+                    ct).ConfigureAwait(false);
+
+                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
 
                 /*
-                if (notificationMessage != null)
+                if (response.NotificationMessage != null)
                 {
                     m_logger.LogTrace(m_eventId,
-                        "PublishResponse: SubId={SubscriptionId} SeqNo={SequenceNumber}, PublishTime={PublishTime:mm:ss.fff}, Time={Now:mm:ss.fff}",
+                        "PublishResponse: SubId={0} SeqNo={1}, PublishTime={2:mm:ss.fff}, Time={3:mm:ss.fff}",
                         subscriptionId,
                         notificationMessage.SequenceNumber,
                         notificationMessage.PublishTime,
@@ -2128,7 +1773,7 @@ namespace Opc.Ua.Server
                 }
                 */
 
-                return CreateResponse(requestHeader, context.StringTable);
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -2151,131 +1796,37 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Begins an asynchronous publish operation.
-        /// </summary>
-        /// <param name="request">The request.</param>
-        public virtual void BeginPublish(IEndpointIncomingRequest request)
-        {
-            var input = (PublishRequest)request.Request;
-            OperationContext context = ValidateRequest(input.RequestHeader, RequestType.Publish);
-
-            try
-            {
-                var operation = new AsyncPublishOperation(context, request, this);
-
-                NotificationMessage notificationMessage = ServerInternal.SubscriptionManager
-                    .Publish(
-                        context,
-                        input.SubscriptionAcknowledgements,
-                        operation,
-                        out uint subscriptionId,
-                        out UInt32Collection availableSequenceNumbers,
-                        out bool moreNotifications,
-                        out StatusCodeCollection results,
-                        out DiagnosticInfoCollection diagnosticInfos);
-
-                // request completed asynchronously.
-                if (notificationMessage != null)
-                {
-                    OnRequestComplete(context);
-
-                    operation.Response.ResponseHeader
-                        = CreateResponse(input.RequestHeader, context.StringTable);
-                    operation.Response.SubscriptionId = subscriptionId;
-                    operation.Response.AvailableSequenceNumbers = availableSequenceNumbers;
-                    operation.Response.MoreNotifications = moreNotifications;
-                    operation.Response.Results = results;
-                    operation.Response.DiagnosticInfos = diagnosticInfos;
-                    operation.Response.NotificationMessage = notificationMessage;
-
-                    m_logger.LogTrace(
-                        "PUBLISH: #{RequestHandle} Completed Synchronously",
-                        input.RequestHeader.RequestHandle);
-                    request.OperationCompleted(operation.Response, null);
-                }
-            }
-            catch (ServiceResultException e)
-            {
-                OnRequestComplete(context);
-
-                lock (ServerInternal.DiagnosticsWriteLock)
-                {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
-                    }
-                }
-
-                throw TranslateException(context, e);
-            }
-        }
-
-        /// <summary>
-        /// Completes an asynchronous publish operation.
-        /// </summary>
-        /// <param name="request">The request.</param>
-        public virtual void CompletePublish(IEndpointIncomingRequest request)
-        {
-            var operation = (AsyncPublishOperation)request.Calldata;
-            OperationContext context = operation.Context;
-
-            try
-            {
-                if (ServerInternal.SubscriptionManager.CompletePublish(context, operation))
-                {
-                    operation.Response.ResponseHeader = CreateResponse(
-                        request.Request.RequestHeader,
-                        context.StringTable);
-                    request.OperationCompleted(operation.Response, null);
-                    OnRequestComplete(context);
-                }
-            }
-            catch (ServiceResultException e)
-            {
-                OnRequestComplete(context);
-
-                lock (ServerInternal.DiagnosticsWriteLock)
-                {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
-                    }
-                }
-
-                throw TranslateException(context, e);
-            }
-        }
-
-        /// <summary>
         /// Invokes the Republish service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="subscriptionId">The subscription id.</param>
         /// <param name="retransmitSequenceNumber">The sequence number of a specific NotificationMessage to be republished.</param>
-        /// <param name="notificationMessage">The requested NotificationMessage.</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
+        /// Returns a <see cref="RepublishResponse"/> object
         /// </returns>
-        public override ResponseHeader Republish(
+        public override Task<RepublishResponse> RepublishAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint subscriptionId,
             uint retransmitSequenceNumber,
-            out NotificationMessage notificationMessage)
+            CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.Republish);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Republish);
 
             try
             {
-                notificationMessage = ServerInternal.SubscriptionManager.Republish(
+                NotificationMessage notificationMessage = ServerInternal.SubscriptionManager.Republish(
                     context,
                     subscriptionId,
                     retransmitSequenceNumber);
 
-                return CreateResponse(requestHeader, context.StringTable);
+                return Task.FromResult(new RepublishResponse
+                {
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
+                    NotificationMessage = notificationMessage
+                });
             }
             catch (ServiceResultException e)
             {
@@ -2300,6 +1851,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the ModifySubscription service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="subscriptionId">The subscription id.</param>
         /// <param name="requestedPublishingInterval">The cyclic rate that the Subscription is being requested to return Notifications to the Client.</param>
@@ -2307,13 +1859,12 @@ namespace Opc.Ua.Server
         /// <param name="requestedMaxKeepAliveCount">The requested max keep alive count.</param>
         /// <param name="maxNotificationsPerPublish">The maximum number of notifications that the Client wishes to receive in a single Publish response.</param>
         /// <param name="priority">The relative priority of the Subscription.</param>
-        /// <param name="revisedPublishingInterval">The revised publishing interval.</param>
-        /// <param name="revisedLifetimeCount">The revised lifetime count.</param>
-        /// <param name="revisedMaxKeepAliveCount">The revised max keep alive count.</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
+        /// Returns a <see cref="ModifySubscriptionResponse"/> object
         /// </returns>
-        public override ResponseHeader ModifySubscription(
+        public override Task<ModifySubscriptionResponse> ModifySubscriptionAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint subscriptionId,
             double requestedPublishingInterval,
@@ -2321,11 +1872,10 @@ namespace Opc.Ua.Server
             uint requestedMaxKeepAliveCount,
             uint maxNotificationsPerPublish,
             byte priority,
-            out double revisedPublishingInterval,
-            out uint revisedLifetimeCount,
-            out uint revisedMaxKeepAliveCount)
+            CancellationToken ct)
         {
             OperationContext context = ValidateRequest(
+                secureChannelContext,
                 requestHeader,
                 RequestType.ModifySubscription);
 
@@ -2339,11 +1889,17 @@ namespace Opc.Ua.Server
                     requestedMaxKeepAliveCount,
                     maxNotificationsPerPublish,
                     priority,
-                    out revisedPublishingInterval,
-                    out revisedLifetimeCount,
-                    out revisedMaxKeepAliveCount);
+                    out double revisedPublishingInterval,
+                    out uint revisedLifetimeCount,
+                    out uint revisedMaxKeepAliveCount);
 
-                return CreateResponse(requestHeader, context.StringTable);
+                return Task.FromResult(new ModifySubscriptionResponse
+                {
+                    RevisedPublishingInterval = revisedPublishingInterval,
+                    RevisedLifetimeCount = revisedLifetimeCount,
+                    RevisedMaxKeepAliveCount = revisedMaxKeepAliveCount,
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                });
             }
             catch (ServiceResultException e)
             {
@@ -2368,22 +1924,23 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the SetPublishingMode service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="publishingEnabled">If set to <c>true</c> publishing of NotificationMessages is enabled for the Subscription.</param>
         /// <param name="subscriptionIds">The list of subscription ids.</param>
-        /// <param name="results">The list of StatusCodes for the Subscriptions to enable/disable.</param>
-        /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
+        /// Returns a <see cref="SetPublishingModeResponse"/> object
         /// </returns>
-        public override ResponseHeader SetPublishingMode(
+        public override Task<SetPublishingModeResponse> SetPublishingModeAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             bool publishingEnabled,
             UInt32Collection subscriptionIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct)
         {
             OperationContext context = ValidateRequest(
+                secureChannelContext,
                 requestHeader,
                 RequestType.SetPublishingMode);
 
@@ -2395,10 +1952,15 @@ namespace Opc.Ua.Server
                     context,
                     publishingEnabled,
                     subscriptionIds,
-                    out results,
-                    out diagnosticInfos);
+                    out StatusCodeCollection results,
+                    out DiagnosticInfoCollection diagnosticInfos);
 
-                return CreateResponse(requestHeader, context.StringTable);
+                return Task.FromResult(new SetPublishingModeResponse
+                {
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos,
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                });
             }
             catch (ServiceResultException e)
             {
@@ -2423,35 +1985,26 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the SetTriggering service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="subscriptionId">The subscription id.</param>
         /// <param name="triggeringItemId">The id for the MonitoredItem used as the triggering item.</param>
         /// <param name="linksToAdd">The list of ids of the items to report that are to be added as triggering links.</param>
         /// <param name="linksToRemove">The list of ids of the items to report for the triggering links to be deleted.</param>
-        /// <param name="addResults">The list of StatusCodes for the items to add.</param>
-        /// <param name="addDiagnosticInfos">The list of diagnostic information for the links to add.</param>
-        /// <param name="removeResults">The list of StatusCodes for the items to delete.</param>
-        /// <param name="removeDiagnosticInfos">The list of diagnostic information for the links to delete.</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
+        /// Returns a <see cref="SetTriggeringResponse"/> object
         /// </returns>
-        public override ResponseHeader SetTriggering(
+        public override Task<SetTriggeringResponse> SetTriggeringAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint subscriptionId,
             uint triggeringItemId,
             UInt32Collection linksToAdd,
             UInt32Collection linksToRemove,
-            out StatusCodeCollection addResults,
-            out DiagnosticInfoCollection addDiagnosticInfos,
-            out StatusCodeCollection removeResults,
-            out DiagnosticInfoCollection removeDiagnosticInfos)
+            CancellationToken ct)
         {
-            addResults = null;
-            addDiagnosticInfos = null;
-            removeResults = null;
-            removeDiagnosticInfos = null;
-
-            OperationContext context = ValidateRequest(requestHeader, RequestType.SetTriggering);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.SetTriggering);
 
             try
             {
@@ -2474,12 +2027,19 @@ namespace Opc.Ua.Server
                     triggeringItemId,
                     linksToAdd,
                     linksToRemove,
-                    out addResults,
-                    out addDiagnosticInfos,
-                    out removeResults,
-                    out removeDiagnosticInfos);
+                    out StatusCodeCollection addResults,
+                    out DiagnosticInfoCollection addDiagnosticInfos,
+                    out StatusCodeCollection removeResults,
+                    out DiagnosticInfoCollection removeDiagnosticInfos);
 
-                return CreateResponse(requestHeader, context.StringTable);
+                return Task.FromResult(new SetTriggeringResponse
+                {
+                    AddResults = addResults,
+                    AddDiagnosticInfos = addDiagnosticInfos,
+                    RemoveResults = removeResults,
+                    RemoveDiagnosticInfos = removeDiagnosticInfos,
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                });
             }
             catch (ServiceResultException e)
             {
@@ -2504,24 +2064,25 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the CreateMonitoredItems service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="subscriptionId">The subscription id that will report notifications.</param>
         /// <param name="timestampsToReturn">The type of timestamps to be returned for the MonitoredItems.</param>
         /// <param name="itemsToCreate">The list of MonitoredItems to be created and assigned to the specified subscription</param>
-        /// <param name="results">The list of results for the MonitoredItems to create.</param>
-        /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
+        /// Returns a <see cref="CreateMonitoredItemsResponse"/> object
         /// </returns>
-        public override ResponseHeader CreateMonitoredItems(
+        public override Task<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequestCollection itemsToCreate,
-            out MonitoredItemCreateResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct)
         {
             OperationContext context = ValidateRequest(
+                secureChannelContext,
                 requestHeader,
                 RequestType.CreateMonitoredItems);
 
@@ -2534,10 +2095,15 @@ namespace Opc.Ua.Server
                     subscriptionId,
                     timestampsToReturn,
                     itemsToCreate,
-                    out results,
-                    out diagnosticInfos);
+                    out MonitoredItemCreateResultCollection results,
+                    out DiagnosticInfoCollection diagnosticInfos);
 
-                return CreateResponse(requestHeader, context.StringTable);
+                return Task.FromResult(new CreateMonitoredItemsResponse
+                {
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos,
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                });
             }
             catch (ServiceResultException e)
             {
@@ -2562,24 +2128,25 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the ModifyMonitoredItems service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="subscriptionId">The subscription id.</param>
         /// <param name="timestampsToReturn">The type of timestamps to be returned for the MonitoredItems.</param>
         /// <param name="itemsToModify">The list of MonitoredItems to modify.</param>
-        /// <param name="results">The list of results for the MonitoredItems to modify.</param>
-        /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
+        /// Returns a <see cref="ModifyMonitoredItemsResponse"/> object
         /// </returns>
-        public override ResponseHeader ModifyMonitoredItems(
+        public override Task<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
             MonitoredItemModifyRequestCollection itemsToModify,
-            out MonitoredItemModifyResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct)
         {
             OperationContext context = ValidateRequest(
+                secureChannelContext,
                 requestHeader,
                 RequestType.ModifyMonitoredItems);
 
@@ -2592,10 +2159,15 @@ namespace Opc.Ua.Server
                     subscriptionId,
                     timestampsToReturn,
                     itemsToModify,
-                    out results,
-                    out diagnosticInfos);
+                    out MonitoredItemModifyResultCollection results,
+                    out DiagnosticInfoCollection diagnosticInfos);
 
-                return CreateResponse(requestHeader, context.StringTable);
+                return Task.FromResult(new ModifyMonitoredItemsResponse
+                {
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos,
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                });
             }
             catch (ServiceResultException e)
             {
@@ -2620,22 +2192,23 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the DeleteMonitoredItems service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="subscriptionId">The subscription id.</param>
         /// <param name="monitoredItemIds">The list of MonitoredItems to delete.</param>
-        /// <param name="results">The list of results for the MonitoredItems to delete.</param>
-        /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
+        /// Returns a <see cref="DeleteMonitoredItemsResponse"/> object
         /// </returns>
-        public override ResponseHeader DeleteMonitoredItems(
+        public override Task<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint subscriptionId,
             UInt32Collection monitoredItemIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct)
         {
             OperationContext context = ValidateRequest(
+                secureChannelContext,
                 requestHeader,
                 RequestType.DeleteMonitoredItems);
 
@@ -2647,10 +2220,15 @@ namespace Opc.Ua.Server
                     context,
                     subscriptionId,
                     monitoredItemIds,
-                    out results,
-                    out diagnosticInfos);
+                    out StatusCodeCollection results,
+                    out DiagnosticInfoCollection diagnosticInfos);
 
-                return CreateResponse(requestHeader, context.StringTable);
+                return Task.FromResult(new DeleteMonitoredItemsResponse
+                {
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos,
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                });
             }
             catch (ServiceResultException e)
             {
@@ -2675,24 +2253,25 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the SetMonitoringMode service.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="subscriptionId">The subscription id.</param>
         /// <param name="monitoringMode">The monitoring mode to be set for the MonitoredItems.</param>
         /// <param name="monitoredItemIds">The list of MonitoredItems to modify.</param>
-        /// <param name="results">The list of results for the MonitoredItems to modify.</param>
-        /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
+        /// Returns a <see cref="SetMonitoringModeResponse"/>
         /// </returns>
-        public override ResponseHeader SetMonitoringMode(
+        public override async Task<SetMonitoringModeResponse> SetMonitoringModeAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint subscriptionId,
             MonitoringMode monitoringMode,
             UInt32Collection monitoredItemIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct)
         {
             OperationContext context = ValidateRequest(
+                secureChannelContext,
                 requestHeader,
                 RequestType.SetMonitoringMode);
 
@@ -2700,62 +2279,21 @@ namespace Opc.Ua.Server
             {
                 ValidateOperationLimits(monitoredItemIds, OperationLimits.MaxMonitoredItemsPerCall);
 
-                ServerInternal.SubscriptionManager.SetMonitoringMode(
+                (StatusCodeCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                    await ServerInternal.SubscriptionManager.SetMonitoringModeAsync(
                     context,
                     subscriptionId,
                     monitoringMode,
                     monitoredItemIds,
-                    out results,
-                    out diagnosticInfos);
+                    ct)
+                    .ConfigureAwait(false);
 
-                return CreateResponse(requestHeader, context.StringTable);
-            }
-            catch (ServiceResultException e)
-            {
-                lock (ServerInternal.DiagnosticsWriteLock)
+                return new SetMonitoringModeResponse
                 {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
-                    }
-                }
-
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
-        }
-
-        /// <summary>
-        /// Invokes the Call service.
-        /// </summary>
-        /// <param name="requestHeader">The request header.</param>
-        /// <param name="methodsToCall">The methods to call.</param>
-        /// <param name="results">The results.</param>
-        /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
-        /// <returns>
-        /// Returns a <see cref="ResponseHeader"/> object
-        /// </returns>
-        public override ResponseHeader Call(
-            RequestHeader requestHeader,
-            CallMethodRequestCollection methodsToCall,
-            out CallMethodResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.Call);
-
-            try
-            {
-                ValidateOperationLimits(methodsToCall, OperationLimits.MaxNodesPerMethodCall);
-
-                m_serverInternal.NodeManager
-                    .Call(context, methodsToCall, out results, out diagnosticInfos);
-
-                return CreateResponse(requestHeader, context.StringTable);
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos,
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                };
             }
             catch (ServiceResultException e)
             {
@@ -2780,6 +2318,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes the Call service using async Task based request.
         /// </summary>
+        /// <param name="secureChannelContext">The secure channel context</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="methodsToCall">The methods to call.</param>
         /// <param name="ct">The cancellation token</param>
@@ -2787,11 +2326,12 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override async Task<CallResponse> CallAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             CallMethodRequestCollection methodsToCall,
             CancellationToken ct)
         {
-            OperationContext context = ValidateRequest(requestHeader, RequestType.Call);
+            OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Call);
 
             try
             {
@@ -2838,14 +2378,18 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (Lock)
+                m_semaphoreSlim.Wait();
+                try
                 {
                     if (m_serverInternal == null)
                     {
                         throw new ServiceResultException(StatusCodes.BadServerHalted);
                     }
-
                     return m_serverInternal;
+                }
+                finally
+                {
+                    m_semaphoreSlim.Release();
                 }
             }
         }
@@ -2892,24 +2436,18 @@ namespace Opc.Ua.Server
             var configuration = new ApplicationConfiguration(Configuration);
 
             // use a dedicated certificate validator with the registration, but derive behavior from server config
-            var registrationCertificateValidator = new CertificateValidationEventHandler(
-                RegistrationValidator_CertificateValidation);
             configuration.CertificateValidator = new CertificateValidator(MessageContext.Telemetry);
-            configuration.CertificateValidator.CertificateValidation
-                += registrationCertificateValidator;
             await configuration
                 .CertificateValidator.UpdateAsync(
                     configuration.SecurityConfiguration,
-                    applicationUri: null,
+                    configuration.ApplicationUri,
                     ct)
                 .ConfigureAwait(false);
 
-            try
+            // try each endpoint.
+            if (m_registrationEndpoints != null)
             {
-                // try each endpoint.
-                if (m_registrationEndpoints != null)
-                {
-                    foreach (ConfiguredEndpoint endpoint in m_registrationEndpoints.Endpoints)
+                foreach (ConfiguredEndpoint endpoint in m_registrationEndpoints.Endpoints)
                     {
                         RegistrationClient client = null;
                         int i = 0;
@@ -2946,12 +2484,12 @@ namespace Opc.Ua.Server
                                     InstanceCertificateTypesProvider.GetInstanceCertificate(
                                         endpoint.Description?.SecurityPolicyUri ??
                                         SecurityPolicies.None);
-                                client = RegistrationClient.Create(
+                                client = await RegistrationClient.CreateAsync(
                                     configuration,
                                     endpoint.Description,
                                     endpoint.Configuration,
                                     instanceCertificate,
-                                    MessageContext.Telemetry);
+                                    ct: ct).ConfigureAwait(false);
 
                                 client.OperationTimeout = 10000;
 
@@ -3013,45 +2551,12 @@ namespace Opc.Ua.Server
                             }
                         }
                     }
-                    // retry to start with RegisterServer2 if both failed
-                    m_useRegisterServer2 = true;
-                }
+                // retry to start with RegisterServer2 if both failed
+                m_useRegisterServer2 = true;
             }
-            finally
-            {
-                if (configuration != null)
-                {
-                    configuration.CertificateValidator.CertificateValidation
-                        -= registrationCertificateValidator;
-                }
-            }
+
             m_registeredWithDiscoveryServer = false;
             return false;
-        }
-
-        /// <summary>
-        /// Checks that the domains in the certificate match the current host.
-        /// </summary>
-        private void RegistrationValidator_CertificateValidation(
-            CertificateValidator sender,
-            CertificateValidationEventArgs e)
-        {
-            System.Net.IPAddress[] targetAddresses = Utils.GetHostAddresses(Utils.GetHostName());
-
-            foreach (string domain in X509Utils.GetDomainsFromCertificate(e.Certificate))
-            {
-                foreach (System.Net.IPAddress actualAddress in Utils.GetHostAddresses(domain))
-                {
-                    foreach (System.Net.IPAddress targetAddress in targetAddresses)
-                    {
-                        if (targetAddress.Equals(actualAddress))
-                        {
-                            e.Accept = true;
-                            return;
-                        }
-                    }
-                }
-            }
         }
 
         /// <summary>
@@ -3065,11 +2570,8 @@ namespace Opc.Ua.Server
                 lock (m_registrationLock)
                 {
                     // halt any outstanding timer.
-                    if (m_registrationTimer != null)
-                    {
-                        m_registrationTimer.Dispose();
-                        m_registrationTimer = null;
-                    }
+                    m_registrationTimer?.Dispose();
+                    m_registrationTimer = null;
                 }
 
                 if (await RegisterWithDiscoveryServerAsync().ConfigureAwait(false))
@@ -3129,7 +2631,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The synchronization object.
         /// </summary>
-        protected object Lock { get; } = new object();
+        [Obsolete("Use your own synchronization mechanism.")]
+        protected object Lock => null;
 
         /// <summary>
         /// The state object associated with the server.
@@ -3172,7 +2675,8 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         protected virtual void SetServerState(ServerState state)
         {
-            lock (Lock)
+            m_semaphoreSlim.Wait();
+            try
             {
                 if (ServiceResult.IsBad(ServerError))
                 {
@@ -3188,6 +2692,10 @@ namespace Opc.Ua.Server
 
                 m_serverInternal.CurrentState = state;
             }
+            finally
+            {
+                m_semaphoreSlim.Release();
+            }
         }
 
         /// <summary>
@@ -3196,9 +2704,14 @@ namespace Opc.Ua.Server
         /// <param name="error">The error.</param>
         protected virtual void SetServerError(ServiceResult error)
         {
-            lock (Lock)
+            m_semaphoreSlim.Wait();
+            try
             {
                 ServerError = error;
+            }
+            finally
+            {
+                m_semaphoreSlim.Release();
             }
         }
 
@@ -3229,9 +2742,11 @@ namespace Opc.Ua.Server
         /// Verifies that the request header is valid.
         /// </summary>
         /// <param name="requestHeader">The request header.</param>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestType">Type of the request.</param>
         /// <exception cref="ServiceResultException"></exception>
         protected virtual OperationContext ValidateRequest(
+            SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             RequestType requestType)
         {
@@ -3243,7 +2758,7 @@ namespace Opc.Ua.Server
             }
 
             OperationContext context = ServerInternal.SessionManager
-                .ValidateRequest(requestHeader, requestType);
+                .ValidateRequest(requestHeader, secureChannelContext, requestType);
 
             ServerUtils.EventLog.ServerCall(context.RequestType, context.RequestId);
             m_logger.LogTrace("Server Call={RequestType}, Id={RequestId}", context.RequestType, context.RequestId);
@@ -3346,9 +2861,8 @@ namespace Opc.Ua.Server
 
             // create new result object.
             var result = new ServiceResult(
-                e.StatusCode,
-                e.SymbolicId,
                 e.NamespaceUri,
+                new StatusCode(e.StatusCode, e.SymbolicId),
                 translatedText,
                 e.AdditionalInfo,
                 innerResult);
@@ -3385,7 +2899,8 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         protected virtual void OnRequestComplete(OperationContext context)
         {
-            lock (Lock)
+            m_semaphoreSlim.Wait();
+            try
             {
                 if (m_serverInternal == null)
                 {
@@ -3393,6 +2908,10 @@ namespace Opc.Ua.Server
                 }
 
                 m_serverInternal.RequestManager.RequestCompleted(context);
+            }
+            finally
+            {
+                m_semaphoreSlim.Release();
             }
         }
 
@@ -3415,7 +2934,8 @@ namespace Opc.Ua.Server
                         MessageContext.Telemetry)
                     .ConfigureAwait(false);
 
-                OnUpdateConfiguration(configuration);
+                await OnUpdateConfigurationAsync(configuration)
+                    .ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -3427,12 +2947,16 @@ namespace Opc.Ua.Server
         /// Called when the server configuration is changed on disk.
         /// </summary>
         /// <param name="configuration">The configuration.</param>
+        /// <param name="cancellationToken">The cancellation token</param>
         /// <remarks>
         /// Servers are free to ignore changes if it is difficult/impossible to apply them without a restart.
         /// </remarks>
-        protected override void OnUpdateConfiguration(ApplicationConfiguration configuration)
+        protected override async ValueTask OnUpdateConfigurationAsync(
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default)
         {
-            lock (Lock)
+            await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
                 // update security configuration.
                 configuration.SecurityConfiguration.Validate(MessageContext.Telemetry);
@@ -3447,10 +2971,9 @@ namespace Opc.Ua.Server
                     .SecurityConfiguration
                     .RejectedCertificateStore;
 
-                Configuration
-                    .CertificateValidator.UpdateAsync(Configuration.SecurityConfiguration)
-                    .GetAwaiter()
-                    .GetResult();
+                await Configuration.CertificateValidator.UpdateAsync(
+                    Configuration.SecurityConfiguration,
+                    ct: cancellationToken).ConfigureAwait(false);
 
                 // update trace configuration.
                 Configuration.TraceConfiguration = configuration.TraceConfiguration ??
@@ -3460,6 +2983,14 @@ namespace Opc.Ua.Server
                 Configuration.TraceConfiguration.ApplySettings();
 #pragma warning restore CS0618 // Type or member is obsolete
             }
+            catch (Exception e)
+            {
+                m_logger.LogError(e, "Failed to update configuration.");
+            }
+            finally
+            {
+                m_semaphoreSlim.Release();
+            }
         }
 
         /// <summary>
@@ -3468,7 +2999,8 @@ namespace Opc.Ua.Server
         /// <param name="configuration">The configuration.</param>
         protected override void OnServerStarting(ApplicationConfiguration configuration)
         {
-            lock (Lock)
+            m_semaphoreSlim.Wait();
+            try
             {
                 base.OnServerStarting(configuration);
 
@@ -3477,6 +3009,10 @@ namespace Opc.Ua.Server
 
                 // try first RegisterServer2
                 m_useRegisterServer2 = true;
+            }
+            finally
+            {
+                m_semaphoreSlim.Release();
             }
         }
 
@@ -3492,7 +3028,7 @@ namespace Opc.Ua.Server
         /// </returns>
         protected override IList<ServiceHost> InitializeServiceHosts(
             ApplicationConfiguration configuration,
-            TransportListenerBindings bindingFactory,
+            ITransportListenerBindings bindingFactory,
             out ApplicationDescription serverDescription,
             out EndpointDescriptionCollection endpoints)
         {
@@ -3580,229 +3116,236 @@ namespace Opc.Ua.Server
         /// Starts the server application.
         /// </summary>
         /// <param name="configuration">The configuration.</param>
+        /// <param name="cancellationToken">The cancellationToken</param>
         /// <exception cref="ServiceResultException"></exception>
-        protected override void StartApplication(ApplicationConfiguration configuration)
+        protected override async ValueTask StartApplicationAsync(ApplicationConfiguration configuration, CancellationToken cancellationToken = default)
         {
-            base.StartApplication(configuration);
-
-            lock (Lock)
+            await base.StartApplicationAsync(configuration, cancellationToken)
+                .ConfigureAwait(false);
+            await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                try
+                m_logger.LogInformation(
+                    Utils.TraceMasks.StartStop,
+                    "Server - Start application {ApplicationName}.",
+                    configuration.ApplicationName);
+
+                // Setup the minimum nonce length
+                Nonce.SetMinNonceValue((uint)configuration.SecurityConfiguration.NonceLength);
+
+                // create the datastore for the instance.
+                m_serverInternal = new ServerInternalData(
+                    ServerProperties,
+                    configuration,
+                    MessageContext,
+                    new CertificateValidator(MessageContext.Telemetry),
+                    InstanceCertificateTypesProvider);
+
+                // create the manager responsible for providing localized string resources.
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateResourceManager.");
+                ResourceManager resourceManager = CreateResourceManager(
+                    m_serverInternal,
+                    configuration);
+
+                // create the manager responsible for incoming requests.
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateRequestManager.");
+                RequestManager requestManager = CreateRequestManager(
+                    m_serverInternal,
+                    configuration);
+
+                // create the master node manager.
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateMasterNodeManager.");
+                MasterNodeManager masterNodeManager = CreateMasterNodeManager(
+                    m_serverInternal,
+                    configuration);
+
+                // add the node manager to the datastore.
+                m_serverInternal.SetNodeManager(masterNodeManager);
+
+                // put the node manager into a state that allows it to be used by other objects.
+                await masterNodeManager.StartupAsync(cancellationToken)
+                    .ConfigureAwait(false);
+
+                // create the manager responsible for handling events.
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateEventManager.");
+                EventManager eventManager = CreateEventManager(m_serverInternal, configuration);
+
+                // creates the server object.
+                m_serverInternal.CreateServerObject(
+                    eventManager,
+                    resourceManager,
+                    requestManager);
+
+                // do any additional processing now that the node manager is up and running.
+                OnNodeManagerStarted(m_serverInternal);
+
+                // create the manager responsible for aggregates.
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateAggregateManager.");
+                m_serverInternal.SetAggregateManager(
+                    CreateAggregateManager(m_serverInternal, configuration));
+
+                // create the manager responsible for modelling rules.
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateModellingRulesManager.");
+                m_serverInternal.SetModellingRulesManager(
+                    CreateModellingRulesManager(m_serverInternal, configuration));
+
+                // start the session manager.
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateSessionManager.");
+                ISessionManager sessionManager = CreateSessionManager(
+                    m_serverInternal,
+                    configuration);
+                await sessionManager.StartupAsync(cancellationToken)
+                    .ConfigureAwait(false);
+
+                // use event to trigger channel that should not be closed.
+                sessionManager.SessionChannelKeepAlive += SessionChannelKeepAliveEvent;
+
+                //create the MonitoredItemQueueFactory
+                IMonitoredItemQueueFactory monitoredItemQueueFactory
+                    = CreateMonitoredItemQueueFactory(
+                    m_serverInternal,
+                    configuration);
+
+                //add the MonitoredItemQueueFactory to the datastore.
+                m_serverInternal.SetMonitoredItemQueueFactory(monitoredItemQueueFactory);
+
+                //create the SubscriptionStore
+                ISubscriptionStore subscriptionStore = CreateSubscriptionStore(
+                    m_serverInternal,
+                    configuration);
+
+                //add the SubscriptionStore to the datastore
+                m_serverInternal.SetSubscriptionStore(subscriptionStore);
+
+                // start the subscription manager.
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateSubscriptionManager.");
+                ISubscriptionManager subscriptionManager = CreateSubscriptionManager(
+                    m_serverInternal,
+                    configuration);
+                await subscriptionManager.StartupAsync(cancellationToken)
+                    .ConfigureAwait(false);
+
+                // add the session manager to the datastore.
+                m_serverInternal.SetSessionManager(sessionManager, subscriptionManager);
+
+                ServerError = null;
+
+                // setup registration information.
+                lock (m_registrationLock)
                 {
-                    m_logger.LogInformation(
-                        Utils.TraceMasks.StartStop,
-                        "Server - Start application {ApplicationName}.",
-                        configuration.ApplicationName);
+                    m_maxRegistrationInterval = configuration.ServerConfiguration
+                        .MaxRegistrationInterval;
 
-                    // Setup the minimum nonce length
-                    Nonce.SetMinNonceValue((uint)configuration.SecurityConfiguration.NonceLength);
+                    ApplicationDescription serverDescription = ServerDescription;
 
-                    // create the datastore for the instance.
-                    m_serverInternal = new ServerInternalData(
-                        ServerProperties,
-                        configuration,
-                        MessageContext,
-                        new CertificateValidator(MessageContext.Telemetry),
-                        InstanceCertificateTypesProvider);
-
-                    // create the manager responsible for providing localized string resources.
-                    m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateResourceManager.");
-                    ResourceManager resourceManager = CreateResourceManager(
-                        m_serverInternal,
-                        configuration);
-
-                    // create the manager responsible for incoming requests.
-                    m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateRequestManager.");
-                    RequestManager requestManager = CreateRequestManager(
-                        m_serverInternal,
-                        configuration);
-
-                    // create the master node manager.
-                    m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateMasterNodeManager.");
-                    MasterNodeManager masterNodeManager = CreateMasterNodeManager(
-                        m_serverInternal,
-                        configuration);
-
-                    // add the node manager to the datastore.
-                    m_serverInternal.SetNodeManager(masterNodeManager);
-
-                    // put the node manager into a state that allows it to be used by other objects.
-                    masterNodeManager.StartupAsync()
-                        .AsTask().GetAwaiter().GetResult();
-
-                    // create the manager responsible for handling events.
-                    m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateEventManager.");
-                    EventManager eventManager = CreateEventManager(m_serverInternal, configuration);
-
-                    // creates the server object.
-                    m_serverInternal.CreateServerObject(
-                        eventManager,
-                        resourceManager,
-                        requestManager);
-
-                    // do any additional processing now that the node manager is up and running.
-                    OnNodeManagerStarted(m_serverInternal);
-
-                    // create the manager responsible for aggregates.
-                    m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateAggregateManager.");
-                    m_serverInternal.SetAggregateManager(
-                        CreateAggregateManager(m_serverInternal, configuration));
-
-                    // start the session manager.
-                    m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateSessionManager.");
-                    ISessionManager sessionManager = CreateSessionManager(
-                        m_serverInternal,
-                        configuration);
-                    sessionManager.Startup();
-
-                    // use event to trigger channel that should not be closed.
-                    sessionManager.SessionChannelKeepAlive += SessionChannelKeepAliveEvent;
-
-                    //create the MonitoredItemQueueFactory
-                    IMonitoredItemQueueFactory monitoredItemQueueFactory
-                        = CreateMonitoredItemQueueFactory(
-                        m_serverInternal,
-                        configuration);
-
-                    //add the MonitoredItemQueueFactory to the datastore.
-                    m_serverInternal.SetMonitoredItemQueueFactory(monitoredItemQueueFactory);
-
-                    //create the SubscriptionStore
-                    ISubscriptionStore subscriptionStore = CreateSubscriptionStore(
-                        m_serverInternal,
-                        configuration);
-
-                    //add the SubscriptionStore to the datastore
-                    m_serverInternal.SetSubscriptionStore(subscriptionStore);
-
-                    // start the subscription manager.
-                    m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateSubscriptionManager.");
-                    ISubscriptionManager subscriptionManager = CreateSubscriptionManager(
-                        m_serverInternal,
-                        configuration);
-                    subscriptionManager.Startup();
-
-                    // add the session manager to the datastore.
-                    m_serverInternal.SetSessionManager(sessionManager, subscriptionManager);
-
-                    ServerError = null;
-
-                    // setup registration information.
-                    lock (m_registrationLock)
+                    m_registrationInfo = new RegisteredServer
                     {
-                        m_maxRegistrationInterval = configuration.ServerConfiguration
-                            .MaxRegistrationInterval;
+                        ServerUri = serverDescription.ApplicationUri
+                    };
+                    m_registrationInfo.ServerNames.Add(serverDescription.ApplicationName);
+                    m_registrationInfo.ProductUri = serverDescription.ProductUri;
+                    m_registrationInfo.ServerType = serverDescription.ApplicationType;
+                    m_registrationInfo.GatewayServerUri = null;
+                    m_registrationInfo.IsOnline = true;
+                    m_registrationInfo.SemaphoreFilePath = null;
 
-                        ApplicationDescription serverDescription = ServerDescription;
+                    // add all discovery urls.
+                    string computerName = Utils.GetHostName();
 
-                        m_registrationInfo = new RegisteredServer
+                    for (int ii = 0; ii < BaseAddresses.Count; ii++)
+                    {
+                        var uri = new UriBuilder(BaseAddresses[ii].DiscoveryUrl);
+
+                        if (string.Equals(
+                            uri.Host,
+                            "localhost",
+                            StringComparison.OrdinalIgnoreCase))
                         {
-                            ServerUri = serverDescription.ApplicationUri
+                            uri.Host = computerName;
+                        }
+
+                        m_registrationInfo.DiscoveryUrls.Add(uri.ToString());
+                    }
+
+                    // build list of registration endpoints.
+                    m_registrationEndpoints = new ConfiguredEndpointCollection(configuration);
+
+                    EndpointDescription endpoint = configuration.ServerConfiguration
+                        .RegistrationEndpoint;
+
+                    if (endpoint == null)
+                    {
+                        endpoint = new EndpointDescription
+                        {
+                            EndpointUrl = Utils.Format(Utils.DiscoveryUrls[0], "localhost"),
+                            SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(
+                                MessageSecurityMode.SignAndEncrypt,
+                                SecurityPolicies.Basic256Sha256,
+                                m_logger),
+                            SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                            SecurityPolicyUri = SecurityPolicies.Basic256Sha256
                         };
-                        m_registrationInfo.ServerNames.Add(serverDescription.ApplicationName);
-                        m_registrationInfo.ProductUri = serverDescription.ProductUri;
-                        m_registrationInfo.ServerType = serverDescription.ApplicationType;
-                        m_registrationInfo.GatewayServerUri = null;
-                        m_registrationInfo.IsOnline = true;
-                        m_registrationInfo.SemaphoreFilePath = null;
-
-                        // add all discovery urls.
-                        string computerName = Utils.GetHostName();
-
-                        for (int ii = 0; ii < BaseAddresses.Count; ii++)
-                        {
-                            var uri = new UriBuilder(BaseAddresses[ii].DiscoveryUrl);
-
-                            if (string.Equals(
-                                uri.Host,
-                                "localhost",
-                                StringComparison.OrdinalIgnoreCase))
-                            {
-                                uri.Host = computerName;
-                            }
-
-                            m_registrationInfo.DiscoveryUrls.Add(uri.ToString());
-                        }
-
-                        // build list of registration endpoints.
-                        m_registrationEndpoints = new ConfiguredEndpointCollection(configuration);
-
-                        EndpointDescription endpoint = configuration.ServerConfiguration
-                            .RegistrationEndpoint;
-
-                        if (endpoint == null)
-                        {
-                            endpoint = new EndpointDescription
-                            {
-                                EndpointUrl = Utils.Format(Utils.DiscoveryUrls[0], "localhost"),
-                                SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(
-                                    MessageSecurityMode.SignAndEncrypt,
-                                    SecurityPolicies.Basic256Sha256,
-                                    m_logger),
-                                SecurityMode = MessageSecurityMode.SignAndEncrypt,
-                                SecurityPolicyUri = SecurityPolicies.Basic256Sha256
-                            };
-                            endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
-                        }
-
-                        m_registrationEndpoints.Add(endpoint);
-
-                        m_registeredWithDiscoveryServer = false;
-                        m_minRegistrationInterval = 1000;
-                        m_lastRegistrationInterval = m_minRegistrationInterval;
-
-                        // start registration timer.
-                        if (m_registrationTimer != null)
-                        {
-                            m_registrationTimer.Dispose();
-                            m_registrationTimer = null;
-                        }
-
-                        if (m_maxRegistrationInterval > 0)
-                        {
-                            m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Registration Timer started.");
-                            m_registrationTimer = new Timer(
-                                OnRegisterServerAsync,
-                                this,
-                                m_minRegistrationInterval,
-                                Timeout.Infinite);
-                        }
+                        endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
                     }
 
-                    // set the server status as running.
-                    SetServerState(ServerState.Running);
+                    m_registrationEndpoints.Add(endpoint);
 
-                    // all initialization is complete.
-                    m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Started.");
-                    OnServerStarted(m_serverInternal);
+                    m_registeredWithDiscoveryServer = false;
+                    m_minRegistrationInterval = 1000;
+                    m_lastRegistrationInterval = m_minRegistrationInterval;
 
-                    // monitor the configuration file.
-                    if (!string.IsNullOrEmpty(configuration.SourceFilePath))
+                    // start registration timer.
+                    m_registrationTimer?.Dispose();
+                    m_registrationTimer = null;
+
+                    if (m_maxRegistrationInterval > 0)
                     {
-                        m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Configuration watcher started.");
-                        m_configurationWatcher = new ConfigurationWatcher(configuration, MessageContext.Telemetry);
-                        m_configurationWatcher.Changed += OnConfigurationChangedAsync;
+                        m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Registration Timer started.");
+                        m_registrationTimer = new Timer(
+                            OnRegisterServerAsync,
+                            this,
+                            m_minRegistrationInterval,
+                            Timeout.Infinite);
                     }
-
-                    CertificateValidator.CertificateUpdate += OnCertificateUpdate;
-                }
-                catch (Exception e)
-                {
-                    const string message = "Unexpected error starting application";
-                    m_logger.LogCritical(Utils.TraceMasks.StartStop, e, message);
-                    Utils.SilentDispose(m_serverInternal);
-                    m_serverInternal = null;
-                    var error = ServiceResult.Create(e, StatusCodes.BadInternalError, message);
-                    ServerError = error;
-                    throw new ServiceResultException(error);
                 }
             }
+            catch (Exception e)
+            {
+                const string message = "Unexpected error starting application";
+                m_logger.LogCritical(Utils.TraceMasks.StartStop, e, message);
+                Utils.SilentDispose(m_serverInternal);
+                m_serverInternal = null;
+                var error = ServiceResult.Create(e, StatusCodes.BadInternalError, message);
+                ServerError = error;
+                throw new ServiceResultException(error);
+            }
+            finally
+            {
+                m_semaphoreSlim.Release();
+            }
+
+            // set the server status as running.
+            SetServerState(ServerState.Running);
+
+            // all initialization is complete.
+            m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Started.");
+            OnServerStarted(m_serverInternal);
+
+            // monitor the configuration file.
+            if (!string.IsNullOrEmpty(configuration.SourceFilePath))
+            {
+                m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Configuration watcher started.");
+                m_configurationWatcher = new ConfigurationWatcher(configuration, MessageContext.Telemetry);
+                m_configurationWatcher.Changed += OnConfigurationChangedAsync;
+            }
+
+            CertificateValidator.CertificateUpdate += OnCertificateUpdateAsync;
         }
 
         /// <summary>
         /// Called before the server stops
         /// </summary>
-        protected override async void OnServerStopping()
+        protected override async ValueTask OnServerStoppingAsync(CancellationToken cancellationToken = default)
         {
             m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Stopping.");
 
@@ -3811,11 +3354,8 @@ namespace Opc.Ua.Server
             // halt any outstanding timer.
             lock (m_registrationLock)
             {
-                if (m_registrationTimer != null)
-                {
-                    m_registrationTimer.Dispose();
-                    m_registrationTimer = null;
-                }
+                m_registrationTimer?.Dispose();
+                m_registrationTimer = null;
             }
 
             // attempt graceful shutdown the server.
@@ -3825,20 +3365,24 @@ namespace Opc.Ua.Server
                 {
                     // unregister from Discovery Server if registered before
                     m_registrationInfo.IsOnline = false;
-                    await RegisterWithDiscoveryServerAsync().ConfigureAwait(false);
+                    await RegisterWithDiscoveryServerAsync(cancellationToken).ConfigureAwait(false);
                 }
 
-                lock (Lock)
+                await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+                try
                 {
                     if (m_serverInternal != null)
                     {
                         m_serverInternal.SessionManager.SessionChannelKeepAlive
                             -= SessionChannelKeepAliveEvent;
-                        m_serverInternal.SubscriptionManager.Shutdown();
+                        await m_serverInternal.SubscriptionManager.ShutdownAsync(cancellationToken).ConfigureAwait(false);
                         m_serverInternal.SessionManager.Shutdown();
-                        m_serverInternal.NodeManager.ShutdownAsync()
-                            .AsTask().GetAwaiter().GetResult();
+                        await m_serverInternal.NodeManager.ShutdownAsync(cancellationToken).ConfigureAwait(false);
                     }
+                }
+                finally
+                {
+                    m_semaphoreSlim.Release();
                 }
             }
             catch (Exception e)
@@ -4139,6 +3683,37 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Creates the modelling rules manager used by the server.
+        /// </summary>
+        /// <param name="server">The server.</param>
+        /// <param name="configuration">The application configuration.</param>
+        /// <returns>The manager.</returns>
+        protected virtual ModellingRulesManager CreateModellingRulesManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration)
+        {
+            var manager = new ModellingRulesManager(server);
+
+            manager.RegisterModellingRule(
+                ObjectIds.ModellingRule_Mandatory,
+                BrowseNames.ModellingRule_Mandatory);
+            manager.RegisterModellingRule(
+                ObjectIds.ModellingRule_Optional,
+                BrowseNames.ModellingRule_Optional);
+            manager.RegisterModellingRule(
+                ObjectIds.ModellingRule_ExposesItsArray,
+                BrowseNames.ModellingRule_ExposesItsArray);
+            manager.RegisterModellingRule(
+                ObjectIds.ModellingRule_OptionalPlaceholder,
+                BrowseNames.ModellingRule_OptionalPlaceholder);
+            manager.RegisterModellingRule(
+                ObjectIds.ModellingRule_MandatoryPlaceholder,
+                BrowseNames.ModellingRule_MandatoryPlaceholder);
+
+            return manager;
+        }
+
+        /// <summary>
         /// Creates the resource manager for the server.
         /// </summary>
         /// <param name="server">The server.</param>
@@ -4343,6 +3918,7 @@ namespace Opc.Ua.Server
             => ServerInternal.ServerObject.ServerCapabilities.OperationLimits;
 
         private readonly Lock m_registrationLock = new();
+        private readonly SemaphoreSlim m_semaphoreSlim = new(1, 1);
         private IServerInternal m_serverInternal;
         private ConfigurationWatcher m_configurationWatcher;
         private ConfiguredEndpointCollection m_registrationEndpoints;

@@ -125,13 +125,11 @@ namespace Opc.Ua.Server
         /// </summary>
         void Close();
 
-#if ECC_SUPPORT
         /// <summary>
         /// Create new ECC ephemeral key
         /// </summary>
         /// <returns>A new ephemeral key</returns>
         EphemeralKeyType GetNewEccKey();
-#endif
 
         /// <summary>
         /// Checks if the secure channel is currently valid.
@@ -203,6 +201,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates the request.
         /// </summary>
-        void ValidateRequest(RequestHeader requestHeader, RequestType requestType);
+        void ValidateRequest(RequestHeader requestHeader, SecureChannelContext secureChannelContext, RequestType requestType);
     }
 }

@@ -232,66 +232,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Encodes a session-less message to a buffer.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="message"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException"></exception>
-        public static void EncodeSessionLessMessage(
-            IEncodeable message,
-            Stream stream,
-            IServiceMessageContext context,
-            bool leaveOpen)
-        {
-            if (message == null)
-            {
-                throw new ArgumentNullException(nameof(message));
-            }
-
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-
-            // create encoder.
-            var encoder = new JsonEncoder(context, true, false, stream, leaveOpen);
-            try
-            {
-                long start = stream.Position;
-
-                // write the message.
-                var envelope = new SessionLessServiceMessage
-                {
-                    NamespaceUris = context.NamespaceUris,
-                    ServerUris = context.ServerUris,
-                    Message = message
-                };
-
-                envelope.Encode(encoder);
-
-                // check that the max message size was not exceeded.
-                if (context.MaxMessageSize > 0 &&
-                    context.MaxMessageSize < (int)(stream.Position - start))
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadEncodingLimitsExceeded,
-                        "MaxMessageSize {0} < {1}",
-                        context.MaxMessageSize,
-                        (int)(stream.Position - start));
-                }
-
-                encoder.Close();
-            }
-            finally
-            {
-                if (leaveOpen)
-                {
-                    stream.Position = 0;
-                }
-                encoder.Dispose();
-            }
-        }
-
-        /// <summary>
         /// Encodes a message in a stream.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="message"/> is <c>null</c>.</exception>
@@ -554,12 +494,12 @@ namespace Opc.Ua
             Action<string, T> action,
             string fieldName,
             T value,
-            JsonEncodingType useEncoding)
+            JsonEncodingType useEncodingType)
         {
             JsonEncodingType currentValue = EncodingToUse;
             try
             {
-                EncodingToUse = useEncoding;
+                EncodingToUse = useEncodingType;
                 action(fieldName, value);
             }
             finally
@@ -584,8 +524,12 @@ namespace Opc.Ua
                 case JsonEncodingType.Reversible:
                     fieldName = "Value";
                     break;
-                default:
+                case JsonEncodingType.Verbose:
+                case JsonEncodingType.NonReversible:
                     return;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected Encoding type {EncodingToUse}");
             }
 
             WriteUInt32("SwitchField", switchField);
@@ -1199,12 +1143,6 @@ namespace Opc.Ua
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
 
-            if (value == null)
-            {
-                WriteSimpleField(fieldName, kNull, EscapeOptions.NoValueEscape);
-                return;
-            }
-
             WriteSimpleField(
                 fieldName,
                 Convert.ToBase64String(value, index, count),
@@ -1380,6 +1318,9 @@ namespace Opc.Ua
                 case IdType.Opaque:
                     WriteByteString("Id", (byte[])value.Identifier);
                     break;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected Node IdType {value.IdType}");
             }
 
             if (namespaceUri != null)
@@ -2984,8 +2925,10 @@ namespace Opc.Ua
                             StatusCodes.BadEncodingError,
                             "Unexpected type encountered while encoding an array of Variants: {0}",
                             array.GetType());
-
-                    default:
+                    case BuiltInType.Null:
+                    case BuiltInType.Number:
+                    case BuiltInType.Integer:
+                    case BuiltInType.UInteger:
                         // try to write IEncodeable Array
                         if (array is null or IEncodeable[])
                         {
@@ -2999,6 +2942,9 @@ namespace Opc.Ua
                             StatusCodes.BadEncodingError,
                             "Unexpected BuiltInType encountered while encoding an array: {0}",
                             builtInType);
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected BuiltInType {builtInType}");
                 }
             }
             // write matrix.
@@ -3019,19 +2965,16 @@ namespace Opc.Ua
                     }
                 }
 
-                if (matrix != null)
+                if (EncodingToUse is JsonEncodingType.Compact or JsonEncodingType.Verbose)
                 {
-                    if (EncodingToUse is JsonEncodingType.Compact or JsonEncodingType.Verbose)
-                    {
-                        WriteArrayDimensionMatrix(fieldName, builtInType, matrix);
-                    }
-                    else
-                    {
-                        int index = 0;
-                        WriteStructureMatrix(fieldName, matrix, 0, ref index, matrix.TypeInfo);
-                    }
-                    return;
+                    WriteArrayDimensionMatrix(fieldName, builtInType, matrix);
                 }
+                else
+                {
+                    int index = 0;
+                    WriteStructureMatrix(fieldName, matrix, 0, ref index, matrix.TypeInfo);
+                }
+                return;
 
                 // field is omitted
             }
@@ -3312,6 +3255,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes the contents of a Variant to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteVariantContents(object value, TypeInfo typeInfo)
         {
             bool inVariantWithEncoding = m_inVariantWithEncoding;
@@ -3407,6 +3351,16 @@ namespace Opc.Ua
                         case BuiltInType.DiagnosticInfo:
                             WriteDiagnosticInfo(null, (DiagnosticInfo)value);
                             return;
+                        case BuiltInType.Null:
+                        case BuiltInType.Variant:
+                        case BuiltInType.Number:
+                        case BuiltInType.Integer:
+                        case BuiltInType.UInteger:
+                            // Should this not throw?
+                            break;
+                        default:
+                            throw ServiceResultException.Unexpected(
+                                $"Unexpected BuiltInType {typeInfo.BuiltInType}");
                     }
                 }
                 // write array
@@ -3528,7 +3482,7 @@ namespace Opc.Ua
 
                 if (EncodingToUse is JsonEncodingType.NonReversible or JsonEncodingType.Verbose)
                 {
-                    string symbolicId = StatusCode.LookupSymbolicId(value.CodeBits);
+                    string symbolicId = value.GetSymbolicId();
 
                     if (!string.IsNullOrEmpty(symbolicId))
                     {

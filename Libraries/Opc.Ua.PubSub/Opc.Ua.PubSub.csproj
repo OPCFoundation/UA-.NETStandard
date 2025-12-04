@@ -10,17 +10,17 @@
     <PackageLicenseFile></PackageLicenseFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.PubSub.Tests" />
+  </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
-    <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
   </ItemGroup>
   <Choose>
-    <When Condition="'$(TargetFramework)' == 'net8.0' OR '$(TargetFramework)' == 'net9.0'">
+    <When Condition="'$(TargetFramework)' != 'netstandard2.1' AND '$(TargetFramework)' != 'net48' and '$(TargetFramework)' != 'net472'">
       <ItemGroup>
         <PackageReference Include="MQTTnet" />
       </ItemGroup>

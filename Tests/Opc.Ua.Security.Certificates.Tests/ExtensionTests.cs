@@ -54,7 +54,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Theory]
         public void DecodeExtensions(CertificateAsset certAsset)
         {
-            using X509Certificate2 x509Cert = X509CertificateLoader.LoadCertificate(certAsset.Cert);
+            using X509Certificate2 x509Cert = CertificateFactory.Create(certAsset.Cert);
             Assert.NotNull(x509Cert);
             TestContext.Out.WriteLine("CertificateAsset:");
             TestContext.Out.WriteLine(x509Cert);
@@ -63,7 +63,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             if (altName != null)
             {
                 TestContext.Out.WriteLine("X509SubjectAltNameExtension:");
-                TestContext.Out.WriteLine(altName?.Format(true));
+                TestContext.Out.WriteLine(altName.Format(true));
                 var ext = new X509Extension(altName.Oid, altName.RawData, altName.Critical);
                 TestContext.Out.WriteLine(ext.Format(true));
             }
@@ -72,7 +72,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             if (authority != null)
             {
                 TestContext.Out.WriteLine("X509AuthorityKeyIdentifierExtension:");
-                TestContext.Out.WriteLine(authority?.Format(true));
+                TestContext.Out.WriteLine(authority.Format(true));
                 var ext = new X509Extension(authority.Oid, authority.RawData, authority.Critical);
                 TestContext.Out.WriteLine(ext.Format(true));
             }

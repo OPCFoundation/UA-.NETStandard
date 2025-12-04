@@ -118,9 +118,6 @@ namespace Opc.Ua
             {
                 return true;
             }
-
-#if ECC_SUPPORT
-            // ECC policy
             if (name.Equals(nameof(ECC_nistP256), StringComparison.Ordinal))
             {
                 return Utils.IsSupportedCertificateType(
@@ -142,7 +139,6 @@ namespace Opc.Ua
                     ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType);
             }
 
-            // ECC policy
             if (name.Equals(nameof(ECC_curve25519), StringComparison.Ordinal) ||
                 name.Equals(nameof(ECC_curve448), StringComparison.Ordinal))
             {
@@ -150,7 +146,6 @@ namespace Opc.Ua
                 return true;
 #endif
             }
-#endif
             return false;
         }
 
@@ -291,7 +286,7 @@ namespace Opc.Ua
             ReadOnlySpan<byte> plainText,
             ILogger logger)
         {
-            EncryptedData encryptedData = new EncryptedData
+            var encryptedData = new EncryptedData
             {
                 Algorithm = null,
                 Data = plainText.IsEmpty ? null : plainText.ToArray()
@@ -487,7 +482,6 @@ namespace Opc.Ua
                         HashAlgorithmName.SHA256,
                         RSASignaturePadding.Pss);
                     break;
-#if ECC_SUPPORT
                 case ECC_nistP256:
                 case ECC_brainpoolP256r1:
                     signatureData.Algorithm = null;
@@ -504,8 +498,6 @@ namespace Opc.Ua
                         certificate,
                         HashAlgorithmName.SHA384);
                     break;
-
-#endif
                 case None:
                     signatureData.Algorithm = null;
                     signatureData.Signature = null;
@@ -595,8 +587,6 @@ namespace Opc.Ua
                         "Expected signature algorithm : {1}",
                         signature.Algorithm,
                         SecurityAlgorithms.RsaPssSha256);
-
-#if ECC_SUPPORT
                 case ECC_nistP256:
                 case ECC_brainpoolP256r1:
                     return EccUtils.Verify(
@@ -611,8 +601,6 @@ namespace Opc.Ua
                         signature.Signature,
                         certificate,
                         HashAlgorithmName.SHA384);
-
-#endif
                 // always accept signatures if security is not used.
                 case None:
                     return true;
@@ -653,7 +641,7 @@ namespace Opc.Ua
                     string policyUri = (string)field.GetValue(typeof(SecurityPolicies));
                     if (field.Name == nameof(BaseUri) ||
                         field.Name == nameof(Https) ||
-                        !policyUri.StartsWith(BaseUri))
+                        !policyUri.StartsWith(BaseUri, StringComparison.Ordinal))
                     {
                         continue;
                     }

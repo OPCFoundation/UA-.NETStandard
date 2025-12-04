@@ -9,18 +9,14 @@
     <IsPackable>true</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />
+  </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
-    <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
-  </PropertyGroup>
-  <!-- select ECC support -->
-  <PropertyGroup Condition="'$(TargetFramework)' != 'netstandard2.0'">
-    <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
-  </PropertyGroup>
   <Choose>
-    <When Condition="'$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48' OR '$(TargetFramework)' == 'netstandard2.0' OR '$(TargetFramework)' == 'netstandard2.1'">
+    <When Condition="'$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48' OR '$(TargetFramework)' == 'netstandard2.1'">
       <ItemGroup>
         <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel" />
         <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel.Core" />

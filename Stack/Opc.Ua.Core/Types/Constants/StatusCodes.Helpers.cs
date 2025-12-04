@@ -29,6 +29,21 @@ namespace Opc.Ua
     public static partial class StatusCodes
     {
         /// <summary>
+        /// The operation completed successfully.
+        /// </summary>
+        public const uint Good = 0x00000000;
+
+        /// <summary>
+        /// The operation completed however its outputs may not be usable.
+        /// </summary>
+        public const uint Uncertain = 0x40000000;
+
+        /// <summary>
+        /// The operation failed.
+        /// </summary>
+        public const uint Bad = 0x80000000;
+
+        /// <summary>
         /// Returns the browse names for all attributes
         /// </summary>
         public static IEnumerable<string> BrowseNames => s_symbolToStatusCode.Value.Keys;
@@ -40,6 +55,30 @@ namespace Opc.Ua
         {
             return s_statusCodeToSymbol.Value.TryGetValue(identifier & 0xFFFF0000, out string name)
                 ? name : string.Empty;
+        }
+
+        /// <summary>
+        /// Same as GetBrowseName
+        /// </summary>
+        /// <param name="identifier"></param>
+        /// <returns></returns>
+        public static string LookupSymbolicId(uint identifier)
+        {
+            return GetBrowseName(identifier);
+        }
+
+        /// <summary>
+        /// Same as get browsename
+        /// </summary>
+        /// <param name="statusCode"></param>
+        /// <returns></returns>
+        public static string GetSymbolicId(this StatusCode statusCode)
+        {
+            if (!string.IsNullOrEmpty(statusCode.SymbolicId))
+            {
+                return statusCode.SymbolicId;
+            }
+            return GetBrowseName(statusCode.CodeBits);
         }
 
         /// <summary>

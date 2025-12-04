@@ -37,7 +37,7 @@ namespace TestData
     /// <summary>
     /// Wraps a file which contains a list of historical values.
     /// </summary>
-    internal class HistoryFile : IHistoryDataSource
+    internal sealed class HistoryFile : IHistoryDataSource
     {
         /// <summary>
         /// Creates a new file.

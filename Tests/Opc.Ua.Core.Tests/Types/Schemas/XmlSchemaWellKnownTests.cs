@@ -94,7 +94,7 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
 
             const string schemaPrefix = "Opc.Ua.Schema.";
             const string zipExtension = ".zip";
-            Assembly assembly = typeof(XmlSchemaValidator).GetTypeInfo().Assembly;
+            Assembly assembly = CoreUtils.GetOpcUaCoreAssembly();
 
             using Stream stream = assembly.GetManifestResourceStream(
                 schemaPrefix + resource + zipExtension);

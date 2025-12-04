@@ -1,0 +1,142 @@
+/* ========================================================================
+ * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.Linq;
+using System.Reflection;
+using NUnit.Framework;
+using Opc.Ua.Tests;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
+namespace Opc.Ua.Types.Tests.State
+{
+    /// <summary>
+    /// Tests for the NodeState classes.
+    /// </summary>
+    [TestFixture]
+    [Category("NodeStateTypes")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    [Parallelizable]
+    public class StateTypesTests
+    {
+        public const string ApplicationUri = "uri:localhost:opcfoundation.org:NodeStates";
+        public const string OpcUa = "http://opcfoundation.org/UA/";
+        public IServiceMessageContext Context;
+        public ITelemetryContext Telemetry;
+
+        [DatapointSource]
+        public Type[] TypeArray = [.. typeof(BaseObjectState).Assembly.GetExportedTypes()
+            .Where(IsNodeStateType)];
+
+        [OneTimeSetUp]
+        protected void OneTimeSetUp()
+        {
+            Telemetry = NUnitTelemetryContext.Create();
+            Context = new ServiceMessageContext(Telemetry);
+            NamespaceTable nameSpaceUris = Context.NamespaceUris;
+            // namespace index 1 must be the ApplicationUri
+            nameSpaceUris.GetIndexOrAppend(ApplicationUri);
+            nameSpaceUris.GetIndexOrAppend("http://opcfoundation.org/UA/GDS/");
+        }
+
+        [OneTimeTearDown]
+        protected void OneTimeTearDown()
+        {
+            CoreUtils.SilentDispose(Context);
+        }
+
+        /// <summary>
+        /// Verify activation of a NodeState type.
+        /// </summary>
+        [Theory]
+        public void ActivateNodeStateType(Type systemType)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var testObject = CreateDefaultNodeStateType(systemType) as NodeState;
+            Assert.NotNull(testObject);
+            Assert.False(testObject.Initialized);
+            var context = new SystemContext(telemetry) { NamespaceUris = Context.NamespaceUris };
+            Assert.AreEqual(0, context.NamespaceUris.GetIndexOrAppend(OpcUa));
+            testObject.Create(context, new NodeId(1000), "Name", "DisplayName", true);
+            testObject.Dispose();
+        }
+
+        /// <summary>
+        /// Create an instance of a NodeState type with default values.
+        /// </summary>
+        /// <param name="systemType">The type to create</param>
+        private static object CreateDefaultNodeStateType(Type systemType)
+        {
+            System.Reflection.TypeInfo systemTypeInfo = systemType.GetTypeInfo();
+            object instance;
+            try
+            {
+                if (typeof(BaseObjectState).GetTypeInfo().IsAssignableFrom(systemTypeInfo) ||
+                    typeof(BaseVariableState).GetTypeInfo().IsAssignableFrom(systemTypeInfo) ||
+                    typeof(MethodState).GetTypeInfo().IsAssignableFrom(systemTypeInfo))
+                {
+                    instance = Activator.CreateInstance(systemType, (NodeState)null);
+                }
+                else
+                {
+                    instance = Activator.CreateInstance(systemType);
+                }
+            }
+            catch
+            {
+                return null;
+            }
+            return instance;
+        }
+
+        /// <summary>
+        /// Return true if system Type is IEncodeable.
+        /// </summary>
+        private static bool IsNodeStateType(Type systemType)
+        {
+            if (systemType == null)
+            {
+                return false;
+            }
+
+            System.Reflection.TypeInfo systemTypeInfo = systemType.GetTypeInfo();
+            if (systemTypeInfo.IsAbstract ||
+                systemTypeInfo.IsGenericType ||
+                systemTypeInfo.IsGenericTypeDefinition ||
+                !typeof(NodeState).GetTypeInfo().IsAssignableFrom(systemTypeInfo))
+            {
+                return false;
+            }
+
+            return CreateDefaultNodeStateType(systemType) is NodeState;
+        }
+    }
+}

@@ -295,7 +295,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public static string PatchExtensionUrl(this string extensionUrl, string serial)
         {
-            return extensionUrl.Replace("%serial%", serial.ToLower(), StringComparison.Ordinal);
+            return extensionUrl.Replace("%serial%", serial.ToLowerInvariant(), StringComparison.Ordinal);
         }
     }
 }

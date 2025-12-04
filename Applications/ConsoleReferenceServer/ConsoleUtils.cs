@@ -108,14 +108,23 @@ namespace Quickstarts
         /// <param name="configuration">The application configuration.</param>
         /// <param name="context">The context name for the logger. </param>
         /// <param name="logConsole">Enable logging to the console.</param>
+        /// <param name="logFile">Enable logging to a file.</param>
+        /// <param name="logApp">Enable application logging.</param>
         /// <param name="consoleLogLevel">The LogLevel to use for the console/debug.<
         /// /param>
         public void ConfigureLogging(
             ApplicationConfiguration configuration,
             string context,
             bool logConsole,
+            bool logFile,
+            bool logApp,
             LogLevel consoleLogLevel)
         {
+            if (!logApp)
+            {
+                return;
+            }
+
             LoggerConfiguration loggerConfiguration = new LoggerConfiguration().Enrich
                 .FromLogContext();
 
@@ -150,16 +159,19 @@ namespace Quickstarts
             }
 
             // add file logging if configured
-            string outputFilePath = configuration.TraceConfiguration.OutputFilePath;
-            if (!string.IsNullOrWhiteSpace(outputFilePath))
+            if (logFile)
             {
-                loggerConfiguration.WriteTo.File(
-                    new ExpressionTemplate(
-                        "{UtcDateTime(@t):yyyy-MM-dd HH:mm:ss.fff} [{@l:u3}] {@m}\n{@x}"),
-                    Utils.ReplaceSpecialFolderNames(outputFilePath),
-                    restrictedToMinimumLevel: (LogEventLevel)fileLevel,
-                    rollOnFileSizeLimit: true
-                );
+                string outputFilePath = configuration.TraceConfiguration.OutputFilePath;
+                if (!string.IsNullOrWhiteSpace(outputFilePath))
+                {
+                    loggerConfiguration.WriteTo.File(
+                        new ExpressionTemplate(
+                            "{UtcDateTime(@t):yyyy-MM-dd HH:mm:ss.fff} [{@l:u3}] {@m}\n{@x}"),
+                        Utils.ReplaceSpecialFolderNames(outputFilePath),
+                        restrictedToMinimumLevel: (LogEventLevel)fileLevel,
+                        rollOnFileSizeLimit: true
+                    );
+                }
             }
 
             // adjust minimum level

@@ -19,6 +19,7 @@ namespace Opc.Ua.Test
     /// <summary>
     /// Compares values taking into account semantically equivalent values that would fail the simple IsEqual test.
     /// </summary>
+    [Obsolete("Not supported anymore and will be removed in a future release.")]
     public class DataComparer
     {
         /// <summary>
@@ -599,7 +600,7 @@ namespace Opc.Ua.Test
 
             if (value2 == null)
             {
-                return value1 == null || value1 == QualifiedName.Null;
+                return value1 == QualifiedName.Null;
             }
 
             if (!value1.Equals(value2))
@@ -625,7 +626,7 @@ namespace Opc.Ua.Test
 
             if (value2 == null)
             {
-                return value1 == null || value1 == LocalizedText.Null;
+                return value1 == LocalizedText.Null;
             }
 
             if (!value1.Equals(value2))
@@ -1165,7 +1166,7 @@ namespace Opc.Ua.Test
 
             if (value2 == null)
             {
-                return value1 == null || !value1.GetEnumerator().MoveNext();
+                return !value1.GetEnumerator().MoveNext();
             }
 
             IEnumerator<T> enumerator1 = value1.GetEnumerator();
@@ -1203,8 +1204,7 @@ namespace Opc.Ua.Test
         {
             if (ThrowOnError)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "'{0}' is not equal to '{1}'.",
                     value1,
                     value2);

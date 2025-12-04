@@ -28,11 +28,15 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 #if NETCOREAPP2_1_OR_GREATER && !NET_STANDARD_TESTS
@@ -424,7 +428,7 @@ namespace Opc.Ua.Configuration.Tests
             {
                 // store public key in trusted store
                 byte[] rawData = applicationCertificate.Certificate.RawData;
-                await store.AddAsync(X509CertificateLoader.LoadCertificate(rawData))
+                await store.AddAsync(CertificateFactory.Create(rawData))
                     .ConfigureAwait(false);
             }
 
@@ -558,7 +562,7 @@ namespace Opc.Ua.Configuration.Tests
                     applicationCertificate.StorePath,
                     password: null,
                     telemetry).ConfigureAwait(false);
-                publicKey = X509CertificateLoader.LoadCertificate(testCert.RawData);
+                publicKey = CertificateFactory.Create(testCert.RawData);
             }
 
             using (publicKey)
@@ -677,7 +681,7 @@ namespace Opc.Ua.Configuration.Tests
                     applicationCertificate.StorePath,
                     password: null,
                     telemetry).ConfigureAwait(false);
-                publicKey = X509CertificateLoader.LoadCertificate(testCert.RawData);
+                publicKey = CertificateFactory.Create(testCert.RawData);
             }
 
             using (publicKey)
@@ -743,6 +747,82 @@ namespace Opc.Ua.Configuration.Tests
 
             //Assert
             Assert.IsTrue(storedCertificates.Contains(cert));
+        }
+
+        /// <summary>
+        /// This tests that instantiating three application instances the second with a SubjectName
+        /// being a substring of the first one's CN, but without containing the "CN=", failes due to the legacy fuzzy search
+        /// matching the first certificate, which is invalid for the second application instance (different ApplicationUri
+        /// The test shows 3 cases of creating application instances:
+        ///     1 succeeds since there is no certificate identification collision (store is empty).
+        ///     2 fails because in the process of finding the Application certificate the
+        ///         1'st - AppCertificate (Wrong one) is selected due to the Fuzzy search,
+        ///         and further on the validation fails (different ApplicationUri, etc).
+        ///     3 succeeds because in the process of finding the Application certificate the correct application certificate
+        ///         with correct subjectName "CN=UA, O=...." and ApplicationUri is searched for, no fuzzy search performed,
+        ///         none is found and a new one gets created, selected, further validations succeed.
+        /// </summary>
+        /// <returns></returns>
+        [Test]
+        public async Task TestAddTwoAppCertificatesToTrustedStoreAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            string subjectName = SubjectName;
+            //Arrange Application Instance
+            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            ApplicationConfiguration configuration = await applicationInstance
+                .Build(ApplicationUri, ProductUri)
+                .AsClient()
+                .AddSecurityConfigurationStores(subjectName,
+                                                $"{m_pkiRoot}/pki/own",
+                                                $"{m_pkiRoot}/pki/trusted",
+                                                $"{m_pkiRoot}/pki/issuer",
+                                                $"{m_pkiRoot}/pki/rejected")
+                .CreateAsync()
+                .ConfigureAwait(false);
+
+            NUnit.Framework.Assert.DoesNotThrowAsync(
+                async () => await applicationInstance.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false));
+
+            subjectName = "UA";// UA is a substring of the previous certificate SubjectName CN
+            var applicationInstance2 = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            ApplicationConfiguration configuration2 = await applicationInstance2
+                .Build(ApplicationUri + "2", ProductUri + "2")
+                .AsClient()
+                .AddSecurityConfigurationStores(subjectName,
+                                                $"{m_pkiRoot}/pki/own",
+                                                $"{m_pkiRoot}/pki/trusted",
+                                                $"{m_pkiRoot}/pki/issuer",
+                                                $"{m_pkiRoot}/pki/rejected")
+                .CreateAsync()
+                .ConfigureAwait(false);
+
+            // Since the SubjectName is a substring of the first one's CN,
+            // the matching algorithm will find the first certificate because a fuzzy match is done on the SubjectName when SubjectName does not contain CN=.
+            // However, since the ApplicationUri is different, the certificate will be considered invalid
+            ServiceResultException exception = NUnit.Framework.Assert
+                .ThrowsAsync<ServiceResultException>(async () =>
+                    await applicationInstance2.CheckApplicationInstanceCertificatesAsync(true)
+                        .ConfigureAwait(false));
+            Assert.AreEqual(StatusCodes.BadConfigurationError, exception.StatusCode);
+
+            subjectName = "CN=UA";// UA is a substring of the previous certificate SubjectName CN
+            var applicationInstance3 = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            ApplicationConfiguration configuration3 = await applicationInstance3
+                .Build(ApplicationUri + "3", ProductUri + "3")
+                .AsClient()
+                .AddSecurityConfigurationStores(subjectName,
+                                                $"{m_pkiRoot}/pki/own",
+                                                $"{m_pkiRoot}/pki/trusted",
+                                                $"{m_pkiRoot}/pki/issuer",
+                                                $"{m_pkiRoot}/pki/rejected")
+                .CreateAsync()
+                .ConfigureAwait(false);
+
+            // Since the SubjectName contains CN=UA, the matching algorithm will not do a fuzzy match and will not find the first certificate.
+            NUnit.Framework.Assert.DoesNotThrowAsync(
+                async () => await applicationInstance3.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false));
         }
 
         /// <summary>
@@ -817,6 +897,460 @@ namespace Opc.Ua.Configuration.Tests
             }
         }
 
+        /// <summary>
+        /// Test that multiple certificates with different ApplicationUris throw an exception.
+        /// Even though FindAsync might load certificates by SubjectName without checking ApplicationUri,
+        /// the explicit validation against the configured ApplicationUri ensures all loaded certificates have the same URI.
+        /// </summary>
+        [Test]
+        public async Task TestMultipleCertificatesDifferentUrisThrowsExceptionAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            Assert.NotNull(applicationInstance);
+
+            // Create two certificates with different ApplicationUris
+            const string uri1 = "urn:localhost:opcfoundation.org:App1";
+            const string uri2 = "urn:localhost:opcfoundation.org:App2";
+
+            X509Certificate2 cert1 = CertificateFactory
+                .CreateCertificate(uri1, ApplicationName, SubjectName, [Utils.GetHostName()])
+                .SetNotBefore(DateTime.Today.AddDays(-1))
+                .SetNotAfter(DateTime.Today.AddYears(1))
+                .CreateForRSA();
+
+            const string subjectName2 = "CN=UA Configuration Test 2, O=OPC Foundation, C=US, S=Arizona";
+            X509Certificate2 cert2 = CertificateFactory
+                .CreateCertificate(uri2, ApplicationName, subjectName2, [Utils.GetHostName()])
+                .SetNotBefore(DateTime.Today.AddDays(-1))
+                .SetNotAfter(DateTime.Today.AddYears(1))
+                .SetRSAKeySize(CertificateFactory.DefaultKeySize)
+                .CreateForRSA();
+
+            // Save certificates to stores
+            string certStorePath = m_pkiRoot + "own";
+            var certStoreIdentifier = new CertificateStoreIdentifier(certStorePath, CertificateStoreType.Directory, false);
+            using (ICertificateStore certStore = certStoreIdentifier.OpenStore(telemetry))
+            {
+                await certStore.AddAsync(cert1).ConfigureAwait(false);
+                await certStore.AddAsync(cert2).ConfigureAwait(false);
+            }
+
+            var certId1 = new CertificateIdentifier
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = certStorePath,
+                SubjectName = SubjectName,
+                CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+            };
+
+            var certId2 = new CertificateIdentifier
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = certStorePath,
+                SubjectName = subjectName2,
+                CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+            };
+
+            ApplicationConfiguration config = await applicationInstance
+                .Build(uri1, ProductUri)
+                .AsClient()
+                .AddSecurityConfiguration(SubjectName, m_pkiRoot)
+                .CreateAsync()
+                .ConfigureAwait(false);
+            Assert.NotNull(config);
+
+            // Set multiple certificates
+            config.SecurityConfiguration.ApplicationCertificates =
+            [
+                certId1,
+                certId2
+            ];
+
+            // This should throw because all certificates must have the same ApplicationUri
+            ServiceResultException sre = NUnit.Framework.Assert
+                .ThrowsAsync<ServiceResultException>(async () =>
+                    await applicationInstance.CheckApplicationInstanceCertificatesAsync(true)
+                    .ConfigureAwait(false));
+            Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
+            NUnit.Framework.Assert.That(sre.Message, Does.Contain("certificate") & Does.Contain("invalid"));
+        }
+
+        /// <summary>
+        /// Test that multiple certificates with the same ApplicationUri succeed.
+        /// </summary>
+        [Test]
+        public async Task TestMultipleCertificatesSameUriSucceedsAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            Assert.NotNull(applicationInstance);
+
+            // Create two certificates with the same ApplicationUri
+            X509Certificate2 cert1 = CertificateFactory
+                .CreateCertificate(ApplicationUri, ApplicationName, SubjectName, [Utils.GetHostName()])
+                .SetNotBefore(DateTime.Today.AddDays(-1))
+                .SetNotAfter(DateTime.Today.AddYears(1))
+                .CreateForRSA();
+
+            const string subjectName2 = "CN=UA Configuration Test RSA, O=OPC Foundation, C=US, S=Arizona";
+            X509Certificate2 cert2 = CertificateFactory
+                .CreateCertificate(ApplicationUri, ApplicationName, subjectName2, [Utils.GetHostName()])
+                .SetNotBefore(DateTime.Today.AddDays(-1))
+                .SetNotAfter(DateTime.Today.AddYears(1))
+                .SetRSAKeySize(CertificateFactory.DefaultKeySize)
+                .CreateForRSA();
+
+            // Save certificates to stores
+            string certStorePath = m_pkiRoot + "own";
+            var certStoreIdentifier = new CertificateStoreIdentifier(certStorePath, CertificateStoreType.Directory, false);
+            using (ICertificateStore certStore = certStoreIdentifier.OpenStore(telemetry))
+            {
+                await certStore.AddAsync(cert1).ConfigureAwait(false);
+                await certStore.AddAsync(cert2).ConfigureAwait(false);
+            }
+
+            var certId1 = new CertificateIdentifier
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = certStorePath,
+                SubjectName = SubjectName,
+                CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+            };
+
+            var certId2 = new CertificateIdentifier
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = certStorePath,
+                SubjectName = subjectName2,
+                CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+            };
+
+            ApplicationConfiguration config = await applicationInstance
+                .Build(ApplicationUri, ProductUri)
+                .AsClient()
+                .AddSecurityConfiguration(SubjectName, m_pkiRoot)
+                .CreateAsync()
+                .ConfigureAwait(false);
+            Assert.NotNull(config);
+
+            // Set multiple certificates with same URI
+            config.SecurityConfiguration.ApplicationCertificates =
+            [
+                certId1,
+                certId2
+            ];
+
+            // This should succeed because all certificates have the same ApplicationUri
+            bool certOK = await applicationInstance
+                .CheckApplicationInstanceCertificatesAsync(true)
+                .ConfigureAwait(false);
+            Assert.True(certOK);
+        }
+
+        /// <summary>
+        /// Test that a certificate with multiple SAN URI entries where one matches the ApplicationUri succeeds.
+        /// Tests with different certificate types (RSA, ECC NIST P-256, ECC NIST P-384, ECC Brainpool).
+        /// </summary>
+        [Test]
+        [TestCaseSource(nameof(CertificateTypes))]
+        public async Task TestCertificateWithMultipleSanUrisMatchingSucceedsAsync(NodeId certificateType)
+        {
+            // Skip test if certificate type is not supported on this platform
+            if (!Utils.IsSupportedCertificateType(certificateType))
+            {
+                NUnit.Framework.Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
+            }
+
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            Assert.NotNull(applicationInstance);
+
+            // Create a certificate with multiple URIs in SAN, including the ApplicationUri
+            const string uri1 = "urn:localhost:opcfoundation.org:App1";
+            const string uri2 = ApplicationUri; // This matches
+            const string uri3 = "https://localhost:8080/OpcUaApp";
+
+            X509Certificate2 cert = CreateCertificateWithMultipleUris(
+                [uri1, uri2, uri3],
+                SubjectName,
+                [Utils.GetHostName()],
+                certificateType);
+
+            // Save certificate to store
+            string certStorePath = m_pkiRoot + "own";
+            var certStoreIdentifier = new CertificateStoreIdentifier(certStorePath, CertificateStoreType.Directory, false);
+            using (ICertificateStore certStore = certStoreIdentifier.OpenStore(telemetry))
+            {
+                await certStore.AddAsync(cert).ConfigureAwait(false);
+            }
+
+            var certId = new CertificateIdentifier
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = certStorePath,
+                SubjectName = SubjectName,
+                CertificateType = certificateType
+            };
+
+            ApplicationConfiguration config = await applicationInstance
+                .Build(ApplicationUri, ProductUri)
+                .AsClient()
+                .AddSecurityConfiguration(SubjectName, m_pkiRoot)
+                .SetMinimumCertificateKeySize(256)
+                .CreateAsync()
+                .ConfigureAwait(false);
+            Assert.NotNull(config);
+
+            config.SecurityConfiguration.ApplicationCertificates = [certId];
+
+            // This should succeed because one of the URIs matches
+            bool certOK = await applicationInstance
+                .CheckApplicationInstanceCertificatesAsync(true)
+                .ConfigureAwait(false);
+            Assert.True(certOK);
+
+            // Verify the certificate has multiple URIs
+            // Load the certificate to check its URIs
+            X509Certificate2 loadedCert = await certId.FindAsync(false, null, telemetry).ConfigureAwait(false);
+            IReadOnlyList<string> uris = X509Utils.GetApplicationUrisFromCertificate(loadedCert);
+            Assert.AreEqual(3, uris.Count);
+            Assert.Contains(uri1, uris.ToList());
+            Assert.Contains(uri2, uris.ToList());
+            Assert.Contains(uri3, uris.ToList());
+        }
+
+        /// <summary>
+        /// Test that a certificate with multiple SAN URI entries where none matches the ApplicationUri fails.
+        /// Tests with different certificate types (RSA, ECC NIST P-256, ECC NIST P-384, ECC Brainpool).
+        /// </summary>
+        [Test]
+        [TestCaseSource(nameof(CertificateTypes))]
+        public async Task TestCertificateWithMultipleSanUrisNotMatchingThrowsAsync(NodeId certificateType)
+        {
+            // Skip test if certificate type is not supported on this platform
+            if (!Utils.IsSupportedCertificateType(certificateType))
+            {
+                NUnit.Framework.Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
+            }
+
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            Assert.NotNull(applicationInstance);
+
+            // Create a certificate with multiple URIs in SAN, but none matching ApplicationUri
+            const string uri1 = "urn:localhost:opcfoundation.org:App1";
+            const string uri2 = "urn:localhost:opcfoundation.org:App2";
+            const string uri3 = "https://localhost:8080/OpcUaApp";
+
+            X509Certificate2 cert = CreateCertificateWithMultipleUris(
+                [uri1, uri2, uri3],
+                SubjectName,
+                [Utils.GetHostName()],
+                certificateType);
+
+            // Save certificate to store
+            string certStorePath = m_pkiRoot + "own";
+            var certStoreIdentifier = new CertificateStoreIdentifier(certStorePath, CertificateStoreType.Directory, false);
+            using (ICertificateStore certStore = certStoreIdentifier.OpenStore(telemetry))
+            {
+                await certStore.AddAsync(cert).ConfigureAwait(false);
+            }
+
+            var certId = new CertificateIdentifier
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = certStorePath,
+                SubjectName = SubjectName,
+                CertificateType = certificateType
+            };
+
+            ApplicationConfiguration config = await applicationInstance
+                .Build(ApplicationUri, ProductUri)
+                .AsClient()
+                .AddSecurityConfiguration(SubjectName, m_pkiRoot)
+                .SetMinimumCertificateKeySize(256)
+                .CreateAsync()
+                .ConfigureAwait(false);
+            Assert.NotNull(config);
+
+            config.SecurityConfiguration.ApplicationCertificates = [certId];
+
+            // This should fail because none of the URIs match
+            ServiceResultException sre = NUnit.Framework.Assert
+                .ThrowsAsync<ServiceResultException>(async () =>
+                    await applicationInstance.CheckApplicationInstanceCertificatesAsync(true)
+                    .ConfigureAwait(false));
+            Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
+        }
+
+        /// <summary>
+        /// Test with multiple certificates, each with multiple SAN URIs, where all match the ApplicationUri.
+        /// Tests with different certificate types (RSA, ECC NIST P-256, ECC NIST P-384, ECC Brainpool).
+        /// </summary>
+        [Test]
+        [TestCaseSource(nameof(CertificateTypes))]
+        public async Task TestMultipleCertificatesWithMultipleSanUrisAllMatchingSucceedsAsync(NodeId certificateType)
+        {
+            // Skip test if certificate type is not supported on this platform
+            if (!Utils.IsSupportedCertificateType(certificateType))
+            {
+                NUnit.Framework.Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
+            }
+
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            Assert.NotNull(applicationInstance);
+
+            // Create first certificate with multiple URIs including ApplicationUri
+            X509Certificate2 cert1 = CreateCertificateWithMultipleUris(
+                [ApplicationUri, "https://localhost:8080/Test1", "opc.tcp://localhost:4840/Test1"],
+                SubjectName,
+                [Utils.GetHostName()],
+                certificateType);
+
+            const string subjectName2 = "CN=UA Configuration Test 2, O=OPC Foundation, C=US, S=Arizona";
+            // Create second certificate with multiple URIs including ApplicationUri
+            X509Certificate2 cert2 = CreateCertificateWithMultipleUris(
+                ["urn:localhost:opcfoundation.org:OtherApp", ApplicationUri, "https://localhost:9443/Test2"],
+                subjectName2,
+                [Utils.GetHostName()],
+                certificateType);
+
+            // Save certificates to store
+            string certStorePath = m_pkiRoot + "own";
+            var certStoreIdentifier = new CertificateStoreIdentifier(certStorePath, CertificateStoreType.Directory, false);
+            using (ICertificateStore certStore = certStoreIdentifier.OpenStore(telemetry))
+            {
+                await certStore.AddAsync(cert1).ConfigureAwait(false);
+                await certStore.AddAsync(cert2).ConfigureAwait(false);
+            }
+
+            var certId1 = new CertificateIdentifier
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = certStorePath,
+                SubjectName = SubjectName,
+                CertificateType = certificateType
+            };
+
+            var certId2 = new CertificateIdentifier
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = certStorePath,
+                SubjectName = subjectName2,
+                CertificateType = certificateType
+            };
+
+            ApplicationConfiguration config = await applicationInstance
+                .Build(ApplicationUri, ProductUri)
+                .AsClient()
+                .AddSecurityConfiguration(SubjectName, m_pkiRoot)
+                .SetMinimumCertificateKeySize(256)
+                .CreateAsync()
+                .ConfigureAwait(false);
+            Assert.NotNull(config);
+
+            config.SecurityConfiguration.ApplicationCertificates =
+            [
+                certId1,
+                certId2
+            ];
+
+            // This should succeed because both certificates contain ApplicationUri in their SAN
+            bool certOK = await applicationInstance
+                .CheckApplicationInstanceCertificatesAsync(true)
+                .ConfigureAwait(false);
+            Assert.True(certOK);
+        }
+
+        /// <summary>
+        /// Test with multiple certificates where only one has the matching ApplicationUri in its SAN URIs.
+        /// Tests with different certificate types (RSA, ECC NIST P-256, ECC NIST P-384, ECC Brainpool).
+        /// </summary>
+        [Test]
+        [TestCaseSource(nameof(CertificateTypes))]
+        public async Task TestMultipleCertificatesWithOnlyOneMatchingSanUriThrowsAsync(NodeId certificateType)
+        {
+            // Skip test if certificate type is not supported on this platform
+            if (!Utils.IsSupportedCertificateType(certificateType))
+            {
+                NUnit.Framework.Assert.Ignore($"Certificate type {certificateType} is not supported on this platform.");
+            }
+
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            Assert.NotNull(applicationInstance);
+
+            // Create first certificate with ApplicationUri
+            X509Certificate2 cert1 = CreateCertificateWithMultipleUris(
+                [ApplicationUri, "https://localhost:8080/Test1"],
+                SubjectName,
+                [Utils.GetHostName()],
+                certificateType);
+
+            const string subjectName2 = "CN=UA Configuration Test 2, O=OPC Foundation, C=US, S=Arizona";
+            // Create second certificate WITHOUT ApplicationUri
+            X509Certificate2 cert2 = CreateCertificateWithMultipleUris(
+                ["urn:localhost:opcfoundation.org:OtherApp", "https://localhost:9443/Test2"],
+                subjectName2,
+                [Utils.GetHostName()],
+                certificateType);
+
+            // Save certificates to store
+            string certStorePath = m_pkiRoot + "own";
+            var certStoreIdentifier = new CertificateStoreIdentifier(certStorePath, CertificateStoreType.Directory, false);
+            using (ICertificateStore certStore = certStoreIdentifier.OpenStore(telemetry))
+            {
+                await certStore.AddAsync(cert1).ConfigureAwait(false);
+                await certStore.AddAsync(cert2).ConfigureAwait(false);
+            }
+
+            var certId1 = new CertificateIdentifier
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = certStorePath,
+                SubjectName = SubjectName,
+                CertificateType = certificateType
+            };
+
+            var certId2 = new CertificateIdentifier
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = certStorePath,
+                SubjectName = subjectName2,
+                CertificateType = certificateType
+            };
+
+            ApplicationConfiguration config = await applicationInstance
+                .Build(ApplicationUri, ProductUri)
+                .AsClient()
+                .AddSecurityConfiguration(SubjectName, m_pkiRoot)
+                .SetMinimumCertificateKeySize(256)
+                .CreateAsync()
+                .ConfigureAwait(false);
+            Assert.NotNull(config);
+
+            config.SecurityConfiguration.ApplicationCertificates =
+            [
+                certId1,
+                certId2
+            ];
+
+            // This should fail because cert2 doesn't contain ApplicationUri
+            ServiceResultException sre = NUnit.Framework.Assert
+                .ThrowsAsync<ServiceResultException>(async () =>
+                    await applicationInstance.CheckApplicationInstanceCertificatesAsync(true)
+                    .ConfigureAwait(false));
+            Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
+        }
+
         private static X509Certificate2 CreateInvalidCert(InvalidCertType certType)
         {
             // reasonable defaults
@@ -840,6 +1374,14 @@ namespace Opc.Ua.Configuration.Tests
                 case InvalidCertType.HostName:
                     domainNames = ["myhost", "1.2.3.4"];
                     break;
+                case InvalidCertType.NoIssues:
+                case InvalidCertType.NoIssuer:
+                case InvalidCertType.IssuerExpired:
+                case InvalidCertType.IssuerNotYetValid:
+                    break;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected InvalidCertType {certType}");
             }
 
             return CertificateFactory
@@ -879,6 +1421,12 @@ namespace Opc.Ua.Configuration.Tests
                 case InvalidCertType.HostName:
                     domainNames = ["myhost", "1.2.3.4"];
                     break;
+                case InvalidCertType.NoIssues:
+                case InvalidCertType.NoIssuer:
+                    break;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected InvalidCertType {certType}");
             }
 
             const string rootCASubjectName = "CN=Root CA Test, O=OPC Foundation, C=US, S=Arizona";
@@ -896,7 +1444,82 @@ namespace Opc.Ua.Configuration.Tests
                 .SetRSAKeySize(keySize)
                 .CreateForRSA();
 
-            return [appCert, X509CertificateLoader.LoadCertificate(rootCA.RawData)];
+            return [appCert, CertificateFactory.Create(rootCA.RawData)];
+        }
+
+        /// <summary>
+        /// Provides a collection of certificate types for parameterized tests.
+        /// </summary>
+        /// <returns>An enumerable collection of NodeIds representing different certificate types.</returns>
+        /// <remarks>
+        /// This method is used as a TestCaseSource to provide different certificate types (RSA, ECC) for testing.
+        /// Individual tests check platform support using Utils.IsSupportedCertificateType().
+        /// </remarks>
+        private static IEnumerable<NodeId> CertificateTypes()
+        {
+            yield return ObjectTypeIds.RsaSha256ApplicationCertificateType;
+            yield return ObjectTypeIds.EccNistP256ApplicationCertificateType;
+            yield return ObjectTypeIds.EccNistP384ApplicationCertificateType;
+            yield return ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType;
+            yield return ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType;
+        }
+
+        /// <summary>
+        /// Helper method to create a certificate with multiple URI entries in the SAN.
+        /// </summary>
+        /// <param name="applicationUris">The list of application URIs to include in the SAN</param>
+        /// <param name="subjectName">The subject name for the certificate</param>
+        /// <param name="domainNames">The domain names for the certificate</param>
+        /// <returns>A certificate with multiple URIs in the SAN extension</returns>
+        private static X509Certificate2 CreateCertificateWithMultipleUris(
+            IList<string> applicationUris,
+            string subjectName,
+            IList<string> domainNames,
+            NodeId certificateType = null)
+        {
+            DateTime notBefore = DateTime.Today.AddDays(-1);
+            DateTime notAfter = DateTime.Today.AddYears(1);
+
+            // Default to RSA if not specified
+            certificateType ??= ObjectTypeIds.RsaSha256ApplicationCertificateType;
+
+            // Create the SAN extension with multiple URIs
+            var subjectAltName = new X509SubjectAltNameExtension(applicationUris, domainNames);
+
+            // Build the certificate with the custom SAN extension
+            ICertificateBuilder builder = CertificateBuilder
+                .Create(subjectName)
+                .SetNotBefore(notBefore)
+                .SetNotAfter(notAfter)
+                .AddExtension(subjectAltName);
+
+            // Create certificate based on type
+            if (certificateType == ObjectTypeIds.RsaSha256ApplicationCertificateType ||
+                certificateType == ObjectTypeIds.RsaMinApplicationCertificateType)
+            {
+                return builder.SetRSAKeySize(CertificateFactory.DefaultKeySize).CreateForRSA();
+            }
+            else if (certificateType == ObjectTypeIds.EccNistP256ApplicationCertificateType)
+            {
+                return builder.SetECCurve(ECCurve.NamedCurves.nistP256).CreateForECDsa();
+            }
+            else if (certificateType == ObjectTypeIds.EccNistP384ApplicationCertificateType)
+            {
+                return builder.SetECCurve(ECCurve.NamedCurves.nistP384).CreateForECDsa();
+            }
+            else if (certificateType == ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
+            {
+                return builder.SetECCurve(ECCurve.NamedCurves.brainpoolP256r1).CreateForECDsa();
+            }
+            else if (certificateType == ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType)
+            {
+                return builder.SetECCurve(ECCurve.NamedCurves.brainpoolP384r1).CreateForECDsa();
+            }
+            else
+            {
+                // Default to RSA for unknown types
+                return builder.SetRSAKeySize(CertificateFactory.DefaultKeySize).CreateForRSA();
+            }
         }
 
         private string m_pkiRoot;

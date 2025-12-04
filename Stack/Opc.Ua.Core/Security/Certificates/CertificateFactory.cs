@@ -17,8 +17,6 @@ using System.Numerics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using System.Threading;
-using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -52,118 +50,34 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a certificate from a buffer with DER encoded certificate.
         /// </summary>
-        [Obsolete("Use Create(ReadOnlyMemory<byte>, bool, ITelemetryContext) instead")]
+        [Obsolete("Use Create without useCache parameter")]
         public static X509Certificate2 Create(
             ReadOnlyMemory<byte> encodedData,
             bool useCache)
         {
-            return Create(encodedData, useCache, null);
-        }
-
-        /// <summary>
-        /// Loads the cached version of a certificate.
-        /// </summary>
-        [Obsolete("Use Load(X509Certificate2, bool, ITelemetryContext) instead")]
-        public static X509Certificate2 Load(
-            X509Certificate2 certificate,
-            bool ensurePrivateKeyAccessible)
-        {
-            return Load(certificate, ensurePrivateKeyAccessible, null);
+            return Create(encodedData);
         }
 
         /// <summary>
         /// Creates a certificate from a buffer with DER encoded certificate.
         /// </summary>
-        /// <param name="encodedData">The encoded data.</param>
-        /// <param name="useCache">if set to <c>true</c> the copy of the certificate
-        /// in the cache is used.</param>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
-        /// <returns>The certificate.</returns>
-        public static X509Certificate2 Create(
-            ReadOnlyMemory<byte> encodedData,
-            bool useCache,
-            ITelemetryContext telemetry)
+        public static X509Certificate2 Create(ReadOnlyMemory<byte> encodedData)
         {
 #if NET6_0_OR_GREATER
-            X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(
-                encodedData.Span);
+            return X509CertificateLoader.LoadCertificate(encodedData.Span);
 #else
-            X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(
-                encodedData.ToArray());
+            return X509CertificateLoader.LoadCertificate(encodedData.ToArray());
 #endif
-
-            if (useCache)
-            {
-                return Load(certificate, false, telemetry);
-            }
-            return certificate;
         }
 
         /// <summary>
         /// Loads the cached version of a certificate.
         /// </summary>
-        /// <param name="certificate">The certificate to load.</param>
-        /// <param name="ensurePrivateKeyAccessible">If true a key container is created
-        /// for a certificate that must be deleted by calling Cleanup.</param>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
-        /// <returns>The cached certificate.</returns>
-        /// <remarks>
-        /// This function is necessary because all private keys used for cryptography
-        /// operations must be in a key container.
-        /// Private keys stored in a PFX file have no key container by default.
-        /// </remarks>
+        [Obsolete("This method just returns the certificate and can be removed")]
         public static X509Certificate2 Load(
             X509Certificate2 certificate,
-            bool ensurePrivateKeyAccessible,
-            ITelemetryContext telemetry)
+            bool ensurePrivateKeyAccessible)
         {
-            if (certificate == null)
-            {
-                return null;
-            }
-
-            lock (s_certificatesLock)
-            {
-                // check for existing cached certificate.
-                if (s_certificates.TryGetValue(
-                    certificate.Thumbprint,
-                    out X509Certificate2 cachedCertificate))
-                {
-                    // cached certificate might be disposed, if so do not return but try to update value in the cache
-                    if (cachedCertificate.Handle != IntPtr.Zero)
-                    {
-                        return cachedCertificate;
-                    }
-
-                    s_certificates.Remove(certificate.Thumbprint);
-                }
-
-                // nothing more to do if no private key or don't care about accessibility.
-                if (!certificate.HasPrivateKey || !ensurePrivateKeyAccessible)
-                {
-                    return certificate;
-                }
-
-                if (ensurePrivateKeyAccessible &&
-                    !X509Utils.VerifyKeyPair(certificate, certificate))
-                {
-                    ILogger logger = telemetry.CreateLogger(typeof(CertificateFactory).FullName);
-                    logger.LogWarning(
-                        "Trying to add certificate to cache with invalid private key.");
-                    return null;
-                }
-
-                // update the cache.
-                s_certificates[certificate.Thumbprint] = certificate;
-
-                if (s_certificates.Count > 100)
-                {
-                    ILogger logger = telemetry.CreateLogger(typeof(CertificateFactory).FullName);
-                    logger.LogWarning(
-                        "Certificate cache has {Count} certificates in it.",
-                        s_certificates.Count);
-                }
-            }
             return certificate;
         }
 
@@ -294,18 +208,23 @@ namespace Opc.Ua
 
             if (X509PfxUtils.IsECDsaSignature(issuerCertificate))
             {
-#if ECC_SUPPORT
                 return new X509CRL(crlBuilder.CreateForECDsa(issuerCertificate));
-#else
-                throw new NotSupportedException(
-                    "CRL can only be created for an RSA Certificate on this system");
-#endif
             }
 
             return new X509CRL(crlBuilder.CreateForRSA(issuerCertificate));
         }
 
-#if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
+        /// <summary>
+        /// Create a X509Certificate2 with a private key by combining
+        /// the certificate with a private key from a PEM stream
+        /// </summary>
+        public static X509Certificate2 CreateCertificateWithPEMPrivateKey(
+            X509Certificate2 certificate,
+            byte[] pemDataBlob)
+        {
+            return CreateCertificateWithPEMPrivateKey(certificate, pemDataBlob, default);
+        }
+
         /// <summary>
         /// Creates a certificate signing request from an existing certificate.
         /// </summary>
@@ -362,10 +281,10 @@ namespace Opc.Ua
                 }
             }
 
-            string applicationUri = X509Utils.GetApplicationUriFromCertificate(certificate);
+            IReadOnlyList<string> applicationUris = X509Utils.GetApplicationUrisFromCertificate(certificate);
 
             // Subject Alternative Name
-            var subjectAltName = new X509SubjectAltNameExtension(applicationUri, domainNames);
+            var subjectAltName = new X509SubjectAltNameExtension(applicationUris, domainNames);
             request.CertificateExtensions.Add(new X509Extension(subjectAltName, false));
             if (!isECDsaSignature)
             {
@@ -425,17 +344,6 @@ namespace Opc.Ua
         /// </summary>
         public static X509Certificate2 CreateCertificateWithPEMPrivateKey(
             X509Certificate2 certificate,
-            byte[] pemDataBlob)
-        {
-            return CreateCertificateWithPEMPrivateKey(certificate, pemDataBlob, default);
-        }
-
-        /// <summary>
-        /// Create a X509Certificate2 with a private key by combining
-        /// the certificate with a private key from a PEM stream
-        /// </summary>
-        public static X509Certificate2 CreateCertificateWithPEMPrivateKey(
-            X509Certificate2 certificate,
             byte[] pemDataBlob,
             ReadOnlySpan<char> password)
         {
@@ -444,116 +352,12 @@ namespace Opc.Ua
                 using ECDsa ecdsaPrivateKey = PEMReader.ImportECDsaPrivateKeyFromPEM(
                     pemDataBlob,
                     password);
-                return X509CertificateLoader.LoadCertificate(certificate.RawData)
-                    .CopyWithPrivateKey(ecdsaPrivateKey);
+                return Create(certificate.RawData).CopyWithPrivateKey(ecdsaPrivateKey);
             }
             using RSA rsaPrivateKey = PEMReader.ImportRsaPrivateKeyFromPEM(pemDataBlob, password);
 
-            return X509CertificateLoader.LoadCertificate(certificate.RawData)
-                .CopyWithPrivateKey(rsaPrivateKey);
+            return Create(certificate.RawData).CopyWithPrivateKey(rsaPrivateKey);
         }
-#else
-        /// <summary>
-        /// Creates a certificate signing request from an existing certificate.
-        /// </summary>
-        public static byte[] CreateSigningRequest(
-            X509Certificate2 certificate,
-            IList<string> domainNames = null)
-        {
-            return CertificateBuilder.CreateSigningRequest(certificate, domainNames);
-        }
-
-        /// <summary>
-        /// Create a X509Certificate2 with a private key by combining
-        /// the new certificate with a private key from an existing certificate
-        /// </summary>
-        /// <exception cref="NotSupportedException"></exception>
-        public static X509Certificate2 CreateCertificateWithPrivateKey(
-            X509Certificate2 certificate,
-            X509Certificate2 certificateWithPrivateKey)
-        {
-            if (!certificateWithPrivateKey.HasPrivateKey)
-            {
-                throw new NotSupportedException("Need a certificate with a private key.");
-            }
-
-            if (!X509Utils.VerifyRSAKeyPair(certificate, certificateWithPrivateKey))
-            {
-                throw new NotSupportedException(
-                    "The public and the private key pair doesn't match.");
-            }
-
-            char[] passcode = X509Utils.GeneratePasscode();
-            try
-            {
-                using RSA rsaPrivateKey = certificateWithPrivateKey.GetRSAPrivateKey();
-                byte[] pfxData = CertificateBuilder.CreatePfxWithRSAPrivateKey(
-                    certificate,
-                    certificate.FriendlyName,
-                    rsaPrivateKey,
-                    passcode);
-                return X509Utils.CreateCertificateFromPKCS12(pfxData, passcode);
-            }
-            finally
-            {
-                Array.Clear(passcode, 0, passcode.Length);
-            }
-        }
-
-        /// <summary>
-        /// Create a X509Certificate2 with a private key by combining
-        /// the certificate with a private key from a PEM stream
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public static X509Certificate2 CreateCertificateWithPEMPrivateKey(
-            X509Certificate2 certificate,
-            byte[] pemDataBlob,
-            ReadOnlySpan<char> password)
-        {
-#if ECC_SUPPORT
-            if (X509Utils.IsECDsaSignature(certificate))
-            {
-                using (ECDsa privateKey = PEMReader.ImportECDsaPrivateKeyFromPEM(pemDataBlob, password))
-                {
-                    if (privateKey == null)
-                    {
-                        throw new ServiceResultException("PEM data blob does not contain a private key.");
-                    }
-
-                    string passcode = X509Utils.GeneratePasscode();
-                    byte[] pfxData = CertificateBuilder.CreatePfxWithECdsaPrivateKey(
-                        certificate,
-                        certificate.FriendlyName,
-                        privateKey,
-                        passcode);
-                    return X509Utils.CreateCertificateFromPKCS12(pfxData, passcode);
-                }
-            }
-            else
-#endif
-            {
-                using RSA privateKey =
-                    PEMReader.ImportRsaPrivateKeyFromPEM(pemDataBlob, password)
-                    ?? throw new ServiceResultException(
-                        "PEM data blob does not contain a private key.");
-
-                char[] passcode = X509Utils.GeneratePasscode();
-                try
-                {
-                    byte[] pfxData = CertificateBuilder.CreatePfxWithRSAPrivateKey(
-                        certificate,
-                        certificate.FriendlyName,
-                        privateKey,
-                        passcode);
-                    return X509Utils.CreateCertificateFromPKCS12(pfxData, passcode);
-                }
-                finally
-                {
-                    Array.Clear(passcode, 0, passcode.Length);
-                }
-            }
-        }
-#endif
 
         /// <summary>
         /// Sets the parameters to suitable defaults.
@@ -637,8 +441,7 @@ namespace Opc.Ua
                 applicationUri = builder.ToString();
             }
 
-            _ =
-                Utils.ParseUri(applicationUri)
+            _ = Utils.ParseUri(applicationUri)
                 ?? throw new ArgumentNullException(
                     nameof(applicationUri),
                     "Must specify a valid URL.");
@@ -654,6 +457,11 @@ namespace Opc.Ua
                 subjectName = Utils.Format("CN={0}", subjectName);
             }
 
+            if (!subjectName.Contains("O=", StringComparison.Ordinal))
+            {
+                subjectName += Utils.Format(", O={0}", "OPC Foundation");
+            }
+
             if (domainNames != null && domainNames.Count > 0)
             {
                 if (!subjectName.Contains("DC=", StringComparison.Ordinal) &&
@@ -667,8 +475,5 @@ namespace Opc.Ua
                 }
             }
         }
-
-        private static readonly Dictionary<string, X509Certificate2> s_certificates = [];
-        private static readonly Lock s_certificatesLock = new();
     }
 }

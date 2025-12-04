@@ -24,7 +24,7 @@ namespace Opc.Ua.Server.Tests
     public class FilterRetainTests
     {
         private SystemContext m_systemContext;
-        private FilterContext m_filterContext;
+        private IFilterContext m_filterContext;
 
         internal static readonly LocalizedText InService = new("en", "In Service");
         internal static readonly LocalizedText OutOfService = new("en", "Out of Service");
@@ -74,7 +74,7 @@ namespace Opc.Ua.Server.Tests
 
             alarm.EventType.Value = ObjectTypeIds.DeviceFailureEventType;
 
-            FilterContext context = GetFilterContext(telemetry);
+            IFilterContext context = GetFilterContext(telemetry);
 
             EventFilter filter = GetHighOnlyEventFilter(addClauses: !pass, telemetry);
 
@@ -91,7 +91,7 @@ namespace Opc.Ua.Server.Tests
 
             var certificateType = new ApplicationCertificateState(null);
 
-            FilterContext context = GetFilterContext(telemetry);
+            IFilterContext context = GetFilterContext(telemetry);
 
             EventFilter filter = GetHighOnlyEventFilter(addClauses: !pass, telemetry);
             MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
@@ -130,7 +130,7 @@ namespace Opc.Ua.Server.Tests
                 filterRetainValue: supportsFilteredRetain,
                 telemetry: telemetry);
 
-            FilterContext filterContext = GetFilterContext(telemetry);
+            IFilterContext filterContext = GetFilterContext(telemetry);
 
             EventFilter filter = GetHighOnlyEventFilter(addClauses: true, telemetry);
             MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
@@ -175,7 +175,7 @@ namespace Opc.Ua.Server.Tests
             MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
 
             SystemContext systemContext = GetSystemContext(telemetry);
-            FilterContext filterContext = GetFilterContext(telemetry);
+            IFilterContext filterContext = GetFilterContext(telemetry);
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
             alarm.Retain.Value = false;
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: false, telemetry);
@@ -211,7 +211,7 @@ namespace Opc.Ua.Server.Tests
             MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
 
             SystemContext systemContext = GetSystemContext(telemetry);
-            FilterContext filterContext = GetFilterContext(telemetry);
+            IFilterContext filterContext = GetFilterContext(telemetry);
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
             alarm.Retain.Value = false;
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: false, telemetry);
@@ -268,7 +268,7 @@ namespace Opc.Ua.Server.Tests
             alarm.SetSuppressedState(systemContext, suppressed: false);
             alarm.OutOfServiceState.Value = InService;
 
-            FilterContext filterContext = GetFilterContext(telemetry);
+            IFilterContext filterContext = GetFilterContext(telemetry);
             var filter = new EventFilter
             {
                 SelectClauses = GetSelectFields(),
@@ -383,7 +383,7 @@ namespace Opc.Ua.Server.Tests
 
         private void CanSendFilteredAlarm(
             MonitoredItem monitoredItem,
-            FilterContext context,
+            IFilterContext context,
             EventFilter filter,
             BaseObjectState alarm,
             bool expected,
@@ -574,7 +574,7 @@ namespace Opc.Ua.Server.Tests
             if (m_systemContext == null)
             {
                 m_systemContext = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
-                m_systemContext.NamespaceUris.Append(Opc.Ua.Namespaces.OpcUa);
+                m_systemContext.NamespaceUris.Append(Ua.Namespaces.OpcUa);
                 var typeTable = new TypeTable(m_systemContext.NamespaceUris);
                 typeTable.AddSubtype(ObjectTypeIds.BaseObjectType, null);
                 typeTable.AddSubtype(ObjectTypeIds.BaseEventType, ObjectTypeIds.BaseObjectType);
@@ -601,7 +601,7 @@ namespace Opc.Ua.Server.Tests
             return m_systemContext;
         }
 
-        private FilterContext GetFilterContext(ITelemetryContext telemetry)
+        private IFilterContext GetFilterContext(ITelemetryContext telemetry)
         {
             if (m_filterContext == null)
             {

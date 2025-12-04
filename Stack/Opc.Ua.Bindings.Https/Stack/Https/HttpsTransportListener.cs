@@ -26,6 +26,7 @@ using Microsoft.Extensions.Hosting;
 using Opc.Ua.Security.Certificates;
 using Microsoft.Extensions.Logging;
 
+
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
 using System.Security.Cryptography;
 #endif
@@ -145,7 +146,7 @@ namespace Opc.Ua.Bindings
             {
                 ConnectionStatusChanged = null;
                 ConnectionWaiting = null;
-                Utils.SilentDispose(m_host);
+                m_host?.Dispose();
                 m_host = null;
             }
         }
@@ -216,6 +217,7 @@ namespace Opc.Ua.Bindings
             Stop();
         }
 
+#pragma warning disable CS0414
         /// <summary>
         /// Raised when a new connection is waiting for a client.
         /// </summary>
@@ -225,6 +227,7 @@ namespace Opc.Ua.Bindings
         /// Raised when a monitored connection's status changed.
         /// </summary>
         public event EventHandler<ConnectionStatusEventArgs> ConnectionStatusChanged;
+#pragma warning restore CS0414
 
         /// <inheritdoc/>
         /// <remarks>
@@ -232,11 +235,6 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         public void CreateReverseConnection(Uri url, int timeout)
         {
-            // suppress warnings
-            ConnectionWaiting = null;
-            ConnectionWaiting?.Invoke(null, null);
-            ConnectionStatusChanged = null;
-            ConnectionStatusChanged?.Invoke(null, null);
             throw new NotImplementedException();
         }
 
@@ -258,8 +256,20 @@ namespace Opc.Ua.Bindings
         public void Start()
         {
             Startup.Listener = this;
-            m_hostBuilder = new WebHostBuilder();
+#if NET8_0_OR_GREATER
+            m_host = new HostBuilder()
+                .ConfigureWebHostDefaults(ConfigureWebHost)
+                .Build();
+            m_host.StartAsync(CancellationToken.None).GetAwaiter().GetResult();
+#else
+            var hostBuilder = new WebHostBuilder();
+            ConfigureWebHost(hostBuilder);
+            m_host = hostBuilder.Start(Utils.ReplaceLocalhost(EndpointUrl.ToString()));
+#endif
+        }
 
+        private void ConfigureWebHost(IWebHostBuilder webHostBuilder)
+        {
             // prepare the server TLS certificate
             X509Certificate2 serverCertificate = m_serverCertProvider.GetInstanceCertificate(
                 SecurityPolicies.Https);
@@ -294,7 +304,7 @@ namespace Opc.Ua.Bindings
             if (hostType is UriHostNameType.Dns or UriHostNameType.Unknown or UriHostNameType.Basic)
             {
                 // bind to any address
-                m_hostBuilder.UseKestrel(options =>
+                webHostBuilder.UseKestrel(options =>
                     options.ListenAnyIP(
                         EndpointUrl.Port,
                         listenOptions => listenOptions.UseHttps(httpsOptions)));
@@ -303,16 +313,15 @@ namespace Opc.Ua.Bindings
             {
                 // bind to specific address
                 var ipAddress = IPAddress.Parse(EndpointUrl.Host);
-                m_hostBuilder.UseKestrel(options =>
+                webHostBuilder.UseKestrel(options =>
                     options.Listen(
                         ipAddress,
                         EndpointUrl.Port,
                         listenOptions => listenOptions.UseHttps(httpsOptions)));
             }
 
-            m_hostBuilder.UseContentRoot(Directory.GetCurrentDirectory());
-            m_hostBuilder.UseStartup<Startup>();
-            m_host = m_hostBuilder.Start(Utils.ReplaceLocalhost(EndpointUrl.ToString()));
+            webHostBuilder.UseContentRoot(Directory.GetCurrentDirectory());
+            webHostBuilder.UseStartup<Startup>();
         }
 
         /// <summary>
@@ -460,11 +469,14 @@ namespace Opc.Ua.Bindings
                         return;
                     }
                 }
+                var secureChannelContext = new SecureChannelContext(
+                        ListenerId,
+                        endpoint,
+                        RequestEncoding.Binary);
 
                 IServiceResponse output =
                     await m_callback.ProcessRequestAsync(
-                        ListenerId,
-                        endpoint,
+                        secureChannelContext,
                         input,
                         ct).ConfigureAwait(false);
 
@@ -490,18 +502,18 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void CertificateUpdate(
             ICertificateValidator validator,
-            CertificateTypesProvider certificateTypeProvider)
+            CertificateTypesProvider serverCertificateTypes)
         {
             Stop();
 
             m_quotas.CertificateValidator = validator;
-            m_serverCertProvider = certificateTypeProvider;
+            m_serverCertProvider = serverCertificateTypes;
 
             foreach (EndpointDescription description in m_descriptions)
             {
                 ServerBase.SetServerCertificateInEndpointDescription(
                     description,
-                    certificateTypeProvider,
+                    serverCertificateTypes,
                     false);
             }
 
@@ -569,7 +581,7 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                m_quotas.CertificateValidator.Validate(clientCertificate);
+                m_quotas.CertificateValidator.ValidateAsync(clientCertificate, default).GetAwaiter().GetResult();
             }
             catch (Exception)
             {
@@ -582,8 +594,11 @@ namespace Opc.Ua.Bindings
         private EndpointDescriptionCollection m_descriptions;
         private ChannelQuotas m_quotas;
         private ITransportListenerCallback m_callback;
-        private IWebHostBuilder m_hostBuilder;
+#if NET8_0_OR_GREATER
+        private IHost m_host;
+#else
         private IWebHost m_host;
+#endif
         private CertificateTypesProvider m_serverCertProvider;
         private bool m_mutualTlsEnabled;
         private readonly ILogger m_logger;

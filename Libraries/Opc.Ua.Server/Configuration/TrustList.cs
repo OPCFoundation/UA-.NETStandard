@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -152,7 +153,7 @@ namespace Opc.Ua.Server
                 }
 
                 m_readMode = mode == OpenFileMode.Read;
-                m_sessionId = context.SessionId;
+                m_sessionId = (context as ISessionSystemContext)?.SessionId;
                 fileHandle = ++m_fileHandle;
 
                 var trustList = new TrustListDataType { SpecifiedLists = (uint)masks };
@@ -186,7 +187,7 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    store?.Close();
+                    store.Close();
                 }
 
                 store = m_issuerStore.OpenStore(m_telemetry);
@@ -218,7 +219,7 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    store?.Close();
+                    store.Close();
                 }
 
                 if (m_readMode)
@@ -248,24 +249,25 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                if (m_sessionId != context.SessionId)
+                if (context is ISessionSystemContext session &&
+                    m_sessionId != session.SessionId)
                 {
-                    return StatusCodes.BadUserAccessDenied;
+                    return ServiceResult.Create(
+                        StatusCodes.BadUserAccessDenied,
+                        "Session not authorized");
                 }
 
                 if (m_fileHandle != fileHandle)
                 {
-                    return StatusCodes.BadInvalidArgument;
+                    return ServiceResult.Create(
+                        StatusCodes.BadInvalidArgument,
+                        "Invalid file handle");
                 }
 
                 data = new byte[length];
 
                 int bytesRead = m_strm.Read(data, 0, length);
-
-                if (bytesRead < 0)
-                {
-                    return StatusCodes.BadUnexpectedError;
-                }
+                Debug.Assert(bytesRead >= 0);
 
                 if (bytesRead < length)
                 {
@@ -289,7 +291,8 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                if (m_sessionId != context.SessionId)
+                if (context is ISessionSystemContext session &&
+                    m_sessionId != session.SessionId)
                 {
                     return StatusCodes.BadUserAccessDenied;
                 }
@@ -315,7 +318,8 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                if (m_sessionId != context.SessionId)
+                if (context is ISessionSystemContext session &&
+                    m_sessionId != session.SessionId)
                 {
                     return StatusCodes.BadUserAccessDenied;
                 }
@@ -354,7 +358,8 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                if (m_sessionId != context.SessionId)
+                if (context is ISessionSystemContext session &&
+                    m_sessionId != session.SessionId)
                 {
                     return StatusCodes.BadUserAccessDenied;
                 }
@@ -396,7 +401,7 @@ namespace Opc.Ua.Server
                         trustedCertificates = [];
                         foreach (byte[] cert in trustList.TrustedCertificates)
                         {
-                            trustedCertificates.Add(X509CertificateLoader.LoadCertificate(cert));
+                            trustedCertificates.Add(CertificateFactory.Create(cert));
                         }
                     }
                     if ((masks & (int)TrustListMasks.TrustedCrls) != 0)
@@ -501,7 +506,7 @@ namespace Opc.Ua.Server
                     X509Certificate2 cert = null;
                     try
                     {
-                        cert = X509CertificateLoader.LoadCertificate(certificate);
+                        cert = CertificateFactory.Create(certificate);
                     }
                     catch
                     {
@@ -724,7 +729,7 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    store?.Close();
+                    store.Close();
                 }
             }
             catch
@@ -774,7 +779,7 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    store?.Close();
+                    store.Close();
                 }
             }
             catch

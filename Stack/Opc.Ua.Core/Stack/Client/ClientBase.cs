@@ -10,8 +10,13 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+#nullable enable
+
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -38,6 +43,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public ClientTraceFlags ActivityTraceFlags { get; set; }
+
+        /// <inheritdoc/>
         public void Dispose()
         {
             Dispose(true);
@@ -51,33 +59,41 @@ namespace Opc.Ua
         /// unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
         protected virtual void Dispose(bool disposing)
         {
-            CloseChannel();
+            if (!Disposed)
+            {
+                CloseChannelAsync(default).GetAwaiter().GetResult();
 
-            Disposed = true;
+                Utils.SilentDispose(m_meter);
+                m_instruments.Clear();
+                m_meter = null;
+
+                Disposed = true;
+            }
         }
 
         /// <inheritdoc/>
-        public EndpointDescription Endpoint => NullableTransportChannel?.EndpointDescription;
+        public EndpointDescription? Endpoint => NullableTransportChannel?.EndpointDescription;
 
         /// <inheritdoc/>
-        public EndpointConfiguration EndpointConfiguration
+        public EndpointConfiguration? EndpointConfiguration
             => NullableTransportChannel?.EndpointConfiguration;
 
         /// <inheritdoc/>
-        public IServiceMessageContext MessageContext => NullableTransportChannel?.MessageContext;
+        public IServiceMessageContext? MessageContext => NullableTransportChannel?.MessageContext;
 
         /// <inheritdoc/>
-        public ITransportChannel NullableTransportChannel
+        public ITransportChannel? NullableTransportChannel
         {
             get
             {
-                ITransportChannel channel = m_channel;
+                ITransportChannel? channel = m_channel;
 
                 if (channel != null && Disposed)
                 {
-                    throw new ServiceResultException(
+                    // This is a bug in your code.
+                    throw ServiceResultException.Create(
                         StatusCodes.BadSecureChannelClosed,
-                        "Channel has been closed.");
+                        "Channel is set but client has been disposed.");
                 }
 
                 return channel;
@@ -89,17 +105,23 @@ namespace Opc.Ua
         {
             get
             {
-                ITransportChannel channel = m_channel;
-
+                ITransportChannel? channel = m_channel;
                 if (channel != null)
                 {
-                    if (!Disposed)
+                    if (Disposed)
                     {
-                        return channel;
+                        // This is a bug in your code.
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadSecureChannelClosed,
+                            "Channel is set but client has been disposed.");
                     }
-                    throw new ServiceResultException(
+                    return channel;
+                }
+                if (Disposed)
+                {
+                    throw ServiceResultException.Create(
                         StatusCodes.BadSecureChannelClosed,
-                        "Channel has been disposed.");
+                        "Client has been disposed and channel is closed.");
                 }
                 throw new ServiceResultException(
                     StatusCodes.BadSecureChannelClosed,
@@ -107,7 +129,7 @@ namespace Opc.Ua
             }
             protected set
             {
-                ITransportChannel channel = Interlocked.Exchange(ref m_channel, value);
+                ITransportChannel? channel = Interlocked.Exchange(ref m_channel, value);
 
                 if (ReferenceEquals(channel, value))
                 {
@@ -118,7 +140,8 @@ namespace Opc.Ua
                 {
                     try
                     {
-                        channel.Close();
+                        // TODO: Make async method instead of setter
+                        channel.CloseAsync(default).AsTask().GetAwaiter().GetResult();
                         channel.Dispose();
                     }
                     catch
@@ -134,7 +157,7 @@ namespace Opc.Ua
         /// Note: deprecated, only to fulfill a few references
         /// in the generated code.
         /// </summary>
-        internal IChannelBase InnerChannel
+        internal IChannelBase? InnerChannel
         {
             get
             {
@@ -158,7 +181,7 @@ namespace Opc.Ua
             get => NullableTransportChannel?.OperationTimeout ?? 0;
             set
             {
-                ITransportChannel channel = NullableTransportChannel;
+                ITransportChannel? channel = NullableTransportChannel;
                 if (channel != null)
                 {
                     channel.OperationTimeout = value;
@@ -184,13 +207,13 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public virtual async Task<StatusCode> CloseAsync(CancellationToken ct = default)
         {
-            ITransportChannel channel = Interlocked.Exchange(ref m_channel, null);
+            ITransportChannel? channel = Interlocked.Exchange(ref m_channel, null);
             if (channel != null)
             {
                 await channel.CloseAsync(ct).ConfigureAwait(false);
             }
 
-            AuthenticationToken = null;
+            AuthenticationToken = NodeId.Null;
 
             return StatusCodes.Good;
         }
@@ -220,22 +243,10 @@ namespace Opc.Ua
         /// <summary>
         /// Closes the channel.
         /// </summary>
+        [Obsolete("Use CloseChannelAsync instead.")]
         protected void CloseChannel()
         {
-            ITransportChannel channel = Interlocked.Exchange(ref m_channel, null);
-
-            if (channel != null)
-            {
-                try
-                {
-                    channel.Close();
-                    channel.Dispose();
-                }
-                catch
-                {
-                    // ignore errors.
-                }
-            }
+            CloseChannelAsync(default).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -243,7 +254,7 @@ namespace Opc.Ua
         /// </summary>
         protected async Task CloseChannelAsync(CancellationToken ct)
         {
-            ITransportChannel channel = Interlocked.Exchange(ref m_channel, null);
+            ITransportChannel? channel = Interlocked.Exchange(ref m_channel, null);
 
             if (channel != null)
             {
@@ -264,7 +275,7 @@ namespace Opc.Ua
         /// </summary>
         protected void DisposeChannel()
         {
-            ITransportChannel channel = Interlocked.Exchange(ref m_channel, null);
+            ITransportChannel? channel = Interlocked.Exchange(ref m_channel, null);
 
             try
             {
@@ -277,59 +288,51 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// An object used to synchronize access to the session state.
-        /// </summary>
-        /// <value>The synchronization object.</value>
-        protected object SyncRoot { get; } = new object();
-
-        /// <summary>
         /// The authorization token used to connect to the server.
         /// </summary>
         /// <value>The authentication token.</value>
-        protected NodeId AuthenticationToken { get; set; }
+        protected NodeId AuthenticationToken { get; set; } = NodeId.Null;
 
         /// <summary>
         /// Updates the header of a service request.
         /// </summary>
         /// <param name="request">The request.</param>
-        /// <param name="useDefaults">if set to <c>true</c> use defaults].</param>
+        /// <param name="useDefaults">if set to <c>true</c> use defaults.</param>
         protected virtual void UpdateRequestHeader(IServiceRequest request, bool useDefaults)
         {
-            lock (SyncRoot)
+            ThrowIfDisposed();
+            request.RequestHeader ??= new RequestHeader();
+
+            if (request.RequestHeader.ReturnDiagnostics == 0)
             {
-                request.RequestHeader ??= new RequestHeader();
-
-                if (useDefaults)
-                {
-                    request.RequestHeader.ReturnDiagnostics = (uint)(int)ReturnDiagnostics;
-                }
-
-                if (request.RequestHeader.RequestHandle == 0)
-                {
-                    request.RequestHeader.RequestHandle = (uint)Utils.IncrementIdentifier(
-                        ref m_nextRequestHandle);
-                }
-
-                if (NodeId.IsNull(request.RequestHeader.AuthenticationToken))
-                {
-                    request.RequestHeader.AuthenticationToken = AuthenticationToken;
-                }
-
-                if (request.RequestHeader.TimeoutHint == 0)
-                {
-                    if (DefaultTimeoutHint > 0)
-                    {
-                        request.RequestHeader.TimeoutHint = (uint)DefaultTimeoutHint;
-                    }
-                    else if (OperationTimeout > 0)
-                    {
-                        request.RequestHeader.TimeoutHint = (uint)OperationTimeout;
-                    }
-                }
-
-                request.RequestHeader.Timestamp = DateTime.UtcNow;
-                request.RequestHeader.AuditEntryId = CreateAuditLogEntry(request);
+                request.RequestHeader.ReturnDiagnostics = (uint)(int)ReturnDiagnostics;
             }
+
+            if (request.RequestHeader.RequestHandle == 0)
+            {
+                request.RequestHeader.RequestHandle = (uint)Utils.IncrementIdentifier(
+                    ref m_nextRequestHandle);
+            }
+
+            if (NodeId.IsNull(request.RequestHeader.AuthenticationToken))
+            {
+                request.RequestHeader.AuthenticationToken = AuthenticationToken;
+            }
+
+            if (request.RequestHeader.TimeoutHint == 0)
+            {
+                if (DefaultTimeoutHint > 0)
+                {
+                    request.RequestHeader.TimeoutHint = (uint)DefaultTimeoutHint;
+                }
+                else if (OperationTimeout > 0)
+                {
+                    request.RequestHeader.TimeoutHint = (uint)OperationTimeout;
+                }
+            }
+
+            request.RequestHeader.Timestamp = DateTime.UtcNow;
+            request.RequestHeader.AuditEntryId = CreateAuditLogEntry(request);
         }
 
         /// <summary>
@@ -345,16 +348,75 @@ namespace Opc.Ua
         {
             UpdateRequestHeader(request, useDefaults);
             int incrementedCount = Interlocked.Increment(ref m_pendingRequestCount);
-            Utils.EventLog.ServiceCallStart(
-                serviceName,
-                (int)request.RequestHeader.RequestHandle,
-                incrementedCount);
+            if (ActivityTraceFlags == ClientTraceFlags.None)
+            {
+                // Do not record or propagate activity
+                return;
+            }
 
-            m_logger.LogTrace(
-                "{ServiceName} Called. RequestHandle={RequestHandle}, PendingRequestCount={PendingRequestCount}",
-                serviceName,
-                request.RequestHeader.RequestHandle,
-                incrementedCount);
+            if ((ActivityTraceFlags & ClientTraceFlags.Log) != 0)
+            {
+                m_logger.LogInformation("{Activity}#{Handle} started...", serviceName,
+                    request.RequestHeader.RequestHandle);
+            }
+            if ((ActivityTraceFlags & ClientTraceFlags.EventLog) != 0)
+            {
+                Utils.EventLog.ServiceCallStart(
+                    serviceName,
+                    (int)request.RequestHeader.RequestHandle,
+                    incrementedCount);
+            }
+            if ((ActivityTraceFlags & ClientTraceFlags.Traces) != 0)
+            {
+                Activity? context = Activity.Current;
+                if (context == null)
+                {
+                    return;
+                }
+
+                context.AddEvent(new ActivityEvent("Started", tags:
+                [
+                    new System.Collections.Generic.KeyValuePair<string, object?>(
+                        nameof(RequestHeader.RequestHandle),
+                        (object?)request.RequestHeader.RequestHandle),
+                    new System.Collections.Generic.KeyValuePair<string, object?>(
+                        nameof(RequestHeader.AuditEntryId),
+                        (object?)request.RequestHeader.AuditEntryId)
+                ]));
+
+                // https://reference.opcfoundation.org/Core/Part26/v105/docs/5.5.4
+                Span<byte> spanId = stackalloc byte[8];
+                Span<byte> traceId = stackalloc byte[16];
+                context.SpanId.CopyTo(spanId);
+                context.TraceId.CopyTo(traceId);
+                var spanContextParameter = new KeyValuePair
+                {
+                    Key = "SpanContext",
+                    Value = new Variant(new SpanContextDataType
+                    {
+#if NET8_0_OR_GREATER
+                        SpanId = BitConverter.ToUInt64(spanId),
+                        TraceId = (Uuid)new Guid(traceId)
+#else
+                        SpanId = BitConverter.ToUInt64(spanId.ToArray(), 0),
+                        TraceId = (Uuid)new Guid(traceId.ToArray())
+#endif
+                    })
+                };
+                if (request.RequestHeader.AdditionalHeader?.Body == null)
+                {
+                    var additionalHeader = new AdditionalParametersType();
+                    additionalHeader.Parameters.Add(spanContextParameter);
+                    request.RequestHeader.AdditionalHeader
+                        = new ExtensionObject(additionalHeader);
+                }
+                else if (request.RequestHeader.AdditionalHeader.Body is
+                    AdditionalParametersType existingParameters)
+                {
+                    // Merge the trace data into the existing parameters.
+                    existingParameters.Parameters.Add(spanContextParameter);
+                }
+            }
         }
 
         /// <summary>
@@ -368,53 +430,100 @@ namespace Opc.Ua
             IServiceResponse response,
             string serviceName)
         {
-            uint requestHandle = 0;
-            StatusCode statusCode = StatusCodes.Good;
-
-            if (request != null)
+            int pendingRequestCount = Interlocked.Decrement(ref m_pendingRequestCount);
+            if (ActivityTraceFlags == ClientTraceFlags.None)
             {
-                requestHandle = request.RequestHeader.RequestHandle;
+                // Do not record results
+                return;
             }
-            else if (response != null)
+
+            uint requestHandle = 0;
+            StatusCode statusCode;
+            if (response != null)
             {
                 requestHandle = response.ResponseHeader.RequestHandle;
                 statusCode = response.ResponseHeader.ServiceResult;
             }
-
-            if (response == null)
+            else
             {
+                if (request != null)
+                {
+                    requestHandle = request.RequestHeader.RequestHandle;
+                }
                 statusCode = StatusCodes.Bad;
             }
 
-            int pendingRequestCount = Interlocked.Decrement(ref m_pendingRequestCount);
-
-            if (statusCode != StatusCodes.Good)
+            DateTime? timestamp = request?.RequestHeader?.Timestamp;
+            TimeSpan? duration = timestamp != null ? DateTime.UtcNow - timestamp.Value : null;
+            if ((ActivityTraceFlags & ClientTraceFlags.Log) != 0)
             {
-                Utils.EventLog.ServiceCallBadStop(
-                    serviceName,
-                    (int)requestHandle,
-                    (int)statusCode.Code,
-                    pendingRequestCount);
-
-                m_logger.LogTrace(
-                    "{Service} Completed. RequestHandle={RequestHandle}, PendingRequestCount={PendingRequestCount}, StatusCode={StatusCode}",
-                    serviceName,
-                    requestHandle,
-                    pendingRequestCount,
-                    statusCode);
+                if (ServiceResult.IsGood(statusCode))
+                {
+                    m_logger.LogInformation("{Activity}#{Handle} success received after {Elapsed}.",
+                        serviceName, requestHandle, duration);
+                }
+                else
+                {
+                    m_logger.LogError("{Activity}#{Handle} failed with {StatusCode} in {Elapsed}.",
+                        serviceName, requestHandle, statusCode.GetSymbolicId(), duration);
+                }
             }
-            else
+            if ((ActivityTraceFlags & ClientTraceFlags.EventLog) != 0)
             {
-                Utils.EventLog.ServiceCallStop(
-                    serviceName,
-                    (int)requestHandle,
-                    pendingRequestCount);
-
-                m_logger.LogTrace(
-                    "{Service} Completed. RequestHandle={RequestHandle}, PendingRequestCount={PendingRequestCount}",
-                    serviceName,
-                    requestHandle,
-                    pendingRequestCount);
+                if (statusCode != StatusCodes.Good)
+                {
+                    Utils.EventLog.ServiceCallBadStop(
+                        serviceName,
+                        (int)requestHandle,
+                        (int)statusCode.Code,
+                        pendingRequestCount);
+                }
+                else
+                {
+                    Utils.EventLog.ServiceCallStop(
+                        serviceName,
+                        (int)requestHandle,
+                        pendingRequestCount);
+                }
+            }
+            // Add event to current trace
+            if ((ActivityTraceFlags & ClientTraceFlags.Traces) != 0)
+            {
+                Activity? context = Activity.Current;
+                if (context == null)
+                {
+                    return;
+                }
+                context.AddEvent(new ActivityEvent("Completed", tags:
+                [
+                    new System.Collections.Generic.KeyValuePair<string, object?>(
+                        nameof(RequestHeader.RequestHandle),
+                        (object?)requestHandle),
+                    new System.Collections.Generic.KeyValuePair<string, object?>(
+                        nameof(ResponseHeader.ServiceResult),
+                        (object?)statusCode)
+                ]));
+            }
+            // Record request duration metrics
+            if ((ActivityTraceFlags & ClientTraceFlags.Metrics) != 0 &&
+                m_meter != null &&
+                duration != null)
+            {
+                GetDurationInstrument(m_meter).Record(
+                    duration.Value.TotalSeconds,
+                    new TagList(
+                    new System.Collections.Generic.KeyValuePair<string, object?>(
+                        "opc.ua.request.service",
+                        serviceName),
+                    new System.Collections.Generic.KeyValuePair<string, object?>(
+                        "opc.ua.response.status.code",
+                        statusCode.CodeBits),
+                    new System.Collections.Generic.KeyValuePair<string, object?>(
+                        "server.address",
+                        Endpoint?.EndpointUrl),
+                    new System.Collections.Generic.KeyValuePair<string, object?>(
+                        "opc.ua.request.timeout",
+                        NullableTransportChannel?.OperationTimeout)));
             }
         }
 
@@ -468,10 +577,9 @@ namespace Opc.Ua
                     nameof(response));
             }
 
-            if (response == null || response.Count != request.Count)
+            if (response == null || request == null || response.Count != request.Count)
             {
-                throw new ServiceResultException(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "The server returned a list without the expected number of elements.");
             }
         }
@@ -485,11 +593,10 @@ namespace Opc.Ua
         public static void ValidateDiagnosticInfos(DiagnosticInfoCollection response, IList request)
         {
             // returning an empty list for diagnostic info arrays is allowed.
-            if (response != null && response.Count != 0 && response.Count != request.Count)
+            if (response != null && response.Count != 0 && request != null && response.Count != request.Count)
             {
-                throw new ServiceResultException(
-                    StatusCodes.BadUnexpectedError,
-                    "The server forgot to fill in the DiagnosticInfos array correctly when returning an operation level error.");
+                throw ServiceResultException.Unexpected(
+                    "The server failed to fill in the DiagnosticInfos array correctly when returning an operation level error.");
             }
         }
 
@@ -504,15 +611,15 @@ namespace Opc.Ua
         public static ServiceResult GetResult(
             StatusCode statusCode,
             int index,
-            DiagnosticInfoCollection diagnosticInfos,
-            ResponseHeader responseHeader)
+            DiagnosticInfoCollection? diagnosticInfos,
+            ResponseHeader? responseHeader)
         {
             if (diagnosticInfos != null && diagnosticInfos.Count > index)
             {
                 return new ServiceResult(
                     statusCode.Code,
                     diagnosticInfos[index],
-                    responseHeader.StringTable);
+                    responseHeader?.StringTable ?? []);
             }
 
             return new ServiceResult(statusCode.Code);
@@ -537,9 +644,9 @@ namespace Opc.Ua
             // check for null.
             if (value == null)
             {
-                return new ServiceResult(
+                return ServiceResult.Create(
                     StatusCodes.BadUnexpectedError,
-                    "The server returned a value for a data value.");
+                    "The server did not return a value for a data value.");
             }
 
             // check status code.
@@ -552,24 +659,114 @@ namespace Opc.Ua
             if (expectedType != null && !expectedType.IsInstanceOfType(value.Value))
             {
                 return ServiceResult.Create(
-                    StatusCodes.BadUnexpectedError,
+                    StatusCodes.BadTypeMismatch,
                     "The server returned data value of type {0} when a value of type {1} was expected.",
                     value.Value != null ? value.Value.GetType().Name : "(null)",
                     expectedType.Name);
             }
 
-            return null;
+            return ServiceResult.Good;
         }
 
         /// <summary>
+        /// Throw if the object has been disposed.
+        /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
+        protected void ThrowIfDisposed()
+        {
+            if (Disposed)
+            {
+                throw new ObjectDisposedException(nameof(ClientBase));
+            }
+        }
+
+        /// <summary>
+        /// Get or add duration instrument
+        /// </summary>
+        /// <param name="meter"></param>
+        /// <returns></returns>
+        private Histogram<double> GetDurationInstrument(Meter meter)
+        {
+            // TODO: This should be created in constructor which
+            // we will do as soon as clientBase accepts ITelemetryContext
+            return (Histogram<double>)m_instruments.GetOrAdd(
+                "duration",
+                n => meter.CreateHistogram(
+                    "opc.ua.client.request.duration",
+                    "s",
+                    "Measures the time taken to perform the request",
+                    advice: new InstrumentAdvice<double>
+                    {
+                        HistogramBucketBoundaries =
+                        [
+                            0.005,
+                            0.01,
+                            0.025,
+                            0.05,
+                            0.075,
+                            0.1,
+                            0.25,
+                            0.5,
+                            0.75,
+                            1,
+                            2.5,
+                            5,
+                            7.5,
+                            10,
+                            30,
+                            60
+                        ]
+                    }));
+        }
+
+#pragma warning disable IDE1006 // Naming Styles
+        /// <summary>
         /// Logger to be used by the client inheritance chain
         /// </summary>
-#pragma warning disable IDE1006 // Naming Styles
-        protected ILogger m_logger { get; set; } = Utils.Null.Logger;
+        protected ILogger m_logger { get; set; } = LoggerUtils.Null.Logger;
+
+        /// <summary>
+        /// Meter to be used by the client inheritance chain
+        /// </summary>
+        protected Meter? m_meter { get; set; }
 #pragma warning restore IDE1006 // Naming Styles
 
-        private ITransportChannel m_channel;
+        private ITransportChannel? m_channel;
+        private readonly ConcurrentDictionary<string, Instrument<double>> m_instruments = [];
         private int m_nextRequestHandle;
         private int m_pendingRequestCount;
+    }
+
+    /// <summary>
+    /// Defines flags that control activity tracing
+    /// using the telemetry context provided to the client.
+    /// </summary>
+    [Flags]
+    public enum ClientTraceFlags
+    {
+        /// <summary>
+        /// No telemetry is recorded (default).
+        /// </summary>
+        None = 0,
+
+        /// <summary>
+        /// Record an instrumentation metric for the activity
+        /// </summary>
+        Metrics = 0x1,
+
+        /// <summary>
+        /// Forward activity trace information to the server
+        /// </summary>
+        Traces = 0x2,
+
+        /// <summary>
+        /// Write the activity as a record to the log
+        /// </summary>
+        Log = 0x4,
+
+        /// <summary>
+        /// Write activity to event log (legacy)
+        /// </summary>
+        EventLog = 0x10
     }
 }

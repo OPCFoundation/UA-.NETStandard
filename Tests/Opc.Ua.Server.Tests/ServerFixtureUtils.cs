@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -34,6 +34,8 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server.Tests
@@ -58,7 +60,7 @@ namespace Opc.Ua.Server.Tests
         /// <param name="server">The server to connect to.</param>
         /// <param name="sessionName">A session name.</param>
         /// <returns>The request header for the session.</returns>
-        public static RequestHeader CreateAndActivateSession(
+        public static async Task<(RequestHeader, SecureChannelContext)> CreateAndActivateSessionAsync(
             this SessionServerBase server,
             string sessionName,
             bool useSecurity = false,
@@ -75,7 +77,7 @@ namespace Opc.Ua.Server.Tests
                     e.TransportProfileUri
                         .Equals(Profiles.HttpsBinaryTransport, StringComparison.Ordinal)
                 ) ??
-                throw new Exception("Unsupported transport profile.");
+                throw new NotSupportedException("Unsupported transport profile.");
 
             // fake profiles
             if (useSecurity)
@@ -90,12 +92,13 @@ namespace Opc.Ua.Server.Tests
             }
 
             // set security context
-            SecureChannelContext.Current
+            var secureChannelContext
                 = new SecureChannelContext(sessionName, endpoint, RequestEncoding.Binary);
             var requestHeader = new RequestHeader();
 
             // Create session
-            ResponseHeader response = server.CreateSession(
+            CreateSessionResponse createSessionResponse = await server.CreateSessionAsync(
+                secureChannelContext,
                 requestHeader,
                 null,
                 null,
@@ -105,32 +108,23 @@ namespace Opc.Ua.Server.Tests
                 null,
                 sessionTimeout,
                 maxResponseMessageSize,
-                out NodeId sessionId,
-                out NodeId authenticationToken,
-                out sessionTimeout,
-                out byte[] serverNonce,
-                out byte[] serverCertificate,
-                out EndpointDescriptionCollection endpointDescriptions,
-                out SignedSoftwareCertificateCollection serverSoftwareCertificates,
-                out SignatureData signatureData,
-                out uint maxRequestMessageSize);
-            ValidateResponse(response);
+                CancellationToken.None).ConfigureAwait(false);
+            ValidateResponse(createSessionResponse.ResponseHeader);
 
             // Activate session
-            requestHeader.AuthenticationToken = authenticationToken;
-            response = server.ActivateSession(
+            requestHeader.AuthenticationToken = createSessionResponse.AuthenticationToken;
+            ActivateSessionResponse activateSessionResponse = await server.ActivateSessionAsync(
+                secureChannelContext,
                 requestHeader,
-                signatureData,
+                createSessionResponse.ServerSignature,
                 [],
                 [],
                 identityToken != null ? new ExtensionObject(identityToken) : null,
                 null,
-                out serverNonce,
-                out StatusCodeCollection results,
-                out DiagnosticInfoCollection diagnosticInfos);
-            ValidateResponse(response);
+                CancellationToken.None).ConfigureAwait(false);
+            ValidateResponse(activateSessionResponse.ResponseHeader);
 
-            return requestHeader;
+            return (requestHeader, secureChannelContext);
         }
 
         /// <summary>
@@ -138,11 +132,15 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         /// <param name="server">The server where the session is active.</param>
         /// <param name="requestHeader">The request header of the session.</param>
-        public static void CloseSession(this SessionServerBase server, RequestHeader requestHeader)
+        public static async Task CloseSessionAsync(
+            this SessionServerBase server,
+            SecureChannelContext secureChannelContext,
+            RequestHeader requestHeader,
+            CancellationToken ct)
         {
             // close session
-            ResponseHeader response = server.CloseSession(requestHeader, true);
-            ValidateResponse(response);
+            CloseSessionResponse response = await server.CloseSessionAsync(secureChannelContext, requestHeader, true, ct).ConfigureAwait(false);
+            ValidateResponse(response.ResponseHeader);
         }
 
         /// <summary>
@@ -195,8 +193,7 @@ namespace Opc.Ua.Server.Tests
 
             if (response == null || response.Count != request.Count)
             {
-                throw new ServiceResultException(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "The server returned a list without the expected number of elements.");
             }
         }
@@ -216,8 +213,7 @@ namespace Opc.Ua.Server.Tests
             {
                 if (response.Count != request.Count)
                 {
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
+                    throw ServiceResultException.Unexpected(
                         "The server forgot to fill in the DiagnosticInfos array correctly when returning an operation level error.");
                 }
 
@@ -234,9 +230,9 @@ namespace Opc.Ua.Server.Tests
                                 diagnosticInfo.Locale >= stringTable.Count ||
                                 diagnosticInfo.LocalizedText >= stringTable.Count)
                             {
-                                throw new ServiceResultException(
-                                    StatusCodes.BadUnexpectedError,
-                                    "The server forgot to fill in string table for the DiagnosticInfos array correctly when returning an operation level error.");
+                                throw ServiceResultException.Unexpected(
+                                    "The server forgot to fill in string table for the DiagnosticInfos " +
+                                    "array correctly when returning an operation level error.");
                             }
                             var serviceResult = new ServiceResult(
                                 StatusCodes.Good,

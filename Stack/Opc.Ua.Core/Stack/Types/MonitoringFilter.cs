@@ -286,7 +286,7 @@ namespace Opc.Ua
         /// <summary>
         /// Validates the object.
         /// </summary>
-        public Result Validate(FilterContext context)
+        public Result Validate(IFilterContext context)
         {
             var result = new Result();
 
@@ -398,7 +398,7 @@ namespace Opc.Ua
         /// Creates an operand that references a component/property of a type.
         /// </summary>
         public SimpleAttributeOperand(
-            FilterContext context,
+            IFilterContext context,
             ExpandedNodeId typeId,
             IList<QualifiedName> browsePath)
         {
@@ -412,7 +412,7 @@ namespace Opc.Ua
         /// Creates an operand that references a component/property of a type.
         /// </summary>
         public SimpleAttributeOperand(
-            FilterContext context,
+            IFilterContext context,
             ExpandedNodeId typeDefinitionId,
             string browsePath,
             uint attributeId,
@@ -455,10 +455,10 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns a <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
+        /// Returns a <see cref="System.String"/> that represents the current <see cref="System.Object"/>.
         /// </summary>
         /// <returns>
-        /// A <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
+        /// A <see cref="System.String"/> that represents the current <see cref="System.Object"/>.
         /// </returns>
         public override string ToString()
         {
@@ -484,7 +484,7 @@ namespace Opc.Ua
         /// <summary>
         /// Validates the operand (sets the ParsedBrowsePath and ParsedIndexRange properties).
         /// </summary>
-        public override ServiceResult Validate(FilterContext context, int index)
+        public override ServiceResult Validate(IFilterContext context, int index)
         {
             Validated = false;
 

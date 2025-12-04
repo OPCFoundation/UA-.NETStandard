@@ -107,7 +107,7 @@ namespace Opc.Ua.Server
             if (!m_monitoredItemQueueFactory.SupportsDurableQueues && IsDurable)
             {
                 m_logger.LogError(
-                    "Durable subscription was create but no MonitoredItemQueueFactory that supports durable queues was registered, monitored item with id {id} could not be created",
+                    "Durable subscription was create but no MonitoredItemQueueFactory that supports durable queues was registered, monitored item with id {Id} could not be created",
                     id);
                 throw new ServiceResultException(StatusCodes.BadInternalError);
             }
@@ -300,7 +300,7 @@ namespace Opc.Ua.Server
                 if (!m_readyToPublish)
                 {
                     ServerUtils.EventLog.MonitoredItemReady(Id, "FALSE");
-                    m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] FALSE", Id);
+                    //m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] FALSE", Id);
                     return false;
                 }
 
@@ -308,7 +308,7 @@ namespace Opc.Ua.Server
                 if (MonitoringMode != MonitoringMode.Disabled && m_triggered)
                 {
                     ServerUtils.EventLog.MonitoredItemReady(Id, "TRIGGERED");
-                    m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] TRIGGERED", Id);
+                    //m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] TRIGGERED", Id);
                     return true;
                 }
 
@@ -316,7 +316,7 @@ namespace Opc.Ua.Server
                 if (MonitoringMode != MonitoringMode.Reporting)
                 {
                     ServerUtils.EventLog.MonitoredItemReady(Id, "FALSE");
-                    m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] FALSE", Id);
+                    //m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] FALSE", Id);
                     return false;
                 }
 
@@ -330,12 +330,12 @@ namespace Opc.Ua.Server
                         ServerUtils.EventLog.MonitoredItemReady(
                             Id,
                             Utils.Format("FALSE {0}ms", m_nextSamplingTime - now));
-                        m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] FALSE {Delay}ms", Id, m_nextSamplingTime - now);
+                        //m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] FALSE {Delay}ms", Id, m_nextSamplingTime - now);
                         return false;
                     }
                 }
                 ServerUtils.EventLog.MonitoredItemReady(Id, "NORMAL");
-                m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] NORMAL", Id);
+                //m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] NORMAL", Id);
                 return true;
             }
         }
@@ -981,7 +981,7 @@ namespace Opc.Ua.Server
         /// Fetches the event fields from the event.
         /// </summary>
         private EventFieldList GetEventFields(
-            FilterContext context,
+            IFilterContext context,
             EventFilter filter,
             IFilterTarget instance)
         {
@@ -1108,7 +1108,7 @@ namespace Opc.Ua.Server
         /// Determines whether an event can be sent with SupportsFilteredRetain in consideration.
         /// </summary>
         protected bool CanSendFilteredAlarm(
-            FilterContext context,
+            IFilterContext context,
             EventFilter filter,
             IFilterTarget instance)
         {
@@ -1453,9 +1453,8 @@ namespace Opc.Ua.Server
                 if (error != null)
                 {
                     error = new ServiceResult(
-                        error.StatusCode.SetSemanticsChanged(true),
-                        error.SymbolicId,
                         error.NamespaceUri,
+                        error.StatusCode.SetSemanticsChanged(true),
                         error.LocalizedText,
                         error.AdditionalInfo,
                         error.InnerResult);
@@ -1475,9 +1474,8 @@ namespace Opc.Ua.Server
                 if (error != null)
                 {
                     error = new ServiceResult(
-                        error.StatusCode.SetStructureChanged(true),
-                        error.SymbolicId,
                         error.NamespaceUri,
+                        error.StatusCode.SetStructureChanged(true),
                         error.LocalizedText,
                         error.AdditionalInfo,
                         error.InnerResult);
@@ -1691,9 +1689,9 @@ namespace Opc.Ua.Server
             }
 
             // value changed if only one is null.
-            if (value == null || lastValue == null)
+            if (lastValue == null)
             {
-                return lastValue != null || value != null;
+                return true;
             }
 
             // check if timestamp has changed.
@@ -1873,6 +1871,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Clears and re-initializes the queue if the monitoring parameters changed.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         protected void InitializeQueue()
         {
             switch (MonitoringMode)
@@ -1937,18 +1936,22 @@ namespace Opc.Ua.Server
                         m_eventQueueHandler.SetQueueSize(QueueSize, m_discardOldest);
                     }
                     break;
-                default:
+                case MonitoringMode.Disabled:
                     Utils.SilentDispose(m_eventQueueHandler);
                     m_eventQueueHandler = null;
                     Utils.SilentDispose(m_dataChangeQueueHandler);
                     m_dataChangeQueueHandler = null;
                     break;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected MonitoringMode {MonitoringMode}");
             }
         }
 
         /// <summary>
         /// Restore a persitent queue after a restart
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         protected void RestoreQueue()
         {
             switch (MonitoringMode)
@@ -2051,6 +2054,11 @@ namespace Opc.Ua.Server
                         }
                     }
                     break;
+                case MonitoringMode.Disabled:
+                    break;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected MonitoringMode {MonitoringMode}");
             }
         }
 

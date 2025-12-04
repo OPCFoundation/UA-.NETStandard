@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if ECC_SUPPORT
 using System;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -327,7 +326,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
                 X509Certificate2 cert = CertificateBuilder
                     .Create("CN=App Cert")
-                    .SetIssuer(X509CertificateLoader.LoadCertificate(signingCert.RawData))
+                    .SetIssuer(CertificateFactory.Create(signingCert.RawData))
                     .CreateForRSA(generator);
                 Assert.NotNull(cert);
                 WriteCertificate(cert, "Default signed ECDsa cert");
@@ -340,7 +339,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 X509Certificate2 cert = CertificateBuilder
                     .Create("CN=App Cert")
                     .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
-                    .SetIssuer(X509CertificateLoader.LoadCertificate(signingCert.RawData))
+                    .SetIssuer(CertificateFactory.Create(signingCert.RawData))
                     .SetECDsaPublicKey(ecdsaPublicKey)
                     .CreateForECDsa(generator);
                 Assert.NotNull(cert);
@@ -353,7 +352,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 X509Certificate2 cert = CertificateBuilder
                     .Create("CN=App Cert")
                     .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
-                    .SetIssuer(X509CertificateLoader.LoadCertificate(signingCert.RawData))
+                    .SetIssuer(CertificateFactory.Create(signingCert.RawData))
                     .SetECCurve(ecCurveHashPair.Curve)
                     .CreateForECDsa(generator);
                 Assert.NotNull(cert);
@@ -397,7 +396,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             X509Certificate2 cert = CertificateBuilder
                 .Create("CN=App Cert")
                 .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
-                .SetIssuer(X509CertificateLoader.LoadCertificate(signingCert.RawData))
+                .SetIssuer(CertificateFactory.Create(signingCert.RawData))
                 .SetECDsaPublicKey(pubKeyBytes)
                 .CreateForECDsa(generator);
             Assert.NotNull(cert);
@@ -488,4 +487,3 @@ namespace Opc.Ua.Security.Certificates.Tests
         }
     }
 }
-#endif

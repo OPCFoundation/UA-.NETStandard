@@ -94,8 +94,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             // start Ref server
             ServerFixture = new ServerFixture<ReferenceServer>(
                 enableTracing,
-                disableActivityLogging,
-                Telemetry)
+                disableActivityLogging)
             {
                 UriScheme = UriScheme,
                 SecurityNone = securityNone,
@@ -159,7 +158,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 VariableIds.OpcUa_BinarySchema,
                 await GetTestDataDictionaryNodeIdAsync().ConfigureAwait(false) };
 
-            var theSession = (Session)((TraceableSession)Session).Session;
+            ISession theSession = Session;
 
             foreach (NodeId dataDictionaryId in dictionaryIds)
             {
@@ -238,7 +237,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             var nodeCacheResolver = new NodeCacheResolver(session, Telemetry);
 
             // load the dictionary.
-            return nodeCacheResolver.LoadDictionaryAsync(dictionaryId, dictionaryNode.ToString());
+            return nodeCacheResolver.LoadDictionaryAsync(dictionaryId, dictionaryNode.ToString(), ct);
         }
 
         /// <summary>
@@ -271,7 +270,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             if (results[0] == null || results[0].StatusCode != StatusCodes.Good)
             {
-                throw new Exception("cannot read the id of the test dictionary");
+                throw new InvalidOperationException("cannot read the id of the test dictionary");
             }
             ReferenceDescription referenceDescription = results[0]
                 .References.FirstOrDefault(a => a.BrowseName.Name == "TestData");

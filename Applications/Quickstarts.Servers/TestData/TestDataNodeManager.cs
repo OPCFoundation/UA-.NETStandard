@@ -72,7 +72,8 @@ namespace TestData
             Server.Factory.AddEncodeableTypes(
                 typeof(TestDataNodeManager)
                     .Assembly.GetExportedTypes()
-                    .Where(t => t.FullName.StartsWith(typeof(TestDataNodeManager).Namespace)));
+                    .Where(t => t.FullName
+                        .StartsWith(typeof(TestDataNodeManager).Namespace, StringComparison.Ordinal)));
 
             // get the configuration for the node manager.
             m_configuration =

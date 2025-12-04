@@ -56,7 +56,6 @@ namespace Opc.Ua.Client.Tests
         [DatapointSource]
         public static readonly TelemetryParameterizable<ISessionFactory>[] SessionFactories =
         [
-            TelemetryParameterizable.Create<ISessionFactory>(t => new TraceableSessionFactory(t)),
             TelemetryParameterizable.Create<ISessionFactory>(t => new TestableSessionFactory(t)),
             TelemetryParameterizable.Create<ISessionFactory>(t => new DefaultSessionFactory(t))
         ];
@@ -77,7 +76,7 @@ namespace Opc.Ua.Client.Tests
             PkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
 
             // start ref server with reverse connect
-            ServerFixture = new ServerFixture<ReferenceServer>(Telemetry)
+            ServerFixture = new ServerFixture<ReferenceServer>
             {
                 AutoAccept = true,
                 SecurityNone = true,
@@ -162,10 +161,11 @@ namespace Opc.Ua.Client.Tests
             {
                 var endpointConfiguration = EndpointConfiguration.Create();
                 endpointConfiguration.OperationTimeout = MaxTimeout;
-                using var client = DiscoveryClient.Create(
+                using DiscoveryClient client = await DiscoveryClient.CreateAsync(
                     config,
                     connection,
-                    endpointConfiguration);
+                    endpointConfiguration,
+                    ct: cancellationTokenSource.Token).ConfigureAwait(false);
                 Endpoints = await client.GetEndpointsAsync(null, cancellationTokenSource.Token)
                     .ConfigureAwait(false);
                 await client.CloseAsync(cancellationTokenSource.Token).ConfigureAwait(false);
@@ -255,10 +255,11 @@ namespace Opc.Ua.Client.Tests
 
             // Browse
             var clientTestServices = new ClientTestServices(session, telemetry);
-            ReferenceDescriptionCollection referenceDescriptions = CommonTestWorkers
-                .BrowseFullAddressSpaceWorker(
+            ReferenceDescriptionCollection referenceDescriptions = await CommonTestWorkers
+                .BrowseFullAddressSpaceWorkerAsync(
                     clientTestServices,
-                    requestHeader);
+                    requestHeader)
+                .ConfigureAwait(false);
             Assert.NotNull(referenceDescriptions);
 
             // close session
@@ -320,10 +321,11 @@ namespace Opc.Ua.Client.Tests
 
             // Browse
             var clientTestServices = new ClientTestServices(session, telemetry);
-            ReferenceDescriptionCollection referenceDescriptions = CommonTestWorkers
-                .BrowseFullAddressSpaceWorker(
+            ReferenceDescriptionCollection referenceDescriptions = await CommonTestWorkers
+                .BrowseFullAddressSpaceWorkerAsync(
                     clientTestServices,
-                    requestHeader);
+                    requestHeader)
+                .ConfigureAwait(false);
             Assert.NotNull(referenceDescriptions);
 
             // close session

@@ -153,7 +153,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the local handle assigned to the session.
         /// </summary>
-        object Handle { get; }
+        object? Handle { get; }
 
         /// <summary>
         /// Gets the user identity currently used for the session.
@@ -198,7 +198,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the context to use for filter operations.
         /// </summary>
-        FilterContext FilterContext { get; }
+        IFilterContext FilterContext { get; }
 
         /// <summary>
         /// Gets the locales that the server should use when returning localized text.
@@ -219,6 +219,17 @@ namespace Opc.Ua.Client
         /// If the subscriptions are deleted when a session is closed.
         /// </summary>
         bool DeleteSubscriptionsOnClose { get; set; }
+
+        /// <summary>
+        /// Gets or sets the time in milliseconds to wait for outstanding publish
+        /// requests to complete before canceling them during session close.
+        /// </summary>
+        /// <remarks>
+        /// A value of 0 means no waiting - outstanding requests are canceled immediately.
+        /// A negative value means wait indefinitely for all outstanding requests to complete.
+        /// The default value is 5000 milliseconds (5 seconds).
+        /// </remarks>
+        int PublishRequestCancelDelayOnCloseSession { get; set; }
 
         /// <summary>
         /// Gets or Sets the default subscription for the session.
@@ -295,6 +306,11 @@ namespace Opc.Ua.Client
         OperationLimits OperationLimits { get; }
 
         /// <summary>
+        /// Stores the capabilities of a OPC UA server.
+        /// </summary>
+        ServerCapabilities ServerCapabilities { get; }
+
+        /// <summary>
         /// If the subscriptions are transferred when a session is reconnected.
         /// </summary>
         /// <remarks>
@@ -320,19 +336,15 @@ namespace Opc.Ua.Client
         event RenewUserIdentityEventHandler RenewUserIdentity;
 
         /// <summary>
-        /// Reconnects to the server after a network failure.
+        /// Reconnects to the server after a network failure using
+        /// a waiting connection or channel which either is provided.
+        /// If none is provided creates a new channel.
         /// </summary>
-        Task ReconnectAsync(CancellationToken ct = default);
-
-        /// <summary>
-        /// Reconnects to the server after a network failure using a waiting connection.
-        /// </summary>
-        Task ReconnectAsync(ITransportWaitingConnection connection, CancellationToken ct = default);
-
-        /// <summary>
-        /// Reconnects to the server using a new channel.
-        /// </summary>
-        Task ReconnectAsync(ITransportChannel channel, CancellationToken ct = default);
+        /// <exception cref="ServiceResultException"></exception>
+        Task ReconnectAsync(
+            ITransportWaitingConnection? connection,
+            ITransportChannel? channel,
+            CancellationToken ct = default);
 
         /// <summary>
         ///Reload the own certificate used by the session and the issuer chain when available.
@@ -340,27 +352,15 @@ namespace Opc.Ua.Client
         Task ReloadInstanceCertificateAsync(CancellationToken ct = default);
 
         /// <summary>
-        /// Saves all the subscriptions of the session.
-        /// </summary>
-        /// <param name="filePath">The file path.</param>
-        /// <param name="knownTypes">Known types</param>
-        void Save(string filePath, IEnumerable<Type> knownTypes = null);
-
-        /// <summary>
         /// Saves a set of subscriptions to a stream.
         /// </summary>
+        /// <param name="stream"></param>
+        /// <param name="subscriptions"></param>
+        /// <param name="knownTypes"></param>
         void Save(
             Stream stream,
             IEnumerable<Subscription> subscriptions,
-            IEnumerable<Type> knownTypes = null);
-
-        /// <summary>
-        /// Saves a set of subscriptions to a file.
-        /// </summary>
-        void Save(
-            string filePath,
-            IEnumerable<Subscription> subscriptions,
-            IEnumerable<Type> knownTypes = null);
+            IEnumerable<Type>? knownTypes = null);
 
         /// <summary>
         /// Load the list of subscriptions saved in a stream.
@@ -374,26 +374,12 @@ namespace Opc.Ua.Client
         IEnumerable<Subscription> Load(
             Stream stream,
             bool transferSubscriptions = false,
-            IEnumerable<Type> knownTypes = null);
-
-        /// <summary>
-        /// Load the list of subscriptions saved in a file.
-        /// </summary>
-        /// <param name="filePath">The file path.</param>
-        /// <param name="transferSubscriptions">Load the subscriptions for transfer
-        /// after load.</param>
-        /// <param name="knownTypes">Additional known types that may be needed to
-        /// read the saved subscriptions.</param>
-        /// <returns>The list of loaded subscriptions</returns>
-        IEnumerable<Subscription> Load(
-            string filePath,
-            bool transferSubscriptions = false,
-            IEnumerable<Type> knownTypes = null);
+            IEnumerable<Type>? knownTypes = null);
 
         /// <summary>
         /// Returns the active session configuration and writes it to a stream.
         /// </summary>
-        SessionConfiguration SaveSessionConfiguration(Stream stream = null);
+        SessionConfiguration SaveSessionConfiguration(Stream? stream = null);
 
         /// <summary>
         /// Applies a session configuration.
@@ -424,73 +410,6 @@ namespace Opc.Ua.Client
         Task FetchTypeTreeAsync(ExpandedNodeIdCollection typeIds, CancellationToken ct = default);
 
         /// <summary>
-        /// Reads a byte string which is too large for the (server side) encoder to handle.
-        /// </summary>
-        /// <param name="nodeId">The node id of a byte string variable</param>
-        /// <param name="ct">Cancelation token to cancel operation with</param>
-        Task<byte[]> ReadByteStringInChunksAsync(NodeId nodeId, CancellationToken ct = default);
-
-        /// <summary>
-        /// Fetches all references for the specified node.
-        /// </summary>
-        /// <param name="nodeId">The node id.</param>
-        /// <param name="ct">Cancelation token to cancel operation with</param>
-        Task<ReferenceDescriptionCollection> FetchReferencesAsync(
-            NodeId nodeId,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Fetches all references for the specified nodes.
-        /// </summary>
-        /// <param name="nodeIds">The node id collection.</param>
-        /// <param name="ct">Cancelation token to cancel operation with</param>
-        /// <returns>A list of reference collections and the errors reported by the server.</returns>
-        Task<(IList<ReferenceDescriptionCollection>, IList<ServiceResult>)> FetchReferencesAsync(
-            IList<NodeId> nodeIds,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Establishes a session with the server.
-        /// </summary>
-        /// <param name="sessionName">The name to assign to the session.</param>
-        /// <param name="identity">The user identity.</param>
-        /// <param name="ct">The cancellation token.</param>
-        Task OpenAsync(string sessionName, IUserIdentity identity, CancellationToken ct = default);
-
-        /// <summary>
-        /// Establishes a session with the server.
-        /// </summary>
-        /// <param name="sessionName">The name to assign to the session.</param>
-        /// <param name="sessionTimeout">The session timeout.</param>
-        /// <param name="identity">The user identity.</param>
-        /// <param name="preferredLocales">The list of preferred locales.</param>
-        /// <param name="ct">The cancellation token.</param>
-        Task OpenAsync(
-            string sessionName,
-            uint sessionTimeout,
-            IUserIdentity identity,
-            IList<string> preferredLocales,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Establishes a session with the server.
-        /// </summary>
-        /// <param name="sessionName">The name to assign to the session.</param>
-        /// <param name="sessionTimeout">The session timeout.</param>
-        /// <param name="identity">The user identity.</param>
-        /// <param name="preferredLocales">The list of preferred locales.</param>
-        /// <param name="checkDomain">If set to <c>true</c> then the
-        /// domain in the certificate must match the endpoint used.</param>
-        /// <param name="ct">The cancellation token.</param>
-        Task OpenAsync(
-            string sessionName,
-            uint sessionTimeout,
-            IUserIdentity identity,
-            IList<string> preferredLocales,
-            bool checkDomain,
-            CancellationToken ct = default);
-
-        /// <summary>
         /// Establishes a session with the server.
         /// </summary>
         /// <param name="sessionName">The name to assign to the session.</param>
@@ -506,7 +425,7 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string> preferredLocales,
+            IList<string>? preferredLocales,
             bool checkDomain,
             bool closeChannel,
             CancellationToken ct = default);
@@ -532,133 +451,13 @@ namespace Opc.Ua.Client
             CancellationToken ct = default);
 
         /// <summary>
-        /// Reads the values for the node attributes and returns a node object collection.
+        /// Disconnects from the server and frees any network resources
+        /// with the specified timeout.
         /// </summary>
-        /// <remarks>
-        /// If the nodeclass for the nodes in nodeIdCollection is already known
-        /// and passed as nodeClass, reads only values of required attributes.
-        /// Otherwise NodeClass.Unspecified should be used.
-        /// </remarks>
-        /// <param name="nodeIds">The nodeId collection to read.</param>
-        /// <param name="nodeClass">The nodeClass of all nodes in the collection. Set to <c>NodeClass.Unspecified</c> if the nodeclass is unknown.</param>
-        /// <param name="optionalAttributes">Set to <c>true</c> if optional attributes should not be omitted.</param>
-        /// <param name="ct">The cancellation token.</param>
-        /// <returns>The node collection and associated errors.</returns>
-        Task<(IList<Node>, IList<ServiceResult>)> ReadNodesAsync(
-            IList<NodeId> nodeIds,
-            NodeClass nodeClass,
-            bool optionalAttributes = false,
+        Task<StatusCode> CloseAsync(
+            int timeout,
+            bool closeChannel,
             CancellationToken ct = default);
-
-        /// <summary>
-        /// Read display name for a set of nodes
-        /// </summary>
-        /// <param name="nodeIds">node for which to read display name</param>
-        /// <param name="ct">Cancellation token to use to cancel the operation</param>
-        /// <returns>Paired list of displaynames and potential errors per node</returns>
-        Task<(IList<string>, IList<ServiceResult>)> ReadDisplayNameAsync(
-            IList<NodeId> nodeIds,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Finds the NodeIds for the components for an instance.
-        /// </summary>
-        Task<(NodeIdCollection, IList<ServiceResult>)> FindComponentIdsAsync(
-            NodeId instanceId,
-            IList<string> componentPaths,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Returns the available encodings for a node
-        /// </summary>
-        /// <param name="variableId">The variable node.</param>
-        /// <param name="ct">Cancellation token to use to cancel the operation</param>
-        Task<ReferenceDescriptionCollection> ReadAvailableEncodingsAsync(
-            NodeId variableId,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Returns the data description for the encoding.
-        /// </summary>
-        /// <param name="encodingId">The encoding Id.</param>
-        /// <param name="ct">Cancellation token to use to cancel the operation</param>
-        Task<ReferenceDescription> FindDataDescriptionAsync(NodeId encodingId,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Reads the value for a node.
-        /// </summary>
-        /// <param name="nodeId">The node Id.</param>
-        /// <param name="ct">The cancellation token for the request.</param>
-        Task<DataValue> ReadValueAsync(NodeId nodeId, CancellationToken ct = default);
-
-        /// <summary>
-        /// Reads the value for a node of type T or throws if not matching the type.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="nodeId">The node Id.</param>
-        /// <param name="ct">The cancellation token for the request.</param>
-        Task<T> ReadValueAsync<T>(NodeId nodeId, CancellationToken ct = default);
-
-        /// <summary>
-        /// Reads the values for the node attributes and returns a node object.
-        /// </summary>
-        /// <param name="nodeId">The nodeId.</param>
-        /// <param name="ct">The cancellation token for the request.</param>
-        Task<Node> ReadNodeAsync(NodeId nodeId, CancellationToken ct = default);
-
-        /// <summary>
-        /// Reads the values for the node attributes and returns a node object.
-        /// </summary>
-        /// <remarks>
-        /// If the nodeclass is known, only the supported attribute values are read.
-        /// </remarks>
-        /// <param name="nodeId">The nodeId.</param>
-        /// <param name="nodeClass">The nodeclass of the node to read.</param>
-        /// <param name="optionalAttributes">Read optional attributes.</param>
-        /// <param name="ct">The cancellation token for the request.</param>
-        Task<Node> ReadNodeAsync(
-            NodeId nodeId,
-            NodeClass nodeClass,
-            bool optionalAttributes = true,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Reads the values for the node attributes and returns a node object collection.
-        /// Reads the nodeclass of the nodeIds, then reads
-        /// the values for the node attributes and returns a node collection.
-        /// </summary>
-        /// <param name="nodeIds">The nodeId collection.</param>
-        /// <param name="optionalAttributes">If optional attributes to read.</param>
-        /// <param name="ct">The cancellation token.</param>
-        Task<(IList<Node>, IList<ServiceResult>)> ReadNodesAsync(
-            IList<NodeId> nodeIds,
-            bool optionalAttributes = false,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Reads the values for a node collection. Returns diagnostic errors.
-        /// </summary>
-        /// <param name="nodeIds">The node Id.</param>
-        /// <param name="ct">The cancellation token for the request.</param>
-        Task<(DataValueCollection, IList<ServiceResult>)> ReadValuesAsync(
-            IList<NodeId> nodeIds,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Close the session with the server and optionally closes the channel.
-        /// </summary>
-        Task<StatusCode> CloseAsync(bool closeChannel, CancellationToken ct = default);
-
-        /// <summary>
-        /// Disconnects from the server and frees any network resources with the specified timeout.
-        /// </summary>
-        Task<StatusCode> CloseAsync(int timeout, CancellationToken ct = default);
-
-        /// <summary>
-        /// Disconnects from the server and frees any network resources with the specified timeout.
-        /// </summary>
-        Task<StatusCode> CloseAsync(int timeout, bool closeChannel, CancellationToken ct = default);
 
         /// <summary>
         /// Adds a subscription to the session.
@@ -715,38 +514,9 @@ namespace Opc.Ua.Client
             CancellationToken ct = default);
 
         /// <summary>
-        /// Execute BrowseAsync and, if necessary, BrowseNextAsync, in one service call.
-        /// Takes care of BadNoContinuationPoint and BadInvalidContinuationPoint status codes.
-        /// </summary>
-        Task<(IList<ReferenceDescriptionCollection>, IList<ServiceResult>)> ManagedBrowseAsync(
-            RequestHeader requestHeader,
-            ViewDescription view,
-            IList<NodeId> nodesToBrowse,
-            uint maxResultsToReturn,
-            BrowseDirection browseDirection,
-            NodeId referenceTypeId,
-            bool includeSubtypes,
-            uint nodeClassMask,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Calls the specified method and returns the output arguments.
-        /// </summary>
-        /// <param name="objectId">The NodeId of the object that provides the method.</param>
-        /// <param name="methodId">The NodeId of the method to call.</param>
-        /// <param name="ct">The cancellation token for the request.</param>
-        /// <param name="args">The input arguments.</param>
-        /// <returns>The list of output argument values.</returns>
-        Task<IList<object>> CallAsync(
-            NodeId objectId,
-            NodeId methodId,
-            CancellationToken ct = default,
-            params object[] args);
-
-        /// <summary>
         /// Sends an additional publish request.
         /// </summary>
-        IAsyncResult BeginPublish(int timeout);
+        bool BeginPublish(int timeout);
 
         /// <summary>
         /// Create the publish requests for the active subscriptions.
@@ -760,86 +530,5 @@ namespace Opc.Ua.Client
             uint subscriptionId,
             uint sequenceNumber,
             CancellationToken ct = default);
-
-        /// <summary>
-        /// Call the ResendData method on the server for all subscriptions.
-        /// </summary>
-        Task<(bool, IList<ServiceResult>)> ResendDataAsync(
-            IEnumerable<Subscription> subscriptions,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Browses the nodes in the server.
-        /// </summary>
-        /// <param name="requestHeader">Request header</param>
-        /// <param name="view">View to use</param>
-        /// <param name="nodesToBrowse">nodes to browse</param>
-        /// <param name="maxResultsToReturn">max results to return</param>
-        /// <param name="browseDirection">Direction of browse</param>
-        /// <param name="referenceTypeId">Reference type to follow</param>
-        /// <param name="includeSubtypes">Include subtypes</param>
-        /// <param name="nodeClassMask">Node classes to match</param>
-        /// <param name="ct">Cancellation token to cancel the operation</param>
-        /// <returns></returns>
-        Task<(
-            ResponseHeader responseHeader,
-            ByteStringCollection continuationPoints,
-            IList<ReferenceDescriptionCollection> referencesList,
-            IList<ServiceResult> errors
-        )> BrowseAsync(
-            RequestHeader requestHeader,
-            ViewDescription view,
-            IList<NodeId> nodesToBrowse,
-            uint maxResultsToReturn,
-            BrowseDirection browseDirection,
-            NodeId referenceTypeId,
-            bool includeSubtypes,
-            uint nodeClassMask,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Browse next
-        /// </summary>
-        /// <param name="requestHeader"></param>
-        /// <param name="continuationPoints"></param>
-        /// <param name="releaseContinuationPoint"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
-        Task<(
-            ResponseHeader responseHeader,
-            ByteStringCollection revisedContinuationPoints,
-            IList<ReferenceDescriptionCollection> referencesList,
-            IList<ServiceResult> errors
-        )> BrowseNextAsync(
-            RequestHeader requestHeader,
-            ByteStringCollection continuationPoints,
-            bool releaseContinuationPoint,
-            CancellationToken ct = default);
-    }
-
-    /// <summary>
-    /// controls how the client treats continuation points
-    /// if the server has restrictions on their number
-    /// As of now only used for browse/browse next in the
-    /// ManagedBrowse method.
-    /// </summary>
-    public enum ContinuationPointPolicy
-    {
-        /// <summary>
-        /// Ignore how many Continuation Points are in use already.
-        /// Rebrowse nodes for which BadNoContinuationPoint or
-        /// BadInvalidContinuationPoint was raised. Can be used
-        /// whenever the server has no restrictions no the maximum
-        /// number of continuation points
-        /// </summary>
-        Default,
-
-        /// <summary>
-        /// Restrict the number of nodes which are browsed in a
-        /// single service call to the maximum number of
-        /// continuation points the server can allocae
-        /// (if set to a value different from 0)
-        /// </summary>
-        Balanced
     }
 }

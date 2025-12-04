@@ -77,6 +77,7 @@ namespace Quickstarts.ConsoleReferenceClient
             byte[] userCertificatePassword = null;
             bool logConsole = false;
             bool appLog = false;
+            bool fileLog = false;
             bool renewCertificate = false;
             bool loadTypes = false;
             bool managedbrowseall = false;
@@ -127,6 +128,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 },
                 { "c|console", "log to console", c => logConsole = c != null },
                 { "l|log", "log app output", c => appLog = c != null },
+                { "f|file", "log to file", f => fileLog = f != null },
                 {
                     "p|password=",
                     "optional password for private key",
@@ -267,7 +269,7 @@ namespace Quickstarts.ConsoleReferenceClient
 
             ReverseConnectManager reverseConnectManager = null;
             using var telemetry = new ConsoleTelemetry();
-            ILogger logger = Utils.Null.Logger;
+            ILogger logger = LoggerUtils.Null.Logger;
             try
             {
                 // parse command line and set options
@@ -329,6 +331,8 @@ namespace Quickstarts.ConsoleReferenceClient
                     config,
                     applicationName,
                     logConsole,
+                    fileLog,
+                    appLog,
                     LogLevel.Information);
 
                 // delete old certificate
@@ -570,8 +574,10 @@ namespace Quickstarts.ConsoleReferenceClient
 
                             if (jsonvalues && variableIds != null)
                             {
-                                (DataValueCollection allValues, IList<ServiceResult> results)
-                                    = await samples
+                                (
+                                    IReadOnlyList<DataValue> allValues,
+                                    IReadOnlyList<ServiceResult> results
+                                ) = await samples
                                     .ReadAllValuesAsync(uaClient, variableIds, ct)
                                     .ConfigureAwait(false);
                             }
@@ -581,7 +587,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                 // subscribe to 1000 random variables
                                 const int maxVariables = 1000;
                                 var variables = new NodeCollection();
-                                var random = new Random(62541);
+
                                 if (fetchall)
                                 {
                                     variables.AddRange(
@@ -591,7 +597,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                                 r.NodeId.NamespaceIndex > 1
                                             )
                                             .Cast<VariableNode>()
-                                            .OrderBy(o => random.Next())
+                                            .OrderBy(o => UnsecureRandom.Shared.Next())
                                             .Take(maxVariables)
                                     );
                                 }
@@ -601,7 +607,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                         .Where(r => r.NodeClass == NodeClass.Variable &&
                                             r.NodeId.NamespaceIndex > 1)
                                         .Select(r => r.NodeId)
-                                        .OrderBy(o => random.Next())
+                                        .OrderBy(o => UnsecureRandom.Shared.Next())
                                         .Take(maxVariables)
                                         .ToList();
                                     variables.AddRange(

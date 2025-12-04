@@ -8,7 +8,7 @@
 # *.txt text
 
 # Declare files that will always have CRLF line endings on checkout. E.g.,
-#*.sln text eol=crlf
+#*.slnx text eol=crlf
 
 # Declare files that will always have LF line endings on checkout. E.g.,
 *.sh text eol=lf

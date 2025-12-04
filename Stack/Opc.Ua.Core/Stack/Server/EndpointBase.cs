@@ -13,6 +13,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -76,15 +77,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task<IServiceResponse> ProcessRequestAsync(
-            string channelId,
-            EndpointDescription endpointDescription,
+        public ValueTask<IServiceResponse> ProcessRequestAsync(
+            SecureChannelContext secureChannelContext,
             IServiceRequest request,
             CancellationToken cancellationToken = default)
         {
-            if (channelId == null)
+            if (secureChannelContext == null)
             {
-                throw new ArgumentNullException(nameof(channelId));
+                throw new ArgumentNullException(nameof(secureChannelContext));
             }
 
             if (request == null)
@@ -92,12 +92,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(request));
             }
 
-            var context = new SecureChannelContext(
-                channelId,
-                endpointDescription,
-                RequestEncoding.Binary);
-
-            var incomingRequest = new EndpointIncomingRequest(this, context, request);
+            var incomingRequest = new EndpointIncomingRequest(this, secureChannelContext, request);
             return incomingRequest.ProcessAsync(cancellationToken);
         }
 
@@ -152,19 +147,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Activity Source Name.
-        /// </summary>
-        public static readonly string ActivitySourceName = "Opc.Ua.Server-ActivitySource";
-
-        /// <summary>
-        /// Activity Source static instance.
-        /// </summary>
-        public static ActivitySource ActivitySource => s_activitySource.Value;
-
-        private static readonly Lazy<ActivitySource> s_activitySource = new(() =>
-            new ActivitySource(ActivitySourceName, "1.0.0"));
-
-        /// <summary>
         /// Tries to extract the trace details from the AdditionalParametersType.
         /// </summary>
         public static bool TryExtractActivityContextFromParameters(
@@ -179,37 +161,32 @@ namespace Opc.Ua
 
             foreach (KeyValuePair item in parameters.Parameters)
             {
-                if (item.Key == "traceparent")
+                if (item.Key != "SpanContext")
                 {
-                    string traceparent = item.Value.ToString();
-                    int firstDash = traceparent.IndexOf('-', StringComparison.Ordinal);
-                    int secondDash = traceparent.IndexOf('-', firstDash + 1);
-                    int thirdDash = traceparent.IndexOf('-', secondDash + 1);
-
-                    if (firstDash != -1 && secondDash != -1)
-                    {
-                        ReadOnlySpan<char> traceIdSpan = traceparent.AsSpan(
-                            firstDash + 1,
-                            secondDash - firstDash - 1);
-                        ReadOnlySpan<char> spanIdSpan = traceparent.AsSpan(
-                            secondDash + 1,
-                            thirdDash - secondDash - 1);
-                        ReadOnlySpan<char> traceFlagsSpan = traceparent.AsSpan(thirdDash + 1);
-
-                        var traceId = ActivityTraceId.CreateFromString(traceIdSpan);
-                        var spanId = ActivitySpanId.CreateFromString(spanIdSpan);
-                        ActivityTraceFlags traceFlags = traceFlagsSpan.SequenceEqual("01".AsSpan())
-                            ? ActivityTraceFlags.Recorded
-                            : ActivityTraceFlags.None;
-                        activityContext = new ActivityContext(traceId, spanId, traceFlags);
-                        return true;
-                    }
-                    activityContext = default;
-                    return false;
+                    continue;
                 }
+                if (item.Value.Value is ExtensionObject eo &&
+                    eo.Body is SpanContextDataType spanContext)
+                {
+#if NET8_0_OR_GREATER
+                    Span<byte> spanIdBytes = stackalloc byte[8];
+                    Span<byte> traceIdBytes = stackalloc byte[16];
+                    ((Guid)spanContext.TraceId).TryWriteBytes(traceIdBytes);
+                    BitConverter.TryWriteBytes(spanIdBytes, spanContext.SpanId);
+#else
+                    byte[] spanIdBytes = BitConverter.GetBytes(spanContext.SpanId);
+                    byte[] traceIdBytes = ((Guid)spanContext.TraceId).ToByteArray();
+#endif
+                    var traceId = ActivityTraceId.CreateFromBytes(traceIdBytes);
+                    var spanId = ActivitySpanId.CreateFromBytes(spanIdBytes);
+                    // TODO: should also come from header
+                    const ActivityTraceFlags traceFlags = ActivityTraceFlags.None;
+                    activityContext = new ActivityContext(traceId, spanId, traceFlags);
+                    return true;
+                }
+                break;
             }
 
-            // no traceparent header found
             activityContext = default;
             return false;
         }
@@ -218,8 +195,12 @@ namespace Opc.Ua
         /// Dispatches an incoming binary encoded request.
         /// </summary>
         /// <param name="incoming">Incoming request.</param>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <exception cref="ServiceResultException"></exception>
-        public virtual IServiceResponse ProcessRequest(IServiceRequest incoming)
+        [Obsolete("Use ProcessRequestAsync instead.")]
+        public virtual IServiceResponse ProcessRequest(
+            IServiceRequest incoming,
+            SecureChannelContext secureChannelContext)
         {
             try
             {
@@ -236,7 +217,7 @@ namespace Opc.Ua
                 }
 
                 // invoke service.
-                return service.Invoke(incoming, m_logger);
+                return service.Invoke(incoming, secureChannelContext, m_logger);
             }
             catch (Exception e)
             {
@@ -249,10 +230,12 @@ namespace Opc.Ua
         /// Asynchronously dispatches an incoming binary encoded request.
         /// </summary>
         /// <param name="incoming">Incoming request.</param>
+        /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <exception cref="ServiceResultException"></exception>
         public virtual async Task<IServiceResponse> ProcessRequestAsync(
             IServiceRequest incoming,
+            SecureChannelContext secureChannelContext,
             CancellationToken cancellationToken = default)
         {
             try
@@ -267,7 +250,7 @@ namespace Opc.Ua
                 }
 
                 // invoke service.
-                return await service.InvokeAsync(incoming, cancellationToken).ConfigureAwait(false);
+                return await service.InvokeAsync(incoming, secureChannelContext, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -335,6 +318,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public virtual async Task<InvokeServiceResponseMessage> InvokeServiceAsync(
             InvokeServiceMessage request,
+            SecureChannelContext secureChannelContext,
             CancellationToken cancellationToken)
         {
             try
@@ -348,8 +332,6 @@ namespace Opc.Ua
                 // set the request context.
                 SetRequestContext(RequestEncoding.Binary);
 
-                SecureChannelContext context = SecureChannelContext.Current;
-
                 // decoding incoming message.
                 var serviceRequest =
                     BinaryDecoder.DecodeMessage(
@@ -359,8 +341,7 @@ namespace Opc.Ua
 
                 // process the request.
                 IServiceResponse response = await ProcessRequestAsync(
-                    context.SecureChannelId,
-                    context.EndpointDescription,
+                    secureChannelContext,
                     serviceRequest,
                     cancellationToken).ConfigureAwait(false);
 
@@ -495,22 +476,29 @@ namespace Opc.Ua
             if (exception is ServiceResultException sre)
             {
                 result = new ServiceResult(sre);
-                // Log information instead of warning for expected disconnection scenarios
-                if (sre.StatusCode == StatusCodes.BadNoSubscription ||
-                    sre.StatusCode == StatusCodes.BadSessionClosed ||
-                    sre.StatusCode == StatusCodes.BadSecurityChecksFailed ||
-                    sre.StatusCode == StatusCodes.BadCertificateInvalid ||
-                    sre.StatusCode == StatusCodes.BadServerHalted)
+                switch (sre.StatusCode)
                 {
-                    logger.LogInformation("SERVER - Service Fault Occurred. Reason={StatusCode}", result.StatusCode);
-                }
-                else
-                {
-                    logger.LogWarning("SERVER - Service Fault Occurred. Reason={StatusCode}", result.StatusCode);
-                }
-                if (sre.StatusCode == StatusCodes.BadUnexpectedError)
-                {
-                    logger.LogWarning(Utils.TraceMasks.StackTrace, sre, "{Exception}", sre.ToString());
+                    case StatusCodes.BadNoSubscription:
+                    case StatusCodes.BadSessionClosed:
+                    case StatusCodes.BadSecurityChecksFailed:
+                    case StatusCodes.BadCertificateInvalid:
+                    case StatusCodes.BadServerHalted:
+                        // Log information instead of warning for expected disconnection scenarios
+                        logger.LogInformation(
+                            "SERVER - Service Fault Occurred. Reason={StatusCode}",
+                            result.StatusCode);
+                        break;
+                    case StatusCodes.BadUnexpectedError:
+                        logger.LogWarning(
+                            Utils.TraceMasks.StackTrace,
+                            sre,
+                            "SERVER - Service Fault Occurred due to unexpected state");
+                        break;
+                    default:
+                        logger.LogWarning(
+                            "SERVER - Service Fault Occurred. Reason={StatusCode}",
+                            result.StatusCode);
+                        break;
                 }
             }
             else
@@ -647,6 +635,7 @@ namespace Opc.Ua
             /// <param name="requestType">Type of the request.</param>
             /// <param name="invokeMethod">The invoke method.</param>
             /// <param name="asyncInvokeMethod">The async invoke method.</param>
+            [Obsolete("Use constructor taking an InvokeServiceAsyncEventHandler.")]
             public ServiceDefinition(
                 Type requestType,
                 InvokeServiceEventHandler invokeMethod,
@@ -673,36 +662,40 @@ namespace Opc.Ua
             /// Processes the request.
             /// </summary>
             /// <param name="request">The request.</param>
+            /// <param name="secureChannelContext">The secure channel context.</param>
             /// <param name="logger">A contextual logger to log to</param>
-            public IServiceResponse Invoke(IServiceRequest request, ILogger logger)
+            [Obsolete("Use InvokeAsync.")]
+            public IServiceResponse Invoke(IServiceRequest request, SecureChannelContext secureChannelContext, ILogger logger)
             {
                 if (m_invokeService == null && m_invokeServiceAsync != null)
                 {
                     logger.LogWarning(
                         "Async Service invoced sychronously. Prefer using InvokeAsync for best performance.");
-                    return InvokeAsync(request).GetAwaiter().GetResult();
+                    return InvokeAsync(request, secureChannelContext).GetAwaiter().GetResult();
                 }
-                return m_invokeService?.Invoke(request);
+                return m_invokeService?.Invoke(request, secureChannelContext);
             }
 
             /// <summary>
             /// Processes the request asynchronously.
             /// </summary>
             /// <param name="request">The request.</param>
+            /// <param name="secureChannelContext">The secure channel context.</param>
             /// <param name="cancellationToken">The cancellation token.</param>
             /// <returns></returns>
             public async Task<IServiceResponse> InvokeAsync(
                 IServiceRequest request,
+                SecureChannelContext secureChannelContext,
                 CancellationToken cancellationToken = default)
             {
                 InvokeServiceAsyncEventHandler asyncHandler = m_invokeServiceAsync;
 
                 if (asyncHandler != null)
                 {
-                    return await asyncHandler(request, cancellationToken).ConfigureAwait(false);
+                    return await asyncHandler(request, secureChannelContext, cancellationToken).ConfigureAwait(false);
                 }
 
-                return m_invokeService?.Invoke(request);
+                return m_invokeService?.Invoke(request, secureChannelContext);
             }
 
             private readonly InvokeServiceEventHandler m_invokeService;
@@ -712,18 +705,21 @@ namespace Opc.Ua
         /// <summary>
         /// A delegate used to dispatch incoming service requests.
         /// </summary>
-        protected delegate IServiceResponse InvokeServiceEventHandler(IServiceRequest request);
+        protected delegate IServiceResponse InvokeServiceEventHandler(IServiceRequest request, SecureChannelContext secureChannelContext);
 
         /// <summary>
         /// A delegate used to asynchronously dispatch incoming service requests.
         /// </summary>
         protected delegate Task<IServiceResponse> InvokeServiceAsyncEventHandler(
             IServiceRequest request,
+            SecureChannelContext secureChannelContext,
             CancellationToken cancellationToken = default);
 
+#if !NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM
         /// <summary>
         /// An AsyncResult object when handling an asynchronous request.
         /// </summary>
+        [Obsolete("Use EndpointIncomingRequest instead.")]
         protected class ProcessRequestAsyncResult : AsyncResultBase, IEndpointIncomingRequest
         {
             /// <summary>
@@ -782,7 +778,7 @@ namespace Opc.Ua
             /// thread that calls IServerBase.ScheduleIncomingRequest().
             /// This method always traps any exceptions and reports them to the client as a fault.
             /// </remarks>
-            public async Task CallAsync(CancellationToken cancellationToken = default)
+            public async ValueTask CallAsync(CancellationToken cancellationToken = default)
             {
                 await OnProcessRequestAsync(null, cancellationToken).ConfigureAwait(false);
             }
@@ -972,7 +968,9 @@ namespace Opc.Ua
                     // set the context.
                     SecureChannelContext.Current = SecureChannelContext;
 
-                    if (ActivitySource.HasListeners())
+                    ActivitySource activitySource = m_endpoint.MessageContext.Telemetry
+                        .GetActivitySource();
+                    if (activitySource.HasListeners())
                     {
                         // extract trace information from the request header if available
                         if (Request.RequestHeader?.AdditionalHeader?
@@ -981,23 +979,23 @@ namespace Opc.Ua
                                 parameters,
                                 out ActivityContext activityContext))
                         {
-                            using Activity activity = ActivitySource.StartActivity(
+                            using Activity activity = activitySource.StartActivity(
                                 Request.GetType().Name,
                                 ActivityKind.Server,
                                 activityContext);
                             // call the service.
-                            m_response = m_service.Invoke(Request, m_endpoint.m_logger);
+                            m_response = m_service.Invoke(Request, SecureChannelContext, m_endpoint.m_logger);
                         }
                         else
                         {
                             // call the service even when there is no trace information
-                            m_response = m_service.Invoke(Request, m_endpoint.m_logger);
+                            m_response = m_service.Invoke(Request, SecureChannelContext, m_endpoint.m_logger);
                         }
                     }
                     else
                     {
                         // no listener, directly call the service.
-                        m_response = m_service.Invoke(Request, m_endpoint.m_logger);
+                        m_response = m_service.Invoke(Request, SecureChannelContext, m_endpoint.m_logger);
                     }
                 }
                 catch (Exception e)
@@ -1023,7 +1021,9 @@ namespace Opc.Ua
                     // set the context.
                     SecureChannelContext.Current = SecureChannelContext;
 
-                    if (ActivitySource.HasListeners())
+                    ActivitySource activitySource = m_endpoint.MessageContext.Telemetry
+                        .GetActivitySource();
+                    if (activitySource.HasListeners())
                     {
                         // extract trace information from the request header if available
                         if (Request.RequestHeader?.AdditionalHeader?
@@ -1032,25 +1032,25 @@ namespace Opc.Ua
                                 parameters,
                                 out ActivityContext activityContext))
                         {
-                            using Activity activity = ActivitySource.StartActivity(
+                            using Activity activity = activitySource.StartActivity(
                                 Request.GetType().Name,
                                 ActivityKind.Server,
                                 activityContext);
                             // call the service.
-                            m_response = await m_service.InvokeAsync(Request, cancellationToken)
+                            m_response = await m_service.InvokeAsync(Request, SecureChannelContext, cancellationToken)
                                 .ConfigureAwait(false);
                         }
                         else
                         {
                             // call the service even when there is no trace information
-                            m_response = await m_service.InvokeAsync(Request, cancellationToken)
+                            m_response = await m_service.InvokeAsync(Request, SecureChannelContext, cancellationToken)
                                 .ConfigureAwait(false);
                         }
                     }
                     else
                     {
                         // no listener, directly call the service.
-                        m_response = await m_service.InvokeAsync(Request, cancellationToken)
+                        m_response = await m_service.InvokeAsync(Request, SecureChannelContext, cancellationToken)
                             .ConfigureAwait(false);
                     }
                 }
@@ -1070,11 +1070,12 @@ namespace Opc.Ua
             private ServiceDefinition m_service;
             private Exception m_error;
         }
+#endif
 
         /// <summary>
         /// An object that handles an incoming request for an endpoint.
         /// </summary>
-        protected class EndpointIncomingRequest : IEndpointIncomingRequest
+        protected readonly struct EndpointIncomingRequest : IEndpointIncomingRequest, IEquatable<EndpointIncomingRequest>
         {
             /// <summary>
             /// Initialize the Object with a Request
@@ -1082,16 +1083,16 @@ namespace Opc.Ua
             public EndpointIncomingRequest(
                 EndpointBase endpoint,
                 SecureChannelContext context,
-                IServiceRequest request)
+                IServiceRequest request,
+                CancellationToken cancellationToken = default)
             {
                 m_endpoint = endpoint;
                 SecureChannelContext = context;
                 Request = request;
-                m_tcs = new TaskCompletionSource<IServiceResponse>();
+                m_vts = ServiceResponsePooledValueTaskSource.Create();
+                m_service = m_endpoint.FindService(Request.TypeId);
+                m_cancellationToken = cancellationToken;
             }
-
-            /// <inheritdoc/>
-            public object Calldata { get; set; }
 
             /// <inheritdoc/>
             public SecureChannelContext SecureChannelContext { get; }
@@ -1103,25 +1104,22 @@ namespace Opc.Ua
             /// Process an incoming request
             /// </summary>
             /// <returns></returns>
-            public Task<IServiceResponse> ProcessAsync(CancellationToken cancellationToken = default)
+            public ValueTask<IServiceResponse> ProcessAsync(CancellationToken cancellationToken = default)
             {
                 try
                 {
-                    m_cancellationToken = cancellationToken;
-                    m_cancellationToken.Register(() => m_tcs.TrySetCanceled());
-                    m_service = m_endpoint.FindService(Request.TypeId);
-                    m_endpoint.ServerForContext.ScheduleIncomingRequest(this, m_cancellationToken);
+                    m_endpoint.ServerForContext.ScheduleIncomingRequest(this, cancellationToken);
                 }
                 catch (Exception e)
                 {
-                    m_tcs.TrySetResult(m_endpoint.CreateFault(Request, e));
+                    m_vts.SetResult(m_endpoint.CreateFault(Request, e));
                 }
 
-                return m_tcs.Task;
+                return m_vts.Task;
             }
 
             /// <inheritdoc/>
-            public async Task CallAsync(CancellationToken cancellationToken = default)
+            public async ValueTask CallAsync(CancellationToken cancellationToken = default)
             {
                 using CancellationTokenSource timeoutHintCts = (int)Request.RequestHeader.TimeoutHint > 0 ?
                     new CancellationTokenSource((int)Request.RequestHeader.TimeoutHint) : null;
@@ -1134,10 +1132,10 @@ namespace Opc.Ua
 
                 try
                 {
-                    SecureChannelContext.Current = SecureChannelContext;
-
                     Activity activity = null;
-                    if (ActivitySource.HasListeners())
+                    ActivitySource activitySource = m_endpoint.MessageContext.Telemetry
+                        .GetActivitySource();
+                    if (activitySource.HasListeners())
                     {
                         // extract trace information from the request header if available
                         if (Request.RequestHeader?.AdditionalHeader?
@@ -1146,7 +1144,7 @@ namespace Opc.Ua
                                 parameters,
                                 out ActivityContext activityContext))
                         {
-                            activity = ActivitySource.StartActivity(
+                            activity = activitySource.StartActivity(
                                 Request.GetType().Name,
                                 ActivityKind.Server,
                                 activityContext);
@@ -1155,8 +1153,8 @@ namespace Opc.Ua
 
                     using (activity)
                     {
-                        IServiceResponse response = await m_service.InvokeAsync(Request, linkedCts.Token).ConfigureAwait(false);
-                        m_tcs.TrySetResult(response);
+                        IServiceResponse response = await m_service.InvokeAsync(Request, SecureChannelContext, linkedCts.Token).ConfigureAwait(false);
+                        m_vts.SetResult(response);
                     }
                 }
                 catch (Exception e)
@@ -1165,8 +1163,7 @@ namespace Opc.Ua
                     {
                         e = new ServiceResultException(StatusCodes.BadTimeout);
                     }
-
-                    m_tcs.TrySetResult(m_endpoint.CreateFault(Request, e));
+                    m_vts.SetResult(m_endpoint.CreateFault(Request, e));
                 }
             }
 
@@ -1175,25 +1172,59 @@ namespace Opc.Ua
             {
                 if (ServiceResult.IsBad(error))
                 {
-                    m_tcs.TrySetResult(m_endpoint.CreateFault(Request, new ServiceResultException(error)));
+                    m_vts.SetResult(m_endpoint.CreateFault(Request, new ServiceResultException(error)));
                 }
                 else
                 {
-                    m_tcs.TrySetResult(response);
+                    m_vts.SetResult(response);
                 }
             }
 
+            /// <inheritdoc/>
+            public override bool Equals(object obj)
+            {
+                if (obj is EndpointIncomingRequest other)
+                {
+                    return Request.RequestHeader.Equals(other.Request.RequestHeader);
+                }
+                return false;
+            }
+
+            /// <inheritdoc/>
+            public override int GetHashCode()
+            {
+                return Request.RequestHeader.GetHashCode();
+            }
+
+            /// <inheritdoc/>
+            public static bool operator ==(EndpointIncomingRequest left, EndpointIncomingRequest right)
+            {
+                return left.Equals(right);
+            }
+
+            /// <inheritdoc/>
+            public static bool operator !=(EndpointIncomingRequest left, EndpointIncomingRequest right)
+            {
+                return !(left == right);
+            }
+
+            /// <inheritdoc/>
+            public bool Equals(EndpointIncomingRequest other)
+            {
+                return Request.RequestHeader.Equals(other.Request.RequestHeader);
+            }
+
             private readonly EndpointBase m_endpoint;
-            private CancellationToken m_cancellationToken;
-            private ServiceDefinition m_service;
-            private readonly TaskCompletionSource<IServiceResponse> m_tcs;
+            private readonly ServiceDefinition m_service;
+            private readonly ServiceResponsePooledValueTaskSource m_vts;
+            private readonly CancellationToken m_cancellationToken;
         }
 
         /// <summary>
         /// Logger for this and the inherited classes
         /// </summary>
 #pragma warning disable IDE1006 // Naming Styles
-        protected ILogger m_logger { get; } = Utils.Null.Logger;
+        protected ILogger m_logger { get; } = LoggerUtils.Null.Logger;
 #pragma warning restore IDE1006 // Naming Styles
 
         private IServiceHostBase m_host;

@@ -294,7 +294,11 @@ namespace Opc.Ua.Server
                     return PermissionType.InsertHistory;
                 case PerformUpdateType.Update:
                     return PermissionType.InsertHistory | PermissionType.ModifyHistory;
-                default: // PerformUpdateType.Replace or PerformUpdateType.Remove
+                case PerformUpdateType.Replace:
+                case PerformUpdateType.Remove:
+                    return PermissionType.ModifyHistory;
+                default:
+                    Debug.Fail($"Unexpected update type {updateType}");
                     return PermissionType.ModifyHistory;
             }
         }
@@ -410,9 +414,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Shuts down the node managers.
         /// </summary>
-        public virtual async ValueTask ShutdownAsync()
+        public virtual async ValueTask ShutdownAsync(CancellationToken cancellationToken = default)
         {
-            await m_startupShutdownSemaphoreSlim.WaitAsync().ConfigureAwait(false);
+            await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
 
             try
             {
@@ -423,7 +427,7 @@ namespace Opc.Ua.Server
 
                 foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
                 {
-                    await nodeManager.DeleteAddressSpaceAsync()
+                    await nodeManager.DeleteAddressSpaceAsync(cancellationToken)
                         .ConfigureAwait(false);
                 }
             }
@@ -565,19 +569,19 @@ namespace Opc.Ua.Server
                 {
                     return false;
                 }
-                var nodeManagers = readOnlyNodeManagers.ToList();
 
-                IAsyncNodeManager nodeManagerToRemove;
-                if (nodeManager != null)
+                var nodeManagers = readOnlyNodeManagers.ToList();
+                int nodeManagersFound;
+
+                IAsyncNodeManager nodeManagerToRemove = asyncNodeManager;
+                if (nodeManagerToRemove is null)
                 {
-                    nodeManagerToRemove = nodeManagers.Find(manager => manager.SyncNodeManager == nodeManager);
+                    nodeManagersFound = nodeManagers.RemoveAll(manager => manager.SyncNodeManager == nodeManager);
                 }
                 else
                 {
-                    nodeManagerToRemove = nodeManagers.Find(manager => manager == asyncNodeManager);
+                    nodeManagersFound = nodeManagers.Remove(nodeManagerToRemove) ? 1 : 0;
                 }
-
-                bool nodeManagerFound = nodeManagers.Remove(nodeManagerToRemove);
 
                 if (nodeManagers.Count == 0)
                 {
@@ -588,7 +592,7 @@ namespace Opc.Ua.Server
                     NamespaceManagers[namespaceIndex] = nodeManagers.AsReadOnly();
                 }
 
-                return nodeManagerFound;
+                return nodeManagersFound > 0;
             }
             finally
             {
@@ -1284,26 +1288,6 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
-        public virtual void Browse(
-            OperationContext context,
-            ViewDescription view,
-            uint maxReferencesPerNode,
-            BrowseDescriptionCollection nodesToBrowse,
-            out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            (results, diagnosticInfos) = BrowseAsync(
-                context,
-                view,
-                maxReferencesPerNode,
-                nodesToBrowse).AsTask().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Returns the set of references that meet the filter criteria.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException"></exception>
         public virtual async ValueTask<(BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos)> BrowseAsync(
             OperationContext context,
             ViewDescription view,
@@ -1485,24 +1469,6 @@ namespace Opc.Ua.Server
             {
                 uniqueNodesServiceAttributes.Add(uniqueNode, []);
             }
-        }
-
-        /// <summary>
-        /// Continues a browse operation that was previously halted.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException"></exception>
-        public virtual void BrowseNext(
-            OperationContext context,
-            bool releaseContinuationPoints,
-            ByteStringCollection continuationPoints,
-            out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            (results, diagnosticInfos) = BrowseNextAsync(
-                context,
-                releaseContinuationPoints,
-                continuationPoints).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -1921,26 +1887,6 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="nodesToRead"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
-        public virtual void Read(
-            OperationContext context,
-            double maxAge,
-            TimestampsToReturn timestampsToReturn,
-            ReadValueIdCollection nodesToRead,
-            out DataValueCollection values,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            (values, diagnosticInfos) = ReadAsync(
-                context,
-                maxAge,
-                timestampsToReturn,
-                nodesToRead).AsTask().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Reads a set of nodes.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="nodesToRead"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException"></exception>
         public virtual async ValueTask<(DataValueCollection values, DiagnosticInfoCollection diagnosticInfos)> ReadAsync(
             OperationContext context,
             double maxAge,
@@ -2084,27 +2030,6 @@ namespace Opc.Ua.Server
         /// Reads the history of a set of items.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public virtual void HistoryRead(
-            OperationContext context,
-            ExtensionObject historyReadDetails,
-            TimestampsToReturn timestampsToReturn,
-            bool releaseContinuationPoints,
-            HistoryReadValueIdCollection nodesToRead,
-            out HistoryReadResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            (results, diagnosticInfos) = HistoryReadAsync(
-                context,
-                historyReadDetails,
-                timestampsToReturn,
-                releaseContinuationPoints,
-                nodesToRead).AsTask().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Reads the history of a set of items.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
         public virtual async ValueTask<(HistoryReadResultCollection values, DiagnosticInfoCollection diagnosticInfos)> HistoryReadAsync(
             OperationContext context,
             ExtensionObject historyReadDetails,
@@ -2236,22 +2161,6 @@ namespace Opc.Ua.Server
         /// Writes a set of values.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public virtual void Write(
-            OperationContext context,
-            WriteValueCollection nodesToWrite,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            (results, diagnosticInfos) = WriteAsync(
-                context,
-                nodesToWrite
-                ).AsTask().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Writes a set of values.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public virtual async ValueTask<(StatusCodeCollection results, DiagnosticInfoCollection diagnosticInfos)> WriteAsync(
             OperationContext context,
             WriteValueCollection nodesToWrite,
@@ -2358,20 +2267,6 @@ namespace Opc.Ua.Server
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
 
             return (results, diagnosticInfos);
-        }
-
-        /// <summary>
-        /// Updates the history for a set of nodes.
-        /// </summary>
-        public virtual void HistoryUpdate(
-            OperationContext context,
-            ExtensionObjectCollection historyUpdateDetails,
-            out HistoryUpdateResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            (results, diagnosticInfos) = HistoryUpdateAsync(
-                context,
-                historyUpdateDetails).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -2514,20 +2409,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Calls a method defined on an object.
         /// </summary>
-        public virtual void Call(
-            OperationContext context,
-            CallMethodRequestCollection methodsToCall,
-            out CallMethodResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            (results, diagnosticInfos) = CallAsync(
-                context,
-                methodsToCall).AsTask().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Calls a method defined on an object.
-        /// </summary>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="context"/> is <c>null</c>.</exception>
         public virtual async ValueTask<(CallMethodResultCollection results, DiagnosticInfoCollection diagnosticInfos)>
@@ -2640,18 +2521,6 @@ namespace Opc.Ua.Server
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
 
             return (results, diagnosticInfos);
-        }
-
-        /// <summary>
-        /// Calls a method defined on an object.
-        /// </summary>
-        public virtual void ConditionRefresh(
-            OperationContext context,
-            IList<IEventMonitoredItem> monitoredItems)
-        {
-            ConditionRefreshAsync(
-                context,
-                monitoredItems).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -2983,22 +2852,6 @@ namespace Opc.Ua.Server
                     errors[ii] = StatusCodes.Good;
                 }
             }
-        }
-
-        /// <summary>
-        /// Restore a set of monitored items after a Server Restart.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="itemsToRestore"/> is <c>null</c>.</exception>
-        /// <exception cref="InvalidOperationException"></exception>
-        public virtual void RestoreMonitoredItems(
-            IList<IStoredMonitoredItem> itemsToRestore,
-            IList<IMonitoredItem> monitoredItems,
-            IUserIdentity savedOwnerIdentity)
-        {
-            RestoreMonitoredItemsAsync(
-                itemsToRestore,
-                monitoredItems,
-                savedOwnerIdentity).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -3557,23 +3410,6 @@ namespace Opc.Ua.Server
         /// Changes the monitoring mode for a set of items.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public virtual void SetMonitoringMode(
-            OperationContext context,
-            MonitoringMode monitoringMode,
-            IList<IMonitoredItem> itemsToModify,
-            IList<ServiceResult> errors)
-        {
-            SetMonitoringModeAsync(
-                context,
-                monitoringMode,
-                itemsToModify,
-                errors).AsTask().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Changes the monitoring mode for a set of items.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public virtual async ValueTask SetMonitoringModeAsync(
             OperationContext context,
             MonitoringMode monitoringMode,
@@ -3855,11 +3691,9 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadMethodInvalid;
             }
 
-            // check input arguments
-            if (callMethodRequest.InputArguments == null)
-            {
-                return StatusCodes.BadStructureMissing;
-            }
+            // Initialize input arguments to empty collection if null.
+            // Methods with only output parameters (no input parameters) are valid.
+            callMethodRequest.InputArguments ??= new VariantCollection();
 
             return StatusCodes.Good;
         }

@@ -290,14 +290,11 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-#if ECC_SUPPORT
                 m_eccUserTokenSecurityPolicyUri = securityPolicyUri;
-#endif
                 m_eccUserTokenNonce = null;
             }
         }
 
-#if ECC_SUPPORT
         /// <summary>
         /// Create new ECC ephemeral key
         /// </summary>
@@ -323,7 +320,6 @@ namespace Opc.Ua.Server
                 return key;
             }
         }
-#endif
 
         /// <summary>
         /// Returns the session's endpoint
@@ -345,7 +341,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="requestHeader"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
-        public virtual void ValidateRequest(RequestHeader requestHeader, RequestType requestType)
+        public virtual void ValidateRequest(RequestHeader requestHeader, SecureChannelContext secureChannelContext, RequestType requestType)
         {
             if (requestHeader == null)
             {
@@ -354,10 +350,8 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                // get the request context for the current thread.
-                SecureChannelContext context = SecureChannelContext.Current;
 
-                if (context == null || !IsSecureChannelValid(context.SecureChannelId))
+                if (secureChannelContext == null || !IsSecureChannelValid(secureChannelContext.SecureChannelId))
                 {
                     UpdateDiagnosticCounters(requestType, true, true);
                     throw new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid);
@@ -1012,10 +1006,8 @@ namespace Opc.Ua.Server
                 // decrypt the token.
                 if (m_serverCertificate == null)
                 {
-                    m_serverCertificate = CertificateFactory.Create(
-                        EndpointDescription.ServerCertificate,
-                        true,
-                        m_server.Telemetry);
+                    m_serverCertificate = X509CertificateLoader.LoadCertificate(
+                        EndpointDescription.ServerCertificate);
 
                     // check for valid certificate.
                     if (m_serverCertificate == null)
@@ -1143,6 +1135,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Updates the diagnostic counters associated with the request.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void UpdateDiagnosticCounters(
             RequestType requestType,
             bool error,
@@ -1255,6 +1248,17 @@ namespace Opc.Ua.Server
                     case RequestType.UnregisterNodes:
                         counter = SessionDiagnostics.UnregisterNodesCount;
                         break;
+                    case RequestType.Unknown:
+                    case RequestType.FindServers:
+                    case RequestType.GetEndpoints:
+                    case RequestType.CreateSession:
+                    case RequestType.ActivateSession:
+                    case RequestType.CloseSession:
+                    case RequestType.Cancel:
+                        break;
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected RequestType {requestType}");
                 }
 
                 if (counter != null)
@@ -1274,11 +1278,8 @@ namespace Opc.Ua.Server
         private readonly IServerInternal m_server;
         private readonly string m_sessionName;
         private X509Certificate2 m_serverCertificate;
-
         private Nonce m_serverNonce;
-#if ECC_SUPPORT
         private string m_eccUserTokenSecurityPolicyUri;
-#endif
         private Nonce m_eccUserTokenNonce;
         private readonly X509Certificate2Collection m_clientIssuerCertificates;
         private readonly int m_maxHistoryContinuationPoints;

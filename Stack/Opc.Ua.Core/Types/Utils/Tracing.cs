@@ -49,7 +49,9 @@ namespace Opc.Ua
                 {
                     lock (s_syncRoot)
                     {
+#pragma warning disable CA1508 // Avoid dead conditional code
                         s_instance ??= new Tracing();
+#pragma warning restore CA1508 // Avoid dead conditional code
                     }
                 }
                 return s_instance;

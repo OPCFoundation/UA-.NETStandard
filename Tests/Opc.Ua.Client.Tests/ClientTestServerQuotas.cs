@@ -87,8 +87,7 @@ namespace Opc.Ua.Client.Tests
             // start Ref server
             ServerFixture = new ServerFixture<ReferenceServer>(
                 enableTracing,
-                disableActivityLogging,
-                Telemetry)
+                disableActivityLogging)
             {
                 UriScheme = UriScheme,
                 SecurityNone = securityNone,
@@ -148,16 +147,14 @@ namespace Opc.Ua.Client.Tests
         [Order(200)]
         public async Task TestBoundaryCaseForReadingChunksAsync()
         {
-            var theSession = (Session)((TraceableSession)Session).Session;
+            ISession theSession = Session;
 
             int namespaceIndex = theSession.NamespaceUris.GetIndex(
                 "http://opcfoundation.org/Quickstarts/ReferenceServer");
             var nodeId = new NodeId($"ns={namespaceIndex};s=Scalar_Static_ByteString");
 
-            var random = new Random();
-
             byte[] chunk = new byte[MaxByteStringLengthForTest];
-            random.NextBytes(chunk);
+            UnsecureRandom.Shared.NextBytes(chunk);
 
             var writeValue = new WriteValue
             {
@@ -172,7 +169,6 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
             StatusCodeCollection results = result.Results;
 
-            _ = result.DiagnosticInfos;
             if (results[0] != StatusCodes.Good)
             {
                 NUnit.Framework.Assert.Fail($"Write failed with status code {results[0]}");

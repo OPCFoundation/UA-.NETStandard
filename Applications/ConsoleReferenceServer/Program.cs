@@ -64,10 +64,12 @@ namespace Quickstarts.ReferenceServer
             bool autoAccept = false;
             bool logConsole = false;
             bool appLog = false;
+            bool fileLog = false;
             bool renewCertificate = false;
             bool shadowConfig = false;
             bool samplingGroups = false;
             bool cttMode = false;
+            bool provisioningMode = false;
             char[] password = null;
             int timeout = -1;
 
@@ -81,6 +83,7 @@ namespace Quickstarts.ReferenceServer
                 { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null },
                 { "c|console", "log to console", c => logConsole = c != null },
                 { "l|log", "log app output", c => appLog = c != null },
+                { "f|file", "log to file", f => fileLog = f != null },
                 { "p|password=", "optional password for private key", p => password = p.ToCharArray() },
                 { "r|renew", "renew application certificate", r => renewCertificate = r != null },
                 { "t|timeout=", "timeout in seconds to exit application", (int t) => timeout = t * 1000 },
@@ -90,11 +93,16 @@ namespace Quickstarts.ReferenceServer
                     "use the sampling group mechanism in the Reference Node Manager",
                     sg => samplingGroups = sg != null
                 },
-                { "ctt", "CTT mode, use to preset alarms for CTT testing.", c => cttMode = c != null }
+                { "ctt", "CTT mode, use to preset alarms for CTT testing.", c => cttMode = c != null },
+                {
+                    "provision",
+                    "start server in provisioning mode with limited namespace for certificate provisioning",
+                    p => provisioningMode = p != null
+                }
             };
 
             using var telemetry = new ConsoleTelemetry();
-            ILogger logger = Utils.Null.Logger;
+            ILogger logger = LoggerUtils.Null.Logger;
             try
             {
                 // parse command line and set options
@@ -144,7 +152,7 @@ namespace Quickstarts.ReferenceServer
                 }
 
                 // setup the logging
-                telemetry.ConfigureLogging(server.Configuration, applicationName, logConsole, LogLevel.Information);
+                telemetry.ConfigureLogging(server.Configuration, applicationName, logConsole, fileLog, appLog, LogLevel.Information);
 
                 // check or renew the certificate
                 logger.LogInformation("Check the certificate.");
@@ -152,6 +160,20 @@ namespace Quickstarts.ReferenceServer
 
                 // Create and add the node managers
                 server.Create(Servers.Utils.NodeManagerFactories);
+
+                // enable provisioning mode if requested
+                if (provisioningMode)
+                {
+                    logger.LogInformation("Enabling provisioning mode.");
+                    Servers.Utils.EnableProvisioningMode(server.Server);
+                    // Auto-accept is required in provisioning mode
+                    if (!autoAccept)
+                    {
+                        logger.LogInformation("Auto-accept enabled for provisioning mode.");
+                        autoAccept = true;
+                        server.AutoAccept = autoAccept;
+                    }
+                }
 
                 // enable the sampling groups if requested
                 if (samplingGroups)
@@ -168,7 +190,8 @@ namespace Quickstarts.ReferenceServer
                 {
                     logger.LogInformation("Apply settings for CTT.");
                     // start Alarms and other settings for CTT test
-                    Servers.Utils.ApplyCTTMode(Console.Out, server.Server);
+                    await Servers.Utils.ApplyCTTModeAsync(Console.Out, server.Server)
+                        .ConfigureAwait(false);
                 }
 
                 logger.LogInformation("Server started. Press Ctrl-C to exit...");

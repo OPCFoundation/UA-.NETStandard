@@ -30,7 +30,7 @@ namespace Opc.Ua
         class FilterEvaluator
     {
         private readonly ContentFilter m_filter;
-        private readonly FilterContext m_context;
+        private readonly IFilterContext m_context;
         private readonly IFilterTarget m_target;
         private readonly ILogger m_logger;
 
@@ -40,7 +40,7 @@ namespace Opc.Ua
         /// <param name="filter"></param>
         /// <param name="context"></param>
         /// <param name="target"></param>
-        public FilterEvaluator(ContentFilter filter, FilterContext context, IFilterTarget target)
+        public FilterEvaluator(ContentFilter filter, IFilterContext context, IFilterTarget target)
         {
             m_filter = filter;
             m_context = context;
@@ -118,11 +118,10 @@ namespace Opc.Ua
                     return BitwiseAnd(element);
                 case FilterOperator.BitwiseOr:
                     return BitwiseOr(element);
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"FilterOperator {element.FilterOperator} is not recognized.");
             }
-
-            throw new ServiceResultException(
-                StatusCodes.BadUnexpectedError,
-                "FilterOperator is not recognized.");
         }
 
         /// <summary>
@@ -139,16 +138,12 @@ namespace Opc.Ua
             {
                 if (ExtensionObject.IsNull(extension))
                 {
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
-                        "FilterOperand is null.");
+                    throw ServiceResultException.Unexpected("FilterOperand is null.");
                 }
 
                 if (extension.Body is not FilterOperand operand)
                 {
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnexpectedError,
-                        "FilterOperand is not supported.");
+                    throw ServiceResultException.Unexpected("FilterOperand is not supported.");
                 }
 
                 operands[ii++] = operand;
@@ -156,8 +151,7 @@ namespace Opc.Ua
 
             if (expectedCount > 0 && expectedCount != operands.Length)
             {
-                throw new ServiceResultException(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "ContentFilterElement does not have the correct number of operands.");
             }
 
@@ -241,9 +235,7 @@ namespace Opc.Ua
             }
 
             // oops - Validate() was not called.
-            throw new ServiceResultException(
-                StatusCodes.BadUnexpectedError,
-                "FilterOperand is not supported.");
+            throw ServiceResultException.Unexpected("FilterOperand is not supported.");
         }
 
         /// <summary>
@@ -400,6 +392,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the data type precedence for the value.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private static int GetDataTypePrecedence(BuiltInType type)
         {
             switch (type)
@@ -440,9 +433,12 @@ namespace Opc.Ua
                     return 2;
                 case BuiltInType.QualifiedName:
                     return 1;
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    return 0;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unknown built in type {type} encountered.");
             }
-
-            return 0;
         }
 
         /// <summary>
@@ -554,6 +550,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a value to a Boolean
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToBoolean(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -596,15 +593,19 @@ namespace Opc.Ua
                     return Convert.ToBoolean((double)value);
                 case BuiltInType.String:
                     return XmlConvert.ToBoolean((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return DBNull.Value;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unknown built in type {sourceType} encountered.");
             }
-
-            // conversion not supported.
-            return DBNull.Value;
         }
 
         /// <summary>
         /// Converts a value to a SByte
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToSByte(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -648,16 +649,20 @@ namespace Opc.Ua
                     return Convert.ToSByte((double)value);
                 case BuiltInType.String:
                     return XmlConvert.ToSByte((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return DBNull.Value;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unknown built in type {sourceType} encountered.");
             }
-
-            // conversion not supported.
-            return DBNull.Value;
         }
 
         /// <summary>
         /// Converts a value to a Byte
         /// </summary>
         /// <exception cref="NotImplementedException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         private static object ToByte(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -695,15 +700,19 @@ namespace Opc.Ua
                     return Convert.ToByte((double)value);
                 case BuiltInType.String:
                     return XmlConvert.ToByte((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return DBNull.Value;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unknown built in type {sourceType} encountered.");
             }
-
-            // conversion not supported.
-            return DBNull.Value;
         }
 
         /// <summary>
         /// Converts a value to a Int16
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToInt16(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -747,15 +756,19 @@ namespace Opc.Ua
                     return Convert.ToInt16((double)value);
                 case BuiltInType.String:
                     return XmlConvert.ToInt16((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return DBNull.Value;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unknown built in type {sourceType} encountered.");
             }
-
-            // conversion not supported.
-            return DBNull.Value;
         }
 
         /// <summary>
         /// Converts a value to a UInt16
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToUInt16(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -802,15 +815,19 @@ namespace Opc.Ua
                 case BuiltInType.StatusCode:
                     var code = (StatusCode)value;
                     return (ushort)(code.CodeBits >> 16);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return DBNull.Value;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unknown built in type {sourceType} encountered.");
             }
-
-            // conversion not supported.
-            return DBNull.Value;
         }
 
         /// <summary>
         /// Converts a value to a Int32
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToInt32(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -856,15 +873,19 @@ namespace Opc.Ua
                     return XmlConvert.ToInt32((string)value);
                 case BuiltInType.StatusCode:
                     return Convert.ToInt32(((StatusCode)value).Code);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return DBNull.Value;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unknown built in type {sourceType} encountered.");
             }
-
-            // conversion not supported.
-            return DBNull.Value;
         }
 
         /// <summary>
         /// Converts a value to a UInt32
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToUInt32(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -910,15 +931,19 @@ namespace Opc.Ua
                     return XmlConvert.ToUInt32((string)value);
                 case BuiltInType.StatusCode:
                     return Convert.ToUInt32(((StatusCode)value).Code);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return DBNull.Value;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unknown built in type {sourceType} encountered.");
             }
-
-            // conversion not supported.
-            return DBNull.Value;
         }
 
         /// <summary>
         /// Converts a value to a Int64
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToInt64(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -964,15 +989,19 @@ namespace Opc.Ua
                     return XmlConvert.ToInt64((string)value);
                 case BuiltInType.StatusCode:
                     return Convert.ToInt64(((StatusCode)value).Code);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return DBNull.Value;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unknown built in type {sourceType} encountered.");
             }
-
-            // conversion not supported.
-            return DBNull.Value;
         }
 
         /// <summary>
         /// Converts a value to a UInt64
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToUInt64(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -1018,15 +1047,19 @@ namespace Opc.Ua
                     return XmlConvert.ToUInt64((string)value);
                 case BuiltInType.StatusCode:
                     return Convert.ToUInt64(((StatusCode)value).Code);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return DBNull.Value;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unknown built in type {sourceType} encountered.");
             }
-
-            // conversion not supported.
-            return DBNull.Value;
         }
 
         /// <summary>
         /// Converts a value to a Float
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToFloat(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -1070,15 +1103,19 @@ namespace Opc.Ua
                     return Convert.ToSingle((double)value);
                 case BuiltInType.String:
                     return XmlConvert.ToSingle((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return DBNull.Value;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unknown built in type {sourceType} encountered.");
             }
-
-            // conversion not supported.
-            return DBNull.Value;
         }
 
         /// <summary>
         /// Converts a value to a Double
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToDouble(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -1122,15 +1159,19 @@ namespace Opc.Ua
                     return Convert.ToDouble((float)value);
                 case BuiltInType.String:
                     return XmlConvert.ToDouble((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return DBNull.Value;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unknown built in type {sourceType} encountered.");
             }
-
-            // conversion not supported.
-            return DBNull.Value;
         }
 
         /// <summary>
         /// Converts a value to a String
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToString(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -1188,15 +1229,19 @@ namespace Opc.Ua
                     return ((LocalizedText)value).Text;
                 case BuiltInType.QualifiedName:
                     return ((QualifiedName)value).ToString();
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return DBNull.Value;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unknown built in type {sourceType} encountered.");
             }
-
-            // conversion not supported.
-            return DBNull.Value;
         }
 
         /// <summary>
         /// Converts a value to a DateTime
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToDateTime(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -1220,15 +1265,19 @@ namespace Opc.Ua
                     return (DateTime)value;
                 case BuiltInType.String:
                     return XmlConvert.ToDateTimeOffset((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return null;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unknown built in type {sourceType} encountered.");
             }
-
-            // conversion not supported.
-            return null;
         }
 
         /// <summary>
         /// Converts a value to a Guid
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToGuid(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -1254,15 +1303,19 @@ namespace Opc.Ua
                     return new Guid((string)value);
                 case BuiltInType.ByteString:
                     return new Guid((byte[])value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return null;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unknown built in type {sourceType} encountered.");
             }
-
-            // conversion not supported.
-            return null;
         }
 
         /// <summary>
         /// Converts a value to a ByteString
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToByteString(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -1286,15 +1339,19 @@ namespace Opc.Ua
                     return (byte[])value;
                 case BuiltInType.Guid:
                     return ((Guid)value).ToByteArray();
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return null;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unknown built in type {sourceType} encountered.");
             }
-
-            // conversion not supported.
-            return null;
         }
 
         /// <summary>
         /// Converts a value to a NodeId
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToNodeId(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -1320,15 +1377,19 @@ namespace Opc.Ua
                     return (NodeId)(ExpandedNodeId)value;
                 case BuiltInType.String:
                     return NodeId.Parse((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return null;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unknown built in type {sourceType} encountered.");
             }
-
-            // conversion not supported.
-            return null;
         }
 
         /// <summary>
         /// Converts a value to a ExpandedNodeId
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToExpandedNodeId(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -1356,15 +1417,19 @@ namespace Opc.Ua
                     return (ExpandedNodeId)(NodeId)value;
                 case BuiltInType.String:
                     return ExpandedNodeId.Parse((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return null;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unknown built in type {sourceType} encountered.");
             }
-
-            // conversion not supported.
-            return null;
         }
 
         /// <summary>
         /// Converts a value to a StatusCode
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToStatusCode(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -1398,15 +1463,19 @@ namespace Opc.Ua
                     return (StatusCode)Convert.ToUInt32((long)value);
                 case BuiltInType.UInt64:
                     return (StatusCode)Convert.ToUInt32((ulong)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return null;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unknown built in type {sourceType} encountered.");
             }
-
-            // conversion not supported.
-            return null;
         }
 
         /// <summary>
         /// Converts a value to a QualifiedName
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToQualifiedName(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -1430,15 +1499,19 @@ namespace Opc.Ua
                     return (QualifiedName)value;
                 case BuiltInType.String:
                     return QualifiedName.Parse((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return null;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unknown built in type {sourceType} encountered.");
             }
-
-            // conversion not supported.
-            return null;
         }
 
         /// <summary>
         /// Converts a value to a LocalizedText
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object ToLocalizedText(object value, BuiltInType sourceType)
         {
             // check for array conversions.
@@ -1462,10 +1535,13 @@ namespace Opc.Ua
                     return (LocalizedText)value;
                 case BuiltInType.String:
                     return new LocalizedText((string)value);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    return null;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unknown built in type {sourceType} encountered.");
             }
-
-            // conversion not supported.
-            return null;
         }
 
         /// <summary>
@@ -1486,6 +1562,7 @@ namespace Opc.Ua
         /// <summary>
         /// Casts a value to the specified m_target type.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object Cast(object source, BuiltInType sourceType, BuiltInType targetType)
         {
             // null always casts to null.
@@ -1545,6 +1622,12 @@ namespace Opc.Ua
                         return ToQualifiedName(source, sourceType);
                     case BuiltInType.LocalizedText:
                         return ToLocalizedText(source, sourceType);
+                    case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                        // conversion not supported.
+                        return null;
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unknown built in type {sourceType} encountered.");
                 }
             }
             catch (Exception e)
@@ -1555,10 +1638,9 @@ namespace Opc.Ua
                     sourceType,
                     source,
                     targetType);
-            }
 
-            // conversion not supported.
-            return null;
+                return null;
+            }
         }
 
         /// <summary>
@@ -1590,7 +1672,7 @@ namespace Opc.Ua
 
             if (rhs == null)
             {
-                if (lhs is null or true)
+                if (lhs is true)
                 {
                     return null;
                 }
@@ -1630,7 +1712,7 @@ namespace Opc.Ua
 
             if (rhs == null)
             {
-                if (lhs is null or false)
+                if (lhs is false)
                 {
                     return null;
                 }
@@ -2098,14 +2180,11 @@ namespace Opc.Ua
             }
 
             // get the type of the m_target.
+            targetTypeId = GetValue(operands[1]) as NodeId;
+
             if (targetTypeId == null)
             {
-                targetTypeId = GetValue(operands[1]) as NodeId;
-
-                if (targetTypeId == null)
-                {
-                    return false;
-                }
+                return false;
             }
 
             // check the m_target.
@@ -2269,7 +2348,7 @@ namespace Opc.Ua
         /// <returns>Returns true, false or null.</returns>
         public static bool Evaluate(
             this ContentFilter filter,
-            FilterContext context,
+            IFilterContext context,
             IFilterTarget target)
         {
             // check if nothing to do.

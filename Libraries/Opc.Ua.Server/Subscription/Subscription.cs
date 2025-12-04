@@ -29,8 +29,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
@@ -66,7 +68,10 @@ namespace Opc.Ua.Server
             m_publishingEnabled = publishingEnabled;
             Priority = priority;
             m_publishTimerExpiry = HiResClock.TickCount64 + (long)publishingInterval;
-            m_keepAliveCounter = 0;
+            //Per OPC UA spec Part 4 Section 5.13.1.2, the server must send a message (notification or keep-alive)
+            //at the end of the first publishing cycle to inform the client the subscription is operational
+            //So we initialize the keep-alive counter to maxKeepAliveCount to force a message at the end of the first publish cycle
+            m_keepAliveCounter = maxKeepAliveCount;
             m_lifetimeCounter = 0;
             m_waitingForPublish = false;
             m_maxMessageCount = maxMessageCount;
@@ -128,9 +133,25 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Restore a subscription and its monitored items after a restart from a template
+        /// </summary>
+        public static async ValueTask<Subscription> RestoreAsync(
+            IServerInternal server,
+            IStoredSubscription storedSubscription,
+            CancellationToken cancellationToken = default)
+        {
+            var subscription = new Subscription(server, storedSubscription);
+
+            await subscription.RestoreMonitoredItemsAsync(storedSubscription.MonitoredItems, cancellationToken)
+                .ConfigureAwait(false);
+
+            return subscription;
+        }
+
+        /// <summary>
         /// Initialize subscription after a restart from a template
         /// </summary>
-        public Subscription(IServerInternal server, IStoredSubscription storedSubscription)
+        protected Subscription(IServerInternal server, IStoredSubscription storedSubscription)
         {
             if (server.IsRunning)
             {
@@ -158,8 +179,7 @@ namespace Opc.Ua.Server
             m_supportsDurable = m_server.MonitoredItemQueueFactory.SupportsDurableQueues;
             IsDurable = storedSubscription.IsDurable;
             m_savedOwnerIdentity = new UserIdentity(
-                storedSubscription.UserIdentityToken,
-                m_server.Telemetry);
+                storedSubscription.UserIdentityToken);
             m_sequenceNumber = storedSubscription.SequenceNumber;
             m_lastSentMessage = storedSubscription.LastSentMessage;
 
@@ -209,8 +229,6 @@ namespace Opc.Ua.Server
                 OnUpdateDiagnostics);
 
             TraceState(LogLevel.Information, TraceStateId.Config, "RESTORED");
-
-            RestoreMonitoredItems(storedSubscription.MonitoredItems);
         }
 
         /// <summary>
@@ -396,7 +414,7 @@ namespace Opc.Ua.Server
                         {
                             ReturnDiagnostics = (int)DiagnosticsMasks.OperationSymbolicIdAndText
                         };
-                        context = new OperationContext(requestHeader, RequestType.Unknown);
+                        context = new OperationContext(requestHeader, null, RequestType.Unknown);
                     }
 
                     DeleteMonitoredItems(
@@ -2085,12 +2103,11 @@ namespace Opc.Ua.Server
         /// Changes the monitoring mode for a set of items.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public void SetMonitoringMode(
+        public async ValueTask<(StatusCodeCollection results, DiagnosticInfoCollection diagnosticInfos)> SetMonitoringModeAsync(
             OperationContext context,
             MonitoringMode monitoringMode,
             UInt32Collection monitoredItemIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken cancellationToken = default)
         {
             if (context == null)
             {
@@ -2105,8 +2122,8 @@ namespace Opc.Ua.Server
             int count = monitoredItemIds.Count;
 
             bool diagnosticsExist = false;
-            results = new StatusCodeCollection(count);
-            diagnosticInfos = null;
+            var results = new StatusCodeCollection(count);
+            DiagnosticInfoCollection diagnosticInfos = null;
 
             if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
             {
@@ -2170,8 +2187,9 @@ namespace Opc.Ua.Server
             // update items.
             if (validItems)
             {
-                m_server.NodeManager
-                    .SetMonitoringMode(context, monitoringMode, monitoredItems, errors);
+                await m_server.NodeManager
+                    .SetMonitoringModeAsync(context, monitoringMode, monitoredItems, errors, cancellationToken)
+                    .ConfigureAwait(false);
             }
 
             lock (m_lock)
@@ -2231,6 +2249,8 @@ namespace Opc.Ua.Server
                     TraceState(LogLevel.Information, TraceStateId.Monitor, "SAMPLING");
                 }
             }
+
+            return (results, diagnosticInfos);
         }
 
         /// <summary>
@@ -2272,7 +2292,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Refreshes the conditions.
         /// </summary>
-        public void ConditionRefresh()
+        public async ValueTask ConditionRefreshAsync(CancellationToken cancellationToken = default)
         {
             var monitoredItems = new List<IEventMonitoredItem>();
 
@@ -2296,14 +2316,15 @@ namespace Opc.Ua.Server
                 }
             }
 
-            ConditionRefresh(monitoredItems, 0);
+            await ConditionRefreshAsync(monitoredItems, 0, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
         /// Refreshes the conditions.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void ConditionRefresh2(uint monitoredItemId)
+        public async ValueTask ConditionRefresh2Async(uint monitoredItemId, CancellationToken cancellationToken = default)
         {
             var monitoredItems = new List<IEventMonitoredItem>();
 
@@ -2335,15 +2356,17 @@ namespace Opc.Ua.Server
                 }
             }
 
-            ConditionRefresh(monitoredItems, monitoredItemId);
+            await ConditionRefreshAsync(monitoredItems, monitoredItemId, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
         /// Refreshes the conditions.  Works for both ConditionRefresh and ConditionRefresh2
         /// </summary>
-        private void ConditionRefresh(
+        private async ValueTask ConditionRefreshAsync(
             List<IEventMonitoredItem> monitoredItems,
-            uint monitoredItemId)
+            uint monitoredItemId,
+            CancellationToken cancellationToken = default)
         {
             ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(Session);
 
@@ -2403,7 +2426,8 @@ namespace Opc.Ua.Server
                 m_refreshInProgress = true;
 
                 var operationContext = new OperationContext(Session, DiagnosticsMasks.None);
-                m_server.NodeManager.ConditionRefresh(operationContext, monitoredItems);
+                await m_server.NodeManager.ConditionRefreshAsync(operationContext, monitoredItems, cancellationToken)
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -2539,8 +2563,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Restore MonitoredItems after a Server restart
         /// </summary>
-        protected virtual void RestoreMonitoredItems(
-            IEnumerable<IStoredMonitoredItem> storedMonitoredItems)
+        protected virtual async ValueTask RestoreMonitoredItemsAsync(
+            IEnumerable<IStoredMonitoredItem> storedMonitoredItems,
+            CancellationToken cancellationToken = default)
         {
             int count = storedMonitoredItems.Count();
 
@@ -2552,10 +2577,11 @@ namespace Opc.Ua.Server
                 monitoredItems.Add(null);
             }
 
-            m_server.NodeManager.RestoreMonitoredItems(
+            await m_server.NodeManager.RestoreMonitoredItemsAsync(
                 [.. storedMonitoredItems],
                 monitoredItems,
-                m_savedOwnerIdentity);
+                m_savedOwnerIdentity,
+                cancellationToken).ConfigureAwait(false);
 
             lock (m_lock)
             {
@@ -2691,7 +2717,7 @@ namespace Opc.Ua.Server
                 case TraceStateId.Monitor:
                     m_logger.Log(
                         logLevel,
-                        "Subscription {Subscription}, Id={SubscriptionId}, KeepAliveCounter={keepAliveCounter}, LifeTimeCount={LifeTimeCount}, WaitingForPublish={WaitingForPublish}, SeqNo={SequenceNumber}, ItemCount={ItemCount}, ItemsToCheck={ItemsToCheck}, ItemsToPublish={ItemsToPublish}, MessageCount={MessageCount}",
+                        "Subscription {Subscription}, Id={SubscriptionId}, KeepAliveCounter={KeepAliveCounter}, LifeTimeCount={LifeTimeCount}, WaitingForPublish={WaitingForPublish}, SeqNo={SequenceNumber}, ItemCount={ItemCount}, ItemsToCheck={ItemsToCheck}, ItemsToPublish={ItemsToPublish}, MessageCount={MessageCount}",
                         context,
                         Id,
                         m_keepAliveCounter,
@@ -2702,6 +2728,9 @@ namespace Opc.Ua.Server
                         itemsToCheck,
                         itemsToPublish,
                         sentMessages);
+                    break;
+                default:
+                    Debug.Fail($"Unexpected TraceStateId: {id}");
                     break;
             }
         }

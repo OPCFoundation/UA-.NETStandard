@@ -44,6 +44,7 @@ namespace Opc.Ua
         /// </summary>
         Task<InvokeServiceResponseMessage> InvokeServiceAsync(
             InvokeServiceMessage request,
+            SecureChannelContext secureChannelContext,
             CancellationToken cancellationToken);
     }
 #endif

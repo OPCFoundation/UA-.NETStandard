@@ -30,6 +30,8 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server
@@ -122,6 +124,7 @@ namespace Opc.Ua.Server
                 Utils.SilentDispose(ResourceManager);
                 Utils.SilentDispose(RequestManager);
                 Utils.SilentDispose(AggregateManager);
+                Utils.SilentDispose(ModellingRulesManager);
                 Utils.SilentDispose(NodeManager);
                 Utils.SilentDispose(SessionManager);
                 Utils.SilentDispose(SubscriptionManager);
@@ -213,6 +216,15 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Stores the ModellingRulesManager in the datastore.
+        /// </summary>
+        /// <param name="modellingRulesManager">The ModellingRulesManager.</param>
+        public void SetModellingRulesManager(ModellingRulesManager modellingRulesManager)
+        {
+            ModellingRulesManager = modellingRulesManager;
+        }
+
+        /// <summary>
         /// The endpoint addresses used by the server.
         /// </summary>
         /// <value>The endpoint addresses.</value>
@@ -300,6 +312,12 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <value>The aggregate manager.</value>
         public AggregateManager AggregateManager { get; private set; }
+
+        /// <summary>
+        /// A manager for modelling rules supported by the server.
+        /// </summary>
+        /// <value>The modelling rules manager.</value>
+        public ModellingRulesManager ModellingRulesManager { get; private set; }
 
         /// <summary>
         /// The manager for active sessions.
@@ -457,7 +475,25 @@ namespace Opc.Ua.Server
             NodeId sessionId,
             bool deleteSubscriptions)
         {
-            NodeManager.SessionClosingAsync(context, sessionId, deleteSubscriptions).AsTask().GetAwaiter().GetResult();
+            CloseSessionAsync(context, sessionId, deleteSubscriptions)
+                .AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Closes the specified session.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="sessionId">The session identifier.</param>
+        /// <param name="deleteSubscriptions">if set to <c>true</c> subscriptions are to be deleted.</param>
+        /// <param name="cancellationToken">The cancellationToken</param>
+        public async ValueTask CloseSessionAsync(
+            OperationContext context,
+            NodeId sessionId,
+            bool deleteSubscriptions,
+            CancellationToken cancellationToken = default)
+        {
+            await NodeManager.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
+                .ConfigureAwait(false);
             SubscriptionManager.SessionClosing(context, sessionId, deleteSubscriptions);
             SessionManager.CloseSession(sessionId);
         }
@@ -755,6 +791,9 @@ namespace Opc.Ua.Server
                 configurationNodeManager?.CreateServerConfiguration(
                     DefaultSystemContext,
                     m_configuration);
+
+                // Initialize history capabilities and update Server EventNotifier accordingly
+                DiagnosticsNodeManager.UpdateServerEventNotifier();
 
                 Auditing = m_configuration.ServerConfiguration.AuditingEnabled;
                 PropertyState<bool> auditing = serverObject.Auditing;

@@ -35,6 +35,7 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Tests;
@@ -101,7 +102,7 @@ namespace Opc.Ua.Gds.Tests
         {
             // start GDS
             m_telemetry = NUnitTelemetryContext.Create();
-            m_server = await TestUtils.StartGDSAsync(true, m_telemetry, m_storeType).ConfigureAwait(false);
+            m_server = await TestUtils.StartGDSAsync(true, m_storeType).ConfigureAwait(false);
 
             // load client
             m_gdsClient = new GlobalDiscoveryTestClient(true, m_telemetry, m_storeType);
@@ -141,7 +142,7 @@ namespace Opc.Ua.Gds.Tests
         {
             await m_gdsClient.DisconnectClientAsync().ConfigureAwait(false);
             m_gdsClient = null;
-            m_server.StopServer();
+            await m_server.StopServerAsync().ConfigureAwait(false);
             m_server = null;
             Thread.Sleep(1000);
         }
@@ -886,13 +887,13 @@ namespace Opc.Ua.Gds.Tests
                                     application,
                                     certificate,
                                     issuerCertificates);
-                                X509TestUtils.VerifyApplicationCertIntegrity(
+                                await X509TestUtils.VerifyApplicationCertIntegrityAsync(
                                     certificate,
                                     privateKey,
                                     application.PrivateKeyPassword,
                                     application.PrivateKeyFormat,
                                     issuerCertificates,
-                                    telemetry);
+                                    telemetry).ConfigureAwait(false);
                             }
                             else
                             {
@@ -918,25 +919,10 @@ namespace Opc.Ua.Gds.Tests
                 if (requestBusy)
                 {
                     Thread.Sleep(5000);
-                    Console.WriteLine("Waiting for certificate approval");
+                    ILogger logger = telemetry.CreateLogger<ClientTest>();
+                    logger.LogInformation("Waiting for certificate approval");
                 }
             } while (requestBusy);
-        }
-
-        [Test]
-        [Order(512)]
-        public async Task FinishInvalidNewKeyPairRequestsAsync()
-        {
-            AssertIgnoreTestWithoutInvalidRegistration();
-            await ConnectGDSAsync(true).ConfigureAwait(false);
-            foreach (ApplicationTestData application in m_invalidApplicationTestSet)
-            {
-                await NUnit.Framework.Assert.ThatAsync(
-                    () => m_gdsClient.GDSClient.FinishRequestAsync(
-                            application.ApplicationRecord.ApplicationId,
-                            new NodeId(Guid.NewGuid())),
-                    Throws.Exception).ConfigureAwait(false);
-            }
         }
 
         [Test]
@@ -959,7 +945,7 @@ namespace Opc.Ua.Gds.Tests
                 else
                 {
                     csrCertificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(
-                        X509CertificateLoader.LoadCertificate(application.Certificate),
+                        CertificateFactory.Create(application.Certificate),
                         application.PrivateKey,
                         application.PrivateKeyPassword);
                 }
@@ -1014,13 +1000,13 @@ namespace Opc.Ua.Gds.Tests
                                     application,
                                     certificate,
                                     issuerCertificates);
-                                X509TestUtils.VerifyApplicationCertIntegrity(
+                                await X509TestUtils.VerifyApplicationCertIntegrityAsync(
                                     certificate,
                                     application.PrivateKey,
                                     application.PrivateKeyPassword,
                                     application.PrivateKeyFormat,
                                     issuerCertificates,
-                                    telemetry);
+                                    telemetry).ConfigureAwait(false);
                             }
                             else
                             {
@@ -1046,7 +1032,8 @@ namespace Opc.Ua.Gds.Tests
                 if (requestBusy)
                 {
                     Thread.Sleep(5000);
-                    Console.WriteLine("Waiting for certificate approval");
+                    ILogger logger = telemetry.CreateLogger<ClientTest>();
+                    logger.LogInformation("Waiting for certificate approval");
                 }
             } while (requestBusy);
         }
@@ -1303,7 +1290,7 @@ namespace Opc.Ua.Gds.Tests
             else
             {
                 csrCertificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(
-                    X509CertificateLoader.LoadCertificate(application.Certificate),
+                    CertificateFactory.Create(application.Certificate),
                     application.PrivateKey,
                     application.PrivateKeyPassword);
             }
@@ -1366,13 +1353,13 @@ namespace Opc.Ua.Gds.Tests
                                 application,
                                 certificate,
                                 issuerCertificates);
-                            X509TestUtils.VerifyApplicationCertIntegrity(
+                            await X509TestUtils.VerifyApplicationCertIntegrityAsync(
                                 certificate,
                                 application.PrivateKey,
                                 application.PrivateKeyPassword,
                                 application.PrivateKeyFormat,
                                 issuerCertificates,
-                                telemetry);
+                                telemetry).ConfigureAwait(false);
                         }
                         else
                         {
@@ -1397,7 +1384,8 @@ namespace Opc.Ua.Gds.Tests
                 if (requestBusy)
                 {
                     Thread.Sleep(5000);
-                    Console.WriteLine("Waiting for certificate approval");
+                    ILogger logger = telemetry.CreateLogger<ClientTest>();
+                    logger.LogInformation("Waiting for certificate approval");
                 }
             } while (requestBusy);
 
@@ -1483,13 +1471,13 @@ namespace Opc.Ua.Gds.Tests
                                 application,
                                 certificate,
                                 issuerCertificates);
-                            X509TestUtils.VerifyApplicationCertIntegrity(
+                            await X509TestUtils.VerifyApplicationCertIntegrityAsync(
                                 certificate,
                                 privateKey,
                                 application.PrivateKeyPassword,
                                 application.PrivateKeyFormat,
                                 issuerCertificates,
-                                telemetry);
+                                telemetry).ConfigureAwait(false);
                         }
                         else
                         {
@@ -1514,7 +1502,8 @@ namespace Opc.Ua.Gds.Tests
                 if (requestBusy)
                 {
                     Thread.Sleep(5000);
-                    Console.WriteLine("Waiting for certificate approval");
+                    ILogger logger = telemetry.CreateLogger<ClientTest>();
+                    logger.LogInformation("Waiting for certificate approval");
                 }
             } while (requestBusy);
 
@@ -1656,8 +1645,18 @@ namespace Opc.Ua.Gds.Tests
             {
                 (StatusCode certificateStatus, DateTime validityTime) = await m_gdsClient.GDSClient.CheckRevocationStatusAsync(
                     application.Certificate).ConfigureAwait(false);
-                Assert.IsTrue(
-                    ((StatusCode)certificateStatus.Code).ToString().StartsWith("BadCertificate"));
+                switch (certificateStatus.Code)
+                {
+                    case StatusCodes.BadCertificateInvalid:
+                    case StatusCodes.BadCertificateUntrusted:
+                    case StatusCodes.BadCertificateRevoked:
+                    case StatusCodes.BadCertificateRevocationUnknown:
+                        break;
+                    default:
+                        NUnit.Framework.Assert.Fail(
+                            $"Got unexpected status code {StatusCodes.GetBrowseName(certificateStatus.Code)}, but should get a BadCertificate* error");
+                        break;
+                }
                 Assert.NotNull(validityTime);
             }
         }

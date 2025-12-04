@@ -153,6 +153,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="certificate">The certificate.</param>
         /// <returns>The application URI.</returns>
+        [Obsolete("Use GetApplicationUrisFromCertificate instead. The certificate may contain more than one Uri.")]
         public static string GetApplicationUriFromCertificate(X509Certificate2 certificate)
         {
             // extract the alternate domains from the subject alternate name extension.
@@ -166,6 +167,69 @@ namespace Opc.Ua
             }
 
             return string.Empty;
+        }
+
+        /// <summary>
+        /// Extracts the application URIs specified in the certificate.
+        /// </summary>
+        /// <param name="certificate">The certificate.</param>
+        /// <returns>The application URIs.</returns>
+        public static IReadOnlyList<string> GetApplicationUrisFromCertificate(X509Certificate2 certificate)
+        {
+            // extract the alternate domains from the subject alternate name extension.
+            X509SubjectAltNameExtension alternateName = certificate
+                .FindExtension<X509SubjectAltNameExtension>();
+
+            // get the application uris.
+            if (alternateName != null && alternateName.Uris != null)
+            {
+                return alternateName.Uris;
+            }
+
+            return [];
+        }
+
+        /// <summary>
+        /// Checks if the specified application URI matches any of the URIs in the certificate.
+        /// </summary>
+        /// <param name="certificate">The certificate to check.</param>
+        /// <param name="applicationUri">The application URI to match.</param>
+        /// <returns>True if the application URI matches any URI in the certificate; otherwise, false.</returns>
+        public static bool CompareApplicationUriWithCertificate(X509Certificate2 certificate, string applicationUri)
+        {
+            return CompareApplicationUriWithCertificate(certificate, applicationUri, out _);
+        }
+
+        /// <summary>
+        /// Checks if the specified application URI matches any of the URIs in the certificate.
+        /// Returns the list of application URIs found in the certificate.
+        /// </summary>
+        /// <param name="certificate">The certificate to check.</param>
+        /// <param name="applicationUri">The application URI to match.</param>
+        /// <param name="certificateApplicationUris">The list of application URIs found in the certificate.</param>
+        /// <returns>True if the application URI matches any URI in the certificate; otherwise, false.</returns>
+        public static bool CompareApplicationUriWithCertificate(
+            X509Certificate2 certificate,
+            string applicationUri,
+            out IReadOnlyList<string> certificateApplicationUris)
+        {
+            certificateApplicationUris = GetApplicationUrisFromCertificate(certificate);
+
+            if (string.IsNullOrEmpty(applicationUri))
+            {
+                return false;
+            }
+
+            foreach (string certificateApplicationUri in certificateApplicationUris)
+            {
+                if (!string.IsNullOrEmpty(certificateApplicationUri) &&
+                    string.Equals(certificateApplicationUri, applicationUri, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -326,6 +390,34 @@ namespace Opc.Ua
         /// <summary>
         /// Compares string fields of two distinguished names.
         /// </summary>
+        /// <summary>
+        /// Normalizes distinguished name field abbreviations to handle platform-specific variations.
+        /// For example, Windows may use 'S=' while OpenSSL uses 'ST=' for stateOrProvinceName.
+        /// </summary>
+        /// <param name="field">The distinguished name field to normalize.</param>
+        /// <returns>The normalized field with standardized abbreviations.</returns>
+        private static string NormalizeDistinguishedNameField(string field)
+        {
+            if (string.IsNullOrEmpty(field))
+            {
+                return field;
+            }
+
+            // Handle state/province: S= -> ST=
+            // Windows may use S= while documentation and OpenSSL use ST=
+            if (field.StartsWith("S=", StringComparison.OrdinalIgnoreCase) &&
+                !field.StartsWith("ST=", StringComparison.OrdinalIgnoreCase))
+            {
+#if NET5_0_OR_GREATER
+                return string.Concat("ST=", field.AsSpan(2));
+#else
+                return "ST=" + field.Substring(2);
+#endif
+            }
+
+            return field;
+        }
+
         private static bool CompareDistinguishedNameFields(
             List<string> fields1,
             List<string> fields2)
@@ -333,13 +425,17 @@ namespace Opc.Ua
             // compare each.
             for (int ii = 0; ii < fields1.Count; ii++)
             {
+                // Normalize field abbreviations to handle platform-specific variations
+                string normalizedField1 = NormalizeDistinguishedNameField(fields1[ii]);
+                string normalizedField2 = NormalizeDistinguishedNameField(fields2[ii]);
+
                 StringComparison comparison = StringComparison.Ordinal;
-                if (fields1[ii].StartsWith("DC=", StringComparison.OrdinalIgnoreCase))
+                if (normalizedField1.StartsWith("DC=", StringComparison.OrdinalIgnoreCase))
                 {
                     // DC hostnames may have different case
                     comparison = StringComparison.OrdinalIgnoreCase;
                 }
-                if (!string.Equals(fields1[ii], fields2[ii], comparison))
+                if (!string.Equals(normalizedField1, normalizedField2, comparison))
                 {
                     return false;
                 }
@@ -565,14 +661,10 @@ namespace Opc.Ua
             X509Certificate2 certWithPrivateKey,
             bool throwOnError = false)
         {
-#if ECC_SUPPORT
             return X509PfxUtils.VerifyECDsaKeyPair(
                 certWithPublicKey,
                 certWithPrivateKey,
                 throwOnError);
-#else
-            throw new NotSupportedException();
-#endif
         }
 
         /// <summary>

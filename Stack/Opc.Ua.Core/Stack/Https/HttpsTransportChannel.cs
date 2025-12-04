@@ -10,6 +10,8 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+#nullable enable
+
 using System;
 using System.IO;
 using System.Net;
@@ -21,7 +23,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-
+using System.Diagnostics;
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
 using System.Security.Cryptography;
 #endif
@@ -72,7 +74,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Wraps the HttpsTransportChannel and provides an ITransportChannel implementation.
     /// </summary>
-    public class HttpsTransportChannel : ITransportChannel
+    public class HttpsTransportChannel : ITransportChannel, ISecureChannel
     {
         /// <summary>
         /// limit the number of concurrent service requests on the server
@@ -96,34 +98,27 @@ namespace Opc.Ua.Bindings
             GC.SuppressFinalize(this);
         }
 
-        /// <summary>
-        /// Override this method if you need to release resources.
-        /// </summary>
-        protected virtual void Dispose(bool disposing)
-        {
-        }
-
         /// <inheritdoc/>
         public string UriScheme { get; }
 
         /// <inheritdoc/>
         public TransportChannelFeatures SupportedFeatures =>
-            TransportChannelFeatures.Open |
-            TransportChannelFeatures.Reconnect |
-            TransportChannelFeatures.BeginSendRequest |
-            TransportChannelFeatures.SendRequestAsync;
+            TransportChannelFeatures.None;
 
         /// <inheritdoc/>
-        public EndpointDescription EndpointDescription => m_settings.Description;
+        public EndpointDescription EndpointDescription
+            => m_settings?.Description ?? throw BadNotConnected();
 
         /// <inheritdoc/>
-        public EndpointConfiguration EndpointConfiguration => m_settings.Configuration;
+        public EndpointConfiguration EndpointConfiguration
+            => m_settings?.Configuration ?? throw BadNotConnected();
 
         /// <inheritdoc/>
-        public IServiceMessageContext MessageContext => m_quotas.MessageContext;
+        public IServiceMessageContext MessageContext
+            => m_quotas?.MessageContext ?? throw BadNotConnected();
 
         /// <inheritdoc/>
-        public ChannelToken CurrentToken => null;
+        public ChannelToken? CurrentToken => null;
 
         /// <inheritdoc/>
         public event ChannelTokenActivatedEventHandler OnTokenActivated
@@ -140,376 +135,80 @@ namespace Opc.Ua.Bindings
         public int OperationTimeout { get; set; }
 
         /// <inheritdoc/>
-        public void Initialize(Uri url, TransportChannelSettings settings)
+        public ValueTask OpenAsync(
+            Uri url,
+            TransportChannelSettings settings,
+            CancellationToken ct)
         {
             SaveSettings(url, settings);
+            CreateHttpClient();
+            return default;
         }
 
-        /// <summary>
-        /// Initializes a secure channel with a waiting reverse connection.
-        /// </summary>
-        /// <param name="connection">The connection to use.</param>
-        /// <param name="settings">The settings to use when creating the channel.</param>
-        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        public void Initialize(
+        /// <inheritdoc/>
+        public ValueTask OpenAsync(
             ITransportWaitingConnection connection,
-            TransportChannelSettings settings)
+            TransportChannelSettings settings,
+            CancellationToken ct)
         {
             SaveSettings(connection.EndpointUrl, settings);
+            CreateHttpClient();
+            return default;
         }
 
         /// <inheritdoc/>
-        public void Open()
+        public ValueTask CloseAsync(CancellationToken ct)
         {
-            try
+            if (m_disposed)
             {
-                m_logger.LogInformation("{ChannelType} Open {Url}.", nameof(HttpsTransportChannel), m_url);
-
-                // auto validate server cert, if supported
-                // if unsupported, the TLS server cert must be trusted by a root CA
-                var handler = new HttpClientHandler
-                {
-                    ClientCertificateOptions = ClientCertificateOption.Manual,
-                    AllowAutoRedirect = false,
-                    MaxRequestContentBufferSize = m_quotas.MaxMessageSize
-                };
-
-                // limit the number of concurrent connections, if supported
-                PropertyInfo maxConnectionsPerServerProperty = handler.GetType()
-                    .GetProperty("MaxConnectionsPerServer");
-                maxConnectionsPerServerProperty?.SetValue(handler, kMaxConnectionsPerServer);
-
-                // send client certificate for servers that require TLS client authentication
-                if (m_settings.ClientCertificate != null)
-                {
-                    // prepare the server TLS certificate
-                    X509Certificate2 clientCertificate = m_settings.ClientCertificate;
-#if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
-                    try
-                    {
-                        // Create a copy of the certificate with the private key on platforms
-                        // which default to the ephemeral KeySet. Also a new certificate must be reloaded.
-                        // If the key fails to copy, its probably a non exportable key from the X509Store.
-                        // Then we can use the original certificate, the private key is already in the key store.
-                        clientCertificate = X509Utils.CreateCopyWithPrivateKey(
-                            m_settings.ClientCertificate,
-                            false);
-                    }
-                    catch (CryptographicException ce)
-                    {
-                        m_logger.LogTrace(
-                            "Copy of the private key for https was denied: {Message}",
-                            ce.Message);
-                    }
-#endif
-                    PropertyInfo certProperty = handler.GetType().GetProperty("ClientCertificates");
-                    if (certProperty != null)
-                    {
-                        var clientCertificates = (X509CertificateCollection)certProperty.GetValue(
-                            handler);
-                        _ = clientCertificates?.Add(clientCertificate);
-                    }
-                }
-
-                PropertyInfo propertyInfo = handler.GetType()
-                    .GetProperty("ServerCertificateCustomValidationCallback");
-                if (propertyInfo != null)
-                {
-                    Func<
-                        HttpRequestMessage,
-                        X509Certificate2,
-                        X509Chain,
-                        SslPolicyErrors,
-                        bool
-                    > serverCertificateCustomValidationCallback;
-
-                    try
-                    {
-                        serverCertificateCustomValidationCallback = (_, cert, chain, _) =>
-                        {
-                            try
-                            {
-                                var validationChain = new X509Certificate2Collection();
-                                if (chain != null && chain.ChainElements != null)
-                                {
-                                    int i = 0;
-                                    m_logger.LogInformation(
-                                        Utils.TraceMasks.Security,
-                                        "{ChannelType} Validate server chain:",
-                                        nameof(HttpsTransportChannel));
-                                    foreach (X509ChainElement element in chain.ChainElements)
-                                    {
-                                        m_logger.LogInformation(
-                                            Utils.TraceMasks.Security,
-                                            "{Index}: {Certificate}",
-                                            i,
-                                            element.Certificate.AsLogSafeString());
-                                        validationChain.Add(element.Certificate);
-                                        i++;
-                                    }
-                                }
-                                else
-                                {
-                                    m_logger.LogInformation(
-                                        Utils.TraceMasks.Security,
-                                        "{ChannelType} Validate Server Certificate: {Certificate}",
-                                        cert.AsLogSafeString(),
-                                        nameof(HttpsTransportChannel));
-                                    validationChain.Add(cert);
-                                }
-
-                                m_quotas.CertificateValidator?.Validate(validationChain);
-
-                                return true;
-                            }
-                            catch (Exception ex)
-                            {
-                                m_logger.LogError(
-                                    ex,
-                                    "{ChannelType} Failed to validate certificate.",
-                                    nameof(HttpsTransportChannel));
-                            }
-                            return false;
-                        };
-                        propertyInfo.SetValue(handler, serverCertificateCustomValidationCallback);
-
-                        m_logger.LogInformation(
-                            "{ChannelType} ServerCertificate callback enabled.",
-                            nameof(HttpsTransportChannel));
-                    }
-                    catch (PlatformNotSupportedException)
-                    {
-                        // client may throw if not supported (e.g. UWP)
-                        serverCertificateCustomValidationCallback = null;
-                    }
-                }
-
-                m_client = new HttpClient(handler);
-            }
-            catch (Exception ex)
-            {
-                m_logger.LogError(ex, "Exception creating HTTPS Client.");
-                throw;
-            }
-        }
-
-        /// <inheritdoc/>
-        public void Close()
-        {
-            m_logger.LogInformation("{ChannelType} Close {Url}.", nameof(HttpsTransportChannel), m_url);
-            m_client?.Dispose();
-        }
-
-        /// <inheritdoc/>
-        public Task CloseAsync(CancellationToken ct)
-        {
-            Close();
-            return Task.CompletedTask;
-        }
-
-        /// <summary>
-        /// The async result class for the Https transport.
-        /// </summary>
-        private class HttpsAsyncResult : AsyncResultBase
-        {
-            public IServiceRequest Request;
-            public HttpResponseMessage Response;
-
-            public HttpsAsyncResult(
-                AsyncCallback callback,
-                object callbackData,
-                int timeout,
-                IServiceRequest request,
-                HttpResponseMessage response)
-                : base(callback, callbackData, timeout)
-            {
-                Request = request;
-                Response = response;
-            }
-        }
-
-        /// <inheritdoc/>
-        public IAsyncResult BeginSendRequest(
-            IServiceRequest request,
-            AsyncCallback callback,
-            object callbackData)
-        {
-            HttpResponseMessage response = null;
-
-            try
-            {
-                var content = new ByteArrayContent(
-                    BinaryEncoder.EncodeMessage(request, m_quotas.MessageContext));
-                content.Headers.ContentType = s_mediaTypeHeaderValue;
-                if (EndpointDescription?.SecurityPolicyUri != null &&
-                    !string.Equals(
-                        EndpointDescription.SecurityPolicyUri,
-                        SecurityPolicies.None,
-                        StringComparison.Ordinal))
-                {
-                    content.Headers.Add(
-                        Profiles.HttpsSecurityPolicyHeader,
-                        EndpointDescription.SecurityPolicyUri);
-                }
-
-                var result = new HttpsAsyncResult(
-                    callback,
-                    callbackData,
-                    OperationTimeout,
-                    request,
-                    null);
-
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        using var cts = new CancellationTokenSource(OperationTimeout);
-                        response = await m_client.PostAsync(m_url, content, cts.Token)
-                            .ConfigureAwait(false);
-                        response.EnsureSuccessStatusCode();
-                    }
-                    catch (Exception ex)
-                    {
-                        m_logger.LogError(ex, "Exception sending HTTPS request.");
-                        result.Exception = ex;
-                        response = null;
-                    }
-                    result.Response = response;
-                    result.OperationCompleted();
-                });
-
-                return result;
-            }
-            catch (Exception ex)
-            {
-                m_logger.LogError(ex, "Exception sending HTTPS request.");
-                var result = new HttpsAsyncResult(
-                    callback,
-                    callbackData,
-                    OperationTimeout,
-                    request,
-                    response)
-                {
-                    Exception = ex
-                };
-                result.OperationCompleted();
-                return result;
-            }
-        }
-
-        /// <inheritdoc/>
-        public IServiceResponse EndSendRequest(IAsyncResult result)
-        {
-            if (result is not HttpsAsyncResult result2)
-            {
-                throw new ArgumentException("Invalid result object passed.", nameof(result));
+                throw new ObjectDisposedException(nameof(HttpsTransportChannel));
             }
 
-            try
-            {
-                result2.WaitForComplete();
-                if (result2.Response != null)
-                {
-#if NET6_0_OR_GREATER
-                    Stream responseContent = result2.Response.Content.ReadAsStream();
-#else
-                    Stream responseContent = result2.Response.Content.ReadAsStreamAsync()
-                        .GetAwaiter()
-                        .GetResult();
-#endif
-                    return BinaryDecoder.DecodeMessage(
-                        responseContent,
-                        null,
-                        m_quotas.MessageContext) as
-                        IServiceResponse;
-                }
-            }
-            catch (Exception ex)
-            {
-                m_logger.LogError(ex, "Exception reading HTTPS response.");
-                result2.Exception = ex;
-            }
-            return result2 as IServiceResponse;
+            m_logger.LogInformation(
+                "{ChannelType} Closing http channel with {Url}.",
+                nameof(HttpsTransportChannel),
+                m_url);
+
+            Utils.SilentDispose(m_client);
+            m_client = null;
+
+            return default;
         }
 
         /// <inheritdoc/>
-        public Task<IServiceResponse> EndSendRequestAsync(IAsyncResult result, CancellationToken ct)
+        public ValueTask ReconnectAsync(
+            ITransportWaitingConnection? connection,
+            CancellationToken ct)
         {
-            throw new NotImplementedException();
+            throw ServiceResultException.Create(
+                StatusCodes.BadNotSupported,
+                "{ChannelType} does not support reconnect.",
+                nameof(HttpsTransportChannel));
         }
 
         /// <inheritdoc/>
-        /// <remarks>Not implemented here.</remarks>
-        public IAsyncResult BeginOpen(AsyncCallback callback, object callbackData)
-        {
-            throw new NotImplementedException();
-        }
-
-        /// <inheritdoc/>
-        /// <remarks>Not implemented here.</remarks>
-        public void EndOpen(IAsyncResult result)
-        {
-            throw new NotImplementedException();
-        }
-
-        /// <inheritdoc/>
-        /// <remarks>Not implemented here.</remarks>
-        public void Reconnect()
-        {
-            m_logger.LogInformation("HttpsTransportChannel RECONNECT: Reconnecting to {Url}.", m_url);
-        }
-
-        /// <inheritdoc/>
-        /// <remarks>Not implemented here.</remarks>
-        void ITransportChannel.Reconnect(ITransportWaitingConnection connection)
-        {
-            throw new NotImplementedException();
-        }
-
-        /// <inheritdoc/>
-        /// <remarks>Not implemented here.</remarks>
-        public IAsyncResult BeginReconnect(AsyncCallback callback, object callbackData)
-        {
-            throw new NotImplementedException();
-        }
-
-        /// <inheritdoc/>
-        /// <remarks>Not implemented here.</remarks>
-        public void EndReconnect(IAsyncResult result)
-        {
-            throw new NotImplementedException();
-        }
-
-        /// <inheritdoc/>
-        /// <remarks>Not implemented here.</remarks>
-        public IAsyncResult BeginClose(AsyncCallback callback, object callbackData)
-        {
-            throw new NotImplementedException();
-        }
-
-        /// <inheritdoc/>
-        /// <remarks>Not implemented here.</remarks>
-        public void EndClose(IAsyncResult result)
-        {
-            throw new NotImplementedException();
-        }
-
-        /// <inheritdoc/>
-        public IServiceResponse SendRequest(IServiceRequest request)
-        {
-            IAsyncResult result = BeginSendRequest(request, null, null);
-            return EndSendRequest(result);
-        }
-
-        /// <inheritdoc/>
-        public async Task<IServiceResponse> SendRequestAsync(
+        public async ValueTask<IServiceResponse> SendRequestAsync(
             IServiceRequest request,
             CancellationToken ct)
         {
+            if (m_disposed)
+            {
+                // right now this can happen if Dispose is called
+                // Before channel users (e.g. keep alive requests)
+                // are cancelled and stopped.
+                // TODO: Areas like this should be fixed eventually.
+                throw BadNotConnected();
+                // throw new ObjectDisposedException(nameof(HttpsTransportChannel));
+            }
+            IServiceMessageContext context = m_quotas?.MessageContext ?? throw BadNotConnected();
+            HttpClient client = m_client ?? throw BadNotConnected();
+            using Activity? activity = m_telemetry.StartActivity();
+            using var cts = new CancellationTokenSource(OperationTimeout);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, ct);
             try
             {
                 var content = new ByteArrayContent(
-                    BinaryEncoder.EncodeMessage(request, m_quotas.MessageContext));
+                    BinaryEncoder.EncodeMessage(request, context));
                 content.Headers.ContentType = s_mediaTypeHeaderValue;
                 if (EndpointDescription?.SecurityPolicyUri != null &&
                     !string.Equals(
@@ -522,15 +221,11 @@ namespace Opc.Ua.Bindings
                         EndpointDescription.SecurityPolicyUri);
                 }
 
-                HttpResponseMessage response;
-                using (var cts = new CancellationTokenSource(OperationTimeout))
-                using (var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
-                    cts.Token,
-                    ct))
-                {
-                    response = await m_client.PostAsync(m_url, content, linkedCts.Token)
-                        .ConfigureAwait(false);
-                }
+                HttpResponseMessage response = await client.PostAsync(
+                    m_url,
+                    content,
+                    linkedCts.Token).ConfigureAwait(false);
+
                 response.EnsureSuccessStatusCode();
 
 #if NET6_0_OR_GREATER
@@ -540,16 +235,20 @@ namespace Opc.Ua.Bindings
                 Stream responseContent = await response.Content.ReadAsStreamAsync()
                     .ConfigureAwait(false);
 #endif
-                return BinaryDecoder.DecodeMessage(
-                    responseContent,
-                    null,
-                    m_quotas.MessageContext) as IServiceResponse;
+                if (BinaryDecoder.DecodeMessage(responseContent, null, context)
+                    is IServiceResponse serviceResponse)
+                {
+                    return serviceResponse;
+                }
+                throw ServiceResultException.Create(
+                    StatusCodes.BadUnknownResponse,
+                    "Response failed to decode");
             }
             catch (HttpRequestException hre)
             {
                 if (hre.InnerException is WebException webex)
                 {
-                    StatusCode statusCode = StatusCodes.BadUnknownResponse;
+                    StatusCode statusCode;
                     switch (webex.Status)
                     {
                         case WebExceptionStatus.Timeout:
@@ -559,6 +258,9 @@ namespace Opc.Ua.Bindings
                         case WebExceptionStatus.ConnectFailure:
                             statusCode = StatusCodes.BadNotConnected;
                             break;
+                        default:
+                            statusCode = StatusCodes.BadUnknownResponse;
+                            break;
                     }
                     m_logger.LogError(webex, "Exception sending HTTPS request.");
                     throw ServiceResultException.Create((uint)statusCode, webex.Message);
@@ -566,17 +268,42 @@ namespace Opc.Ua.Bindings
                 m_logger.LogError(hre, "Exception sending HTTPS request.");
                 throw;
             }
-            catch (TaskCanceledException tce)
+            catch (OperationCanceledException e)
             {
-                m_logger.LogError(tce, "Send request cancelled.");
-                throw ServiceResultException.Create(
-                    StatusCodes.BadRequestTimeout,
-                    "Https request was cancelled.");
+                if (cts.IsCancellationRequested)
+                {
+                    m_logger.LogError(
+                        e,
+                        "Send request timed out after {OperationTimeout}ms.",
+                        OperationTimeout);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadRequestTimeout,
+                        "Https request timed out after {0}.",
+                        OperationTimeout);
+                }
+                throw;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not ServiceResultException)
             {
                 m_logger.LogError(ex, "Exception sending HTTPS request.");
-                throw ServiceResultException.Create(StatusCodes.BadUnknownResponse, ex.Message);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadUnknownResponse,
+                    ex,
+                    "Error sending request: {0}",
+                    ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Override this method if you need to release resources.
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing && !m_disposed)
+            {
+                m_disposed = true;
+                Utils.SilentDispose(m_client);
+                m_client = null;
             }
         }
 
@@ -585,8 +312,13 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="url">The server url.</param>
         /// <param name="settings">The settings for the transport channel.</param>
+        /// <exception cref="ObjectDisposedException"></exception>
         private void SaveSettings(Uri url, TransportChannelSettings settings)
         {
+            if (m_disposed)
+            {
+                throw new ObjectDisposedException(nameof(HttpsTransportChannel));
+            }
             m_url = new Uri(url.ToString());
             // remove the opc. prefix, the https client can not handle it
             if (m_url.Scheme == Utils.UriSchemeOpcHttps)
@@ -618,10 +350,146 @@ namespace Opc.Ua.Bindings
             };
         }
 
-        private Uri m_url;
-        private TransportChannelSettings m_settings;
-        private ChannelQuotas m_quotas;
-        private HttpClient m_client;
+        /// <summary>
+        /// Open the channel by creating the http client
+        /// </summary>
+        private void CreateHttpClient()
+        {
+            Debug.Assert(m_quotas != null);
+            Debug.Assert(m_settings != null);
+            try
+            {
+                m_logger.LogInformation("{ChannelType} Open {Url}.", nameof(HttpsTransportChannel), m_url);
+
+                // auto validate server cert, if supported
+                // if unsupported, the TLS server cert must be trusted by a root CA
+                var handler = new HttpClientHandler
+                {
+                    ClientCertificateOptions = ClientCertificateOption.Manual,
+                    AllowAutoRedirect = false,
+                    MaxRequestContentBufferSize = m_quotas!.MaxMessageSize
+                };
+
+                // limit the number of concurrent connections, if supported
+                handler.MaxConnectionsPerServer = kMaxConnectionsPerServer;
+
+                // send client certificate for servers that require TLS client authentication
+                if (m_settings!.ClientCertificate != null)
+                {
+                    // prepare the server TLS certificate
+                    X509Certificate2 clientCertificate = m_settings.ClientCertificate;
+#if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
+                    try
+                    {
+                        // Create a copy of the certificate with the private key on platforms
+                        // which default to the ephemeral KeySet. Also a new certificate must be reloaded.
+                        // If the key fails to copy, its probably a non exportable key from the X509Store.
+                        // Then we can use the original certificate, the private key is already in the key store.
+                        clientCertificate = X509Utils.CreateCopyWithPrivateKey(
+                            m_settings.ClientCertificate,
+                            false);
+                    }
+                    catch (CryptographicException ce)
+                    {
+                        m_logger.LogError(ce, "Copy of the private key for https was denied");
+                    }
+#endif
+                    handler.ClientCertificates.Add(clientCertificate);
+                }
+
+                Func<
+                    HttpRequestMessage,
+                    X509Certificate2,
+                    X509Chain,
+                    SslPolicyErrors,
+                    bool
+                >? serverCertificateCustomValidationCallback;
+
+                try
+                {
+                    serverCertificateCustomValidationCallback = (_, cert, chain, _) =>
+                    {
+                        try
+                        {
+                            var validationChain = new X509Certificate2Collection();
+                            if (chain != null && chain.ChainElements != null)
+                            {
+                                int i = 0;
+                                m_logger.LogInformation(
+                                    Utils.TraceMasks.Security,
+                                    "{ChannelType} Validate server chain:",
+                                    nameof(HttpsTransportChannel));
+                                foreach (X509ChainElement element in chain.ChainElements)
+                                {
+                                    m_logger.LogInformation(
+                                        Utils.TraceMasks.Security,
+                                        "{Index}: {Certificate}",
+                                        i,
+                                        element.Certificate.AsLogSafeString());
+                                    validationChain.Add(element.Certificate);
+                                    i++;
+                                }
+                            }
+                            else
+                            {
+                                m_logger.LogInformation(
+                                    Utils.TraceMasks.Security,
+                                    "{ChannelType} Validate Server Certificate: {Certificate}",
+                                    cert.AsLogSafeString(),
+                                    nameof(HttpsTransportChannel));
+                                validationChain.Add(cert);
+                            }
+
+                            m_quotas.CertificateValidator?.ValidateAsync(validationChain, default).GetAwaiter().GetResult();
+
+                            return true;
+                        }
+                        catch (Exception ex)
+                        {
+                            m_logger.LogError(
+                                ex,
+                                "{ChannelType} Failed to validate certificate.",
+                                nameof(HttpsTransportChannel));
+                        }
+                        return false;
+                    };
+
+                    handler.ServerCertificateCustomValidationCallback = serverCertificateCustomValidationCallback!;
+
+                    m_logger.LogInformation(
+                        "{ChannelType} ServerCertificate callback enabled.",
+                        nameof(HttpsTransportChannel));
+                }
+                catch (PlatformNotSupportedException)
+                {
+                    // client may throw if not supported (e.g. UWP)
+                    serverCertificateCustomValidationCallback = null;
+                }
+
+#pragma warning disable CA5400 // HttpClient is created without enabling CheckCertificateRevocationList
+                m_client = new HttpClient(handler);
+#pragma warning restore CA5400 // HttpClient is created without enabling CheckCertificateRevocationList
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogError(ex, "Exception creating HTTPS Client.");
+                throw;
+            }
+        }
+
+        private ServiceResultException BadNotConnected()
+        {
+            return ServiceResultException.Create(
+                StatusCodes.BadNotConnected,
+                "{0} not open.",
+                nameof(HttpsTransportChannel));
+        }
+
+        private Uri? m_url;
+        private TransportChannelSettings? m_settings;
+        private ChannelQuotas? m_quotas;
+        private HttpClient? m_client;
+        private bool m_disposed;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
 

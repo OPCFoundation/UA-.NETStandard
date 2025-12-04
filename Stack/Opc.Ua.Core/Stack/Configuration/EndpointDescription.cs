@@ -54,20 +54,14 @@ namespace Opc.Ua
             get
             {
                 if (!string.IsNullOrEmpty(EndpointUrl) &&
-                    EndpointUrl.StartsWith(Utils.UriSchemeOpcTcp))
+                    EndpointUrl.StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
                 {
                     return BinaryEncodingSupport.Required;
                 }
 
                 TransportProfileUri = Profiles.NormalizeUri(TransportProfileUri);
-
-                switch (TransportProfileUri)
-                {
-                    case Profiles.HttpsBinaryTransport:
-                        return BinaryEncodingSupport.Required;
-                }
-
-                return BinaryEncodingSupport.None;
+                return TransportProfileUri == Profiles.HttpsBinaryTransport ?
+                    BinaryEncodingSupport.Required : BinaryEncodingSupport.None;
             }
         }
 

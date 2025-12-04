@@ -35,7 +35,7 @@ namespace Opc.Ua.Client.ComplexTypes
     /// Attribute for type ids of a structure definition.
     /// </summary>
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
-    public class StructureTypeIdAttribute : Attribute
+    public sealed class StructureTypeIdAttribute : Attribute
     {
         /// <summary>
         /// The complex type id attribute.

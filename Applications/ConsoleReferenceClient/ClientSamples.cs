@@ -258,7 +258,7 @@ namespace Quickstarts
             try
             {
                 // Create a Browser object
-                var browser = new Browser(session, m_telemetry)
+                var browser = new Browser(session)
                 {
                     // Set browse parameters
                     BrowseDirection = BrowseDirection.Forward,
@@ -1192,7 +1192,7 @@ namespace Quickstarts
         /// <summary>
         /// Output all values as JSON.
         /// </summary>
-        public async Task<(DataValueCollection, IList<ServiceResult>)> ReadAllValuesAsync(
+        public async Task<ResultSet<DataValue>> ReadAllValuesAsync(
             IUAClient uaClient,
             NodeIdCollection variableIds,
             CancellationToken ct = default)
@@ -1278,7 +1278,7 @@ namespace Quickstarts
                 }
             } while (retrySingleRead);
 
-            return (values, errors);
+            return ResultSet.From(values, errors);
         }
 
         /// <summary>

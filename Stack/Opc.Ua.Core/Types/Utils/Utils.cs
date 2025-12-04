@@ -11,7 +11,6 @@
 */
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -21,7 +20,6 @@ using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -30,6 +28,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 #if !NETFRAMEWORK
+using System.Runtime.InteropServices;
 using Opc.Ua.Security.Certificates;
 #endif
 
@@ -219,9 +218,9 @@ namespace Opc.Ua
             {
                 case "CommonApplicationData":
                     return "ProgramData";
+                default:
+                    return input;
             }
-
-            return input;
         }
 
         /// <summary>
@@ -584,43 +583,20 @@ namespace Opc.Ua
         /// </remarks>
         public static void SilentDispose(IDisposable disposable)
         {
-            try
-            {
-                disposable?.Dispose();
-            }
-#if DEBUG
-            catch (Exception e)
-            {
-                Debug.WriteLine("Error {0} disposing object: {1}", e, disposable.GetType().Name);
-            }
-#else
-            catch { }
-#endif
+            CoreUtils.SilentDispose(disposable);
         }
 
         /// <summary>
         /// The earliest time that can be represented on with UA date/time values.
         /// </summary>
-        public static DateTime TimeBase { get; } = new(1601, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        public static DateTime TimeBase => CoreUtils.TimeBase;
 
         /// <summary>
         /// Normalize a DateTime to Opc Ua UniversalTime.
         /// </summary>
         public static DateTime ToOpcUaUniversalTime(DateTime value)
         {
-            if (value <= DateTime.MinValue)
-            {
-                return DateTime.MinValue;
-            }
-            if (value >= DateTime.MaxValue)
-            {
-                return DateTime.MaxValue;
-            }
-            if (value.Kind != DateTimeKind.Utc)
-            {
-                return value.ToUniversalTime();
-            }
-            return value;
+            return CoreUtils.ToOpcUaUniversalTime(value);
         }
 
         /// <summary>
@@ -805,31 +781,7 @@ namespace Opc.Ua
         /// </summary>
         public static string EscapeUri(string uri)
         {
-            if (!string.IsNullOrWhiteSpace(uri))
-            {
-                // always use back compat: for not well formed Uri, fall back to legacy formatting behavior - see #2793, #2826
-                // problem with Uri.TryCreate(uri.Replace(";", "%3b"), UriKind.Absolute, out Uri validUri);
-                // -> uppercase letters will later be lowercase (and therefore the uri will later be non-matching)
-                var buffer = new StringBuilder();
-                foreach (char ch in uri)
-                {
-                    switch (ch)
-                    {
-                        case ';':
-                        case '%':
-                            buffer.AppendFormat(
-                                CultureInfo.InvariantCulture,
-                                "%{0:X2}",
-                                Convert.ToInt16(ch));
-                            break;
-                        default:
-                            buffer.Append(ch);
-                            break;
-                    }
-                }
-                return buffer.ToString();
-            }
-            return string.Empty;
+            return CoreUtils.EscapeUri(uri);
         }
 
         /// <summary>
@@ -837,15 +789,7 @@ namespace Opc.Ua
         /// </summary>
         public static string UnescapeUri(ReadOnlySpan<char> uri)
         {
-            if (!uri.IsWhiteSpace())
-            {
-#if NET9_0_OR_GREATER
-                return Uri.UnescapeDataString(uri);
-#else
-                return Uri.UnescapeDataString(uri.ToString());
-#endif
-            }
-            return string.Empty;
+            return CoreUtils.UnescapeUri(uri);
         }
 
         /// <summary>
@@ -874,12 +818,7 @@ namespace Opc.Ua
         /// </summary>
         public static string UnescapeUri(string uri)
         {
-            if (!string.IsNullOrWhiteSpace(uri))
-            {
-                return Uri.UnescapeDataString(uri);
-            }
-
-            return string.Empty;
+            return CoreUtils.UnescapeUri(uri);
         }
 
         /// <summary>
@@ -1106,36 +1045,7 @@ namespace Opc.Ua
         /// </remarks>
         public static Array FlattenArray(Array array)
         {
-            var flatArray = Array.CreateInstance(array.GetType().GetElementType(), array.Length);
-
-            int[] indexes = new int[array.Rank];
-            int[] dimensions = new int[array.Rank];
-
-            for (int jj = array.Rank - 1; jj >= 0; jj--)
-            {
-                dimensions[jj] = array.GetLength(array.Rank - jj - 1);
-            }
-
-            for (int ii = 0; ii < array.Length; ii++)
-            {
-                indexes[array.Rank - 1] = ii % dimensions[0];
-
-                for (int jj = 1; jj < array.Rank; jj++)
-                {
-                    int multiplier = 1;
-
-                    for (int kk = 0; kk < jj; kk++)
-                    {
-                        multiplier *= dimensions[kk];
-                    }
-
-                    indexes[array.Rank - jj - 1] = ii / multiplier % dimensions[jj];
-                }
-
-                flatArray.SetValue(array.GetValue(indexes), ii);
-            }
-
-            return flatArray;
+            return CoreUtils.FlattenArray(array);
         }
 
         /// <summary>
@@ -1144,61 +1054,18 @@ namespace Opc.Ua
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
         public static string ToHexString(byte[] buffer, bool invertEndian = false)
         {
-            if (buffer == null || buffer.Length == 0)
-            {
-                return string.Empty;
-            }
-
-            return ToHexString(new ReadOnlySpan<byte>(buffer), invertEndian);
+            return CoreUtils.ToHexString(buffer, invertEndian);
         }
 
         /// <summary>
         /// Converts a buffer to a hexadecimal string.
         /// </summary>
         public static string ToHexString(ReadOnlySpan<byte> buffer, bool invertEndian = false)
-        {
-            if (buffer.Length == 0)
-            {
-                return string.Empty;
-            }
 #else
         public static string ToHexString(byte[] buffer, bool invertEndian = false)
+#endif
         {
-            if (buffer == null || buffer.Length == 0)
-            {
-                return string.Empty;
-            }
-#endif
-
-#if NET6_0_OR_GREATER
-            if (!invertEndian)
-            {
-                return Convert.ToHexString(buffer);
-            }
-            else
-#endif
-            {
-                var builder = new StringBuilder(buffer.Length * 2);
-
-#if !NET6_0_OR_GREATER
-                if (!invertEndian)
-                {
-                    for (int ii = 0; ii < buffer.Length; ii++)
-                    {
-                        builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
-                    }
-                }
-                else
-#endif
-                {
-                    for (int ii = buffer.Length - 1; ii >= 0; ii--)
-                    {
-                        builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
-                    }
-                }
-
-                return builder.ToString();
-            }
+            return CoreUtils.ToHexString(buffer, invertEndian);
         }
 
         /// <summary>
@@ -1276,7 +1143,7 @@ namespace Opc.Ua
         /// </summary>
         public static string Format(string text, params object[] args)
         {
-            return string.Format(CultureInfo.InvariantCulture, text, args);
+            return CoreUtils.Format(text, args);
         }
 
         /// <summary>
@@ -1292,18 +1159,13 @@ namespace Opc.Ua
             try
             {
                 var culture = new CultureInfo(localeId);
-
-                if (culture != null)
-                {
-                    return true;
-                }
+                return true;
             }
             catch
             {
                 // do nothing.
+                return false;
             }
-
-            return false;
         }
 
         /// <summary>
@@ -1401,7 +1263,7 @@ namespace Opc.Ua
         public static T Clone<T>(T value)
             where T : class
         {
-            return (T)Clone((object)value);
+            return CoreUtils.Clone(value);
         }
 
         /// <summary>
@@ -1410,123 +1272,7 @@ namespace Opc.Ua
         /// <exception cref="NotSupportedException"></exception>
         public static object Clone(object value)
         {
-            if (value == null)
-            {
-                return null;
-            }
-
-            Type type = value.GetType();
-
-            // nothing to do for value types.
-            if (type.GetTypeInfo().IsPrimitive)
-            {
-                return value;
-            }
-
-            // strings are special a reference type that does not need to be copied.
-            if (type == typeof(string))
-            {
-                return value;
-            }
-
-            // Guid are special a reference type that does not need to be copied.
-            if (type == typeof(Guid))
-            {
-                return value;
-            }
-
-            // copy arrays, any dimension.
-            if (value is Array array)
-            {
-                if (array.Rank == 1)
-                {
-                    var clone = Array.CreateInstance(type.GetElementType(), array.Length);
-                    for (int ii = 0; ii < array.Length; ii++)
-                    {
-                        clone.SetValue(Clone(array.GetValue(ii)), ii);
-                    }
-                    return clone;
-                }
-                else
-                {
-                    int[] arrayRanks = new int[array.Rank];
-                    int[] arrayIndex = new int[array.Rank];
-                    for (int ii = 0; ii < array.Rank; ii++)
-                    {
-                        arrayRanks[ii] = array.GetLength(ii);
-                        arrayIndex[ii] = 0;
-                    }
-                    var clone = Array.CreateInstance(type.GetElementType(), arrayRanks);
-                    for (int ii = 0; ii < array.Length; ii++)
-                    {
-                        clone.SetValue(Clone(array.GetValue(arrayIndex)), arrayIndex);
-
-                        // iterate the index array
-                        for (int ix = 0; ix < array.Rank; ix++)
-                        {
-                            arrayIndex[ix]++;
-                            if (arrayIndex[ix] < arrayRanks[ix])
-                            {
-                                break;
-                            }
-                            arrayIndex[ix] = 0;
-                        }
-                    }
-                    return clone;
-                }
-            }
-
-            // use ICloneable if supported
-            // must be checked before value type due to some
-            // structs implementing ICloneable
-            if (value is ICloneable cloneable)
-            {
-                return cloneable.Clone();
-            }
-
-            // nothing to do for other value types.
-            if (type.GetTypeInfo().IsValueType)
-            {
-                return value;
-            }
-
-            // copy XmlNode.
-            if (value is XmlNode node)
-            {
-                return node.CloneNode(true);
-            }
-
-            //try to find the MemberwiseClone method by reflection.
-            MethodInfo memberwiseCloneMethod = type.GetMethod(
-                "MemberwiseClone",
-                BindingFlags.Public | BindingFlags.Instance);
-            if (memberwiseCloneMethod != null)
-            {
-                object clone = memberwiseCloneMethod.Invoke(value, null);
-                if (clone != null)
-                {
-                    Debug.WriteLine("MemberwiseClone without ICloneable in class '{0}'", type.FullName);
-                    return clone;
-                }
-            }
-
-            //try to find the Clone method by reflection.
-            MethodInfo cloneMethod = type.GetMethod(
-                "Clone",
-                BindingFlags.Public | BindingFlags.Instance);
-            if (cloneMethod != null)
-            {
-                object clone = cloneMethod.Invoke(value, null);
-                if (clone != null)
-                {
-                    Debug.WriteLine("Clone without ICloneable in class '{0}'", type.FullName);
-                    return clone;
-                }
-            }
-
-            // don't know how to clone object.
-            throw new NotSupportedException(
-                Format("Don't know how to clone objects of type '{0}'", type.FullName));
+            return CoreUtils.Clone(value);
         }
 
         /// <summary>
@@ -1581,21 +1327,7 @@ namespace Opc.Ua
         /// </summary>
         public static bool IsEqual(DateTime time1, DateTime time2)
         {
-            DateTime utcTime1 = ToOpcUaUniversalTime(time1);
-            DateTime utcTime2 = ToOpcUaUniversalTime(time2);
-
-            // values smaller than Timebase can not be binary encoded and are considered equal
-            if (utcTime1 <= TimeBase && utcTime2 <= TimeBase)
-            {
-                return true;
-            }
-
-            if (utcTime1 >= DateTime.MaxValue && utcTime2 >= DateTime.MaxValue)
-            {
-                return true;
-            }
-
-            return utcTime1.CompareTo(utcTime2) == 0;
+            return CoreUtils.IsEqual(time1, time2);
         }
 
         /// <summary>
@@ -1605,24 +1337,7 @@ namespace Opc.Ua
         public static bool IsEqual<T>(T value1, T value2)
             where T : IEquatable<T>
         {
-            // check for reference equality.
-            if (ReferenceEquals(value1, value2))
-            {
-                return true;
-            }
-
-            if (value1 is null)
-            {
-                if (value2 is not null)
-                {
-                    return value2.Equals(value1);
-                }
-
-                return true;
-            }
-
-            // use IEquatable comparer
-            return value1.Equals(value2);
+            return CoreUtils.IsEqual(value1, value2);
         }
 
         /// <summary>
@@ -1632,18 +1347,7 @@ namespace Opc.Ua
         public static bool IsEqual<T>(IEnumerable<T> value1, IEnumerable<T> value2)
             where T : IEquatable<T>
         {
-            // check for reference equality.
-            if (ReferenceEquals(value1, value2))
-            {
-                return true;
-            }
-
-            if (value1 is null || value2 is null)
-            {
-                return false;
-            }
-
-            return value1.SequenceEqual(value2);
+            return CoreUtils.IsEqual(value1, value2);
         }
 
         /// <summary>
@@ -1672,43 +1376,16 @@ namespace Opc.Ua
         public static bool IsEqual<T>(T[] value1, T[] value2)
             where T : unmanaged, IEquatable<T>
         {
-            // check for reference equality.
-            if (ReferenceEquals(value1, value2))
-            {
-                return true;
-            }
-
-            if (value1 is null || value2 is null)
-            {
-                return false;
-            }
-
-            return value1.SequenceEqual(value2);
+            return CoreUtils.IsEqual(value1, value2);
         }
 
 #if NETFRAMEWORK
-        [DllImport("msvcrt.dll", CallingConvention = CallingConvention.Cdecl)]
-        private static extern int memcmp(byte[] b1, byte[] b2, long count);
-
         /// <summary>
         /// Fast memcpy version of byte[] compare.
         /// </summary>
         public static bool IsEqual(byte[] value1, byte[] value2)
         {
-            // check for reference equality.
-            if (ReferenceEquals(value1, value2))
-            {
-                return true;
-            }
-
-            if (value1 is null || value2 is null)
-            {
-                return false;
-            }
-
-            // Validate buffers are the same length.
-            // This also ensures that the count does not exceed the length of either buffer.
-            return value1.Length == value2.Length && memcmp(value1, value2, value1.Length) == 0;
+            return CoreUtils.IsEqual(value1, value2);
         }
 #endif
 
@@ -1717,390 +1394,7 @@ namespace Opc.Ua
         /// </summary>
         public static bool IsEqual(object value1, object value2)
         {
-            // check for reference equality.
-            if (ReferenceEquals(value1, value2))
-            {
-                return true;
-            }
-
-            // check for null values.
-            if (value1 is null)
-            {
-                if (value2 is not null)
-                {
-                    return value2.Equals(value1);
-                }
-
-                return true;
-            }
-
-            // check for null values.
-            if (value2 is null)
-            {
-                return value1.Equals(value2);
-            }
-
-            // check for encodeable objects.
-            if (value1 is IEncodeable encodeable1)
-            {
-                if (value2 is not IEncodeable encodeable2)
-                {
-                    return false;
-                }
-
-                return encodeable1.IsEqual(encodeable2);
-            }
-
-            // check that data types are not the same.
-            if (value1.GetType() != value2.GetType())
-            {
-                return value1.Equals(value2);
-            }
-
-            // check for DateTime objects
-            if (value1 is DateTime time1)
-            {
-                return IsEqual(time1, (DateTime)value2);
-            }
-
-            // check for compareable objects.
-            if (value1 is IComparable comparable1)
-            {
-                return comparable1.CompareTo(value2) == 0;
-            }
-
-            // check for XmlElement objects.
-            if (value1 is XmlElement element1)
-            {
-                if (value2 is not XmlElement element2)
-                {
-                    return false;
-                }
-
-                return element1.OuterXml == element2.OuterXml;
-            }
-
-            // check for arrays.
-            if (value1 is Array array1)
-            {
-                // arrays are greater than non-arrays.
-                if (value2 is not Array array2)
-                {
-                    return false;
-                }
-
-                // shorter arrays are less than longer arrays.
-                if (array1.Length != array2.Length)
-                {
-                    return false;
-                }
-
-                // compare the array dimension
-                if (array1.Rank != array2.Rank)
-                {
-                    return false;
-                }
-
-                // compare each rank.
-                for (int ii = 0; ii < array1.Rank; ii++)
-                {
-                    if (array1.GetLowerBound(ii) != array2.GetLowerBound(ii) ||
-                        array1.GetUpperBound(ii) != array2.GetUpperBound(ii))
-                    {
-                        return false;
-                    }
-                }
-
-                // handle byte[] special case fast
-                if (array1 is byte[] byteArray1 && array2 is byte[] byteArray2)
-                {
-#if NETFRAMEWORK
-                    return memcmp(byteArray1, byteArray2, byteArray1.Length) == 0;
-#else
-                    return byteArray1.SequenceEqual(byteArray2);
-#endif
-                }
-
-                IEnumerator enumerator1 = array1.GetEnumerator();
-                IEnumerator enumerator2 = array2.GetEnumerator();
-
-                // compare each element.
-                while (enumerator1.MoveNext())
-                {
-                    // length is already checked
-                    enumerator2.MoveNext();
-
-                    bool result = IsEqual(enumerator1.Current, enumerator2.Current);
-
-                    if (!result)
-                    {
-                        return false;
-                    }
-                }
-
-                // arrays are identical.
-                return true;
-            }
-
-            // check enumerables.
-
-            if (value1 is IEnumerable enumerable1)
-            {
-                // collections are greater than non-collections.
-                if (value2 is not IEnumerable enumerable2)
-                {
-                    return false;
-                }
-
-                IEnumerator enumerator1 = enumerable1.GetEnumerator();
-                IEnumerator enumerator2 = enumerable2.GetEnumerator();
-
-                while (enumerator1.MoveNext())
-                {
-                    // enumerable2 must be shorter.
-                    if (!enumerator2.MoveNext())
-                    {
-                        return false;
-                    }
-
-                    bool result = IsEqual(enumerator1.Current, enumerator2.Current);
-
-                    if (!result)
-                    {
-                        return false;
-                    }
-                }
-
-                // enumerable2 must be longer.
-                if (enumerator2.MoveNext())
-                {
-                    return false;
-                }
-
-                // must be equal.
-                return true;
-            }
-
-            // check for objects that override the Equals function.
-            return value1.Equals(value2);
-        }
-
-        /// <summary>
-        /// Tests if the specified string matches the specified pattern.
-        /// </summary>
-        public static bool Match(string target, string pattern, bool caseSensitive)
-        {
-            // an empty pattern always matches.
-            if (string.IsNullOrEmpty(pattern))
-            {
-                return true;
-            }
-
-            // an empty string never matches.
-            if (string.IsNullOrEmpty(target))
-            {
-                return false;
-            }
-
-            // check for exact match
-            if (caseSensitive)
-            {
-                if (target == pattern)
-                {
-                    return true;
-                }
-            }
-            else if (string.Equals(target, pattern, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            char c;
-            char p;
-            char l;
-
-            int pIndex = 0;
-            int tIndex = 0;
-
-            while (tIndex < target.Length && pIndex < pattern.Length)
-            {
-                p = ConvertCase(pattern[pIndex++], caseSensitive);
-
-                if (pIndex > pattern.Length)
-                {
-                    return tIndex >= target.Length; // if end of string true
-                }
-
-                switch (p)
-                {
-                    // match zero or more char.
-                    case '*':
-                        while (tIndex < target.Length)
-                        {
-                            if (Match(target[tIndex++..], pattern[pIndex..], caseSensitive))
-                            {
-                                return true;
-                            }
-                        }
-
-                        return Match(target, pattern[pIndex..], caseSensitive);
-                    // match any one char.
-                    case '?':
-                        // check if end of string when looking for a single character.
-                        if (tIndex >= target.Length)
-                        {
-                            return false;
-                        }
-
-                        // check if end of pattern and still string data left.
-                        if (pIndex >= pattern.Length && tIndex < target.Length - 1)
-                        {
-                            return false;
-                        }
-
-                        tIndex++;
-                        break;
-                    // match char set
-                    case '[':
-                        c = ConvertCase(target[tIndex++], caseSensitive);
-
-                        if (tIndex > target.Length)
-                        {
-                            return false; // syntax
-                        }
-
-                        l = '\0';
-
-                        // match a char if NOT in set []
-                        if (pattern[pIndex] == '!')
-                        {
-                            ++pIndex;
-
-                            p = ConvertCase(pattern[pIndex++], caseSensitive);
-
-                            while (pIndex < pattern.Length)
-                            {
-                                if (p == ']') // if end of char set, then
-                                {
-                                    break; // no match found
-                                }
-
-                                if (p == '-')
-                                {
-                                    // check a range of chars?
-                                    p = ConvertCase(pattern[pIndex], caseSensitive);
-
-                                    // get high limit of range
-                                    if (pIndex > pattern.Length || p == ']')
-                                    {
-                                        return false; // syntax
-                                    }
-
-                                    if (c >= l && c <= p)
-                                    {
-                                        return false; // if in range, return false
-                                    }
-                                }
-
-                                l = p;
-
-                                if (c == p) // if char matches this element
-                                {
-                                    return false; // return false
-                                }
-
-                                p = ConvertCase(pattern[pIndex++], caseSensitive);
-                            }
-                        }
-                        // match if char is in set []
-                        else
-                        {
-                            p = ConvertCase(pattern[pIndex++], caseSensitive);
-
-                            while (pIndex < pattern.Length)
-                            {
-                                if (p == ']') // if end of char set, then no match found
-                                {
-                                    return false;
-                                }
-
-                                if (p == '-')
-                                {
-                                    // check a range of chars?
-                                    p = ConvertCase(pattern[pIndex], caseSensitive);
-
-                                    // get high limit of range
-                                    if (pIndex > pattern.Length || p == ']')
-                                    {
-                                        return false; // syntax
-                                    }
-
-                                    if (c >= l && c <= p)
-                                    {
-                                        break; // if in range, move on
-                                    }
-                                }
-
-                                l = p;
-
-                                if (c == p) // if char matches this element move on
-                                {
-                                    break;
-                                }
-
-                                p = ConvertCase(pattern[pIndex++], caseSensitive);
-                            }
-
-                            while (pIndex < pattern.Length && p != ']') // got a match in char set skip to end of set
-                            {
-                                p = pattern[pIndex++];
-                            }
-                        }
-
-                        break;
-                    // match digit.
-                    case '#':
-                        c = target[tIndex++];
-
-                        if (!char.IsDigit(c))
-                        {
-                            return false; // not a digit
-                        }
-
-                        break;
-                    // match exact char.
-                    default:
-                        c = ConvertCase(target[tIndex++], caseSensitive);
-
-                        if (c != p) // check for exact char
-                        {
-                            return false; // not a match
-                        }
-
-                        // check if end of pattern and still string data left.
-                        if (pIndex >= pattern.Length && tIndex < target.Length - 1)
-                        {
-                            return false;
-                        }
-
-                        break;
-                }
-            }
-
-            if (tIndex >= target.Length)
-            {
-                return pIndex >= pattern.Length; // if end of pattern true
-            }
-
-            return true;
-        }
-
-        /// <summary>
-        /// ConvertCase
-        /// </summary>
-        private static char ConvertCase(char c, bool caseSensitive)
-        {
-            return caseSensitive ? c : char.ToUpperInvariant(c);
+            return CoreUtils.IsEqual(value1, value2);
         }
 
         /// <summary>
@@ -2325,7 +1619,7 @@ namespace Opc.Ua
                 {
                     return Convert.ToUInt32(
                         field.GetValue(constants),
-                        System.Globalization.CultureInfo.InvariantCulture);
+                        CultureInfo.InvariantCulture);
                 }
             }
 
@@ -2396,12 +1690,7 @@ namespace Opc.Ua
         /// </summary>
         public static XmlReaderSettings DefaultXmlReaderSettings()
         {
-            return new XmlReaderSettings
-            {
-                DtdProcessing = DtdProcessing.Prohibit,
-                XmlResolver = null,
-                ConformanceLevel = ConformanceLevel.Document
-            };
+            return CoreUtils.DefaultXmlReaderSettings();
         }
 
         /// <summary>
@@ -2409,14 +1698,7 @@ namespace Opc.Ua
         /// </summary>
         public static XmlWriterSettings DefaultXmlWriterSettings()
         {
-            return new XmlWriterSettings
-            {
-                Encoding = Encoding.UTF8,
-                Indent = true,
-                ConformanceLevel = ConformanceLevel.Document,
-                IndentChars = "  ",
-                CloseOutput = false
-            };
+            return CoreUtils.DefaultXmlWriterSettings();
         }
 
         /// <summary>
@@ -2424,12 +1706,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="doc">The XmlDocument.</param>
         /// <param name="xml">The Xml document string.</param>
-        internal static void LoadInnerXml(this XmlDocument doc, string xml)
+        internal static void LoadInnerXml(XmlDocument doc, string xml)
         {
-            using var sreader = new StringReader(xml);
-            using var reader = XmlReader.Create(sreader, DefaultXmlReaderSettings());
-            doc.XmlResolver = null;
-            doc.Load(reader);
+            doc.LoadInnerXml(xml);
         }
 
         /// <summary>
@@ -2477,24 +1756,17 @@ namespace Opc.Ua
             ITelemetryContext telemetry,
             bool useAsnParser = false)
         {
-            // macOS X509Certificate2 constructor throws exception if a certchain is encoded
-            // use AsnParser on macOS to parse for byteblobs,
-#if !NETFRAMEWORK
-            useAsnParser = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
-#endif
             try
             {
 #if !NETFRAMEWORK
-                if (useAsnParser)
+                // macOS X509Certificate2 constructor throws exception if a certchain is encoded
+                // use AsnParser on macOS to parse for byteblobs,
+                if (useAsnParser || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                 {
-                    ReadOnlyMemory<byte> certBlob = AsnUtils.ParseX509Blob(certificateData);
-                    return CertificateFactory.Create(certBlob, true, telemetry);
+                    certificateData = AsnUtils.ParseX509Blob(certificateData);
                 }
-                else
 #endif
-                {
-                    return CertificateFactory.Create(certificateData, true, telemetry);
-                }
+                return CertificateFactory.Create(certificateData);
             }
             catch (Exception e)
             {
@@ -2518,12 +1790,6 @@ namespace Opc.Ua
             bool useAsnParser = false)
         {
             var certificateChain = new X509Certificate2Collection();
-
-            // macOS X509Certificate2 constructor throws exception if a certchain is encoded
-            // use AsnParser on macOS to parse for byteblobs,
-#if !NETFRAMEWORK
-            useAsnParser = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
-#endif
             int offset = 0;
             int length = certificateData.Length;
             while (offset < length)
@@ -2531,18 +1797,16 @@ namespace Opc.Ua
                 X509Certificate2 certificate;
                 try
                 {
+                    ReadOnlyMemory<byte> certBlob = certificateData[offset..];
 #if !NETFRAMEWORK
-                    if (useAsnParser)
+                    // macOS X509Certificate2 constructor throws exception if a certchain is encoded
+                    // use AsnParser on macOS to parse for byteblobs,
+                    if (useAsnParser || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                     {
-                        ReadOnlyMemory<byte> certBlob = AsnUtils.ParseX509Blob(
-                            certificateData[offset..]);
-                        certificate = CertificateFactory.Create(certBlob, true, telemetry);
+                        certBlob = AsnUtils.ParseX509Blob(certBlob);
                     }
-                    else
 #endif
-                    {
-                        certificate = CertificateFactory.Create(certificateData[offset..], true, telemetry);
-                    }
+                    certificate = CertificateFactory.Create(certBlob);
                 }
                 catch (Exception e)
                 {
@@ -2603,7 +1867,9 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(secret));
             }
             // create the hmac.
+#pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
             using var hmac = new HMACSHA1(secret);
+#pragma warning restore CA5350 // Do Not Use Weak Cryptographic Algorithms
             return PSHA(hmac, label, data, offset, length);
         }
 
@@ -2698,8 +1964,7 @@ namespace Opc.Ua
             // check for a valid seed.
             if (seed == null)
             {
-                throw new ServiceResultException(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "The HMAC algorithm requires a non-null seed.");
             }
 
@@ -2759,7 +2024,9 @@ namespace Opc.Ua
 
             if (algorithmName == HashAlgorithmName.SHA1)
             {
+#pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
                 return new HMACSHA1(secret);
+#pragma warning restore CA5350 // Do Not Use Weak Cryptographic Algorithms
             }
 
             throw new NotImplementedException();
@@ -2792,40 +2059,39 @@ namespace Opc.Ua
         /// <param name="certificateType">The certificate type to check.</param>
         public static bool IsSupportedCertificateType(NodeId certificateType)
         {
-            if (certificateType.Identifier is uint identifier)
+            if (certificateType.Identifier is not uint identifier)
             {
-                switch (identifier)
-                {
-#if ECC_SUPPORT
-                    case ObjectTypes.EccApplicationCertificateType:
-                        return true;
-                    case ObjectTypes.EccBrainpoolP256r1ApplicationCertificateType:
-                        return s_eccCurveSupportCache[
-                            ECCurve.NamedCurves.brainpoolP256r1.Oid.FriendlyName].Value;
-                    case ObjectTypes.EccBrainpoolP384r1ApplicationCertificateType:
-                        return s_eccCurveSupportCache[
-                            ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName].Value;
-                    case ObjectTypes.EccNistP256ApplicationCertificateType:
-                        return s_eccCurveSupportCache[ECCurve.NamedCurves.nistP256.Oid.FriendlyName]
-                            .Value;
-                    case ObjectTypes.EccNistP384ApplicationCertificateType:
-                        return s_eccCurveSupportCache[ECCurve.NamedCurves.nistP384.Oid.FriendlyName]
-                            .Value;
-                    //case ObjectTypes.EccCurve25519ApplicationCertificateType:
-                    //case ObjectTypes.EccCurve448ApplicationCertificateType:
-#endif
-                    case ObjectTypes.ApplicationCertificateType:
-                    case ObjectTypes.RsaMinApplicationCertificateType:
-                    case ObjectTypes.RsaSha256ApplicationCertificateType:
-                    case ObjectTypes.HttpsCertificateType:
-                    case ObjectTypes.UserCredentialCertificateType:
-                        return true;
-                }
+                return false;
             }
-            return false;
+            switch (identifier)
+            {
+                case ObjectTypes.EccApplicationCertificateType:
+                    return true;
+                case ObjectTypes.EccBrainpoolP256r1ApplicationCertificateType:
+                    return s_eccCurveSupportCache[
+                        ECCurve.NamedCurves.brainpoolP256r1.Oid.FriendlyName].Value;
+                case ObjectTypes.EccBrainpoolP384r1ApplicationCertificateType:
+                    return s_eccCurveSupportCache[
+                        ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName].Value;
+                case ObjectTypes.EccNistP256ApplicationCertificateType:
+                    return s_eccCurveSupportCache[ECCurve.NamedCurves.nistP256.Oid.FriendlyName]
+                        .Value;
+                case ObjectTypes.EccNistP384ApplicationCertificateType:
+                    return s_eccCurveSupportCache[ECCurve.NamedCurves.nistP384.Oid.FriendlyName]
+                        .Value;
+                // case ObjectTypes.EccCurve25519ApplicationCertificateType:
+                // case ObjectTypes.EccCurve448ApplicationCertificateType:
+                case ObjectTypes.ApplicationCertificateType:
+                case ObjectTypes.RsaMinApplicationCertificateType:
+                case ObjectTypes.RsaSha256ApplicationCertificateType:
+                case ObjectTypes.HttpsCertificateType:
+                case ObjectTypes.UserCertificateType:
+                    return true;
+                default:
+                    return false;
+            }
         }
 
-#if ECC_SUPPORT
         /// <summary>
         /// Check if known curve is supported by platform
         /// </summary>
@@ -2867,7 +2133,6 @@ namespace Opc.Ua
                 new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.brainpoolP384r1))
             }
         };
-#endif
 
         /// <summary>
         /// Lazy helper to allow runtime check for Mono.

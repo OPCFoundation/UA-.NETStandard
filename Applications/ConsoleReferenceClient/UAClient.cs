@@ -74,15 +74,29 @@ namespace Quickstarts
             m_reverseConnectManager = reverseConnectManager;
         }
 
-        /// <summary>
-        /// Dispose objects.
-        /// </summary>
+        /// <inheritdoc/>
         public void Dispose()
         {
-            m_disposed = true;
-            Utils.SilentDispose(Session);
-            m_configuration.CertificateValidator.CertificateValidation -= CertificateValidation;
+            Dispose(true);
             GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Overridable Dispose pattern implementation.
+        /// </summary>
+        /// <param name="disposing"></param>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (m_disposed)
+            {
+                return;
+            }
+            if (disposing)
+            {
+                Utils.SilentDispose(Session);
+                m_configuration.CertificateValidator.CertificateValidation -= CertificateValidation;
+            }
+            m_disposed = true;
         }
 
         /// <summary>
@@ -245,7 +259,7 @@ namespace Quickstarts
                         endpointConfiguration);
 
                     // Create the session factory. - we could take it as parameter or as member
-                    var sessionFactory = new TraceableSessionFactory(m_telemetry);
+                    var sessionFactory = new DefaultSessionFactory(m_telemetry);
 
                     // Create the session
                     ISession session = await sessionFactory

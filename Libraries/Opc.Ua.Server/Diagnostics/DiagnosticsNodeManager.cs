@@ -68,8 +68,8 @@ namespace Opc.Ua.Server
 
             string[] namespaceUris =
             [
-                Opc.Ua.Namespaces.OpcUa,
-                Opc.Ua.Namespaces.OpcUa + "Diagnostics"
+                Ua.Namespaces.OpcUa,
+                Ua.Namespaces.OpcUa + "Diagnostics"
             ];
             SetNamespaces(namespaceUris);
 
@@ -277,7 +277,8 @@ namespace Opc.Ua.Server
             {
                 if (subscription.Id == subscriptionId)
                 {
-                    if (subscription.SessionId != context.SessionId)
+                    if (context is ISessionSystemContext session &&
+                        subscription.SessionId != session.SessionId)
                     {
                         // user tries to access subscription of different session
                         return StatusCodes.BadUserAccessDenied;
@@ -322,14 +323,14 @@ namespace Opc.Ua.Server
             {
                 if (subscription.Id == subscriptionId)
                 {
-                    if (subscription.SessionId != context.SessionId)
+                    if (context is not ServerSystemContext session ||
+                        subscription.SessionId != session.SessionId)
                     {
                         // user tries to access subscription of different session
                         return StatusCodes.BadUserAccessDenied;
                     }
 
-                    subscription.ResendData(
-                        (OperationContext)((SystemContext)context)?.OperationContext);
+                    subscription.ResendData(session.OperationContext);
 
                     return ServiceResult.Good;
                 }
@@ -386,7 +387,7 @@ namespace Opc.Ua.Server
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
             var predefinedNodes = new NodeStateCollection();
-            Assembly assembly = typeof(ArgumentCollection).GetTypeInfo().Assembly;
+            Assembly assembly = typeof(ReadRequest).GetTypeInfo().Assembly;
             predefinedNodes.LoadFromBinaryResource(
                 context,
                 "Opc.Ua.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes",
@@ -592,9 +593,9 @@ namespace Opc.Ua.Server
                 case VariableTypes.SubscriptionDiagnosticsArrayType:
                 case VariableTypes.SamplingIntervalDiagnosticsArrayType:
                     return true;
+                default:
+                    return false;
             }
-
-            return false;
         }
 
         /// <summary>
@@ -1121,6 +1122,61 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Updates the Server object EventNotifier based on history capabilities.
+        /// </summary>
+        /// <remarks>
+        /// This method can be overridden to customize the Server EventNotifier based on
+        /// history capabilities settings.
+        /// </remarks>
+        public virtual void UpdateServerEventNotifier()
+        {
+            lock (Lock)
+            {
+                // Get or create the history capabilities
+                HistoryServerCapabilitiesState historyCapabilities = GetDefaultHistoryCapabilities();
+
+                // Find the Server object
+                var serverObject = (ServerObjectState)FindPredefinedNode(
+                    ObjectIds.Server,
+                    typeof(ServerObjectState));
+
+                if (serverObject != null && historyCapabilities != null)
+                {
+                    // Update EventNotifier based on history capabilities
+                    byte eventNotifier = serverObject.EventNotifier;
+
+                    // Set HistoryRead bit if history events or data capabilities are enabled
+                    if (historyCapabilities.AccessHistoryEventsCapability?.Value == true ||
+                        historyCapabilities.AccessHistoryDataCapability?.Value == true)
+                    {
+                        eventNotifier |= EventNotifiers.HistoryRead;
+                    }
+                    else
+                    {
+                        eventNotifier = (byte)(eventNotifier & ~EventNotifiers.HistoryRead);
+                    }
+
+                    // Set HistoryWrite bit if history update capabilities are enabled
+                    if (historyCapabilities.InsertEventCapability?.Value == true ||
+                        historyCapabilities.ReplaceEventCapability?.Value == true ||
+                        historyCapabilities.UpdateEventCapability?.Value == true ||
+                        historyCapabilities.InsertDataCapability?.Value == true ||
+                        historyCapabilities.UpdateDataCapability?.Value == true ||
+                        historyCapabilities.ReplaceDataCapability?.Value == true)
+                    {
+                        eventNotifier |= EventNotifiers.HistoryWrite;
+                    }
+                    else
+                    {
+                        eventNotifier = (byte)(eventNotifier & ~EventNotifiers.HistoryWrite);
+                    }
+
+                    serverObject.EventNotifier = eventNotifier;
+                }
+            }
+        }
+
+        /// <summary>
         /// Adds an aggregate function to the server capabilities object.
         /// </summary>
         public void AddAggregateFunction(
@@ -1164,6 +1220,42 @@ namespace Opc.Ua.Server
                         folder.AddReference(ReferenceTypes.Organizes, false, state.NodeId);
                         state.AddReference(ReferenceTypes.Organizes, true, folder.NodeId);
                     }
+                }
+
+                AddPredefinedNode(SystemContext, state);
+            }
+        }
+
+        /// <summary>
+        /// Adds a modelling rule to the server capabilities object.
+        /// </summary>
+        public void AddModellingRule(
+            NodeId modellingRuleId,
+            string modellingRuleName)
+        {
+            lock (Lock)
+            {
+                var state = new FolderState(null)
+                {
+                    SymbolicName = modellingRuleName,
+                    ReferenceTypeId = ReferenceTypes.HasComponent,
+                    TypeDefinitionId = ObjectTypeIds.ModellingRuleType,
+                    NodeId = modellingRuleId,
+                    BrowseName = new QualifiedName(modellingRuleName, modellingRuleId.NamespaceIndex)
+                };
+                state.DisplayName = state.BrowseName.Name;
+                state.WriteMask = AttributeWriteMask.None;
+                state.UserWriteMask = AttributeWriteMask.None;
+                state.EventNotifier = EventNotifiers.None;
+
+                NodeState folder = FindPredefinedNode(
+                    ObjectIds.Server_ServerCapabilities_ModellingRules,
+                    typeof(BaseObjectState));
+
+                if (folder != null)
+                {
+                    folder.AddReference(ReferenceTypes.Organizes, false, state.NodeId);
+                    state.AddReference(ReferenceTypes.Organizes, true, folder.NodeId);
                 }
 
                 AddPredefinedNode(SystemContext, state);
@@ -1398,7 +1490,8 @@ namespace Opc.Ua.Server
             ISystemContext context,
             int index)
         {
-            if ((sessionId != context.SessionId) && !HasApplicationSecureAdminAccess(context))
+            if ((sessionId != (context as ISessionSystemContext)?.SessionId) &&
+                !HasApplicationSecureAdminAccess(context))
             {
                 list[index] = default;
             }
@@ -1421,7 +1514,7 @@ namespace Opc.Ua.Server
             }
             else
             {
-                adminUser = (node.NodeId == context.SessionId) ||
+                adminUser = (node.NodeId == (context as ISessionSystemContext)?.SessionId) ||
                     HasApplicationSecureAdminAccess(context);
             }
 
@@ -1564,10 +1657,9 @@ namespace Opc.Ua.Server
         /// Determine if the impersonated user has admin access.
         /// </summary>
         /// <exception cref="ServiceResultException"/>
-        /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
         private static bool HasApplicationSecureAdminAccess(ISystemContext context)
         {
-            if (context is SystemContext { OperationContext: OperationContext operationContext })
+            if (context is SessionSystemContext { OperationContext: OperationContext operationContext } session)
             {
                 if (operationContext.ChannelContext?.EndpointDescription?.SecurityMode !=
                     MessageSecurityMode.SignAndEncrypt)
@@ -1575,7 +1667,7 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
-                IUserIdentity user = context.UserIdentity as RoleBasedIdentity;
+                IUserIdentity user = session.UserIdentity as RoleBasedIdentity;
 
                 return user != null &&
                     user.TokenType != UserTokenType.Anonymous &&
@@ -1871,11 +1963,8 @@ namespace Opc.Ua.Server
 
             if (m_diagnosticsMonitoringCount == 0 && m_diagnosticsScanTimer != null)
             {
-                if (m_diagnosticsScanTimer != null)
-                {
-                    m_diagnosticsScanTimer.Dispose();
-                    m_diagnosticsScanTimer = null;
-                }
+                m_diagnosticsScanTimer.Dispose();
+                m_diagnosticsScanTimer = null;
             }
             else if (m_diagnosticsScanTimer != null)
             {

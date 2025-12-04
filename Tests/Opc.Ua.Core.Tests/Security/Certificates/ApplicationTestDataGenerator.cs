@@ -94,7 +94,7 @@ namespace Opc.Ua.Core.Tests
             StringCollection domainNames = RandomDomainNames();
             string localhost = domainNames[0];
             string privateKeyFormat = RandomSource.NextInt32(1) == 0 ? "PEM" : "PFX";
-            string appUri = ("urn:localhost:opcfoundation.org:" + pureAppUri.ToLower()).Replace(
+            string appUri = ("urn:localhost:opcfoundation.org:" + pureAppUri.ToLowerInvariant()).Replace(
                 "localhost",
                 localhost,
                 StringComparison.Ordinal);
@@ -116,6 +116,9 @@ namespace Opc.Ua.Core.Tests
                     appName += " Server";
                     _ = RandomDiscoveryUrl(domainNames, port, pureAppUri);
                     break;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected ApplicationType {appType}");
             }
             return new ApplicationTestData
             {
@@ -130,7 +133,7 @@ namespace Opc.Ua.Core.Tests
         private string RandomLocalHost()
         {
             string localhost = Regex2().Replace(
-                DataGenerator.GetRandomSymbol("en").Trim().ToLower(),
+                DataGenerator.GetRandomSymbol("en").Trim().ToLowerInvariant(),
                 string.Empty);
             if (localhost.Length >= 12)
             {

@@ -62,6 +62,12 @@ namespace Quickstarts.ReferenceServer
         public bool UseSamplingGroupsInReferenceNodeManager { get; set; }
 
         /// <summary>
+        /// If true, the server starts in provisioning mode with limited namespace
+        /// and requires authenticated user access for certificate provisioning
+        /// </summary>
+        public bool ProvisioningMode { get; set; }
+
+        /// <summary>
         /// Creates the node managers for the server.
         /// </summary>
         /// <remarks>
@@ -77,25 +83,36 @@ namespace Quickstarts.ReferenceServer
                 Utils.TraceMasks.StartStop,
                 "Creating the Reference Server Node Manager.");
 
-            IList<INodeManager> nodeManagers =
-            [
-                // create the custom node manager.
-                new ReferenceNodeManager(
-                    server,
-                    configuration,
-                    UseSamplingGroupsInReferenceNodeManager)
-            ];
-
-            foreach (INodeManagerFactory nodeManagerFactory in NodeManagerFactories)
-            {
-                nodeManagers.Add(nodeManagerFactory.Create(server, configuration));
-            }
-
+            IList<INodeManager> nodeManagers;
             var asyncNodeManagers = new List<IAsyncNodeManager>();
 
-            foreach (IAsyncNodeManagerFactory nodeManagerFactory in AsyncNodeManagerFactories)
+            if (ProvisioningMode)
             {
-                asyncNodeManagers.Add(nodeManagerFactory.CreateAsync(server, configuration).AsTask().GetAwaiter().GetResult());
+                m_logger.LogInformation(
+                    Utils.TraceMasks.StartStop,
+                    "Server is in provisioning mode - limited namespace enabled.");
+                nodeManagers = [];
+            }
+            else
+            {
+                nodeManagers =
+                [
+                    // create the custom node manager.
+                    new ReferenceNodeManager(
+                        server,
+                        configuration,
+                        UseSamplingGroupsInReferenceNodeManager)
+                ];
+
+                foreach (INodeManagerFactory nodeManagerFactory in NodeManagerFactories)
+                {
+                    nodeManagers.Add(nodeManagerFactory.Create(server, configuration));
+                }
+
+                foreach (IAsyncNodeManagerFactory nodeManagerFactory in AsyncNodeManagerFactories)
+                {
+                    asyncNodeManagers.Add(nodeManagerFactory.CreateAsync(server, configuration).AsTask().GetAwaiter().GetResult());
+                }
             }
 
             return new MasterNodeManager(server, configuration, null, asyncNodeManagers, nodeManagers);
@@ -227,6 +244,12 @@ namespace Quickstarts.ReferenceServer
                 configuration,
                 description);
 
+            // In provisioning mode, remove anonymous authentication
+            if (ProvisioningMode)
+            {
+                return [.. policies.Where(u => u.TokenType != UserTokenType.Anonymous)];
+            }
+
             // sample how to modify default user token policies
             if (description.SecurityPolicyUri == SecurityPolicies.Aes256_Sha256_RsaPss &&
                 description.SecurityMode == MessageSecurityMode.SignAndEncrypt)
@@ -304,7 +327,7 @@ namespace Quickstarts.ReferenceServer
                 VerifyX509IdentityToken(x509Token);
                 // set AuthenticatedUser role for accepted certificate authentication
                 args.Identity = new RoleBasedIdentity(
-                    new UserIdentity(x509Token, MessageContext.Telemetry),
+                    new UserIdentity(x509Token),
                     [Role.AuthenticatedUser]);
                 m_logger.LogInformation(
                     Utils.TraceMasks.Security,
@@ -368,7 +391,7 @@ namespace Quickstarts.ReferenceServer
             if (userName == "sysadmin" && Utils.IsEqual(password, "demo"u8))
             {
                 return new SystemConfigurationIdentity(
-                    new UserIdentity(userNameToken, MessageContext.Telemetry));
+                    new UserIdentity(userNameToken));
             }
 
             // standard users for CTT verification
@@ -385,13 +408,12 @@ namespace Quickstarts.ReferenceServer
                 // create an exception with a vendor defined sub-code.
                 throw new ServiceResultException(
                     new ServiceResult(
-                        StatusCodes.BadUserAccessDenied,
-                        "InvalidPassword",
                         LoadServerProperties().ProductUri,
+                        new StatusCode(StatusCodes.BadUserAccessDenied, "InvalidPassword"),
                         new LocalizedText(info)));
             }
             return new RoleBasedIdentity(
-                new UserIdentity(userNameToken, MessageContext.Telemetry),
+                new UserIdentity(userNameToken),
                 [Role.AuthenticatedUser]);
         }
 
@@ -406,11 +428,11 @@ namespace Quickstarts.ReferenceServer
             {
                 if (m_userCertificateValidator != null)
                 {
-                    m_userCertificateValidator.Validate(certificate);
+                    m_userCertificateValidator.ValidateAsync(certificate, default).GetAwaiter().GetResult();
                 }
                 else
                 {
-                    CertificateValidator.Validate(certificate);
+                    CertificateValidator.ValidateAsync(certificate, default).GetAwaiter().GetResult();
                 }
             }
             catch (Exception e)
@@ -441,9 +463,8 @@ namespace Quickstarts.ReferenceServer
                 // create an exception with a vendor defined sub-code.
                 throw new ServiceResultException(
                     new ServiceResult(
-                        result,
-                        info.Key,
                         LoadServerProperties().ProductUri,
+                        new StatusCode(result.Code, info.Key),
                         new LocalizedText(info)));
             }
         }
@@ -493,9 +514,8 @@ namespace Quickstarts.ReferenceServer
 
                 throw new ServiceResultException(
                     new ServiceResult(
-                        result,
-                        info.Key,
                         LoadServerProperties().ProductUri,
+                        new StatusCode(result.Code, info.Key),
                         new LocalizedText(info)));
             }
         }

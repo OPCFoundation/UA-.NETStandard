@@ -145,6 +145,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                             "<Array xmlns=\"urn:This:is:another:namespace\">",
                             StringComparison.Ordinal));
                     break;
+                case EncodingType.Binary:
+                    break;
+                default:
+                    NUnit.Framework.Assert.Fail($"Encoder type {encoderType} not supported.");
+                    break;
             }
 
             object result;
@@ -242,11 +247,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 buffer = encoderStream.ToArray();
             }
 
-            switch (encoderType)
+            if (encoderType == EncodingType.Json)
             {
-                case EncodingType.Json:
-                    PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
-                    break;
+                PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
             }
 
             Array result;
@@ -296,6 +299,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Set encodeable type properties recursively
         /// to expected default values.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private static void SetDefaultEncodeableType(object typeInstance)
         {
             foreach (System.Reflection.PropertyInfo property in typeInstance.GetType()
@@ -361,13 +365,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                                 }
                             }
                             break;
-                        default:
+                        case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                             if (typeInfo.ValueRank == ValueRanks.Scalar)
                             {
                                 object value = TypeInfo.GetDefaultValue(typeInfo.BuiltInType);
                                 property.SetValue(typeInstance, value);
                             }
                             break;
+                        default:
+                            throw ServiceResultException.Unexpected(
+                                $"Unexpected BuiltInType {typeInfo.BuiltInType}");
                     }
                 }
             }

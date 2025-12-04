@@ -378,7 +378,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             },
             {
                 BuiltInType.NodeId,
-                new NodeId("ns=0;" + kNodeIdString),
+                new NodeId("ns=0;s=" + kNodeIdString),
                 $$"""{"IdType":1,"Id":"{{kNodeIdString}}"}""",
                 null,
                 $"""
@@ -575,7 +575,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             },
             {
                 BuiltInType.ExpandedNodeId,
-                new ExpandedNodeId("ns=0;" + kNodeIdString),
+                new ExpandedNodeId("ns=0;s=" + kNodeIdString),
                 $$"""{"IdType":1,"Id":"{{kNodeIdString}}"}""",
                 null,
                 $"""
@@ -1063,7 +1063,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [GlobalSetup]
         public void GlobalSetup()
         {
-            m_telemetry = new DefaultTelemetry();
+            m_telemetry = NUnitTelemetryContext.Create();
             m_context = new ServiceMessageContext(m_telemetry);
             m_memoryStream = new MemoryStream();
         }
@@ -1412,7 +1412,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var encodeable = new DynamicEncodeable(
                 "FooXml",
                 "urn:dynamic_encoder_test",
-                "ns=2;test_dyn_typeid",
+                "ns=2;s=test_dyn_typeid",
                 "s=test_dyn_binaryencodingid",
                 "s=test_dyn_xmlencodingid",
                 "s=test_dyn_jsonencodingid",
@@ -1452,7 +1452,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "s=test_dyn2_typeid",
                 "s=test_dyn2_binaryencodingid",
                 "s=test_dyn2_xmlencodingid",
-                "ns=1;test_dyn2_jsonencodingid",
+                "ns=1;s=test_dyn2_jsonencodingid",
                 new Dictionary<string, (int, string)> {
                     { "Foo", (1, "bar_1") },
                     { "Foo2", (2, "bar_2") } });
@@ -1890,7 +1890,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string resultString = testDateTime.ToString(
                 "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK",
                 CultureInfo.InvariantCulture);
-#if ECC_SUPPORT && (NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER)
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
             Span<char> valueString = stackalloc char[JsonEncoder.DateTimeRoundTripKindLength];
             JsonEncoder.ConvertUniversalTimeToString(
                 testDateTime,

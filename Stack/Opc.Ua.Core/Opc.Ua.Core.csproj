@@ -1,6 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <DefineConstants>$(DefineConstants);NET_STANDARD;NET_STANDARD_ASYNC;NET_STANDARD_OBSOLETE_SYNC;OPCUA_INCLUDE_ASYNC; OPCUA_EXCLUDE_FindServers_ASYNC; OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC; OPCUA_EXCLUDE_GetEndpoints_ASYNC; OPCUA_EXCLUDE_CreateSession_ASYNC; OPCUA_EXCLUDE_ActivateSession_ASYNC; OPCUA_EXCLUDE_CloseSession_ASYNC; OPCUA_EXCLUDE_Cancel_ASYNC; OPCUA_EXCLUDE_AddNodes_ASYNC; OPCUA_EXCLUDE_AddReferences_ASYNC; OPCUA_EXCLUDE_DeleteNodes_ASYNC; OPCUA_EXCLUDE_DeleteReferences_ASYNC; OPCUA_EXCLUDE_RegisterNodes_ASYNC; OPCUA_EXCLUDE_UnregisterNodes_ASYNC; OPCUA_EXCLUDE_QueryFirst_ASYNC; OPCUA_EXCLUDE_QueryNext_ASYNC; OPCUA_EXCLUDE_CreateMonitoredItems_ASYNC; OPCUA_EXCLUDE_ModifyMonitoredItems_ASYNC; OPCUA_EXCLUDE_SetMonitoringMode_ASYNC; OPCUA_EXCLUDE_SetTriggering_ASYNC; OPCUA_EXCLUDE_DeleteMonitoredItems_ASYNC; OPCUA_EXCLUDE_CreateSubscription_ASYNC; OPCUA_EXCLUDE_ModifySubscription_ASYNC; OPCUA_EXCLUDE_SetPublishingMode_ASYNC; OPCUA_EXCLUDE_Publish_ASYNC; OPCUA_EXCLUDE_Republish_ASYNC; OPCUA_EXCLUDE_TransferSubscriptions_ASYNC; OPCUA_EXCLUDE_DeleteSubscriptions_ASYNC; OPCUA_EXCLUDE_RegisterServer_ASYNC; OPCUA_EXCLUDE_RegisterServer2_ASYNC</DefineConstants>
+    <DefineConstants>$(DefineConstants);NET_STANDARD;NET_STANDARD_ASYNC;NET_STANDARD_OBSOLETE_SYNC;NET_STANDARD_OBSOLETE_APM</DefineConstants>
+    <DefineConstants>$(DefineConstants);OPCUA_INCLUDE_ASYNC;</DefineConstants>
+    <DefineConstants>$(DefineConstants);OPCUA_EXCLUDE_AccessRestrictionType ;OPCUA_EXCLUDE_ReferenceDescription; OPCUA_EXCLUDE_ReferenceDescriptionCollection; OPCUA_EXCLUDE_AttributeWriteMask; OPCUA_EXCLUDE_Argument; OPCUA_EXCLUDE_ArgumentCollection; OPCUA_EXCLUDE_IdType; OPCUA_EXCLUDE_IdTypeCollection; OPCUA_EXCLUDE_RolePermissionType; OPCUA_EXCLUDE_RolePermissionTypeCollection; OPCUA_EXCLUDE_PermissionType; OPCUA_EXCLUDE_ViewDescription; OPCUA_EXCLUDE_BrowseDescription; OPCUA_EXCLUDE_BrowseDescriptionCollection; OPCUA_EXCLUDE_StructureDefinition; OPCUA_EXCLUDE_StructureType; OPCUA_EXCLUDE_StructureField; OPCUA_EXCLUDE_StructureFieldCollection; OPCUA_EXCLUDE_InstanceNode; OPCUA_EXCLUDE_ReferenceTypeNode; OPCUA_EXCLUDE_ReferenceNode; OPCUA_EXCLUDE_ReferenceNodeCollection; OPCUA_EXCLUDE_DataTypeDefinition; OPCUA_EXCLUDE_EnumDefinition; OPCUA_EXCLUDE_EnumField; OPCUA_EXCLUDE_EnumFieldCollection; OPCUA_EXCLUDE_EnumValueType; OPCUA_EXCLUDE_EnumValueTypeCollection; OPCUA_EXCLUDE_RelativePath; OPCUA_EXCLUDE_BrowseDirection; OPCUA_EXCLUDE_RelativePathElement; OPCUA_EXCLUDE_RelativePathElementCollection; OPCUA_EXCLUDE_NodeClass; OPCUA_EXCLUDE_Node; OPCUA_EXCLUDE_ViewNode; OPCUA_EXCLUDE_ObjectNode; OPCUA_EXCLUDE_MethodNode; OPCUA_EXCLUDE_TypeNode; OPCUA_EXCLUDE_ObjectTypeNode; OPCUA_EXCLUDE_DataTypeNode; OPCUA_EXCLUDE_VariableTypeNode; OPCUA_EXCLUDE_VariableNode</DefineConstants>
     <TargetFrameworks>$(LibCoreTargetFrameworks)</TargetFrameworks>
     <AssemblyName>$(AssemblyPrefix).Core</AssemblyName>
     <PackageId>$(PackagePrefix).Opc.Ua.Core</PackageId>
@@ -10,52 +12,35 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
-  <!-- select ECC support -->
-  <PropertyGroup Condition="'$(TargetFramework)' != 'netstandard2.0'">
-    <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
-  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />
+  </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
-    <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
-  </PropertyGroup>
   <ItemGroup>
     <None Remove="Schema\Opc.Ua.NodeSet2.xml.zip" />
-    <None Remove="Schema\Opc.Ua.Types.bsd" />
-    <None Remove="Schema\Opc.Ua.Types.xsd" />
-    <None Remove="Schema\UANodeSet.xsd" />
-    <None Remove="Types\Schemas\BuiltInTypes.bsd" />
-    <None Remove="Types\Schemas\StandardTypes.bsd" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Schema\Opc.Ua.Types.bsd" />
-    <EmbeddedResource Include="Schema\Opc.Ua.Types.xsd" />
-    <EmbeddedResource Include="Schema\UANodeSet.xsd" />
     <EmbeddedResource Include="Stack\Generated\Opc.Ua.PredefinedNodes.uanodes" />
     <EmbeddedResource Include="Types\Utils\LocalizedData.txt" />
     <EmbeddedResource Include="Schema\ServerCapabilities.csv" />
-    <EmbeddedResource Include="Types\Schemas\BuiltInTypes.bsd" />
-    <EmbeddedResource Include="Types\Schemas\StandardTypes.bsd" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" />
     <PackageReference Include="Microsoft.Extensions.Logging" />
   </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0' OR '$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48'">
-    <PackageReference Include="Microsoft.Bcl.HashCode" />
-  </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net48' OR '$(TargetFramework)' == 'net472'">
     <Reference Include="System.Net.Http" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Properties\" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Types\Opc.Ua.Types.csproj" />
   </ItemGroup>
   <Target Name="GetPackagingOutputs" />
   <!-- Produces a zipped version of the Nodeset 2 to reduce assembly size! -->
+  <!-- This is not used by the stack, but was added as convinience for applications to get the nodesets -->
+  <!-- related to the stack version. Do not take a dependency, this will be removed in future versions -->
   <PropertyGroup>
     <ZipTmp>$(BaseIntermediateOutputPath)$(Configuration)/$(TargetFramework)/zipnodeset2</ZipTmp>
     <NodeSet2XML>Schema/Opc.Ua.NodeSet2.xml</NodeSet2XML>

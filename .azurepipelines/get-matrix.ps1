@@ -30,7 +30,7 @@ Param(
 )
 
 if ([string]::IsNullOrEmpty($BuildRoot)) {
-    $BuildRoot = & (Join-Path $PSScriptRoot "get-root.ps1") -fileName "*.sln"
+    $BuildRoot = & (Join-Path $PSScriptRoot "get-root.ps1") -fileName "*.slnx"
 }
 
 if ([string]::IsNullOrEmpty($FileName)) {
@@ -43,9 +43,9 @@ if (![string]::IsNullOrEmpty($JobPrefix)) {
 if ($AgentTable -eq $null -or $AgentTable.Count -eq 0)
 {
     $agents = @{
-        windows = "windows-2022"
+        windows = "windows-2025"
         linux = "ubuntu-22.04"
-        mac = "macOS-13"
+        mac = "macOS-15"
     }
 }
 else {

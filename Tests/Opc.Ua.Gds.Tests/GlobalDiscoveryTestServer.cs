@@ -31,6 +31,7 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Database.Linq;
@@ -46,18 +47,19 @@ namespace Opc.Ua.Gds.Tests
         public ApplicationConfiguration Config { get; private set; }
         public int BasePort { get; private set; }
 
-        public GlobalDiscoveryTestServer(bool autoAccept)
+        public GlobalDiscoveryTestServer(bool autoAccept, ITelemetryContext telemetry)
         {
             s_autoAccept = autoAccept;
+            m_telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<GlobalDiscoveryTestServer>();
         }
 
         public async Task StartServerAsync(
             bool clean,
-            ITelemetryContext telemetry,
             int basePort = -1,
             string storeType = CertificateStoreType.Directory)
         {
-            ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
+            ApplicationInstance.MessageDlg = new ApplicationMessageDlg(m_logger);
 
             string configSectionName = "Opc.Ua.GlobalDiscoveryTestServer";
             if (storeType == CertificateStoreType.X509Store)
@@ -69,7 +71,7 @@ namespace Opc.Ua.Gds.Tests
                 }
                 configSectionName = "Opc.Ua.GlobalDiscoveryTestServerX509Stores";
             }
-            Application = new ApplicationInstance(telemetry)
+            Application = new ApplicationInstance(m_telemetry)
             {
                 ApplicationName = "Global Discovery Server",
                 ApplicationType = ApplicationType.Server,
@@ -86,26 +88,26 @@ namespace Opc.Ua.Gds.Tests
                 {
                     using ICertificateStore store = Config.SecurityConfiguration
                         .ApplicationCertificate
-                        .OpenStore(telemetry);
+                        .OpenStore(m_telemetry);
                     await store.DeleteAsync(thumbprint).ConfigureAwait(false);
                 }
 
                 // always start with clean cert store
                 await TestUtils
                     .CleanupTrustListAsync(
-                        Config.SecurityConfiguration.ApplicationCertificate, telemetry)
+                        Config.SecurityConfiguration.ApplicationCertificate, m_telemetry)
                     .ConfigureAwait(false);
                 await TestUtils
                     .CleanupTrustListAsync(
-                        Config.SecurityConfiguration.TrustedIssuerCertificates, telemetry)
+                        Config.SecurityConfiguration.TrustedIssuerCertificates, m_telemetry)
                     .ConfigureAwait(false);
                 await TestUtils
                     .CleanupTrustListAsync(
-                        Config.SecurityConfiguration.TrustedPeerCertificates, telemetry)
+                        Config.SecurityConfiguration.TrustedPeerCertificates, m_telemetry)
                     .ConfigureAwait(false);
                 await TestUtils
                     .CleanupTrustListAsync(
-                        Config.SecurityConfiguration.RejectedCertificateStore, telemetry)
+                        Config.SecurityConfiguration.RejectedCertificateStore, m_telemetry)
                     .ConfigureAwait(false);
 
                 Config = await LoadAsync(Application, basePort).ConfigureAwait(false);
@@ -117,7 +119,7 @@ namespace Opc.Ua.Gds.Tests
                 .ConfigureAwait(false);
             if (!haveAppCertificate)
             {
-                throw new Exception("Application instance certificate invalid!");
+                throw new InvalidOperationException("Application instance certificate invalid!");
             }
 
             if (!Config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
@@ -157,15 +159,15 @@ namespace Opc.Ua.Gds.Tests
             }
 
             var applicationsDatabase = JsonApplicationsDatabase.Load(databaseStorePath);
-            IUserDatabase userDatabase = JsonUserDatabase.Load(usersDatabaseStorePath, telemetry);
+            IUserDatabase userDatabase = JsonUserDatabase.Load(usersDatabaseStorePath, m_telemetry);
 
-            GlobalDiscoveryTestServer.RegisterDefaultUsers(userDatabase);
+            RegisterDefaultUsers(userDatabase);
 
             // start the server.
             Server = new GlobalDiscoverySampleServer(
                 applicationsDatabase,
                 applicationsDatabase,
-                new CertificateGroup(telemetry),
+                new CertificateGroup(m_telemetry),
                 userDatabase);
             await Application.StartAsync(Server).ConfigureAwait(false);
 
@@ -176,20 +178,20 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        public void StopServer()
+        public async Task StopServerAsync()
         {
             if (Server != null)
             {
-                Console.WriteLine("Server stopped. Waiting for exit...");
+                m_logger.LogInformation("Server stopped. Waiting for exit...");
 
                 using GlobalDiscoverySampleServer server = Server;
                 Server = null;
                 // Stop server and dispose
-                server.Stop();
+                await server.StopAsync().ConfigureAwait(false);
             }
         }
 
-        private static void CertificateValidator_CertificateValidation(
+        private void CertificateValidator_CertificateValidation(
             CertificateValidator validator,
             CertificateValidationEventArgs e)
         {
@@ -198,11 +200,11 @@ namespace Opc.Ua.Gds.Tests
                 e.Accept = s_autoAccept;
                 if (s_autoAccept)
                 {
-                    Console.WriteLine("Accepted Certificate: {0}", e.Certificate.Subject);
+                    m_logger.LogInformation("Accepted Certificate: {Subject}", e.Certificate.Subject);
                 }
                 else
                 {
-                    Console.WriteLine("Rejected Certificate: {0}", e.Certificate.Subject);
+                    m_logger.LogInformation("Rejected Certificate: {Subject}", e.Certificate.Subject);
                 }
             }
         }
@@ -244,7 +246,7 @@ namespace Opc.Ua.Gds.Tests
                 .ConfigureAwait(false);
 #else
             string[] baseAddresses = ["opc.tcp://localhost:58810/GlobalDiscoveryTestServer"];
-            string root = Path.Combine("%LocalApplicationData%", "OPC");
+            string root = Path.Combine(Path.GetTempPath(), "OPC");
             string gdsRoot = Path.Combine(root, "GDS");
             var gdsConfig = new GlobalDiscoveryServerConfiguration
             {
@@ -316,5 +318,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         private static bool s_autoAccept;
+        private readonly ITelemetryContext m_telemetry;
+        private readonly ILogger m_logger;
     }
 }

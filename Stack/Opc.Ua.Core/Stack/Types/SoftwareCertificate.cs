@@ -42,8 +42,8 @@ namespace Opc.Ua
             X509Certificate2 certificate;
             try
             {
-                certificate = CertificateFactory.Create(signedCertificate, true, telemetry);
-                validator.Validate(certificate);
+                certificate = CertificateFactory.Create(signedCertificate);
+                validator.ValidateAsync(certificate, default).GetAwaiter().GetResult();
             }
             catch (Exception e)
             {
@@ -51,32 +51,6 @@ namespace Opc.Ua
                     e,
                     StatusCodes.BadDecodingError,
                     "Could not decode software certificate body.");
-            }
-
-            // find the software certificate.
-            byte[] encodedData = null;
-
-            if (encodedData == null)
-            {
-                return ServiceResult.Create(
-                    StatusCodes.BadCertificateInvalid,
-                    "Could not find extension containing the software certificate.");
-            }
-
-            try
-            {
-                var istrm = new MemoryStream(encodedData, false);
-                var serializer = new DataContractSerializer(typeof(SoftwareCertificate));
-                using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
-                softwareCertificate = (SoftwareCertificate)serializer.ReadObject(istrm);
-                softwareCertificate.SignedCertificate = certificate;
-            }
-            catch (Exception e)
-            {
-                return ServiceResult.Create(
-                    e,
-                    StatusCodes.BadCertificateInvalid,
-                    "Certificate does not contain a valid SoftwareCertificate body.");
             }
 
             // certificate is valid.

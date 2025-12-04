@@ -566,9 +566,9 @@ namespace TestData
                     case Variables.Data_Static_Structure_ScalarStructure_UIntegerValue:
                     case Variables.Data_Dynamic_Structure_ScalarStructure_UIntegerValue:
                         return new Variant(m_generator.GetRandomUInteger());
+                    default:
+                        return null;
                 }
-
-                return null;
             }
         }
 
@@ -883,7 +883,7 @@ namespace TestData
             }
         }
 
-        private class Sample
+        private sealed class Sample
         {
             public BaseVariableState Variable;
             public object Value;

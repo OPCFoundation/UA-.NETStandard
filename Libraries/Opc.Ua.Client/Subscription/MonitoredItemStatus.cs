@@ -34,32 +34,8 @@ namespace Opc.Ua.Client
     /// <summary>
     /// The current status of monitored item.
     /// </summary>
-    public class MonitoredItemStatus
+    public sealed record class MonitoredItemStatus
     {
-        /// <summary>
-        /// Creates a empty object.
-        /// </summary>
-        internal MonitoredItemStatus()
-        {
-            Initialize();
-        }
-
-        private void Initialize()
-        {
-            Id = 0;
-            NodeId = null;
-            AttributeId = Attributes.Value;
-            IndexRange = null;
-            DataEncoding = null;
-            MonitoringMode = MonitoringMode.Disabled;
-            ClientHandle = 0;
-            SamplingInterval = 0;
-            Filter = null;
-            FilterResult = null;
-            QueueSize = 0;
-            DiscardOldest = true;
-        }
-
         /// <summary>
         /// The identifier assigned by the server.
         /// </summary>
@@ -73,32 +49,32 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Any error condition associated with the monitored item.
         /// </summary>
-        public ServiceResult Error { get; private set; }
+        public ServiceResult? Error { get; private set; }
 
         /// <summary>
         /// The node id being monitored.
         /// </summary>
-        public NodeId NodeId { get; private set; }
+        public NodeId NodeId { get; private set; } = NodeId.Null;
 
         /// <summary>
         /// The attribute being monitored.
         /// </summary>
-        public uint AttributeId { get; private set; }
+        public uint AttributeId { get; private set; } = Attributes.Value;
 
         /// <summary>
         /// The range of array indexes to being monitored.
         /// </summary>
-        public string IndexRange { get; private set; }
+        public string? IndexRange { get; private set; }
 
         /// <summary>
         /// The encoding to use when returning notifications.
         /// </summary>
-        public QualifiedName DataEncoding { get; private set; }
+        public QualifiedName DataEncoding { get; private set; } = QualifiedName.Null;
 
         /// <summary>
         /// The monitoring mode.
         /// </summary>
-        public MonitoringMode MonitoringMode { get; private set; }
+        public MonitoringMode MonitoringMode { get; private set; } = MonitoringMode.Disabled;
 
         /// <summary>
         /// The identifier assigned by the client.
@@ -113,12 +89,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The filter to use to select values to return.
         /// </summary>
-        public MonitoringFilter Filter { get; private set; }
+        public MonitoringFilter? Filter { get; private set; }
 
         /// <summary>
         /// The result of applying the filter
         /// </summary>
-        public MonitoringFilterResult FilterResult { get; private set; }
+        public MonitoringFilterResult? FilterResult { get; private set; }
 
         /// <summary>
         /// The length of the queue used to buffer values.
@@ -128,7 +104,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Whether to discard the oldest entries in the queue when it is full.
         /// </summary>
-        public bool DiscardOldest { get; private set; }
+        public bool DiscardOldest { get; private set; } = true;
 
         /// <summary>
         /// Updates the monitoring mode.
@@ -141,7 +117,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Updates the object with the results of a translate browse paths request.
         /// </summary>
-        internal void SetResolvePathResult(ServiceResult error)
+        internal void SetResolvePathResult(ServiceResult? error)
         {
             Error = error;
         }
@@ -153,7 +129,7 @@ namespace Opc.Ua.Client
         internal void SetCreateResult(
             MonitoredItemCreateRequest request,
             MonitoredItemCreateResult result,
-            ServiceResult error)
+            ServiceResult? error)
         {
             if (request == null)
             {
@@ -232,7 +208,7 @@ namespace Opc.Ua.Client
         internal void SetModifyResult(
             MonitoredItemModifyRequest request,
             MonitoredItemModifyResult result,
-            ServiceResult error)
+            ServiceResult? error)
         {
             if (request == null)
             {
@@ -274,7 +250,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Updates the object with the results of a delete item request.
         /// </summary>
-        internal void SetDeleteResult(ServiceResult error)
+        internal void SetDeleteResult(ServiceResult? error)
         {
             Id = 0;
             Error = error;

@@ -33,6 +33,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
+using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Server.Tests
@@ -65,13 +66,13 @@ namespace Opc.Ua.Server.Tests
         public bool UseTracing { get; }
         public bool DurableSubscriptionsEnabled { get; set; }
         public bool UseSamplingGroupsInReferenceNodeManager { get; set; }
+        public bool ProvisioningMode { get; set; }
         public ActivityListener ActivityListener { get; private set; }
 
         public ServerFixture(
             bool useTracing,
-            bool disableActivityLogging,
-            ITelemetryContext telemetry)
-            : this(telemetry)
+            bool disableActivityLogging)
+            : this()
         {
             UseTracing = useTracing;
             if (UseTracing)
@@ -80,10 +81,10 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
-        public ServerFixture(ITelemetryContext telemetry)
+        public ServerFixture()
         {
-            m_telemetry = telemetry;
-            m_logger = telemetry.CreateLogger<ServerFixture<T>>();
+            m_telemetry = NUnitTelemetryContext.Create(true);
+            m_logger = m_telemetry.CreateLogger<ServerFixture<T>>();
         }
 
         public async Task LoadConfigurationAsync(string pkiRoot = null)
@@ -202,7 +203,6 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         public async Task<T> StartAsync(string pkiRoot, int port = 0)
         {
-            var random = new Random();
             bool retryStartServer = false;
             int testPort = port;
             int serverStartRetries = 1;
@@ -229,12 +229,12 @@ namespace Opc.Ua.Server.Tests
                         sre.StatusCode == StatusCodes.BadNoCommunication)
                 {
                     serverStartRetries--;
-                    testPort = random.Next(
+                    testPort = UnsecureRandom.Shared.Next(
                         ServerFixtureUtils.MinTestPort,
                         ServerFixtureUtils.MaxTestPort);
                     retryStartServer = true;
                 }
-                await Task.Delay(random.Next(100, 1000)).ConfigureAwait(false);
+                await Task.Delay(UnsecureRandom.Shared.Next(100, 1000)).ConfigureAwait(false);
             } while (retryStartServer);
 
             return Server;
@@ -254,7 +254,7 @@ namespace Opc.Ua.Server.Tests
                 .ConfigureAwait(false);
             if (!haveAppCertificate)
             {
-                throw new Exception("Application instance certificate invalid!");
+                throw new InvalidOperationException("Application instance certificate invalid!");
             }
 
             // start the server.
@@ -267,6 +267,11 @@ namespace Opc.Ua.Server.Tests
                 server is ReferenceServer referenceServer)
             {
                 Quickstarts.Servers.Utils.UseSamplingGroupsInReferenceNodeManager(referenceServer);
+            }
+            if (ProvisioningMode &&
+                server is ReferenceServer provisioningReferenceServer)
+            {
+                Quickstarts.Servers.Utils.EnableProvisioningMode(provisioningReferenceServer);
             }
             await Application.StartAsync(server).ConfigureAwait(false);
             Server = server;
@@ -283,7 +288,7 @@ namespace Opc.Ua.Server.Tests
                 // Create an instance of ActivityListener without logging
                 ActivityListener = new ActivityListener
                 {
-                    ShouldListenTo = (source) => source.Name == EndpointBase.ActivitySourceName,
+                    ShouldListenTo = (source) => source.Name == m_telemetry.GetActivitySource().Name,
                     Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
                         ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStarted = _ => { },
@@ -295,7 +300,7 @@ namespace Opc.Ua.Server.Tests
                 // Create an instance of ActivityListener and configure its properties with logging
                 ActivityListener = new ActivityListener
                 {
-                    ShouldListenTo = (source) => source.Name == EndpointBase.ActivitySourceName,
+                    ShouldListenTo = (source) => source.Name == m_telemetry.GetActivitySource().Name,
                     Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
                         ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStarted = activity =>
@@ -322,14 +327,17 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Stop the server.
         /// </summary>
-        public Task StopAsync()
+        public async Task StopAsync()
         {
-            Server?.Stop();
-            Server?.Dispose();
-            Server = null;
+            if (Server != null)
+            {
+                await Server.StopAsync().ConfigureAwait(false);
+                Server.Dispose();
+                Server = null;
+            }
             ActivityListener?.Dispose();
             ActivityListener = null;
-            return Task.Delay(100);
+            await Task.Delay(100).ConfigureAwait(false);
         }
 
         private readonly ITelemetryContext m_telemetry;

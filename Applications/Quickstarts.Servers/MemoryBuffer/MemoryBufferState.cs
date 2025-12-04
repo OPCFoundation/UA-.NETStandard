@@ -71,14 +71,7 @@ namespace MemoryBuffer
 
             SymbolicName = name;
 
-            BuiltInType elementType = BuiltInType.UInt32;
-
-            switch (dataType)
-            {
-                case "Double":
-                    elementType = BuiltInType.Double;
-                    break;
-            }
+            BuiltInType elementType = dataType != "Double" ? BuiltInType.UInt32 : BuiltInType.Double;
 
             CreateBuffer(elementType, count);
         }
@@ -131,14 +124,7 @@ namespace MemoryBuffer
                 elementName = "UInt32";
             }
 
-            BuiltInType elementType = BuiltInType.UInt32;
-
-            switch (elementName)
-            {
-                case "Double":
-                    elementType = BuiltInType.Double;
-                    break;
-            }
+            BuiltInType elementType = elementName != "Double" ? BuiltInType.UInt32 : BuiltInType.Double;
 
             CreateBuffer(elementType, noOfElements);
         }
@@ -148,13 +134,12 @@ namespace MemoryBuffer
         /// </summary>
         /// <param name="elementType">The type of element.</param>
         /// <param name="noOfElements">The number of elements.</param>
+        /// <exception cref="ServiceResultException"></exception>
         public void CreateBuffer(BuiltInType elementType, int noOfElements)
         {
             lock (m_dataLock)
             {
                 ElementType = elementType;
-                m_elementSize = 1;
-
                 switch (ElementType)
                 {
                     case BuiltInType.UInt32:
@@ -163,6 +148,11 @@ namespace MemoryBuffer
                     case BuiltInType.Double:
                         m_elementSize = 8;
                         break;
+                    case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                        m_elementSize = 1;
+                        break;
+                    default:
+                        throw ServiceResultException.Unexpected($"Unexpected BuiltInType {ElementType}");
                 }
 
                 m_lastScanTime = DateTime.UtcNow;
@@ -255,6 +245,7 @@ namespace MemoryBuffer
         /// <summary>
         /// Handles a write operation for an individual tag.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public ServiceResult WriteTagValue(
             ISystemContext context,
             NodeState node,
@@ -332,8 +323,10 @@ namespace MemoryBuffer
                         bytes = BitConverter.GetBytes(valueToWrite.Value);
                         break;
                     }
-                    default:
+                    case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                         return StatusCodes.BadNodeIdUnknown;
+                    default:
+                        throw ServiceResultException.Unexpected($"Unexpected BuiltInType {ElementType}");
                 }
 
                 for (int ii = 0; ii < bytes.Length; ii++)
@@ -358,6 +351,7 @@ namespace MemoryBuffer
         /// <summary>
         /// Returns the value at the specified offset.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public Variant GetValueAtOffset(int offset)
         {
             lock (m_dataLock)
@@ -378,9 +372,11 @@ namespace MemoryBuffer
                         return new Variant(BitConverter.ToUInt32(m_buffer, offset));
                     case BuiltInType.Double:
                         return new Variant(BitConverter.ToDouble(m_buffer, offset));
+                    case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                        return Variant.Null;
+                    default:
+                        throw ServiceResultException.Unexpected($"Bad element type {ElementType}");
                 }
-
-                return Variant.Null;
             }
         }
 

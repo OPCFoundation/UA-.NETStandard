@@ -19,6 +19,7 @@ namespace Opc.Ua
     /// <summary>
     /// A base class for AsyncResult objects
     /// </summary>
+    [Obsolete("Use System.Threading.Tasks and async/await instead.")]
     public class AsyncResultBase : IAsyncResult, IDisposable
     {
         /// <summary>
@@ -55,7 +56,7 @@ namespace Opc.Ua
             m_callback = callback;
             AsyncState = callbackData;
             m_deadline = DateTime.MinValue;
-            m_logger = logger ?? Utils.Null.Logger;
+            m_logger = logger ?? LoggerUtils.Null.Logger;
             m_cts = cts;
 
             if (timeout > 0)
@@ -259,7 +260,7 @@ namespace Opc.Ua
                 catch (ObjectDisposedException ode)
                 {
                     // ignore
-                    m_logger.LogTrace(
+                    m_logger.LogDebug(
                         ode,
                         "Unexpected error handling OperationCompleted for AsyncResult operation.");
                 }
@@ -283,7 +284,7 @@ namespace Opc.Ua
                 catch (Exception e)
                 {
                     // ignore
-                    m_logger.LogTrace(
+                    m_logger.LogDebug(
                         e,
                         "Unexpected error handling dispose of timer for AsyncResult operation.");
                 }
@@ -313,7 +314,7 @@ namespace Opc.Ua
                 catch (Exception e)
                 {
                     // ignore
-                    m_logger.LogTrace(e, "Unexpected error handling dispose of wait handle for AsyncResult operation.");
+                    m_logger.LogDebug(e, "Unexpected error handling dispose of wait handle for AsyncResult operation.");
                 }
             }
         }
@@ -331,7 +332,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                m_logger.LogTrace(
+                m_logger.LogDebug(
                     e,
                     "Unexpected error handling timeout for ChannelAsyncResult operation.");
             }
@@ -344,9 +345,9 @@ namespace Opc.Ua
         public object AsyncState { get; }
 
         /// <summary>
-        /// Gets a <see cref="T:System.Threading.WaitHandle"/> that is used to wait for an asynchronous operation to complete.
+        /// Gets a <see cref="System.Threading.WaitHandle"/> that is used to wait for an asynchronous operation to complete.
         /// </summary>
-        /// <returns>A <see cref="T:System.Threading.WaitHandle"/> that is used to wait for an asynchronous operation to complete.</returns>
+        /// <returns>A <see cref="System.Threading.WaitHandle"/> that is used to wait for an asynchronous operation to complete.</returns>
         public WaitHandle AsyncWaitHandle
         {
             get

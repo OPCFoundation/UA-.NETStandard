@@ -36,11 +36,13 @@
 // https://github.com/dotnet/runtime/blob/main/src/libraries/Microsoft.Extensions.Logging.Abstractions/src/LoggerExtensions.cs
 //
 
-// Disable: 'Use the LoggerMessage delegates'
-
 #nullable enable
 
+using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Redaction;
 
 #pragma warning disable IDE0079 // Remove unnecessary suppression
@@ -68,6 +70,42 @@ namespace Opc.Ua
         /// Global default logger provider
         /// </summary>
         internal static TraceLoggerProvider LoggerProvider { get; } = new();
+
+        /// <summary>
+        /// Fallback logger
+        /// </summary>
+        [Experimental("UA_NETStandard_1")]
+        public static class Fallback
+        {
+            /// <summary>
+            /// Get an instance of the fallback logger. In debug builds
+            /// the null logger is returned which emits debug checks on usage.
+            /// </summary>
+            public static ILogger Logger =>
+#if DEBUG
+                LoggerUtils.Null.Logger;
+#else
+                LoggerProvider.CreateLogger(nameof(Fallback));
+#endif
+        }
+
+        static Utils()
+        {
+            TelemetryExtensions.InternalOnly__TelemetryHook =
+                () => new TraceLoggerTelemetry();
+        }
+
+        /// <summary>
+        /// Trace logger telemetry context
+        /// </summary>
+        internal class TraceLoggerTelemetry : TelemetryContextBase
+        {
+            public TraceLoggerTelemetry()
+                : base(Microsoft.Extensions.Logging.LoggerFactory.Create(
+                    builder => builder.AddProvider(LoggerProvider)))
+            {
+            }
+        }
 
         /// <summary>
         /// The possible trace output mechanisms.
@@ -163,11 +201,27 @@ namespace Opc.Ua
         /// <returns></returns>
         public static string AsLogSafeString(this X509Certificate2 certificate)
         {
-            if (certificate != null)
+            if (certificate == null)
             {
-                return Format("[{0}], [{1}]", Redact.Create(certificate.Subject), certificate.Thumbprint);
+                return "(none)";
             }
-            return "(none)";
+            var buffer = new StringBuilder();
+            buffer
+                .Append('[')
+                .Append(Redact.Create(certificate.Subject))
+                .Append("], [")
+                .Append(Redact.Create(certificate.Thumbprint))
+                .Append(']');
+
+            if (certificate.Handle == IntPtr.Zero)
+            {
+                buffer.Append(" !!DISPOSED!!");
+            }
+            else if (certificate.HasPrivateKey)
+            {
+                buffer.Append(" (with Private Key)");
+            }
+            return buffer.ToString();
         }
     }
 }

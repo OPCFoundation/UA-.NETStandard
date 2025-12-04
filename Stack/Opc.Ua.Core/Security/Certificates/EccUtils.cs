@@ -14,7 +14,6 @@ using System;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Security.Certificates;
-#if ECC_SUPPORT
 #if CURVE25519
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.X509;
@@ -26,7 +25,6 @@ using Org.BouncyCastle.Crypto.Agreement;
 using Org.BouncyCastle.Crypto.Generators;
 using Org.BouncyCastle.Crypto.Modes;
 using Org.BouncyCastle.Crypto.Digests;
-#endif
 #endif
 
 namespace Opc.Ua
@@ -77,6 +75,8 @@ namespace Opc.Ua
                     case SecurityPolicies.ECC_curve25519:
                     case SecurityPolicies.ECC_curve448:
                         return true;
+                    default:
+                        return false;
                 }
             }
 
@@ -114,7 +114,6 @@ namespace Opc.Ua
             }
         }
 
-#if ECC_SUPPORT
         /// <summary>
         /// returns an ECCCurve if there is a matching supported curve for the provided
         /// certificate type id. if no supported ECC curve is found null is returned.
@@ -154,7 +153,6 @@ namespace Opc.Ua
 #endif
             return curve;
         }
-#endif
 
         /// <summary>
         /// Returns the signature algorithm for the specified certificate.
@@ -179,13 +177,13 @@ namespace Opc.Ua
                         return BrainpoolP256r1;
                     case BrainpoolP384r1KeyParameters:
                         return BrainpoolP384r1;
+                    default:
+                        return signatureQualifier;
                 }
-                return signatureQualifier;
             }
             return string.Empty;
         }
 
-#if ECC_SUPPORT
         /// <summary>
         /// Returns the public key for the specified certificate.
         /// </summary>
@@ -313,6 +311,7 @@ namespace Opc.Ua
         /// Returns the hash algorithm for the specified security policy.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="securityPolicyUri"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public static HashAlgorithmName GetSignatureAlgorithmName(string securityPolicyUri)
         {
             if (securityPolicyUri == null)
@@ -324,12 +323,15 @@ namespace Opc.Ua
             {
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve448:
                     return HashAlgorithmName.SHA256;
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP384r1:
                     return HashAlgorithmName.SHA384;
                 default:
-                    return HashAlgorithmName.SHA256;
+                    throw ServiceResultException.Unexpected(
+                        "Unexpected security policy URI for ECC: {0}", securityPolicyUri);
             }
         }
 
@@ -633,7 +635,9 @@ namespace Opc.Ua
                 aes.Key = encryptingKey;
                 aes.IV = iv;
 
+#pragma warning disable CA5401 // Symmetric encryption uses non-default initialization vector, which could be potentially repeatable
                 using ICryptoTransform encryptor = aes.CreateEncryptor();
+#pragma warning restore CA5401 // Symmetric encryption uses non-default initialization vector, which could be potentially repeatable
                 if (dataToEncrypt.Length % encryptor.InputBlockSize != 0)
                 {
                     throw ServiceResultException.Create(
@@ -846,25 +850,33 @@ namespace Opc.Ua
             out byte[] encryptingKey,
             out byte[] iv)
         {
-            int encryptingKeySize = 32;
-            int blockSize = 16;
-            HashAlgorithmName algorithmName = HashAlgorithmName.SHA256;
+            int encryptingKeySize;
+            int blockSize;
+            HashAlgorithmName algorithmName;
 
             switch (securityPolicyUri)
             {
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_brainpoolP256r1:
+                    blockSize = 16;
                     encryptingKeySize = 16;
+                    algorithmName = HashAlgorithmName.SHA256;
                     break;
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP384r1:
                     encryptingKeySize = 32;
+                    blockSize = 16;
                     algorithmName = HashAlgorithmName.SHA384;
                     break;
                 case SecurityPolicies.ECC_curve25519:
                 case SecurityPolicies.ECC_curve448:
                     encryptingKeySize = 32;
                     blockSize = 12;
+                    algorithmName = HashAlgorithmName.SHA256;
+                    break;
+                default:
+                    encryptingKeySize = 32;
+                    blockSize = 16;
                     algorithmName = HashAlgorithmName.SHA256;
                     break;
             }
@@ -1002,13 +1014,15 @@ namespace Opc.Ua
             message[lengthPosition++] = (byte)((length & 0xFF000000) >> 24);
 
             // get the algorithm used for the signature.
-            HashAlgorithmName signatureAlgorithm = HashAlgorithmName.SHA256;
-
+            HashAlgorithmName signatureAlgorithm;
             switch (SecurityPolicyUri)
             {
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP384r1:
                     signatureAlgorithm = HashAlgorithmName.SHA384;
+                    break;
+                default:
+                    signatureAlgorithm = HashAlgorithmName.SHA256;
                     break;
             }
 
@@ -1068,13 +1082,16 @@ namespace Opc.Ua
             }
 
             // get the algorithm used for the signature.
-            HashAlgorithmName signatureAlgorithm = HashAlgorithmName.SHA256;
+            HashAlgorithmName signatureAlgorithm;
 
             switch (SecurityPolicyUri)
             {
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP384r1:
                     signatureAlgorithm = HashAlgorithmName.SHA384;
+                    break;
+                default:
+                    signatureAlgorithm = HashAlgorithmName.SHA256;
                     break;
             }
 
@@ -1103,7 +1120,7 @@ namespace Opc.Ua
                 }
 
                 // validate the sender.
-                Validator?.Validate(senderCertificateChain);
+                Validator?.ValidateAsync(senderCertificateChain, default).GetAwaiter().GetResult();
             }
 
             // extract the send certificate and any chain.
@@ -1242,209 +1259,5 @@ namespace Opc.Ua
 
             return decoder.ReadByteString(null);
         }
-#else
-        /// <summary>
-        /// Verifies a ECDsa signature.
-        /// </summary>
-        public static bool Verify(
-            ArraySegment<byte> dataToVerify,
-            byte[] signature,
-            X509Certificate2 signingCertificate,
-            string securityPolicyUri)
-        {
-            return Verify(
-                dataToVerify,
-                signature,
-                signingCertificate,
-                GetSignatureAlgorithmName(securityPolicyUri));
-        }
-
-        /// <summary>
-        /// Verifies a ECDsa signature.
-        /// </summary>
-        public static bool Verify(
-            ArraySegment<byte> dataToVerify,
-            byte[] signature,
-            X509Certificate2 signingCertificate,
-            HashAlgorithmName algorithm)
-        {
-#if CURVE25519
-            var publicKey = signingCertificate.BcCertificate.GetPublicKey();
-
-            if (publicKey is Ed25519PublicKeyParameters)
-            {
-                var verifier = new Ed25519Signer();
-
-                verifier.Init(false, signingCertificate.BcCertificate.GetPublicKey());
-                verifier.BlockUpdate(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count);
-
-                if (!verifier.VerifySignature(signature))
-                {
-                    return false;
-                }
-
-                return true;
-            }
-
-            if (publicKey is Ed448PublicKeyParameters)
-            {
-                var verifier = new Ed448Signer(new byte[32]);
-
-                verifier.Init(false, signingCertificate.BcCertificate.GetPublicKey());
-                verifier.BlockUpdate(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count);
-
-                if (!verifier.VerifySignature(signature))
-                {
-                    return false;
-                }
-
-                return true;
-            }
-#endif
-            using ECDsa ecdsa = GetPublicKey(signingCertificate);
-            return ecdsa.VerifyData(
-                dataToVerify.Array,
-                dataToVerify.Offset,
-                dataToVerify.Count,
-                signature,
-                algorithm);
-        }
-
-        /// <summary>
-        /// Returns the public key for the specified certificate and outputs the security policy uris.
-        /// </summary>
-        /// <exception cref="NotSupportedException"></exception>
-        public static ECDsa GetPublicKey(
-            X509Certificate2 certificate,
-            out string[] securityPolicyUris)
-        {
-#if ECC_SUPPORT
-            securityPolicyUris = null;
-
-            var keyAlgorithm = certificate.GetKeyAlgorithm();
-
-            if (certificate == null || keyAlgorithm != Oids.ECPublicKey)
-            {
-                return null;
-            }
-
-            const X509KeyUsageFlags SufficientFlags =
-                X509KeyUsageFlags.KeyAgreement |
-                X509KeyUsageFlags.DigitalSignature |
-                X509KeyUsageFlags.NonRepudiation |
-                X509KeyUsageFlags.CrlSign |
-                X509KeyUsageFlags.KeyCertSign;
-
-            foreach (X509Extension extension in certificate.Extensions)
-            {
-                if (extension.Oid.Value == "2.5.29.15")
-                {
-                    X509KeyUsageExtension kuExt = (X509KeyUsageExtension)extension;
-
-                    if ((kuExt.KeyUsages & SufficientFlags) == 0)
-                    {
-                        return null;
-                    }
-                }
-            }
-
-            PublicKey encodedPublicKey = certificate.PublicKey;
-            string keyParameters = BitConverter.ToString(encodedPublicKey.EncodedParameters.RawData);
-            byte[] keyValue = encodedPublicKey.EncodedKeyValue.RawData;
-
-            ECParameters ecParameters = default(ECParameters);
-
-            if (keyValue[0] != 0x04)
-            {
-                throw new InvalidOperationException("Only uncompressed points are supported");
-            }
-
-            byte[] x = new byte[(keyValue.Length - 1) / 2];
-            byte[] y = new byte[x.Length];
-
-            Buffer.BlockCopy(keyValue, 1, x, 0, x.Length);
-            Buffer.BlockCopy(keyValue, 1 + x.Length, y, 0, y.Length);
-
-            ecParameters.Q.X = x;
-            ecParameters.Q.Y = y;
-
-            // New values can be determined by running the dotted-decimal OID value
-            // through BitConverter.ToString(CryptoConfig.EncodeOID(dottedDecimal));
-
-            switch (keyParameters)
-            {
-                case NistP256KeyParameters:
-                {
-                    ecParameters.Curve = ECCurve.NamedCurves.nistP256;
-                    securityPolicyUris = new string[] { SecurityPolicies.ECC_nistP256 };
-                    break;
-                }
-
-                case NistP384KeyParameters:
-                {
-                    ecParameters.Curve = ECCurve.NamedCurves.nistP384;
-                    securityPolicyUris = new string[] { SecurityPolicies.ECC_nistP384, SecurityPolicies.ECC_nistP256 };
-                    break;
-                }
-
-                case BrainpoolP256r1KeyParameters:
-                {
-                    ecParameters.Curve = ECCurve.NamedCurves.brainpoolP256r1;
-                    securityPolicyUris = new string[] { SecurityPolicies.ECC_brainpoolP256r1 };
-                    break;
-                }
-
-                case BrainpoolP384r1KeyParameters:
-                {
-                    ecParameters.Curve = ECCurve.NamedCurves.brainpoolP384r1;
-                    securityPolicyUris = new string[] { SecurityPolicies.ECC_brainpoolP384r1, SecurityPolicies.ECC_brainpoolP256r1 };
-                    break;
-                }
-
-                default:
-                {
-                    throw new NotImplementedException(keyParameters);
-                }
-            }
-
-            return ECDsa.Create(ecParameters);
-#else
-            throw new NotSupportedException("ECC is not supported in this library");
-#endif
-        }
-
-        /// <summary>
-        /// Returns the public key for the specified certificate.
-        /// </summary>
-        public static ECDsa GetPublicKey(X509Certificate2 certificate)
-        {
-            return GetPublicKey(certificate, out _);
-        }
-
-        /// <summary>
-        /// Returns the hash algorithm for the specified security policy.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="securityPolicyUri"/> is <c>null</c>.</exception>
-        public static HashAlgorithmName GetSignatureAlgorithmName(string securityPolicyUri)
-        {
-            if (securityPolicyUri == null)
-            {
-                throw new ArgumentNullException(nameof(securityPolicyUri));
-            }
-
-            switch (securityPolicyUri)
-            {
-                case SecurityPolicies.ECC_nistP256:
-                case SecurityPolicies.ECC_brainpoolP256r1:
-                    return HashAlgorithmName.SHA256;
-                case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_brainpoolP384r1:
-                    return HashAlgorithmName.SHA384;
-                default:
-                    return HashAlgorithmName.SHA256;
-            }
-        }
-
-#endif
     }
 }

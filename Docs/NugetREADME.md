@@ -30,6 +30,10 @@ ToDo
 ## Packages Overview
 
 Caution, there are multiple packages available with different functional scopes, for a detailed overview take a look at the [Information about the different Packages](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/Docs/PlatformBuild.md#further-information-on-the-supported-nuget-packages).
+
+## Version Numbering
+
+The OPC UA .NET Standard library uses a four-part version number (e.g., 1.5.377.x) that differs from standard SemVer. The first two digits reflect the OPC UA specification version (1.04, 1.05), the third digit increments for breaking changes, and the fourth digit is the build number since the last breaking change. Important bug fixes and behavioral changes may only increment the fourth digit, so always review release notes when updating to ensure you're aware of all changes, even within the same major.minor.patch version.
  
 ## Additional documentation
 

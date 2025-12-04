@@ -37,7 +37,7 @@
 >
   <xs:annotation>
     <xs:appinfo>
-      <ua:Model ModelUri="http://opcfoundation.org/UA/GDS/" Version="1.05.05" PublicationDate="2025-06-30T00:00:00Z" />
+      <ua:Model ModelUri="http://opcfoundation.org/UA/GDS/" Version="1.05.06" PublicationDate="2025-10-31T00:00:00Z" />
     </xs:appinfo>
   </xs:annotation>
   

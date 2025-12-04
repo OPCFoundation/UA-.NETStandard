@@ -8,10 +8,10 @@ on:
     # The branches below must be a subset of the branches above
     branches: [ master, main ]
     paths:
-    - '**.cs'    
+    - '**.cs'
   schedule:
     - cron: '30 6 * * 6'
-  workflow_dispatch:  
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -32,7 +32,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
@@ -43,26 +43,14 @@ jobs:
         # By default, queries listed here will override any specified in a config file.
         # Prefix the list here with "+" to use these queries and those in the config file.
         # queries: ./path/to/local/query, your-org/your-repo/queries@main
-        
+
     - name: Set up .NET
       uses: actions/setup-dotnet@v5
       with:
-        dotnet-version: '8.x'
-
-    # Add  MSBuild to the PATH: https://github.com/microsoft/setup-msbuild
-    - name: Setup MSBuild.exe
-      uses: microsoft/setup-msbuild@v2.0.0
-
-
-    - name: Restore Packages
-      run: |
-        nuget restore "UA Core Library.sln"
-        nuget restore "UA Reference.sln"
-        
+        dotnet-version: '10.x'
+    # https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/codeql-code-scanning-for-compiled-languages#c-compiler-flags-injected-by-codeql-for-manual-builds
     - name: Build Solution
       run: |
-        msbuild.exe "UA Core Library.sln" /p:configuration="Release" /p:UseSharedCompilation=false
-        msbuild.exe "UA Reference.sln" /p:configuration="Release" /p:UseSharedCompilation=false
-
+        dotnet build "UA.slnx" -c Release /p:UseSharedCompilation=false /p:EmitCompilerGeneratedFiles=true
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v4

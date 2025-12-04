@@ -48,7 +48,7 @@ namespace Opc.Ua.Client
         /// initially set or unset.</param>
         public AsyncManualResetEvent(bool set)
         {
-            m_tcs = new TaskCompletionSource<object>(
+            m_tcs = new TaskCompletionSource<object?>(
                  TaskCreationOptions.RunContinuationsAsynchronously);
             if (set)
             {
@@ -132,13 +132,13 @@ namespace Opc.Ua.Client
             {
                 if (m_tcs.Task.IsCompleted)
                 {
-                    m_tcs = new TaskCompletionSource<object>(
+                    m_tcs = new TaskCompletionSource<object?>(
                         TaskCreationOptions.RunContinuationsAsynchronously);
                 }
             }
         }
 
         private readonly Lock m_lock = new();
-        private TaskCompletionSource<object> m_tcs;
+        private TaskCompletionSource<object?> m_tcs;
     }
 }

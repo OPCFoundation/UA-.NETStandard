@@ -27,10 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -48,187 +45,12 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <inheritdoc/>
-        public override Task<ISession> CreateAsync(
-            ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint,
-            bool updateBeforeConnect,
-            string sessionName,
-            uint sessionTimeout,
-            IUserIdentity identity,
-            IList<string> preferredLocales,
-            CancellationToken ct = default)
-        {
-            return CreateAsync(
-                configuration,
-                endpoint,
-                updateBeforeConnect,
-                false,
-                sessionName,
-                sessionTimeout,
-                identity,
-                preferredLocales,
-                ct);
-        }
-
-        /// <inheritdoc/>
-        public override async Task<ISession> CreateAsync(
-            ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint,
-            bool updateBeforeConnect,
-            bool checkDomain,
-            string sessionName,
-            uint sessionTimeout,
-            IUserIdentity identity,
-            IList<string> preferredLocales,
-            CancellationToken ct = default)
-        {
-            return await Session
-                .CreateAsync(
-                    this,
-                    configuration,
-                    (ITransportWaitingConnection)null,
-                    endpoint,
-                    updateBeforeConnect,
-                    checkDomain,
-                    sessionName,
-                    sessionTimeout,
-                    identity,
-                    preferredLocales,
-                    ct)
-                .ConfigureAwait(false);
-        }
-
-        /// <inheritdoc/>
-        public override async Task<ISession> CreateAsync(
-            ApplicationConfiguration configuration,
-            ITransportWaitingConnection connection,
-            ConfiguredEndpoint endpoint,
-            bool updateBeforeConnect,
-            bool checkDomain,
-            string sessionName,
-            uint sessionTimeout,
-            IUserIdentity identity,
-            IList<string> preferredLocales,
-            CancellationToken ct = default)
-        {
-            return await Session
-                .CreateAsync(
-                    this,
-                    configuration,
-                    connection,
-                    endpoint,
-                    updateBeforeConnect,
-                    checkDomain,
-                    sessionName,
-                    sessionTimeout,
-                    identity,
-                    preferredLocales,
-                    ct)
-                .ConfigureAwait(false);
-        }
-
-        /// <inheritdoc/>
-        public override async Task<ISession> CreateAsync(
-            ApplicationConfiguration configuration,
-            ReverseConnectManager reverseConnectManager,
-            ConfiguredEndpoint endpoint,
-            bool updateBeforeConnect,
-            bool checkDomain,
-            string sessionName,
-            uint sessionTimeout,
-            IUserIdentity userIdentity,
-            IList<string> preferredLocales,
-            CancellationToken ct = default)
-        {
-            if (reverseConnectManager == null)
-            {
-                return await CreateAsync(
-                        configuration,
-                        endpoint,
-                        updateBeforeConnect,
-                        checkDomain,
-                        sessionName,
-                        sessionTimeout,
-                        userIdentity,
-                        preferredLocales,
-                        ct)
-                    .ConfigureAwait(false);
-            }
-
-            ITransportWaitingConnection connection;
-            do
-            {
-                connection = await reverseConnectManager
-                    .WaitForConnectionAsync(
-                        endpoint.EndpointUrl,
-                        endpoint.ReverseConnect?.ServerUri,
-                        ct)
-                    .ConfigureAwait(false);
-
-                if (updateBeforeConnect)
-                {
-                    await endpoint
-                        .UpdateFromServerAsync(
-                            endpoint.EndpointUrl,
-                            connection,
-                            endpoint.Description.SecurityMode,
-                            endpoint.Description.SecurityPolicyUri,
-                            Telemetry,
-                            ct)
-                        .ConfigureAwait(false);
-                    updateBeforeConnect = false;
-                    connection = null;
-                }
-            } while (connection == null);
-
-            return await CreateAsync(
-                    configuration,
-                    connection,
-                    endpoint,
-                    false,
-                    checkDomain,
-                    sessionName,
-                    sessionTimeout,
-                    userIdentity,
-                    preferredLocales,
-                    ct)
-                .ConfigureAwait(false);
-        }
-
-        /// <inheritdoc/>
         public override ISession Create(
-            ApplicationConfiguration configuration,
-            ITransportChannel channel,
-            ConfiguredEndpoint endpoint,
-            X509Certificate2 clientCertificate,
-            EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null)
-        {
-            return Session.Create(
-                this,
-                configuration,
-                channel,
-                endpoint,
-                clientCertificate,
-                availableEndpoints,
-                discoveryProfileUris);
-        }
-
-        /// <inheritdoc/>
-        public override Session Create(
-            ISessionChannel channel,
-            ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint)
-        {
-            return new TestableSession(channel, configuration, endpoint, Telemetry);
-        }
-
-        /// <inheritdoc/>
-        public override Session Create(
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
+            X509Certificate2Collection clientCertificateChain,
             EndpointDescriptionCollection availableEndpoints = null,
             StringCollection discoveryProfileUris = null)
         {
@@ -237,7 +59,6 @@ namespace Opc.Ua.Client.Tests
                 configuration,
                 endpoint,
                 clientCertificate,
-                Telemetry,
                 availableEndpoints,
                 discoveryProfileUris);
         }

@@ -70,14 +70,14 @@ namespace Quickstarts.Servers
 
         /// <inheritdoc/>
         public IDataChangeMonitoredItemQueue CreateDataChangeQueue(
-            bool createDurable,
+            bool isDurable,
             uint monitoredItemId)
         {
             //use durable queue only if MI is durable
-            if (createDurable)
+            if (isDurable)
             {
                 var queue = new DurableDataChangeMonitoredItemQueue(
-                    createDurable,
+                    isDurable,
                     monitoredItemId,
                     m_batchPersistor,
                     m_telemetry);
@@ -86,17 +86,17 @@ namespace Quickstarts.Servers
                 return queue;
             }
 
-            return new DataChangeMonitoredItemQueue(createDurable, monitoredItemId, m_telemetry);
+            return new DataChangeMonitoredItemQueue(isDurable, monitoredItemId, m_telemetry);
         }
 
         /// <inheritdoc/>
-        public IEventMonitoredItemQueue CreateEventQueue(bool createDurable, uint monitoredItemId)
+        public IEventMonitoredItemQueue CreateEventQueue(bool isDurable, uint monitoredItemId)
         {
             //use durable queue only if MI is durable
-            if (createDurable)
+            if (isDurable)
             {
                 var queue = new DurableEventMonitoredItemQueue(
-                    createDurable,
+                    isDurable,
                     monitoredItemId,
                     m_batchPersistor,
                     m_telemetry);
@@ -105,7 +105,7 @@ namespace Quickstarts.Servers
                 return queue;
             }
 
-            return new EventMonitoredItemQueue(createDurable, monitoredItemId, m_telemetry);
+            return new EventMonitoredItemQueue(isDurable, monitoredItemId, m_telemetry);
         }
 
         private void DataChangeQueueDisposed(object sender, EventArgs eventArgs)

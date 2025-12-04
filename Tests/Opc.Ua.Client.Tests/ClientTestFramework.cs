@@ -75,6 +75,7 @@ namespace Opc.Ua.Client.Tests
         public Uri ServerUrl { get; private set; }
         public int ServerFixturePort { get; set; }
         public ExpandedNodeId[] TestSetStatic { get; private set; }
+        public (Type Type, ExpandedNodeId[] NodeIds)[] TestSetStaticMassNumeric { get; }
         public ExpandedNodeId[] TestSetSimulation { get; private set; }
         public ExpandedNodeId[] TestSetDataSimulation { get; }
         public ExpandedNodeId[] TestSetHistory { get; }
@@ -88,6 +89,7 @@ namespace Opc.Ua.Client.Tests
             m_logger = Telemetry.CreateLogger<ClientTestFramework>();
             UriScheme = uriScheme;
             TestSetStatic = CommonTestWorkers.NodeIdTestSetStatic;
+            TestSetStaticMassNumeric = CommonTestWorkers.NodeIdTestSetStaticMassNumeric;
             TestSetSimulation = CommonTestWorkers.NodeIdTestSetSimulation;
             TestSetDataSimulation = CommonTestWorkers.NodeIdTestSetDataSimulation;
             TestSetHistory = CommonTestWorkers.NodeIdTestDataHistory;
@@ -190,7 +192,6 @@ namespace Opc.Ua.Client.Tests
                         .ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256)
                         .ConfigureAwait(false);
                     Assert.NotNull(Session);
-                    Session.ReturnDiagnostics = DiagnosticsMasks.All;
                 }
                 catch (Exception e)
                 {
@@ -208,8 +209,7 @@ namespace Opc.Ua.Client.Tests
             // start Ref server
             ServerFixture = new ServerFixture<ReferenceServer>(
                 enableTracing,
-                disableActivityLogging,
-                Telemetry)
+                disableActivityLogging)
             {
                 UriScheme = UriScheme,
                 SecurityNone = securityNone,
@@ -312,6 +312,8 @@ namespace Opc.Ua.Client.Tests
                 });
 
             ServerFixture.Config.ServerConfiguration.MaxChannelCount = MaxChannelCount;
+            ServerFixture.Config.ServerConfiguration.MaxSubscriptionCount = 1000;
+            ServerFixture.Config.ServerConfiguration.MaxQueuedRequestCount = 100000;
             ReferenceServer = await ServerFixture.StartAsync()
                 .ConfigureAwait(false);
             ReferenceServer.TokenValidator = TokenValidator;
@@ -395,6 +397,30 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// Return a test set of nodes with static character.
+        /// 100 of each numeric data type.
+        /// </summary>
+        /// <param name="namespaceUris">The namespace table used in the session.</param>
+        /// <returns>The list of static test nodes.</returns>
+        public IDictionary<NodeId, Type> GetTestSetStaticMassNumeric(NamespaceTable namespaceUris)
+        {
+            var result = new Dictionary<NodeId, Type>();
+            foreach ((Type Type, ExpandedNodeId[] NodeIds) entry in TestSetStaticMassNumeric)
+            {
+                Type type = entry.Type;
+                foreach (ExpandedNodeId expandedNodeId in entry.NodeIds)
+                {
+                    var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, namespaceUris);
+                    if (nodeId != null)
+                    {
+                        result[nodeId] = type;
+                    }
+                }
+            }
+            return result;
+        }
+
+        /// <summary>
         /// Return a test set of nodes with simulated values.
         /// </summary>
         /// <param name="namespaceUris">The namesapce table used in the session.</param>
@@ -466,12 +492,12 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public virtual void GlobalSetup()
         {
-            Console.WriteLine("GlobalSetup: Start Server");
+            m_logger.LogInformation("GlobalSetup: Start Server");
             OneTimeSetUpCoreAsync().GetAwaiter().GetResult();
-            Console.WriteLine("GlobalSetup: Connecting");
+            m_logger.LogInformation("GlobalSetup: Connecting");
             Session = ClientFixture.ConnectAsync(ServerUrl, SecurityPolicy).GetAwaiter()
                 .GetResult();
-            Console.WriteLine("GlobalSetup: Ready");
+            m_logger.LogInformation("GlobalSetup: Ready");
         }
 
         /// <summary>
@@ -479,9 +505,9 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public virtual void GlobalCleanup()
         {
-            Console.WriteLine("GlobalCleanup: Disconnect and Stop Server");
+            m_logger.LogInformation("GlobalCleanup: Disconnect and Stop Server");
             OneTimeTearDownAsync().GetAwaiter().GetResult();
-            Console.WriteLine("GlobalCleanup: Done");
+            m_logger.LogInformation("GlobalCleanup: Done");
         }
 
         public async Task GetOperationLimitsAsync()

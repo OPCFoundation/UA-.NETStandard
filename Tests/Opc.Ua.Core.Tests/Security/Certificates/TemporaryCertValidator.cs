@@ -71,7 +71,7 @@ namespace Opc.Ua.Core.Tests
         /// </summary>
         ~TemporaryCertValidator()
         {
-            Dispose(true);
+            Dispose(false);
         }
 
         public void Dispose()

@@ -132,10 +132,10 @@ namespace Opc.Ua.Fuzzing
                         {
                             return null;
                         }
-                        break;
+                        goto default;
+                    default:
+                        throw;
                 }
-
-                throw;
             }
         }
     }

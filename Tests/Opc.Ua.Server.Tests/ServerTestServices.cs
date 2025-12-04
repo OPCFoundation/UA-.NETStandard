@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server.Tests
@@ -40,28 +42,25 @@ namespace Opc.Ua.Server.Tests
 
         ILogger Logger { get; }
 
-        ResponseHeader Browse(
+        ValueTask<BrowseResponse> BrowseAsync(
             RequestHeader requestHeader,
             ViewDescription view,
             uint requestedMaxReferencesPerNode,
             BrowseDescriptionCollection nodesToBrowse,
-            out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            CancellationToken ct = default);
 
-        ResponseHeader BrowseNext(
+        ValueTask<BrowseNextResponse> BrowseNextAsync(
             RequestHeader requestHeader,
             bool releaseContinuationPoints,
             ByteStringCollection continuationPoints,
-            out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            CancellationToken ct = default);
 
-        ResponseHeader TranslateBrowsePathsToNodeIds(
+        ValueTask<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
             RequestHeader requestHeader,
             BrowsePathCollection browsePaths,
-            out BrowsePathResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            CancellationToken ct = default);
 
-        ResponseHeader CreateSubscription(
+        ValueTask<CreateSubscriptionResponse> CreateSubscriptionAsync(
             RequestHeader requestHeader,
             double requestedPublishingInterval,
             uint requestedLifetimeCount,
@@ -69,20 +68,16 @@ namespace Opc.Ua.Server.Tests
             uint maxNotificationsPerPublish,
             bool publishingEnabled,
             byte priority,
-            out uint subscriptionId,
-            out double revisedPublishingInterval,
-            out uint revisedLifetimeCount,
-            out uint revisedMaxKeepAliveCount);
+            CancellationToken ct = default);
 
-        ResponseHeader CreateMonitoredItems(
+        ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequestCollection itemsToCreate,
-            out MonitoredItemCreateResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            CancellationToken ct = default);
 
-        ResponseHeader ModifySubscription(
+        ValueTask<ModifySubscriptionResponse> ModifySubscriptionAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
             double requestedPublishingInterval,
@@ -90,61 +85,49 @@ namespace Opc.Ua.Server.Tests
             uint requestedMaxKeepAliveCount,
             uint maxNotificationsPerPublish,
             byte priority,
-            out double revisedPublishingInterval,
-            out uint revisedLifetimeCount,
-            out uint revisedMaxKeepAliveCount);
+            CancellationToken ct = default);
 
-        ResponseHeader ModifyMonitoredItems(
+        ValueTask<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
             MonitoredItemModifyRequestCollection itemsToModify,
-            out MonitoredItemModifyResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            CancellationToken ct = default);
 
-        ResponseHeader Publish(
+        ValueTask<PublishResponse> PublishAsync(
             RequestHeader requestHeader,
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
-            out uint subscriptionId,
-            out UInt32Collection availableSequenceNumbers,
-            out bool moreNotifications,
-            out NotificationMessage notificationMessage,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            CancellationToken ct = default);
 
-        ResponseHeader SetPublishingMode(
+        ValueTask<SetPublishingModeResponse> SetPublishingModeAsync(
             RequestHeader requestHeader,
             bool publishingEnabled,
             UInt32Collection subscriptionIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            CancellationToken ct = default);
 
-        ResponseHeader SetMonitoringMode(
+        ValueTask<SetMonitoringModeResponse> SetMonitoringModeAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
             MonitoringMode monitoringMode,
             UInt32Collection monitoredItemIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            CancellationToken ct = default);
 
-        ResponseHeader Republish(
+        ValueTask<RepublishResponse> RepublishAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
             uint retransmitSequenceNumber,
-            out NotificationMessage notificationMessage);
+            CancellationToken ct = default);
 
-        ResponseHeader DeleteSubscriptions(
+        ValueTask<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            CancellationToken ct = default);
 
-        ResponseHeader TransferSubscriptions(
+        ValueTask<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
             bool sendInitialValues,
-            out TransferResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            CancellationToken ct = default);
     }
 
     /// <summary>
@@ -158,46 +141,47 @@ namespace Opc.Ua.Server.Tests
 
         public ILogger Logger { get; }
 
-        public ServerTestServices(ISessionServer server, ITelemetryContext telemetry)
+        public SecureChannelContext SecureChannelContext { get; set; }
+
+        public ServerTestServices(ISessionServer server, SecureChannelContext secureChannelContext, ITelemetryContext telemetry)
         {
             Telemetry = telemetry;
             Logger = telemetry.CreateLogger<ServerTestServices>();
             m_server = server;
+            SecureChannelContext = secureChannelContext;
         }
 
-        public ResponseHeader Browse(
+        public ValueTask<BrowseResponse> BrowseAsync(
             RequestHeader requestHeader,
             ViewDescription view,
             uint requestedMaxReferencesPerNode,
             BrowseDescriptionCollection nodesToBrowse,
-            out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct = default)
         {
-            return m_server.Browse(
+            return new ValueTask<BrowseResponse>(m_server.BrowseAsync(
+                SecureChannelContext,
                 requestHeader,
                 view,
                 requestedMaxReferencesPerNode,
                 nodesToBrowse,
-                out results,
-                out diagnosticInfos);
+                ct));
         }
 
-        public ResponseHeader BrowseNext(
+        public ValueTask<BrowseNextResponse> BrowseNextAsync(
             RequestHeader requestHeader,
             bool releaseContinuationPoints,
             ByteStringCollection continuationPoints,
-            out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct = default)
         {
-            return m_server.BrowseNext(
+            return new ValueTask<BrowseNextResponse>(m_server.BrowseNextAsync(
+                SecureChannelContext,
                 requestHeader,
                 releaseContinuationPoints,
                 continuationPoints,
-                out results,
-                out diagnosticInfos);
+                ct));
         }
 
-        public ResponseHeader CreateSubscription(
+        public ValueTask<CreateSubscriptionResponse> CreateSubscriptionAsync(
             RequestHeader requestHeader,
             double requestedPublishingInterval,
             uint requestedLifetimeCount,
@@ -205,12 +189,10 @@ namespace Opc.Ua.Server.Tests
             uint maxNotificationsPerPublish,
             bool publishingEnabled,
             byte priority,
-            out uint subscriptionId,
-            out double revisedPublishingInterval,
-            out uint revisedLifetimeCount,
-            out uint revisedMaxKeepAliveCount)
+            CancellationToken ct = default)
         {
-            return m_server.CreateSubscription(
+            return new ValueTask<CreateSubscriptionResponse>(m_server.CreateSubscriptionAsync(
+                SecureChannelContext,
                 requestHeader,
                 requestedPublishingInterval,
                 requestedLifetimeCount,
@@ -218,30 +200,26 @@ namespace Opc.Ua.Server.Tests
                 maxNotificationsPerPublish,
                 publishingEnabled,
                 priority,
-                out subscriptionId,
-                out revisedPublishingInterval,
-                out revisedLifetimeCount,
-                out revisedMaxKeepAliveCount);
+                ct));
         }
 
-        public ResponseHeader CreateMonitoredItems(
+        public ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequestCollection itemsToCreate,
-            out MonitoredItemCreateResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct = default)
         {
-            return m_server.CreateMonitoredItems(
+            return new ValueTask<CreateMonitoredItemsResponse>(m_server.CreateMonitoredItemsAsync(
+                SecureChannelContext,
                 requestHeader,
                 subscriptionId,
                 timestampsToReturn,
                 itemsToCreate,
-                out results,
-                out diagnosticInfos);
+                ct));
         }
 
-        public ResponseHeader ModifySubscription(
+        public ValueTask<ModifySubscriptionResponse> ModifySubscriptionAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
             double requestedPublishingInterval,
@@ -249,11 +227,10 @@ namespace Opc.Ua.Server.Tests
             uint requestedMaxKeepAliveCount,
             uint maxNotificationsPerPublish,
             byte priority,
-            out double revisedPublishingInterval,
-            out uint revisedLifetimeCount,
-            out uint revisedMaxKeepAliveCount)
+            CancellationToken ct = default)
         {
-            return m_server.ModifySubscription(
+            return new ValueTask<ModifySubscriptionResponse>(m_server.ModifySubscriptionAsync(
+                SecureChannelContext,
                 requestHeader,
                 subscriptionId,
                 requestedPublishingInterval,
@@ -261,133 +238,118 @@ namespace Opc.Ua.Server.Tests
                 requestedMaxKeepAliveCount,
                 maxNotificationsPerPublish,
                 priority,
-                out revisedPublishingInterval,
-                out revisedLifetimeCount,
-                out revisedMaxKeepAliveCount);
+                ct));
         }
 
-        public ResponseHeader ModifyMonitoredItems(
+        public ValueTask<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
             MonitoredItemModifyRequestCollection itemsToModify,
-            out MonitoredItemModifyResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct = default)
         {
-            return m_server.ModifyMonitoredItems(
+            return new ValueTask<ModifyMonitoredItemsResponse>(m_server.ModifyMonitoredItemsAsync(
+                SecureChannelContext,
                 requestHeader,
                 subscriptionId,
                 timestampsToReturn,
                 itemsToModify,
-                out results,
-                out diagnosticInfos);
+                ct));
         }
 
-        public ResponseHeader Publish(
+        public ValueTask<PublishResponse> PublishAsync(
             RequestHeader requestHeader,
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
-            out uint subscriptionId,
-            out UInt32Collection availableSequenceNumbers,
-            out bool moreNotifications,
-            out NotificationMessage notificationMessage,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct = default)
         {
-            return m_server.Publish(
+            return new ValueTask<PublishResponse>(m_server.PublishAsync(
+                SecureChannelContext,
                 requestHeader,
                 subscriptionAcknowledgements,
-                out subscriptionId,
-                out availableSequenceNumbers,
-                out moreNotifications,
-                out notificationMessage,
-                out results,
-                out diagnosticInfos);
+                ct));
         }
 
-        public ResponseHeader SetPublishingMode(
+        public ValueTask<SetPublishingModeResponse> SetPublishingModeAsync(
             RequestHeader requestHeader,
             bool publishingEnabled,
             UInt32Collection subscriptionIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct = default)
         {
-            return m_server.SetPublishingMode(
+            return new ValueTask<SetPublishingModeResponse>(m_server.SetPublishingModeAsync(
+                SecureChannelContext,
                 requestHeader,
                 publishingEnabled,
                 subscriptionIds,
-                out results,
-                out diagnosticInfos);
+                ct));
         }
 
-        public ResponseHeader SetMonitoringMode(
+        public ValueTask<SetMonitoringModeResponse> SetMonitoringModeAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
             MonitoringMode monitoringMode,
             UInt32Collection monitoredItemIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct = default)
         {
-            return m_server.SetMonitoringMode(
-                requestHeader,
-                subscriptionId,
-                monitoringMode,
-                monitoredItemIds,
-                out results,
-                out diagnosticInfos);
+            return new ValueTask<SetMonitoringModeResponse>(
+                m_server.SetMonitoringModeAsync(
+                    SecureChannelContext,
+                    requestHeader,
+                    subscriptionId,
+                    monitoringMode,
+                    monitoredItemIds,
+                    ct));
         }
 
-        public ResponseHeader Republish(
+        public ValueTask<RepublishResponse> RepublishAsync(
             RequestHeader requestHeader,
             uint subscriptionId,
             uint retransmitSequenceNumber,
-            out NotificationMessage notificationMessage)
+            CancellationToken ct = default)
         {
-            return m_server.Republish(
+            return new ValueTask<RepublishResponse>(m_server.RepublishAsync(
+                SecureChannelContext,
                 requestHeader,
                 subscriptionId,
                 retransmitSequenceNumber,
-                out notificationMessage);
+                ct));
         }
 
-        public ResponseHeader DeleteSubscriptions(
+        public ValueTask<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct = default)
         {
-            return m_server.DeleteSubscriptions(
+            return new ValueTask<DeleteSubscriptionsResponse>(m_server.DeleteSubscriptionsAsync(
+                SecureChannelContext,
                 requestHeader,
                 subscriptionIds,
-                out results,
-                out diagnosticInfos);
+                ct));
         }
 
-        public ResponseHeader TransferSubscriptions(
+        public ValueTask<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
             bool sendInitialValues,
-            out TransferResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct = default)
         {
-            return m_server.TransferSubscriptions(
+            return new ValueTask<TransferSubscriptionsResponse>(m_server.TransferSubscriptionsAsync(
+                SecureChannelContext,
                 requestHeader,
                 subscriptionIds,
                 sendInitialValues,
-                out results,
-                out diagnosticInfos);
+                ct));
         }
 
-        public ResponseHeader TranslateBrowsePathsToNodeIds(
+        public ValueTask<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
             RequestHeader requestHeader,
             BrowsePathCollection browsePaths,
-            out BrowsePathResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken ct = default)
         {
-            return m_server.TranslateBrowsePathsToNodeIds(
+            return new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(m_server.TranslateBrowsePathsToNodeIdsAsync(
+                SecureChannelContext,
                 requestHeader,
                 browsePaths,
-                out results,
-                out diagnosticInfos);
+                ct));
         }
     }
 }

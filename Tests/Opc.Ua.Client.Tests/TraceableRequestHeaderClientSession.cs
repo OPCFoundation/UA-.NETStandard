@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Diagnostics;
 using System.Security.Cryptography.X509Certificates;
 
@@ -37,37 +38,7 @@ namespace Opc.Ua.Client
     /// </summary>
     public class TraceableRequestHeaderClientSession : Session
     {
-        /// <summary>
-        /// Constructs a new instance of the <see cref="Session"/> class.
-        /// </summary>
-        /// <param name="channel">The channel used to communicate with the server.</param>
-        /// <param name="configuration">The configuration for the client application.</param>
-        /// <param name="endpoint">The endpoint use to initialize the channel.</param>
-        public TraceableRequestHeaderClientSession(
-            ISessionChannel channel,
-            ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint)
-            : this(channel as ITransportChannel, configuration, endpoint, null)
-        {
-        }
-
-        /// <summary>
-        /// Constructs a new instance of the <see cref="ISession"/> class.
-        /// </summary>
-        /// <param name="channel">The channel used to communicate with the server.</param>
-        /// <param name="configuration">The configuration for the client application.</param>
-        /// <param name="endpoint">The endpoint used to initialize the channel.</param>
-        /// <param name="clientCertificate">The certificate to use for the client.</param>
-        /// <param name="availableEndpoints">The list of available endpoints returned by server in GetEndpoints() response.</param>
-        /// <param name="discoveryProfileUris">The value of profileUris used in GetEndpoints() request.</param>
-        /// <remarks>
-        /// The application configuration is used to look up the certificate if none is provided.
-        /// The clientCertificate must have the private key. This will require that the certificate
-        /// be loaded from a certicate store. Converting a DER encoded blob to a X509Certificate2
-        /// will not include a private key.
-        /// The <i>availableEndpoints</i> and <i>discoveryProfileUris</i> parameters are used to validate
-        /// that the list of EndpointDescriptions returned at GetEndpoints matches the list returned at CreateSession.
-        /// </remarks>
+        /// <inheritdoc/>
         public TraceableRequestHeaderClientSession(
             ITransportChannel channel,
             ApplicationConfiguration configuration,
@@ -80,17 +51,13 @@ namespace Opc.Ua.Client
                 configuration,
                 endpoint,
                 clientCertificate,
+                null,
                 availableEndpoints,
                 discoveryProfileUris)
         {
         }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ISession"/> class.
-        /// </summary>
-        /// <param name="channel">The channel.</param>
-        /// <param name="template">The template session.</param>
-        /// <param name="copyEventHandlers">if set to <c>true</c> the event handlers are copied.</param>
+        /// <inheritdoc/>
         public TraceableRequestHeaderClientSession(
             ITransportChannel channel,
             Session template,
@@ -106,17 +73,27 @@ namespace Opc.Ua.Client
             ActivityContext context,
             out AdditionalParametersType traceData)
         {
+            // https://reference.opcfoundation.org/Core/Part26/v105/docs/5.5.4
+            Span<byte> spanId = stackalloc byte[8];
+            Span<byte> traceId = stackalloc byte[16];
+            context.SpanId.CopyTo(spanId);
+            context.TraceId.CopyTo(traceId);
+            var spanContextParameter = new KeyValuePair
+            {
+                Key = "SpanContext",
+                Value = new Variant(new SpanContextDataType
+                {
+#if NET8_0_OR_GREATER
+                    SpanId = BitConverter.ToUInt64(spanId),
+                    TraceId = (Uuid)new Guid(traceId)
+#else
+                    SpanId = BitConverter.ToUInt64(spanId.ToArray(), 0),
+                    TraceId = (Uuid)new Guid(traceId.ToArray())
+#endif
+                })
+            };
             traceData = new AdditionalParametersType();
-
-            // Determine the trace flag based on the 'Recorded' status.
-            string traceFlags = (context.TraceFlags & ActivityTraceFlags.Recorded) != 0
-                ? "01"
-                : "00";
-
-            // Construct the traceparent header, adhering to the W3C Trace Context format.
-            string traceparent = $"00-{context.TraceId}-{context.SpanId}-{traceFlags}";
-            traceData.Parameters
-                .Add(new KeyValuePair { Key = "traceparent", Value = new Variant(traceparent) });
+            traceData.Parameters.Add(spanContextParameter);
         }
 
         ///<inheritdoc/>

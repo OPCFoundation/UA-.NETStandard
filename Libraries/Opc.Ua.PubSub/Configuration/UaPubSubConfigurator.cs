@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using Microsoft.Extensions.Logging;
@@ -1652,6 +1653,9 @@ namespace Opc.Ua.PubSub.Configuration
                     case DataSetReaderDataType:
                         ((DataSetReaderDataType)configurationObject).Enabled
                             = configurationObjectEnabled;
+                        break;
+                    default:
+                        Debug.Fail("Unexpected type of configuration object");
                         break;
                 }
             }

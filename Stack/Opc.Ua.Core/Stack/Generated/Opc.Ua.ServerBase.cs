@@ -46,7 +46,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the FindServers service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_FindServers_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use FindServersAsync instead.")]
+        #endif
         ResponseHeader FindServers(
+            SecureChannelContext                 secureChannelContext,
             RequestHeader                        requestHeader,
             string                               endpointUrl,
             StringCollection                     localeIds,
@@ -58,11 +62,12 @@ namespace Opc.Ua
         /// Invokes the FindServers service using async Task based request.
         /// </summary>
         Task<FindServersResponse> FindServersAsync(
-            RequestHeader     requestHeader,
-            string            endpointUrl,
-            StringCollection  localeIds,
-            StringCollection  serverUris,
-            CancellationToken ct);
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            string               endpointUrl,
+            StringCollection     localeIds,
+            StringCollection     serverUris,
+            CancellationToken    ct);
         #endif
         #endif
 
@@ -70,7 +75,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the FindServersOnNetwork service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
+        #endif
         ResponseHeader FindServersOnNetwork(
+            SecureChannelContext          secureChannelContext,
             RequestHeader                 requestHeader,
             uint                          startingRecordId,
             uint                          maxRecordsToReturn,
@@ -83,11 +92,12 @@ namespace Opc.Ua
         /// Invokes the FindServersOnNetwork service using async Task based request.
         /// </summary>
         Task<FindServersOnNetworkResponse> FindServersOnNetworkAsync(
-            RequestHeader     requestHeader,
-            uint              startingRecordId,
-            uint              maxRecordsToReturn,
-            StringCollection  serverCapabilityFilter,
-            CancellationToken ct);
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            uint                 startingRecordId,
+            uint                 maxRecordsToReturn,
+            StringCollection     serverCapabilityFilter,
+            CancellationToken    ct);
         #endif
         #endif
 
@@ -95,7 +105,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the GetEndpoints service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_GetEndpoints_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use GetEndpointsAsync instead.")]
+        #endif
         ResponseHeader GetEndpoints(
+            SecureChannelContext              secureChannelContext,
             RequestHeader                     requestHeader,
             string                            endpointUrl,
             StringCollection                  localeIds,
@@ -107,11 +121,12 @@ namespace Opc.Ua
         /// Invokes the GetEndpoints service using async Task based request.
         /// </summary>
         Task<GetEndpointsResponse> GetEndpointsAsync(
-            RequestHeader     requestHeader,
-            string            endpointUrl,
-            StringCollection  localeIds,
-            StringCollection  profileUris,
-            CancellationToken ct);
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            string               endpointUrl,
+            StringCollection     localeIds,
+            StringCollection     profileUris,
+            CancellationToken    ct);
         #endif
         #endif
 
@@ -119,7 +134,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the CreateSession service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_CreateSession_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use CreateSessionAsync instead.")]
+        #endif
         ResponseHeader CreateSession(
+            SecureChannelContext                    secureChannelContext,
             RequestHeader                           requestHeader,
             ApplicationDescription                  clientDescription,
             string                                  serverUri,
@@ -144,6 +163,7 @@ namespace Opc.Ua
         /// Invokes the CreateSession service using async Task based request.
         /// </summary>
         Task<CreateSessionResponse> CreateSessionAsync(
+            SecureChannelContext   secureChannelContext,
             RequestHeader          requestHeader,
             ApplicationDescription clientDescription,
             string                 serverUri,
@@ -161,7 +181,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the ActivateSession service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_ActivateSession_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use ActivateSessionAsync instead.")]
+        #endif
         ResponseHeader ActivateSession(
+            SecureChannelContext                secureChannelContext,
             RequestHeader                       requestHeader,
             SignatureData                       clientSignature,
             SignedSoftwareCertificateCollection clientSoftwareCertificates,
@@ -177,6 +201,7 @@ namespace Opc.Ua
         /// Invokes the ActivateSession service using async Task based request.
         /// </summary>
         Task<ActivateSessionResponse> ActivateSessionAsync(
+            SecureChannelContext                secureChannelContext,
             RequestHeader                       requestHeader,
             SignatureData                       clientSignature,
             SignedSoftwareCertificateCollection clientSoftwareCertificates,
@@ -191,18 +216,23 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the CloseSession service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_CloseSession_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use CloseSessionAsync instead.")]
+        #endif
         ResponseHeader CloseSession(
-            RequestHeader requestHeader,
-            bool          deleteSubscriptions);
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            bool                 deleteSubscriptions);
 
         #if (!OPCUA_EXCLUDE_CloseSession_ASYNC)
         /// <summary>
         /// Invokes the CloseSession service using async Task based request.
         /// </summary>
         Task<CloseSessionResponse> CloseSessionAsync(
-            RequestHeader     requestHeader,
-            bool              deleteSubscriptions,
-            CancellationToken ct);
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            bool                 deleteSubscriptions,
+            CancellationToken    ct);
         #endif
         #endif
 
@@ -210,19 +240,24 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Cancel service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Cancel_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use CancelAsync instead.")]
+        #endif
         ResponseHeader Cancel(
-            RequestHeader requestHeader,
-            uint          requestHandle,
-            out uint      cancelCount);
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            uint                 requestHandle,
+            out uint             cancelCount);
 
         #if (!OPCUA_EXCLUDE_Cancel_ASYNC)
         /// <summary>
         /// Invokes the Cancel service using async Task based request.
         /// </summary>
         Task<CancelResponse> CancelAsync(
-            RequestHeader     requestHeader,
-            uint              requestHandle,
-            CancellationToken ct);
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            uint                 requestHandle,
+            CancellationToken    ct);
         #endif
         #endif
 
@@ -230,7 +265,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the AddNodes service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_AddNodes_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use AddNodesAsync instead.")]
+        #endif
         ResponseHeader AddNodes(
+            SecureChannelContext         secureChannelContext,
             RequestHeader                requestHeader,
             AddNodesItemCollection       nodesToAdd,
             out AddNodesResultCollection results,
@@ -241,6 +280,7 @@ namespace Opc.Ua
         /// Invokes the AddNodes service using async Task based request.
         /// </summary>
         Task<AddNodesResponse> AddNodesAsync(
+            SecureChannelContext   secureChannelContext,
             RequestHeader          requestHeader,
             AddNodesItemCollection nodesToAdd,
             CancellationToken      ct);
@@ -251,7 +291,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the AddReferences service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_AddReferences_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use AddReferencesAsync instead.")]
+        #endif
         ResponseHeader AddReferences(
+            SecureChannelContext         secureChannelContext,
             RequestHeader                requestHeader,
             AddReferencesItemCollection  referencesToAdd,
             out StatusCodeCollection     results,
@@ -262,6 +306,7 @@ namespace Opc.Ua
         /// Invokes the AddReferences service using async Task based request.
         /// </summary>
         Task<AddReferencesResponse> AddReferencesAsync(
+            SecureChannelContext        secureChannelContext,
             RequestHeader               requestHeader,
             AddReferencesItemCollection referencesToAdd,
             CancellationToken           ct);
@@ -272,7 +317,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the DeleteNodes service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_DeleteNodes_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use DeleteNodesAsync instead.")]
+        #endif
         ResponseHeader DeleteNodes(
+            SecureChannelContext         secureChannelContext,
             RequestHeader                requestHeader,
             DeleteNodesItemCollection    nodesToDelete,
             out StatusCodeCollection     results,
@@ -283,6 +332,7 @@ namespace Opc.Ua
         /// Invokes the DeleteNodes service using async Task based request.
         /// </summary>
         Task<DeleteNodesResponse> DeleteNodesAsync(
+            SecureChannelContext      secureChannelContext,
             RequestHeader             requestHeader,
             DeleteNodesItemCollection nodesToDelete,
             CancellationToken         ct);
@@ -293,7 +343,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the DeleteReferences service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_DeleteReferences_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use DeleteReferencesAsync instead.")]
+        #endif
         ResponseHeader DeleteReferences(
+            SecureChannelContext           secureChannelContext,
             RequestHeader                  requestHeader,
             DeleteReferencesItemCollection referencesToDelete,
             out StatusCodeCollection       results,
@@ -304,6 +358,7 @@ namespace Opc.Ua
         /// Invokes the DeleteReferences service using async Task based request.
         /// </summary>
         Task<DeleteReferencesResponse> DeleteReferencesAsync(
+            SecureChannelContext           secureChannelContext,
             RequestHeader                  requestHeader,
             DeleteReferencesItemCollection referencesToDelete,
             CancellationToken              ct);
@@ -314,7 +369,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Browse service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Browse_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use BrowseAsync instead.")]
+        #endif
         ResponseHeader Browse(
+            SecureChannelContext         secureChannelContext,
             RequestHeader                requestHeader,
             ViewDescription              view,
             uint                         requestedMaxReferencesPerNode,
@@ -327,6 +386,7 @@ namespace Opc.Ua
         /// Invokes the Browse service using async Task based request.
         /// </summary>
         Task<BrowseResponse> BrowseAsync(
+            SecureChannelContext        secureChannelContext,
             RequestHeader               requestHeader,
             ViewDescription             view,
             uint                        requestedMaxReferencesPerNode,
@@ -339,7 +399,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the BrowseNext service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_BrowseNext_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use BrowseNextAsync instead.")]
+        #endif
         ResponseHeader BrowseNext(
+            SecureChannelContext         secureChannelContext,
             RequestHeader                requestHeader,
             bool                         releaseContinuationPoints,
             ByteStringCollection         continuationPoints,
@@ -351,6 +415,7 @@ namespace Opc.Ua
         /// Invokes the BrowseNext service using async Task based request.
         /// </summary>
         Task<BrowseNextResponse> BrowseNextAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader        requestHeader,
             bool                 releaseContinuationPoints,
             ByteStringCollection continuationPoints,
@@ -362,7 +427,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the TranslateBrowsePathsToNodeIds service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use TranslateBrowsePathsToNodeIdsAsync instead.")]
+        #endif
         ResponseHeader TranslateBrowsePathsToNodeIds(
+            SecureChannelContext           secureChannelContext,
             RequestHeader                  requestHeader,
             BrowsePathCollection           browsePaths,
             out BrowsePathResultCollection results,
@@ -373,6 +442,7 @@ namespace Opc.Ua
         /// Invokes the TranslateBrowsePathsToNodeIds service using async Task based request.
         /// </summary>
         Task<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader        requestHeader,
             BrowsePathCollection browsePaths,
             CancellationToken    ct);
@@ -383,7 +453,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the RegisterNodes service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_RegisterNodes_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use RegisterNodesAsync instead.")]
+        #endif
         ResponseHeader RegisterNodes(
+            SecureChannelContext secureChannelContext,
             RequestHeader        requestHeader,
             NodeIdCollection     nodesToRegister,
             out NodeIdCollection registeredNodeIds);
@@ -393,9 +467,10 @@ namespace Opc.Ua
         /// Invokes the RegisterNodes service using async Task based request.
         /// </summary>
         Task<RegisterNodesResponse> RegisterNodesAsync(
-            RequestHeader     requestHeader,
-            NodeIdCollection  nodesToRegister,
-            CancellationToken ct);
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            NodeIdCollection     nodesToRegister,
+            CancellationToken    ct);
         #endif
         #endif
 
@@ -403,18 +478,23 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the UnregisterNodes service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_UnregisterNodes_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use UnregisterNodesAsync instead.")]
+        #endif
         ResponseHeader UnregisterNodes(
-            RequestHeader    requestHeader,
-            NodeIdCollection nodesToUnregister);
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            NodeIdCollection     nodesToUnregister);
 
         #if (!OPCUA_EXCLUDE_UnregisterNodes_ASYNC)
         /// <summary>
         /// Invokes the UnregisterNodes service using async Task based request.
         /// </summary>
         Task<UnregisterNodesResponse> UnregisterNodesAsync(
-            RequestHeader     requestHeader,
-            NodeIdCollection  nodesToUnregister,
-            CancellationToken ct);
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            NodeIdCollection     nodesToUnregister,
+            CancellationToken    ct);
         #endif
         #endif
 
@@ -422,7 +502,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the QueryFirst service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_QueryFirst_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use QueryFirstAsync instead.")]
+        #endif
         ResponseHeader QueryFirst(
+            SecureChannelContext          secureChannelContext,
             RequestHeader                 requestHeader,
             ViewDescription               view,
             NodeTypeDescriptionCollection nodeTypes,
@@ -440,6 +524,7 @@ namespace Opc.Ua
         /// Invokes the QueryFirst service using async Task based request.
         /// </summary>
         Task<QueryFirstResponse> QueryFirstAsync(
+            SecureChannelContext          secureChannelContext,
             RequestHeader                 requestHeader,
             ViewDescription               view,
             NodeTypeDescriptionCollection nodeTypes,
@@ -454,7 +539,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the QueryNext service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_QueryNext_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use QueryNextAsync instead.")]
+        #endif
         ResponseHeader QueryNext(
+            SecureChannelContext       secureChannelContext,
             RequestHeader              requestHeader,
             bool                       releaseContinuationPoint,
             byte[]                     continuationPoint,
@@ -466,10 +555,11 @@ namespace Opc.Ua
         /// Invokes the QueryNext service using async Task based request.
         /// </summary>
         Task<QueryNextResponse> QueryNextAsync(
-            RequestHeader     requestHeader,
-            bool              releaseContinuationPoint,
-            byte[]            continuationPoint,
-            CancellationToken ct);
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            bool                 releaseContinuationPoint,
+            byte[]               continuationPoint,
+            CancellationToken    ct);
         #endif
         #endif
 
@@ -477,7 +567,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Read service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Read_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use ReadAsync instead.")]
+        #endif
         ResponseHeader Read(
+            SecureChannelContext         secureChannelContext,
             RequestHeader                requestHeader,
             double                       maxAge,
             TimestampsToReturn           timestampsToReturn,
@@ -490,6 +584,7 @@ namespace Opc.Ua
         /// Invokes the Read service using async Task based request.
         /// </summary>
         Task<ReadResponse> ReadAsync(
+            SecureChannelContext  secureChannelContext,
             RequestHeader         requestHeader,
             double                maxAge,
             TimestampsToReturn    timestampsToReturn,
@@ -502,7 +597,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the HistoryRead service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_HistoryRead_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use HistoryReadAsync instead.")]
+        #endif
         ResponseHeader HistoryRead(
+            SecureChannelContext            secureChannelContext,
             RequestHeader                   requestHeader,
             ExtensionObject                 historyReadDetails,
             TimestampsToReturn              timestampsToReturn,
@@ -516,6 +615,7 @@ namespace Opc.Ua
         /// Invokes the HistoryRead service using async Task based request.
         /// </summary>
         Task<HistoryReadResponse> HistoryReadAsync(
+            SecureChannelContext         secureChannelContext,
             RequestHeader                requestHeader,
             ExtensionObject              historyReadDetails,
             TimestampsToReturn           timestampsToReturn,
@@ -529,7 +629,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Write service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Write_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use WriteAsync instead.")]
+        #endif
         ResponseHeader Write(
+            SecureChannelContext         secureChannelContext,
             RequestHeader                requestHeader,
             WriteValueCollection         nodesToWrite,
             out StatusCodeCollection     results,
@@ -540,6 +644,7 @@ namespace Opc.Ua
         /// Invokes the Write service using async Task based request.
         /// </summary>
         Task<WriteResponse> WriteAsync(
+            SecureChannelContext secureChannelContext,
             RequestHeader        requestHeader,
             WriteValueCollection nodesToWrite,
             CancellationToken    ct);
@@ -550,7 +655,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the HistoryUpdate service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_HistoryUpdate_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use HistoryUpdateAsync instead.")]
+        #endif
         ResponseHeader HistoryUpdate(
+            SecureChannelContext              secureChannelContext,
             RequestHeader                     requestHeader,
             ExtensionObjectCollection         historyUpdateDetails,
             out HistoryUpdateResultCollection results,
@@ -561,6 +670,7 @@ namespace Opc.Ua
         /// Invokes the HistoryUpdate service using async Task based request.
         /// </summary>
         Task<HistoryUpdateResponse> HistoryUpdateAsync(
+            SecureChannelContext      secureChannelContext,
             RequestHeader             requestHeader,
             ExtensionObjectCollection historyUpdateDetails,
             CancellationToken         ct);
@@ -571,7 +681,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Call service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Call_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use CallAsync instead.")]
+        #endif
         ResponseHeader Call(
+            SecureChannelContext           secureChannelContext,
             RequestHeader                  requestHeader,
             CallMethodRequestCollection    methodsToCall,
             out CallMethodResultCollection results,
@@ -582,6 +696,7 @@ namespace Opc.Ua
         /// Invokes the Call service using async Task based request.
         /// </summary>
         Task<CallResponse> CallAsync(
+            SecureChannelContext        secureChannelContext,
             RequestHeader               requestHeader,
             CallMethodRequestCollection methodsToCall,
             CancellationToken           ct);
@@ -592,7 +707,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the CreateMonitoredItems service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_CreateMonitoredItems_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use CreateMonitoredItemsAsync instead.")]
+        #endif
         ResponseHeader CreateMonitoredItems(
+            SecureChannelContext                    secureChannelContext,
             RequestHeader                           requestHeader,
             uint                                    subscriptionId,
             TimestampsToReturn                      timestampsToReturn,
@@ -605,6 +724,7 @@ namespace Opc.Ua
         /// Invokes the CreateMonitoredItems service using async Task based request.
         /// </summary>
         Task<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
+            SecureChannelContext                 secureChannelContext,
             RequestHeader                        requestHeader,
             uint                                 subscriptionId,
             TimestampsToReturn                   timestampsToReturn,
@@ -617,7 +737,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the ModifyMonitoredItems service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_ModifyMonitoredItems_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use ModifyMonitoredItemsAsync instead.")]
+        #endif
         ResponseHeader ModifyMonitoredItems(
+            SecureChannelContext                    secureChannelContext,
             RequestHeader                           requestHeader,
             uint                                    subscriptionId,
             TimestampsToReturn                      timestampsToReturn,
@@ -630,6 +754,7 @@ namespace Opc.Ua
         /// Invokes the ModifyMonitoredItems service using async Task based request.
         /// </summary>
         Task<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
+            SecureChannelContext                 secureChannelContext,
             RequestHeader                        requestHeader,
             uint                                 subscriptionId,
             TimestampsToReturn                   timestampsToReturn,
@@ -642,7 +767,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the SetMonitoringMode service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_SetMonitoringMode_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use SetMonitoringModeAsync instead.")]
+        #endif
         ResponseHeader SetMonitoringMode(
+            SecureChannelContext         secureChannelContext,
             RequestHeader                requestHeader,
             uint                         subscriptionId,
             MonitoringMode               monitoringMode,
@@ -655,11 +784,12 @@ namespace Opc.Ua
         /// Invokes the SetMonitoringMode service using async Task based request.
         /// </summary>
         Task<SetMonitoringModeResponse> SetMonitoringModeAsync(
-            RequestHeader     requestHeader,
-            uint              subscriptionId,
-            MonitoringMode    monitoringMode,
-            UInt32Collection  monitoredItemIds,
-            CancellationToken ct);
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            uint                 subscriptionId,
+            MonitoringMode       monitoringMode,
+            UInt32Collection     monitoredItemIds,
+            CancellationToken    ct);
         #endif
         #endif
 
@@ -667,7 +797,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the SetTriggering service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_SetTriggering_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use SetTriggeringAsync instead.")]
+        #endif
         ResponseHeader SetTriggering(
+            SecureChannelContext         secureChannelContext,
             RequestHeader                requestHeader,
             uint                         subscriptionId,
             uint                         triggeringItemId,
@@ -683,12 +817,13 @@ namespace Opc.Ua
         /// Invokes the SetTriggering service using async Task based request.
         /// </summary>
         Task<SetTriggeringResponse> SetTriggeringAsync(
-            RequestHeader     requestHeader,
-            uint              subscriptionId,
-            uint              triggeringItemId,
-            UInt32Collection  linksToAdd,
-            UInt32Collection  linksToRemove,
-            CancellationToken ct);
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            uint                 subscriptionId,
+            uint                 triggeringItemId,
+            UInt32Collection     linksToAdd,
+            UInt32Collection     linksToRemove,
+            CancellationToken    ct);
         #endif
         #endif
 
@@ -696,7 +831,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the DeleteMonitoredItems service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_DeleteMonitoredItems_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use DeleteMonitoredItemsAsync instead.")]
+        #endif
         ResponseHeader DeleteMonitoredItems(
+            SecureChannelContext         secureChannelContext,
             RequestHeader                requestHeader,
             uint                         subscriptionId,
             UInt32Collection             monitoredItemIds,
@@ -708,10 +847,11 @@ namespace Opc.Ua
         /// Invokes the DeleteMonitoredItems service using async Task based request.
         /// </summary>
         Task<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
-            RequestHeader     requestHeader,
-            uint              subscriptionId,
-            UInt32Collection  monitoredItemIds,
-            CancellationToken ct);
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            uint                 subscriptionId,
+            UInt32Collection     monitoredItemIds,
+            CancellationToken    ct);
         #endif
         #endif
 
@@ -719,32 +859,37 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the CreateSubscription service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_CreateSubscription_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use CreateSubscriptionAsync instead.")]
+        #endif
         ResponseHeader CreateSubscription(
-            RequestHeader requestHeader,
-            double        requestedPublishingInterval,
-            uint          requestedLifetimeCount,
-            uint          requestedMaxKeepAliveCount,
-            uint          maxNotificationsPerPublish,
-            bool          publishingEnabled,
-            byte          priority,
-            out uint      subscriptionId,
-            out double    revisedPublishingInterval,
-            out uint      revisedLifetimeCount,
-            out uint      revisedMaxKeepAliveCount);
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            double               requestedPublishingInterval,
+            uint                 requestedLifetimeCount,
+            uint                 requestedMaxKeepAliveCount,
+            uint                 maxNotificationsPerPublish,
+            bool                 publishingEnabled,
+            byte                 priority,
+            out uint             subscriptionId,
+            out double           revisedPublishingInterval,
+            out uint             revisedLifetimeCount,
+            out uint             revisedMaxKeepAliveCount);
 
         #if (!OPCUA_EXCLUDE_CreateSubscription_ASYNC)
         /// <summary>
         /// Invokes the CreateSubscription service using async Task based request.
         /// </summary>
         Task<CreateSubscriptionResponse> CreateSubscriptionAsync(
-            RequestHeader     requestHeader,
-            double            requestedPublishingInterval,
-            uint              requestedLifetimeCount,
-            uint              requestedMaxKeepAliveCount,
-            uint              maxNotificationsPerPublish,
-            bool              publishingEnabled,
-            byte              priority,
-            CancellationToken ct);
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            double               requestedPublishingInterval,
+            uint                 requestedLifetimeCount,
+            uint                 requestedMaxKeepAliveCount,
+            uint                 maxNotificationsPerPublish,
+            bool                 publishingEnabled,
+            byte                 priority,
+            CancellationToken    ct);
         #endif
         #endif
 
@@ -752,31 +897,36 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the ModifySubscription service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_ModifySubscription_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use ModifySubscriptionAsync instead.")]
+        #endif
         ResponseHeader ModifySubscription(
-            RequestHeader requestHeader,
-            uint          subscriptionId,
-            double        requestedPublishingInterval,
-            uint          requestedLifetimeCount,
-            uint          requestedMaxKeepAliveCount,
-            uint          maxNotificationsPerPublish,
-            byte          priority,
-            out double    revisedPublishingInterval,
-            out uint      revisedLifetimeCount,
-            out uint      revisedMaxKeepAliveCount);
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            uint                 subscriptionId,
+            double               requestedPublishingInterval,
+            uint                 requestedLifetimeCount,
+            uint                 requestedMaxKeepAliveCount,
+            uint                 maxNotificationsPerPublish,
+            byte                 priority,
+            out double           revisedPublishingInterval,
+            out uint             revisedLifetimeCount,
+            out uint             revisedMaxKeepAliveCount);
 
         #if (!OPCUA_EXCLUDE_ModifySubscription_ASYNC)
         /// <summary>
         /// Invokes the ModifySubscription service using async Task based request.
         /// </summary>
         Task<ModifySubscriptionResponse> ModifySubscriptionAsync(
-            RequestHeader     requestHeader,
-            uint              subscriptionId,
-            double            requestedPublishingInterval,
-            uint              requestedLifetimeCount,
-            uint              requestedMaxKeepAliveCount,
-            uint              maxNotificationsPerPublish,
-            byte              priority,
-            CancellationToken ct);
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            uint                 subscriptionId,
+            double               requestedPublishingInterval,
+            uint                 requestedLifetimeCount,
+            uint                 requestedMaxKeepAliveCount,
+            uint                 maxNotificationsPerPublish,
+            byte                 priority,
+            CancellationToken    ct);
         #endif
         #endif
 
@@ -784,7 +934,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the SetPublishingMode service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_SetPublishingMode_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use SetPublishingModeAsync instead.")]
+        #endif
         ResponseHeader SetPublishingMode(
+            SecureChannelContext         secureChannelContext,
             RequestHeader                requestHeader,
             bool                         publishingEnabled,
             UInt32Collection             subscriptionIds,
@@ -796,10 +950,11 @@ namespace Opc.Ua
         /// Invokes the SetPublishingMode service using async Task based request.
         /// </summary>
         Task<SetPublishingModeResponse> SetPublishingModeAsync(
-            RequestHeader     requestHeader,
-            bool              publishingEnabled,
-            UInt32Collection  subscriptionIds,
-            CancellationToken ct);
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            bool                 publishingEnabled,
+            UInt32Collection     subscriptionIds,
+            CancellationToken    ct);
         #endif
         #endif
 
@@ -807,7 +962,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Publish service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Publish_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use PublishAsync instead.")]
+        #endif
         ResponseHeader Publish(
+            SecureChannelContext                  secureChannelContext,
             RequestHeader                         requestHeader,
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
             out uint                              subscriptionId,
@@ -822,6 +981,7 @@ namespace Opc.Ua
         /// Invokes the Publish service using async Task based request.
         /// </summary>
         Task<PublishResponse> PublishAsync(
+            SecureChannelContext                  secureChannelContext,
             RequestHeader                         requestHeader,
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
             CancellationToken                     ct);
@@ -832,7 +992,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Republish service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Republish_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use RepublishAsync instead.")]
+        #endif
         ResponseHeader Republish(
+            SecureChannelContext    secureChannelContext,
             RequestHeader           requestHeader,
             uint                    subscriptionId,
             uint                    retransmitSequenceNumber,
@@ -843,10 +1007,11 @@ namespace Opc.Ua
         /// Invokes the Republish service using async Task based request.
         /// </summary>
         Task<RepublishResponse> RepublishAsync(
-            RequestHeader     requestHeader,
-            uint              subscriptionId,
-            uint              retransmitSequenceNumber,
-            CancellationToken ct);
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            uint                 subscriptionId,
+            uint                 retransmitSequenceNumber,
+            CancellationToken    ct);
         #endif
         #endif
 
@@ -854,7 +1019,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the TransferSubscriptions service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_TransferSubscriptions_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use TransferSubscriptionsAsync instead.")]
+        #endif
         ResponseHeader TransferSubscriptions(
+            SecureChannelContext         secureChannelContext,
             RequestHeader                requestHeader,
             UInt32Collection             subscriptionIds,
             bool                         sendInitialValues,
@@ -866,10 +1035,11 @@ namespace Opc.Ua
         /// Invokes the TransferSubscriptions service using async Task based request.
         /// </summary>
         Task<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
-            RequestHeader     requestHeader,
-            UInt32Collection  subscriptionIds,
-            bool              sendInitialValues,
-            CancellationToken ct);
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            UInt32Collection     subscriptionIds,
+            bool                 sendInitialValues,
+            CancellationToken    ct);
         #endif
         #endif
 
@@ -877,7 +1047,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the DeleteSubscriptions service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_DeleteSubscriptions_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use DeleteSubscriptionsAsync instead.")]
+        #endif
         ResponseHeader DeleteSubscriptions(
+            SecureChannelContext         secureChannelContext,
             RequestHeader                requestHeader,
             UInt32Collection             subscriptionIds,
             out StatusCodeCollection     results,
@@ -888,9 +1062,10 @@ namespace Opc.Ua
         /// Invokes the DeleteSubscriptions service using async Task based request.
         /// </summary>
         Task<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
-            RequestHeader     requestHeader,
-            UInt32Collection  subscriptionIds,
-            CancellationToken ct);
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            UInt32Collection     subscriptionIds,
+            CancellationToken    ct);
         #endif
         #endif
     }
@@ -902,13 +1077,18 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class SessionServerBase : ServerBase, ISessionServer
     {
         #if (!OPCUA_EXCLUDE_FindServers)
         /// <summary>
         /// Invokes the FindServers service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_FindServers_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use FindServersAsync instead.")]
+        #endif
         public virtual ResponseHeader FindServers(
+            SecureChannelContext                 secureChannelContext,
             RequestHeader                        requestHeader,
             string                               endpointUrl,
             StringCollection                     localeIds,
@@ -925,23 +1105,24 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_FindServers_ASYNC)
-            /// <summary>
-            /// Invokes the FindServers service using async Task based request.
-            /// </summary>
-            public virtual async Task<FindServersResponse> FindServersAsync(
-                RequestHeader     requestHeader,
-                string            endpointUrl,
-                StringCollection  localeIds,
-                StringCollection  serverUris,
-                CancellationToken ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the FindServers service using async Task based request.
+        /// </summary>
+        public virtual async Task<FindServersResponse> FindServersAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            string               endpointUrl,
+            StringCollection     localeIds,
+            StringCollection     serverUris,
+            CancellationToken    ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -949,7 +1130,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the FindServersOnNetwork service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
+        #endif
         public virtual ResponseHeader FindServersOnNetwork(
+            SecureChannelContext          secureChannelContext,
             RequestHeader                 requestHeader,
             uint                          startingRecordId,
             uint                          maxRecordsToReturn,
@@ -968,23 +1153,24 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
-            /// <summary>
-            /// Invokes the FindServersOnNetwork service using async Task based request.
-            /// </summary>
-            public virtual async Task<FindServersOnNetworkResponse> FindServersOnNetworkAsync(
-                RequestHeader     requestHeader,
-                uint              startingRecordId,
-                uint              maxRecordsToReturn,
-                StringCollection  serverCapabilityFilter,
-                CancellationToken ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the FindServersOnNetwork service using async Task based request.
+        /// </summary>
+        public virtual async Task<FindServersOnNetworkResponse> FindServersOnNetworkAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            uint                 startingRecordId,
+            uint                 maxRecordsToReturn,
+            StringCollection     serverCapabilityFilter,
+            CancellationToken    ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -992,7 +1178,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the GetEndpoints service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_GetEndpoints_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use GetEndpointsAsync instead.")]
+        #endif
         public virtual ResponseHeader GetEndpoints(
+            SecureChannelContext              secureChannelContext,
             RequestHeader                     requestHeader,
             string                            endpointUrl,
             StringCollection                  localeIds,
@@ -1009,23 +1199,24 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_GetEndpoints_ASYNC)
-            /// <summary>
-            /// Invokes the GetEndpoints service using async Task based request.
-            /// </summary>
-            public virtual async Task<GetEndpointsResponse> GetEndpointsAsync(
-                RequestHeader     requestHeader,
-                string            endpointUrl,
-                StringCollection  localeIds,
-                StringCollection  profileUris,
-                CancellationToken ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the GetEndpoints service using async Task based request.
+        /// </summary>
+        public virtual async Task<GetEndpointsResponse> GetEndpointsAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            string               endpointUrl,
+            StringCollection     localeIds,
+            StringCollection     profileUris,
+            CancellationToken    ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -1033,7 +1224,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the CreateSession service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_CreateSession_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use CreateSessionAsync instead.")]
+        #endif
         public virtual ResponseHeader CreateSession(
+            SecureChannelContext                    secureChannelContext,
             RequestHeader                           requestHeader,
             ApplicationDescription                  clientDescription,
             string                                  serverUri,
@@ -1071,28 +1266,29 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_CreateSession_ASYNC)
-            /// <summary>
-            /// Invokes the CreateSession service using async Task based request.
-            /// </summary>
-            public virtual async Task<CreateSessionResponse> CreateSessionAsync(
-                RequestHeader          requestHeader,
-                ApplicationDescription clientDescription,
-                string                 serverUri,
-                string                 endpointUrl,
-                string                 sessionName,
-                byte[]                 clientNonce,
-                byte[]                 clientCertificate,
-                double                 requestedSessionTimeout,
-                uint                   maxResponseMessageSize,
-                CancellationToken      ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the CreateSession service using async Task based request.
+        /// </summary>
+        public virtual async Task<CreateSessionResponse> CreateSessionAsync(
+            SecureChannelContext   secureChannelContext,
+            RequestHeader          requestHeader,
+            ApplicationDescription clientDescription,
+            string                 serverUri,
+            string                 endpointUrl,
+            string                 sessionName,
+            byte[]                 clientNonce,
+            byte[]                 clientCertificate,
+            double                 requestedSessionTimeout,
+            uint                   maxResponseMessageSize,
+            CancellationToken      ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -1100,7 +1296,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the ActivateSession service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_ActivateSession_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use ActivateSessionAsync instead.")]
+        #endif
         public virtual ResponseHeader ActivateSession(
+            SecureChannelContext                secureChannelContext,
             RequestHeader                       requestHeader,
             SignatureData                       clientSignature,
             SignedSoftwareCertificateCollection clientSoftwareCertificates,
@@ -1123,25 +1323,26 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_ActivateSession_ASYNC)
-            /// <summary>
-            /// Invokes the ActivateSession service using async Task based request.
-            /// </summary>
-            public virtual async Task<ActivateSessionResponse> ActivateSessionAsync(
-                RequestHeader                       requestHeader,
-                SignatureData                       clientSignature,
-                SignedSoftwareCertificateCollection clientSoftwareCertificates,
-                StringCollection                    localeIds,
-                ExtensionObject                     userIdentityToken,
-                SignatureData                       userTokenSignature,
-                CancellationToken                   ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the ActivateSession service using async Task based request.
+        /// </summary>
+        public virtual async Task<ActivateSessionResponse> ActivateSessionAsync(
+            SecureChannelContext                secureChannelContext,
+            RequestHeader                       requestHeader,
+            SignatureData                       clientSignature,
+            SignedSoftwareCertificateCollection clientSoftwareCertificates,
+            StringCollection                    localeIds,
+            ExtensionObject                     userIdentityToken,
+            SignatureData                       userTokenSignature,
+            CancellationToken                   ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -1149,9 +1350,13 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the CloseSession service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_CloseSession_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use CloseSessionAsync instead.")]
+        #endif
         public virtual ResponseHeader CloseSession(
-            RequestHeader requestHeader,
-            bool          deleteSubscriptions)
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            bool                 deleteSubscriptions)
         {
 
             ValidateRequest(requestHeader);
@@ -1162,21 +1367,22 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_CloseSession_ASYNC)
-            /// <summary>
-            /// Invokes the CloseSession service using async Task based request.
-            /// </summary>
-            public virtual async Task<CloseSessionResponse> CloseSessionAsync(
-                RequestHeader     requestHeader,
-                bool              deleteSubscriptions,
-                CancellationToken ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the CloseSession service using async Task based request.
+        /// </summary>
+        public virtual async Task<CloseSessionResponse> CloseSessionAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            bool                 deleteSubscriptions,
+            CancellationToken    ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -1184,10 +1390,14 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Cancel service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Cancel_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use CancelAsync instead.")]
+        #endif
         public virtual ResponseHeader Cancel(
-            RequestHeader requestHeader,
-            uint          requestHandle,
-            out uint      cancelCount)
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            uint                 requestHandle,
+            out uint             cancelCount)
         {
             cancelCount = 0;
 
@@ -1199,21 +1409,22 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_Cancel_ASYNC)
-            /// <summary>
-            /// Invokes the Cancel service using async Task based request.
-            /// </summary>
-            public virtual async Task<CancelResponse> CancelAsync(
-                RequestHeader     requestHeader,
-                uint              requestHandle,
-                CancellationToken ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the Cancel service using async Task based request.
+        /// </summary>
+        public virtual async Task<CancelResponse> CancelAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            uint                 requestHandle,
+            CancellationToken    ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -1221,7 +1432,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the AddNodes service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_AddNodes_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use AddNodesAsync instead.")]
+        #endif
         public virtual ResponseHeader AddNodes(
+            SecureChannelContext         secureChannelContext,
             RequestHeader                requestHeader,
             AddNodesItemCollection       nodesToAdd,
             out AddNodesResultCollection results,
@@ -1238,21 +1453,22 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_AddNodes_ASYNC)
-            /// <summary>
-            /// Invokes the AddNodes service using async Task based request.
-            /// </summary>
-            public virtual async Task<AddNodesResponse> AddNodesAsync(
-                RequestHeader          requestHeader,
-                AddNodesItemCollection nodesToAdd,
-                CancellationToken      ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the AddNodes service using async Task based request.
+        /// </summary>
+        public virtual async Task<AddNodesResponse> AddNodesAsync(
+            SecureChannelContext   secureChannelContext,
+            RequestHeader          requestHeader,
+            AddNodesItemCollection nodesToAdd,
+            CancellationToken      ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -1260,7 +1476,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the AddReferences service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_AddReferences_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use AddReferencesAsync instead.")]
+        #endif
         public virtual ResponseHeader AddReferences(
+            SecureChannelContext         secureChannelContext,
             RequestHeader                requestHeader,
             AddReferencesItemCollection  referencesToAdd,
             out StatusCodeCollection     results,
@@ -1277,21 +1497,22 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_AddReferences_ASYNC)
-            /// <summary>
-            /// Invokes the AddReferences service using async Task based request.
-            /// </summary>
-            public virtual async Task<AddReferencesResponse> AddReferencesAsync(
-                RequestHeader               requestHeader,
-                AddReferencesItemCollection referencesToAdd,
-                CancellationToken           ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the AddReferences service using async Task based request.
+        /// </summary>
+        public virtual async Task<AddReferencesResponse> AddReferencesAsync(
+            SecureChannelContext        secureChannelContext,
+            RequestHeader               requestHeader,
+            AddReferencesItemCollection referencesToAdd,
+            CancellationToken           ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -1299,7 +1520,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the DeleteNodes service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_DeleteNodes_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use DeleteNodesAsync instead.")]
+        #endif
         public virtual ResponseHeader DeleteNodes(
+            SecureChannelContext         secureChannelContext,
             RequestHeader                requestHeader,
             DeleteNodesItemCollection    nodesToDelete,
             out StatusCodeCollection     results,
@@ -1316,21 +1541,22 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_DeleteNodes_ASYNC)
-            /// <summary>
-            /// Invokes the DeleteNodes service using async Task based request.
-            /// </summary>
-            public virtual async Task<DeleteNodesResponse> DeleteNodesAsync(
-                RequestHeader             requestHeader,
-                DeleteNodesItemCollection nodesToDelete,
-                CancellationToken         ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the DeleteNodes service using async Task based request.
+        /// </summary>
+        public virtual async Task<DeleteNodesResponse> DeleteNodesAsync(
+            SecureChannelContext      secureChannelContext,
+            RequestHeader             requestHeader,
+            DeleteNodesItemCollection nodesToDelete,
+            CancellationToken         ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -1338,7 +1564,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the DeleteReferences service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_DeleteReferences_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use DeleteReferencesAsync instead.")]
+        #endif
         public virtual ResponseHeader DeleteReferences(
+            SecureChannelContext           secureChannelContext,
             RequestHeader                  requestHeader,
             DeleteReferencesItemCollection referencesToDelete,
             out StatusCodeCollection       results,
@@ -1355,21 +1585,22 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_DeleteReferences_ASYNC)
-            /// <summary>
-            /// Invokes the DeleteReferences service using async Task based request.
-            /// </summary>
-            public virtual async Task<DeleteReferencesResponse> DeleteReferencesAsync(
-                RequestHeader                  requestHeader,
-                DeleteReferencesItemCollection referencesToDelete,
-                CancellationToken              ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the DeleteReferences service using async Task based request.
+        /// </summary>
+        public virtual async Task<DeleteReferencesResponse> DeleteReferencesAsync(
+            SecureChannelContext           secureChannelContext,
+            RequestHeader                  requestHeader,
+            DeleteReferencesItemCollection referencesToDelete,
+            CancellationToken              ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -1377,7 +1608,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Browse service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Browse_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use BrowseAsync instead.")]
+        #endif
         public virtual ResponseHeader Browse(
+            SecureChannelContext         secureChannelContext,
             RequestHeader                requestHeader,
             ViewDescription              view,
             uint                         requestedMaxReferencesPerNode,
@@ -1396,23 +1631,24 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_Browse_ASYNC)
-            /// <summary>
-            /// Invokes the Browse service using async Task based request.
-            /// </summary>
-            public virtual async Task<BrowseResponse> BrowseAsync(
-                RequestHeader               requestHeader,
-                ViewDescription             view,
-                uint                        requestedMaxReferencesPerNode,
-                BrowseDescriptionCollection nodesToBrowse,
-                CancellationToken           ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the Browse service using async Task based request.
+        /// </summary>
+        public virtual async Task<BrowseResponse> BrowseAsync(
+            SecureChannelContext        secureChannelContext,
+            RequestHeader               requestHeader,
+            ViewDescription             view,
+            uint                        requestedMaxReferencesPerNode,
+            BrowseDescriptionCollection nodesToBrowse,
+            CancellationToken           ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -1420,7 +1656,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the BrowseNext service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_BrowseNext_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use BrowseNextAsync instead.")]
+        #endif
         public virtual ResponseHeader BrowseNext(
+            SecureChannelContext         secureChannelContext,
             RequestHeader                requestHeader,
             bool                         releaseContinuationPoints,
             ByteStringCollection         continuationPoints,
@@ -1438,22 +1678,23 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_BrowseNext_ASYNC)
-            /// <summary>
-            /// Invokes the BrowseNext service using async Task based request.
-            /// </summary>
-            public virtual async Task<BrowseNextResponse> BrowseNextAsync(
-                RequestHeader        requestHeader,
-                bool                 releaseContinuationPoints,
-                ByteStringCollection continuationPoints,
-                CancellationToken    ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the BrowseNext service using async Task based request.
+        /// </summary>
+        public virtual async Task<BrowseNextResponse> BrowseNextAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            bool                 releaseContinuationPoints,
+            ByteStringCollection continuationPoints,
+            CancellationToken    ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -1461,7 +1702,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the TranslateBrowsePathsToNodeIds service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use TranslateBrowsePathsToNodeIdsAsync instead.")]
+        #endif
         public virtual ResponseHeader TranslateBrowsePathsToNodeIds(
+            SecureChannelContext           secureChannelContext,
             RequestHeader                  requestHeader,
             BrowsePathCollection           browsePaths,
             out BrowsePathResultCollection results,
@@ -1478,21 +1723,22 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds_ASYNC)
-            /// <summary>
-            /// Invokes the TranslateBrowsePathsToNodeIds service using async Task based request.
-            /// </summary>
-            public virtual async Task<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
-                RequestHeader        requestHeader,
-                BrowsePathCollection browsePaths,
-                CancellationToken    ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the TranslateBrowsePathsToNodeIds service using async Task based request.
+        /// </summary>
+        public virtual async Task<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            BrowsePathCollection browsePaths,
+            CancellationToken    ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -1500,7 +1746,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the RegisterNodes service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_RegisterNodes_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use RegisterNodesAsync instead.")]
+        #endif
         public virtual ResponseHeader RegisterNodes(
+            SecureChannelContext secureChannelContext,
             RequestHeader        requestHeader,
             NodeIdCollection     nodesToRegister,
             out NodeIdCollection registeredNodeIds)
@@ -1515,21 +1765,22 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_RegisterNodes_ASYNC)
-            /// <summary>
-            /// Invokes the RegisterNodes service using async Task based request.
-            /// </summary>
-            public virtual async Task<RegisterNodesResponse> RegisterNodesAsync(
-                RequestHeader     requestHeader,
-                NodeIdCollection  nodesToRegister,
-                CancellationToken ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the RegisterNodes service using async Task based request.
+        /// </summary>
+        public virtual async Task<RegisterNodesResponse> RegisterNodesAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            NodeIdCollection     nodesToRegister,
+            CancellationToken    ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -1537,9 +1788,13 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the UnregisterNodes service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_UnregisterNodes_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use UnregisterNodesAsync instead.")]
+        #endif
         public virtual ResponseHeader UnregisterNodes(
-            RequestHeader    requestHeader,
-            NodeIdCollection nodesToUnregister)
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            NodeIdCollection     nodesToUnregister)
         {
 
             ValidateRequest(requestHeader);
@@ -1550,21 +1805,22 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_UnregisterNodes_ASYNC)
-            /// <summary>
-            /// Invokes the UnregisterNodes service using async Task based request.
-            /// </summary>
-            public virtual async Task<UnregisterNodesResponse> UnregisterNodesAsync(
-                RequestHeader     requestHeader,
-                NodeIdCollection  nodesToUnregister,
-                CancellationToken ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the UnregisterNodes service using async Task based request.
+        /// </summary>
+        public virtual async Task<UnregisterNodesResponse> UnregisterNodesAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            NodeIdCollection     nodesToUnregister,
+            CancellationToken    ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -1572,7 +1828,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the QueryFirst service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_QueryFirst_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use QueryFirstAsync instead.")]
+        #endif
         public virtual ResponseHeader QueryFirst(
+            SecureChannelContext          secureChannelContext,
             RequestHeader                 requestHeader,
             ViewDescription               view,
             NodeTypeDescriptionCollection nodeTypes,
@@ -1599,25 +1859,26 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_QueryFirst_ASYNC)
-            /// <summary>
-            /// Invokes the QueryFirst service using async Task based request.
-            /// </summary>
-            public virtual async Task<QueryFirstResponse> QueryFirstAsync(
-                RequestHeader                 requestHeader,
-                ViewDescription               view,
-                NodeTypeDescriptionCollection nodeTypes,
-                ContentFilter                 filter,
-                uint                          maxDataSetsToReturn,
-                uint                          maxReferencesToReturn,
-                CancellationToken             ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the QueryFirst service using async Task based request.
+        /// </summary>
+        public virtual async Task<QueryFirstResponse> QueryFirstAsync(
+            SecureChannelContext          secureChannelContext,
+            RequestHeader                 requestHeader,
+            ViewDescription               view,
+            NodeTypeDescriptionCollection nodeTypes,
+            ContentFilter                 filter,
+            uint                          maxDataSetsToReturn,
+            uint                          maxReferencesToReturn,
+            CancellationToken             ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -1625,7 +1886,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the QueryNext service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_QueryNext_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use QueryNextAsync instead.")]
+        #endif
         public virtual ResponseHeader QueryNext(
+            SecureChannelContext       secureChannelContext,
             RequestHeader              requestHeader,
             bool                       releaseContinuationPoint,
             byte[]                     continuationPoint,
@@ -1643,22 +1908,23 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_QueryNext_ASYNC)
-            /// <summary>
-            /// Invokes the QueryNext service using async Task based request.
-            /// </summary>
-            public virtual async Task<QueryNextResponse> QueryNextAsync(
-                RequestHeader     requestHeader,
-                bool              releaseContinuationPoint,
-                byte[]            continuationPoint,
-                CancellationToken ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the QueryNext service using async Task based request.
+        /// </summary>
+        public virtual async Task<QueryNextResponse> QueryNextAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            bool                 releaseContinuationPoint,
+            byte[]               continuationPoint,
+            CancellationToken    ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -1666,7 +1932,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Read service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Read_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use ReadAsync instead.")]
+        #endif
         public virtual ResponseHeader Read(
+            SecureChannelContext         secureChannelContext,
             RequestHeader                requestHeader,
             double                       maxAge,
             TimestampsToReturn           timestampsToReturn,
@@ -1685,23 +1955,24 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_Read_ASYNC)
-            /// <summary>
-            /// Invokes the Read service using async Task based request.
-            /// </summary>
-            public virtual async Task<ReadResponse> ReadAsync(
-                RequestHeader         requestHeader,
-                double                maxAge,
-                TimestampsToReturn    timestampsToReturn,
-                ReadValueIdCollection nodesToRead,
-                CancellationToken     ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the Read service using async Task based request.
+        /// </summary>
+        public virtual async Task<ReadResponse> ReadAsync(
+            SecureChannelContext  secureChannelContext,
+            RequestHeader         requestHeader,
+            double                maxAge,
+            TimestampsToReturn    timestampsToReturn,
+            ReadValueIdCollection nodesToRead,
+            CancellationToken     ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -1709,7 +1980,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the HistoryRead service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_HistoryRead_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use HistoryReadAsync instead.")]
+        #endif
         public virtual ResponseHeader HistoryRead(
+            SecureChannelContext            secureChannelContext,
             RequestHeader                   requestHeader,
             ExtensionObject                 historyReadDetails,
             TimestampsToReturn              timestampsToReturn,
@@ -1729,24 +2004,25 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_HistoryRead_ASYNC)
-            /// <summary>
-            /// Invokes the HistoryRead service using async Task based request.
-            /// </summary>
-            public virtual async Task<HistoryReadResponse> HistoryReadAsync(
-                RequestHeader                requestHeader,
-                ExtensionObject              historyReadDetails,
-                TimestampsToReturn           timestampsToReturn,
-                bool                         releaseContinuationPoints,
-                HistoryReadValueIdCollection nodesToRead,
-                CancellationToken            ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the HistoryRead service using async Task based request.
+        /// </summary>
+        public virtual async Task<HistoryReadResponse> HistoryReadAsync(
+            SecureChannelContext         secureChannelContext,
+            RequestHeader                requestHeader,
+            ExtensionObject              historyReadDetails,
+            TimestampsToReturn           timestampsToReturn,
+            bool                         releaseContinuationPoints,
+            HistoryReadValueIdCollection nodesToRead,
+            CancellationToken            ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -1754,7 +2030,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Write service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Write_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use WriteAsync instead.")]
+        #endif
         public virtual ResponseHeader Write(
+            SecureChannelContext         secureChannelContext,
             RequestHeader                requestHeader,
             WriteValueCollection         nodesToWrite,
             out StatusCodeCollection     results,
@@ -1771,21 +2051,22 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_Write_ASYNC)
-            /// <summary>
-            /// Invokes the Write service using async Task based request.
-            /// </summary>
-            public virtual async Task<WriteResponse> WriteAsync(
-                RequestHeader        requestHeader,
-                WriteValueCollection nodesToWrite,
-                CancellationToken    ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the Write service using async Task based request.
+        /// </summary>
+        public virtual async Task<WriteResponse> WriteAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            WriteValueCollection nodesToWrite,
+            CancellationToken    ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -1793,7 +2074,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the HistoryUpdate service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_HistoryUpdate_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use HistoryUpdateAsync instead.")]
+        #endif
         public virtual ResponseHeader HistoryUpdate(
+            SecureChannelContext              secureChannelContext,
             RequestHeader                     requestHeader,
             ExtensionObjectCollection         historyUpdateDetails,
             out HistoryUpdateResultCollection results,
@@ -1810,21 +2095,22 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_HistoryUpdate_ASYNC)
-            /// <summary>
-            /// Invokes the HistoryUpdate service using async Task based request.
-            /// </summary>
-            public virtual async Task<HistoryUpdateResponse> HistoryUpdateAsync(
-                RequestHeader             requestHeader,
-                ExtensionObjectCollection historyUpdateDetails,
-                CancellationToken         ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the HistoryUpdate service using async Task based request.
+        /// </summary>
+        public virtual async Task<HistoryUpdateResponse> HistoryUpdateAsync(
+            SecureChannelContext      secureChannelContext,
+            RequestHeader             requestHeader,
+            ExtensionObjectCollection historyUpdateDetails,
+            CancellationToken         ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -1832,7 +2118,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Call service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Call_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use CallAsync instead.")]
+        #endif
         public virtual ResponseHeader Call(
+            SecureChannelContext           secureChannelContext,
             RequestHeader                  requestHeader,
             CallMethodRequestCollection    methodsToCall,
             out CallMethodResultCollection results,
@@ -1849,21 +2139,22 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_Call_ASYNC)
-            /// <summary>
-            /// Invokes the Call service using async Task based request.
-            /// </summary>
-            public virtual async Task<CallResponse> CallAsync(
-                RequestHeader               requestHeader,
-                CallMethodRequestCollection methodsToCall,
-                CancellationToken           ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the Call service using async Task based request.
+        /// </summary>
+        public virtual async Task<CallResponse> CallAsync(
+            SecureChannelContext        secureChannelContext,
+            RequestHeader               requestHeader,
+            CallMethodRequestCollection methodsToCall,
+            CancellationToken           ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -1871,7 +2162,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the CreateMonitoredItems service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_CreateMonitoredItems_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use CreateMonitoredItemsAsync instead.")]
+        #endif
         public virtual ResponseHeader CreateMonitoredItems(
+            SecureChannelContext                    secureChannelContext,
             RequestHeader                           requestHeader,
             uint                                    subscriptionId,
             TimestampsToReturn                      timestampsToReturn,
@@ -1890,23 +2185,24 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_CreateMonitoredItems_ASYNC)
-            /// <summary>
-            /// Invokes the CreateMonitoredItems service using async Task based request.
-            /// </summary>
-            public virtual async Task<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
-                RequestHeader                        requestHeader,
-                uint                                 subscriptionId,
-                TimestampsToReturn                   timestampsToReturn,
-                MonitoredItemCreateRequestCollection itemsToCreate,
-                CancellationToken                    ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the CreateMonitoredItems service using async Task based request.
+        /// </summary>
+        public virtual async Task<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
+            SecureChannelContext                 secureChannelContext,
+            RequestHeader                        requestHeader,
+            uint                                 subscriptionId,
+            TimestampsToReturn                   timestampsToReturn,
+            MonitoredItemCreateRequestCollection itemsToCreate,
+            CancellationToken                    ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -1914,7 +2210,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the ModifyMonitoredItems service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_ModifyMonitoredItems_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use ModifyMonitoredItemsAsync instead.")]
+        #endif
         public virtual ResponseHeader ModifyMonitoredItems(
+            SecureChannelContext                    secureChannelContext,
             RequestHeader                           requestHeader,
             uint                                    subscriptionId,
             TimestampsToReturn                      timestampsToReturn,
@@ -1933,23 +2233,24 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_ModifyMonitoredItems_ASYNC)
-            /// <summary>
-            /// Invokes the ModifyMonitoredItems service using async Task based request.
-            /// </summary>
-            public virtual async Task<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
-                RequestHeader                        requestHeader,
-                uint                                 subscriptionId,
-                TimestampsToReturn                   timestampsToReturn,
-                MonitoredItemModifyRequestCollection itemsToModify,
-                CancellationToken                    ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the ModifyMonitoredItems service using async Task based request.
+        /// </summary>
+        public virtual async Task<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
+            SecureChannelContext                 secureChannelContext,
+            RequestHeader                        requestHeader,
+            uint                                 subscriptionId,
+            TimestampsToReturn                   timestampsToReturn,
+            MonitoredItemModifyRequestCollection itemsToModify,
+            CancellationToken                    ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -1957,7 +2258,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the SetMonitoringMode service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_SetMonitoringMode_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use SetMonitoringModeAsync instead.")]
+        #endif
         public virtual ResponseHeader SetMonitoringMode(
+            SecureChannelContext         secureChannelContext,
             RequestHeader                requestHeader,
             uint                         subscriptionId,
             MonitoringMode               monitoringMode,
@@ -1976,23 +2281,24 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_SetMonitoringMode_ASYNC)
-            /// <summary>
-            /// Invokes the SetMonitoringMode service using async Task based request.
-            /// </summary>
-            public virtual async Task<SetMonitoringModeResponse> SetMonitoringModeAsync(
-                RequestHeader     requestHeader,
-                uint              subscriptionId,
-                MonitoringMode    monitoringMode,
-                UInt32Collection  monitoredItemIds,
-                CancellationToken ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the SetMonitoringMode service using async Task based request.
+        /// </summary>
+        public virtual async Task<SetMonitoringModeResponse> SetMonitoringModeAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            uint                 subscriptionId,
+            MonitoringMode       monitoringMode,
+            UInt32Collection     monitoredItemIds,
+            CancellationToken    ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -2000,7 +2306,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the SetTriggering service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_SetTriggering_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use SetTriggeringAsync instead.")]
+        #endif
         public virtual ResponseHeader SetTriggering(
+            SecureChannelContext         secureChannelContext,
             RequestHeader                requestHeader,
             uint                         subscriptionId,
             uint                         triggeringItemId,
@@ -2024,24 +2334,25 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_SetTriggering_ASYNC)
-            /// <summary>
-            /// Invokes the SetTriggering service using async Task based request.
-            /// </summary>
-            public virtual async Task<SetTriggeringResponse> SetTriggeringAsync(
-                RequestHeader     requestHeader,
-                uint              subscriptionId,
-                uint              triggeringItemId,
-                UInt32Collection  linksToAdd,
-                UInt32Collection  linksToRemove,
-                CancellationToken ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the SetTriggering service using async Task based request.
+        /// </summary>
+        public virtual async Task<SetTriggeringResponse> SetTriggeringAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            uint                 subscriptionId,
+            uint                 triggeringItemId,
+            UInt32Collection     linksToAdd,
+            UInt32Collection     linksToRemove,
+            CancellationToken    ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -2049,7 +2360,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the DeleteMonitoredItems service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_DeleteMonitoredItems_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use DeleteMonitoredItemsAsync instead.")]
+        #endif
         public virtual ResponseHeader DeleteMonitoredItems(
+            SecureChannelContext         secureChannelContext,
             RequestHeader                requestHeader,
             uint                         subscriptionId,
             UInt32Collection             monitoredItemIds,
@@ -2067,22 +2382,23 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_DeleteMonitoredItems_ASYNC)
-            /// <summary>
-            /// Invokes the DeleteMonitoredItems service using async Task based request.
-            /// </summary>
-            public virtual async Task<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
-                RequestHeader     requestHeader,
-                uint              subscriptionId,
-                UInt32Collection  monitoredItemIds,
-                CancellationToken ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the DeleteMonitoredItems service using async Task based request.
+        /// </summary>
+        public virtual async Task<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            uint                 subscriptionId,
+            UInt32Collection     monitoredItemIds,
+            CancellationToken    ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -2090,18 +2406,22 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the CreateSubscription service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_CreateSubscription_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use CreateSubscriptionAsync instead.")]
+        #endif
         public virtual ResponseHeader CreateSubscription(
-            RequestHeader requestHeader,
-            double        requestedPublishingInterval,
-            uint          requestedLifetimeCount,
-            uint          requestedMaxKeepAliveCount,
-            uint          maxNotificationsPerPublish,
-            bool          publishingEnabled,
-            byte          priority,
-            out uint      subscriptionId,
-            out double    revisedPublishingInterval,
-            out uint      revisedLifetimeCount,
-            out uint      revisedMaxKeepAliveCount)
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            double               requestedPublishingInterval,
+            uint                 requestedLifetimeCount,
+            uint                 requestedMaxKeepAliveCount,
+            uint                 maxNotificationsPerPublish,
+            bool                 publishingEnabled,
+            byte                 priority,
+            out uint             subscriptionId,
+            out double           revisedPublishingInterval,
+            out uint             revisedLifetimeCount,
+            out uint             revisedMaxKeepAliveCount)
         {
             subscriptionId = 0;
             revisedPublishingInterval = 0;
@@ -2116,26 +2436,27 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_CreateSubscription_ASYNC)
-            /// <summary>
-            /// Invokes the CreateSubscription service using async Task based request.
-            /// </summary>
-            public virtual async Task<CreateSubscriptionResponse> CreateSubscriptionAsync(
-                RequestHeader     requestHeader,
-                double            requestedPublishingInterval,
-                uint              requestedLifetimeCount,
-                uint              requestedMaxKeepAliveCount,
-                uint              maxNotificationsPerPublish,
-                bool              publishingEnabled,
-                byte              priority,
-                CancellationToken ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the CreateSubscription service using async Task based request.
+        /// </summary>
+        public virtual async Task<CreateSubscriptionResponse> CreateSubscriptionAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            double               requestedPublishingInterval,
+            uint                 requestedLifetimeCount,
+            uint                 requestedMaxKeepAliveCount,
+            uint                 maxNotificationsPerPublish,
+            bool                 publishingEnabled,
+            byte                 priority,
+            CancellationToken    ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -2143,17 +2464,21 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the ModifySubscription service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_ModifySubscription_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use ModifySubscriptionAsync instead.")]
+        #endif
         public virtual ResponseHeader ModifySubscription(
-            RequestHeader requestHeader,
-            uint          subscriptionId,
-            double        requestedPublishingInterval,
-            uint          requestedLifetimeCount,
-            uint          requestedMaxKeepAliveCount,
-            uint          maxNotificationsPerPublish,
-            byte          priority,
-            out double    revisedPublishingInterval,
-            out uint      revisedLifetimeCount,
-            out uint      revisedMaxKeepAliveCount)
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            uint                 subscriptionId,
+            double               requestedPublishingInterval,
+            uint                 requestedLifetimeCount,
+            uint                 requestedMaxKeepAliveCount,
+            uint                 maxNotificationsPerPublish,
+            byte                 priority,
+            out double           revisedPublishingInterval,
+            out uint             revisedLifetimeCount,
+            out uint             revisedMaxKeepAliveCount)
         {
             revisedPublishingInterval = 0;
             revisedLifetimeCount = 0;
@@ -2167,26 +2492,27 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_ModifySubscription_ASYNC)
-            /// <summary>
-            /// Invokes the ModifySubscription service using async Task based request.
-            /// </summary>
-            public virtual async Task<ModifySubscriptionResponse> ModifySubscriptionAsync(
-                RequestHeader     requestHeader,
-                uint              subscriptionId,
-                double            requestedPublishingInterval,
-                uint              requestedLifetimeCount,
-                uint              requestedMaxKeepAliveCount,
-                uint              maxNotificationsPerPublish,
-                byte              priority,
-                CancellationToken ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the ModifySubscription service using async Task based request.
+        /// </summary>
+        public virtual async Task<ModifySubscriptionResponse> ModifySubscriptionAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            uint                 subscriptionId,
+            double               requestedPublishingInterval,
+            uint                 requestedLifetimeCount,
+            uint                 requestedMaxKeepAliveCount,
+            uint                 maxNotificationsPerPublish,
+            byte                 priority,
+            CancellationToken    ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -2194,7 +2520,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the SetPublishingMode service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_SetPublishingMode_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use SetPublishingModeAsync instead.")]
+        #endif
         public virtual ResponseHeader SetPublishingMode(
+            SecureChannelContext         secureChannelContext,
             RequestHeader                requestHeader,
             bool                         publishingEnabled,
             UInt32Collection             subscriptionIds,
@@ -2212,22 +2542,23 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_SetPublishingMode_ASYNC)
-            /// <summary>
-            /// Invokes the SetPublishingMode service using async Task based request.
-            /// </summary>
-            public virtual async Task<SetPublishingModeResponse> SetPublishingModeAsync(
-                RequestHeader     requestHeader,
-                bool              publishingEnabled,
-                UInt32Collection  subscriptionIds,
-                CancellationToken ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the SetPublishingMode service using async Task based request.
+        /// </summary>
+        public virtual async Task<SetPublishingModeResponse> SetPublishingModeAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            bool                 publishingEnabled,
+            UInt32Collection     subscriptionIds,
+            CancellationToken    ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -2235,7 +2566,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Publish service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Publish_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use PublishAsync instead.")]
+        #endif
         public virtual ResponseHeader Publish(
+            SecureChannelContext                  secureChannelContext,
             RequestHeader                         requestHeader,
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
             out uint                              subscriptionId,
@@ -2260,21 +2595,22 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_Publish_ASYNC)
-            /// <summary>
-            /// Invokes the Publish service using async Task based request.
-            /// </summary>
-            public virtual async Task<PublishResponse> PublishAsync(
-                RequestHeader                         requestHeader,
-                SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
-                CancellationToken                     ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the Publish service using async Task based request.
+        /// </summary>
+        public virtual async Task<PublishResponse> PublishAsync(
+            SecureChannelContext                  secureChannelContext,
+            RequestHeader                         requestHeader,
+            SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
+            CancellationToken                     ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -2282,7 +2618,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Republish service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_Republish_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use RepublishAsync instead.")]
+        #endif
         public virtual ResponseHeader Republish(
+            SecureChannelContext    secureChannelContext,
             RequestHeader           requestHeader,
             uint                    subscriptionId,
             uint                    retransmitSequenceNumber,
@@ -2298,22 +2638,23 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_Republish_ASYNC)
-            /// <summary>
-            /// Invokes the Republish service using async Task based request.
-            /// </summary>
-            public virtual async Task<RepublishResponse> RepublishAsync(
-                RequestHeader     requestHeader,
-                uint              subscriptionId,
-                uint              retransmitSequenceNumber,
-                CancellationToken ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the Republish service using async Task based request.
+        /// </summary>
+        public virtual async Task<RepublishResponse> RepublishAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            uint                 subscriptionId,
+            uint                 retransmitSequenceNumber,
+            CancellationToken    ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -2321,7 +2662,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the TransferSubscriptions service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_TransferSubscriptions_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use TransferSubscriptionsAsync instead.")]
+        #endif
         public virtual ResponseHeader TransferSubscriptions(
+            SecureChannelContext         secureChannelContext,
             RequestHeader                requestHeader,
             UInt32Collection             subscriptionIds,
             bool                         sendInitialValues,
@@ -2339,22 +2684,23 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_TransferSubscriptions_ASYNC)
-            /// <summary>
-            /// Invokes the TransferSubscriptions service using async Task based request.
-            /// </summary>
-            public virtual async Task<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
-                RequestHeader     requestHeader,
-                UInt32Collection  subscriptionIds,
-                bool              sendInitialValues,
-                CancellationToken ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the TransferSubscriptions service using async Task based request.
+        /// </summary>
+        public virtual async Task<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            UInt32Collection     subscriptionIds,
+            bool                 sendInitialValues,
+            CancellationToken    ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -2362,7 +2708,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the DeleteSubscriptions service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_DeleteSubscriptions_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use DeleteSubscriptionsAsync instead.")]
+        #endif
         public virtual ResponseHeader DeleteSubscriptions(
+            SecureChannelContext         secureChannelContext,
             RequestHeader                requestHeader,
             UInt32Collection             subscriptionIds,
             out StatusCodeCollection     results,
@@ -2379,21 +2729,22 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_DeleteSubscriptions_ASYNC)
-            /// <summary>
-            /// Invokes the DeleteSubscriptions service using async Task based request.
-            /// </summary>
-            public virtual async Task<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
-                RequestHeader     requestHeader,
-                UInt32Collection  subscriptionIds,
-                CancellationToken ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the DeleteSubscriptions service using async Task based request.
+        /// </summary>
+        public virtual async Task<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            UInt32Collection     subscriptionIds,
+            CancellationToken    ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
     }
@@ -2411,7 +2762,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the FindServers service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_FindServers_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use FindServersAsync instead.")]
+        #endif
         ResponseHeader FindServers(
+            SecureChannelContext                 secureChannelContext,
             RequestHeader                        requestHeader,
             string                               endpointUrl,
             StringCollection                     localeIds,
@@ -2423,11 +2778,12 @@ namespace Opc.Ua
         /// Invokes the FindServers service using async Task based request.
         /// </summary>
         Task<FindServersResponse> FindServersAsync(
-            RequestHeader     requestHeader,
-            string            endpointUrl,
-            StringCollection  localeIds,
-            StringCollection  serverUris,
-            CancellationToken ct);
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            string               endpointUrl,
+            StringCollection     localeIds,
+            StringCollection     serverUris,
+            CancellationToken    ct);
         #endif
         #endif
 
@@ -2435,7 +2791,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the FindServersOnNetwork service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
+        #endif
         ResponseHeader FindServersOnNetwork(
+            SecureChannelContext          secureChannelContext,
             RequestHeader                 requestHeader,
             uint                          startingRecordId,
             uint                          maxRecordsToReturn,
@@ -2448,11 +2808,12 @@ namespace Opc.Ua
         /// Invokes the FindServersOnNetwork service using async Task based request.
         /// </summary>
         Task<FindServersOnNetworkResponse> FindServersOnNetworkAsync(
-            RequestHeader     requestHeader,
-            uint              startingRecordId,
-            uint              maxRecordsToReturn,
-            StringCollection  serverCapabilityFilter,
-            CancellationToken ct);
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            uint                 startingRecordId,
+            uint                 maxRecordsToReturn,
+            StringCollection     serverCapabilityFilter,
+            CancellationToken    ct);
         #endif
         #endif
 
@@ -2460,7 +2821,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the GetEndpoints service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_GetEndpoints_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use GetEndpointsAsync instead.")]
+        #endif
         ResponseHeader GetEndpoints(
+            SecureChannelContext              secureChannelContext,
             RequestHeader                     requestHeader,
             string                            endpointUrl,
             StringCollection                  localeIds,
@@ -2472,11 +2837,12 @@ namespace Opc.Ua
         /// Invokes the GetEndpoints service using async Task based request.
         /// </summary>
         Task<GetEndpointsResponse> GetEndpointsAsync(
-            RequestHeader     requestHeader,
-            string            endpointUrl,
-            StringCollection  localeIds,
-            StringCollection  profileUris,
-            CancellationToken ct);
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            string               endpointUrl,
+            StringCollection     localeIds,
+            StringCollection     profileUris,
+            CancellationToken    ct);
         #endif
         #endif
 
@@ -2484,18 +2850,23 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the RegisterServer service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_RegisterServer_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use RegisterServerAsync instead.")]
+        #endif
         ResponseHeader RegisterServer(
-            RequestHeader    requestHeader,
-            RegisteredServer server);
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            RegisteredServer     server);
 
         #if (!OPCUA_EXCLUDE_RegisterServer_ASYNC)
         /// <summary>
         /// Invokes the RegisterServer service using async Task based request.
         /// </summary>
         Task<RegisterServerResponse> RegisterServerAsync(
-            RequestHeader     requestHeader,
-            RegisteredServer  server,
-            CancellationToken ct);
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            RegisteredServer     server,
+            CancellationToken    ct);
         #endif
         #endif
 
@@ -2503,7 +2874,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the RegisterServer2 service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_RegisterServer2_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use RegisterServer2Async instead.")]
+        #endif
         ResponseHeader RegisterServer2(
+            SecureChannelContext         secureChannelContext,
             RequestHeader                requestHeader,
             RegisteredServer             server,
             ExtensionObjectCollection    discoveryConfiguration,
@@ -2515,6 +2890,7 @@ namespace Opc.Ua
         /// Invokes the RegisterServer2 service using async Task based request.
         /// </summary>
         Task<RegisterServer2Response> RegisterServer2Async(
+            SecureChannelContext      secureChannelContext,
             RequestHeader             requestHeader,
             RegisteredServer          server,
             ExtensionObjectCollection discoveryConfiguration,
@@ -2530,13 +2906,18 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     public partial class DiscoveryServerBase : ServerBase, IDiscoveryServer
     {
         #if (!OPCUA_EXCLUDE_FindServers)
         /// <summary>
         /// Invokes the FindServers service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_FindServers_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use FindServersAsync instead.")]
+        #endif
         public virtual ResponseHeader FindServers(
+            SecureChannelContext                 secureChannelContext,
             RequestHeader                        requestHeader,
             string                               endpointUrl,
             StringCollection                     localeIds,
@@ -2553,23 +2934,24 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_FindServers_ASYNC)
-            /// <summary>
-            /// Invokes the FindServers service using async Task based request.
-            /// </summary>
-            public virtual async Task<FindServersResponse> FindServersAsync(
-                RequestHeader     requestHeader,
-                string            endpointUrl,
-                StringCollection  localeIds,
-                StringCollection  serverUris,
-                CancellationToken ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the FindServers service using async Task based request.
+        /// </summary>
+        public virtual async Task<FindServersResponse> FindServersAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            string               endpointUrl,
+            StringCollection     localeIds,
+            StringCollection     serverUris,
+            CancellationToken    ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -2577,7 +2959,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the FindServersOnNetwork service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
+        #endif
         public virtual ResponseHeader FindServersOnNetwork(
+            SecureChannelContext          secureChannelContext,
             RequestHeader                 requestHeader,
             uint                          startingRecordId,
             uint                          maxRecordsToReturn,
@@ -2596,23 +2982,24 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
-            /// <summary>
-            /// Invokes the FindServersOnNetwork service using async Task based request.
-            /// </summary>
-            public virtual async Task<FindServersOnNetworkResponse> FindServersOnNetworkAsync(
-                RequestHeader     requestHeader,
-                uint              startingRecordId,
-                uint              maxRecordsToReturn,
-                StringCollection  serverCapabilityFilter,
-                CancellationToken ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the FindServersOnNetwork service using async Task based request.
+        /// </summary>
+        public virtual async Task<FindServersOnNetworkResponse> FindServersOnNetworkAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            uint                 startingRecordId,
+            uint                 maxRecordsToReturn,
+            StringCollection     serverCapabilityFilter,
+            CancellationToken    ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -2620,7 +3007,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the GetEndpoints service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_GetEndpoints_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use GetEndpointsAsync instead.")]
+        #endif
         public virtual ResponseHeader GetEndpoints(
+            SecureChannelContext              secureChannelContext,
             RequestHeader                     requestHeader,
             string                            endpointUrl,
             StringCollection                  localeIds,
@@ -2637,23 +3028,24 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_GetEndpoints_ASYNC)
-            /// <summary>
-            /// Invokes the GetEndpoints service using async Task based request.
-            /// </summary>
-            public virtual async Task<GetEndpointsResponse> GetEndpointsAsync(
-                RequestHeader     requestHeader,
-                string            endpointUrl,
-                StringCollection  localeIds,
-                StringCollection  profileUris,
-                CancellationToken ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the GetEndpoints service using async Task based request.
+        /// </summary>
+        public virtual async Task<GetEndpointsResponse> GetEndpointsAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            string               endpointUrl,
+            StringCollection     localeIds,
+            StringCollection     profileUris,
+            CancellationToken    ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -2661,9 +3053,13 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the RegisterServer service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_RegisterServer_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use RegisterServerAsync instead.")]
+        #endif
         public virtual ResponseHeader RegisterServer(
-            RequestHeader    requestHeader,
-            RegisteredServer server)
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            RegisteredServer     server)
         {
 
             ValidateRequest(requestHeader);
@@ -2674,21 +3070,22 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_RegisterServer_ASYNC)
-            /// <summary>
-            /// Invokes the RegisterServer service using async Task based request.
-            /// </summary>
-            public virtual async Task<RegisterServerResponse> RegisterServerAsync(
-                RequestHeader     requestHeader,
-                RegisteredServer  server,
-                CancellationToken ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the RegisterServer service using async Task based request.
+        /// </summary>
+        public virtual async Task<RegisterServerResponse> RegisterServerAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader        requestHeader,
+            RegisteredServer     server,
+            CancellationToken    ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
 
@@ -2696,7 +3093,11 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the RegisterServer2 service.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && !OPCUA_EXCLUDE_RegisterServer2_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use RegisterServer2Async instead.")]
+        #endif
         public virtual ResponseHeader RegisterServer2(
+            SecureChannelContext         secureChannelContext,
             RequestHeader                requestHeader,
             RegisteredServer             server,
             ExtensionObjectCollection    discoveryConfiguration,
@@ -2714,22 +3115,23 @@ namespace Opc.Ua
         }
 
         #if (!OPCUA_EXCLUDE_RegisterServer2_ASYNC)
-            /// <summary>
-            /// Invokes the RegisterServer2 service using async Task based request.
-            /// </summary>
-            public virtual async Task<RegisterServer2Response> RegisterServer2Async(
-                RequestHeader             requestHeader,
-                RegisteredServer          server,
-                ExtensionObjectCollection discoveryConfiguration,
-                CancellationToken         ct)
-            {
-                ValidateRequest(requestHeader);
+        /// <summary>
+        /// Invokes the RegisterServer2 service using async Task based request.
+        /// </summary>
+        public virtual async Task<RegisterServer2Response> RegisterServer2Async(
+            SecureChannelContext      secureChannelContext,
+            RequestHeader             requestHeader,
+            RegisteredServer          server,
+            ExtensionObjectCollection discoveryConfiguration,
+            CancellationToken         ct)
+        {
+            ValidateRequest(requestHeader);
 
-                // Insert implementation.
-                await Task.CompletedTask;
+            // Insert implementation.
+            await Task.CompletedTask;
 
-                throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
-            }
+            throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+        }
         #endif
         #endif
     }

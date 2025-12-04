@@ -172,11 +172,13 @@ namespace Opc.Ua.PubSub.Transport
                     configuredEndpoint,
                     telemetry,
                     logger);
+#pragma warning disable CA1508 // Avoid dead conditional code
                 if (udpClient == null)
                 {
                     continue;
                 }
-                //store UdpClient
+#pragma warning restore CA1508 // Avoid dead conditional code
+                              //store UdpClient
                 udpClients.Add(udpClient);
                 logger.LogInformation(
                     "NetworkInterface name('{Name}') UdpClient successfully created.",

@@ -10,6 +10,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+using System;
 using System.Threading;
 
 namespace Opc.Ua
@@ -36,21 +37,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Initializes a new instance with the context for the current thread.
-        /// </summary>
-        protected SecureChannelContext()
-        {
-            SecureChannelContext context = Current;
-
-            if (context != null)
-            {
-                SecureChannelId = context.SecureChannelId;
-                EndpointDescription = context.EndpointDescription;
-                MessageEncoding = context.MessageEncoding;
-            }
-        }
-
-        /// <summary>
         /// TThe unique identifier for the secure channel.
         /// </summary>
         /// <value>The secure channel identifier.</value>
@@ -72,6 +58,7 @@ namespace Opc.Ua
         /// The active secure channel for the thread.
         /// </summary>
         /// <value>The current secure channel context.</value>
+        [Obsolete("Pass SecureChannelContext explicitly instead.")]
         public static SecureChannelContext Current
         {
             get => s_dataslot.Value;

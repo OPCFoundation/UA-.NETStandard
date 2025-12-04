@@ -1,0 +1,99 @@
+/* ========================================================================
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.IO;
+
+namespace Opc.Ua
+{
+    /// <summary>
+    /// File system abstraction for testing and in memory source management
+    /// </summary>
+    public interface IFileSystem
+    {
+        /// <summary>
+        /// Tests path exists
+        /// </summary>
+        /// <param name="path"></param>
+        /// <param name="isDirectory"></param>
+        /// <returns></returns>
+        bool Exists(string path, bool isDirectory = false);
+
+        /// <summary>
+        /// Delete file or directory
+        /// </summary>
+        /// <param name="path"></param>
+        /// <param name="isDirectory"></param>
+        /// <returns></returns>
+        void Delete(string path, bool isDirectory = false);
+
+        /// <summary>
+        /// Create readable stream
+        /// </summary>
+        /// <param name="path"></param>
+        /// <returns></returns>
+        Stream OpenRead(string path);
+
+        /// <summary>
+        /// Create writable stream
+        /// </summary>
+        /// <param name="path"></param>
+        /// <returns></returns>
+        Stream OpenWrite(string path);
+
+        /// <summary>
+        /// Get last write time of file
+        /// </summary>
+        /// <param name="path"></param>
+        /// <returns></returns>
+        DateTime GetLastWriteTime(string path);
+    }
+
+    /// <summary>
+    /// Extensions for file system
+    /// </summary>
+    public static class FileSystemExtensions
+    {
+        /// <summary>
+        /// Create a text writer
+        /// </summary>
+        public static TextWriter CreateTextWriter(this IFileSystem fileSystem, string path)
+        {
+            return new StreamWriter(fileSystem.OpenWrite(path));
+        }
+
+        /// <summary>
+        /// Create a text reader
+        /// </summary>
+        public static TextReader CreateTextReader(this IFileSystem fileSystem, string path)
+        {
+            return new StreamReader(fileSystem.OpenRead(path));
+        }
+    }
+}

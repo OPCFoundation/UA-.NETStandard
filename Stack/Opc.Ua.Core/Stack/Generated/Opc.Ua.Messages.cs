@@ -52,6 +52,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -108,6 +109,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -167,6 +169,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -223,6 +226,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -282,6 +286,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -338,6 +343,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -397,6 +403,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -453,6 +460,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -512,6 +520,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -568,6 +577,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -627,6 +637,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -683,6 +694,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -742,6 +754,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -798,6 +811,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -857,6 +871,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -913,6 +928,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -972,6 +988,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -1028,6 +1045,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -1087,6 +1105,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -1143,6 +1162,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -1202,6 +1222,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -1258,6 +1279,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -1317,6 +1339,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -1373,6 +1396,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -1432,6 +1456,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -1488,6 +1513,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -1547,6 +1573,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -1603,6 +1630,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -1662,6 +1690,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -1718,6 +1747,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -1777,6 +1807,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -1833,6 +1864,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -1892,6 +1924,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -1948,6 +1981,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -2007,6 +2041,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -2063,6 +2098,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -2122,6 +2158,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -2178,6 +2215,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -2237,6 +2275,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -2293,6 +2332,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -2352,6 +2392,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -2408,6 +2449,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -2467,6 +2509,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -2523,6 +2566,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -2582,6 +2626,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -2638,6 +2683,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -2697,6 +2743,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -2753,6 +2800,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -2812,6 +2860,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -2868,6 +2917,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -2927,6 +2977,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -2983,6 +3034,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -3042,6 +3094,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -3098,6 +3151,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -3157,6 +3211,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -3213,6 +3268,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -3272,6 +3328,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -3328,6 +3385,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -3387,6 +3445,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -3443,6 +3502,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -3502,6 +3562,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -3558,6 +3619,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -3617,6 +3679,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -3673,6 +3736,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -3732,6 +3796,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -3788,6 +3853,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -3847,6 +3913,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -3903,6 +3970,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -3962,6 +4030,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -4018,6 +4087,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -4077,6 +4147,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -4133,6 +4204,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -4192,6 +4264,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -4248,6 +4321,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -4307,6 +4381,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -4363,6 +4438,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -4422,6 +4498,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif
@@ -4478,6 +4555,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
     #if (!NET_STANDARD)
     [MessageContract(IsWrapped=false)]
     #endif

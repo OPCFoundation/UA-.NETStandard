@@ -102,7 +102,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
 
             // start Ref server
-            m_serverFixture = new ServerFixture<ReferenceServer>(telemetry)
+            m_serverFixture = new ServerFixture<ReferenceServer>
             {
                 UriScheme = m_uriScheme,
                 SecurityNone = true,
@@ -223,9 +223,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             TestContext.Out.WriteLine("VariableIds: {0}", variableIds.Count);
 
-            (DataValueCollection values, IList<ServiceResult> serviceResults) = await samples
-                .ReadAllValuesAsync(this, variableIds)
-                .ConfigureAwait(false);
+            (IReadOnlyList<DataValue> values, IReadOnlyList<ServiceResult> serviceResults) =
+                await samples.ReadAllValuesAsync(this, variableIds).ConfigureAwait(false);
 
             int ii = 0;
             foreach (ServiceResult serviceResult in serviceResults)
@@ -263,9 +262,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             TestContext.Out.WriteLine("VariableIds: {0}", variableIds.Count);
 
-            (DataValueCollection values, IList<ServiceResult> serviceResults) = await samples
-                .ReadAllValuesAsync(this, variableIds)
-                .ConfigureAwait(false);
+            (IReadOnlyList<DataValue> values, IReadOnlyList<ServiceResult> serviceResults) =
+                await samples.ReadAllValuesAsync(this, variableIds).ConfigureAwait(false);
 
             foreach (ServiceResult serviceResult in serviceResults)
             {

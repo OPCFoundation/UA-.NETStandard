@@ -98,8 +98,6 @@ namespace Opc.Ua.Security.Certificates.Tests
         }
     }
 
-#if ECC_SUPPORT
-
     public class ECCurveHashPair : IFormattable
     {
         public ECCurveHashPair(ECCurve curve, HashAlgorithmName hashAlgorithmName)
@@ -169,7 +167,6 @@ namespace Opc.Ua.Security.Certificates.Tests
             Add(new ECCurveHashPair(curve, hashAlgorithmName));
         }
     }
-#endif
 
     /// <summary>
     /// A CRL as test asset.

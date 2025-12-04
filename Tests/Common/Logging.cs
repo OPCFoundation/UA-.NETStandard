@@ -30,11 +30,8 @@
 using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Diagnostics.Metrics;
 using System.Globalization;
-using System.IO;
 using System.Text;
-using System.Threading;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 
@@ -63,52 +60,39 @@ namespace Opc.Ua.Tests
         private readonly Func<ITelemetryContext, T> m_factory;
     }
 
-    public sealed class NUnitTelemetryContext : ITelemetryContext
+    public sealed class NUnitTelemetryContext : TelemetryContextBase
     {
-        private static readonly DefaultTelemetry s_default = new();
-
-        /// <inheritdoc/>
-        public Meter CreateMeter()
-        {
-            return s_default.CreateMeter();
-        }
-
-        /// <inheritdoc/>
-        public ActivitySource ActivitySource => s_default.ActivitySource;
-
-        /// <inheritdoc/>
-        public ILoggerFactory LoggerFactory { get; }
-
         /// <summary>
-        /// Create telemetry context over a writer
+        /// Create telemetry context
         /// </summary>
-        /// <param name="outputWriter"></param>
-        private NUnitTelemetryContext(TextWriter outputWriter)
+        private NUnitTelemetryContext(string context, ILoggerProvider provider)
+            : base(Microsoft.Extensions.Logging.LoggerFactory
+                .Create(builder => builder.AddProvider(provider)))
         {
-            m_writer = outputWriter;
-            LoggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(
-                builder => builder.AddProvider(new NUnitLoggerProvider(m_writer)));
-        }
-
-        /// <summary>
-        /// Create a telemetry context
-        /// </summary>
-        /// <param name="writer"></param>
-        /// <returns></returns>
-        public static ITelemetryContext Create(TextWriter writer)
-        {
-            return new NUnitTelemetryContext(writer);
         }
 
         /// <summary>
         /// Use the test context output
         /// </summary>
         /// <returns></returns>
-        public static ITelemetryContext Create()
+        public static ITelemetryContext Create(bool isServer = false)
         {
-            return Create(TestContext.Out);
+            string context = !isServer ? "TEST" : "SERVER";
+            return new NUnitTelemetryContext(context,
+                new NUnitLoggerProvider(context));
         }
 
+        /// <summary>
+        /// Use the benchmark log output
+        /// </summary>
+        /// <returns></returns>
+        public static ITelemetryContext CreateForBenchmarks()
+        {
+            return new NUnitTelemetryContext("BENCHMARKS",
+                new BenchmarkDotNetProvider());
+        }
+
+        [ProviderAlias("BenchmarkDotNet")]
         internal sealed class BenchmarkDotNetProvider : ILoggerProvider
         {
             /// <inheritdoc/>
@@ -164,18 +148,28 @@ namespace Opc.Ua.Tests
                     }
                     try
                     {
-                        var sb = new StringBuilder();
-                        sb.AppendFormat(
-                            CultureInfo.InvariantCulture,
-                            "{0:yy-MM-dd HH:mm:ss.fff}: ",
-                            DateTime.UtcNow)
+                        StringBuilder sb = new StringBuilder()
+                            .AppendFormat(
+                                CultureInfo.InvariantCulture,
+                                "{0:yy-MM-dd HH:mm:ss.fff}: ",
+                                DateTime.UtcNow)
                             .Append(formatter(state, exception));
+                        if (exception != null)
+                        {
+                            sb
+                                .AppendLine()
+                                .AppendException(exception, "\t");
+                        }
                         m_logger.WriteLine(logLevel switch
                         {
                             LogLevel.Information => BenchmarkDotNet.Loggers.LogKind.Info,
                             LogLevel.Warning => BenchmarkDotNet.Loggers.LogKind.Warning,
-                            LogLevel.Error or LogLevel.Critical => BenchmarkDotNet.Loggers.LogKind.Error,
-                            _ => BenchmarkDotNet.Loggers.LogKind.Default
+                            LogLevel.Error or
+                            LogLevel.Critical => BenchmarkDotNet.Loggers.LogKind.Error,
+                            LogLevel.Trace or
+                            LogLevel.Debug or
+                            LogLevel.None => BenchmarkDotNet.Loggers.LogKind.Default,
+                            _ => throw new ArgumentException("Unknown log level", nameof(logLevel))
                         },
                         sb.ToString());
                     }
@@ -190,30 +184,36 @@ namespace Opc.Ua.Tests
                   new(StringComparer.OrdinalIgnoreCase);
         }
 
+        [ProviderAlias("NUnit")]
         internal sealed class NUnitLoggerProvider : ILoggerProvider
         {
-            public NUnitLoggerProvider(TextWriter outputWriter)
+            /// <summary>
+            /// Create provider for context
+            /// </summary>
+            /// <param name="context"></param>
+            public NUnitLoggerProvider(string context)
             {
-                m_outputWriter = outputWriter;
+                m_context = context;
             }
 
             /// <inheritdoc/>
             public ILogger CreateLogger(string categoryName)
             {
-                return m_loggers.GetOrAdd(categoryName, name => new Logger(m_outputWriter));
+                return m_loggers.GetOrAdd(categoryName,
+                    name => new Logger(m_context, categoryName));
             }
 
             /// <inheritdoc/>
             public void Dispose()
             {
-                m_outputWriter.Close();
             }
 
             private sealed class Logger : ILogger, IDisposable
             {
-                public Logger(TextWriter outputWriter)
+                public Logger(string context, string categoryName)
                 {
-                    m_outputWriter = outputWriter;
+                    m_context = context;
+                    m_categoryName = categoryName;
                 }
 
                 /// <inheritdoc/>
@@ -228,19 +228,29 @@ namespace Opc.Ua.Tests
                 /// <inheritdoc/>
                 public void Dispose()
                 {
-                    m_outputWriter.Flush();
+                    // nothing to dispose
                 }
 
                 /// <inheritdoc/>
                 public bool IsEnabled(LogLevel logLevel)
                 {
-                    return logLevel >= MinimumLogLevel;
-                }
-
-                /// <inheritdoc/>
-                public void SetWriter(TextWriter outputWriter)
-                {
-                    Interlocked.Exchange(ref m_outputWriter, outputWriter);
+                    if (logLevel < MinimumLogLevel)
+                    {
+                        return false;
+                    }
+                    switch (logLevel)
+                    {
+                        case LogLevel.Trace:
+                        case LogLevel.Debug:
+                        case LogLevel.Information:
+                        case LogLevel.Warning:
+                            return TestContext.Progress != null;
+                        case LogLevel.Error:
+                        case LogLevel.Critical:
+                            return TestContext.Error != null;
+                        default:
+                            return false;
+                    }
                 }
 
                 /// <inheritdoc/>
@@ -255,19 +265,57 @@ namespace Opc.Ua.Tests
                     {
                         return;
                     }
-
                     try
                     {
-                        var sb = new StringBuilder();
-                        sb.AppendFormat(
-                            CultureInfo.InvariantCulture,
-                            "{0:yy-MM-dd HH:mm:ss.fff}: ",
-                            DateTime.UtcNow)
+                        // Add the info to the test log if on current context
+                        StringBuilder sb = new StringBuilder()
+                            .AppendFormat(
+                                CultureInfo.InvariantCulture,
+                                "{0:HH:mm:ss.fff} ",
+                                DateTime.UtcNow)
+                            .Append('[')
+                            .Append(m_categoryName)
+                            .Append(']')
+                            .Append(' ')
                             .Append(formatter(state, exception));
+                        if (exception != null)
+                        {
+                            sb
+                                .AppendLine()
+                                .AppendException(exception, "\t");
+                        }
+                        string logRecord = sb.ToString();
+                        TestContext.Out.WriteLine(logRecord);
 
-                        string logEntry = sb.ToString();
-
-                        m_outputWriter.WriteLine(logEntry);
+                        // Also write to progress/error which captures all output not just test
+                        logRecord = sb
+                            .Clear()
+                            .Append(TestContext.CurrentContext?.Test?.DisplayName ?? string.Empty)
+                            .Append(' ')
+                            .AppendLine(TestContext.CurrentContext?.Test?.Name ?? string.Empty)
+                            .Append('\t')
+                            .Append(m_context)
+                            .Append(' ')
+                            .Append(logRecord)
+                            .ToString();
+                        switch (logLevel)
+                        {
+                            case LogLevel.Trace:
+                            case LogLevel.Debug:
+                            case LogLevel.Information:
+                            case LogLevel.Warning:
+                                TestContext.Progress.WriteLine(logRecord);
+                                break;
+                            case LogLevel.Error:
+                            case LogLevel.Critical:
+                                TestContext.Error.WriteLine(logRecord);
+                                break;
+                            case LogLevel.None:
+                                return;
+                            default:
+                                Debug.Fail($"Bad log level {logLevel}");
+                                break;
+                        }
                     }
                     catch
                     {
@@ -275,15 +323,14 @@ namespace Opc.Ua.Tests
                     }
                 }
 
-                private TextWriter m_outputWriter;
+                private readonly string m_context;
+                private readonly string m_categoryName;
             }
-
-            private readonly TextWriter m_outputWriter;
 
             private readonly ConcurrentDictionary<string, Logger> m_loggers =
                   new(StringComparer.OrdinalIgnoreCase);
-        }
 
-        private readonly TextWriter m_writer;
+            private readonly string m_context;
+        }
     }
 }

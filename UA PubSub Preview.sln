@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.14.36401.2 d17.14
+VisualStudioVersion = 17.14.36401.2
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{857A6774-6F49-4220-AC55-D53D60FCCB3B}"
 	ProjectSection(SolutionItems) = preProject
@@ -28,6 +28,8 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Security.Certificates", "Libraries\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj", "{4B72937F-5A57-4CEA-B9FE-B4C45CF7B284}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.PubSub.Tests", "Tests\Opc.Ua.PubSub.Tests\Opc.Ua.PubSub.Tests.csproj", "{E55756A3-1464-4C9D-8C2F-569F1DA554F6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Opc.Ua.Types", "Stack\Opc.Ua.Types\Opc.Ua.Types.csproj", "{1A3E53FF-C13F-78A9-22B0-2045136C1904}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -111,6 +113,18 @@ Global
 		{E55756A3-1464-4C9D-8C2F-569F1DA554F6}.Release|x64.Build.0 = Release|Any CPU
 		{E55756A3-1464-4C9D-8C2F-569F1DA554F6}.Release|x86.ActiveCfg = Release|Any CPU
 		{E55756A3-1464-4C9D-8C2F-569F1DA554F6}.Release|x86.Build.0 = Release|Any CPU
+		{1A3E53FF-C13F-78A9-22B0-2045136C1904}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1A3E53FF-C13F-78A9-22B0-2045136C1904}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1A3E53FF-C13F-78A9-22B0-2045136C1904}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1A3E53FF-C13F-78A9-22B0-2045136C1904}.Debug|x64.Build.0 = Debug|Any CPU
+		{1A3E53FF-C13F-78A9-22B0-2045136C1904}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{1A3E53FF-C13F-78A9-22B0-2045136C1904}.Debug|x86.Build.0 = Debug|Any CPU
+		{1A3E53FF-C13F-78A9-22B0-2045136C1904}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1A3E53FF-C13F-78A9-22B0-2045136C1904}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1A3E53FF-C13F-78A9-22B0-2045136C1904}.Release|x64.ActiveCfg = Release|Any CPU
+		{1A3E53FF-C13F-78A9-22B0-2045136C1904}.Release|x64.Build.0 = Release|Any CPU
+		{1A3E53FF-C13F-78A9-22B0-2045136C1904}.Release|x86.ActiveCfg = Release|Any CPU
+		{1A3E53FF-C13F-78A9-22B0-2045136C1904}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

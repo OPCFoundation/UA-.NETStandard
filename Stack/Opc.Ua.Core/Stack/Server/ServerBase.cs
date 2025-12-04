@@ -54,8 +54,9 @@ namespace Opc.Ua
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && !m_disposed)
             {
+                m_disposed = true;
                 // dispose any listeners.
                 if (TransportListeners != null)
                 {
@@ -226,11 +227,15 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="configuration">The object that stores the configurable configuration information
         /// for a UA application</param>
+        /// <param name="cancellationToken">The cancellation token</param>
         /// <param name="baseAddresses">The array of Uri elements which contains base addresses.</param>
         /// <returns>Returns a host for a UA service.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
-        public ServiceHost Start(ApplicationConfiguration configuration, params Uri[] baseAddresses)
+        public async ValueTask<ServiceHost> StartAsync(
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default,
+            params Uri[] baseAddresses)
         {
             if (configuration == null)
             {
@@ -244,7 +249,7 @@ namespace Opc.Ua
             InitializeRequestQueue(configuration);
 
             // create the binding factory.
-            TransportListenerBindings bindingFactory = TransportBindings.Listeners;
+            ITransportListenerBindings bindingFactory = TransportBindings.Listeners;
 
             // initialize the server capabilities
             ServerCapabilities = configuration.ServerConfiguration.ServerCapabilities;
@@ -265,7 +270,8 @@ namespace Opc.Ua
             Endpoints = new ReadOnlyList<EndpointDescription>(endpoints);
 
             // start the application.
-            StartApplication(configuration);
+            await StartApplicationAsync(configuration, cancellationToken)
+                .ConfigureAwait(false);
 
             // the configuration file may specify multiple security policies or non-HTTP protocols
             // which will require multiple service hosts. the default host will be opened by WCF when
@@ -294,10 +300,10 @@ namespace Opc.Ua
         /// Starts the server (called from a dedicated host process).
         /// </summary>
         /// <param name="configuration">The object that stores the configurable configuration
-        /// information for a UA application.
-        /// </param>
+        /// information for a UA application.</param>
+        /// <param name="cancellationToken">Thee cancellation token</param>
         /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
-        public void Start(ApplicationConfiguration configuration)
+        public async ValueTask StartAsync(ApplicationConfiguration configuration, CancellationToken cancellationToken = default)
         {
             if (configuration == null)
             {
@@ -311,7 +317,7 @@ namespace Opc.Ua
             InitializeRequestQueue(configuration);
 
             // create the listener factory.
-            TransportListenerBindings bindingFactory = TransportBindings.Listeners;
+            ITransportListenerBindings bindingFactory = TransportBindings.Listeners;
 
             // initialize the server capabilities
             ServerCapabilities = configuration.ServerConfiguration.ServerCapabilities;
@@ -332,7 +338,8 @@ namespace Opc.Ua
             Endpoints = new ReadOnlyList<EndpointDescription>(endpoints);
 
             // start the application.
-            StartApplication(configuration);
+            await StartApplicationAsync(configuration, cancellationToken)
+                .ConfigureAwait(false);
 
             // open the hosts.
             lock (ServiceHosts)
@@ -348,6 +355,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the list of base addresses.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         protected void InitializeBaseAddresses(ApplicationConfiguration configuration)
         {
             BaseAddresses = [];
@@ -405,6 +413,9 @@ namespace Opc.Ua
                         address.ProfileUri = Profiles.UaWssTransport;
                         address.DiscoveryUrl = address.Url;
                         break;
+                    default:
+                        throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                            $"Unsupported scheme for base address: {address.Url}");
                 }
 
                 BaseAddresses.Add(address);
@@ -510,12 +521,12 @@ namespace Opc.Ua
         /// <summary>
         /// Stops the server and releases all resources.
         /// </summary>
-        public virtual void Stop()
+        public virtual async ValueTask StopAsync(CancellationToken cancellationToken = default)
         {
             // do any pre-stop processing.
             try
             {
-                OnServerStopping();
+                await OnServerStoppingAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -727,35 +738,42 @@ namespace Opc.Ua
         /// <summary>
         /// Called after the application certificate update.
         /// </summary>
-        protected virtual void OnCertificateUpdate(object sender, CertificateUpdateEventArgs e)
+        protected virtual async void OnCertificateUpdateAsync(object sender, CertificateUpdateEventArgs e)
         {
-            InstanceCertificateTypesProvider.Update(e.SecurityConfiguration);
-
-            foreach (
-                CertificateIdentifier certificateIdentifier in Configuration
-                    .SecurityConfiguration
-                    .ApplicationCertificates)
+            try
             {
-                // preload chain
-                X509Certificate2 certificate = certificateIdentifier.FindAsync(false).GetAwaiter()
-                    .GetResult();
-                InstanceCertificateTypesProvider.LoadCertificateChainAsync(certificate).GetAwaiter()
-                    .GetResult();
+                InstanceCertificateTypesProvider.Update(e.SecurityConfiguration);
+
+                foreach (
+                    CertificateIdentifier certificateIdentifier in Configuration
+                        .SecurityConfiguration
+                        .ApplicationCertificates)
+                {
+                    // preload chain
+                    X509Certificate2 certificate = await certificateIdentifier.FindAsync(false)
+                        .ConfigureAwait(false);
+                    await InstanceCertificateTypesProvider.LoadCertificateChainAsync(certificate)
+                        .ConfigureAwait(false);
+                }
+
+                //update certificate in the endpoint descriptions
+                foreach (EndpointDescription endpointDescription in Endpoints)
+                {
+                    SetServerCertificateInEndpointDescription(
+                        endpointDescription,
+                        InstanceCertificateTypesProvider);
+                }
+
+                foreach (ITransportListener listener in TransportListeners)
+                {
+                    listener.CertificateUpdate(
+                        e.CertificateValidator,
+                        InstanceCertificateTypesProvider);
+                }
             }
-
-            //update certificate in the endpoint descriptions
-            foreach (EndpointDescription endpointDescription in Endpoints)
+            catch (Exception ex)
             {
-                SetServerCertificateInEndpointDescription(
-                    endpointDescription,
-                    InstanceCertificateTypesProvider);
-            }
-
-            foreach (ITransportListener listener in TransportListeners)
-            {
-                listener.CertificateUpdate(
-                    e.CertificateValidator,
-                    InstanceCertificateTypesProvider);
+                m_logger.LogError(ex, "Failed to update Instance Certificates: {EventArgs}", e);
             }
         }
 
@@ -1295,9 +1313,26 @@ namespace Opc.Ua
         /// Called when the server configuration is changed on disk.
         /// </summary>
         /// <param name="configuration">The object that stores the configurable configuration information for a UA application.</param>
+        /// <param name="cancellationToken">The cancellationToken</param>
         /// <remarks>
         /// Servers are free to ignore changes if it is difficult/impossible to apply them without a restart.
         /// </remarks>
+        protected virtual ValueTask OnUpdateConfigurationAsync(ApplicationConfiguration configuration, CancellationToken cancellationToken = default)
+        {
+#pragma warning disable CS0618 // Type or member is obsolete
+            OnUpdateConfiguration(configuration);
+#pragma warning restore CS0618 // Type or member is obsolete
+            return default;
+        }
+
+        /// <summary>
+        /// Called when the server configuration is changed on disk.
+        /// </summary>
+        /// <param name="configuration">The object that stores the configurable configuration information for a UA application.</param>
+        /// <remarks>
+        /// Servers are free to ignore changes if it is difficult/impossible to apply them without a restart.
+        /// </remarks>
+        [Obsolete("User OnUpdateConfigurationAsync")]
         protected virtual void OnUpdateConfiguration(ApplicationConfiguration configuration)
         {
         }
@@ -1387,8 +1422,10 @@ namespace Opc.Ua
                     .GetInstanceCertificate(
                         configuration.ServerConfiguration.SecurityPolicies[0].SecurityPolicyUri);
 
-                configuration.ApplicationUri = X509Utils.GetApplicationUriFromCertificate(
+                IReadOnlyList<string> applicationUris = X509Utils.GetApplicationUrisFromCertificate(
                     instanceCertificate);
+                // it is ok to pick the first here since it is only a fallback value
+                configuration.ApplicationUri = applicationUris.Count > 0 ? applicationUris[0] : null;
 
                 if (string.IsNullOrEmpty(configuration.ApplicationUri))
                 {
@@ -1426,7 +1463,7 @@ namespace Opc.Ua
         /// <returns>Returns list of hosts for a UA service.</returns>
         protected virtual IList<ServiceHost> InitializeServiceHosts(
             ApplicationConfiguration configuration,
-            TransportListenerBindings bindingFactory,
+            ITransportListenerBindings bindingFactory,
             out ApplicationDescription serverDescription,
             out EndpointDescriptionCollection endpoints)
         {
@@ -1439,6 +1476,18 @@ namespace Opc.Ua
         /// Starts the server application.
         /// </summary>
         /// <param name="configuration">The object that stores the configurable configuration information for a UA application.</param>
+        /// <param name="cancellationToken">The cancellation token</param>
+        protected virtual ValueTask StartApplicationAsync(ApplicationConfiguration configuration, CancellationToken cancellationToken = default)
+        {
+            // must be defined by the subclass.
+            return default;
+        }
+
+        /// <summary>
+        /// Starts the server application.
+        /// </summary>
+        /// <param name="configuration">The object that stores the configurable configuration information for a UA application.</param>
+        [Obsolete("Use StartApplicationAsync")]
         protected virtual void StartApplication(ApplicationConfiguration configuration)
         {
             // must be defined by the subclass.
@@ -1447,6 +1496,16 @@ namespace Opc.Ua
         /// <summary>
         /// Called before the server stops
         /// </summary>
+        protected virtual ValueTask OnServerStoppingAsync(CancellationToken cancellationToken = default)
+        {
+            // may be overridden by the subclass.
+            return default;
+        }
+
+        /// <summary>
+        /// Called before the server stops
+        /// </summary>
+        [Obsolete("Use OnServerStoppingAsync")]
         protected virtual void OnServerStopping()
         {
             // may be overridden by the subclass.
@@ -1504,6 +1563,20 @@ namespace Opc.Ua
                 m_queuedRequestsCount = 0;
                 m_stopped = false;
 
+                ThreadPool.GetMinThreads(out minThreadCount, out int minCompletionPortThreads);
+
+                ThreadPool.SetMinThreads(
+                    Math.Max(minThreadCount, m_minThreadCount),
+                    Math.Max(minCompletionPortThreads, m_minThreadCount)
+                );
+
+                ThreadPool.GetMaxThreads(out maxThreadCount, out int maxCompletionPortThreads);
+
+                ThreadPool.SetMaxThreads(
+                    Math.Max(maxThreadCount, m_maxThreadCount),
+                    Math.Max(maxCompletionPortThreads, m_maxThreadCount)
+                );
+
                 // Start worker tasks
                 for (int i = 0; i < m_minThreadCount; i++)
                 {
@@ -1538,7 +1611,7 @@ namespace Opc.Ua
 
                     foreach (IEndpointIncomingRequest request in m_queue.ToList())
                     {
-                        Utils.SilentDispose(request);
+                        request.OperationCompleted(null, StatusCodes.BadServerHalted);
                     }
 #if NETSTANDARD2_1_OR_GREATER
                     m_queue.Clear();
@@ -1557,15 +1630,15 @@ namespace Opc.Ua
                 if (m_stopped)
                 {
                     request.OperationCompleted(null, StatusCodes.BadServerHalted);
-                    m_server.m_logger.LogTrace("Server halted.");
                     return;
                 }
 
-                //check if we can accept more requests
+                // check if we can accept more requests
                 if (m_queuedRequestsCount >= m_maxRequestCount)
                 {
                     request.OperationCompleted(null, StatusCodes.BadServerTooBusy);
-                    m_server.m_logger.LogTrace("Too many operations. Active threads: {Count}", m_activeThreadCount);
+                    // TODO: make a metric
+                    m_server.m_logger.LogDebug("Too many operations. Active threads: {Count}", m_activeThreadCount);
                     return;
                 }
                 // Optionally scale up workers if needed
@@ -1577,7 +1650,7 @@ namespace Opc.Ua
                         m_workers.Add(Task.Run(() => WorkerLoopAsync(m_cts.Token)));
                     }
                 }
-                //Enqueue requests
+                // Enqueue requests
                 m_queue.Enqueue(request);
                 Interlocked.Increment(ref m_queuedRequestsCount);
                 m_queueSignal.Release();
@@ -1654,7 +1727,7 @@ namespace Opc.Ua
         /// deriving from this class.
         /// </summary>
 #pragma warning disable IDE1006 // Naming Styles
-        protected ILogger m_logger { get; private set; } = Utils.Null.Logger;
+        protected ILogger m_logger { get; private set; } = LoggerUtils.Null.Logger;
 #pragma warning restore IDE1006 // Naming Styles
 
         private IServiceMessageContext m_messageContext;
@@ -1665,5 +1738,6 @@ namespace Opc.Ua
         /// identifier for the UserTokenPolicy should be unique within the context of a single Server
         /// </summary>
         private int m_userTokenPolicyId;
+        private bool m_disposed;
     }
 }
