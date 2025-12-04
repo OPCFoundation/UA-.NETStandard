@@ -792,8 +792,10 @@ namespace Opc.Ua.Server
                             value.SourceTimestamp = DateTime.UtcNow;
                         }
                         
-                        // Set ServerTimestamp to match SourceTimestamp for consistency
-                        // This ensures ServerTimestamp and SourceTimestamp are always equal
+                        // Set ServerTimestamp to match SourceTimestamp for Value attributes
+                        // This ensures ServerTimestamp and SourceTimestamp are equal,
+                        // which is important for nodes like ServerStatus children where
+                        // the node's read callback sets a specific timestamp
                         value.ServerTimestamp = value.SourceTimestamp;
                     }
                 }

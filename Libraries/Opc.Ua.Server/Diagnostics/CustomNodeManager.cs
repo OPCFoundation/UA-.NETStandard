@@ -1657,7 +1657,9 @@ namespace Opc.Ua.Server
                         nodeToRead.DataEncoding,
                         value);
 
-                    // For Value attributes, ensure ServerTimestamp matches SourceTimestamp
+                    // Set timestamps after ReadAttribute to ensure consistency
+                    // For Value attributes, match ServerTimestamp to SourceTimestamp
+                    // For other attributes, just ensure ServerTimestamp is set
                     if (nodeToRead.AttributeId == Attributes.Value)
                     {
                         if (value.SourceTimestamp == DateTime.MinValue)
@@ -1668,7 +1670,7 @@ namespace Opc.Ua.Server
                     }
                     else
                     {
-                        // For non-value attributes, set ServerTimestamp if not already set
+                        // For non-value attributes, only ServerTimestamp is relevant
                         if (value.ServerTimestamp == DateTime.MinValue)
                         {
                             value.ServerTimestamp = DateTime.UtcNow;
