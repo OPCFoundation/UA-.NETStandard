@@ -184,7 +184,7 @@ namespace Quickstarts.ConsoleReferenceClient
                     }
                 },
                 {
-                    "f|fetchall",
+                    "fa|fetchall",
                     "Fetch all nodes",
                     f =>
                     {
