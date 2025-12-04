@@ -72,6 +72,7 @@ namespace Quickstarts.ReferenceServer
             bool provisioningMode = false;
             char[] password = null;
             int timeout = -1;
+            string reverseConnectUrlString = null;
 
             string usage = Utils.IsRunningOnMono()
                 ? $"Usage: mono {applicationName}.exe [OPTIONS]"
@@ -98,6 +99,11 @@ namespace Quickstarts.ReferenceServer
                     "provision",
                     "start server in provisioning mode with limited namespace for certificate provisioning",
                     p => provisioningMode = p != null
+                },
+                {
+                    "rc|reverseconnect=",
+                    "Connect to the specified client endpoint for reverse connect. (e.g. rc=opc.tcp://localhost:65300)",
+                    url => reverseConnectUrlString = url
                 }
             };
 
@@ -184,6 +190,24 @@ namespace Quickstarts.ReferenceServer
                 // start the server
                 logger.LogInformation("Start the server.");
                 await server.StartAsync().ConfigureAwait(false);
+
+                // setup reverse connect if specified
+                if (!string.IsNullOrEmpty(reverseConnectUrlString))
+                {
+                    try
+                    {
+                        logger.LogInformation("Adding reverse connection to {Url}.", reverseConnectUrlString);
+                        var reverseConnectUrl = new Uri(reverseConnectUrlString);
+                        server.Server.AddReverseConnection(reverseConnectUrl);
+                    }
+                    catch (UriFormatException ex)
+                    {
+                        logger.LogError(ex, "Invalid reverse connect URL: {Url}", reverseConnectUrlString);
+                        throw new ErrorExitException(
+                            $"Invalid reverse connect URL: {reverseConnectUrlString}",
+                            ExitCode.ErrorInvalidCommandLine);
+                    }
+                }
 
                 // Apply custom settings for CTT testing
                 if (cttMode)
