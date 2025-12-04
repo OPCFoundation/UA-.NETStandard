@@ -65,6 +65,7 @@ namespace Opc.Ua.PubSub
 
         /// <summary>
         /// Returns TRUE if the next DataSetMessage is a delta frame.
+        /// Also increments the message count for each publishing interval.
         /// </summary>
         public bool IsDeltaFrame(DataSetWriterDataType writer, out uint sequenceNumber)
         {
@@ -73,7 +74,16 @@ namespace Opc.Ua.PubSub
                 DataSetState state = GetState(writer);
                 sequenceNumber = state.MessageCount + 1;
 
-                if (state.MessageCount % writer.KeyFrameCount != 0)
+                // Check if this is a key frame interval before incrementing
+                // This ensures the first message (MessageCount=0) is always a key frame
+                // and subsequent key frames occur every KeyFrameCount intervals
+                bool isDeltaFrame = state.MessageCount % writer.KeyFrameCount != 0;
+
+                // Increment the message count to track publishing intervals
+                // This ensures KeyFrameCount is based on intervals, not actual messages published
+                state.MessageCount++;
+
+                if (isDeltaFrame)
                 {
                     return true;
                 }
@@ -176,14 +186,13 @@ namespace Opc.Ua.PubSub
         }
 
         /// <summary>
-        /// Increments the message counter.
+        /// Updates the state after a message is published.
         /// </summary>
         public void OnMessagePublished(DataSetWriterDataType writer, DataSet dataset)
         {
             lock (m_dataSetStates)
             {
                 DataSetState state = GetState(writer);
-                state.MessageCount++;
 
                 if (writer.KeyFrameCount > 1)
                 {

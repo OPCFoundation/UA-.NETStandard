@@ -22,7 +22,7 @@ namespace Opc.Ua.Gds.Tests
         [SetUp]
         public void Setup()
         {
-            m_path = Utils.ReplaceSpecialFolderNames("%LocalApplicationData%/OPC/GDS/TestStore");
+            m_path = Path.Combine(Path.GetTempPath(), "OPC", "GDS", "TestStore");
         }
 
         [TearDown]

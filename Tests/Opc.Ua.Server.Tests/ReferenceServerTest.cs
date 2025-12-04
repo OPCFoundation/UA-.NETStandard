@@ -1024,5 +1024,51 @@ namespace Opc.Ua.Server.Tests
                     $"SourceTimestamp and ServerTimestamp should be equal for {nodesToRead[i].NodeId}");
             }
         }
+      
+        /// Test provisioning mode - server should start with limited namespace.
+        /// </summary>
+        [Test]
+        public async Task ProvisioningModeTestAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            // start Ref server in provisioning mode
+            var fixture = new ServerFixture<ReferenceServer>
+            {
+                AllNodeManagers = false,
+                OperationLimits = false,
+                DurableSubscriptionsEnabled = false,
+                AutoAccept = true,
+                ProvisioningMode = true
+            };
+
+            ReferenceServer server = await fixture.StartAsync().ConfigureAwait(false);
+
+            // Verify provisioning mode is enabled
+            Assert.IsTrue(server.ProvisioningMode, "Server should be in provisioning mode");
+
+            // Get endpoints - in provisioning mode, anonymous authentication should not be allowed
+            EndpointDescriptionCollection endpoints = server.GetEndpoints();
+            Assert.IsNotNull(endpoints);
+            Assert.IsTrue(endpoints.Count > 0, "Server should have endpoints");
+
+            // Check that anonymous token policy is not present for at least one endpoint
+            bool hasEndpointWithoutAnonymous = false;
+            foreach (EndpointDescription endpoint in endpoints)
+            {
+                bool hasAnonymous = endpoint.UserIdentityTokens.Any(
+                    policy => policy.TokenType == UserTokenType.Anonymous);
+                if (!hasAnonymous)
+                {
+                    hasEndpointWithoutAnonymous = true;
+                    break;
+                }
+            }
+            Assert.IsTrue(hasEndpointWithoutAnonymous,
+                "At least one endpoint should not allow anonymous authentication in provisioning mode");
+
+            // Clean up
+            await fixture.StopAsync().ConfigureAwait(false);
+        }
     }
 }

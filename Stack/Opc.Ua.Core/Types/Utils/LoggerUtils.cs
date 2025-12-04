@@ -89,10 +89,14 @@ namespace Opc.Ua
 #endif
         }
 
+        /// <summary>
+        /// Shared telemetry context instance (singleton)
+        /// </summary>
+        private static readonly TraceLoggerTelemetry s_sharedTelemetry = new();
+
         static Utils()
         {
-            TelemetryExtensions.InternalOnly__TelemetryHook =
-                () => new TraceLoggerTelemetry();
+            TelemetryExtensions.InternalOnly__TelemetryHook = () => s_sharedTelemetry;
         }
 
         /// <summary>
