@@ -260,5 +260,97 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Check decode result against input value
             Assert.AreEqual(actualVariant, Variant.Null);
         }
+
+        /// <summary>
+        /// Validate that decoding errors include the failed value in the error message for Float.
+        /// </summary>
+        [Test]
+        public void DecodeInvalidFloatIncludesValueInError()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var context = new ServiceMessageContext(telemetry);
+            const string invalidValue = "not-a-number";
+            string xmlContent = $"<?xml version=\"1.0\" encoding=\"utf-16\"?>" +
+                $"<FloatTest xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\" " +
+                $"xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">" +
+                $"<Value>{invalidValue}</Value></FloatTest>";
+
+            using (var reader = XmlReader.Create(new StringReader(xmlContent)))
+            using (var xmlDecoder = new XmlDecoder(null, reader, context))
+            {
+                var ex = Assert.Throws<ServiceResultException>(() => xmlDecoder.ReadFloat("Value"));
+                Assert.That(ex.Message, Does.Contain(invalidValue));
+                Assert.That(ex.Message, Does.Contain("Value:"));
+            }
+        }
+
+        /// <summary>
+        /// Validate that decoding errors include the failed value in the error message for Double.
+        /// </summary>
+        [Test]
+        public void DecodeInvalidDoubleIncludesValueInError()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var context = new ServiceMessageContext(telemetry);
+            const string invalidValue = "invalid-double";
+            string xmlContent = $"<?xml version=\"1.0\" encoding=\"utf-16\"?>" +
+                $"<DoubleTest xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\" " +
+                $"xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">" +
+                $"<Value>{invalidValue}</Value></DoubleTest>";
+
+            using (var reader = XmlReader.Create(new StringReader(xmlContent)))
+            using (var xmlDecoder = new XmlDecoder(null, reader, context))
+            {
+                var ex = Assert.Throws<ServiceResultException>(() => xmlDecoder.ReadDouble("Value"));
+                Assert.That(ex.Message, Does.Contain(invalidValue));
+                Assert.That(ex.Message, Does.Contain("Value:"));
+            }
+        }
+
+        /// <summary>
+        /// Validate that decoding errors include the failed value in the error message for DateTime.
+        /// </summary>
+        [Test]
+        public void DecodeInvalidDateTimeIncludesValueInError()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var context = new ServiceMessageContext(telemetry);
+            const string invalidValue = "not-a-date";
+            string xmlContent = $"<?xml version=\"1.0\" encoding=\"utf-16\"?>" +
+                $"<DateTimeTest xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\" " +
+                $"xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">" +
+                $"<Value>{invalidValue}</Value></DateTimeTest>";
+
+            using (var reader = XmlReader.Create(new StringReader(xmlContent)))
+            using (var xmlDecoder = new XmlDecoder(null, reader, context))
+            {
+                var ex = Assert.Throws<ServiceResultException>(() => xmlDecoder.ReadDateTime("Value"));
+                Assert.That(ex.Message, Does.Contain(invalidValue));
+                Assert.That(ex.Message, Does.Contain("Value:"));
+            }
+        }
+
+        /// <summary>
+        /// Validate that decoding errors include the failed value in the error message for Int32.
+        /// </summary>
+        [Test]
+        public void DecodeInvalidInt32IncludesValueInError()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var context = new ServiceMessageContext(telemetry);
+            const string invalidValue = "not-an-integer";
+            string xmlContent = $"<?xml version=\"1.0\" encoding=\"utf-16\"?>" +
+                $"<Int32Test xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\" " +
+                $"xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">" +
+                $"<Value>{invalidValue}</Value></Int32Test>";
+
+            using (var reader = XmlReader.Create(new StringReader(xmlContent)))
+            using (var xmlDecoder = new XmlDecoder(null, reader, context))
+            {
+                var ex = Assert.Throws<ServiceResultException>(() => xmlDecoder.ReadInt32("Value"));
+                Assert.That(ex.Message, Does.Contain(invalidValue));
+                Assert.That(ex.Message, Does.Contain("Value:"));
+            }
+        }
     }
 }
