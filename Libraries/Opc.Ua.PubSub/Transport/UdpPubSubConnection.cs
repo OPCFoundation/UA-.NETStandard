@@ -96,6 +96,38 @@ namespace Opc.Ua.PubSub.Transport
         public int Port { get; }
 
         /// <summary>
+        /// Gets the list of publisher UDP clients.
+        /// Returns a read-only list of active UDP clients used for publishing.
+        /// Can be used to configure socket settings such as ReceiveBuffer size.
+        /// </summary>
+        public IReadOnlyList<UdpClient> PublisherUdpClients
+        {
+            get
+            {
+                lock (Lock)
+                {
+                    return m_publisherUdpClients.AsReadOnly();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the list of subscriber UDP clients.
+        /// Returns a read-only list of active UDP clients used for subscribing.
+        /// Can be used to configure socket settings such as ReceiveBuffer size.
+        /// </summary>
+        public IReadOnlyList<UdpClient> SubscriberUdpClients
+        {
+            get
+            {
+                lock (Lock)
+                {
+                    return m_subscriberUdpClients.AsReadOnly();
+                }
+            }
+        }
+
+        /// <summary>
         /// Perform specific Start tasks
         /// </summary>
         protected override async Task InternalStart()
