@@ -96,7 +96,7 @@ namespace Opc.Ua.Gds.Tests
             Configuration = await m_application.LoadApplicationConfigurationAsync(false)
                 .ConfigureAwait(false);
 #else
-            string root = Path.Combine("%LocalApplicationData%", "OPC");
+            string root = Path.Combine(Path.GetTempPath(), "OPC");
             string pkiRoot = Path.Combine(root, "pki");
             var clientConfig = new GlobalDiscoveryTestClientConfiguration
             {
