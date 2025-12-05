@@ -523,7 +523,7 @@ namespace Opc.Ua
             get => m_value;
             set
             {
-                if (value == null && IsValueType)
+                if (value != null && IsValueType)
                 {
                     value = ExtractValueFromVariant(null, value, false);
                 }
