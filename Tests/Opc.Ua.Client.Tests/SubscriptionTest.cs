@@ -1462,5 +1462,99 @@ namespace Opc.Ua.Client.Tests
             e.DeferredAcknowledgementsToSend.Clear();
             e.AcknowledgementsToSend.Clear();
         }
+
+        [Test]
+        [Order(900)]
+        public async Task SetTriggeringTrackingAsync()
+        {
+            // Create a subscription
+            var subscription = new Subscription(Session.DefaultSubscription)
+            {
+                PublishingEnabled = true,
+                PublishingInterval = 1000,
+                KeepAliveCount = 10,
+                LifetimeCount = 100,
+                MaxNotificationsPerPublish = 1000,
+                Priority = 100
+            };
+
+            Session.AddSubscription(subscription);
+            await subscription.CreateAsync(CancellationToken.None).ConfigureAwait(false);
+            Assert.That(subscription.Created, Is.True);
+
+            // Create monitored items
+            var triggeringItem = new MonitoredItem(subscription.DefaultItem)
+            {
+                StartNodeId = VariableIds.Server_ServerStatus_CurrentTime,
+                AttributeId = Attributes.Value,
+                MonitoringMode = MonitoringMode.Reporting,
+                SamplingInterval = 0,
+                QueueSize = 0,
+                DiscardOldest = true
+            };
+
+            var triggeredItem1 = new MonitoredItem(subscription.DefaultItem)
+            {
+                StartNodeId = VariableIds.Server_ServerStatus_State,
+                AttributeId = Attributes.Value,
+                MonitoringMode = MonitoringMode.Sampling,
+                SamplingInterval = 0,
+                QueueSize = 0,
+                DiscardOldest = true
+            };
+
+            var triggeredItem2 = new MonitoredItem(subscription.DefaultItem)
+            {
+                StartNodeId = VariableIds.Server_ServerStatus_BuildInfo,
+                AttributeId = Attributes.Value,
+                MonitoringMode = MonitoringMode.Sampling,
+                SamplingInterval = 0,
+                QueueSize = 0,
+                DiscardOldest = true
+            };
+
+            subscription.AddItem(triggeringItem);
+            subscription.AddItem(triggeredItem1);
+            subscription.AddItem(triggeredItem2);
+
+            // Create the items
+            await subscription.ApplyChangesAsync(CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(triggeringItem.Created, Is.True);
+            Assert.That(triggeredItem1.Created, Is.True);
+            Assert.That(triggeredItem2.Created, Is.True);
+
+            // Set up triggering relationship using the new method
+            var linksToAdd = new List<MonitoredItem> { triggeredItem1, triggeredItem2 };
+            SetTriggeringResponse response = await subscription.SetTriggeringAsync(
+                triggeringItem,
+                linksToAdd,
+                null,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response, Is.Not.Null);
+
+            // Verify the triggering relationships are tracked
+            Assert.That(triggeringItem.TriggeredItems, Is.Not.Null);
+            Assert.That(triggeringItem.TriggeredItems.Count, Is.EqualTo(2));
+            Assert.That(triggeringItem.TriggeredItems, Does.Contain(triggeredItem1.ClientHandle));
+            Assert.That(triggeringItem.TriggeredItems, Does.Contain(triggeredItem2.ClientHandle));
+
+            Assert.That(triggeredItem1.TriggeringItemId, Is.EqualTo(triggeringItem.Status.Id));
+            Assert.That(triggeredItem2.TriggeringItemId, Is.EqualTo(triggeringItem.Status.Id));
+
+            // Snapshot the subscription state
+            subscription.Snapshot(out SubscriptionState state);
+
+            // Verify that the triggering relationships are persisted
+            MonitoredItemState triggeringItemState = state.MonitoredItems
+                .FirstOrDefault(m => m.ClientId == triggeringItem.ClientHandle);
+            Assert.That(triggeringItemState, Is.Not.Null);
+            Assert.That(triggeringItemState.TriggeredItems, Is.Not.Null);
+            Assert.That(triggeringItemState.TriggeredItems.Count, Is.EqualTo(2));
+
+            // Clean up
+            await subscription.DeleteAsync(true, CancellationToken.None).ConfigureAwait(false);
+        }
     }
 }
