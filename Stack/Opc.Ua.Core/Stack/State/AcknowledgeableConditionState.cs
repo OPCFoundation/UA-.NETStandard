@@ -66,6 +66,9 @@ namespace Opc.Ua
             {
                 UpdateStateAfterUnacknowledge(context);
             }
+
+            AckedState.Timestamp = DateTime.UtcNow;
+            ClearChangeMasks(context, includeChildren: true);
         }
 
         /// <summary>
@@ -83,6 +86,13 @@ namespace Opc.Ua
             {
                 UpdateStateAfterUnconfirm(context);
             }
+
+            if (ConfirmedState != null)
+            {
+                ConfirmedState.Timestamp = DateTime.UtcNow;
+            }
+
+            ClearChangeMasks(context, includeChildren: true);
         }
 
         /// <summary>

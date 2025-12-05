@@ -126,6 +126,9 @@ namespace Opc.Ua
             {
                 UpdateStateAfterDisable(context);
             }
+
+            EnabledState.Timestamp = DateTime.UtcNow;
+            ClearChangeMasks(context, includeChildren: true);
         }
 
         /// <summary>
@@ -143,6 +146,10 @@ namespace Opc.Ua
             {
                 LastSeverity.SourceTimestamp.Value = DateTime.UtcNow;
             }
+
+            LastSeverity.Timestamp = DateTime.UtcNow;
+            Severity.Timestamp = DateTime.UtcNow;
+            ClearChangeMasks(context, includeChildren: true);
         }
 
         /// <summary>
