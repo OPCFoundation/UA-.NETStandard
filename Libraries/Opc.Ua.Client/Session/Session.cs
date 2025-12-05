@@ -110,7 +110,7 @@ namespace Opc.Ua.Client
                   channel,
                   configuration,
                   endpoint,
-                  channel.MessageContext ?? configuration.CreateMessageContext(true))
+                  channel.MessageContext ?? configuration.CreateMessageContext())
         {
             m_instanceCertificate = clientCertificate;
             m_instanceCertificateChain = clientCertificateChain;
@@ -129,7 +129,7 @@ namespace Opc.Ua.Client
                   channel,
                   template.m_configuration,
                   template.ConfiguredEndpoint,
-                  channel.MessageContext ?? template.m_configuration.CreateMessageContext(true))
+                  channel.MessageContext ?? template.m_configuration.CreateMessageContext())
         {
             m_instanceCertificate = template.m_instanceCertificate;
             m_instanceCertificateChain = template.m_instanceCertificateChain;

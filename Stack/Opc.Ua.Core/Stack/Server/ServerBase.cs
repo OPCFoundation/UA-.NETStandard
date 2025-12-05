@@ -702,6 +702,22 @@ namespace Opc.Ua
         public CertificateTypesProvider InstanceCertificateTypesProvider { get; private set; }
 
         /// <summary>
+        /// Gets or sets the private encodeable factory to use for this server instance.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Set this property before calling <see cref="StartAsync(ApplicationConfiguration, CancellationToken, Uri[])"/>
+        /// or <see cref="StartAsync(ApplicationConfiguration, CancellationToken)"/> to use a private factory
+        /// that is isolated from other servers and clients in the same process.
+        /// </para>
+        /// <para>
+        /// If this property is null (the default), a new factory will be created
+        /// during server startup via <see cref="EncodeableFactory.Create()"/>.
+        /// </para>
+        /// </remarks>
+        public IEncodeableFactory PrivateEncodeableFactory { get; set; }
+
+        /// <summary>
         /// The non-configurable properties for the server.
         /// </summary>
         /// <value>The properties of the current server instance.</value>
@@ -1363,8 +1379,8 @@ namespace Opc.Ua
         {
             // use the message context from the configuration to ensure the channels are
             // using the same one. This also sets the telemetry context for the server
-            // from configuration.
-            ServiceMessageContext messageContext = configuration.CreateMessageContext(true);
+            // from configuration. If a private factory was specified, use it.
+            ServiceMessageContext messageContext = configuration.CreateMessageContext(PrivateEncodeableFactory);
             messageContext.NamespaceUris = new NamespaceTable();
             MessageContext = messageContext;
 
