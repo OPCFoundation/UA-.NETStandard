@@ -983,6 +983,114 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Test that the Int32Value node (ns=3;i=2808) allows historical data access.
+        /// Verifies the fix for issue #2520 where the node was marked as historizing
+        /// but history read operations returned BadHistoryOperationUnsupported.
+        /// </summary>
+        [Test]
+        public async Task HistoryReadInt32ValueNodeAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<ReferenceServerTests>();
+
+            // Get the NodeId for Data_Dynamic_Scalar_Int32Value
+            NodeId int32ValueNodeId = new NodeId(
+                TestData.Variables.Data_Dynamic_Scalar_Int32Value,
+                (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(TestData.Namespaces.TestData));
+
+            logger.LogInformation("Testing history read for Int32Value node: {NodeId}", int32ValueNodeId);
+
+            // Verify the node has Historizing attribute set to true
+            var readIdCollection = new ReadValueIdCollection {
+                new ReadValueId {
+                    AttributeId = Attributes.Historizing,
+                    NodeId = int32ValueNodeId
+                },
+                new ReadValueId {
+                    AttributeId = Attributes.AccessLevel,
+                    NodeId = int32ValueNodeId
+                }
+            };
+
+            m_requestHeader.Timestamp = DateTime.UtcNow;
+            ReadResponse readResponse = await m_server.ReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                0,
+                TimestampsToReturn.Both,
+                readIdCollection,
+                CancellationToken.None).ConfigureAwait(false);
+
+            ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, readIdCollection);
+            Assert.AreEqual(2, readResponse.Results.Count);
+
+            bool historizing = (bool)readResponse.Results[0].Value;
+            byte accessLevel = (byte)readResponse.Results[1].Value;
+
+            logger.LogInformation("Historizing: {Historizing}, AccessLevel: {AccessLevel}", historizing, accessLevel);
+
+            Assert.IsTrue(historizing, "Int32Value node should have Historizing=true");
+            Assert.IsTrue((accessLevel & AccessLevels.HistoryRead) != 0,
+                "Int32Value node should have HistoryRead access level");
+
+            // Perform a history read operation
+            var historyReadDetails = new ReadRawModifiedDetails {
+                StartTime = DateTime.UtcNow.AddHours(-1),
+                EndTime = DateTime.UtcNow,
+                NumValuesPerNode = 10,
+                IsReadModified = false,
+                ReturnBounds = false
+            };
+
+            var nodesToRead = new HistoryReadValueIdCollection {
+                new HistoryReadValueId {
+                    NodeId = int32ValueNodeId
+                }
+            };
+
+            m_requestHeader.Timestamp = DateTime.UtcNow;
+            HistoryReadResponse historyReadResponse = await m_server.HistoryReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                new ExtensionObject(historyReadDetails),
+                TimestampsToReturn.Both,
+                false,
+                nodesToRead,
+                CancellationToken.None).ConfigureAwait(false);
+
+            ServerFixtureUtils.ValidateResponse(historyReadResponse.ResponseHeader, historyReadResponse.Results, nodesToRead);
+            Assert.AreEqual(1, historyReadResponse.Results.Count);
+
+            HistoryReadResult result = historyReadResponse.Results[0];
+
+            logger.LogInformation("History read StatusCode: {StatusCode}", result.StatusCode);
+
+            // The result should be Good or GoodMoreData (if there are more values)
+            Assert.IsTrue(StatusCode.IsGood(result.StatusCode),
+                $"History read should succeed, but got: {result.StatusCode}");
+            Assert.IsNotNull(result.HistoryData, "HistoryData should not be null");
+
+            // Verify we got HistoryData back
+            if (result.HistoryData.Body is HistoryData historyData)
+            {
+                logger.LogInformation("Retrieved {Count} history values", historyData.DataValues.Count);
+                Assert.IsNotNull(historyData.DataValues, "DataValues should not be null");
+                Assert.Greater(historyData.DataValues.Count, 0, "Should have at least one historical value");
+
+                // Verify the data values have proper timestamps
+                foreach (var dataValue in historyData.DataValues)
+                {
+                    Assert.IsNotNull(dataValue, "DataValue should not be null");
+                    Assert.IsTrue(dataValue.ServerTimestamp != DateTime.MinValue,
+                        "DataValue should have a valid ServerTimestamp");
+                }
+            }
+            else
+            {
+                Assert.Fail("HistoryData body should be of type HistoryData");
+            }
+        }
+
         /// Test provisioning mode - server should start with limited namespace.
         /// </summary>
         [Test]
