@@ -594,12 +594,7 @@ namespace Opc.Ua.Client
                 {
                     m_eventCache.OnNotification(eventchange);
                 }
-
-                var handler = m_Notification;
-                if (handler != null)
-                {
-                    handler.Invoke(this, new MonitoredItemNotificationEventArgs(newValue));
-                }
+                m_Notification?.Invoke(this, new MonitoredItemNotificationEventArgs(newValue));
             }
         }
 

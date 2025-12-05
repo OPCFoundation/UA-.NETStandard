@@ -717,7 +717,7 @@ namespace Opc.Ua.Server
                     DataValue value = values[ii] = new DataValue();
 
                     value.Value = null;
-                    value.ServerTimestamp = DateTime.UtcNow;
+                    value.ServerTimestamp = DateTime.MinValue; // Will be set later
                     value.SourceTimestamp = DateTime.MinValue;
                     value.StatusCode = StatusCodes.BadAttributeIdInvalid;
 
@@ -786,11 +786,17 @@ namespace Opc.Ua.Server
 
                         value.Value = defaultValue;
 
-                        // don't replace timestamp if it was set in the NodeSource
+                        // Set SourceTimestamp if not already set by the node
                         if (value.SourceTimestamp == DateTime.MinValue)
                         {
                             value.SourceTimestamp = DateTime.UtcNow;
                         }
+                        
+                        // Set ServerTimestamp to match SourceTimestamp for Value attributes
+                        // This ensures ServerTimestamp and SourceTimestamp are equal,
+                        // which is important for nodes like ServerStatus children where
+                        // the node's read callback sets a specific timestamp
+                        value.ServerTimestamp = value.SourceTimestamp;
                     }
                 }
             }

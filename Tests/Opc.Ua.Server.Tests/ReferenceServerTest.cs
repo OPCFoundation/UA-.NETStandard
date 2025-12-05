@@ -245,7 +245,8 @@ namespace Opc.Ua.Server.Tests
                 requestHeader,
                 kMaxAge,
                 TimestampsToReturn.Neither,
-                readIdCollection, CancellationToken.None).ConfigureAwait(false);
+                readIdCollection,
+                CancellationToken.None).ConfigureAwait(false);
             ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, readIdCollection);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 readResponse.DiagnosticInfos,
@@ -983,6 +984,49 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Verify that ServerStatus children have matching SourceTimestamp and ServerTimestamp.
+        /// </summary>
+        [Test]
+        public async Task ServerStatusTimestampsMatchAsync()
+        {
+            var logger = m_telemetry.CreateLogger<ReferenceServerTests>();
+
+            // Read ServerStatus children (CurrentTime, StartTime, State, etc.)
+            var nodesToRead = new ReadValueIdCollection
+            {
+                new ReadValueId { NodeId = VariableIds.Server_ServerStatus_CurrentTime, AttributeId = Attributes.Value },
+                new ReadValueId { NodeId = VariableIds.Server_ServerStatus_StartTime, AttributeId = Attributes.Value },
+                new ReadValueId { NodeId = VariableIds.Server_ServerStatus_State, AttributeId = Attributes.Value }
+            };
+
+            m_requestHeader.Timestamp = DateTime.UtcNow;
+            var readResponse = await m_server.ReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                0,
+                TimestampsToReturn.Both,
+                nodesToRead,
+                CancellationToken.None).ConfigureAwait(false);
+
+            ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, nodesToRead);
+            Assert.AreEqual(3, readResponse.Results.Count);
+
+            // Verify that SourceTimestamp and ServerTimestamp are equal for all ServerStatus children
+            for (int i = 0; i < readResponse.Results.Count; i++)
+            {
+                var result = readResponse.Results[i];
+                logger.LogInformation(
+                    "NodeId: {NodeId}, SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
+                    nodesToRead[i].NodeId,
+                    result.SourceTimestamp,
+                    result.ServerTimestamp);
+
+                Assert.AreEqual(result.SourceTimestamp, result.ServerTimestamp,
+                    $"SourceTimestamp and ServerTimestamp should be equal for {nodesToRead[i].NodeId}");
+            }
+        }
+
+        /// <summary>
         /// Test that the Int32Value node (ns=3;i=2808) allows historical data access.
         /// Verifies the fix for issue #2520 where the node was marked as historizing
         /// but history read operations returned BadHistoryOperationUnsupported.
@@ -1016,8 +1060,8 @@ namespace Opc.Ua.Server.Tests
             ReadResponse readResponse = await m_server.ReadAsync(
                 m_secureChannelContext,
                 m_requestHeader,
-                0,
-                TimestampsToReturn.Both,
+                kMaxAge,
+                TimestampsToReturn.Neither,
                 readIdCollection,
                 CancellationToken.None).ConfigureAwait(false);
 
@@ -1091,6 +1135,7 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
         /// Test provisioning mode - server should start with limited namespace.
         /// </summary>
         [Test]
