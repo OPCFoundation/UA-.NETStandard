@@ -245,7 +245,8 @@ namespace Opc.Ua.Server.Tests
                 requestHeader,
                 kMaxAge,
                 TimestampsToReturn.Neither,
-                readIdCollection, CancellationToken.None).ConfigureAwait(false);
+                readIdCollection,
+                CancellationToken.None).ConfigureAwait(false);
             ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, readIdCollection);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 readResponse.DiagnosticInfos,
@@ -1024,7 +1025,8 @@ namespace Opc.Ua.Server.Tests
                     $"SourceTimestamp and ServerTimestamp should be equal for {nodesToRead[i].NodeId}");
             }
         }
-      
+
+        /// <summary>
         /// Test that the Int32Value node (ns=3;i=2808) allows historical data access.
         /// Verifies the fix for issue #2520 where the node was marked as historizing
         /// but history read operations returned BadHistoryOperationUnsupported.
@@ -1056,6 +1058,10 @@ namespace Opc.Ua.Server.Tests
 
             m_requestHeader.Timestamp = DateTime.UtcNow;
             ReadResponse readResponse = await m_server.ReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                kMaxAge,
+                TimestampsToReturn.Neither,
                 readIdCollection,
                 CancellationToken.None).ConfigureAwait(false);
 
@@ -1129,6 +1135,7 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
         /// Test provisioning mode - server should start with limited namespace.
         /// </summary>
         [Test]
