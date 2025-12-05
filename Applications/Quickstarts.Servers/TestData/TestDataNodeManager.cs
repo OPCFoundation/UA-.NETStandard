@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -629,6 +629,91 @@ namespace TestData
             result.HistoryData = new ExtensionObject(data);
 
             return result.StatusCode;
+        }
+
+        /// <summary>
+        /// Reads raw history data.
+        /// </summary>
+        protected override void HistoryReadRawModified(
+            ServerSystemContext context,
+            ReadRawModifiedDetails details,
+            TimestampsToReturn timestampsToReturn,
+            IList<HistoryReadValueId> nodesToRead,
+            IList<HistoryReadResult> results,
+            IList<ServiceResult> errors,
+            List<NodeHandle> nodesToProcess,
+            IDictionary<NodeId, NodeState> cache)
+        {
+            for (int ii = 0; ii < nodesToProcess.Count; ii++)
+            {
+                NodeHandle handle = nodesToProcess[ii];
+
+                // validate node.
+                NodeState source = ValidateNode(context, handle, cache);
+
+                if (source == null)
+                {
+                    continue;
+                }
+
+                // only variables can have history.
+                if (source is not BaseVariableState variable)
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                // read the raw data.
+                errors[handle.Index] = HistoryReadRaw(
+                    context,
+                    variable,
+                    details,
+                    timestampsToReturn,
+                    false,
+                    nodesToRead[handle.Index],
+                    results[handle.Index]);
+            }
+        }
+
+        /// <summary>
+        /// Releases the continuation points for history read operations.
+        /// </summary>
+        protected override void HistoryReleaseContinuationPoints(
+            ServerSystemContext context,
+            IList<HistoryReadValueId> nodesToRead,
+            IList<ServiceResult> errors,
+            List<NodeHandle> nodesToProcess,
+            IDictionary<NodeId, NodeState> cache)
+        {
+            for (int ii = 0; ii < nodesToProcess.Count; ii++)
+            {
+                NodeHandle handle = nodesToProcess[ii];
+
+                // validate node.
+                NodeState source = ValidateNode(context, handle, cache);
+
+                if (source == null)
+                {
+                    continue;
+                }
+
+                // only variables can have history.
+                if (source is not BaseVariableState variable)
+                {
+                    errors[handle.Index] = StatusCodes.BadContinuationPointInvalid;
+                    continue;
+                }
+
+                // release the continuation point.
+                errors[handle.Index] = HistoryReadRaw(
+                    context,
+                    variable,
+                    null,
+                    TimestampsToReturn.Neither,
+                    true,
+                    nodesToRead[handle.Index],
+                    new HistoryReadResult());
+            }
         }
 
         /// <summary>

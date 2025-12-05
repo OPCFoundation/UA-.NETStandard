@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -124,6 +124,84 @@ namespace Opc.Ua.Core.Tests.Stack.State
             }
 
             Assert.AreEqual(valueRank, loadedVariable.ValueRank);
+        }
+
+        /// <summary>
+        /// Test that byte[] array is correctly returned as Byte array type, not ByteString.
+        /// </summary>
+        [Test]
+        public void ByteArrayWrappedValueReturnsCorrectBuiltInType()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            // Create a BaseDataVariableState with byte[] value
+            var variableState = new BaseDataVariableState<byte[]>(null);
+            var serviceMessageContext = new ServiceMessageContext(telemetry);
+            var systemContext = new SystemContext(telemetry)
+            {
+                NamespaceUris = serviceMessageContext.NamespaceUris
+            };
+
+            variableState.Create(
+                systemContext,
+                new NodeId(1000),
+                new QualifiedName("ByteArrayVariable"),
+                new LocalizedText("ByteArrayVariable"),
+                true);
+
+            // Set DataType to Byte and ValueRank to OneDimension (array)
+            variableState.DataType = DataTypeIds.Byte;
+            variableState.ValueRank = ValueRanks.OneDimension;
+
+            // Set a byte array value
+            byte[] testValue = new byte[] { 1, 2, 3, 4, 5 };
+            variableState.Value = testValue;
+
+            // Get the WrappedValue and verify it's a Byte array, not ByteString
+            Variant wrappedValue = variableState.WrappedValue;
+
+            Assert.AreEqual(BuiltInType.Byte, wrappedValue.TypeInfo.BuiltInType, "BuiltInType should be Byte");
+            Assert.AreEqual(ValueRanks.OneDimension, wrappedValue.TypeInfo.ValueRank, "ValueRank should be OneDimension");
+            Assert.AreEqual(testValue, wrappedValue.Value, "Value should match the original byte array");
+        }
+
+        /// <summary>
+        /// Test that ByteString is still correctly returned as ByteString type.
+        /// </summary>
+        [Test]
+        public void ByteStringWrappedValueReturnsCorrectBuiltInType()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            // Create a BaseDataVariableState for ByteString testing
+            var variableState = new BaseDataVariableState<byte[]>(null);
+            var serviceMessageContext = new ServiceMessageContext(telemetry);
+            var systemContext = new SystemContext(telemetry)
+            {
+                NamespaceUris = serviceMessageContext.NamespaceUris
+            };
+
+            variableState.Create(
+                systemContext,
+                new NodeId(1001),
+                new QualifiedName("ByteStringVariable"),
+                new LocalizedText("ByteStringVariable"),
+                true);
+
+            // Set DataType to ByteString and ValueRank to Scalar
+            variableState.DataType = DataTypeIds.ByteString;
+            variableState.ValueRank = ValueRanks.Scalar;
+
+            // Set a byte array value (which represents a ByteString)
+            byte[] testValue = new byte[] { 1, 2, 3, 4, 5 };
+            variableState.Value = testValue;
+
+            // Get the WrappedValue and verify it's a ByteString
+            Variant wrappedValue = variableState.WrappedValue;
+
+            Assert.AreEqual(BuiltInType.ByteString, wrappedValue.TypeInfo.BuiltInType, "BuiltInType should be ByteString");
+            Assert.AreEqual(ValueRanks.Scalar, wrappedValue.TypeInfo.ValueRank, "ValueRank should be Scalar");
+            Assert.AreEqual(testValue, wrappedValue.Value, "Value should match the original byte array");
         }
     }
 }
