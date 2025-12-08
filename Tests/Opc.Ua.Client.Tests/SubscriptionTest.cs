@@ -1586,8 +1586,10 @@ namespace Opc.Ua.Client.Tests
             Assert.That(subscription.MonitoredItemCount, Is.EqualTo(10));
 
             // Simulate concurrent CreateItemsAsync calls
+            // Use 3 concurrent tasks to ensure at least 2 will race with each other
+            const int ConcurrentTasks = 3;
             var tasks = new List<Task<IList<MonitoredItem>>>();
-            for (int i = 0; i < 3; i++)
+            for (int i = 0; i < ConcurrentTasks; i++)
             {
                 tasks.Add(Task.Run(() =>
                     subscription.CreateItemsAsync(CancellationToken.None)));
