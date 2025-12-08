@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Globalization;
 using System.IO;
 using System.Runtime.Serialization;
@@ -43,7 +44,7 @@ namespace Opc.Ua
     /// <summary>
     /// Loads the configuration section for an application.
     /// </summary>
-    public class ApplicationConfigurationSection
+    public class ApplicationConfigurationSection : IConfigurationSectionHandler
     {
         /// <summary>
         /// Creates the configuration object from the configuration section.
