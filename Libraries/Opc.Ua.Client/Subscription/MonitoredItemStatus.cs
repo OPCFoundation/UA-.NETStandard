@@ -47,6 +47,12 @@ namespace Opc.Ua.Client
         public bool Created => Id != 0;
 
         /// <summary>
+        /// Whether a create request has been sent to the server but not yet completed.
+        /// This flag is used to prevent duplicate creation requests in multi-threaded scenarios.
+        /// </summary>
+        internal bool Creating { get; set; }
+
+        /// <summary>
         /// Any error condition associated with the monitored item.
         /// </summary>
         public ServiceResult? Error { get; private set; }
@@ -170,6 +176,9 @@ namespace Opc.Ua.Client
                     FilterResult = Utils.Clone(result.FilterResult.Body) as MonitoringFilterResult;
                 }
             }
+
+            // Clear the Creating flag now that the create operation is complete
+            Creating = false;
         }
 
         /// <summary>

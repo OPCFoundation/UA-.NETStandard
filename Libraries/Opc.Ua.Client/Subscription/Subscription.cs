@@ -1014,25 +1014,37 @@ namespace Opc.Ua.Client
             }
 
             using Activity? activity = m_telemetry.StartActivity();
-            // create monitored items.
-            CreateMonitoredItemsResponse response = await Session
-                .CreateMonitoredItemsAsync(null, Id, TimestampsToReturn, requestItems, ct)
-                .ConfigureAwait(false);
-
-            MonitoredItemCreateResultCollection results = response.Results;
-            ClientBase.ValidateResponse(results, itemsToCreate);
-            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, itemsToCreate);
-
-            // update results.
-            for (int ii = 0; ii < results.Count; ii++)
+            try
             {
-                itemsToCreate[ii]
-                    .SetCreateResult(
-                        requestItems[ii],
-                        results[ii],
-                        ii,
-                        response.DiagnosticInfos,
-                        response.ResponseHeader);
+                // create monitored items.
+                CreateMonitoredItemsResponse response = await Session
+                    .CreateMonitoredItemsAsync(null, Id, TimestampsToReturn, requestItems, ct)
+                    .ConfigureAwait(false);
+
+                MonitoredItemCreateResultCollection results = response.Results;
+                ClientBase.ValidateResponse(results, itemsToCreate);
+                ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, itemsToCreate);
+
+                // update results.
+                for (int ii = 0; ii < results.Count; ii++)
+                {
+                    itemsToCreate[ii]
+                        .SetCreateResult(
+                            requestItems[ii],
+                            results[ii],
+                            ii,
+                            response.DiagnosticInfos,
+                            response.ResponseHeader);
+                }
+            }
+            catch
+            {
+                // Clear the Creating flag on all items if an exception occurs
+                foreach (MonitoredItem monitoredItem in itemsToCreate)
+                {
+                    monitoredItem.Status.Creating = false;
+                }
+                throw;
             }
 
             m_changeMask |= SubscriptionChangeMask.ItemsCreated;
@@ -2795,8 +2807,8 @@ namespace Opc.Ua.Client
             {
                 foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
                 {
-                    // ignore items that have been created.
-                    if (monitoredItem.Status.Created)
+                    // ignore items that have been created or are being created.
+                    if (monitoredItem.Status.Created || monitoredItem.Status.Creating)
                     {
                         continue;
                     }
@@ -2824,6 +2836,13 @@ namespace Opc.Ua.Client
 
                     requestItems.Add(request);
                     itemsToCreate.Add(monitoredItem);
+                }
+
+                // Mark all items as being created before releasing the lock
+                // to prevent duplicate creation requests in multi-threaded scenarios
+                foreach (MonitoredItem monitoredItem in itemsToCreate)
+                {
+                    monitoredItem.Status.Creating = true;
                 }
             }
             return (requestItems, itemsToCreate);
