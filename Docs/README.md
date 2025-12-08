@@ -4,6 +4,7 @@ Here is a list of available documentation for different topics:
 
 ## UA Core stack related
 
+* [OPC UA Profiles and Facets](Profiles.md) - Overview of supported OPC UA profiles, facets, security policies, and transport protocols.
 * About [.NET platform](PlatformBuild.md) support, Nuget packages and versioning.
 * How X.509 [Certificates](Certificates.md) are used in the certificate stores.
 * Using the [Reverse Connect](ReverseConnect.md) for the UA-TCP transport.
