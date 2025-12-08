@@ -33,6 +33,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Transport;
@@ -120,7 +121,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 {
                     if (uaNetworkMessage != null)
                     {
-                        await await publisherConnection.PublishNetworkMessage(uaNetworkMessage).ConfigureAwait(false).ConfigureAwait(false);
+                        await publisherConnection.PublishNetworkMessage(uaNetworkMessage).ConfigureAwait(false);
                     }
                 }
             }
@@ -217,7 +218,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 {
                     if (uaNetworkMessage != null)
                     {
-                        await await publisherConnection.PublishNetworkMessage(uaNetworkMessage).ConfigureAwait(false).ConfigureAwait(false);
+                        await publisherConnection.PublishNetworkMessage(uaNetworkMessage).ConfigureAwait(false);
                     }
                 }
             }
@@ -526,7 +527,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             if (networkMessage != null)
             {
-                await await publisherConnection.PublishNetworkMessage(networkMessage).ConfigureAwait(false).ConfigureAwait(false);
+                await publisherConnection.PublishNetworkMessage(networkMessage).ConfigureAwait(false);
             }
 
             //Assert
@@ -654,7 +655,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             //Act
             publisherConnection.Start();
 
-            await await publisherConnection.PublishNetworkMessage(uaNetworkMessage).ConfigureAwait(false).ConfigureAwait(false);
+            await publisherConnection.PublishNetworkMessage(uaNetworkMessage).ConfigureAwait(false);
 
             // Assert
             bool noMessageReceived = false;
