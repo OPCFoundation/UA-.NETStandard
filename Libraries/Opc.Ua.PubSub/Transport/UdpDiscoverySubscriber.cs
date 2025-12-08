@@ -65,7 +65,7 @@ namespace Opc.Ua.PubSub.Transport
                 udpConnection.PubSubConnectionConfiguration.Name,
                 kInitialRequestInterval,
                 CanPublish,
-                RequestDiscoveryMessages,
+                RequestDiscoveryMessagesAsync,
                 telemetry);
         }
 
@@ -280,10 +280,11 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Joint task to request discovery messages
         /// </summary>
-        private void RequestDiscoveryMessages()
+        private Task RequestDiscoveryMessagesAsync()
         {
             SendDiscoveryRequestDataSetMetaData();
             SendDiscoveryRequestDataSetWriterConfiguration();
+            return Task.CompletedTask;
         }
     }
 }

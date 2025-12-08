@@ -58,14 +58,14 @@ namespace Opc.Ua.PubSub
             object id,
             double interval,
             Func<bool> canExecuteFunc,
-            Action intervalAction,
+            Func<Task> intervalActionAsync,
             ITelemetryContext telemetry)
         {
             m_logger = telemetry.CreateLogger<IntervalRunner>();
             Id = id;
             Interval = interval;
             CanExecuteFunc = canExecuteFunc;
-            IntervalAction = intervalAction;
+            IntervalActionAsync = intervalActionAsync;
         }
 
         /// <summary>
@@ -99,9 +99,9 @@ namespace Opc.Ua.PubSub
         public Func<bool> CanExecuteFunc { get; }
 
         /// <summary>
-        /// Get the action that will be executed at each interval
+        /// Get the async action that will be executed at each interval
         /// </summary>
-        public Action IntervalAction { get; }
+        public Func<Task> IntervalActionAsync { get; }
 
         /// <summary>
         /// Starts the IntervalRunner and makes it ready to execute the code.
@@ -206,10 +206,10 @@ namespace Opc.Ua.PubSub
                     double nextCycle = (long)m_interval * HiResClock.TicksPerMillisecond;
                     m_nextPublishTick += nextCycle;
 
-                    if (IntervalAction != null && CanExecuteFunc != null && CanExecuteFunc())
+                    if (IntervalActionAsync != null && CanExecuteFunc != null && CanExecuteFunc())
                     {
-                        // call on a new thread
-                        Task.Run(() => IntervalAction());
+                        // call on a new task without blocking the thread pool
+                        _ = Task.Run(IntervalActionAsync);
                     }
                 }
             }

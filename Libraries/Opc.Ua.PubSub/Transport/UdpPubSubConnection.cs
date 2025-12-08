@@ -416,13 +416,13 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Publish the network message
         /// </summary>
-        public override bool PublishNetworkMessage(UaNetworkMessage networkMessage)
+        public override Task<bool> PublishNetworkMessage(UaNetworkMessage networkMessage)
         {
             if (networkMessage == null ||
                 m_publisherUdpClients == null ||
                 m_publisherUdpClients.Count == 0)
             {
-                return false;
+                return Task.FromResult(false);
             }
 
             try
@@ -448,20 +448,20 @@ namespace Opc.Ua.PubSub.Transport
                             catch (Exception ex)
                             {
                                 m_logger.LogError(ex, "UdpPubSubConnection.PublishNetworkMessage");
-                                return false;
+                                return Task.FromResult(false);
                             }
                         }
-                        return true;
+                        return Task.FromResult(true);
                     }
                 }
             }
             catch (Exception ex)
             {
                 m_logger.LogError(ex, "UdpPubSubConnection.PublishNetworkMessage");
-                return false;
+                return Task.FromResult(false);
             }
 
-            return false;
+            return Task.FromResult(false);
         }
 
         /// <summary>

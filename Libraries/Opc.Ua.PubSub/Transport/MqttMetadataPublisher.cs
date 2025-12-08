@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.PubSub.Transport
@@ -65,7 +66,7 @@ namespace Opc.Ua.PubSub.Transport
                 dataSetWriter.DataSetWriterId,
                 metaDataUpdateTime,
                 CanPublish,
-                PublishMessage,
+                PublishMessageAsync,
                 telemetry);
         }
 
@@ -103,7 +104,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Generate and publish the dataset MetaData message
         /// </summary>
-        private void PublishMessage()
+        private async Task PublishMessageAsync()
         {
             try
             {
@@ -113,7 +114,7 @@ namespace Opc.Ua.PubSub.Transport
                         m_dataSetWriter);
                 if (metaDataNetworkMessage != null)
                 {
-                    bool success = m_parentConnection.PublishNetworkMessage(metaDataNetworkMessage);
+                    bool success = await m_parentConnection.PublishNetworkMessage(metaDataNetworkMessage).ConfigureAwait(false);
                     m_logger.LogInformation(
                         "MqttMetadataPublisher Publish DataSetMetaData, DataSetWriterId:{DataSetWriterId}; success = {Success}",
                         m_dataSetWriter.DataSetWriterId,

@@ -248,7 +248,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Publish the network message
         /// </summary>
-        public override bool PublishNetworkMessage(UaNetworkMessage networkMessage)
+        public override async Task<bool> PublishNetworkMessage(UaNetworkMessage networkMessage)
         {
             if (networkMessage == null || m_publisherMqttClient == null)
             {
@@ -257,76 +257,78 @@ namespace Opc.Ua.PubSub.Transport
 
             try
             {
+                IMqttClient publisherClient;
                 lock (Lock)
                 {
-                    if (m_publisherMqttClient.IsConnected)
+                    publisherClient = m_publisherMqttClient;
+                }
+
+                if (publisherClient != null && publisherClient.IsConnected)
+                {
+                    // get the encoded bytes
+                    byte[] bytes = networkMessage.Encode(MessageContext);
+
+                    try
                     {
-                        // get the encoded bytes
-                        byte[] bytes = networkMessage.Encode(MessageContext);
+                        string queueName = null;
+                        BrokerTransportQualityOfService qos
+                            = BrokerTransportQualityOfService.AtLeastOnce;
 
-                        try
+                        // the network messages that have DataSetWriterId are either metaData messages or SingleDataSet messages and
+                        if (networkMessage.DataSetWriterId != null)
                         {
-                            string queueName = null;
-                            BrokerTransportQualityOfService qos
-                                = BrokerTransportQualityOfService.AtLeastOnce;
+                            DataSetWriterDataType dataSetWriter =
+                                networkMessage.WriterGroupConfiguration.DataSetWriters.Find(x =>
+                                    x.DataSetWriterId == networkMessage.DataSetWriterId);
 
-                            // the network messages that have DataSetWriterId are either metaData messages or SingleDataSet messages and
-                            if (networkMessage.DataSetWriterId != null)
+                            if (dataSetWriter != null &&
+                                ExtensionObject.ToEncodeable(dataSetWriter.TransportSettings)
+                                    is BrokerDataSetWriterTransportDataType transportSettings)
                             {
-                                DataSetWriterDataType dataSetWriter =
-                                    networkMessage.WriterGroupConfiguration.DataSetWriters.Find(x =>
-                                        x.DataSetWriterId == networkMessage.DataSetWriterId);
+                                qos = transportSettings.RequestedDeliveryGuarantee;
 
-                                if (dataSetWriter != null &&
-                                    ExtensionObject.ToEncodeable(dataSetWriter.TransportSettings)
-                                        is BrokerDataSetWriterTransportDataType transportSettings)
+                                queueName = networkMessage.IsMetaDataMessage
+                                    ? transportSettings.MetaDataQueueName
+                                    : transportSettings.QueueName;
+                            }
+                        }
+
+                        if (queueName == null ||
+                            qos == BrokerTransportQualityOfService.NotSpecified)
+                        {
+                            if (ExtensionObject.ToEncodeable(
+                                    networkMessage.WriterGroupConfiguration.TransportSettings)
+                                is BrokerWriterGroupTransportDataType transportSettings)
+                            {
+                                queueName ??= transportSettings.QueueName;
+                                // if the value is not specified and the value of the parent object shall be used
+                                if (qos == BrokerTransportQualityOfService.NotSpecified)
                                 {
                                     qos = transportSettings.RequestedDeliveryGuarantee;
-
-                                    queueName = networkMessage.IsMetaDataMessage
-                                        ? transportSettings.MetaDataQueueName
-                                        : transportSettings.QueueName;
                                 }
-                            }
-
-                            if (queueName == null ||
-                                qos == BrokerTransportQualityOfService.NotSpecified)
-                            {
-                                if (ExtensionObject.ToEncodeable(
-                                        networkMessage.WriterGroupConfiguration.TransportSettings)
-                                    is BrokerWriterGroupTransportDataType transportSettings)
-                                {
-                                    queueName ??= transportSettings.QueueName;
-                                    // if the value is not specified and the value of the parent object shall be used
-                                    if (qos == BrokerTransportQualityOfService.NotSpecified)
-                                    {
-                                        qos = transportSettings.RequestedDeliveryGuarantee;
-                                    }
-                                }
-                            }
-
-                            if (!string.IsNullOrEmpty(queueName))
-                            {
-                                var message = new MqttApplicationMessage
-                                {
-                                    Topic = queueName,
-                                    PayloadSegment = new ArraySegment<byte>(bytes),
-                                    QualityOfServiceLevel = GetMqttQualityOfServiceLevel(qos),
-                                    Retain = networkMessage.IsMetaDataMessage
-                                };
-
-                                m_publisherMqttClient.PublishAsync(message).GetAwaiter()
-                                    .GetResult();
                             }
                         }
-                        catch (Exception ex)
+
+                        if (!string.IsNullOrEmpty(queueName))
                         {
-                            m_logger.LogError(ex, "MqttPubSubConnection.PublishNetworkMessage");
-                            return false;
-                        }
+                            var message = new MqttApplicationMessage
+                            {
+                                Topic = queueName,
+                                PayloadSegment = new ArraySegment<byte>(bytes),
+                                QualityOfServiceLevel = GetMqttQualityOfServiceLevel(qos),
+                                Retain = networkMessage.IsMetaDataMessage
+                            };
 
-                        return true;
+                            await publisherClient.PublishAsync(message).ConfigureAwait(false);
+                        }
                     }
+                    catch (Exception ex)
+                    {
+                        m_logger.LogError(ex, "MqttPubSubConnection.PublishNetworkMessage");
+                        return false;
+                    }
+
+                    return true;
                 }
             }
             catch (Exception ex)
