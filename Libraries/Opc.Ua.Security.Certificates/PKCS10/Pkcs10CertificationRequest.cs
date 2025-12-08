@@ -153,8 +153,24 @@ namespace Opc.Ua.Security.Certificates
                     throw new NotSupportedException($"Unsupported key algorithm: {keyAlgorithmOid}");
                 }
             }
+            catch (CryptographicException)
+            {
+                // Invalid CSR format or signature
+                return false;
+            }
+            catch (AsnContentException)
+            {
+                // Invalid ASN.1 structure
+                return false;
+            }
+            catch (NotSupportedException)
+            {
+                // Unsupported algorithm - rethrow to inform caller
+                throw;
+            }
             catch (Exception)
             {
+                // Any other unexpected error
                 return false;
             }
         }
@@ -204,6 +220,21 @@ namespace Opc.Ua.Security.Certificates
             // Read modulus and exponent
             byte[] modulus = keySequence.ReadIntegerBytes().ToArray();
             byte[] exponent = keySequence.ReadIntegerBytes().ToArray();
+
+            // Validate key sizes to prevent issues with malformed CSRs
+            // Modulus should be at least 1024 bits (128 bytes), commonly 2048+ bits
+            if (modulus.Length < 128)
+            {
+                throw new CryptographicException(
+                    $"RSA modulus is too small: {modulus.Length * 8} bits. Minimum is 1024 bits.");
+            }
+
+            // Exponent should be small (commonly 3 or 65537)
+            if (exponent.Length > 8)
+            {
+                throw new CryptographicException(
+                    $"RSA exponent is unexpectedly large: {exponent.Length} bytes.");
+            }
 
             // Create RSA parameters
             var rsaParameters = new RSAParameters
