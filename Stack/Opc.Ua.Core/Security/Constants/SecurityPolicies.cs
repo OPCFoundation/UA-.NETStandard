@@ -69,7 +69,7 @@ namespace Opc.Ua
         /// <summary>
         /// The URI for the RSA_DH_AES_GCM security policy.
         /// </summary>
-        public const string RSA_DH_AES_GCM = BaseUri + "RSA_DH_AES_GCM";
+        public const string RSA_DH_AesGcm = BaseUri + "RSA_DH_AesGcm";
 
         /// <summary>
         /// The URI for the RSA_DH_ChaChaPoly security policy.
@@ -185,7 +185,7 @@ namespace Opc.Ua
                 name.Equals(nameof(Basic128Rsa15), StringComparison.Ordinal) ||
                 name.Equals(nameof(Basic256Sha256), StringComparison.Ordinal) ||
                 name.Equals(nameof(Aes128_Sha256_RsaOaep), StringComparison.Ordinal) ||
-                name.Equals(nameof(RSA_DH_AES_GCM), StringComparison.Ordinal) ||
+                name.Equals(nameof(RSA_DH_AesGcm), StringComparison.Ordinal) ||
                 name.Equals(nameof(RSA_DH_ChaChaPoly), StringComparison.Ordinal))
             {
                 return true;
@@ -593,16 +593,6 @@ namespace Opc.Ua
                     securityPolicyUri);
             }
 
-            System.Console.WriteLine(
-                $"CreateSignatureData\r\n" +
-                $"secureChannelSecret: {ToFragment(secureChannelSecret)}\r\n" +
-                $"remoteCertificate: {ToFragment(remoteCertificate)}\r\n" +
-                $"remoteChannelCertificate: {ToFragment(remoteChannelCertificate)}\r\n" +
-                $"localChannelCertificate: {ToFragment(localChannelCertificate)}\r\n" +
-                $"remoteNonce: {ToFragment(remoteNonce)}\r\n" +
-                $"localNonce: {ToFragment(localNonce)}"
-            );
-
             // create the data to sign.
             byte[] dataToSign = (info.SecureChannelEnhancements)
                 ? Utils.Append(
@@ -647,52 +637,33 @@ namespace Opc.Ua
             {
                 case AsymmetricSignatureAlgorithm.RsaPkcs15Sha1:
                     signatureData.Algorithm = SecurityAlgorithms.RsaSha1;
-                    signatureData.Signature = RsaUtils.Rsa_Sign(
-                        new ArraySegment<byte>(dataToSign),
-                        localCertificate,
-                        HashAlgorithmName.SHA1,
-                        RSASignaturePadding.Pkcs1);
                     break;
                 case AsymmetricSignatureAlgorithm.RsaPkcs15Sha256:
                     signatureData.Algorithm = SecurityAlgorithms.RsaSha256;
-                    signatureData.Signature = RsaUtils.Rsa_Sign(
-                        new ArraySegment<byte>(dataToSign),
-                        localCertificate,
-                        HashAlgorithmName.SHA256,
-                        RSASignaturePadding.Pkcs1);
                     break;
                 case AsymmetricSignatureAlgorithm.RsaPssSha256:
                     signatureData.Algorithm = SecurityAlgorithms.RsaPssSha256;
-                    signatureData.Signature = RsaUtils.Rsa_Sign(
-                        new ArraySegment<byte>(dataToSign),
-                        localCertificate,
-                        HashAlgorithmName.SHA256,
-                        RSASignaturePadding.Pss);
                     break;
                 case AsymmetricSignatureAlgorithm.EcdsaSha256:
-                    signatureData.Algorithm = null;
-                    signatureData.Signature = CryptoUtils.Sign(
-                        new ArraySegment<byte>(dataToSign),
-                        localCertificate,
-                        securityPolicy.AsymmetricSignatureAlgorithm);
-                    break;
                 case AsymmetricSignatureAlgorithm.EcdsaSha384:
                     signatureData.Algorithm = null;
-                    signatureData.Signature = CryptoUtils.Sign(
-                        new ArraySegment<byte>(dataToSign),
-                        localCertificate,
-                        securityPolicy.AsymmetricSignatureAlgorithm);
                     break;
                 case AsymmetricSignatureAlgorithm.None:
                     signatureData.Algorithm = null;
                     signatureData.Signature = null;
-                    break;
+                    return signatureData;
+                    ;
                 default:
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecurityPolicyRejected,
                         "Unsupported security policy: {0}",
                         securityPolicy.Uri);
             }
+
+            signatureData.Signature = CryptoUtils.Sign(
+                new ArraySegment<byte>(dataToSign),
+                localCertificate,
+                securityPolicy.AsymmetricSignatureAlgorithm);
 
             return signatureData;
         }
@@ -730,16 +701,6 @@ namespace Opc.Ua
                     "Unsupported security policy: {0}",
                     securityPolicyUri);
             }
-
-            System.Console.WriteLine(
-                $"VerifySignatureData\r\n" +
-                $"secureChannelSecret: {ToFragment(secureChannelSecret)}\r\n" +
-                $"localCertificate: {ToFragment(localCertificate)}\r\n" +
-                $"localChannelCertificate: {ToFragment(localChannelCertificate)}\r\n" +
-                $"remoteChannelCertificate: {ToFragment(remoteChannelCertificate)}\r\n" +
-                $"localNonce: {ToFragment(localNonce)}\r\n" +
-                $"remoteNonce: {ToFragment(remoteNonce)}"
-            );
 
             // create the data to sign.
             byte[] dataToVerify = (info.SecureChannelEnhancements)
@@ -868,21 +829,6 @@ namespace Opc.Ua
                 StatusCodes.BadSecurityChecksFailed,
                 "Unexpected SignatureData algorithm: {0}",
                 signature.Algorithm);
-        }
-
-        static string ToFragment(byte[] input)
-        {
-            if (input != null)
-            {
-                if (input.Length < 8)
-                {
-                    return Utils.ToHexString(input);
-                }
-
-                return Utils.ToHexString(input).Substring(0, 16);
-            }
-
-            return "null";
         }
 
         /// <summary>

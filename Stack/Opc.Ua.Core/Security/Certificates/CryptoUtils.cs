@@ -11,8 +11,11 @@
 */
 
 using System;
+using System.Globalization;
+using System.Numerics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using Opc.Ua.Bindings;
 using Opc.Ua.Security.Certificates;
 #if CURVE25519
@@ -290,6 +293,12 @@ namespace Opc.Ua
                     StatusCodes.BadSecurityChecksFailed,
                     "No public key for certificate.");
             }
+
+            if (signingCertificate.GetRSAPublicKey() != null)
+            {
+                return RsaUtils.GetSignatureLength(signingCertificate);
+            }
+
             using ECDsa publicKey =
                 GetPublicKey(signingCertificate)
                 ?? throw ServiceResultException.Create(
@@ -297,34 +306,6 @@ namespace Opc.Ua
                     "No public key for certificate.");
 
             return publicKey.KeySize / 4;
-        }
-
-        /// <summary>
-        /// Returns the hash algorithm for the specified security policy.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="securityPolicyUri"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException"></exception>
-        public static HashAlgorithmName GetSignatureAlgorithmName(string securityPolicyUri)
-        {
-            if (securityPolicyUri == null)
-            {
-                throw new ArgumentNullException(nameof(securityPolicyUri));
-            }
-
-            switch (securityPolicyUri)
-            {
-                case SecurityPolicies.ECC_nistP256:
-                case SecurityPolicies.ECC_brainpoolP256r1:
-                case SecurityPolicies.ECC_curve25519:
-                case SecurityPolicies.ECC_curve448:
-                    return HashAlgorithmName.SHA256;
-                case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_brainpoolP384r1:
-                    return HashAlgorithmName.SHA384;
-                default:
-                    throw ServiceResultException.Unexpected(
-                        "Unexpected security policy URI for ECC: {0}", securityPolicyUri);
-            }
         }
 
         /// <summary>
@@ -340,7 +321,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Computes an ECDSA signature.
+        /// Computes an signature.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         public static byte[] Sign(
@@ -348,6 +329,35 @@ namespace Opc.Ua
             X509Certificate2 signingCertificate,
             AsymmetricSignatureAlgorithm algorithm)
         {
+            switch (algorithm)
+            {
+                case AsymmetricSignatureAlgorithm.None:
+                    return null;
+                case AsymmetricSignatureAlgorithm.RsaPkcs15Sha1:
+                    return RsaUtils.Rsa_Sign(
+                        dataToSign,
+                        signingCertificate,
+                        HashAlgorithmName.SHA1,
+                        RSASignaturePadding.Pkcs1);
+                case AsymmetricSignatureAlgorithm.RsaPkcs15Sha256:
+                    return RsaUtils.Rsa_Sign(
+                        dataToSign,
+                        signingCertificate,
+                        HashAlgorithmName.SHA256,
+                        RSASignaturePadding.Pkcs1);
+                case AsymmetricSignatureAlgorithm.RsaPssSha256:
+                    return RsaUtils.Rsa_Sign(
+                        dataToSign,
+                        signingCertificate,
+                        HashAlgorithmName.SHA256,
+                        RSASignaturePadding.Pss);
+                case AsymmetricSignatureAlgorithm.EcdsaSha256:
+                case AsymmetricSignatureAlgorithm.EcdsaSha384:
+                    break;
+                default:
+                    throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected);
+            }
+
             // get the algorithm used for the signature.
             HashAlgorithmName hashAlgorithm;
 
@@ -415,6 +425,38 @@ namespace Opc.Ua
             X509Certificate2 signingCertificate,
             AsymmetricSignatureAlgorithm algorithm)
         {
+            switch (algorithm)
+            {
+                case AsymmetricSignatureAlgorithm.None:
+                    return true;
+                case AsymmetricSignatureAlgorithm.RsaPkcs15Sha1:
+                    return RsaUtils.Rsa_Verify(
+                        dataToVerify,
+                        signature,
+                        signingCertificate,
+                        HashAlgorithmName.SHA1,
+                        RSASignaturePadding.Pkcs1);
+                case AsymmetricSignatureAlgorithm.RsaPkcs15Sha256:
+                    return RsaUtils.Rsa_Verify(
+                        dataToVerify,
+                        signature,
+                        signingCertificate,
+                        HashAlgorithmName.SHA256,
+                        RSASignaturePadding.Pkcs1);
+                case AsymmetricSignatureAlgorithm.RsaPssSha256:
+                    return RsaUtils.Rsa_Verify(
+                        dataToVerify,
+                        signature,
+                        signingCertificate,
+                        HashAlgorithmName.SHA256,
+                        RSASignaturePadding.Pss);
+                case AsymmetricSignatureAlgorithm.EcdsaSha256:
+                case AsymmetricSignatureAlgorithm.EcdsaSha384:
+                    break;
+                default:
+                    return false;
+            }
+
             // get the algorithm used for the signature.
             HashAlgorithmName hashAlgorithm;
 
@@ -660,12 +702,15 @@ namespace Opc.Ua
                 tag,
                 extraData);
 
-#if xDEBUG
-            Console.WriteLine($"E.iv={TcpMessageType.KeyToString(iv)}");
-            Console.WriteLine($"E.extraData={TcpMessageType.KeyToString(extraData.ToArray())}");
-            Console.WriteLine($"E.tag={TcpMessageType.KeyToString(tag)}");
-            Console.WriteLine($"E.ciphertext={TcpMessageType.KeyToString(ciphertext)}");
-#endif
+            CryptoTrace.Start(ConsoleColor.DarkCyan, "EncryptWithChaCha20Poly1305");
+            CryptoTrace.WriteLine($"Data Offset/Count={data.Offset}/{data.Count}");
+            CryptoTrace.WriteLine($"TokenId/LastSequenceNumber={tokenId}/{lastSequenceNumber}");
+            CryptoTrace.WriteLine($"EncryptingKey={CryptoTrace.KeyToString(encryptingKey)}");
+            CryptoTrace.WriteLine($"IV={CryptoTrace.KeyToString(iv)}");
+            CryptoTrace.WriteLine($"EncryptedData={CryptoTrace.KeyToString(ciphertext)}");
+            CryptoTrace.WriteLine($"Tag={CryptoTrace.KeyToString(tag)}");
+            CryptoTrace.WriteLine($"ExtraData={CryptoTrace.KeyToString(extraData.ToArray())}");
+            CryptoTrace.Finish("EncryptWithChaCha20Poly1305");
 
             // Return layout: [associated data | ciphertext | tag]
             if (!signOnly)
@@ -727,19 +772,22 @@ namespace Opc.Ua
 
             iv = ApplyAeadMask(tokenId, lastSequenceNumber, iv);
 
-#if xDEBUG
-            Console.WriteLine($"D.iv={TcpMessageType.KeyToString(iv)}");
-            Console.WriteLine($"D.extraData={TcpMessageType.KeyToString(extraData.ToArray())}");
-            Console.WriteLine($"D.tag={TcpMessageType.KeyToString(tag.ToArray())}");
-            Console.WriteLine($"D.ciphertext={TcpMessageType.KeyToString(encryptedData.ToArray())}");
-#endif
-
             chacha.Decrypt(
                 iv,
                 encryptedData,
                 tag,
                 signOnly ? [] : plaintext,
                 extraData);
+
+            CryptoTrace.Start(ConsoleColor.DarkCyan, "DecryptWithChaCha20Poly1305");
+            CryptoTrace.WriteLine($"Data Offset/Count={data.Offset}/{data.Count - kChaChaPolyTagLength}");
+            CryptoTrace.WriteLine($"TokenId/LastSequenceNumber={tokenId}/{lastSequenceNumber}");
+            CryptoTrace.WriteLine($"EncryptingKey={CryptoTrace.KeyToString(encryptingKey)}");
+            CryptoTrace.WriteLine($"IV={CryptoTrace.KeyToString(iv)}");
+            CryptoTrace.WriteLine($"EncryptedData={CryptoTrace.KeyToString(encryptedData)}");
+            CryptoTrace.WriteLine($"Tag={CryptoTrace.KeyToString(tag)}");
+            CryptoTrace.WriteLine($"ExtraData={CryptoTrace.KeyToString(extraData.ToArray())}");
+            CryptoTrace.Finish("DecryptWithChaCha20Poly1305");
 
             // Return layout: [associated data | plaintext]
             if (!signOnly)
@@ -783,7 +831,6 @@ namespace Opc.Ua
 
             using var aesGcm = new AesGcm(encryptingKey, kAesGcmTagLength);
 
-            //Console.WriteLine($"Prior={TcpMessageType.KeyToString(iv)} tokenId={tokenId} lastSequenceNumber={lastSequenceNumber}");
             iv = ApplyAeadMask(tokenId, lastSequenceNumber, iv);
 
             aesGcm.Encrypt(
@@ -793,13 +840,15 @@ namespace Opc.Ua
                 tag,
                 extraData);
 
-#if DEBUG
-            Console.WriteLine($"E.encryptingKey={TcpMessageType.KeyToString(encryptingKey)}");
-            Console.WriteLine($"E.iv={TcpMessageType.KeyToString(iv)}");
-            Console.WriteLine($"E.extraData={TcpMessageType.KeyToString(extraData.ToArray())}");
-            Console.WriteLine($"E.tag={TcpMessageType.KeyToString(tag)}");
-            Console.WriteLine($"E.ciphertext={TcpMessageType.KeyToString(ciphertext)}");
-#endif
+            CryptoTrace.Start(ConsoleColor.DarkCyan, "EncryptWithAesGcm");
+            CryptoTrace.WriteLine($"Data Offset/Count={data.Offset}/{data.Count}");
+            CryptoTrace.WriteLine($"TokenId/LastSequenceNumber={tokenId}/{lastSequenceNumber}");
+            CryptoTrace.WriteLine($"EncryptingKey={CryptoTrace.KeyToString(encryptingKey)}");
+            CryptoTrace.WriteLine($"IV={CryptoTrace.KeyToString(iv)}");
+            CryptoTrace.WriteLine($"EncryptedData={CryptoTrace.KeyToString(ciphertext)}");
+            CryptoTrace.WriteLine($"Tag={CryptoTrace.KeyToString(tag)}");
+            CryptoTrace.WriteLine($"ExtraData={CryptoTrace.KeyToString(extraData.ToArray())}");
+            CryptoTrace.Finish("DecryptWithAesGcm");
 
             // Return layout: [associated data | ciphertext | tag]
             if (!signOnly)
@@ -859,16 +908,17 @@ namespace Opc.Ua
 
             using var aesGcm = new AesGcm(encryptingKey, kAesGcmTagLength);
 
-            //Console.WriteLine($"Prior={TcpMessageType.KeyToString(iv)} tokenId={tokenId} lastSequenceNumber={lastSequenceNumber}");
             iv = ApplyAeadMask(tokenId, lastSequenceNumber, iv);
 
-#if xDEBUG
-            Console.WriteLine($"D.encryptingKey={TcpMessageType.KeyToString(encryptingKey)}");
-            Console.WriteLine($"D.iv={TcpMessageType.KeyToString(iv)}");
-            Console.WriteLine($"D.extraData={TcpMessageType.KeyToString(extraData.ToArray())}");
-            Console.WriteLine($"D.tag={TcpMessageType.KeyToString(tag.ToArray())}");
-            Console.WriteLine($"D.ciphertext={TcpMessageType.KeyToString(encryptedData.ToArray())}");
-#endif
+            CryptoTrace.Start(ConsoleColor.DarkCyan, "DecryptWithAesGcm");
+            CryptoTrace.WriteLine($"Data Offset/Count={data.Offset}/{data.Count - kAesGcmTagLength}");
+            CryptoTrace.WriteLine($"TokenId/LastSequenceNumber={tokenId}/{lastSequenceNumber}");
+            CryptoTrace.WriteLine($"EncryptingKey={CryptoTrace.KeyToString(encryptingKey)}");
+            CryptoTrace.WriteLine($"IV={CryptoTrace.KeyToString(iv)}");
+            CryptoTrace.WriteLine($"EncryptedData={CryptoTrace.KeyToString(encryptedData)}");
+            CryptoTrace.WriteLine($"Tag={CryptoTrace.KeyToString(tag)}");
+            CryptoTrace.WriteLine($"ExtraData={CryptoTrace.KeyToString(extraData.ToArray())}");
+            CryptoTrace.Finish("DecryptWithAesGcm");
 
             aesGcm.Decrypt(
                 iv,
@@ -981,6 +1031,282 @@ namespace Opc.Ua
             }
 
             return new ArraySegment<byte>(data.Array, 0, data.Offset + data.Count);
+        }
+    }
+
+#if X
+    class FfdheDhWithRsaAuth
+    {
+        // ffdhe2048 prime from RFC 7919 (hex, without whitespace).  
+        // (RFC 7919 Appendix A.3 — use this canonical modulus in production.)
+        const string FFDHE2048_HEX = @"
+            FFFFFFFF FFFFFFFF ADF85458 A2BB4A9A AFDC5620 273D3CF1
+            D8B9C583 CE2D3695 A9E13641 146433FB CC939DCE 249B3EF9
+            7D2FE363 630C75D8 F681B202 AEC4617A D3DF1ED5 D5FD6561
+            2433F51F 5F066ED0 85636555 3DED1AF3 B557135E 7F57C935
+            984F0C70 E0E68B77 E2A689DA F3EFE872 1DF158A1 36ADE735
+            30ACCA4F 483A797A BC0AB182 B324FB61 D108A94B B2C8E3FB
+            B96ADAB7 60D7F468 1D4F42A3 DE394DF4 AE56EDE7 6372BB19
+            0B07A7C8 EE0A6D70 9E02FCE1 CDF7E2EC C03404CD 28342F61
+            9172FE9C E98583FF 8E4F1232 EEF28183 C3FE3B1B 4C6FAD73
+            3BB5FCBC 2EC22005 C58EF183 7D1683B2 C6F34A26 C1B2EFFA
+            886B4238 61285C97 FFFFFFFF FFFFFFFF";
+
+        // Generator for FFDHE groups is 2
+        static readonly BigInteger G = new BigInteger(2);
+
+        static void Main()
+        {
+            // Parse the RFC hex prime into a positive BigInteger
+            BigInteger p = ParseHexBigInteger(FFDHE2048_HEX);
+
+            // Recommended: use a short ephemeral exponent (e.g. 256-bit) for performance
+            // while still achieving ~128-bit security for typical scenarios.
+            // (RFC7919 and implementation guidance discuss exponent sizing; choose per your threat model.)
+            int privateBitLength = 256;
+
+            Console.WriteLine("Simulating DH exchange (ffdhe2048) with RSA signing...");
+
+            // Simulate Alice and Bob
+            var alice = CreateDhParticipant(p, privateBitLength);
+            var bob = CreateDhParticipant(p, privateBitLength);
+
+            // Each signs their public value with their own RSA key (DHE-RSA style authentication)
+            byte[] alicePub = ToBigEndian(alice.PublicValue);
+            byte[] bobPub = ToBigEndian(bob.PublicValue);
+
+            byte[] aliceSig, bobSig;
+            using (RSA rsaAlice = RSA.Create(2048))
+            using (RSA rsaBob = RSA.Create(2048))
+            {
+                // In real use the RSA keys are persistent (server cert) and public keys/certificates exchanged
+                aliceSig = rsaAlice.SignData(alicePub, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+                bobSig = rsaBob.SignData(bobPub, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+
+                // Each verifies the other's signature (in a real protocol they'd have the peer's cert/public key)
+                bool verifyAlice = rsaBob.VerifyData(bobPub, bobSig, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+                bool verifyBob = rsaAlice.VerifyData(alicePub, aliceSig, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+
+                Console.WriteLine($"Alice verifies Bob's signature: {verifyAlice}");
+                Console.WriteLine($"Bob verifies Alice's signature: {verifyBob}");
+            }
+
+            // Compute shared secrets
+            BigInteger aliceShared = BigInteger.ModPow(bob.PublicValue, alice.PrivateValue, p);
+            BigInteger bobShared = BigInteger.ModPow(alice.PublicValue, bob.PrivateValue, p);
+
+            if (aliceShared != bobShared)
+            {
+                Console.WriteLine("Shared secrets do not match! Aborting.");
+                return;
+            }
+
+            byte[] sharedBytes = ToBigEndian(aliceShared); // same as bobShared
+
+            // Derive 32-byte key with HKDF-SHA256 (RFC 5869)
+            byte[] salt = RandomNumberGenerator.GetBytes(32); // optional but recommended
+            byte[] info = Encoding.UTF8.GetBytes("ffdhe2048-dhe-rsa-derived-key");
+            byte[] aesKey = HkdfSha256(sharedBytes, salt, info, 32);
+        }
+
+        // Creates a participant with ephemeral private/public values
+        static (BigInteger PrivateValue, BigInteger PublicValue) CreateDhParticipant(BigInteger p, int privateBitLen)
+        {
+            BigInteger priv = GenerateRandomBigInteger(privateBitLen);
+            BigInteger pub = BigInteger.ModPow(G, priv, p);
+            return (priv, pub);
+        }
+
+        // Generate an unsigned positive BigInteger of bitLength bits (big-endian)
+        static BigInteger GenerateRandomBigInteger(int bitLength)
+        {
+            int byteCount = (bitLength + 7) / 8;
+            byte[] be = RandomNumberGenerator.GetBytes(byteCount);
+
+            // Ensure top bit set so the value has the requested bit length (avoid tiny exponents)
+            int topBitIndex = (bitLength - 1) % 8;
+            be[0] |= (byte)(1 << topBitIndex);
+
+            // Convert big-endian to little-endian + sign byte for BigInteger ctor
+            byte[] le = new byte[be.Length + 1]; // extra zero to force positive
+            for (int i = 0; i < be.Length; i++)
+                le[i] = be[be.Length - 1 - i];
+            le[le.Length - 1] = 0;
+            return new BigInteger(le);
+        }
+
+        // Convert BigInteger to big-endian unsigned byte[] (no leading zero)
+        static byte[] ToBigEndian(BigInteger value)
+        {
+            if (value.Sign < 0)
+                throw new ArgumentException("value must be non-negative");
+            byte[] le = value.ToByteArray(); // little-endian two's complement
+                                             // Trim any trailing zero that indicates sign if present
+            int last = le.Length - 1;
+            if (le[last] == 0)
+            {
+                Array.Resize(ref le, last);
+                last--;
+            }
+            byte[] be = new byte[le.Length];
+            for (int i = 0; i < le.Length; i++)
+                be[i] = le[le.Length - 1 - i];
+            return be;
+        }
+
+        // Parse hex into a positive BigInteger (handles odd-length and ensures positive)
+        static BigInteger ParseHexBigInteger(string hex)
+        {
+            hex = hex.Trim().Replace(" ", "").Replace("\n", "").Replace("\r", "");
+            // Ensure even length
+            if ((hex.Length & 1) == 1)
+                hex = "0" + hex;
+            // Use Convert.FromHexString (available in .NET 5+) or implement equivalent
+            byte[] be = Convert.FromHexString(hex);
+            // If highest bit of first byte is set, BigInteger.Parse with HexNumber can treat it as negative;
+            // we therefore construct positive BigInteger from big-endian bytes:
+            byte[] le = new byte[be.Length + 1];
+            for (int i = 0; i < be.Length; i++)
+                le[i] = be[be.Length - 1 - i];
+            le[le.Length - 1] = 0;
+            return new BigInteger(le);
+        }
+
+        // Simple HKDF-SHA256 implementation (RFC 5869)
+        static byte[] HkdfSha256(byte[] ikm, byte[] salt, byte[] info, int outLen)
+        {
+            // HKDF-Extract
+            byte[] prk;
+            using (var hmac = new HMACSHA256(salt ?? new byte[0]))
+            {
+                prk = hmac.ComputeHash(ikm);
+            }
+
+            // HKDF-Expand
+            int hashLen = 32;
+            int n = (outLen + hashLen - 1) / hashLen;
+            byte[] okm = new byte[outLen];
+            byte[] previous = Array.Empty<byte>();
+            using (var hmac = new HMACSHA256(prk))
+            {
+                int offset = 0;
+                for (byte i = 1; i <= n; i++)
+                {
+                    // T(i) = HMAC-PRK( T(i-1) | info | i )
+                    hmac.Initialize();
+                    hmac.TransformBlock(previous, 0, previous.Length, null, 0);
+                    if (info != null && info.Length > 0)
+                        hmac.TransformBlock(info, 0, info.Length, null, 0);
+                    byte[] counter = new byte[] { i };
+                    hmac.TransformFinalBlock(counter, 0, 1);
+                    previous = hmac.Hash!;
+                    int toCopy = Math.Min(hashLen, outLen - offset);
+                    Array.Copy(previous, 0, okm, offset, toCopy);
+                    offset += toCopy;
+                }
+            }
+            return okm;
+        }
+    }
+#endif
+
+    /// <summary>
+    /// A class to assist with tracing crypto operations.
+    /// </summary>
+    public static class CryptoTrace
+    {
+        /// <summary>
+        /// Starts a trace block.
+        /// </summary>
+        public static void Start(ConsoleColor color, string format, params object[] args)
+        {
+#if DEBUG
+            Console.ForegroundColor = color;
+            Console.Write("============ ");
+            Console.Write(format, args);
+            Console.WriteLine(" ============");
+#endif
+        }
+
+        /// <summary>
+        /// Finishes a trace block.
+        /// </summary>
+        public static void Finish(string format, params object[] args)
+        {
+#if DEBUG
+            Console.Write("============ ");
+            Console.Write(format, args);
+            Console.WriteLine(" Finished ============");
+            Console.ForegroundColor = ConsoleColor.White;
+#endif
+        }
+
+        /// <summary>
+        /// Writes a trace message.
+        /// </summary>
+        public static void Write(string format, params object[] args)
+        {
+#if DEBUG
+            Console.Write(format, args);
+#endif
+        }
+
+        /// <summary>
+        /// Writes a trace message.
+        /// </summary>
+        public static void WriteLine(string format, params object[] args)
+        {
+#if DEBUG
+            Console.WriteLine(format, args);
+#endif
+        }
+
+        /// <summary>
+        /// Returns a debug string for a key.
+        /// </summary>
+        public static string KeyToString(ArraySegment<byte> key)
+        {
+#if DEBUG
+            byte[] bytes = new byte[key.Count];
+            Buffer.BlockCopy(key.Array ?? [], key.Offset, bytes, 0, key.Count);
+            return KeyToString(bytes);
+#else
+            return String.Empty;
+#endif
+        }
+
+        /// <summary>
+        /// Returns a debug string for a key.
+        /// </summary>
+        public static string KeyToString(byte[] key)
+        {
+#if DEBUG
+            if (key == null || key.Length == 0)
+            {
+                return "Len=0:---";
+            }
+
+            byte checksum = 0;
+
+            foreach (var item in key)
+            {
+                checksum ^= item;
+            }
+
+            if (key.Length <= 16)
+            {
+                return "Len=" + key.Length.ToString(CultureInfo.InvariantCulture) +
+                    ":" +
+                    Utils.ToHexString(key) +
+                    "=>XOR=" +
+                    checksum.ToString(CultureInfo.InvariantCulture);
+            }
+
+            var text = Utils.ToHexString(key);
+            return $"Len={key.Length}:{text.Substring(0, 8)}...{text.Substring(text.Length - 8, 8)}=>XOR={checksum}";
+#else
+            return String.Empty;
+#endif
         }
     }
 }

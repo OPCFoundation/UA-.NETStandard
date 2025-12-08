@@ -11,8 +11,11 @@
 */
 
 using System;
+using System.Collections.Generic;
+using System.Numerics;
 using System.Runtime.Serialization;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 #if CURVE25519
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.X509;
@@ -31,18 +34,20 @@ namespace Opc.Ua
     /// <summary>
     /// Represents a cryptographic nonce used for secure communication.
     /// </summary>
-    [Serializable]
-    public class Nonce : IDisposable, ISerializable
+    public class Nonce : IDisposable
     {
+        private ECDiffieHellman m_ecdh;
+        private RSADiffieHellman m_rsadh;
+        private static readonly RandomNumberGenerator s_rng = RandomNumberGenerator.Create();
+        private static uint s_minNonceLength = 32;
+
         /// <summary>
         /// Constructor
         /// </summary>
         private Nonce()
         {
             m_ecdh = null;
-#if CURVE25519
-            m_bcKeyPair = null;
-#endif
+            m_rsadh = null;
         }
 
         /// <summary>
@@ -55,6 +60,7 @@ namespace Opc.Ua
             byte[] previousSecret)
         {
             byte[] ikm = null;
+            CryptoTrace.Start(ConsoleColor.Cyan, $"GenerateSecret");
 
 #if NET8_0_OR_GREATER
 #if xDEBUG
@@ -62,13 +68,22 @@ namespace Opc.Ua
 
             if (m_ecdh.TryExportECPrivateKeyPem(privateKey, out int charsWritten))
             {
-                Console.WriteLine($"Private Key PEM ({charsWritten} chars):");
+                CryptoTrace.WriteLine($"Private Key PEM ({charsWritten} chars):");
             }
 #endif
 
-            ikm = m_ecdh.DeriveRawSecretAgreement(remoteNonce.m_ecdh.PublicKey);
+            if (m_ecdh != null)
+            {
+                ikm = m_ecdh.DeriveRawSecretAgreement(remoteNonce.m_ecdh.PublicKey);
 
-            Console.WriteLine($"GenerateSecretRaw:ikm={Opc.Ua.Bindings.TcpMessageType.KeyToString(ikm)}");
+            }
+            else if (m_rsadh != null)
+            {
+                ikm = m_rsadh.DeriveRawSecretAgreement(remoteNonce.m_rsadh);
+            }
+
+            CryptoTrace.WriteLine($"IKM-Raw={CryptoTrace.KeyToString(ikm)}");
+            CryptoTrace.WriteLine($"Previous-IKM={CryptoTrace.KeyToString(previousSecret)}");
 
             if (previousSecret != null)
             {
@@ -78,8 +93,9 @@ namespace Opc.Ua
                 }
             }
 
-            Console.WriteLine($"GenerateSecret:ikm={Opc.Ua.Bindings.TcpMessageType.KeyToString(ikm)}");
-            Console.WriteLine($"GenerateSecret:previousSecret={Opc.Ua.Bindings.TcpMessageType.KeyToString(previousSecret)}");
+            CryptoTrace.WriteLine($"IKM-XOR={CryptoTrace.KeyToString(ikm)}");
+            CryptoTrace.Finish("GenerateSecret");
+
 #endif
             return ikm;
         }
@@ -92,65 +108,70 @@ namespace Opc.Ua
         /// <param name="algorithm">The hash algorithm to use in key derivation.</param>
         /// <param name="length">The length of the derived key.</param>
         /// <returns>The derived key.</returns>
-        public byte[] DeriveKey(
+        public byte[] DeriveKeyData(
             byte[] secret,
             byte[] salt,
             KeyDerivationAlgorithm algorithm,
             int length)
         {
-            if (m_ecdh != null)
+            CryptoTrace.Start(ConsoleColor.DarkCyan, $"DeriveKeyData");
+            CryptoTrace.WriteLine($"Secret={CryptoTrace.KeyToString(secret)}");
+            CryptoTrace.WriteLine($"Salt={CryptoTrace.KeyToString(salt)}");
+
+            using HMAC extract = algorithm switch
             {
-                HMAC hmac = algorithm switch
-                {
-                    KeyDerivationAlgorithm.HKDFSha256 => new HMACSHA256(salt),
-                    KeyDerivationAlgorithm.HKDFSha384 => new HMACSHA384(salt),
-                    _ => new HMACSHA256(salt)
-                };
+                KeyDerivationAlgorithm.HKDFSha256 => new HMACSHA256(salt),
+                KeyDerivationAlgorithm.HKDFSha384 => new HMACSHA384(salt),
+                _ => new HMACSHA256(salt)
+            };
 
-                //byte[] secret2 = m_ecdh.DeriveKeyFromHmac(
-                //    remoteNonce.m_ecdh.PublicKey,
-                //    algorithm,
-                //    salt,
-                //    null,
-                //    null);
+            byte[] prk = extract.ComputeHash(secret);
+            CryptoTrace.WriteLine($"PRK={CryptoTrace.KeyToString(prk)}");
 
-                //System.Console.WriteLine($"PRK2={Utils.ToHexString(secret2).Substring(0, 8)}");
+            using HMAC expand = algorithm switch
+            {
+                KeyDerivationAlgorithm.HKDFSha256 => new HMACSHA256(prk),
+                KeyDerivationAlgorithm.HKDFSha384 => new HMACSHA384(prk),
+                _ => new HMACSHA256(prk)
+            };
 
-                byte[] output = new byte[length];
+            byte[] output = new byte[length];
+            byte counter = 1;
 
-                byte counter = 1;
+            byte[] info = new byte[(expand.HashSize / 8) + salt.Length + 1];
+            Buffer.BlockCopy(salt, 0, info, 0, salt.Length);
+            info[salt.Length] = counter++;
 
-                byte[] info = new byte[(hmac.HashSize / 8) + salt.Length + 1];
-                Buffer.BlockCopy(salt, 0, info, 0, salt.Length);
-                info[salt.Length] = counter++;
+            // computer T(1)
+            byte[] hash = expand.ComputeHash(info, 0, salt.Length + 1);
+            CryptoTrace.WriteLine($"T(1)={CryptoTrace.KeyToString(hash)}");
 
-                byte[] hash = hmac.ComputeHash(info, 0, salt.Length + 1);
+            int pos = 0;
 
-                int pos = 0;
+            for (int ii = 0; ii < hash.Length && pos < length; ii++)
+            {
+                output[pos++] = hash[ii];
+            }
+
+            while (pos < length)
+            {
+                Buffer.BlockCopy(hash, 0, info, 0, hash.Length);
+                Buffer.BlockCopy(salt, 0, info, hash.Length, salt.Length);
+                info[^1] = counter++;
+
+                hash = expand.ComputeHash(info, 0, info.Length);
+                CryptoTrace.WriteLine($"T({counter - 1})={CryptoTrace.KeyToString(hash)}");
 
                 for (int ii = 0; ii < hash.Length && pos < length; ii++)
                 {
                     output[pos++] = hash[ii];
                 }
-
-                while (pos < length)
-                {
-                    Buffer.BlockCopy(hash, 0, info, 0, hash.Length);
-                    Buffer.BlockCopy(salt, 0, info, hash.Length, salt.Length);
-                    info[^1] = counter++;
-
-                    hash = hmac.ComputeHash(info, 0, info.Length);
-
-                    for (int ii = 0; ii < hash.Length && pos < length; ii++)
-                    {
-                        output[pos++] = hash[ii];
-                    }
-                }
-
-                return output;
             }
 
-            return Data;
+            CryptoTrace.WriteLine($"KeyData={CryptoTrace.KeyToString(output)}");
+            CryptoTrace.Finish("DeriveKeyData");
+
+            return output;
         }
 
         /// <summary>
@@ -172,8 +193,16 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(securityPolicy));
             }
 
-            switch (securityPolicy.CertificateKeyAlgorithm)
+            switch (securityPolicy.EphemeralKeyAlgorithm)
             {
+                case CertificateKeyAlgorithm.RSADH:
+                    return securityPolicy.MinAsymmetricKeyLength switch
+                    {
+                        //2048 => CreateNonce(RSADiffieHellmanGroup.FFDHE2048),
+                        //3072 => CreateNonce(RSADiffieHellmanGroup.FFDHE3072),
+                        //4096 => CreateNonce(RSADiffieHellmanGroup.FFDHE4096),
+                        _ => CreateNonce(RSADiffieHellmanGroup.FFDHE4096)
+                    };
                 case CertificateKeyAlgorithm.NistP256:
                     return CreateNonce(ECCurve.NamedCurves.nistP256);
                 case CertificateKeyAlgorithm.NistP384:
@@ -185,6 +214,17 @@ namespace Opc.Ua
                 default:
                     return new Nonce { Data = CreateRandomNonceData(securityPolicy.SecureChannelNonceLength) };
             }
+        }
+
+        /// <summary>
+        /// Creates a new Nonce object for the specified RSA DiffieHellman group.
+        /// </summary>
+        public static Nonce CreateNonce(RSADiffieHellmanGroup group)
+        {
+            var nonce = new Nonce();
+            nonce.m_rsadh = RSADiffieHellman.Create(group);
+            nonce.Data = nonce.m_rsadh.GetNonce();
+            return nonce;
         }
 
         /// <summary>
@@ -202,9 +242,15 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(nonceData));
             }
 
-            var nonce = new Nonce { Data = nonceData };
+            if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.RSADH)
+            {
+                var nonce = new Nonce();
+                nonce.m_rsadh = RSADiffieHellman.Create(nonceData);
+                nonce.Data = nonceData;
+                return nonce;
+            }
 
-            switch (securityPolicy.CertificateKeyAlgorithm)
+            switch (securityPolicy.EphemeralKeyAlgorithm)
             {
                 case CertificateKeyAlgorithm.NistP256:
                     return CreateNonce(ECCurve.NamedCurves.nistP256, nonceData);
@@ -219,7 +265,7 @@ namespace Opc.Ua
                 case CertificateKeyAlgorithm.Curve448:
                     return CreateNonceForCurve448(nonceData);
                 default:
-                    return nonce;
+                    return new Nonce { Data = nonceData };
             }
         }
 
@@ -386,79 +432,6 @@ namespace Opc.Ua
             return new Nonce { Data = senderNonce, m_ecdh = ecdh };
         }
 
-#if CURVE25519
-        /// <summary>
-        /// Creates a new Nonce object to be used in Curve25519 cryptography.
-        /// </summary>
-        /// <returns>A new Nonce object.</returns>
-        private static Nonce CreateNonceForCurve25519()
-        {
-            SecureRandom random = new SecureRandom();
-            IAsymmetricCipherKeyPairGenerator generator = new X25519KeyPairGenerator();
-            generator.Init(new X25519KeyGenerationParameters(random));
-
-            var keyPair = generator.GenerateKeyPair();
-
-            byte[] senderNonce = new byte[X25519PublicKeyParameters.KeySize];
-            ((X25519PublicKeyParameters)(keyPair.Public)).Encode(senderNonce, 0);
-
-            var nonce = new Nonce() { Data = senderNonce, m_bcKeyPair = keyPair };
-
-            return nonce;
-        }
-
-        /// <summary>
-        /// Creates a Nonce object using the X448 elliptic curve algorithm.
-        /// </summary>
-        /// <returns>A Nonce object containing the generated nonce data and key pair.</returns>
-        private static Nonce CreateNonceForCurve448()
-        {
-            SecureRandom random = new SecureRandom();
-            IAsymmetricCipherKeyPairGenerator generator = new X448KeyPairGenerator();
-            generator.Init(new X448KeyGenerationParameters(random));
-
-            var keyPair = generator.GenerateKeyPair();
-
-            byte[] senderNonce = new byte[X448PublicKeyParameters.KeySize];
-            ((X448PublicKeyParameters)(keyPair.Public)).Encode(senderNonce, 0);
-
-            var nonce = new Nonce() { Data = senderNonce, m_bcKeyPair = keyPair };
-
-            return nonce;
-        }
-#endif
-
-        /// <summary>
-        /// Custom deserialization
-        /// </summary>
-        protected Nonce(SerializationInfo info, StreamingContext context)
-        {
-            string curveName = info.GetString("CurveName");
-
-            if (curveName != null)
-            {
-                var ecParams = new ECParameters
-                {
-                    Curve = ECCurve.CreateFromFriendlyName(curveName),
-                    Q = new ECPoint
-                    {
-                        X = (byte[])info.GetValue("QX", typeof(byte[])),
-                        Y = (byte[])info.GetValue("QY", typeof(byte[]))
-                    }
-                };
-                m_ecdh = ECDiffieHellman.Create(ecParams);
-            }
-            Data = (byte[])info.GetValue("Data", typeof(byte[]));
-        }
-
-        private ECDiffieHellman m_ecdh;
-#if CURVE25519
-        private AsymmetricCipherKeyPair m_bcKeyPair;
-#endif
-
-        private static readonly RandomNumberGenerator s_rng = RandomNumberGenerator.Create();
-        private static uint s_minNonceLength = 32;
-
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -473,32 +446,277 @@ namespace Opc.Ua
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing && m_ecdh != null)
+            if (disposing)
             {
-                m_ecdh.Dispose();
-                m_ecdh = null;
+                if (m_ecdh != null)
+                {
+                    m_ecdh.Dispose();
+                    m_ecdh = null;
+                }
             }
+        }
+    }
+
+    /// <summary>
+    /// The known RSA Diffie-Hellman groups.
+    /// </summary>
+    public enum RSADiffieHellmanGroup
+    {
+        /// <summary>
+        /// The 2048-bit finite field Diffie-Hellman ephemeral group defined in RFC 7919.
+        /// </summary>
+        FFDHE2048,
+
+        /// <summary>
+        /// The 3072-bit finite field Diffie-Hellman ephemeral group defined in RFC 7919.
+        /// </summary>
+        FFDHE3072,
+
+        /// <summary>
+        /// The 4096-bit finite field Diffie-Hellman ephemeral group defined in RFC 7919.
+        /// </summary>
+        FFDHE4096
+    }
+
+    /// <summary>
+    /// A RSA Diffie-Hellman key exchange implementation.
+    /// </summary>
+    public class RSADiffieHellman
+    {
+        private BigInteger m_privateKey;
+        private BigInteger m_publicKey;
+        private int m_nonceLength;
+
+        // ffdhe2048 prime from RFC 7919 (hex, without whitespace).  
+        // (RFC 7919 Appendix A.3 — use this canonical modulus in production.)
+        const string FFDHE2048_HEX = @"
+            FFFFFFFF FFFFFFFF ADF85458 A2BB4A9A AFDC5620 273D3CF1
+            D8B9C583 CE2D3695 A9E13641 146433FB CC939DCE 249B3EF9
+            7D2FE363 630C75D8 F681B202 AEC4617A D3DF1ED5 D5FD6561
+            2433F51F 5F066ED0 85636555 3DED1AF3 B557135E 7F57C935
+            984F0C70 E0E68B77 E2A689DA F3EFE872 1DF158A1 36ADE735
+            30ACCA4F 483A797A BC0AB182 B324FB61 D108A94B B2C8E3FB
+            B96ADAB7 60D7F468 1D4F42A3 DE394DF4 AE56EDE7 6372BB19
+            0B07A7C8 EE0A6D70 9E02FCE1 CDF7E2EC C03404CD 28342F61
+            9172FE9C E98583FF 8E4F1232 EEF28183 C3FE3B1B 4C6FAD73
+            3BB5FCBC 2EC22005 C58EF183 7D1683B2 C6F34A26 C1B2EFFA
+            886B4238 61285C97 FFFFFFFF FFFFFFFF";
+
+        static readonly Lazy<BigInteger> s_P2048 = new(() => RfcTextToBytes(FFDHE2048_HEX));
+
+        const int k_FFDHE2048_MinExponent = 224;
+        const int k_FFDHE2048_MaxExponent = 255;
+
+        const string FFDHE3072_HEX = @"
+            FFFFFFFF FFFFFFFF ADF85458 A2BB4A9A AFDC5620 273D3CF1
+            D8B9C583 CE2D3695 A9E13641 146433FB CC939DCE 249B3EF9
+            7D2FE363 630C75D8 F681B202 AEC4617A D3DF1ED5 D5FD6561
+            2433F51F 5F066ED0 85636555 3DED1AF3 B557135E 7F57C935
+            984F0C70 E0E68B77 E2A689DA F3EFE872 1DF158A1 36ADE735
+            30ACCA4F 483A797A BC0AB182 B324FB61 D108A94B B2C8E3FB
+            B96ADAB7 60D7F468 1D4F42A3 DE394DF4 AE56EDE7 6372BB19
+            0B07A7C8 EE0A6D70 9E02FCE1 CDF7E2EC C03404CD 28342F61
+            9172FE9C E98583FF 8E4F1232 EEF28183 C3FE3B1B 4C6FAD73
+            3BB5FCBC 2EC22005 C58EF183 7D1683B2 C6F34A26 C1B2EFFA
+            886B4238 611FCFDC DE355B3B 6519035B BC34F4DE F99C0238
+            61B46FC9 D6E6C907 7AD91D26 91F7F7EE 598CB0FA C186D91C
+            AEFE1309 85139270 B4130C93 BC437944 F4FD4452 E2D74DD3
+            64F2E21E 71F54BFF 5CAE82AB 9C9DF69E E86D2BC5 22363A0D
+            ABC52197 9B0DEADA 1DBF9A42 D5C4484E 0ABCD06B FA53DDEF
+            3C1B20EE 3FD59D7C 25E41D2B 66C62E37 FFFFFFFF FFFFFFFF";
+
+        static readonly Lazy<BigInteger> s_P3072 = new(() => RfcTextToBytes(FFDHE3072_HEX));
+
+        const int k_FFDHE3072_MinExponent = 275;
+        const int k_FFDHE3072_MaxExponent = 383;
+
+        const string FFDHE4096_HEX = @"
+            FFFFFFFF FFFFFFFF ADF85458 A2BB4A9A AFDC5620 273D3CF1
+            D8B9C583 CE2D3695 A9E13641 146433FB CC939DCE 249B3EF9
+            7D2FE363 630C75D8 F681B202 AEC4617A D3DF1ED5 D5FD6561
+            2433F51F 5F066ED0 85636555 3DED1AF3 B557135E 7F57C935
+            984F0C70 E0E68B77 E2A689DA F3EFE872 1DF158A1 36ADE735
+            30ACCA4F 483A797A BC0AB182 B324FB61 D108A94B B2C8E3FB
+            B96ADAB7 60D7F468 1D4F42A3 DE394DF4 AE56EDE7 6372BB19
+            0B07A7C8 EE0A6D70 9E02FCE1 CDF7E2EC C03404CD 28342F61
+            9172FE9C E98583FF 8E4F1232 EEF28183 C3FE3B1B 4C6FAD73
+            3BB5FCBC 2EC22005 C58EF183 7D1683B2 C6F34A26 C1B2EFFA
+            886B4238 611FCFDC DE355B3B 6519035B BC34F4DE F99C0238
+            61B46FC9 D6E6C907 7AD91D26 91F7F7EE 598CB0FA C186D91C
+            AEFE1309 85139270 B4130C93 BC437944 F4FD4452 E2D74DD3
+            64F2E21E 71F54BFF 5CAE82AB 9C9DF69E E86D2BC5 22363A0D
+            ABC52197 9B0DEADA 1DBF9A42 D5C4484E 0ABCD06B FA53DDEF
+            3C1B20EE 3FD59D7C 25E41D2B 669E1EF1 6E6F52C3 164DF4FB
+            7930E9E4 E58857B6 AC7D5F42 D69F6D18 7763CF1D 55034004
+            87F55BA5 7E31CC7A 7135C886 EFB4318A ED6A1E01 2D9E6832
+            A907600A 918130C4 6DC778F9 71AD0038 092999A3 33CB8B7A
+            1A1DB93D 7140003C 2A4ECEA9 F98D0ACC 0A8291CD CEC97DCF
+            8EC9B55A 7F88A46B 4DB5A851 F44182E1 C68A007E 5E655F6A";
+
+        static readonly Lazy<BigInteger> s_P4096 = new(() => RfcTextToBytes(FFDHE4096_HEX));
+
+        const int k_FFDHE4096_MinExponent = 325;
+        const int k_FFDHE4096_MaxExponent = 511;
+
+        private static readonly Lazy<RandomNumberGenerator> s_rng = new(() => RandomNumberGenerator.Create());
+
+        // Generator for FFDHE groups is 2
+        static readonly BigInteger s_G = new BigInteger(2);
+
+        /// <summary>
+        /// Creates a new RSADiffieHellman instance for the specified group.
+        /// </summary>
+        public static RSADiffieHellman Create(RSADiffieHellmanGroup group)
+        {
+            int min = 0;
+            int max = 0;
+            BigInteger p;
+
+            switch (group)
+            {
+                case RSADiffieHellmanGroup.FFDHE2048:
+                    p = s_P2048.Value;
+                    min = k_FFDHE2048_MinExponent;
+                    max = k_FFDHE2048_MaxExponent;
+                    break;
+                case RSADiffieHellmanGroup.FFDHE3072:
+                    p = s_P3072.Value;
+                    min = k_FFDHE3072_MinExponent;
+                    max = k_FFDHE3072_MaxExponent;
+                    break;
+                case RSADiffieHellmanGroup.FFDHE4096:
+                    p = s_P4096.Value;
+                    min = k_FFDHE4096_MinExponent;
+                    max = k_FFDHE4096_MaxExponent;
+                    break;
+                default:
+                    throw new NotSupportedException("Unsupported RSA DH finite group type.");
+            }
+
+            var dh = new RSADiffieHellman();
+
+            byte[] seed = new byte[1];
+            s_rng.Value.GetBytes(seed);
+            int keyLength = seed[0] % (max - min + 1) + min;
+
+            byte[] key = new byte[1 + (keyLength + 7)/ 8];
+            s_rng.Value.GetBytes(key);
+            key[key.Length - 1] = 0;
+
+            dh.m_privateKey = new BigInteger(key);
+            dh.m_publicKey = BigInteger.ModPow(s_G, dh.m_privateKey, p);
+            dh.m_nonceLength = max + 1;
+
+            return dh;
         }
 
         /// <summary>
-        /// Custom serialization
+        /// Creates a new RSADiffieHellman instance from the nonce.
         /// </summary>
-        public void GetObjectData(SerializationInfo info, StreamingContext context)
+        public static RSADiffieHellman Create(byte[] nonce)
         {
-            if (m_ecdh != null)
+            var dh = new RSADiffieHellman();
+
+            var bytes = new byte[nonce.Length+1];
+
+            for (int ii = 0; ii < nonce.Length; ii++)
             {
-                ECParameters ecParams = m_ecdh.ExportParameters(false);
-                info.AddValue("CurveName", ecParams.Curve.Oid.FriendlyName);
-                info.AddValue("QX", ecParams.Q.X);
-                info.AddValue("QY", ecParams.Q.Y);
+                bytes[ii] = nonce[nonce.Length - ii - 1];
             }
-            else
+
+            dh.m_publicKey = new BigInteger(bytes);
+            dh.m_nonceLength = nonce.Length;
+
+            return dh;
+        }
+
+        /// <summary>
+        /// Returns the nonce representing the public key.
+        /// </summary>
+        public byte[] GetNonce()
+        {
+            var nonce = new byte[m_nonceLength];
+            var publicKey = m_publicKey.ToByteArray();
+
+            for (int ii = 0; ii < publicKey.Length && ii < nonce.Length; ii++)
             {
-                info.AddValue("CurveName", null);
-                info.AddValue("QX", null);
-                info.AddValue("QY", null);
+                nonce[nonce.Length - 1 - ii] = publicKey[ii];
             }
-            info.AddValue("Data", Data);
+
+            return nonce;
+        }
+
+        /// <summary>
+        /// Derives the raw secret agreement from the remote key.
+        /// </summary>
+        public byte[] DeriveRawSecretAgreement(RSADiffieHellman remoteKey)
+        {
+            if (m_privateKey.IsZero)
+            {
+                throw new InvalidOperationException("Private key not available.");
+            }
+
+            BigInteger p;
+
+            switch (m_nonceLength)
+            {
+                case 256:
+                    p = s_P2048.Value;
+                    break;
+                case 384:
+                    p = s_P3072.Value;
+                    break;
+                case 512:
+                    p = s_P4096.Value;
+                    break;
+                default:
+                    throw new NotSupportedException("Unsupported RSA DH finite group type.");
+            }
+
+            var shared = BigInteger.ModPow(remoteKey.m_publicKey, m_privateKey, p);
+
+            var bytes = shared.ToByteArray();
+
+            if (bytes.Length < m_nonceLength)
+            {
+                var padded = new byte[m_nonceLength];
+                Array.Copy(bytes, 0, padded, 0, bytes.Length);
+                bytes = padded;
+            }
+
+            // make sure bytes are in big-endian order.
+            Array.Reverse(bytes);
+
+            return bytes;
+        }
+
+        private static BigInteger RfcTextToBytes(string rfcText)
+        {
+            var bytes = new List<byte>();
+            var digit = new char[2];
+            int pos = 0;
+
+            bytes.Add(0);
+
+            for (int ii = 0; ii < rfcText.Length; ii++)
+            {
+                if (char.IsWhiteSpace(rfcText[ii]))
+                {
+                    continue;
+                }
+
+                digit[pos++] = rfcText[ii];
+
+                if (pos == 2)
+                {
+                    bytes.Add(Convert.ToByte(new string(digit), 16));
+                    pos = 0;
+                }
+            }
+
+            bytes.Reverse();
+            var integer = new BigInteger(bytes.ToArray());
+            return integer;
         }
     }
 }

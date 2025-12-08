@@ -239,7 +239,7 @@ namespace Opc.Ua.Bindings
         public string GlobalChannelId { get; private set; }
 
         /// <inheritdoc/>
-        internal byte[] SecureChannelHash { get; set; }
+        internal byte[] ChannelThumbprint { get; set; }
 
         /// <inheritdoc/>
         internal byte[] SessionActivationSecret { get; set; }
@@ -283,7 +283,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected uint GetNewSequenceNumber()
         {
-            bool isLegacy = !CryptoUtils.IsEccPolicy(SecurityPolicyUri);
+            bool isLegacy = SecurityPolicy.LegacySequenceNumbers;
 
             long newSeqNumber = Interlocked.Increment(ref m_sequenceNumber);
             bool maxValueOverflow = isLegacy
@@ -629,7 +629,7 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                m_logger.LogWarning("OUT:{Id}", TcpMessageType.GetTypeAndSize(buffers[0]));
+                // m_logger.LogWarning("OUT:{Id}", TcpMessageType.GetTypeAndSize(buffers[0]));
 
                 Interlocked.Increment(ref m_activeWriteRequests);
                 args.BufferList = buffers;

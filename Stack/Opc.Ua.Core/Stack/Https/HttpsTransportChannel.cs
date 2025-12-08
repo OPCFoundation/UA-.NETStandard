@@ -118,7 +118,7 @@ namespace Opc.Ua.Bindings
             => m_quotas?.MessageContext ?? throw BadNotConnected();
 
         /// <inheritdoc/>
-        public byte[] SecureChannelHash => [];
+        public byte[] ChannelThumbprint => [];
 
         /// <inheritdoc/>
         public byte[] SessionActivationSecret => [];

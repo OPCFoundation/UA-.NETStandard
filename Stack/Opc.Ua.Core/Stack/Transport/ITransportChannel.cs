@@ -97,7 +97,7 @@ namespace Opc.Ua
         /// <summary>
         /// The unique identifier for the secure channel.
         /// </summary>
-        byte[] SecureChannelHash { get; }
+        byte[] ChannelThumbprint { get; }
 
         /// <summary>
         /// A secret used to re-activate sessions on a new secure channel.

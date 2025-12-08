@@ -26,7 +26,7 @@ namespace Opc.Ua
         /// <param name="secureChannelId">The secure channel identifier.</param>
         /// <param name="endpointDescription">The endpoint description.</param>
         /// <param name="messageEncoding">The message encoding.</param>
-        /// <param name="secureChannelHash">The unique hash for the secure channel calculated during channel creation.</param>
+        /// <param name="channelThumbprint">The unique hash for the secure channel calculated during channel creation.</param>
         /// <param name="sessionActivationSecret">A secret used to re-activate sessions on a new secure channel.</param>
         /// <param name="clientChannelCertificate">The client certificate used to establsih the secure channel.</param>
         /// <param name="serverChannelCertificate">The server certificate used to establsih the secure channel.</param>
@@ -36,7 +36,7 @@ namespace Opc.Ua
             RequestEncoding messageEncoding,
             byte[] clientChannelCertificate,
             byte[] serverChannelCertificate,
-            byte[] secureChannelHash = null,
+            byte[] channelThumbprint = null,
             byte[] sessionActivationSecret = null)
         {
             SecureChannelId = secureChannelId;
@@ -44,7 +44,7 @@ namespace Opc.Ua
             MessageEncoding = messageEncoding;
             ClientChannelCertificate = clientChannelCertificate;
             ServerChannelCertificate = serverChannelCertificate;
-            SecureChannelHash = secureChannelHash;
+            ChannelThumbprint = channelThumbprint;
             SessionActivationSecret = sessionActivationSecret;
         }
 
@@ -69,7 +69,7 @@ namespace Opc.Ua
         /// <summary>
         /// The unique hash for the secure channel calculated during channel creation.
         /// </summary>
-        public byte[] SecureChannelHash { get; }
+        public byte[] ChannelThumbprint { get; }
 
         /// <summary>
         /// A secret used to re-activate sessions on a new secure channel.

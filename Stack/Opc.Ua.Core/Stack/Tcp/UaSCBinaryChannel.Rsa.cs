@@ -49,13 +49,6 @@ namespace Opc.Ua.Bindings
                 algorithm,
                 padding);
 
-#if xDEBUG
-            var data = new ReadOnlySpan<byte>(dataToSign.Array, dataToSign.Offset, dataToSign.Count).ToArray()
-            Console.WriteLine($"dataToSign={TcpMessageType.KeyToString(data)}");
-            Console.WriteLine($"algorithm={algorithm} padding={padding}");
-            Console.WriteLine($"signingCertificate={signingCertificate.Thumbprint}");
-            Console.WriteLine($"signature={TcpMessageType.KeyToString(signature)}");
-#endif
             return signature;
         }
 
@@ -77,13 +70,6 @@ namespace Opc.Ua.Bindings
                     StatusCodes.BadSecurityChecksFailed,
                     "No public key for certificate.");
 
-#if xDEBUG
-            var data = new ReadOnlySpan<byte>(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count).ToArray()
-            Console.WriteLine($"dataToVerify={TcpMessageType.KeyToString(data)}");
-            Console.WriteLine($"algorithm={algorithm} padding={padding}");
-            Console.WriteLine($"signingCertificate={signingCertificate.Thumbprint}");
-            Console.WriteLine($"signature={TcpMessageType.KeyToString(signature)}");
-#endif
             // verify signature.
             if (!rsa.VerifyData(
                     dataToVerify.Array,

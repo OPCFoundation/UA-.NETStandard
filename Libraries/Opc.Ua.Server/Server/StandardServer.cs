@@ -540,7 +540,7 @@ namespace Opc.Ua.Server
                         SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(context.SecurityPolicyUri);
 
                         byte[] dataToSign = securityPolicy.GetServerSignatureData(
-                            context.ChannelContext.SecureChannelHash,
+                            context.ChannelContext.ChannelThumbprint,
                             clientNonce,
                             context.ChannelContext.ServerChannelCertificate,
                             parsedClientCertificate.RawData,
@@ -652,17 +652,22 @@ namespace Opc.Ua.Server
                     if (ii.Key == AdditionalParameterNames.ECDHPolicyUri)
                     {
                         string policyUri = ii.Value.ToString();
+                        m_logger.LogWarning("Received request for new EphmeralKey using {SecurityPolicyUri}.", policyUri);
 
-                        if (CryptoUtils.IsEccPolicy(policyUri))
+                        var securityPolicy = SecurityPolicies.GetInfo(policyUri);
+
+                        if (securityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
                         {
-                            session.SetEccUserTokenSecurityPolicy(policyUri);
-                            EphemeralKeyType key = session.GetNewEccKey();
+                            session.SetUserTokenSecurityPolicy(policyUri);
+                            EphemeralKeyType key = session.GetNewEphmeralKey();
                             response.Parameters.Add(
                                 new KeyValuePair
                                 {
                                     Key = AdditionalParameterNames.ECDHKey,
                                     Value = new ExtensionObject(key)
                                 });
+
+                            m_logger.LogWarning("Returning new EphmeralKey: {PublicKey}.", CryptoTrace.KeyToString(key.PublicKey));
                         }
                         else
                         {
@@ -672,6 +677,8 @@ namespace Opc.Ua.Server
                                     Key = AdditionalParameterNames.ECDHKey,
                                     Value = StatusCodes.BadSecurityPolicyRejected
                                 });
+
+                            m_logger.LogWarning("Rejecting request for new EphmeralKey using {SecurityPolicyUri}.", policyUri);
                         }
                     }
                 }
@@ -692,13 +699,15 @@ namespace Opc.Ua.Server
         {
             AdditionalParametersType response = null;
 
-            EphemeralKeyType key = session.GetNewEccKey();
+            EphemeralKeyType key = session.GetNewEphmeralKey();
 
             if (key != null)
             {
                 response = new AdditionalParametersType();
                 response.Parameters
                     .Add(new KeyValuePair { Key = AdditionalParameterNames.ECDHKey, Value = new ExtensionObject(key) });
+
+                m_logger.LogWarning("Returning new EphmeralKey: {PublicKey}.", CryptoTrace.KeyToString(key.PublicKey));
             }
 
             return response;
@@ -851,9 +860,10 @@ namespace Opc.Ua.Server
 
                         if (ii.Value.Value is byte[] token)
                         {
+                            m_logger.LogWarning("SessionTransferToken received: {PublicKey}.", CryptoTrace.KeyToString(token));
                             sessionTransferToken = token;
                             break;
-                        } 
+                        }
                     }
                 }
             }

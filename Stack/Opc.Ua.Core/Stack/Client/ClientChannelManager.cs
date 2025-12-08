@@ -362,7 +362,7 @@ namespace Opc.Ua
             public IServiceMessageContext MessageContext => m_channel.MessageContext;
 
             /// <inheritdoc/>
-            public byte[] SecureChannelHash => m_channel?.SecureChannelHash ?? [];
+            public byte[] ChannelThumbprint => m_channel?.ChannelThumbprint ?? [];
 
             /// <inheritdoc/>
             public byte[] SessionActivationSecret => m_channel?.SessionActivationSecret ?? [];

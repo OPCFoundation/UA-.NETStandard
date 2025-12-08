@@ -41,8 +41,8 @@ namespace Opc.Ua
             => throw Unexpected(nameof(MessageContext));
 
         /// <inheritdoc/>
-        public byte[] SecureChannelHash
-            => throw Unexpected(nameof(SecureChannelHash));
+        public byte[] ChannelThumbprint
+            => throw Unexpected(nameof(ChannelThumbprint));
 
         /// <inheritdoc/>
         public byte[] SessionActivationSecret

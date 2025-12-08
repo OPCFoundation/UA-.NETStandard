@@ -54,6 +54,23 @@ namespace Quickstarts.ConsoleReferenceClient
         /// <exception cref="ErrorExitException"></exception>
         public static async Task Main(string[] args)
         {
+            //foreach (var group in Enum.GetValues(typeof(RSADiffieHellmanGroup)))
+            //{
+            //    var alice = RSADiffieHellman.Create((RSADiffieHellmanGroup)group);
+            //    var bob = RSADiffieHellman.Create((RSADiffieHellmanGroup)group);
+
+            //    var aliceNonce = alice.GetNonce();
+            //    var bobNonce = bob.GetNonce();
+
+            //    var bobAtAlice = RSADiffieHellman.Create(bobNonce);
+            //    var aliceAtBob = RSADiffieHellman.Create(aliceNonce);
+
+            //    var secret1 = alice.DeriveRawSecretAgreement(bobAtAlice);
+            //    CryptoTrace.WriteLine(CryptoTrace.KeyToString(secret1));
+            //    var secret2 = bob.DeriveRawSecretAgreement(aliceAtBob);
+            //    CryptoTrace.WriteLine(CryptoTrace.KeyToString(secret2));
+            //}
+
             Console.WriteLine("OPC UA Console Reference Client");
 
             Console.WriteLine(

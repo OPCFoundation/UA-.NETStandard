@@ -157,22 +157,42 @@ namespace Opc.Ua
             SymmetricEncryptionAlgorithm == SymmetricEncryptionAlgorithm.ChaCha20Poly1305;
 
         /// <summary>
-        /// Returns the derived key data length in bytes as a little endian UInt16.
+        /// Returns the derived server key data length.
         /// </summary>
-        public byte[] KeyDataLength =>
-             BitConverter.GetBytes(DerivedSignatureKeyLength + SymmetricEncryptionKeyLength + InitializationVectorLength);
+        public int ServerKeyDataLength =>
+             (DerivedSignatureKeyLength + SymmetricEncryptionKeyLength + InitializationVectorLength);
 
         /// <summary>
-        /// Returns the derived key data length for an EncryptedSecret in bytes as a little endian UInt16.
+        /// Returns the derived client key data length.
         /// </summary>
-        public byte[] KeyDataLengthForEncryptedSecret =>
-             BitConverter.GetBytes(SymmetricEncryptionKeyLength + InitializationVectorLength);
+        public int ClientKeyDataLength =>
+             (DerivedSignatureKeyLength + SymmetricEncryptionKeyLength + InitializationVectorLength + SessionActivationSecretLength);
+
+        /// <summary>
+        /// Returns the session activation secret length.
+        /// </summary>
+        public int SessionActivationSecretLength
+        {
+            get
+            {
+                //if (SecureChannelEnhancements)
+                //{
+                //    return KeyDerivationAlgorithm switch
+                //    {
+                //        KeyDerivationAlgorithm.HKDFSha256 => 32,
+                //        KeyDerivationAlgorithm.HKDFSha384 => 48,
+                //        _ => 32
+                //    };
+                //}
+                return 0;
+            }
+        }
 
         /// <summary>
         /// Returns the data to be signed by the server when creating a session.
         /// </summary>
         public byte[] GetUserTokenSignatureData(
-            byte[] secureChanneHash,
+            byte[] channelThumbprint,
             byte[] serverNonce,
             byte[] serverCertificate,
             byte[] serverChannelCertificate,
@@ -182,10 +202,20 @@ namespace Opc.Ua
         {
             byte[] data = null;
 
+            CryptoTrace.Start(ConsoleColor.Yellow, "UserTokenSignatureData");
+
             if (SecureChannelEnhancements)
             {
+                CryptoTrace.WriteLine($"ChannelThumbprint={CryptoTrace.KeyToString(channelThumbprint)}");
+                CryptoTrace.WriteLine($"ServerNonce={CryptoTrace.KeyToString(serverNonce)}");
+                CryptoTrace.WriteLine($"ServerCertificate={CryptoTrace.KeyToString(serverCertificate)}");
+                CryptoTrace.WriteLine($"ServerChannelCertificate={CryptoTrace.KeyToString(serverChannelCertificate)}");
+                CryptoTrace.WriteLine($"ClientCertificate={CryptoTrace.KeyToString(clientCertificate)}");
+                CryptoTrace.WriteLine($"ClientChannelCertificate={CryptoTrace.KeyToString(clientChannelCertificate)}");
+                CryptoTrace.WriteLine($"ClientNonce={CryptoTrace.KeyToString(clientNonce)}");
+
                 data = Utils.Append(
-                    secureChanneHash,
+                    channelThumbprint,
                     serverNonce,
                     serverCertificate,
                     serverChannelCertificate,
@@ -195,12 +225,15 @@ namespace Opc.Ua
             }
             else
             {
+                CryptoTrace.WriteLine($"ServerCertificate={CryptoTrace.KeyToString(serverCertificate)}");
+                CryptoTrace.WriteLine($"ServerNonce={CryptoTrace.KeyToString(serverNonce)}");
+
                 data = Utils.Append(
                     serverCertificate,
                     serverNonce);
             }
 
-            System.Console.WriteLine($"UserTokenSignatureData={Opc.Ua.Bindings.TcpMessageType.KeyToString(data)}");
+            CryptoTrace.Finish("UserTokenSignatureData");
             return data;
         }
 
@@ -208,7 +241,7 @@ namespace Opc.Ua
         /// Returns the data to be signed by the server when creating a session.
         /// </summary>
         public byte[] GetServerSignatureData(
-            byte[] secureChanneHash,
+            byte[] channelThumbprint,
             byte[] clientNonce,
             byte[] serverChannelCertificate,
             byte[] clientCertificate,
@@ -217,30 +250,34 @@ namespace Opc.Ua
         {
             byte[] data = null;
 
+            CryptoTrace.Start(ConsoleColor.Yellow, "ServerSignatureData");
+
             if (SecureChannelEnhancements)
             {
+                CryptoTrace.WriteLine($"ChannelThumbprint={CryptoTrace.KeyToString(channelThumbprint)}");
+                CryptoTrace.WriteLine($"ClientNonce={CryptoTrace.KeyToString(clientNonce)}");
+                CryptoTrace.WriteLine($"ServerChannelCertificate={CryptoTrace.KeyToString(serverChannelCertificate)}");
+                CryptoTrace.WriteLine($"ClientChannelCertificate={CryptoTrace.KeyToString(clientChannelCertificate)}");
+                CryptoTrace.WriteLine($"ServerNonce={CryptoTrace.KeyToString(serverNonce)}");
+
                 data = Utils.Append(
-                    secureChanneHash,
+                    channelThumbprint,
                     clientNonce,
                     serverChannelCertificate,
                     clientChannelCertificate,
                     serverNonce);
-
-                System.Console.WriteLine($"secureChanneHash={Opc.Ua.Bindings.TcpMessageType.KeyToString(secureChanneHash)}");
-                System.Console.WriteLine($"clientNonce={Opc.Ua.Bindings.TcpMessageType.KeyToString(clientNonce)}");
-                System.Console.WriteLine($"serverChannelCertificate={Opc.Ua.Bindings.TcpMessageType.KeyToString(serverChannelCertificate)}");
-                System.Console.WriteLine($"clientChannelCertificate={Opc.Ua.Bindings.TcpMessageType.KeyToString(clientChannelCertificate)}");
-                System.Console.WriteLine($"serverNonce={Opc.Ua.Bindings.TcpMessageType.KeyToString(serverNonce)}");
-
             }
             else
             {
+                CryptoTrace.WriteLine($"ClientCertificate={CryptoTrace.KeyToString(clientCertificate)}");
+                CryptoTrace.WriteLine($"ClientNonce={CryptoTrace.KeyToString(clientNonce)}");
+
                 data = Utils.Append(
                     clientCertificate,
                     clientNonce);
             }
 
-            System.Console.WriteLine($"ServerSignatureData={Opc.Ua.Bindings.TcpMessageType.KeyToString(data)}");
+            CryptoTrace.Finish("ServerSignatureData");
             return data;
         }
 
@@ -248,7 +285,7 @@ namespace Opc.Ua
         /// Returns the data to be signed by the client when creating a session.
         /// </summary>
         public byte[] GetClientSignatureData(
-            byte[] secureChannelHash,
+            byte[] channelThumbprint,
             byte[] serverNonce,
             byte[] serverCertificate,
             byte[] serverChannelCertificate,
@@ -257,10 +294,19 @@ namespace Opc.Ua
         {
             byte[] data = null;
 
+            CryptoTrace.Start(ConsoleColor.Yellow, "ClientSignatureData");
+
             if (SecureChannelEnhancements)
             {
+                CryptoTrace.WriteLine($"ChannelThumbprint={CryptoTrace.KeyToString(channelThumbprint)}");
+                CryptoTrace.WriteLine($"ServerNonce={CryptoTrace.KeyToString(serverNonce)}");
+                CryptoTrace.WriteLine($"ServerCertificate={CryptoTrace.KeyToString(serverCertificate)}");
+                CryptoTrace.WriteLine($"ServerChannelCertificate={CryptoTrace.KeyToString(serverChannelCertificate)}");
+                CryptoTrace.WriteLine($"ClientChannelCertificate={CryptoTrace.KeyToString(clientChannelCertificate)}");
+                CryptoTrace.WriteLine($"ClientNonce={CryptoTrace.KeyToString(clientNonce)}");
+
                 data = Utils.Append(
-                    secureChannelHash,
+                    channelThumbprint,
                     serverNonce,
                     serverCertificate,
                     serverChannelCertificate,
@@ -269,12 +315,15 @@ namespace Opc.Ua
             }
             else
             {
+                CryptoTrace.WriteLine($"ServerCertificate={CryptoTrace.KeyToString(serverCertificate)}");
+                CryptoTrace.WriteLine($"ServerNonce={CryptoTrace.KeyToString(serverNonce)}");
+
                 data = Utils.Append(
                     serverCertificate,
                     serverNonce);
             }
 
-            System.Console.WriteLine($"ClientSignatureData={Opc.Ua.Bindings.TcpMessageType.KeyToString(data)}");
+            CryptoTrace.Finish("ClientSignatureData");
             return data;
         }
 
@@ -314,7 +363,7 @@ namespace Opc.Ua
         /// </summary>
         public bool ValidateSessionActivationToken(
             byte[] sessionActivationToken,
-            byte[] newSecureChannelHash,
+            byte[] newChannelThumbprint,
             byte[] oldSessionActivatationSecret)
         {
             if (SecureChannelEnhancements == false)
@@ -333,7 +382,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (newSecureChannelHash == null || newSecureChannelHash.Length == 0)
+            if (newChannelThumbprint == null || newChannelThumbprint.Length == 0)
             {
                 return false;
             }
@@ -353,7 +402,7 @@ namespace Opc.Ua
 
             using (hmac)
             {
-                byte[] expectedToken = hmac.ComputeHash(newSecureChannelHash);
+                byte[] expectedToken = hmac.ComputeHash(newChannelThumbprint);
 
                 if (!Utils.IsEqual(expectedToken, sessionActivationToken))
                 {
@@ -367,8 +416,8 @@ namespace Opc.Ua
         /// <summary>
         /// Creats a session activation token.
         /// </summary>
-        public byte[] CreateSessionActivationToken(
-            byte[] newSecureChannelHash,
+        public byte[] CreateSessionTransferToken(
+            byte[] newChannelThumbprint,
             byte[] oldSessionActivatationSecret)
         {
             if (SecureChannelEnhancements == false)
@@ -382,7 +431,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            if (newSecureChannelHash == null || newSecureChannelHash.Length == 0)
+            if (newChannelThumbprint == null || newChannelThumbprint.Length == 0)
             {
                 return null;
             }
@@ -402,7 +451,7 @@ namespace Opc.Ua
 
             using (hmac)
             {
-                return hmac.ComputeHash(newSecureChannelHash);
+                return hmac.ComputeHash(newChannelThumbprint);
             }
         }
 
@@ -668,7 +717,7 @@ namespace Opc.Ua
         public readonly static SecurityPolicyInfo ECC_curve448_AesGcm = new(SecurityPolicies.ECC_curve448_AesGcm)
         {
             DerivedSignatureKeyLength = 0,
-            SymmetricEncryptionKeyLength = 128 / 8,
+            SymmetricEncryptionKeyLength = 256 / 8,
             InitializationVectorLength = 96 / 8,
             SymmetricSignatureLength = 128 / 8,
             MinAsymmetricKeyLength = 456,
@@ -746,7 +795,7 @@ namespace Opc.Ua
         public readonly static SecurityPolicyInfo ECC_nistP256_AesGcm = new(SecurityPolicies.ECC_nistP256_AesGcm)
         {
             DerivedSignatureKeyLength = 0,
-            SymmetricEncryptionKeyLength = 256 / 8,
+            SymmetricEncryptionKeyLength = 128 / 8,
             InitializationVectorLength = 96 / 8,
             SymmetricSignatureLength = 128 / 8,
             MinAsymmetricKeyLength = 256,
@@ -928,7 +977,7 @@ namespace Opc.Ua
         public readonly static SecurityPolicyInfo ECC_brainpoolP256r1_ChaChaPoly = new(SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly)
         {
             DerivedSignatureKeyLength = 0,
-            SymmetricEncryptionKeyLength = 256 / 8,
+            SymmetricEncryptionKeyLength = 128 / 8,
             InitializationVectorLength = 96 / 8,
             SymmetricSignatureLength = 128 / 8,
             MinAsymmetricKeyLength = 256,
@@ -956,7 +1005,7 @@ namespace Opc.Ua
             DerivedSignatureKeyLength = 384 / 8,
             SymmetricEncryptionKeyLength = 256 / 8,
             InitializationVectorLength = 96 / 8,
-            SymmetricSignatureLength = 384 / 8,
+            SymmetricSignatureLength = 128 / 8,
             MinAsymmetricKeyLength = 384,
             MaxAsymmetricKeyLength = 384,
             SecureChannelNonceLength = 96,
@@ -1025,24 +1074,24 @@ namespace Opc.Ua
             SecureChannelEnhancements = true,
             IsDeprecated = false
         };
-
+         
         /// <summary>
         /// The RSA_DH_AES_GCM is an high security policy that uses AES GCM for symmetric encryption.
         /// </summary>
-        public readonly static SecurityPolicyInfo RSA_DH_AES_GCM = new(SecurityPolicies.RSA_DH_AES_GCM)
+        public readonly static SecurityPolicyInfo RSA_DH_AesGcm = new(SecurityPolicies.RSA_DH_AesGcm)
         {
             DerivedSignatureKeyLength = 0,
-            SymmetricEncryptionKeyLength = 256 / 8,
-            InitializationVectorLength = 128 / 8,
+            SymmetricEncryptionKeyLength = 128 / 8,
+            InitializationVectorLength = 96 / 8,
             SymmetricSignatureLength = 128 / 8,
             MinAsymmetricKeyLength = 2048,
             MaxAsymmetricKeyLength = 4096,
-            SecureChannelNonceLength = 96,
+            SecureChannelNonceLength = 512,
             LegacySequenceNumbers = false,
             AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.None,
             AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.RsaPssSha256,
             CertificateKeyFamily = CertificateKeyFamily.RSA,
-            CertificateKeyAlgorithm = CertificateKeyAlgorithm.RSADH,
+            CertificateKeyAlgorithm = CertificateKeyAlgorithm.RSA,
             CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.RsaPkcs15Sha256,
             EphemeralKeyAlgorithm = CertificateKeyAlgorithm.RSADH,
             KeyDerivationAlgorithm = KeyDerivationAlgorithm.HKDFSha256,
@@ -1063,12 +1112,12 @@ namespace Opc.Ua
             SymmetricSignatureLength = 128 / 8,
             MinAsymmetricKeyLength = 2048,
             MaxAsymmetricKeyLength = 4096,
-            SecureChannelNonceLength = 64,
+            SecureChannelNonceLength = 512,
             LegacySequenceNumbers = false,
             AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.None,
             AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.RsaPssSha256,
             CertificateKeyFamily = CertificateKeyFamily.RSA,
-            CertificateKeyAlgorithm = CertificateKeyAlgorithm.RSADH,
+            CertificateKeyAlgorithm = CertificateKeyAlgorithm.RSA,
             CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.RsaPkcs15Sha256,
             EphemeralKeyAlgorithm = CertificateKeyAlgorithm.RSADH,
             KeyDerivationAlgorithm = KeyDerivationAlgorithm.HKDFSha256,

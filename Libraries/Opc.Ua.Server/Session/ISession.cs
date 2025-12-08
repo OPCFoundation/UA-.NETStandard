@@ -44,6 +44,11 @@ namespace Opc.Ua.Server
         bool Activated { get; }
 
         /// <summary>
+        /// The application instance certificate associated with the server.
+        /// </summary>
+        X509Certificate2 ServerCertificate { get; }
+
+        /// <summary>
         /// The application instance certificate associated with the client.
         /// </summary>
         X509Certificate2 ClientCertificate { get; }
@@ -136,7 +141,7 @@ namespace Opc.Ua.Server
         /// Create new ECC ephemeral key
         /// </summary>
         /// <returns>A new ephemeral key</returns>
-        EphemeralKeyType GetNewEccKey();
+        EphemeralKeyType GetNewEphmeralKey();
 
         /// <summary>
         /// Checks if the secure channel is currently valid.
@@ -180,7 +185,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Set the ECC security policy URI
         /// </summary>
-        void SetEccUserTokenSecurityPolicy(string securityPolicyUri);
+        void SetUserTokenSecurityPolicy(string securityPolicyUri);
 
         /// <summary>
         /// Updates the requested locale ids.

@@ -14,6 +14,7 @@ using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.Bindings;
 #if CURVE25519
 using Org.BouncyCastle.Crypto.Modes;
 using Org.BouncyCastle.Crypto.Parameters;
@@ -114,6 +115,11 @@ namespace Opc.Ua
             out byte[] encryptingKey,
             out byte[] iv)
         {
+            CryptoTrace.Start(ConsoleColor.Blue, $"EncryptedSecret {((forDecryption) ? "DECRYPT" : "ENCRYPT")}");
+            CryptoTrace.WriteLine($"SecurityPolicy={securityPolicy.Name}");
+            CryptoTrace.WriteLine($"LocalNonce={CryptoTrace.KeyToString(localNonce?.Data)}");
+            CryptoTrace.WriteLine($"RemoteNonce={CryptoTrace.KeyToString(remoteNonce?.Data)}");
+
             int encryptingKeySize = securityPolicy.SymmetricEncryptionKeyLength;
             int blockSize = securityPolicy.InitializationVectorLength;
 
@@ -123,36 +129,25 @@ namespace Opc.Ua
             byte[] secret = localNonce.GenerateSecret(remoteNonce, null);
             byte[] keyLength = BitConverter.GetBytes((ushort)(encryptingKeySize + blockSize));
 
-            byte[] salt = (forDecryption) ?
-                Utils.Append(keyLength, s_secretLabel, remoteNonce.Data, localNonce.Data) :
-                Utils.Append(keyLength, s_secretLabel, localNonce.Data, remoteNonce.Data);
+            byte[] salt = Utils.Append(
+                keyLength,
+                s_secretLabel,
+                forDecryption ? remoteNonce.Data : localNonce.Data,
+                forDecryption ? localNonce.Data : remoteNonce.Data);
 
-            System.Console.WriteLine(
-                $"LOCAL={Utils.ToHexString(localNonce.Data).Substring(0, 8)} " +
-                $"REMOTE={Utils.ToHexString(remoteNonce.Data).Substring(0, 8)} " +
-                $"SALT={Utils.ToHexString(salt).Substring(0, 8)} ");
-
-            byte[] keyData;
-
-            if (forDecryption)
-            {
-                keyData = remoteNonce.DeriveKey(
-                    secret,
-                    salt,
-                    securityPolicy.KeyDerivationAlgorithm,
-                    encryptingKeySize + blockSize);
-            }
-            else
-            {
-                keyData = localNonce.DeriveKey(
-                    secret,
-                    salt,
-                    securityPolicy.KeyDerivationAlgorithm,
-                    encryptingKeySize + blockSize);
-            }
+            byte[] keyData = localNonce.DeriveKeyData(
+                secret,
+                salt,
+                securityPolicy.KeyDerivationAlgorithm,
+                encryptingKeySize + blockSize);
 
             Buffer.BlockCopy(keyData, 0, encryptingKey, 0, encryptingKey.Length);
             Buffer.BlockCopy(keyData, encryptingKeySize, iv, 0, iv.Length);
+
+            Console.ForegroundColor = ConsoleColor.Blue;
+            CryptoTrace.WriteLine($"EncryptingKey={CryptoTrace.KeyToString(encryptingKey)}");
+            CryptoTrace.WriteLine($"IV={CryptoTrace.KeyToString(iv)}");
+            CryptoTrace.Finish("EncryptedSecret");
         }
 
         /// <summary>
@@ -170,95 +165,116 @@ namespace Opc.Ua
 
             int signatureLength = CryptoUtils.GetSignatureLength(SenderCertificate);
 
-            using (var encoder = new BinaryEncoder(Context))
+            using var encoder = new BinaryEncoder(Context);
+
+            // write header.
+            encoder.WriteNodeId(null, DataTypeIds.EccEncryptedSecret);
+            encoder.WriteByte(null, (byte)ExtensionObjectEncoding.Binary);
+
+            lengthPosition = encoder.Position;
+            encoder.WriteUInt32(null, 0);
+
+            encoder.WriteString(null, SecurityPolicy.Uri);
+
+            byte[] senderCertificate = null;
+
+            if (!DoNotEncodeSenderCertificate)
             {
-                // write header.
-                encoder.WriteNodeId(null, DataTypeIds.EccEncryptedSecret);
-                encoder.WriteByte(null, (byte)ExtensionObjectEncoding.Binary);
+                senderCertificate = SenderCertificate.RawData;
 
-                lengthPosition = encoder.Position;
-                encoder.WriteUInt32(null, 0);
-
-                encoder.WriteString(null, SecurityPolicy.Uri);
-
-                byte[] senderCertificate = null;
-
-                if (!DoNotEncodeSenderCertificate)
+                if (SenderIssuerCertificates != null && SenderIssuerCertificates.Count > 0)
                 {
-                    senderCertificate = SenderCertificate.RawData;
+                    int blobSize = senderCertificate.Length;
 
-                    if (SenderIssuerCertificates != null && SenderIssuerCertificates.Count > 0)
+                    foreach (X509Certificate2 issuer in SenderIssuerCertificates)
                     {
-                        int blobSize = senderCertificate.Length;
-
-                        foreach (X509Certificate2 issuer in SenderIssuerCertificates)
-                        {
-                            blobSize += issuer.RawData.Length;
-                        }
-
-                        byte[] blob = new byte[blobSize];
-                        Buffer.BlockCopy(senderCertificate, 0, blob, 0, senderCertificate.Length);
-
-                        int pos = senderCertificate.Length;
-
-                        foreach (X509Certificate2 issuer in SenderIssuerCertificates)
-                        {
-                            byte[] data = issuer.RawData;
-                            Buffer.BlockCopy(data, 0, blob, pos, data.Length);
-                            pos += data.Length;
-                        }
-
-                        senderCertificate = blob;
+                        blobSize += issuer.RawData.Length;
                     }
+
+                    byte[] blob = new byte[blobSize];
+                    Buffer.BlockCopy(senderCertificate, 0, blob, 0, senderCertificate.Length);
+
+                    int pos = senderCertificate.Length;
+
+                    foreach (X509Certificate2 issuer in SenderIssuerCertificates)
+                    {
+                        byte[] data = issuer.RawData;
+                        Buffer.BlockCopy(data, 0, blob, pos, data.Length);
+                        pos += data.Length;
+                    }
+
+                    senderCertificate = blob;
                 }
-
-                encoder.WriteByteString(null, senderCertificate);
-                encoder.WriteDateTime(null, DateTime.UtcNow);
-
-                byte[] senderNonce = SenderNonce.Data;
-                byte[] receiverNonce = ReceiverNonce.Data;
-
-                encoder.WriteUInt16(null, (ushort)(senderNonce.Length + receiverNonce.Length + 8));
-                encoder.WriteByteString(null, senderNonce);
-                encoder.WriteByteString(null, receiverNonce);
-
-                // create keys.
-                CreateKeysForEcc(
-                    SecurityPolicy,
-                    SenderNonce,
-                    ReceiverNonce,
-                    false,
-                    out encryptingKey,
-                    out iv);
-
-                // reserves space for padding and tag that is added by SymmetricEncryptAndSign.
-                var dataToEncrypt = new byte[4096];
-                using var stream = new MemoryStream(dataToEncrypt);
-                using var secretEncoder = new BinaryEncoder(stream, Context, false);
-
-                secretEncoder.WriteByteString(null, nonce);
-                secretEncoder.WriteByteString(null, secret);
-
-                var encryptedData = CryptoUtils.SymmetricEncryptAndSign(
-                    new ArraySegment<byte>(dataToEncrypt, 0, secretEncoder.Position),
-                    SecurityPolicy,
-                    encryptingKey,
-                    iv);
-
-                // append encrypted secret.
-                for (int ii = encryptedData.Offset; ii < encryptedData.Offset + encryptedData.Count; ii++)
-                {
-                    encoder.WriteByte(null, encryptedData.Array[ii]);
-                }
-
-                // save space for signature.
-                for (int ii = 0; ii < signatureLength; ii++)
-                {
-                    encoder.WriteByte(null, 0);
-                }
-
-                message = encoder.CloseAndReturnBuffer();
             }
+
+            encoder.WriteByteString(null, senderCertificate);
+            encoder.WriteDateTime(null, DateTime.UtcNow);
+
+            byte[] senderNonce = SenderNonce.Data;
+            byte[] receiverNonce = ReceiverNonce.Data;
+
+            encoder.WriteUInt16(null, (ushort)(senderNonce.Length + receiverNonce.Length + 8));
+            int senderNonceStart = encoder.Position;
+            encoder.WriteByteString(null, senderNonce);
+            int senderNonceEnd = encoder.Position;
+            encoder.WriteByteString(null, receiverNonce);
+            int receiverNonceEnd = encoder.Position;
+
+            // create keys.
+            CreateKeysForEcc(
+                SecurityPolicy,
+                SenderNonce,
+                ReceiverNonce,
+                false,
+                out encryptingKey,
+                out iv);
+
+            // reserves space for padding and tag that is added by SymmetricEncryptAndSign.
+            int startOfSecret = encoder.Position;
+            encoder.WriteByteString(null, nonce);
+            encoder.WriteByteString(null, secret);
+
+            int paddingCount = 0;
+            int tagLength = 0;
+
+            switch (SecurityPolicy.SymmetricEncryptionAlgorithm)
+            {
+                case SymmetricEncryptionAlgorithm.Aes128Cbc:
+                case SymmetricEncryptionAlgorithm.Aes256Cbc:
+                    paddingCount = GetPaddingCount(SecurityPolicy.InitializationVectorLength, encoder.Position - startOfSecret);
+                    tagLength = 0;
+                    break;
+                case SymmetricEncryptionAlgorithm.Aes128Gcm:
+                case SymmetricEncryptionAlgorithm.Aes256Gcm:
+                case SymmetricEncryptionAlgorithm.ChaCha20Poly1305:
+                    paddingCount = GetPaddingCount(encryptingKey.Length, encoder.Position - startOfSecret);
+                    tagLength = SecurityPolicy.SymmetricSignatureLength;
+                    break;
+            }
+
+            for (int ii = 0; ii < paddingCount; ii++)
+            {
+                encoder.WriteByte(null, (byte)paddingCount);
+            }
+
+            encoder.WriteByte(null, (byte)paddingCount);
+            encoder.WriteByte(null, 0);
+
+            int endOfSecret = encoder.Position;
+
+            // save space for tag.
+            for (int ii = 0; ii < tagLength; ii++)
+            {
+                encoder.WriteByte(null, 0xAB);
+            }
+
+            // save space for signature.
+            for (int ii = 0; ii < signatureLength; ii++)
+            {
+                encoder.WriteByte(null, 0xDE);
+            }
+
+            message = encoder.CloseAndReturnBuffer();
 
             int length = message.Length - lengthPosition - 4;
 
@@ -267,17 +283,39 @@ namespace Opc.Ua
             message[lengthPosition++] = (byte)((length & 0xFF0000) >> 16);
             message[lengthPosition++] = (byte)((length & 0xFF000000) >> 24);
 
+            _ = CryptoUtils.SymmetricEncryptAndSign(
+                new ArraySegment<byte>(message, startOfSecret, endOfSecret - startOfSecret),
+                SecurityPolicy,
+                encryptingKey,
+                iv);
+
             var dataToSign = new ArraySegment<byte>(message, 0, message.Length - signatureLength);
-            byte[] signature = CryptoUtils.Sign(dataToSign, SenderCertificate, SecurityPolicy.AsymmetricSignatureAlgorithm);
+
+            byte[] signature = CryptoUtils.Sign(
+                dataToSign,
+                SenderCertificate,
+                SecurityPolicy.AsymmetricSignatureAlgorithm);
 
             Buffer.BlockCopy(
                 signature,
                 0,
                 message,
-                message.Length - signatureLength,
+                endOfSecret + tagLength,
                 signatureLength);
 
             return message;
+        }
+
+        private int GetPaddingCount(int blockSize, int dataLength)
+        {
+            int paddingCount = blockSize - ((dataLength + 2) % blockSize);
+
+            if (paddingCount == blockSize)
+            {
+                paddingCount = 0;
+            }
+
+            return paddingCount;
         }
 
         /// <summary>
@@ -312,14 +350,11 @@ namespace Opc.Ua
                 throw new ServiceResultException(StatusCodes.BadDataEncodingUnsupported);
             }
 
-            uint length = decoder.ReadUInt32(null);
-
-            // get the start of data.
-            int startOfData = decoder.Position + dataToDecrypt.Offset;
+            int length = (int)decoder.ReadUInt32(null) + decoder.Position;
 
             SecurityPolicy = SecurityPolicies.GetInfo(decoder.ReadString(null));
 
-            if (SecurityPolicy.CertificateKeyFamily != CertificateKeyFamily.ECC)
+            if (SecurityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
                 throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected);
             }
@@ -360,7 +395,7 @@ namespace Opc.Ua
                 throw new ServiceResultException(StatusCodes.BadInvalidTimestamp);
             }
 
-            // extract the policy header.
+            // extract the key data length.
             ushort headerLength = decoder.ReadUInt16(null);
 
             if (headerLength == 0 || headerLength > length)
@@ -368,15 +403,18 @@ namespace Opc.Ua
                 throw new ServiceResultException(StatusCodes.BadDecodingError);
             }
 
-            // read the policy header.
+            // read the key data.
+            int senderNonceStart = decoder.Position;
             byte[] senderPublicKey = decoder.ReadByteString(null);
+            int senderNonceEnd = decoder.Position;
             byte[] receiverPublicKey = decoder.ReadByteString(null);
+            int receiverNonceEnd = decoder.Position;
 
             if (headerLength != senderPublicKey.Length + receiverPublicKey.Length + 8)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadDecodingError,
-                    "Unexpected policy header length");
+                    "Unexpected key data length");
             }
 
             int startOfEncryption = decoder.Position;
@@ -399,17 +437,18 @@ namespace Opc.Ua
             }
 
             byte[] signature = new byte[signatureLength];
+
             Buffer.BlockCopy(
                 dataToDecrypt.Array,
-                startOfData + (int)length - signatureLength,
+                dataToDecrypt.Offset + dataToDecrypt.Count - signatureLength,
                 signature,
                 0,
                 signatureLength);
 
             var dataToSign = new ArraySegment<byte>(
                 dataToDecrypt.Array,
-                0,
-                startOfData + (int)length - signatureLength);
+                dataToDecrypt.Offset,
+                dataToDecrypt.Count - signatureLength);
 
             if (!CryptoUtils.Verify(dataToSign, signature, SenderCertificate, SecurityPolicy.AsymmetricSignatureAlgorithm))
             {
@@ -421,8 +460,8 @@ namespace Opc.Ua
             // extract the encrypted data.
             return new ArraySegment<byte>(
                 dataToDecrypt.Array,
-                startOfEncryption,
-                (int)length - (startOfEncryption - startOfData + signatureLength));
+                dataToDecrypt.Offset + startOfEncryption,
+                dataToDecrypt.Count - startOfEncryption - signatureLength);
         }
 
         /// <summary>
@@ -457,19 +496,16 @@ namespace Opc.Ua
                 out byte[] encryptingKey,
                 out byte[] iv);
 
-            byte[] bytes = new byte[dataToDecrypt.Count];
-            Buffer.BlockCopy(dataToDecrypt.Array, dataToDecrypt.Offset, bytes, 0, dataToDecrypt.Count);
-
             ArraySegment<byte> plainText = CryptoUtils.SymmetricDecryptAndVerify(
-                new ArraySegment<byte>(bytes),
+                dataToDecrypt,
                 SecurityPolicy,
                 encryptingKey,
                 iv);
 
             using var decoder = new BinaryDecoder(
                 plainText.Array,
-                plainText.Offset,
-                plainText.Count,
+                plainText.Offset + dataToDecrypt.Offset,
+                plainText.Count - dataToDecrypt.Offset,
                 Context);
 
             byte[] actualNonce = decoder.ReadByteString(null);
@@ -489,7 +525,25 @@ namespace Opc.Ua
                 }
             }
 
-            return decoder.ReadByteString(null);
+            var key = decoder.ReadByteString(null);
+            var paddingCount = decoder.ReadByte(null);
+
+            int error = 0;
+
+            for (int ii = 0; ii < paddingCount; ii++)
+            {
+                var padding = decoder.ReadByte(null);
+                error |= (padding & ~paddingCount);
+            }
+
+            var highByte = decoder.ReadByte(null);
+
+            if (error != 0 || highByte != 0)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError);
+            }
+
+            return key;
         }
     }
 }

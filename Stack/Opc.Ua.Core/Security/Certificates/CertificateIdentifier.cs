@@ -778,7 +778,7 @@ namespace Opc.Ua
                 case SecurityPolicies.Basic256Sha256:
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
-                case SecurityPolicies.RSA_DH_AES_GCM:
+                case SecurityPolicies.RSA_DH_AesGcm:
                 case SecurityPolicies.RSA_DH_ChaChaPoly:
                     result.Add(ObjectTypeIds.RsaSha256ApplicationCertificateType);
                     break;

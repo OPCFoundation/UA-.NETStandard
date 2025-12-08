@@ -123,7 +123,7 @@ namespace SecurityTestClient
 
                     var certificateIdentity = await LoadUserCertificateAsync(thumbprint, "password", ct).ConfigureAwait(false);
 
-                    foreach (var identity in new UserIdentity[] { userNameidentity })
+                    foreach (var identity in new UserIdentity[] { userNameidentity, certificateIdentity })
                     {
                         try
                         {
@@ -147,8 +147,9 @@ namespace SecurityTestClient
                                 ct).ConfigureAwait(false);
 
                             m_logger.LogWarning("Waiting for SecureChannel renew");
+                            await session.UpdateSessionAsync(identity, null, ct).ConfigureAwait(false);
 
-                            for (int count = 0; count < 15; count++)
+                            for (int count = 0; count < 8; count++)
                             {
                                 var result = await session.ReadAsync(
                                     null,
@@ -188,7 +189,10 @@ namespace SecurityTestClient
                             ii.SecurityMode);
 
                         m_logger.LogWarning("{Line}", new string('=', 80));
+                        //break;
                     }
+
+                    //break;
                 }
 
                 Console.WriteLine("Ctrl-C to stop.");
@@ -476,9 +480,11 @@ namespace SecurityTestClient
                         {
                             // a real application needs to use secure randomness
 #pragma warning disable CA5394 // Do not use insecure randomness
-                            var padding = new byte[random.Next() % 4096];
+                            var padding = new byte[random.Next() % 128];
                             random.NextBytes(padding);
 #pragma warning restore CA5394 // Do not use insecure randomness
+
+                            m_logger.LogWarning("Sending Padding with {Length} Bytes", padding.Length);
 
                             requestHeader = new RequestHeader
                             {

@@ -575,6 +575,12 @@ namespace Opc.Ua.Bindings
             // don't keep signature if secure channel enhancements are not used.
             m_oscRequestSignature = (SecurityPolicy.SecureChannelEnhancements) ? signature : null;
 
+            CryptoTrace.Start(ConsoleColor.Magenta, $"SendOpenSecureChannelRequest ({(renew ? "RENEW" : "OPEN")})");
+            CryptoTrace.WriteLine($"ClientCertificate={ClientCertificate?.Thumbprint}");
+            CryptoTrace.WriteLine($"ServerCertificate={ServerCertificate?.Thumbprint}");
+            CryptoTrace.WriteLine($"RequestSignature={CryptoTrace.KeyToString(signature)}");
+            CryptoTrace.Finish("SendOpenSecureChannelRequest");
+
             // save token.
             m_requestedToken = token;
 
@@ -629,7 +635,7 @@ namespace Opc.Ua.Bindings
             try
             {
                 byte[] signature;
-
+                
                 messageBody = ReadAsymmetricMessage(
                     messageChunk,
                     ClientCertificate,
@@ -637,17 +643,23 @@ namespace Opc.Ua.Bindings
                     out serverCertificate,
                     out requestId,
                     out sequenceNumber,
-                    m_oscRequestSignature,
+                    (State == TcpChannelState.Opening) ? m_oscRequestSignature : null,
                     out signature);
 
                 if (State == TcpChannelState.Opening)
                 {
-                    ComputeSecureChannelHash(signature);
+                    ChannelThumbprint = signature;
                 }
 
-                Console.WriteLine($"OSC:m_oscRequestSignature={TcpMessageType.KeyToString(m_oscRequestSignature)}");
-                Console.WriteLine($"OSC:signature={TcpMessageType.KeyToString(signature)}");
-                Console.WriteLine($"OSC:SecureChannelHash={TcpMessageType.KeyToString(SecureChannelHash)}");
+                CryptoTrace.Start(ConsoleColor.Magenta, $"ProcessOpenSecureChannelResponse ({(State != TcpChannelState.Opening ? "RENEW" : "OPEN")})");
+                CryptoTrace.WriteLine($"messageBody={CryptoTrace.KeyToString(messageBody)}");
+                CryptoTrace.WriteLine($"messageBody.Offset={messageBody.Offset}");
+                CryptoTrace.WriteLine($"ClientCertificate={ClientCertificate?.Thumbprint}");
+                CryptoTrace.WriteLine($"ServerCertificate={ServerCertificate?.Thumbprint}");
+                CryptoTrace.WriteLine($"RequestSignature={CryptoTrace.KeyToString(m_oscRequestSignature)}");
+                CryptoTrace.WriteLine($"ResponseSignature={CryptoTrace.KeyToString(signature)}");
+                CryptoTrace.WriteLine($"ChannelThumbprint={CryptoTrace.KeyToString(ChannelThumbprint)}");
+                CryptoTrace.Finish("ProcessOpenSecureChannelResponse");
             }
             catch (Exception e)
             {
@@ -813,7 +825,7 @@ namespace Opc.Ua.Bindings
             uint messageType,
             ArraySegment<byte> messageChunk)
         {
-            m_logger.LogWarning("IN:{Size}", TcpMessageType.GetTypeAndSize(messageChunk));
+            //m_logger.LogWarning("IN:{Size}", TcpMessageType.GetTypeAndSize(messageChunk));
 
             // process a response.
             if (TcpMessageType.IsType(messageType, TcpMessageType.Message))

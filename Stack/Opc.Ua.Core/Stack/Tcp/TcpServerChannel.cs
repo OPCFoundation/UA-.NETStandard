@@ -287,7 +287,7 @@ namespace Opc.Ua.Bindings
             {
                 SetResponseRequired(true);
 
-                m_logger.LogWarning("IN:{Id}", TcpMessageType.GetTypeAndSize(messageChunk));
+                //m_logger.LogWarning("IN:{Id}", TcpMessageType.GetTypeAndSize(messageChunk));
 
                 try
                 {
@@ -568,10 +568,12 @@ namespace Opc.Ua.Bindings
                 // don't keep signature if secure channel enhancements are not used.
                 m_oscRequestSignature = (SecurityPolicy.SecureChannelEnhancements) ? signature : null;
 
-                Console.WriteLine($"OSC IN={TcpMessageType.KeyToString(messageBody)}");
-                Console.WriteLine($"oscRequestSignature={TcpMessageType.KeyToString(m_oscRequestSignature)}");
-                Console.WriteLine($"signatureHash={TcpMessageType.KeyToString(signature)}");
-                Console.WriteLine($"State={State}");
+                CryptoTrace.Start(ConsoleColor.Magenta, $"ProcessOpenSecureChannelRequest ({(State != TcpChannelState.Opening ? "RENEW" : "OPEN")})");
+                CryptoTrace.WriteLine($"ClientCertificate={clientCertificate?.Thumbprint}");
+                CryptoTrace.WriteLine($"ServerCertificate={ServerCertificate?.Thumbprint}");
+                CryptoTrace.WriteLine($"RequestSignature={CryptoTrace.KeyToString(signature)}");
+                CryptoTrace.WriteLine($"ChannelThumbprint={CryptoTrace.KeyToString(ChannelThumbprint)}");
+                CryptoTrace.Finish("ProcessOpenSecureChannelRequest");
 
                 // check for replay attacks.
                 if (!VerifySequenceNumber(sequenceNumber, "ProcessOpenSecureChannelRequest"))
@@ -823,11 +825,14 @@ namespace Opc.Ua.Bindings
                 // report the audit event for open secure channel
                 ReportAuditOpenSecureChannelEvent?.Invoke(this, request, ClientCertificate, e);
 
-                SendServiceFault(
-                    requestId, ServiceResult.Create(
+                SendServiceFault(                    
+                    requestId,
+                    State == TcpChannelState.Open,
+                    ServiceResult.Create(
                         e,
                         StatusCodes.BadTcpInternalError,
                         "Unexpected error processing OpenSecureChannel request."));
+
                 CompleteReverseHello(e);
                 return false;
             }
@@ -864,6 +869,77 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Sends a fault response secured with the asymmetric keys.
+        /// </summary>
+        protected void SendServiceFault(uint requestId, bool renew, ServiceResult fault)
+        {
+            m_logger.LogDebug(
+                "ChannelId {Id}: Request {RequestId}: SendServiceFault={ServiceFault}",
+                ChannelId,
+                requestId,
+                fault.StatusCode);
+
+            BufferCollection chunksToSend = null;
+
+            try
+            {
+                // construct fault.
+                var response = new ServiceFault();
+
+                response.ResponseHeader.ServiceResult = fault.Code;
+
+                var stringTable = new StringTable();
+
+                response.ResponseHeader.ServiceDiagnostics = new DiagnosticInfo(
+                    fault,
+                    DiagnosticsMasks.NoInnerStatus,
+                    true,
+                    stringTable,
+                    m_logger);
+
+                response.ResponseHeader.StringTable = stringTable.ToArray();
+
+                // serialize fault.
+                byte[] buffer = BinaryEncoder.EncodeMessage(response, Quotas.MessageContext);
+                byte[] signature = null;
+
+                CryptoTrace.WriteLine($"messageBody={CryptoTrace.KeyToString(buffer)}");
+
+                // secure message.
+                chunksToSend = WriteAsymmetricMessage(
+                    TcpMessageType.Open,
+                    requestId,
+                    ServerCertificate,
+                    null,
+                    ClientCertificate,
+                    new ArraySegment<byte>(buffer, 0, buffer.Length),
+                    !renew ? m_oscRequestSignature : null,
+                    out signature);
+
+                // write the message to the server.
+                BeginWriteMessage(chunksToSend, null);
+                chunksToSend = null;
+            }
+            catch (Exception e)
+            {
+                chunksToSend?.Release(BufferManager, "SendServiceFault");
+
+                m_logger.LogError(
+                    e,
+                    "ChannelId {Id}: Request {RequestId}: SendServiceFault={ServiceFault}: Unexpected error.",
+                    ChannelId,
+                    requestId,
+                    fault.StatusCode);
+
+                ForceChannelFault(
+                    ServiceResult.Create(
+                        e,
+                        StatusCodes.BadTcpInternalError,
+                        "Unexpected error sending a service fault."));
+            }
+        }
+
+        /// <summary>
         /// Sends an OpenSecureChannel response.
         /// </summary>
         private void SendOpenSecureChannelResponse(
@@ -895,17 +971,21 @@ namespace Opc.Ua.Bindings
                 ServerCertificateChain,
                 ClientCertificate,
                 new ArraySegment<byte>(buffer, 0, buffer.Length),
-                m_oscRequestSignature,
+                !renew ? m_oscRequestSignature : null,
                 out signature);
 
             if (!renew)
             {
-                ComputeSecureChannelHash(signature);
+                ChannelThumbprint = signature;
             }
 
-            Console.WriteLine($"OSC:m_oscRequestSignature={TcpMessageType.KeyToString(m_oscRequestSignature)}");
-            Console.WriteLine($"OSC:Signature={TcpMessageType.KeyToString(signature)}");
-            Console.WriteLine($"OSC:SecureChannelHash={TcpMessageType.KeyToString(SecureChannelHash)}");
+            CryptoTrace.Start(ConsoleColor.Magenta, $"SendOpenSecureChannelResponse ({(renew ? "RENEW" : "OPEN")})");
+            CryptoTrace.WriteLine($"ServerCertificate={ServerCertificate?.Thumbprint}");
+            CryptoTrace.WriteLine($"ClientCertificate={ClientCertificate?.Thumbprint}");
+            CryptoTrace.WriteLine($"RequestSignature={CryptoTrace.KeyToString(m_oscRequestSignature)}");
+            CryptoTrace.WriteLine($"ResponseSignature={CryptoTrace.KeyToString(signature)}");
+            CryptoTrace.WriteLine($"ChannelThumbprint={CryptoTrace.KeyToString(ChannelThumbprint)}");
+            CryptoTrace.Finish("SendOpenSecureChannelResponse");
 
             // write the message to the server.
             try

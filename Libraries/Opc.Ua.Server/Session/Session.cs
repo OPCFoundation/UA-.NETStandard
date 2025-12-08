@@ -95,7 +95,7 @@ namespace Opc.Ua.Server
             m_clientIssuerCertificates = clientCertificateChain;
 
             SecureChannelId = context.ChannelContext.SecureChannelId;
-            m_secureChannelHash = context.ChannelContext.SecureChannelHash;
+            m_channelThumbprint = context.ChannelContext.ChannelThumbprint;
             m_sessionActivationSecret = context.ChannelContext.SessionActivationSecret;
             MaxBrowseContinuationPoints = maxBrowseContinuationPoints;
             m_maxHistoryContinuationPoints = maxHistoryContinuationPoints;
@@ -241,6 +241,11 @@ namespace Opc.Ua.Server
         public byte[] ClientNonce { get; }
 
         /// <summary>
+        /// The application instance certificate associated with the server.
+        /// </summary>
+        public X509Certificate2 ServerCertificate => m_serverCertificate;
+
+        /// <summary>
         /// The application instance certificate associated with the client.
         /// </summary>
         public X509Certificate2 ClientCertificate { get; }
@@ -288,12 +293,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Set the ECC security policy URI
         /// </summary>
-        public virtual void SetEccUserTokenSecurityPolicy(string securityPolicyUri)
+        public virtual void SetUserTokenSecurityPolicy(string securityPolicyUri)
         {
             lock (m_lock)
             {
-                m_eccUserTokenSecurityPolicyUri = securityPolicyUri;
-                m_eccUserTokenNonce = null;
+                m_userTokenSecurityPolicyUri = securityPolicyUri;
+                m_userTokenNonce = null;
             }
         }
 
@@ -301,23 +306,23 @@ namespace Opc.Ua.Server
         /// Create new ECC ephemeral key
         /// </summary>
         /// <returns>A new ephemeral key</returns>
-        public virtual EphemeralKeyType GetNewEccKey()
+        public virtual EphemeralKeyType GetNewEphmeralKey()
         {
             lock (m_lock)
             {
-                if (m_eccUserTokenSecurityPolicyUri == null)
+                if (m_userTokenSecurityPolicyUri == null)
                 {
                     return null;
                 }
 
-                m_eccUserTokenNonce = Nonce.CreateNonce(m_eccUserTokenSecurityPolicyUri);
+                m_userTokenNonce = Nonce.CreateNonce(m_userTokenSecurityPolicyUri);
 
-                var key = new EphemeralKeyType { PublicKey = m_eccUserTokenNonce.Data };
+                var key = new EphemeralKeyType { PublicKey = m_userTokenNonce.Data };
 
                 key.Signature = CryptoUtils.Sign(
                     new ArraySegment<byte>(key.PublicKey),
                     m_serverCertificate,
-                    m_eccUserTokenSecurityPolicyUri);
+                    m_userTokenSecurityPolicyUri);
 
                 return key;
             }
@@ -478,7 +483,7 @@ namespace Opc.Ua.Server
                     var securityPolicy = SecurityPolicies.GetInfo(EndpointDescription.SecurityPolicyUri);
 
                     byte[] dataToSign = securityPolicy.GetClientSignatureData(
-                        context.ChannelContext.SecureChannelHash,
+                        context.ChannelContext.ChannelThumbprint,
                         m_serverNonce.Data,
                         m_serverCertificate.RawData,
                         context.ChannelContext.ServerChannelCertificate,
@@ -511,7 +516,7 @@ namespace Opc.Ua.Server
                             byte[] serverCertificateChainData = [.. serverCertificateChainList];
 
                             dataToSign = securityPolicy.GetClientSignatureData(
-                                context.ChannelContext.SecureChannelHash,
+                                context.ChannelContext.ChannelThumbprint,
                                 m_serverNonce.Data,
                                 serverCertificateChainData,
                                 context.ChannelContext.ServerChannelCertificate,
@@ -599,7 +604,7 @@ namespace Opc.Ua.Server
 
             if (!info.ValidateSessionActivationToken(
                     sessionActivationToken,
-                    context.ChannelContext.SecureChannelHash,
+                    context.ChannelContext.ChannelThumbprint,
                     m_sessionActivationSecret))
             {
                 throw new ServiceResultException(StatusCodes.BadApplicationSignatureInvalid);
@@ -1081,7 +1086,7 @@ namespace Opc.Ua.Server
                         m_serverNonce,
                         securityPolicyUri,
                         m_server.MessageContext,
-                        m_eccUserTokenNonce,
+                        m_userTokenNonce,
                         ClientCertificate,
                         m_clientIssuerCertificates);
                 }
@@ -1099,7 +1104,7 @@ namespace Opc.Ua.Server
                     var securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
 
                     byte[] dataToSign = securityPolicy.GetUserTokenSignatureData(
-                        context.ChannelContext.SecureChannelHash,
+                        context.ChannelContext.ChannelThumbprint,
                         m_serverNonce.Data,
                         m_serverCertificate.RawData,
                         context.ChannelContext.ServerChannelCertificate,
@@ -1342,10 +1347,10 @@ namespace Opc.Ua.Server
         private readonly string m_sessionName;
         private X509Certificate2 m_serverCertificate;
         private Nonce m_serverNonce;
-        private byte[] m_secureChannelHash;
+        private byte[] m_channelThumbprint;
         private byte[] m_sessionActivationSecret;
-        private string m_eccUserTokenSecurityPolicyUri;
-        private Nonce m_eccUserTokenNonce;
+        private string m_userTokenSecurityPolicyUri;
+        private Nonce m_userTokenNonce;
         private readonly X509Certificate2Collection m_clientIssuerCertificates;
         private readonly int m_maxHistoryContinuationPoints;
         private readonly SessionSecurityDiagnosticsDataType m_securityDiagnostics;

@@ -185,64 +185,30 @@ namespace Opc.Ua.Bindings
                 token.ClientEncryptingKey = encryptingKey;
                 token.ClientInitializationVector = iv;
                 token.SessionActivationSecret = null;
-
-                if (SecurityPolicy.SecureChannelEnhancements)
-                {
-                    token.SessionActivationSecret = new byte[hmac.HashSize / 8];
-
-                    Buffer.BlockCopy(
-                        output,
-                        m_signatureKeySize + m_encryptionKeySize + EncryptionBlockSize,
-                        token.SessionActivationSecret,
-                        0,
-                        token.SessionActivationSecret.Length);
-                }
             }
         }
 
         private void DeriveKeysWithHKDF(
             ChannelToken token,
             byte[] salt,
-            bool isServer)
+            bool isServer,
+            int length)
         {
-            int length =
-                token.SecurityPolicy.DerivedSignatureKeyLength +
-                token.SecurityPolicy.SymmetricEncryptionKeyLength +
-                token.SecurityPolicy.InitializationVectorLength;
+            CryptoTrace.WriteLine($"DeriveKeys for {((isServer) ? "SERVER" : "CLIENT")}");
 
-            int secretLength = 0;
-
-            if (!isServer && SecurityPolicy.SecureChannelEnhancements)
-            {
-                secretLength = token.SecurityPolicy.KeyDerivationAlgorithm switch
-                {
-                    KeyDerivationAlgorithm.HKDFSha256 => 32,
-                    KeyDerivationAlgorithm.HKDFSha384 => 48,
-                    _ => 32
-                };
-            }
-
-            length += secretLength;
-
-            byte[] prk = m_localNonce.DeriveKey(
-                m_remoteNonce.Data,
+            byte[] keyData = m_localNonce.DeriveKeyData(
+                token.Secret,
                 salt,
                 token.SecurityPolicy.KeyDerivationAlgorithm,
                 length);
-
-#if xDEBUG
-            m_logger.LogWarning("LocalNonce={LocalNonce}", TcpMessageType.KeyToString(m_localNonce.Data));
-            m_logger.LogWarning("RemoteNonce={RemoteNonce}", TcpMessageType.KeyToString(m_remoteNonce.Data));
-            m_logger.LogWarning("PRK={PRK}", TcpMessageType.KeyToString(prk));
-#endif
 
             byte[] signingKey = new byte[m_signatureKeySize];
             byte[] encryptingKey = new byte[m_encryptionKeySize];
             byte[] iv = new byte[EncryptionBlockSize];
 
-            Buffer.BlockCopy(prk, 0, signingKey, 0, signingKey.Length);
-            Buffer.BlockCopy(prk, m_signatureKeySize, encryptingKey, 0, encryptingKey.Length);
-            Buffer.BlockCopy(prk, m_signatureKeySize + m_encryptionKeySize, iv, 0, iv.Length);
+            Buffer.BlockCopy(keyData, 0, signingKey, 0, signingKey.Length);
+            Buffer.BlockCopy(keyData, m_signatureKeySize, encryptingKey, 0, encryptingKey.Length);
+            Buffer.BlockCopy(keyData, m_signatureKeySize + m_encryptionKeySize, iv, 0, iv.Length);
 
             if (isServer)
             {
@@ -258,17 +224,17 @@ namespace Opc.Ua.Bindings
                 token.ClientInitializationVector = iv;
                 token.SessionActivationSecret = null;
 
-                if (SecurityPolicy.SecureChannelEnhancements)
-                {
-                    token.SessionActivationSecret = new byte[secretLength];
+                //if (SecurityPolicy.SecureChannelEnhancements)
+                //{
+                //    token.SessionActivationSecret = new byte[token.SecurityPolicy.SessionActivationSecretLength];
 
-                    Buffer.BlockCopy(
-                        prk,
-                        m_signatureKeySize + m_encryptionKeySize + EncryptionBlockSize,
-                        token.SessionActivationSecret,
-                        0,
-                        token.SessionActivationSecret.Length);
-                }
+                //    Buffer.BlockCopy(
+                //        keyData,
+                //        m_signatureKeySize + m_encryptionKeySize + EncryptionBlockSize,
+                //        token.SessionActivationSecret,
+                //        0,
+                //        token.SessionActivationSecret.Length);
+                //}
             }
         }
 
@@ -294,33 +260,33 @@ namespace Opc.Ua.Bindings
                 {
                     token.Secret = m_localNonce.GenerateSecret(m_remoteNonce, token.PreviousSecret);
 
-                    byte[] length = token.SecurityPolicy.KeyDataLength;
-
-                    byte[] serverSalt = Utils.Append(
-                        length,
-                        s_hkdfServerLabel,
-                        serverSecret,
-                        clientSecret);
-
                     byte[] clientSalt = Utils.Append(
-                        length,
+                        BitConverter.GetBytes((ushort)token.SecurityPolicy.ClientKeyDataLength),
                         s_hkdfClientLabel,
                         clientSecret,
                         serverSecret);
 
-                    DeriveKeysWithHKDF(token, serverSalt, true);
-                    DeriveKeysWithHKDF(token, clientSalt, false);
+                    DeriveKeysWithHKDF(token, clientSalt, false, token.SecurityPolicy.ClientKeyDataLength);
 
-#if xDEBUG
-                    m_logger.LogWarning("ServerSecret={ServerSecret}", TcpMessageType.KeyToString(serverSecret));
-                    m_logger.LogWarning("ClientSecret={ClientSecret}", TcpMessageType.KeyToString(clientSecret));
-                    m_logger.LogWarning("ServerSalt={ServerSalt}", TcpMessageType.KeyToString(serverSalt));
-                    m_logger.LogWarning("ClientSalt={ClientSalt}", TcpMessageType.KeyToString(clientSalt));
-                    m_logger.LogWarning("ServerEncryptingKey={ServerEncryptingKey}", TcpMessageType.KeyToString(token.ServerEncryptingKey));
-                    m_logger.LogWarning("ServerInitializationVector={ServerIV}", TcpMessageType.KeyToString(token.ServerInitializationVector));
-                    m_logger.LogWarning("ClientEncryptingKey={ClientEncryptingKey}", TcpMessageType.KeyToString(token.ClientEncryptingKey));
-                    m_logger.LogWarning("ClientInitializationVector={ClientIV}", TcpMessageType.KeyToString(token.ClientInitializationVector));
-#endif
+                    byte[] serverSalt = Utils.Append(
+                        BitConverter.GetBytes((ushort)token.SecurityPolicy.ServerKeyDataLength),
+                        s_hkdfServerLabel,
+                        serverSecret,
+                        clientSecret);
+
+                    DeriveKeysWithHKDF(token, serverSalt, true, token.SecurityPolicy.ServerKeyDataLength);
+
+                    CryptoTrace.Start(ConsoleColor.Green, $"ComputeKeys (TokenId={token.TokenId})");
+                    CryptoTrace.WriteLine($"IKM={CryptoTrace.KeyToString(token.Secret)}");
+                    CryptoTrace.WriteLine($"ServerNonce={CryptoTrace.KeyToString(serverSecret)}");
+                    CryptoTrace.WriteLine($"ClientNonce={CryptoTrace.KeyToString(clientSecret)}");
+                    CryptoTrace.WriteLine($"ServerSalt={CryptoTrace.KeyToString(serverSalt)}");
+                    CryptoTrace.WriteLine($"ServerEncryptingKey={CryptoTrace.KeyToString(token.ServerEncryptingKey)}");
+                    CryptoTrace.WriteLine($"ServerInitializationVector={CryptoTrace.KeyToString(token.ServerInitializationVector)}");
+                    CryptoTrace.WriteLine($"ClientEncryptingKey={CryptoTrace.KeyToString(token.ClientEncryptingKey)}");
+                    CryptoTrace.WriteLine($"ClientInitializationVector={CryptoTrace.KeyToString(token.ClientInitializationVector)}");
+                    CryptoTrace.WriteLine($"SessionActivationSecret={CryptoTrace.KeyToString(token.SessionActivationSecret)}");
+                    CryptoTrace.Finish("ComputeKeys");
                     break;
                 }
 
@@ -415,7 +381,6 @@ namespace Opc.Ua.Bindings
                     chunksToProcess.Add(new ArraySegment<byte>(buffer, 0, 0));
                 }
 
-                //Console.WriteLine($"WriteSymmetricMessage:{chunksToProcess[0].Offset}:{chunksToProcess[0].Count}");
                 var chunksToSend = new BufferCollection(chunksToProcess.Capacity);
 
                 int messageSize = 0;
