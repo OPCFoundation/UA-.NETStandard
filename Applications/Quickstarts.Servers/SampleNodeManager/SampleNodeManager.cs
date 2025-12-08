@@ -1912,7 +1912,8 @@ namespace Opc.Ua.Sample
                 return result.StatusCode;
             }
 
-            // do not return diagnostics or argument results if there are no errors.
+            // Per OPC UA Part 4, Section 5.12: InputArgumentResults must be empty when StatusCode is Good.
+            // Clear diagnostics and argument results if there are no errors.
             result.InputArgumentDiagnosticInfos.Clear();
             result.InputArgumentResults.Clear();
 
