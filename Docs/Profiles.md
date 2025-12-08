@@ -201,7 +201,7 @@ Server profiles are configured in the server configuration file using the `Serve
 
 ```xml
 <ServerConfiguration>
-  <!-- see https://opcfoundation-onlineapplications.org/profilereporting/ for list of available profiles -->
+  <!-- see https://profiles.opcfoundation.org/ for list of available profiles -->
   <ServerProfileArray>
     <ua:String>http://opcfoundation.org/UA-Profile/Server/StandardUA2017</ua:String>
     <ua:String>http://opcfoundation.org/UA-Profile/Server/DataAccess</ua:String>
