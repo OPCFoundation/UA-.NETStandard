@@ -88,7 +88,7 @@ namespace Opc.Ua
         public Uri ProxyUrl { get; set; }
 
         /// <summary>
-        /// Finds the user token policy with the specified id and securtyPolicyUri
+        /// Finds the user token policy with the specified id and securityPolicyUri
         /// </summary>
         public UserTokenPolicy FindUserTokenPolicy(string policyId, string tokenSecurityPolicyUri)
         {
