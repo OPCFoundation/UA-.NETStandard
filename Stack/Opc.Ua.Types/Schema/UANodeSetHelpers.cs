@@ -123,7 +123,10 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Imports a node from the set.
         /// </summary>
-        public void Import(ISystemContext context, NodeStateCollection nodes)
+        /// <param name="context">The context.</param>
+        /// <param name="nodes">The collection to add imported nodes to.</param>
+        /// <param name="linkParentChild">If true, establishes parent-child relationships based on ParentNodeId attributes. Default is false for backward compatibility.</param>
+        public void Import(ISystemContext context, NodeStateCollection nodes, bool linkParentChild = false)
         {
             for (int ii = 0; ii < Items.Length; ii++)
             {
@@ -132,8 +135,11 @@ namespace Opc.Ua.Export
                 nodes.Add(importedNode);
             }
 
-            // Link parent-child relationships after all nodes are imported
-            LinkParentChildRelationships(nodes);
+            // Link parent-child relationships after all nodes are imported if requested
+            if (linkParentChild)
+            {
+                LinkParentChildRelationships(nodes);
+            }
         }
 
         /// <summary>
