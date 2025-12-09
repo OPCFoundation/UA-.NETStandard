@@ -363,7 +363,7 @@ namespace Opc.Ua
                 {
                     store.CertificateStoreChanged -= OnCertificateStoreChanged;
                     store.StopMonitoring();
-                    store.Dispose();
+                    // Note: We don't dispose the store as it may be used by other components
                 }
                 catch (Exception ex)
                 {

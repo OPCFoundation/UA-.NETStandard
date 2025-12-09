@@ -63,6 +63,11 @@ namespace Opc.Ua
         private const string kPemCertSearchString = "*.pem";
 
         /// <summary>
+        /// Debounce timeout for file system change events in milliseconds
+        /// </summary>
+        private const int kDebounceTimeoutMs = 1000;
+
+        /// <summary>
         /// Initializes a store for a directory path.
         /// </summary>
         public DirectoryCertificateStore(ITelemetryContext telemetry)
@@ -190,7 +195,7 @@ namespace Opc.Ua
         {
             // Debounce file system events - only process if enough time has passed since last change
             DateTime now = DateTime.UtcNow;
-            if ((now - m_lastChangeNotification).TotalMilliseconds < 1000)
+            if ((now - m_lastChangeNotification).TotalMilliseconds < kDebounceTimeoutMs)
             {
                 return; // Ignore rapid successive events
             }
