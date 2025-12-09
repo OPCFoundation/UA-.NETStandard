@@ -83,7 +83,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             const string subject = "CN=Test RSA CSR, O=OPC Foundation";
             string applicationUri = "urn:localhost:opcfoundation.org:TestRsaCsr";
-            string[] domainNames = ["localhost", "127.0.0.1"];
+            string[] domainNames = new[] { "localhost", "127.0.0.1" };
 
             // Create a certificate to generate CSR from
             using X509Certificate2 certificate = CertificateBuilder.Create(subject)
@@ -121,7 +121,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             const string subject = "CN=Test ECDSA P256 CSR, O=OPC Foundation";
             string applicationUri = "urn:localhost:opcfoundation.org:TestEcdsaCsr";
-            string[] domainNames = ["localhost", "127.0.0.1"];
+            string[] domainNames = new[] { "localhost", "127.0.0.1" };
 
             // Create a certificate to generate CSR from
             using X509Certificate2 certificate = CertificateBuilder.Create(subject)
@@ -198,7 +198,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             const string subject = "CN=Test Tampered CSR, O=OPC Foundation";
             string applicationUri = "urn:localhost:opcfoundation.org:TestTamperedCsr";
-            string[] domainNames = ["localhost"];
+            string[] domainNames = new[] { "localhost" };
 
             // Create a certificate to generate CSR from
             using X509Certificate2 certificate = CertificateBuilder.Create(subject)
@@ -230,7 +230,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             const string subject = "CN=Test SAN CSR, O=OPC Foundation";
             string applicationUri = "urn:localhost:opcfoundation.org:TestSanCsr";
-            string[] domainNames = ["localhost", "testhost.local", "192.168.1.1"];
+            string[] domainNames = new[] { "localhost", "testhost.local", "192.168.1.1" };
 
             // Create a certificate to generate CSR from
             using X509Certificate2 certificate = CertificateBuilder.Create(subject)
@@ -336,7 +336,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 using X509Certificate2 certificate = CertificateBuilder.Create(subject)
                     .SetNotBefore(DateTime.UtcNow.AddDays(-1))
                     .SetLifeTime(TimeSpan.FromDays(30))
-                    .AddExtension(new X509SubjectAltNameExtension(applicationUri, ["localhost"]))
+                    .AddExtension(new X509SubjectAltNameExtension(applicationUri, new[] { "localhost" }))
                     .CreateForRSA();
 
                 byte[] csrData = CertificateFactory.CreateSigningRequest(certificate);
