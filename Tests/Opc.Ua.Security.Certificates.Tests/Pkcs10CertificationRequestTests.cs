@@ -149,22 +149,8 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             // Verify signature
 #if NET6_0_OR_GREATER
-            // Note: ECDSA CSR signature verification currently fails due to signature
-            // encoding differences between .NET's CertificateRequest.CreateSigningRequest
-            // and PKCS#10 expectations. .NET may use IEEE P1363 format while PKCS#10
-            // expects DER encoding. The important part is that the CSR can be parsed
-            // and the public key extracted. RSA verification works correctly, which is
-            // the primary use case for GDS Server.
-            
-            // Attempt verification but accept failure as known limitation
             bool isValid = csr.Verify();
-            if (!isValid)
-            {
-                Assert.Pass("ECDSA CSR parsed successfully. " +
-                    "Signature verification has known encoding incompatibilities " +
-                    "with .NET's CreateSigningRequest output.");
-            }
-            Assert.True(isValid, "CSR signature should be valid");
+            Assert.True(isValid, "ECDSA CSR signature should be valid");
 #else
             // ECDSA verification not supported on older frameworks
             Assert.Throws<NotSupportedException>(() => csr.Verify());
@@ -305,18 +291,6 @@ namespace Opc.Ua.Security.Certificates.Tests
             byte[] requestInfo = csr.GetCertificationRequestInfo();
             Assert.NotNull(requestInfo);
             Assert.Greater(requestInfo.Length, 0);
-        }
-
-        /// <summary>
-        /// Test parsing CSR with small RSA key (less than 1024 bits) throws exception.
-        /// </summary>
-        [Test]
-        public void ParseCsrWithSmallRsaKeyThrowsException()
-        {
-            // This test would require manually crafting a CSR with a small key
-            // which is complex, so we'll skip it for now as the validation
-            // happens during signature verification
-            Assert.Pass("Validation happens during key import in RSA.Create()");
         }
 
         /// <summary>

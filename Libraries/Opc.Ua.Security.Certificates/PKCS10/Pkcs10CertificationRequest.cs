@@ -264,10 +264,15 @@ namespace Opc.Ua.Security.Certificates
             {
                 ecdsa.ImportSubjectPublicKeyInfo(m_subjectPublicKeyInfo, out _);
                 
+                // PKCS#10 CSRs store ECDSA signatures in DER format (ASN.1 SEQUENCE)
+                // but .NET's VerifyData expects IEEE P1363 format (r || s)
+                // We need to convert the signature format
+                byte[] ieee1363Signature = ConvertEcdsaSignatureDerToIeee1363(m_signature);
+                
                 // Verify signature
                 return ecdsa.VerifyData(
                     m_certificationRequestInfo,
-                    m_signature,
+                    ieee1363Signature,
                     hashAlgorithm);
             }
             catch
@@ -281,6 +286,50 @@ namespace Opc.Ua.Security.Certificates
                 "ECDSA certificate signing request verification is not supported on this platform. " +
                 "Please use .NET 6.0 or later.");
 #endif
+        }
+
+        /// <summary>
+        /// Converts ECDSA signature from DER format to IEEE P1363 format.
+        /// </summary>
+        /// <param name="derSignature">DER-encoded signature (SEQUENCE { r INTEGER, s INTEGER })</param>
+        /// <returns>IEEE P1363 format signature (r || s)</returns>
+        private static byte[] ConvertEcdsaSignatureDerToIeee1363(byte[] derSignature)
+        {
+            // Parse DER SEQUENCE
+            var reader = new AsnReader(derSignature, AsnEncodingRules.DER);
+            AsnReader sequenceReader = reader.ReadSequence();
+            
+            // Read r and s as integers
+            byte[] r = sequenceReader.ReadIntegerBytes().ToArray();
+            byte[] s = sequenceReader.ReadIntegerBytes().ToArray();
+            
+            // Remove leading zero bytes that may be present for sign bit
+            r = TrimLeadingZero(r);
+            s = TrimLeadingZero(s);
+            
+            // Determine the key size (both r and s should be the same size)
+            int keySize = Math.Max(r.Length, s.Length);
+            
+            // Pad to the correct size
+            byte[] ieee1363Signature = new byte[keySize * 2];
+            Array.Copy(r, 0, ieee1363Signature, keySize - r.Length, r.Length);
+            Array.Copy(s, 0, ieee1363Signature, keySize * 2 - s.Length, s.Length);
+            
+            return ieee1363Signature;
+        }
+
+        /// <summary>
+        /// Removes leading zero byte if present (used for sign bit in ASN.1 INTEGER encoding).
+        /// </summary>
+        private static byte[] TrimLeadingZero(byte[] data)
+        {
+            if (data.Length > 1 && data[0] == 0 && (data[1] & 0x80) != 0)
+            {
+                byte[] trimmed = new byte[data.Length - 1];
+                Array.Copy(data, 1, trimmed, 0, trimmed.Length);
+                return trimmed;
+            }
+            return data;
         }
     }
 }
