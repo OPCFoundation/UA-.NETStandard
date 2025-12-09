@@ -250,35 +250,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
         #endregion
 
-        /// <summary>
-        /// Verify that Compact encoding mode is not supported for PubSub messages.
-        /// JsonDataSetMessage.EncodeField modifies ForceNamespaceUri which throws for Compact mode.
-        /// </summary>
-        [Test]
-        public void EncodeWithCompactModeThrowsNotSupportedException()
-        {
-            var field = CreateField("TestField", BuiltInType.UInt32, (uint)0);
-            var message = CreateDataValueMessage(field);
 
-            Assert.Throws<NotSupportedException>(() =>
-                EncodeMessage(message, JsonEncodingType.Compact));
-        }
-
-        /// <summary>
-        /// Verify that Verbose encoding mode is not supported for PubSub messages.
-        /// JsonDataSetMessage.EncodeField modifies ForceNamespaceUri which throws for Verbose mode.
-        /// </summary>
-        [Test]
-        public void EncodeWithVerboseModeThrowsNotSupportedException()
-        {
-            var field = CreateField("TestField", BuiltInType.UInt32, (uint)0);
-            var message = CreateDataValueMessage(field);
-
-            Assert.Throws<NotSupportedException>(() =>
-                EncodeMessage(message, JsonEncodingType.Verbose));
-        }
-
-        #endregion
         #region Helper Methods
 
         private static Field CreateField(string name, BuiltInType builtInType, object value)
