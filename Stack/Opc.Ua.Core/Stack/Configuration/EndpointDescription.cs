@@ -92,7 +92,7 @@ namespace Opc.Ua
         /// </summary>
         public UserTokenPolicy FindUserTokenPolicy(string policyId, string tokenSecurityPolicyUri)
         {
-            UserTokenPolicy sameEncryptionAlgorithm = null;
+            UserTokenPolicy anyMatch = null;
             UserTokenPolicy unspecifiedSecPolicy = null;
             // The specified security policies take precedence
             foreach (UserTokenPolicy policy in m_userIdentityTokens)
@@ -103,17 +103,10 @@ namespace Opc.Ua
                     {
                         return policy;
                     }
-                    else if ((
-                            policy.SecurityPolicyUri != null &&
-                            tokenSecurityPolicyUri != null &&
-                            EccUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
-                            EccUtils.IsEccPolicy(tokenSecurityPolicyUri)
-                        ) ||
-                        (
-                            !EccUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
-                            !EccUtils.IsEccPolicy(tokenSecurityPolicyUri)))
+                    else if (policy.SecurityPolicyUri != null)
                     {
-                        sameEncryptionAlgorithm ??= policy;
+                        // Accept any policy with matching PolicyId regardless of RSA/ECC
+                        anyMatch ??= policy;
                     }
                     else if (policy.SecurityPolicyUri == null)
                     {
@@ -121,10 +114,10 @@ namespace Opc.Ua
                     }
                 }
             }
-            // The first token with the same encryption algorithm (RSA/ECC) follows
-            if (sameEncryptionAlgorithm != null)
+            // Return first token with matching PolicyId regardless of encryption algorithm
+            if (anyMatch != null)
             {
-                return sameEncryptionAlgorithm;
+                return anyMatch;
             }
             // The first token with unspecified security policy follows / no policy
             return unspecifiedSecPolicy;
@@ -160,7 +153,7 @@ namespace Opc.Ua
             // construct issuer type.
             string issuedTokenTypeText = issuedTokenType;
 
-            UserTokenPolicy sameEncryptionAlgorithm = null;
+            UserTokenPolicy anyMatch = null;
             UserTokenPolicy unspecifiedSecPolicy = null;
             // The specified security policies take precedence
             foreach (UserTokenPolicy policy in m_userIdentityTokens)
@@ -173,31 +166,24 @@ namespace Opc.Ua
                     {
                         return policy;
                     }
-                    else if ((
-                            policy.SecurityPolicyUri != null &&
-                            tokenSecurityPolicyUri != null &&
-                            EccUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
-                            EccUtils.IsEccPolicy(tokenSecurityPolicyUri)
-                        ) ||
-                        (
-                            !EccUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
-                            !EccUtils.IsEccPolicy(tokenSecurityPolicyUri)))
+                    else if (policy.SecurityPolicyUri != null)
                     {
-                        sameEncryptionAlgorithm ??= policy;
+                        // Accept any policy with matching tokenType regardless of RSA/ECC
+                        anyMatch ??= policy;
                     }
                     else if (policy.SecurityPolicyUri == null)
                     {
-                        if (sameEncryptionAlgorithm == null)
+                        if (anyMatch == null)
                         {
                             unspecifiedSecPolicy = policy;
                         }
                     }
                 }
             }
-            // The first token with the same encryption algorithm (RSA/ECC) follows
-            if (sameEncryptionAlgorithm != null)
+            // Return first token with matching tokenType regardless of encryption algorithm
+            if (anyMatch != null)
             {
-                return sameEncryptionAlgorithm;
+                return anyMatch;
             }
             // The first token with unspecified security policy follows / no policy
             return unspecifiedSecPolicy;
