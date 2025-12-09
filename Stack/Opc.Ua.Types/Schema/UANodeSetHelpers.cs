@@ -123,13 +123,59 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Imports a node from the set.
         /// </summary>
-        public void Import(ISystemContext context, NodeStateCollection nodes)
+        /// <param name="context">The context.</param>
+        /// <param name="nodes">The collection to add imported nodes to.</param>
+        /// <param name="linkParentChild">If true, establishes parent-child relationships based on ParentNodeId attributes. Default is false for backward compatibility.</param>
+        public void Import(ISystemContext context, NodeStateCollection nodes, bool linkParentChild = false)
         {
             for (int ii = 0; ii < Items.Length; ii++)
             {
                 UANode node = Items[ii];
                 NodeState importedNode = Import(context, node);
                 nodes.Add(importedNode);
+            }
+
+            // Link parent-child relationships after all nodes are imported if requested
+            if (linkParentChild)
+            {
+                LinkParentChildRelationships(nodes);
+            }
+        }
+
+        /// <summary>
+        /// Links parent-child relationships for imported nodes.
+        /// </summary>
+        /// <param name="nodes">The collection of imported nodes.</param>
+        private static void LinkParentChildRelationships(NodeStateCollection nodes)
+        {
+            // Create a dictionary for fast lookup of nodes by NodeId
+            var nodeTable = new Dictionary<NodeId, NodeState>();
+            foreach (NodeState node in nodes)
+            {
+                if (!NodeId.IsNull(node.NodeId))
+                {
+                    nodeTable[node.NodeId] = node;
+                }
+            }
+
+            // Process each node to establish parent-child relationships
+            foreach (NodeState node in nodes)
+            {
+                if (node is BaseInstanceState instance && instance.Handle is NodeId parentNodeId)
+                {
+                    // Find the parent node
+                    if (nodeTable.TryGetValue(parentNodeId, out NodeState parent))
+                    {
+                        // Set the Parent property to establish the relationship
+                        instance.Parent = parent;
+
+                        // Add the child to the parent's children collection
+                        parent.AddChild(instance);
+                    }
+
+                    // Clear the Handle since we've processed it
+                    instance.Handle = null;
+                }
             }
         }
 

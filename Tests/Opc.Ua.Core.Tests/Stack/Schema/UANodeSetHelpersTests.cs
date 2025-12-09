@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using NUnit.Framework;
@@ -259,6 +260,184 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
                 }
             }
             importedNodeSet.Import(localContext, importedNodeStates);
+        }
+
+        /// <summary>
+        /// Test that parent-child references are correctly established after importing a NodeSet2.
+        /// </summary>
+        [Test]
+        public void ParentChildReferencesTest()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            const string importBuffer =
+                @"<?xml version='1.0' encoding='utf-8'?>
+                <UANodeSet xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' 
+                           xmlns:xsd='http://www.w3.org/2001/XMLSchema' 
+                           LastModified='2024-01-01T00:00:00.000Z' 
+                           xmlns='http://opcfoundation.org/UA/2011/03/UANodeSet.xsd'>
+                  <NamespaceUris>
+                    <Uri>http://opcfoundation.org/UA/Test</Uri>
+                  </NamespaceUris>
+                  <Aliases>
+                    <Alias Alias='HasComponent'>i=47</Alias>
+                    <Alias Alias='HasProperty'>i=46</Alias>
+                    <Alias Alias='HasTypeDefinition'>i=40</Alias>
+                  </Aliases>
+                  <UAObject NodeId='ns=1;i=1000' BrowseName='1:ParentObject'>
+                    <DisplayName>ParentObject</DisplayName>
+                    <References>
+                      <Reference ReferenceType='HasTypeDefinition'>i=58</Reference>
+                    </References>
+                  </UAObject>
+                  <UAVariable DataType='i=12' ParentNodeId='ns=1;i=1000' NodeId='ns=1;i=1001' BrowseName='1:ChildProperty' ValueRank='-1'>
+                    <DisplayName>ChildProperty</DisplayName>
+                    <References>
+                      <Reference ReferenceType='HasTypeDefinition'>i=68</Reference>
+                      <Reference ReferenceType='HasProperty' IsForward='false'>ns=1;i=1000</Reference>
+                    </References>
+                  </UAVariable>
+                  <UAObject ParentNodeId='ns=1;i=1000' NodeId='ns=1;i=1002' BrowseName='1:ChildObject'>
+                    <DisplayName>ChildObject</DisplayName>
+                    <References>
+                      <Reference ReferenceType='HasTypeDefinition'>i=58</Reference>
+                      <Reference ReferenceType='HasComponent' IsForward='false'>ns=1;i=1000</Reference>
+                    </References>
+                  </UAObject>
+                </UANodeSet>";
+
+            using var importStream = new MemoryStream(Encoding.UTF8.GetBytes(importBuffer));
+            var importedNodeSet = Export.UANodeSet.Read(importStream);
+
+            var importedNodeStates = new NodeStateCollection();
+            var localContext = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
+            foreach (string namespaceUri in importedNodeSet.NamespaceUris)
+            {
+                localContext.NamespaceUris.Append(namespaceUri);
+            }
+
+            importedNodeSet.Import(localContext, importedNodeStates, linkParentChild: true);
+
+            // Verify that all nodes were imported
+            Assert.AreEqual(3, importedNodeStates.Count);
+
+            // Find the parent object
+            BaseObjectState parentObject = null;
+            BaseVariableState childProperty = null;
+            BaseObjectState childObject = null;
+
+            foreach (NodeState node in importedNodeStates)
+            {
+                if (node.BrowseName.Name == "ParentObject")
+                {
+                    parentObject = node as BaseObjectState;
+                }
+                else if (node.BrowseName.Name == "ChildProperty")
+                {
+                    childProperty = node as BaseVariableState;
+                }
+                else if (node.BrowseName.Name == "ChildObject")
+                {
+                    childObject = node as BaseObjectState;
+                }
+            }
+
+            Assert.NotNull(parentObject, "ParentObject should be imported");
+            Assert.NotNull(childProperty, "ChildProperty should be imported");
+            Assert.NotNull(childObject, "ChildObject should be imported");
+
+            // Verify parent-child relationships are established
+            Assert.AreEqual(parentObject, childProperty.Parent, "ChildProperty's Parent should be set to ParentObject");
+            Assert.AreEqual(parentObject, childObject.Parent, "ChildObject's Parent should be set to ParentObject");
+
+            // Verify GetChildren works
+            var children = new List<BaseInstanceState>();
+            parentObject.GetChildren(localContext, children);
+
+            Assert.AreEqual(2, children.Count, "ParentObject should have 2 children");
+            Assert.IsTrue(children.Contains(childProperty), "Children should contain ChildProperty");
+            Assert.IsTrue(children.Contains(childObject), "Children should contain ChildObject");
+        }
+
+        /// <summary>
+        /// Test that parent-child references are NOT established by default (backward compatibility).
+        /// </summary>
+        [Test]
+        public void ParentChildReferencesDefaultBehaviorTest()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            const string importBuffer =
+                @"<?xml version='1.0' encoding='utf-8'?>
+                <UANodeSet xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' 
+                           xmlns:xsd='http://www.w3.org/2001/XMLSchema' 
+                           LastModified='2024-01-01T00:00:00.000Z' 
+                           xmlns='http://opcfoundation.org/UA/2011/03/UANodeSet.xsd'>
+                  <NamespaceUris>
+                    <Uri>http://opcfoundation.org/UA/Test</Uri>
+                  </NamespaceUris>
+                  <Aliases>
+                    <Alias Alias='HasComponent'>i=47</Alias>
+                    <Alias Alias='HasTypeDefinition'>i=40</Alias>
+                  </Aliases>
+                  <UAObject NodeId='ns=1;i=1000' BrowseName='1:ParentObject'>
+                    <DisplayName>ParentObject</DisplayName>
+                    <References>
+                      <Reference ReferenceType='HasTypeDefinition'>i=58</Reference>
+                    </References>
+                  </UAObject>
+                  <UAObject ParentNodeId='ns=1;i=1000' NodeId='ns=1;i=1002' BrowseName='1:ChildObject'>
+                    <DisplayName>ChildObject</DisplayName>
+                    <References>
+                      <Reference ReferenceType='HasTypeDefinition'>i=58</Reference>
+                      <Reference ReferenceType='HasComponent' IsForward='false'>ns=1;i=1000</Reference>
+                    </References>
+                  </UAObject>
+                </UANodeSet>";
+
+            using var importStream = new MemoryStream(Encoding.UTF8.GetBytes(importBuffer));
+            var importedNodeSet = Export.UANodeSet.Read(importStream);
+
+            var importedNodeStates = new NodeStateCollection();
+            var localContext = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
+            foreach (string namespaceUri in importedNodeSet.NamespaceUris)
+            {
+                localContext.NamespaceUris.Append(namespaceUri);
+            }
+
+            // Import without linkParentChild parameter (default is false)
+            importedNodeSet.Import(localContext, importedNodeStates);
+
+            // Verify that all nodes were imported
+            Assert.AreEqual(2, importedNodeStates.Count);
+
+            // Find the parent object
+            BaseObjectState parentObject = null;
+            BaseObjectState childObject = null;
+
+            foreach (NodeState node in importedNodeStates)
+            {
+                if (node.BrowseName.Name == "ParentObject")
+                {
+                    parentObject = node as BaseObjectState;
+                }
+                else if (node.BrowseName.Name == "ChildObject")
+                {
+                    childObject = node as BaseObjectState;
+                }
+            }
+
+            Assert.NotNull(parentObject, "ParentObject should be imported");
+            Assert.NotNull(childObject, "ChildObject should be imported");
+
+            // Verify parent-child relationships are NOT established (backward compatibility)
+            Assert.IsNull(childObject.Parent, "ChildObject's Parent should be null by default");
+
+            // Verify GetChildren returns empty (backward compatibility)
+            var children = new List<BaseInstanceState>();
+            parentObject.GetChildren(localContext, children);
+
+            Assert.AreEqual(0, children.Count, "ParentObject should have 0 children by default (backward compatibility)");
         }
     }
 
