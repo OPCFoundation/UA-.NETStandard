@@ -303,12 +303,28 @@ namespace Opc.Ua.Security.Certificates
             byte[] r = sequenceReader.ReadIntegerBytes().ToArray();
             byte[] s = sequenceReader.ReadIntegerBytes().ToArray();
             
-            // Remove leading zero bytes that may be present for sign bit
+            // Remove leading zero bytes that may be present for sign bit in ASN.1 INTEGER encoding
             r = TrimLeadingZero(r);
             s = TrimLeadingZero(s);
             
-            // Determine the key size (both r and s should be the same size)
+            // Determine the key size - both r and s should have the same size for ECDSA
+            // The size is determined by the larger of the two after trimming
+            // Common sizes: P-256: 32 bytes, P-384: 48 bytes, P-521: 66 bytes
             int keySize = Math.Max(r.Length, s.Length);
+            
+            // For standard curves, round up to the nearest standard size if needed
+            if (keySize <= 32)
+            {
+                keySize = 32;  // P-256
+            }
+            else if (keySize <= 48)
+            {
+                keySize = 48;  // P-384
+            }
+            else if (keySize <= 66)
+            {
+                keySize = 66;  // P-521
+            }
             
             // Pad to the correct size
             byte[] ieee1363Signature = new byte[keySize * 2];
@@ -320,10 +336,12 @@ namespace Opc.Ua.Security.Certificates
 
         /// <summary>
         /// Removes leading zero byte if present (used for sign bit in ASN.1 INTEGER encoding).
+        /// ASN.1 INTEGER adds a leading zero byte when the most significant bit is 1
+        /// to prevent the value from being interpreted as negative.
         /// </summary>
         private static byte[] TrimLeadingZero(byte[] data)
         {
-            if (data.Length > 1 && data[0] == 0 && (data[1] & 0x80) != 0)
+            if (data.Length > 1 && data[0] == 0 && (data[1] & 0x80) == 0x80)
             {
                 byte[] trimmed = new byte[data.Length - 1];
                 Array.Copy(data, 1, trimmed, 0, trimmed.Length);
