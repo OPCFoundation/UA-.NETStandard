@@ -36,6 +36,11 @@ using Opc.Ua.Security.Certificates;
 namespace Opc.Ua
 {
     /// <summary>
+    /// Delegate for certificate store change events.
+    /// </summary>
+    public delegate void CertificateStoreChangedEventHandler(object sender, EventArgs e);
+
+    /// <summary>
     /// An interface to open a certificate store.
     /// </summary>
     public interface IOpenStore
@@ -51,6 +56,21 @@ namespace Opc.Ua
     /// </summary>
     public interface ICertificateStore : IDisposable
     {
+        /// <summary>
+        /// Raised when the certificate store contents change.
+        /// </summary>
+        event CertificateStoreChangedEventHandler CertificateStoreChanged;
+
+        /// <summary>
+        /// Starts monitoring the certificate store for changes.
+        /// </summary>
+        void StartMonitoring();
+
+        /// <summary>
+        /// Stops monitoring the certificate store for changes.
+        /// </summary>
+        void StopMonitoring();
+
         /// <summary>
         /// Opens the store at the specified location.
         /// </summary>

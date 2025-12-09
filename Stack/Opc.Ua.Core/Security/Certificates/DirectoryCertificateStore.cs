@@ -78,6 +78,125 @@ namespace Opc.Ua
             m_logger = telemetry.CreateLogger<DirectoryCertificateStore>();
             m_noSubDirs = noSubDirs;
             m_certificates = [];
+            m_watchers = [];
+        }
+
+        /// <summary>
+        /// Raised when the certificate store contents change.
+        /// </summary>
+        public event CertificateStoreChangedEventHandler CertificateStoreChanged;
+
+        /// <summary>
+        /// Starts monitoring the certificate store for changes.
+        /// </summary>
+        public void StartMonitoring()
+        {
+            m_lock.Wait();
+            try
+            {
+                if (m_isMonitoring || Directory == null)
+                {
+                    return;
+                }
+
+                m_logger.LogInformation("Starting certificate store monitoring for: {StorePath}", StorePath);
+                m_isMonitoring = true;
+
+                // Monitor certificates directory
+                if (m_certificateSubdir != null && m_certificateSubdir.Exists)
+                {
+                    CreateWatcher(m_certificateSubdir.FullName, "*.der");
+                    CreateWatcher(m_certificateSubdir.FullName, "*.pem");
+                }
+
+                // Monitor private keys directory
+                if (m_privateKeySubdir != null && m_privateKeySubdir.Exists)
+                {
+                    CreateWatcher(m_privateKeySubdir.FullName, "*.pfx");
+                }
+
+                // Monitor CRL directory
+                if (m_crlSubdir != null && m_crlSubdir.Exists)
+                {
+                    CreateWatcher(m_crlSubdir.FullName, "*.crl");
+                }
+            }
+            finally
+            {
+                m_lock.Release();
+            }
+        }
+
+        /// <summary>
+        /// Stops monitoring the certificate store for changes.
+        /// </summary>
+        public void StopMonitoring()
+        {
+            m_lock.Wait();
+            try
+            {
+                if (!m_isMonitoring)
+                {
+                    return;
+                }
+
+                m_logger.LogInformation("Stopping certificate store monitoring for: {StorePath}", StorePath);
+                m_isMonitoring = false;
+
+                foreach (FileSystemWatcher watcher in m_watchers)
+                {
+                    watcher.EnableRaisingEvents = false;
+                    watcher.Dispose();
+                }
+
+                m_watchers.Clear();
+            }
+            finally
+            {
+                m_lock.Release();
+            }
+        }
+
+        /// <summary>
+        /// Creates a FileSystemWatcher for the specified directory and filter.
+        /// </summary>
+        private void CreateWatcher(string path, string filter)
+        {
+            var watcher = new FileSystemWatcher(path, filter)
+            {
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.CreationTime,
+                EnableRaisingEvents = true
+            };
+
+            watcher.Created += OnCertificateStoreChanged;
+            watcher.Changed += OnCertificateStoreChanged;
+            watcher.Deleted += OnCertificateStoreChanged;
+            watcher.Renamed += OnCertificateStoreChanged;
+
+            m_watchers.Add(watcher);
+        }
+
+        /// <summary>
+        /// Called when a certificate store file changes.
+        /// </summary>
+        private void OnCertificateStoreChanged(object sender, FileSystemEventArgs e)
+        {
+            m_lock.Wait();
+            try
+            {
+                // Clear the certificate cache to force reload
+                ClearCertificates();
+                m_lastDirectoryCheck = DateTime.MinValue;
+
+                m_logger.LogInformation("Certificate store change detected: {ChangeType} {FullPath}", e.ChangeType, e.FullPath);
+            }
+            finally
+            {
+                m_lock.Release();
+            }
+
+            // Notify subscribers outside the lock to avoid potential deadlocks
+            CertificateStoreChanged?.Invoke(this, EventArgs.Empty);
         }
 
         /// <summary>
@@ -97,6 +216,8 @@ namespace Opc.Ua
             // clean up managed resources.
             if (disposing)
             {
+                StopMonitoring();
+
                 m_lock.Wait();
                 try
                 {
@@ -1352,5 +1473,7 @@ namespace Opc.Ua
         private DirectoryInfo m_privateKeySubdir;
         private readonly Dictionary<string, Entry> m_certificates;
         private DateTime m_lastDirectoryCheck;
+        private bool m_isMonitoring;
+        private readonly List<FileSystemWatcher> m_watchers;
     }
 }

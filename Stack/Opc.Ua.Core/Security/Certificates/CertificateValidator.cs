@@ -212,6 +212,9 @@ namespace Opc.Ua
 
             try
             {
+                // Stop monitoring old stores before updating
+                StopMonitoring();
+
                 InternalUpdate(
                     configuration.TrustedIssuerCertificates,
                     configuration.TrustedPeerCertificates,
@@ -269,10 +272,114 @@ namespace Opc.Ua
                         }
                     }
                 }
+
+                // Start monitoring if configured
+                if (configuration.MonitorCertificateStores)
+                {
+                    StartMonitoring(configuration);
+                }
             }
             finally
             {
                 m_semaphore.Release();
+            }
+        }
+
+        /// <summary>
+        /// Starts monitoring certificate stores for changes.
+        /// </summary>
+        private void StartMonitoring(SecurityConfiguration configuration)
+        {
+            if (m_trustedCertificateStore != null)
+            {
+                try
+                {
+                    ICertificateStore store = m_trustedCertificateStore.OpenStore(m_telemetry);
+                    if (store != null)
+                    {
+                        store.CertificateStoreChanged += OnCertificateStoreChanged;
+                        store.StartMonitoring();
+                        m_monitoredStores.Add(store);
+                        m_logger.LogInformation("Started monitoring trusted certificate store: {StorePath}", m_trustedCertificateStore.StorePath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogWarning(ex, "Failed to start monitoring trusted certificate store: {StorePath}", m_trustedCertificateStore.StorePath);
+                }
+            }
+
+            if (m_issuerCertificateStore != null)
+            {
+                try
+                {
+                    ICertificateStore store = m_issuerCertificateStore.OpenStore(m_telemetry);
+                    if (store != null)
+                    {
+                        store.CertificateStoreChanged += OnCertificateStoreChanged;
+                        store.StartMonitoring();
+                        m_monitoredStores.Add(store);
+                        m_logger.LogInformation("Started monitoring issuer certificate store: {StorePath}", m_issuerCertificateStore.StorePath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogWarning(ex, "Failed to start monitoring issuer certificate store: {StorePath}", m_issuerCertificateStore.StorePath);
+                }
+            }
+
+            // Store the configuration for use when certificate store changes
+            m_securityConfiguration = configuration;
+        }
+
+        /// <summary>
+        /// Stops monitoring certificate stores for changes.
+        /// </summary>
+        private void StopMonitoring()
+        {
+            foreach (ICertificateStore store in m_monitoredStores)
+            {
+                try
+                {
+                    store.CertificateStoreChanged -= OnCertificateStoreChanged;
+                    store.StopMonitoring();
+                    store.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogWarning(ex, "Error stopping certificate store monitoring");
+                }
+            }
+
+            m_monitoredStores.Clear();
+            m_securityConfiguration = null;
+        }
+
+        /// <summary>
+        /// Called when a monitored certificate store changes.
+        /// </summary>
+        private async void OnCertificateStoreChanged(object sender, EventArgs e)
+        {
+            try
+            {
+                m_logger.LogInformation("Certificate store change detected, reloading trust lists and CRLs");
+
+                // Reset validated certificates since trust lists may have changed
+                ResetValidatedCertificates();
+
+                // Raise the certificate update event to notify subscribers
+                CertificateUpdateEventHandler callback = m_CertificateUpdate;
+                if (callback != null && m_securityConfiguration != null)
+                {
+                    var args = new CertificateUpdateEventArgs(
+                        m_securityConfiguration,
+                        GetChannelValidator());
+                    callback(this, args);
+                }
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogError(ex, "Error handling certificate store change");
             }
         }
 
@@ -2269,6 +2376,8 @@ namespace Opc.Ua
         private ushort m_minimumCertificateKeySize;
         private bool m_useValidatedCertificates;
         private int m_maxRejectedCertificates;
+        private readonly List<ICertificateStore> m_monitoredStores = [];
+        private SecurityConfiguration m_securityConfiguration;
     }
 
     /// <summary>

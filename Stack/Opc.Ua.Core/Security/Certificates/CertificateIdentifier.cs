@@ -1019,6 +1019,23 @@ namespace Opc.Ua
             m_telemetry = telemetry;
         }
 
+        /// <inheritdoc/>
+#pragma warning disable CS0067 // Event is never used - collection store does not support monitoring
+        public event CertificateStoreChangedEventHandler CertificateStoreChanged;
+#pragma warning restore CS0067
+
+        /// <inheritdoc/>
+        public void StartMonitoring()
+        {
+            // Collection store monitoring is not supported
+        }
+
+        /// <inheritdoc/>
+        public void StopMonitoring()
+        {
+            // Collection store monitoring is not supported
+        }
+
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>

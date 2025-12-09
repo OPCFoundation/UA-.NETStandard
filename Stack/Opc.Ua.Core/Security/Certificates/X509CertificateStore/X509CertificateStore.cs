@@ -54,6 +54,23 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+#pragma warning disable CS0067 // Event is never used - X509Store does not support monitoring
+        public event CertificateStoreChangedEventHandler CertificateStoreChanged;
+#pragma warning restore CS0067
+
+        /// <inheritdoc/>
+        public void StartMonitoring()
+        {
+            // X509Store monitoring is not supported - changes are detected via OS-level mechanisms
+        }
+
+        /// <inheritdoc/>
+        public void StopMonitoring()
+        {
+            // X509Store monitoring is not supported
+        }
+
+        /// <inheritdoc/>
         public void Dispose()
         {
             Dispose(true);
