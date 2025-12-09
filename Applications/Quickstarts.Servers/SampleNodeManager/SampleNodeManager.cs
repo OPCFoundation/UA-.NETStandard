@@ -1882,30 +1882,25 @@ namespace Opc.Ua.Sample
                     {
                         argumentsValid = false;
                     }
-                }
-                else
-                {
-                    result.InputArgumentResults.Add(StatusCodes.Good);
-                }
 
-                // only fill in diagnostic info if it is requested.
-                if ((systemContext.OperationContext.DiagnosticsMask &
-                    DiagnosticsMasks.OperationAll) != 0)
-                {
-                    if (ServiceResult.IsBad(argumentError))
+                    // only fill in diagnostic info if it is requested.
+                    if ((systemContext.OperationContext.DiagnosticsMask &
+                        DiagnosticsMasks.OperationAll) != 0)
                     {
-                        argumentsValid = false;
-                        result.InputArgumentDiagnosticInfos.Add(
-                            new DiagnosticInfo(
-                                argumentError,
-                                systemContext.OperationContext.DiagnosticsMask,
-                                false,
-                                systemContext.OperationContext.StringTable,
-                                m_logger));
-                    }
-                    else
-                    {
-                        result.InputArgumentDiagnosticInfos.Add(null);
+                        if (ServiceResult.IsBad(argumentError))
+                        {
+                            result.InputArgumentDiagnosticInfos.Add(
+                                new DiagnosticInfo(
+                                    argumentError,
+                                    systemContext.OperationContext.DiagnosticsMask,
+                                    false,
+                                    systemContext.OperationContext.StringTable,
+                                    m_logger));
+                        }
+                        else
+                        {
+                            result.InputArgumentDiagnosticInfos.Add(null);
+                        }
                     }
                 }
             }
@@ -1917,8 +1912,10 @@ namespace Opc.Ua.Sample
                 return result.StatusCode;
             }
 
-            // do not return diagnostics if there are no errors.
+            // Per OPC UA Part 4, Section 5.12: InputArgumentResults must be empty when StatusCode is Good.
+            // Clear diagnostics and argument results if there are no errors.
             result.InputArgumentDiagnosticInfos.Clear();
+            result.InputArgumentResults.Clear();
 
             // return output arguments.
             result.OutputArguments = outputArguments;
