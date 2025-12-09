@@ -121,7 +121,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 {
                     if (uaNetworkMessage != null)
                     {
-                        await publisherConnection.PublishNetworkMessage(uaNetworkMessage).ConfigureAwait(false);
+                        await publisherConnection.PublishNetworkMessageAsync(uaNetworkMessage).ConfigureAwait(false);
                     }
                 }
             }
@@ -218,7 +218,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 {
                     if (uaNetworkMessage != null)
                     {
-                        await publisherConnection.PublishNetworkMessage(uaNetworkMessage).ConfigureAwait(false);
+                        await publisherConnection.PublishNetworkMessageAsync(uaNetworkMessage).ConfigureAwait(false);
                     }
                 }
             }
@@ -318,7 +318,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 {
                     if (uaNetworkMessage != null)
                     {
-                        await publisherConnection.PublishNetworkMessage(uaNetworkMessage).ConfigureAwait(false);
+                        await publisherConnection.PublishNetworkMessageAsync(uaNetworkMessage).ConfigureAwait(false);
                     }
                 }
             }
@@ -425,7 +425,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 {
                     if (uaNetworkMessage != null)
                     {
-                        await publisherConnection.PublishNetworkMessage(uaNetworkMessage).ConfigureAwait(false);
+                        await publisherConnection.PublishNetworkMessageAsync(uaNetworkMessage).ConfigureAwait(false);
                     }
                 }
             }
@@ -527,7 +527,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             if (networkMessage != null)
             {
-                await publisherConnection.PublishNetworkMessage(networkMessage).ConfigureAwait(false);
+                await publisherConnection.PublishNetworkMessageAsync(networkMessage).ConfigureAwait(false);
             }
 
             //Assert
@@ -655,7 +655,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             //Act
             publisherConnection.Start();
 
-            await publisherConnection.PublishNetworkMessage(uaNetworkMessage).ConfigureAwait(false);
+            await publisherConnection.PublishNetworkMessageAsync(uaNetworkMessage).ConfigureAwait(false);
 
             // Assert
             bool noMessageReceived = false;

@@ -248,7 +248,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Publish the network message
         /// </summary>
-        public override async Task<bool> PublishNetworkMessage(UaNetworkMessage networkMessage)
+        public override async Task<bool> PublishNetworkMessageAsync(UaNetworkMessage networkMessage)
         {
             if (networkMessage == null || m_publisherMqttClient == null)
             {

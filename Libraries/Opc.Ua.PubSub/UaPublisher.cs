@@ -157,7 +157,7 @@ namespace Opc.Ua.PubSub
                     {
                         if (uaNetworkMessage != null)
                         {
-                            bool success = await PubSubConnection.PublishNetworkMessage(uaNetworkMessage).ConfigureAwait(false);
+                            bool success = await PubSubConnection.PublishNetworkMessageAsync(uaNetworkMessage).ConfigureAwait(false);
                             m_logger.LogDebug(
                                 "UaPublisher - PublishNetworkMessage, WriterGroupId:{WriterGroupId}; success = {Success}",
                                 WriterGroupConfiguration.WriterGroupId,

@@ -114,7 +114,7 @@ namespace Opc.Ua.PubSub.Transport
                         m_dataSetWriter);
                 if (metaDataNetworkMessage != null)
                 {
-                    bool success = await m_parentConnection.PublishNetworkMessage(metaDataNetworkMessage).ConfigureAwait(false);
+                    bool success = await m_parentConnection.PublishNetworkMessageAsync(metaDataNetworkMessage).ConfigureAwait(false);
                     m_logger.LogInformation(
                         "MqttMetadataPublisher Publish DataSetMetaData, DataSetWriterId:{DataSetWriterId}; success = {Success}",
                         m_dataSetWriter.DataSetWriterId,

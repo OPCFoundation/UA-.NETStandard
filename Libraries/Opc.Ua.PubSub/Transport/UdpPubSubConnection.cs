@@ -416,7 +416,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Publish the network message
         /// </summary>
-        public override Task<bool> PublishNetworkMessage(UaNetworkMessage networkMessage)
+        public override Task<bool> PublishNetworkMessageAsync(UaNetworkMessage networkMessage)
         {
             if (networkMessage == null ||
                 m_publisherUdpClients == null ||
