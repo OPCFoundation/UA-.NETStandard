@@ -12,6 +12,7 @@ Here is a list of available documentation for different topics:
 * Support for [WellKnownRoles & RoleBasedUserManagement](RoleBasedUserManagement.md).
 * Support for [ECC Certificates](EccProfiles.md).
 * Working with [ComplexTypes](ComplexTypes.md) - Custom structures and enumerations.
+* Client-based [NodeSet Export](NodeSetExport.md) - Export server address space to NodeSet2 XML.
 
 ## Reference application related
 
