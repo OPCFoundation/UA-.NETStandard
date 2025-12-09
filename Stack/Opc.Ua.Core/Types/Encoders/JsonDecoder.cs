@@ -2335,7 +2335,8 @@ namespace Opc.Ua
                     case BuiltInType.DiagnosticInfo:
                         return ReadDiagnosticInfoArray(fieldName).ToArray();
                     case BuiltInType.Null:
-                        // For null arrays, read the array structure and return object array with null elements
+                        // For null arrays, read the array structure and return object array with null elements.
+                        // We only need the array count since all elements are expected to be null.
                         if (!ReadArrayField(fieldName, out List<object> nullArrayToken))
                         {
                             return null;
