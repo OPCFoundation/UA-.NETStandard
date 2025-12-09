@@ -1597,6 +1597,37 @@ namespace Quickstarts
         }
 
         /// <summary>
+        /// Exports nodes to a NodeSet2 XML file.
+        /// </summary>
+        /// <param name="session">The session to use for exporting.</param>
+        /// <param name="nodes">The list of nodes to export.</param>
+        /// <param name="filePath">The path where the NodeSet2 XML file will be saved.</param>
+        public void ExportNodesToNodeSet2(ISession session, IList<INode> nodes, string filePath)
+        {
+            m_logger.LogInformation("Exporting {Count} nodes to {FilePath}...", nodes.Count, filePath);
+
+            var stopwatch = new Stopwatch();
+            stopwatch.Start();
+
+            using var outputStream = new FileStream(filePath, FileMode.Create);
+            var systemContext = new SystemContext(m_telemetry)
+            {
+                NamespaceUris = session.NamespaceUris,
+                ServerUris = session.ServerUris
+            };
+
+            CoreClientUtils.ExportNodesToNodeSet2(systemContext, nodes, outputStream);
+
+            stopwatch.Stop();
+
+            m_logger.LogInformation(
+                "Exported {Count} nodes to {FilePath} in {Duration}ms",
+                nodes.Count,
+                filePath,
+                stopwatch.ElapsedMilliseconds);
+        }
+
+        /// <summary>
         /// Create the continuation point collection from the browse result
         /// collection for the BrowseNext service.
         /// </summary>
