@@ -1556,5 +1556,78 @@ namespace Opc.Ua.Client.Tests
             // Clean up
             await subscription.DeleteAsync(true, CancellationToken.None).ConfigureAwait(false);
         }
+
+        /// <summary>
+        /// Test that concurrent calls to CreateItemsAsync do not create duplicate monitored items.
+        /// This test verifies the fix for the race condition where multiple threads calling
+        /// CreateItemsAsync could include the same items in their create requests.
+        /// </summary>
+        [Test]
+        [Order(1100)]
+        public async Task ConcurrentCreateItemsNoDuplicates()
+        {
+            var subscription = new TestableSubscription(Session.DefaultSubscription);
+            Session.AddSubscription(subscription);
+            await subscription.CreateAsync().ConfigureAwait(false);
+
+            // Create multiple monitored items
+            var items = new List<MonitoredItem>();
+            for (int i = 0; i < 10; i++)
+            {
+                items.Add(new TestableMonitoredItem(subscription.DefaultItem)
+                {
+                    DisplayName = $"Item{i}",
+                    StartNodeId = VariableIds.Server_ServerStatus_CurrentTime,
+                    AttributeId = Attributes.Value
+                });
+            }
+
+            subscription.AddItems(items);
+            Assert.That(subscription.MonitoredItemCount, Is.EqualTo(10));
+
+            // Simulate concurrent CreateItemsAsync calls
+            // Use 3 concurrent tasks to ensure at least 2 will race with each other
+            const int ConcurrentTasks = 3;
+            var tasks = new List<Task<IList<MonitoredItem>>>();
+            for (int i = 0; i < ConcurrentTasks; i++)
+            {
+                tasks.Add(Task.Run(() =>
+                    subscription.CreateItemsAsync(CancellationToken.None)));
+            }
+
+            var results = await Task.WhenAll(tasks).ConfigureAwait(false);
+
+            // Verify that all items were created exactly once
+            int totalCreated = 0;
+            foreach (var item in items)
+            {
+                if (item.Status.Created)
+                {
+                    totalCreated++;
+                    Assert.That(item.Status.Id, Is.GreaterThan(0u), 
+                        $"Item {item.DisplayName} should have a server-assigned ID");
+                }
+            }
+
+            Assert.That(totalCreated, Is.EqualTo(10), 
+                "All 10 items should be created exactly once");
+
+            // Verify that each result list contains only the items that were actually created
+            // by that specific call (should be empty for concurrent calls after the first)
+            int nonEmptyResults = 0;
+            foreach (var result in results)
+            {
+                if (result.Count > 0)
+                {
+                    nonEmptyResults++;
+                }
+            }
+
+            Assert.That(nonEmptyResults, Is.LessThanOrEqualTo(1),
+                "Only one CreateItemsAsync call should have created items");
+
+            // Clean up
+            await subscription.DeleteAsync(true, CancellationToken.None).ConfigureAwait(false);
+        }
     }
 }
