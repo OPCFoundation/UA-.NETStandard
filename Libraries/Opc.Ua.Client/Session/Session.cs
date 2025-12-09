@@ -260,21 +260,25 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Called when a certificate store change is detected.
         /// </summary>
-        private async void OnCertificateUpdate(CertificateValidator sender, CertificateUpdateEventArgs e)
+        private void OnCertificateUpdate(CertificateValidator sender, CertificateUpdateEventArgs e)
         {
-            try
+            // Use Task.Run to avoid async void and ensure exceptions are properly logged
+            _ = Task.Run(async () =>
             {
-                m_logger.LogInformation("Certificate update detected for session {SessionId}, reloading certificates", SessionId);
+                try
+                {
+                    m_logger.LogInformation("Certificate update detected for session {SessionId}, reloading certificates", SessionId);
 
-                // Reload the instance certificate
-                await ReloadInstanceCertificateAsync().ConfigureAwait(false);
+                    // Reload the instance certificate
+                    await ReloadInstanceCertificateAsync().ConfigureAwait(false);
 
-                m_logger.LogInformation("Successfully reloaded certificates for session {SessionId}", SessionId);
-            }
-            catch (Exception ex)
-            {
-                m_logger.LogError(ex, "Failed to reload certificates for session {SessionId}", SessionId);
-            }
+                    m_logger.LogInformation("Successfully reloaded certificates for session {SessionId}", SessionId);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogError(ex, "Failed to reload certificates for session {SessionId}", SessionId);
+                }
+            });
         }
 
         /// <summary>

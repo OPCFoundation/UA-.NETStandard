@@ -162,18 +162,25 @@ namespace Opc.Ua
         /// </summary>
         private void CreateWatcher(string path, string filter)
         {
-            var watcher = new FileSystemWatcher(path, filter)
+            try
             {
-                NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.CreationTime,
-                EnableRaisingEvents = true
-            };
+                var watcher = new FileSystemWatcher(path, filter)
+                {
+                    NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.CreationTime,
+                    EnableRaisingEvents = true
+                };
 
-            watcher.Created += OnCertificateStoreChanged;
-            watcher.Changed += OnCertificateStoreChanged;
-            watcher.Deleted += OnCertificateStoreChanged;
-            watcher.Renamed += OnCertificateStoreChanged;
+                watcher.Created += OnCertificateStoreChanged;
+                watcher.Changed += OnCertificateStoreChanged;
+                watcher.Deleted += OnCertificateStoreChanged;
+                watcher.Renamed += OnCertificateStoreChanged;
 
-            m_watchers.Add(watcher);
+                m_watchers.Add(watcher);
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogWarning(ex, "Failed to create file system watcher for path: {Path}, filter: {Filter}", path, filter);
+            }
         }
 
         /// <summary>
@@ -181,9 +188,18 @@ namespace Opc.Ua
         /// </summary>
         private void OnCertificateStoreChanged(object sender, FileSystemEventArgs e)
         {
+            // Debounce file system events - only process if enough time has passed since last change
+            DateTime now = DateTime.UtcNow;
+            if ((now - m_lastChangeNotification).TotalMilliseconds < 1000)
+            {
+                return; // Ignore rapid successive events
+            }
+
             m_lock.Wait();
             try
             {
+                m_lastChangeNotification = now;
+
                 // Clear the certificate cache to force reload
                 ClearCertificates();
                 m_lastDirectoryCheck = DateTime.MinValue;
@@ -1475,5 +1491,6 @@ namespace Opc.Ua
         private DateTime m_lastDirectoryCheck;
         private bool m_isMonitoring;
         private readonly List<FileSystemWatcher> m_watchers;
+        private DateTime m_lastChangeNotification = DateTime.MinValue;
     }
 }
