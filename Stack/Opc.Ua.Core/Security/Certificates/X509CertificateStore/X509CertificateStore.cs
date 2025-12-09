@@ -53,21 +53,91 @@ namespace Opc.Ua
             m_storeLocation = StoreLocation.CurrentUser;
         }
 
-        /// <inheritdoc/>
-#pragma warning disable CS0067 // Event is never used - X509Store does not support monitoring
-        public event CertificateStoreChangedEventHandler CertificateStoreChanged;
-#pragma warning restore CS0067
+        /// <summary>
+        /// Raised when the certificate store contents change.
+        /// </summary>
+        public event CertificateStoreChangedEventHandler CertificateStoreChanged
+        {
+            add
+            {
+                m_CertificateStoreChanged += value;
+                // Start monitoring when first subscriber is added
+                if (m_CertificateStoreChanged != null && m_monitoringTimer == null)
+                {
+                    StartMonitoring();
+                }
+            }
+            remove
+            {
+                m_CertificateStoreChanged -= value;
+                // Stop monitoring when no more subscribers
+                if (m_CertificateStoreChanged == null && m_monitoringTimer != null)
+                {
+                    StopMonitoring();
+                }
+            }
+        }
 
         /// <inheritdoc/>
         public void StartMonitoring()
         {
-            // X509Store monitoring is not supported - changes are detected via OS-level mechanisms
+            // Use polling to detect X509Store changes (FileSystemWatcher doesn't work for Windows cert stores)
+            // Poll every 60 seconds
+            if (m_monitoringTimer == null && !string.IsNullOrEmpty(StorePath))
+            {
+                m_lastCertificateCount = GetCertificateCount();
+                m_monitoringTimer = new Timer(OnMonitoringTimerElapsed, null, 60000, 60000);
+                m_logger.LogInformation("Started monitoring X509 certificate store: {StorePath}", StorePath);
+            }
         }
 
         /// <inheritdoc/>
         public void StopMonitoring()
         {
-            // X509Store monitoring is not supported
+            if (m_monitoringTimer != null)
+            {
+                m_monitoringTimer.Dispose();
+                m_monitoringTimer = null;
+                m_logger.LogInformation("Stopped monitoring X509 certificate store: {StorePath}", StorePath);
+            }
+        }
+
+        /// <summary>
+        /// Gets the current certificate count in the store.
+        /// </summary>
+        private int GetCertificateCount()
+        {
+            try
+            {
+                using var store = new X509Store(m_storeName, m_storeLocation);
+                store.Open(OpenFlags.ReadOnly | OpenFlags.OpenExistingOnly);
+                return store.Certificates.Count;
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// Called when the monitoring timer elapses to check for changes.
+        /// </summary>
+        private void OnMonitoringTimerElapsed(object state)
+        {
+            try
+            {
+                int currentCount = GetCertificateCount();
+                if (currentCount != m_lastCertificateCount)
+                {
+                    m_lastCertificateCount = currentCount;
+                    m_logger.LogInformation("X509 certificate store change detected: {StorePath}", StorePath);
+                    m_CertificateStoreChanged?.Invoke(this, EventArgs.Empty);
+                }
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogWarning(ex, "Error monitoring X509 certificate store: {StorePath}", StorePath);
+            }
         }
 
         /// <inheritdoc/>
@@ -84,6 +154,7 @@ namespace Opc.Ua
         {
             if (disposing)
             {
+                StopMonitoring();
                 Close();
             }
         }
@@ -465,5 +536,8 @@ namespace Opc.Ua
         private readonly ILogger m_logger;
         private string m_storeName;
         private StoreLocation m_storeLocation;
+        private Timer m_monitoringTimer;
+        private int m_lastCertificateCount;
+        private event CertificateStoreChangedEventHandler m_CertificateStoreChanged;
     }
 }

@@ -53,18 +53,6 @@ namespace Opc.Ua
         public ICertificatePasswordProvider CertificatePasswordProvider { get; set; }
 
         /// <summary>
-        /// Gets or sets a value indicating whether certificate stores should be monitored for changes.
-        /// </summary>
-        /// <remarks>
-        /// When enabled, the certificate validator will monitor certificate stores (own certificates, 
-        /// trust lists, and CRLs) for changes and automatically reload them. This allows detecting
-        /// certificate renewals, trust list updates, and CRL changes immediately without waiting
-        /// for SecurityTokenLifetime expiration.
-        /// Default is false to maintain backward compatibility.
-        /// </remarks>
-        public bool MonitorCertificateStores { get; set; }
-
-        /// <summary>
         /// Adds a certificate as a trusted peer.
         /// </summary>
         public void AddTrustedPeer(byte[] certificate)

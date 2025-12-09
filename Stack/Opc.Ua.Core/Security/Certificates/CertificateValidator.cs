@@ -45,7 +45,7 @@ namespace Opc.Ua
     /// <summary>
     /// Validates certificates.
     /// </summary>
-    public class CertificateValidator : ICertificateValidator, IDisposable
+    public class CertificateValidator : ICertificateValidator
     {
         /// <summary>
         /// default number of rejected certificates for history
@@ -77,26 +77,6 @@ namespace Opc.Ua
             m_minimumCertificateKeySize = CertificateFactory.DefaultKeySize;
             m_useValidatedCertificates = false;
             m_maxRejectedCertificates = kDefaultMaxRejectedCertificates;
-        }
-
-        /// <summary>
-        /// Disposes of the certificate validator and stops monitoring certificate stores.
-        /// </summary>
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        /// <summary>
-        /// An overrideable version of the Dispose.
-        /// </summary>
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                StopMonitoring();
-            }
         }
 
         /// <summary>
@@ -232,9 +212,6 @@ namespace Opc.Ua
 
             try
             {
-                // Stop monitoring old stores before updating
-                StopMonitoring();
-
                 InternalUpdate(
                     configuration.TrustedIssuerCertificates,
                     configuration.TrustedPeerCertificates,
@@ -292,12 +269,6 @@ namespace Opc.Ua
                         }
                     }
                 }
-
-                // Start monitoring if configured
-                if (configuration.MonitorCertificateStores)
-                {
-                    StartMonitoring(configuration);
-                }
             }
             finally
             {
@@ -308,100 +279,6 @@ namespace Opc.Ua
         /// <summary>
         /// Starts monitoring certificate stores for changes.
         /// </summary>
-        private void StartMonitoring(SecurityConfiguration configuration)
-        {
-            if (m_trustedCertificateStore != null)
-            {
-                try
-                {
-                    ICertificateStore store = m_trustedCertificateStore.OpenStore(m_telemetry);
-                    if (store != null)
-                    {
-                        store.CertificateStoreChanged += OnCertificateStoreChanged;
-                        store.StartMonitoring();
-                        m_monitoredStores.Add(store);
-                        m_logger.LogInformation("Started monitoring trusted certificate store: {StorePath}", m_trustedCertificateStore.StorePath);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    m_logger.LogWarning(ex, "Failed to start monitoring trusted certificate store: {StorePath}", m_trustedCertificateStore.StorePath);
-                }
-            }
-
-            if (m_issuerCertificateStore != null)
-            {
-                try
-                {
-                    ICertificateStore store = m_issuerCertificateStore.OpenStore(m_telemetry);
-                    if (store != null)
-                    {
-                        store.CertificateStoreChanged += OnCertificateStoreChanged;
-                        store.StartMonitoring();
-                        m_monitoredStores.Add(store);
-                        m_logger.LogInformation("Started monitoring issuer certificate store: {StorePath}", m_issuerCertificateStore.StorePath);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    m_logger.LogWarning(ex, "Failed to start monitoring issuer certificate store: {StorePath}", m_issuerCertificateStore.StorePath);
-                }
-            }
-
-            // Store the configuration for use when certificate store changes
-            m_securityConfiguration = configuration;
-        }
-
-        /// <summary>
-        /// Stops monitoring certificate stores for changes.
-        /// </summary>
-        private void StopMonitoring()
-        {
-            foreach (ICertificateStore store in m_monitoredStores)
-            {
-                try
-                {
-                    store.CertificateStoreChanged -= OnCertificateStoreChanged;
-                    store.StopMonitoring();
-                    // Note: We don't dispose the store as it may be used by other components
-                }
-                catch (Exception ex)
-                {
-                    m_logger.LogWarning(ex, "Error stopping certificate store monitoring");
-                }
-            }
-
-            m_monitoredStores.Clear();
-            m_securityConfiguration = null;
-        }
-
-        /// <summary>
-        /// Called when a monitored certificate store changes.
-        /// </summary>
-        private void OnCertificateStoreChanged(object sender, EventArgs e)
-        {
-            try
-            {
-                m_logger.LogInformation("Certificate store change detected, reloading trust lists and CRLs");
-
-                // Reset validated certificates since trust lists may have changed
-                ResetValidatedCertificates();
-
-                // Raise the certificate update event to notify subscribers
-                CertificateUpdateEventHandler callback = m_CertificateUpdate;
-                if (callback != null && m_securityConfiguration != null)
-                {
-                    var args = new CertificateUpdateEventArgs(
-                        m_securityConfiguration,
-                        GetChannelValidator());
-                    callback(this, args);
-                }
-            }
-            catch (Exception ex)
-            {
-                m_logger.LogError(ex, "Error handling certificate store change");
-            }
-        }
 
         /// <summary>
         /// Updates the validator with a new application certificate.
@@ -2396,8 +2273,6 @@ namespace Opc.Ua
         private ushort m_minimumCertificateKeySize;
         private bool m_useValidatedCertificates;
         private int m_maxRejectedCertificates;
-        private readonly List<ICertificateStore> m_monitoredStores = [];
-        private SecurityConfiguration m_securityConfiguration;
     }
 
     /// <summary>

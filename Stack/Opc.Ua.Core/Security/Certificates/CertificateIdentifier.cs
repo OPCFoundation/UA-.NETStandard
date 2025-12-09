@@ -1020,14 +1020,23 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-#pragma warning disable CS0067 // Event is never used - collection store does not support monitoring
-        public event CertificateStoreChangedEventHandler CertificateStoreChanged;
-#pragma warning restore CS0067
+        public event CertificateStoreChangedEventHandler CertificateStoreChanged
+        {
+            add
+            {
+                // Collection store does not support monitoring - changes must be managed programmatically
+                m_CertificateStoreChanged += value;
+            }
+            remove
+            {
+                m_CertificateStoreChanged -= value;
+            }
+        }
 
         /// <inheritdoc/>
         public void StartMonitoring()
         {
-            // Collection store monitoring is not supported
+            // Collection store monitoring is not supported - changes must be managed programmatically
         }
 
         /// <inheritdoc/>
@@ -1255,6 +1264,9 @@ namespace Opc.Ua
 
         private readonly CertificateIdentifierCollection m_certificates;
         private readonly ITelemetryContext m_telemetry;
+#pragma warning disable CS0067 // Event is never used - collection store does not support monitoring
+        private event CertificateStoreChangedEventHandler m_CertificateStoreChanged;
+#pragma warning restore CS0067
     }
 
     /// <summary>

@@ -248,37 +248,6 @@ namespace Opc.Ua.Client
                 SessionId = null,
                 UserIdentity = null
             };
-
-            // Subscribe to certificate store changes if monitoring is enabled
-            if (m_configuration.SecurityConfiguration.MonitorCertificateStores)
-            {
-                m_configuration.CertificateValidator.CertificateUpdate += OnCertificateUpdate;
-                m_logger.LogInformation("Session configured to automatically reload certificates when certificate stores change");
-            }
-        }
-
-        /// <summary>
-        /// Called when a certificate store change is detected.
-        /// </summary>
-        private void OnCertificateUpdate(CertificateValidator sender, CertificateUpdateEventArgs e)
-        {
-            // Use Task.Run to avoid async void and ensure exceptions are properly logged
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    m_logger.LogInformation("Certificate update detected for session {SessionId}, reloading certificates", SessionId);
-
-                    // Reload the instance certificate
-                    await ReloadInstanceCertificateAsync().ConfigureAwait(false);
-
-                    m_logger.LogInformation("Successfully reloaded certificates for session {SessionId}", SessionId);
-                }
-                catch (Exception ex)
-                {
-                    m_logger.LogError(ex, "Failed to reload certificates for session {SessionId}", SessionId);
-                }
-            });
         }
 
         /// <summary>
@@ -391,13 +360,6 @@ namespace Opc.Ua.Client
 
             if (disposing)
             {
-                // Unsubscribe from certificate update events
-                if (m_configuration?.SecurityConfiguration?.MonitorCertificateStores == true &&
-                    m_configuration.CertificateValidator != null)
-                {
-                    m_configuration.CertificateValidator.CertificateUpdate -= OnCertificateUpdate;
-                }
-
                 StopKeepAliveTimerAsync().AsTask().GetAwaiter().GetResult();
 
                 Utils.SilentDispose(m_defaultSubscription);

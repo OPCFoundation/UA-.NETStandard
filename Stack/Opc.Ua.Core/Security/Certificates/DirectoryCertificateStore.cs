@@ -89,13 +89,35 @@ namespace Opc.Ua
         /// <summary>
         /// Raised when the certificate store contents change.
         /// </summary>
-        public event CertificateStoreChangedEventHandler CertificateStoreChanged;
+        public event CertificateStoreChangedEventHandler CertificateStoreChanged
+        {
+            add
+            {
+                m_CertificateStoreChanged += value;
+                // Start monitoring when first subscriber is added
+                if (m_CertificateStoreChanged != null && !m_isMonitoring)
+                {
+                    StartMonitoring();
+                }
+            }
+            remove
+            {
+                m_CertificateStoreChanged -= value;
+                // Stop monitoring when no more subscribers
+                if (m_CertificateStoreChanged == null && m_isMonitoring)
+                {
+                    StopMonitoring();
+                }
+            }
+        }
 
         /// <summary>
         /// Starts monitoring the certificate store for changes.
         /// </summary>
         public void StartMonitoring()
         {
+            // This method is now called automatically when event subscribers are added
+            // It's kept public for explicit control if needed
             m_lock.Wait();
             try
             {
@@ -137,6 +159,8 @@ namespace Opc.Ua
         /// </summary>
         public void StopMonitoring()
         {
+            // This method is now called automatically when all event subscribers are removed
+            // It's kept public for explicit control if needed
             m_lock.Wait();
             try
             {
@@ -217,7 +241,7 @@ namespace Opc.Ua
             }
 
             // Notify subscribers outside the lock to avoid potential deadlocks
-            CertificateStoreChanged?.Invoke(this, EventArgs.Empty);
+            m_CertificateStoreChanged?.Invoke(this, EventArgs.Empty);
         }
 
         /// <summary>
@@ -1497,5 +1521,6 @@ namespace Opc.Ua
         private bool m_isMonitoring;
         private readonly List<FileSystemWatcher> m_watchers;
         private DateTime m_lastChangeNotification = DateTime.MinValue;
+        private event CertificateStoreChangedEventHandler m_CertificateStoreChanged;
     }
 }
