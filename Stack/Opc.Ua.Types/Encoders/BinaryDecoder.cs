@@ -1905,6 +1905,9 @@ namespace Opc.Ua
                     break;
                 }
                 case BuiltInType.Null:
+                    // For null arrays, return object array with null elements
+                    array = new object[length];
+                    break;
                 case BuiltInType.Number:
                 case BuiltInType.Integer:
                 case BuiltInType.UInteger:

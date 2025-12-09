@@ -2631,6 +2631,27 @@ namespace Opc.Ua
                                 [.. dimensions]);
                             break;
                         case BuiltInType.Null:
+                            if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
+                            {
+                                var newElements = Array.CreateInstance(systemType, elements.Count);
+                                for (int i = 0; i < elements.Count; i++)
+                                {
+                                    newElements.SetValue(
+                                        Convert.ChangeType(
+                                            elements[i],
+                                            systemType,
+                                            CultureInfo.InvariantCulture),
+                                        i);
+                                }
+                                matrix = new Matrix(newElements, builtInType, [.. dimensions]);
+                                break;
+                            }
+                            // For null arrays, create object array with null elements
+                            matrix = new Matrix(
+                                elements.Cast<object>().ToArray(),
+                                builtInType,
+                                [.. dimensions]);
+                            break;
                         case BuiltInType.Number:
                         case BuiltInType.Integer:
                         case BuiltInType.UInteger:
