@@ -45,7 +45,7 @@ namespace Opc.Ua
     /// <summary>
     /// Validates certificates.
     /// </summary>
-    public class CertificateValidator : ICertificateValidator
+    public class CertificateValidator : ICertificateValidator, IDisposable
     {
         /// <summary>
         /// default number of rejected certificates for history
@@ -77,6 +77,26 @@ namespace Opc.Ua
             m_minimumCertificateKeySize = CertificateFactory.DefaultKeySize;
             m_useValidatedCertificates = false;
             m_maxRejectedCertificates = kDefaultMaxRejectedCertificates;
+        }
+
+        /// <summary>
+        /// Disposes of the certificate validator and stops monitoring certificate stores.
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// An overrideable version of the Dispose.
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                StopMonitoring();
+            }
         }
 
         /// <summary>
@@ -358,7 +378,7 @@ namespace Opc.Ua
         /// <summary>
         /// Called when a monitored certificate store changes.
         /// </summary>
-        private async void OnCertificateStoreChanged(object sender, EventArgs e)
+        private void OnCertificateStoreChanged(object sender, EventArgs e)
         {
             try
             {
