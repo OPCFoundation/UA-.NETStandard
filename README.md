@@ -11,6 +11,8 @@ This OPC UA reference implementation targets .NET Framework, .NET, and [.NET Sta
 
 One of the reference implementations inside this project has been certified for compliance through an OPC Foundation Certification Test Lab to prove its high quality. Fixes and enhancements since the certification process have been tested and verified for compliance using the latest Compliance Test Tool (CTT).
 
+For a comprehensive list of supported [OPC UA Profiles and Facets](Docs/Profiles.md), see the dedicated documentation.
+
 More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/) packages can be found in the [OPC UA .NET Samples](https://github.com/OPCFoundation/UA-.NETStandard-Samples) repository. For development there is also a [preview Nuget feed](https://opcfoundation.visualstudio.com/opcua-netstandard/_packaging?_a=feed&feed=opcua-preview%40Local) available. For local testing a [Docker container of the Reference Server](Docs/ContainerReferenceServer.md) is available for preview and release builds.
 
 ### Features included
