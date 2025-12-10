@@ -1391,12 +1391,17 @@ namespace Opc.Ua
                     case BuiltInType.DiagnosticInfo:
                         return ReadDiagnosticInfoArray(fieldName)?.ToArray();
                     case BuiltInType.Null:
-                        // For null arrays, read the array length and return object array with null elements.
+                        // For null arrays, read the array length and return array with null elements.
                         // Array length of -1 indicates a null array reference (not an array with null elements).
+                        // Use systemType if provided, otherwise use object[].
                         int nullArrayLength = ReadArrayLength();
                         if (nullArrayLength < 0)
                         {
                             return null;
+                        }
+                        if (systemType != null)
+                        {
+                            return Array.CreateInstance(systemType, nullArrayLength);
                         }
                         return new object[nullArrayLength];
                     case BuiltInType.Number:
