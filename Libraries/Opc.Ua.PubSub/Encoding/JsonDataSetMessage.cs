@@ -499,8 +499,12 @@ namespace Opc.Ua.PubSub.Encoding
 
             Variant valueToEncode = field.Value.WrappedValue;
 
-            // The StatusCode.Good value is not encoded correctly then it shall be committed
-            if (valueToEncode == StatusCodes.Good &&
+            // Only treat an actual StatusCode value equal to Good as null to avoid misencoding
+            bool isStatusCodeValue =
+                valueToEncode.TypeInfo?.BuiltInType == BuiltInType.StatusCode ||
+                valueToEncode.Value is StatusCode;
+            if (isStatusCodeValue &&
+                valueToEncode == StatusCodes.Good &&
                 m_fieldTypeEncoding != FieldTypeEncodingMask.Variant)
             {
                 valueToEncode = Variant.Null;
