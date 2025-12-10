@@ -2335,7 +2335,12 @@ namespace Opc.Ua
                     case BuiltInType.DiagnosticInfo:
                         return ReadDiagnosticInfoArray(fieldName).ToArray();
                     case BuiltInType.Null:
-                        // For null arrays, read the array structure and return array with null elements.
+                        // For encodeable types with BuiltInType.Null, use the encodeable array reader
+                        if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
+                        {
+                            return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
+                        }
+                        // For null arrays without encodeable type, read the array structure and return array with null elements.
                         // We only need the array count since all elements are expected to be null.
                         // Use systemType if provided, otherwise use object[].
                         if (!ReadArrayField(fieldName, out List<object> nullArrayToken))
@@ -2638,16 +2643,9 @@ namespace Opc.Ua
                         case BuiltInType.Null:
                             if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                             {
+                                // For null elements of a specific encodeable type, create array with nulls
                                 var newElements = Array.CreateInstance(systemType, elements.Count);
-                                for (int i = 0; i < elements.Count; i++)
-                                {
-                                    newElements.SetValue(
-                                        Convert.ChangeType(
-                                            elements[i],
-                                            systemType,
-                                            CultureInfo.InvariantCulture),
-                                        i);
-                                }
+                                // Elements are already null, no need to set them explicitly
                                 matrix = new Matrix(newElements, builtInType, [.. dimensions]);
                                 break;
                             }
