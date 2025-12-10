@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.PubSub
@@ -68,7 +69,7 @@ namespace Opc.Ua.PubSub
                 WriterGroupConfiguration.Name,
                 WriterGroupConfiguration.PublishingInterval,
                 CanPublish,
-                PublishMessages,
+                PublishMessagesAsync,
                 telemetry);
         }
 
@@ -143,7 +144,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Generate and publish the messages
         /// </summary>
-        private void PublishMessages()
+        private async Task PublishMessagesAsync()
         {
             try
             {
@@ -156,7 +157,7 @@ namespace Opc.Ua.PubSub
                     {
                         if (uaNetworkMessage != null)
                         {
-                            bool success = PubSubConnection.PublishNetworkMessage(uaNetworkMessage);
+                            bool success = await PubSubConnection.PublishNetworkMessageAsync(uaNetworkMessage).ConfigureAwait(false);
                             m_logger.LogDebug(
                                 "UaPublisher - PublishNetworkMessage, WriterGroupId:{WriterGroupId}; success = {Success}",
                                 WriterGroupConfiguration.WriterGroupId,
