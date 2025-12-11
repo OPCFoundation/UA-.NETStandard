@@ -595,6 +595,17 @@ namespace Opc.Ua.Gds.Client
                 }
                 strm.Position = 0;
 
+                // Validate trust list size before attempting to write
+                const int kMaxTrustListSize = 16 * 1024 * 1024; // 16MB max
+                if (strm.Length > kMaxTrustListSize)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "Trust list size {0} exceeds maximum allowed size of {1} bytes",
+                        strm.Length,
+                        kMaxTrustListSize);
+                }
+
                 System.Collections.Generic.IList<object> outputArguments = await session.CallAsync(
                     ExpandedNodeId.ToNodeId(
                         Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList,

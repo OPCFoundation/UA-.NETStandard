@@ -1456,6 +1456,10 @@ namespace Opc.Ua.Gds.Client
             using var ostrm = new MemoryStream();
             try
             {
+                // Use a reasonable maximum size limit for trust lists (default 1MB, configurable up to 16MB)
+                const int kMaxTrustListSize = 16 * 1024 * 1024; // 16MB max
+                long totalBytesRead = 0;
+
                 while (true)
                 {
                     const int length = 4096;
@@ -1468,6 +1472,17 @@ namespace Opc.Ua.Gds.Client
                         length).ConfigureAwait(false);
 
                     byte[] bytes = (byte[])outputArguments[0];
+                    
+                    // Validate total size before writing
+                    totalBytesRead += bytes.Length;
+                    if (totalBytesRead > kMaxTrustListSize)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadEncodingLimitsExceeded,
+                            "Trust list size exceeds maximum allowed size of {0} bytes",
+                            kMaxTrustListSize);
+                    }
+
                     ostrm.Write(bytes, 0, bytes.Length);
 
                     if (length != bytes.Length)
