@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -89,10 +89,14 @@ namespace Opc.Ua
 #endif
         }
 
+        /// <summary>
+        /// Shared telemetry context instance (singleton)
+        /// </summary>
+        private static readonly TraceLoggerTelemetry s_sharedTelemetry = new();
+
         static Utils()
         {
-            TelemetryExtensions.InternalOnly__TelemetryHook =
-                () => new TraceLoggerTelemetry();
+            TelemetryExtensions.InternalOnly__TelemetryHook = () => s_sharedTelemetry;
         }
 
         /// <summary>

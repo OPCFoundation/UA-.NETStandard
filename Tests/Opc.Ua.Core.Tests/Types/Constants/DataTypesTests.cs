@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -163,6 +163,63 @@ namespace Opc.Ua.Core.Tests.Types.Constants
                 string browseName = DataTypes.GetBrowseName(id);
                 uint retrievedId = DataTypes.GetIdentifier(browseName);
                 Assert.AreEqual((uint)id, retrievedId);
+            }
+        }
+
+        /// <summary>
+        /// Test GetDataTypeId for EUInformation type returns specific DataTypeId (i=887) not Structure (i=22).
+        /// </summary>
+        [Test]
+        public void GetDataTypeId_EUInformationType_ReturnsSpecificDataTypeId()
+        {
+            NodeId dataTypeId = DataTypes.GetDataTypeId(typeof(EUInformation));
+            
+            Assert.IsNotNull(dataTypeId);
+            Assert.AreEqual(DataTypes.EUInformation, (uint)dataTypeId.Identifier);
+            Assert.AreEqual(0, dataTypeId.NamespaceIndex);
+            Assert.AreNotEqual(DataTypes.Structure, (uint)dataTypeId.Identifier, 
+                "Should return specific EUInformation DataTypeId (i=887), not generic Structure (i=22)");
+        }
+
+        /// <summary>
+        /// Test GetDataTypeId for EUInformation instance returns specific DataTypeId.
+        /// </summary>
+        [Test]
+        public void GetDataTypeId_EUInformationInstance_ReturnsSpecificDataTypeId()
+        {
+            var euInfo = new EUInformation("unit", "http://test.org");
+            NodeId dataTypeId = DataTypes.GetDataTypeId(euInfo);
+            
+            Assert.IsNotNull(dataTypeId);
+            Assert.AreEqual(DataTypes.EUInformation, (uint)dataTypeId.Identifier);
+            Assert.AreEqual(0, dataTypeId.NamespaceIndex);
+        }
+
+        /// <summary>
+        /// Test GetDataTypeId for various well-known IEncodeable types returns their specific DataTypeIds.
+        /// </summary>
+        [Test]
+        public void GetDataTypeId_WellKnownEncodeableTypes_ReturnsSpecificDataTypeIds()
+        {
+            // Test various well-known types that implement IEncodeable
+            var testCases = new[]
+            {
+                (typeof(EUInformation), DataTypes.EUInformation),
+                (typeof(Range), DataTypes.Range),
+                (typeof(Argument), DataTypes.Argument),
+                (typeof(EnumValueType), DataTypes.EnumValueType),
+                (typeof(TimeZoneDataType), DataTypes.TimeZoneDataType)
+            };
+
+            foreach (var (type, expectedId) in testCases)
+            {
+                NodeId dataTypeId = DataTypes.GetDataTypeId(type);
+                
+                Assert.IsNotNull(dataTypeId, $"DataTypeId should not be null for {type.Name}");
+                Assert.AreEqual(expectedId, (uint)dataTypeId.Identifier, 
+                    $"DataTypeId for {type.Name} should be i={expectedId}, not i={dataTypeId.Identifier}");
+                Assert.AreEqual(0, dataTypeId.NamespaceIndex, 
+                    $"NamespaceIndex should be 0 for {type.Name}");
             }
         }
     }

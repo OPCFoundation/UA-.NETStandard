@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -1633,7 +1633,7 @@ namespace Opc.Ua.Server
                     DataValue value = values[ii] = new DataValue();
 
                     value.Value = null;
-                    value.ServerTimestamp = DateTime.UtcNow;
+                    value.ServerTimestamp = DateTime.MinValue; // Will be set after ReadAttribute
                     value.SourceTimestamp = DateTime.MinValue;
                     value.StatusCode = StatusCodes.Good;
 
@@ -1656,6 +1656,26 @@ namespace Opc.Ua.Server
                         nodeToRead.ParsedIndexRange,
                         nodeToRead.DataEncoding,
                         value);
+
+                    // Set timestamps after ReadAttribute to ensure consistency
+                    // For Value attributes, match ServerTimestamp to SourceTimestamp
+                    // For other attributes, just ensure ServerTimestamp is set
+                    if (nodeToRead.AttributeId == Attributes.Value)
+                    {
+                        if (value.SourceTimestamp == DateTime.MinValue)
+                        {
+                            value.SourceTimestamp = DateTime.UtcNow;
+                        }
+                        value.ServerTimestamp = value.SourceTimestamp;
+                    }
+                    else
+                    {
+                        // For non-value attributes, only ServerTimestamp is relevant
+                        if (value.ServerTimestamp == DateTime.MinValue)
+                        {
+                            value.ServerTimestamp = DateTime.UtcNow;
+                        }
+                    }
 #if DEBUG
                     if (nodeToRead.AttributeId == Attributes.Value)
                     {
@@ -3146,31 +3166,26 @@ namespace Opc.Ua.Server
                     {
                         argumentsValid = false;
                     }
-                }
-                else
-                {
-                    result.InputArgumentResults.Add(StatusCodes.Good);
-                }
 
-                // only fill in diagnostic info if it is requested.
-                if (systemContext.OperationContext != null &&
-                    (systemContext.OperationContext.DiagnosticsMask &
-                        DiagnosticsMasks.OperationAll) != 0)
-                {
-                    if (ServiceResult.IsBad(argumentError))
+                    // only fill in diagnostic info if it is requested.
+                    if (systemContext.OperationContext != null &&
+                        (systemContext.OperationContext.DiagnosticsMask &
+                            DiagnosticsMasks.OperationAll) != 0)
                     {
-                        argumentsValid = false;
-                        result.InputArgumentDiagnosticInfos.Add(
-                            new DiagnosticInfo(
-                                argumentError,
-                                systemContext.OperationContext.DiagnosticsMask,
-                                false,
-                                systemContext.OperationContext.StringTable,
-                                m_logger));
-                    }
-                    else
-                    {
-                        result.InputArgumentDiagnosticInfos.Add(null);
+                        if (ServiceResult.IsBad(argumentError))
+                        {
+                            result.InputArgumentDiagnosticInfos.Add(
+                                new DiagnosticInfo(
+                                    argumentError,
+                                    systemContext.OperationContext.DiagnosticsMask,
+                                    false,
+                                    systemContext.OperationContext.StringTable,
+                                    m_logger));
+                        }
+                        else
+                        {
+                            result.InputArgumentDiagnosticInfos.Add(null);
+                        }
                     }
                 }
             }
@@ -3182,8 +3197,10 @@ namespace Opc.Ua.Server
                 return result.StatusCode;
             }
 
-            // do not return diagnostics if there are no errors.
+            // Per OPC UA Part 4, Section 5.12: InputArgumentResults must be empty when StatusCode is Good.
+            // Clear diagnostics and argument results if there are no errors.
             result.InputArgumentDiagnosticInfos.Clear();
+            result.InputArgumentResults.Clear();
 
             // return output arguments.
             result.OutputArguments = outputArguments;

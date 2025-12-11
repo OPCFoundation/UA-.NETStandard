@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -1013,29 +1014,44 @@ namespace Opc.Ua.Client
             }
 
             using Activity? activity = m_telemetry.StartActivity();
-            // create monitored items.
-            CreateMonitoredItemsResponse response = await Session
-                .CreateMonitoredItemsAsync(null, Id, TimestampsToReturn, requestItems, ct)
-                .ConfigureAwait(false);
-
-            MonitoredItemCreateResultCollection results = response.Results;
-            ClientBase.ValidateResponse(results, itemsToCreate);
-            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, itemsToCreate);
-
-            // update results.
-            for (int ii = 0; ii < results.Count; ii++)
+            try
             {
-                itemsToCreate[ii]
-                    .SetCreateResult(
-                        requestItems[ii],
-                        results[ii],
-                        ii,
-                        response.DiagnosticInfos,
-                        response.ResponseHeader);
+                // create monitored items.
+                CreateMonitoredItemsResponse response = await Session
+                    .CreateMonitoredItemsAsync(null, Id, TimestampsToReturn, requestItems, ct)
+                    .ConfigureAwait(false);
+
+                MonitoredItemCreateResultCollection results = response.Results;
+                ClientBase.ValidateResponse(results, itemsToCreate);
+                ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, itemsToCreate);
+
+                // update results.
+                for (int ii = 0; ii < results.Count; ii++)
+                {
+                    itemsToCreate[ii]
+                        .SetCreateResult(
+                            requestItems[ii],
+                            results[ii],
+                            ii,
+                            response.DiagnosticInfos,
+                            response.ResponseHeader);
+                }
+            }
+            catch
+            {
+                // Clear the Creating flag on all items if an exception occurs
+                foreach (MonitoredItem monitoredItem in itemsToCreate)
+                {
+                    monitoredItem.Status.Creating = false;
+                }
+                throw;
             }
 
             m_changeMask |= SubscriptionChangeMask.ItemsCreated;
             ChangesCompleted();
+
+            // Restore triggering relationships after items are created
+            await RestoreTriggeringAsync(ct).ConfigureAwait(false);
 
             // return the list of items affected by the change.
             return itemsToCreate;
@@ -1137,6 +1153,82 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Restores triggering relationships for monitored items that were
+        /// configured with triggers before reconnection.
+        /// </summary>
+        private async Task RestoreTriggeringAsync(CancellationToken ct = default)
+        {
+            VerifySessionAndSubscriptionState(true);
+
+            // Build triggering groups outside of lock to avoid await in lock
+            Dictionary<uint, List<uint>> triggeringGroups;
+            lock (m_cache)
+            {
+                // Group monitored items by their triggering item
+                triggeringGroups = new Dictionary<uint, List<uint>>();
+                foreach (MonitoredItem item in m_monitoredItems.Values)
+                {
+                    if (item.TriggeredItems != null && item.TriggeredItems.Count > 0)
+                    {
+                        // This item triggers other items
+                        var triggeredServerIds = new List<uint>();
+                        foreach (uint triggeredClientHandle in item.TriggeredItems)
+                        {
+                            // Find the monitored item by client handle
+                            if (m_monitoredItems.TryGetValue(triggeredClientHandle, out MonitoredItem? triggeredItem) &&
+                                triggeredItem.Status.Created)
+                            {
+                                triggeredServerIds.Add(triggeredItem.Status.Id);
+                            }
+                        }
+
+                        if (triggeredServerIds.Count > 0)
+                        {
+                            if (!triggeringGroups.TryGetValue(item.Status.Id, out List<uint>? list))
+                            {
+                                list = [];
+                                triggeringGroups[item.Status.Id] = list;
+                            }
+                            list.AddRange(triggeredServerIds);
+                        }
+                    }
+                }
+            }
+
+            // Call SetTriggering for each triggering item
+            foreach (var kvp in triggeringGroups)
+            {
+                uint triggeringItemId = kvp.Key;
+                var linksToAdd = new UInt32Collection(kvp.Value);
+
+                try
+                {
+                    await Session.SetTriggeringAsync(
+                        null,
+                        Id,
+                        triggeringItemId,
+                        linksToAdd,
+                        null,
+                        ct).ConfigureAwait(false);
+
+                    m_logger.LogInformation(
+                        "Restored {Count} triggering links for MonitoredItem {TriggeringItemId} in Subscription {SubscriptionId}",
+                        linksToAdd.Count,
+                        triggeringItemId,
+                        Id);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogError(
+                        ex,
+                        "Failed to restore triggering links for MonitoredItem {TriggeringItemId} in Subscription {SubscriptionId}",
+                        triggeringItemId,
+                        Id);
+                }
+            }
+        }
+
+        /// <summary>
         /// Set monitoring mode of items.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="monitoredItems"/>
@@ -1195,6 +1287,125 @@ namespace Opc.Ua.Client
             }
 
             return errors;
+        }
+
+        /// <summary>
+        /// Sets the triggering relationships for a monitored item in this subscription
+        /// and tracks them for automatic restoration after reconnection.
+        /// </summary>
+        /// <param name="triggeringItem">The monitored item that will trigger other items.</param>
+        /// <param name="linksToAdd">Monitored items to be reported when the triggering item changes.</param>
+        /// <param name="linksToRemove">Monitored items to stop reporting when the triggering item changes.</param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>The response from the server.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when triggeringItem is null.</exception>
+        /// <exception cref="ServiceResultException">Thrown when the operation fails.</exception>
+        public async Task<SetTriggeringResponse> SetTriggeringAsync(
+            MonitoredItem triggeringItem,
+            IList<MonitoredItem>? linksToAdd,
+            IList<MonitoredItem>? linksToRemove,
+            CancellationToken ct = default)
+        {
+            if (triggeringItem == null)
+            {
+                throw new ArgumentNullException(nameof(triggeringItem));
+            }
+
+            using Activity? activity = m_telemetry.StartActivity();
+            VerifySessionAndSubscriptionState(true);
+
+            if (!triggeringItem.Status.Created)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState,
+                    "Triggering item has not been created on the server.");
+            }
+
+            // Convert monitored items to server IDs
+            var serverIdsToAdd = new UInt32Collection();
+            var clientHandlesToAdd = new UInt32Collection();
+            if (linksToAdd != null)
+            {
+                foreach (MonitoredItem item in linksToAdd)
+                {
+                    if (!item.Status.Created)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadInvalidState,
+                            $"Monitored item '{item.DisplayName}' has not been created on the server.");
+                    }
+                    serverIdsToAdd.Add(item.Status.Id);
+                    clientHandlesToAdd.Add(item.ClientHandle);
+                }
+            }
+
+            var serverIdsToRemove = new UInt32Collection();
+            var clientHandlesToRemove = new UInt32Collection();
+            if (linksToRemove != null)
+            {
+                foreach (MonitoredItem item in linksToRemove)
+                {
+                    if (!item.Status.Created)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadInvalidState,
+                            $"Monitored item '{item.DisplayName}' has not been created on the server.");
+                    }
+                    serverIdsToRemove.Add(item.Status.Id);
+                    clientHandlesToRemove.Add(item.ClientHandle);
+                }
+            }
+
+            // Call the Session SetTriggering method
+            SetTriggeringResponse response = await Session.SetTriggeringAsync(
+                null,
+                Id,
+                triggeringItem.Status.Id,
+                serverIdsToAdd,
+                serverIdsToRemove,
+                ct).ConfigureAwait(false);
+
+            // Update the triggering relationships for automatic restoration
+            lock (m_cache)
+            {
+                // Initialize the triggered items collection if needed
+                triggeringItem.TriggeredItems ??= new UInt32Collection();
+
+                // Add new links
+                if (clientHandlesToAdd.Count > 0)
+                {
+                    foreach (uint clientHandle in clientHandlesToAdd)
+                    {
+                        if (!triggeringItem.TriggeredItems.Contains(clientHandle))
+                        {
+                            triggeringItem.TriggeredItems.Add(clientHandle);
+                        }
+
+                        // Update the triggered item to remember its triggering item
+                        if (m_monitoredItems.TryGetValue(clientHandle, out MonitoredItem? triggeredItem))
+                        {
+                            triggeredItem.TriggeringItemId = triggeringItem.Status.Id;
+                        }
+                    }
+                }
+
+                // Remove links
+                if (clientHandlesToRemove.Count > 0)
+                {
+                    foreach (uint clientHandle in clientHandlesToRemove)
+                    {
+                        triggeringItem.TriggeredItems.Remove(clientHandle);
+
+                        // Clear the triggering item reference
+                        if (m_monitoredItems.TryGetValue(clientHandle, out MonitoredItem? triggeredItem))
+                        {
+                            triggeredItem.TriggeringItemId = 0;
+                        }
+                    }
+                }
+            }
+
+            return response;
         }
 
         /// <summary>
@@ -1348,6 +1559,9 @@ namespace Opc.Ua.Client
 
             m_changeMask |= SubscriptionChangeMask.Transferred;
             ChangesCompleted();
+
+            // Restore triggering relationships after subscription transfer
+            await RestoreTriggeringAsync(ct).ConfigureAwait(false);
 
             StartKeepAliveTimer();
 
@@ -1549,7 +1763,7 @@ namespace Opc.Ua.Client
 
             lock (m_cache)
             {
-                if (!m_monitoredItems.Remove(monitoredItem.ClientHandle))
+                if (!m_monitoredItems.TryRemove(monitoredItem.ClientHandle, out _))
                 {
                     return;
                 }
@@ -1583,7 +1797,7 @@ namespace Opc.Ua.Client
             {
                 foreach (MonitoredItem monitoredItem in monitoredItems)
                 {
-                    if (m_monitoredItems.Remove(monitoredItem.ClientHandle))
+                    if (m_monitoredItems.TryRemove(monitoredItem.ClientHandle, out _))
                     {
                         monitoredItem.Subscription = null;
 
@@ -2593,8 +2807,8 @@ namespace Opc.Ua.Client
             {
                 foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
                 {
-                    // ignore items that have been created.
-                    if (monitoredItem.Status.Created)
+                    // ignore items that have been created or are being created.
+                    if (monitoredItem.Status.Created || monitoredItem.Status.Creating)
                     {
                         continue;
                     }
@@ -2622,6 +2836,13 @@ namespace Opc.Ua.Client
 
                     requestItems.Add(request);
                     itemsToCreate.Add(monitoredItem);
+                }
+
+                // Mark all items as being created before releasing the lock
+                // to prevent duplicate creation requests in multi-threaded scenarios
+                foreach (MonitoredItem monitoredItem in itemsToCreate)
+                {
+                    monitoredItem.Status.Creating = true;
                 }
             }
             return (requestItems, itemsToCreate);
@@ -2680,7 +2901,7 @@ namespace Opc.Ua.Client
             {
                 int count = clientHandles.Count;
                 itemsToModify = new List<MonitoredItem>(count);
-                var updatedMonitoredItems = new Dictionary<uint, MonitoredItem>(count);
+                var updatedMonitoredItems = new ConcurrentDictionary<uint, MonitoredItem>(1, count);
                 foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
                 {
                     int index = serverHandles.FindIndex(
@@ -2771,19 +2992,14 @@ namespace Opc.Ua.Client
             {
                 MonitoredItemNotification notification = notifications.MonitoredItems[ii];
 
-                // lookup monitored item,
-                MonitoredItem? monitoredItem;
-                lock (m_cache)
+                if (!m_monitoredItems.TryGetValue(notification.ClientHandle, out var monitoredItem))
                 {
-                    if (!m_monitoredItems.TryGetValue(notification.ClientHandle, out monitoredItem))
-                    {
-                        m_logger.LogWarning(
-                            "Publish response contains invalid MonitoredItem. " +
-                            "SubscriptionId={SubscriptionId}, ClientHandle = {ClientHandle}",
-                            Id,
-                            notification.ClientHandle);
-                        continue;
-                    }
+                    m_logger.LogWarning(
+                        "Publish response contains invalid MonitoredItem. " +
+                        "SubscriptionId={SubscriptionId}, ClientHandle = {ClientHandle}",
+                        Id,
+                        notification.ClientHandle);
+                    continue;
                 }
 
                 // save the message.
@@ -2927,7 +3143,7 @@ namespace Opc.Ua.Client
         private readonly Lock m_cache = new();
         private readonly LinkedList<NotificationMessage> m_messageCache = new();
         private IList<uint>? m_availableSequenceNumbers;
-        private Dictionary<uint, MonitoredItem> m_monitoredItems = [];
+        private ConcurrentDictionary<uint, MonitoredItem> m_monitoredItems = new();
         private readonly AsyncAutoResetEvent m_messageWorkerEvent = new();
         private CancellationTokenSource? m_messageWorkerCts;
         private Task? m_messageWorkerTask;

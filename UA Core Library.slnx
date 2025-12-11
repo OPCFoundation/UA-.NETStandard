@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/Applications/">
+    <Project Path="Applications/Quickstarts.Servers/Quickstarts.Servers.csproj" />
+  </Folder>
   <Folder Name="/Libraries/">
     <Project Path="Libraries/Opc.Ua.Client.ComplexTypes/Opc.Ua.Client.ComplexTypes.csproj" />
     <Project Path="Libraries/Opc.Ua.Client/Opc.Ua.Client.csproj" />
