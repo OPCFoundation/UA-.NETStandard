@@ -344,9 +344,7 @@ namespace Opc.Ua.Gds.Server
         {
             try
             {
-                var pkcs10CertificationRequest
-                    = new Org.BouncyCastle.Pkcs.Pkcs10CertificationRequest(
-                    certificateRequest);
+                var pkcs10CertificationRequest = new Pkcs10CertificationRequest(certificateRequest);
 
                 if (!pkcs10CertificationRequest.Verify())
                 {
@@ -355,9 +353,8 @@ namespace Opc.Ua.Gds.Server
                         "CSR signature invalid.");
                 }
 
-                Org.BouncyCastle.Asn1.Pkcs.CertificationRequestInfo info =
-                    pkcs10CertificationRequest.GetCertificationRequestInfo();
-                X509SubjectAltNameExtension altNameExtension = GetAltNameExtensionFromCSRInfo(info);
+                X509SubjectAltNameExtension altNameExtension = 
+                    Pkcs10Utils.GetSubjectAltNameExtension(pkcs10CertificationRequest.Attributes);
                 if (altNameExtension != null &&
                     altNameExtension.Uris.Count > 0 &&
                     !altNameExtension.Uris.Contains(application.ApplicationUri))
@@ -383,9 +380,7 @@ namespace Opc.Ua.Gds.Server
         {
             try
             {
-                var pkcs10CertificationRequest
-                    = new Org.BouncyCastle.Pkcs.Pkcs10CertificationRequest(
-                    certificateRequest);
+                var pkcs10CertificationRequest = new Pkcs10CertificationRequest(certificateRequest);
 
                 if (!pkcs10CertificationRequest.Verify())
                 {
@@ -394,9 +389,8 @@ namespace Opc.Ua.Gds.Server
                         "CSR signature invalid.");
                 }
 
-                Org.BouncyCastle.Asn1.Pkcs.CertificationRequestInfo info =
-                    pkcs10CertificationRequest.GetCertificationRequestInfo();
-                X509SubjectAltNameExtension altNameExtension = GetAltNameExtensionFromCSRInfo(info);
+                X509SubjectAltNameExtension altNameExtension = 
+                    Pkcs10Utils.GetSubjectAltNameExtension(pkcs10CertificationRequest.Attributes);
                 if (altNameExtension != null)
                 {
                     if (altNameExtension.Uris.Count > 0 &&
@@ -433,7 +427,7 @@ namespace Opc.Ua.Gds.Server
                     m_telemetry,
                     ct)
                     .ConfigureAwait(false);
-                var subjectName = new X500DistinguishedName(info.Subject.GetEncoded());
+                var subjectName = pkcs10CertificationRequest.Subject;
 
                 ICertificateBuilder builder = CertificateBuilder
                     .Create(subjectName)
@@ -445,13 +439,13 @@ namespace Opc.Ua.Gds.Server
                 return TryGetECCCurve(certificateType, out ECCurve curve)
                     ? builder
                         .SetIssuer(signingKey)
-                        .SetECDsaPublicKey(info.SubjectPublicKeyInfo.GetEncoded())
+                        .SetECDsaPublicKey(pkcs10CertificationRequest.SubjectPublicKeyInfo)
                         .CreateForECDsa()
                     : builder
                         .SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(
                             Configuration.DefaultCertificateHashSize))
                         .SetIssuer(signingKey)
-                        .SetRSAPublicKey(info.SubjectPublicKeyInfo.GetEncoded())
+                        .SetRSAPublicKey(pkcs10CertificationRequest.SubjectPublicKeyInfo)
                         .CreateForRSA();
             }
             catch (Exception ex) when (ex is not ServiceResultException)
@@ -766,47 +760,6 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        protected X509SubjectAltNameExtension GetAltNameExtensionFromCSRInfo(
-            Org.BouncyCastle.Asn1.Pkcs.CertificationRequestInfo info)
-        {
-            try
-            {
-                for (int i = 0; i < info.Attributes.Count; i++)
-                {
-                    var sequence = Org.BouncyCastle.Asn1.Asn1Sequence
-                        .GetInstance(info.Attributes[i].ToAsn1Object());
-                    var oid = Org.BouncyCastle.Asn1.DerObjectIdentifier
-                        .GetInstance(sequence[0].ToAsn1Object());
-                    if (oid.Equals(
-                        Org.BouncyCastle.Asn1.Pkcs.PkcsObjectIdentifiers.Pkcs9AtExtensionRequest))
-                    {
-                        var extensionInstance = Org.BouncyCastle.Asn1.Asn1Set
-                            .GetInstance(sequence[1]);
-                        var extensionSequence = Org.BouncyCastle.Asn1.Asn1Sequence
-                            .GetInstance(extensionInstance[0]);
-                        var extensions = Org.BouncyCastle.Asn1.X509.X509Extensions
-                            .GetInstance(extensionSequence);
-                        Org.BouncyCastle.Asn1.X509.X509Extension extension = extensions
-                            .GetExtension(
-                                Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectAlternativeName);
-                        var asnEncodedAltNameExtension = new AsnEncodedData(
-                            Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectAlternativeName
-                                .ToString(),
-                            extension.Value.GetOctets());
-                        return new X509SubjectAltNameExtension(
-                            asnEncodedAltNameExtension,
-                            extension.IsCritical);
-                    }
-                }
-            }
-            catch
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadInvalidArgument,
-                    "CSR altNameExtension invalid.");
-            }
-            return null;
-        }
 
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
