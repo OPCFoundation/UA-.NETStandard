@@ -108,12 +108,12 @@ namespace SecurityTestClient
                     ServerUrl,
                     ct).ConfigureAwait(false);
 
-                // endpoints = endpoints.Where(x => x.SecurityPolicyUri == SecurityPolicies.ECC_nistP256_AesGcm).ToList();
+                //endpoints = endpoints.Where(x => x.SecurityPolicyUri == SecurityPolicies.RSA_DH_ChaChaPoly).ToList();
 
                 var endpointConfiguration = EndpointConfiguration.Create(m_configuration);
                 var sessionFactory = new DefaultSessionFactory(m_context);
                 var userNameidentity = new UserIdentity("sysadmin", new UTF8Encoding(false).GetBytes("demo"));
-                // var userNameidentity = new UserIdentity("usr", new UTF8Encoding(false).GetBytes("pwd"));
+                //var userNameidentity = new UserIdentity("usr", new UTF8Encoding(false).GetBytes("pwd"));
 
                 foreach (var ii in endpoints)
                 {

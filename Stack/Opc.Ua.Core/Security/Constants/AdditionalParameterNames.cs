@@ -25,10 +25,5 @@ namespace Opc.Ua
         /// Padding bytes added to randomize the length of messages.
         /// </summary>
         public const string Padding = "Padding";
-
-        /// <summary>
-        /// A token used to authenticate a transfer of a session to a new secure channel.
-        /// </summary>
-        public const string SessionTransferToken = "SessionTransferToken";
     }
 }

@@ -219,8 +219,7 @@ namespace Opc.Ua.Server
                 }
 
                 // create server nonce.
-                var serverNonceObject = Nonce.CreateNonce(
-                    context.ChannelContext.EndpointDescription.SecurityPolicyUri);
+                var serverNonceObject = Nonce.CreateNonce(0);
 
                 // assign client name.
                 if (string.IsNullOrEmpty(sessionName))
@@ -532,34 +531,6 @@ namespace Opc.Ua.Server
 
                 throw new ServiceResultException(e, StatusCodes.BadUnexpectedError);
             }
-        }
-
-        /// <summary>
-        /// Validates the session transfer token prior to processing an ActivateSession request.
-        /// </summary>
-        public void ValidateSessionTransferToken(
-            OperationContext context,
-            NodeId authenticationToken,
-            byte[] sessionActivationToken)
-        {
-            ISession session = null;
-
-            if (!m_sessions.TryGetValue(authenticationToken, out session))
-            {
-                throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
-            }
-
-            if (session.SecureChannelId != context.ChannelContext.SecureChannelId)
-            {
-                session.ValidateSessionTransferToken(context, sessionActivationToken);
-            }
-#if DEBUG
-            // always check when debugging.
-            else if (sessionActivationToken != null)
-            {
-                session.ValidateSessionTransferToken(context, sessionActivationToken);
-            }
-#endif
         }
 
         /// <summary>

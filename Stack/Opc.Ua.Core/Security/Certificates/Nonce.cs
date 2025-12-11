@@ -175,6 +175,15 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Generates a Nonce for cryptographic functions of a given length.
+        /// </summary>
+        /// <returns>The requested Nonce as a</returns>
+        public static Nonce CreateNonce(int length)
+        {
+            return new Nonce { Data = CreateRandomNonceData(length) };
+        }
+
+        /// <summary>
         /// Creates a nonce for the specified security policy URI and nonce length.
         /// </summary>
         public static Nonce CreateNonce(string securityPolicyUri)
@@ -201,7 +210,7 @@ namespace Opc.Ua
                         //2048 => CreateNonce(RSADiffieHellmanGroup.FFDHE2048),
                         //3072 => CreateNonce(RSADiffieHellmanGroup.FFDHE3072),
                         //4096 => CreateNonce(RSADiffieHellmanGroup.FFDHE4096),
-                        _ => CreateNonce(RSADiffieHellmanGroup.FFDHE4096)
+                        _ => CreateNonce(RSADiffieHellmanGroup.FFDHE3072)
                     };
                 case CertificateKeyAlgorithm.NistP256:
                     return CreateNonce(ECCurve.NamedCurves.nistP256);
@@ -275,6 +284,11 @@ namespace Opc.Ua
         /// <returns>The requested Nonce as a</returns>
         public static byte[] CreateRandomNonceData(int length)
         {
+            if (length < s_minNonceLength)
+            {
+                length = (int)s_minNonceLength;
+            }
+
             byte[] randomBytes = new byte[length];
             s_rng.GetBytes(randomBytes);
             return randomBytes;
@@ -551,7 +565,8 @@ namespace Opc.Ua
             87F55BA5 7E31CC7A 7135C886 EFB4318A ED6A1E01 2D9E6832
             A907600A 918130C4 6DC778F9 71AD0038 092999A3 33CB8B7A
             1A1DB93D 7140003C 2A4ECEA9 F98D0ACC 0A8291CD CEC97DCF
-            8EC9B55A 7F88A46B 4DB5A851 F44182E1 C68A007E 5E655F6A";
+            8EC9B55A 7F88A46B 4DB5A851 F44182E1 C68A007E 5E655F6A
+            FFFFFFFF FFFFFFFF";
 
         static readonly Lazy<BigInteger> s_P4096 = new(() => RfcTextToBytes(FFDHE4096_HEX));
 
@@ -682,6 +697,12 @@ namespace Opc.Ua
                 var padded = new byte[m_nonceLength];
                 Array.Copy(bytes, 0, padded, 0, bytes.Length);
                 bytes = padded;
+            }
+            else if (bytes.Length > m_nonceLength)
+            {
+                var trucated = new byte[m_nonceLength];
+                Array.Copy(bytes, 0, trucated, 0, m_nonceLength);
+                bytes = trucated;
             }
 
             // make sure bytes are in big-endian order.

@@ -166,27 +166,7 @@ namespace Opc.Ua
         /// Returns the derived client key data length.
         /// </summary>
         public int ClientKeyDataLength =>
-             (DerivedSignatureKeyLength + SymmetricEncryptionKeyLength + InitializationVectorLength + SessionActivationSecretLength);
-
-        /// <summary>
-        /// Returns the session activation secret length.
-        /// </summary>
-        public int SessionActivationSecretLength
-        {
-            get
-            {
-                //if (SecureChannelEnhancements)
-                //{
-                //    return KeyDerivationAlgorithm switch
-                //    {
-                //        KeyDerivationAlgorithm.HKDFSha256 => 32,
-                //        KeyDerivationAlgorithm.HKDFSha384 => 48,
-                //        _ => 32
-                //    };
-                //}
-                return 0;
-            }
-        }
+             (DerivedSignatureKeyLength + SymmetricEncryptionKeyLength + InitializationVectorLength);
 
         /// <summary>
         /// Returns the data to be signed by the server when creating a session.
@@ -356,103 +336,6 @@ namespace Opc.Ua
                 KeyDerivationAlgorithm.HKDFSha384 => HashAlgorithmName.SHA384,
                 _ => HashAlgorithmName.SHA256
             };
-        }
-
-        /// <summary>
-        /// Validates a session activation token.
-        /// </summary>
-        public bool ValidateSessionActivationToken(
-            byte[] sessionActivationToken,
-            byte[] newChannelThumbprint,
-            byte[] oldSessionActivatationSecret)
-        {
-            if (SecureChannelEnhancements == false)
-            {
-                // tokens are not used when secure channel enhancements are disabled.
-                return true;
-            }
-
-            if (sessionActivationToken == null || sessionActivationToken.Length == 0)
-            {
-                return false;
-            }
-
-            if (oldSessionActivatationSecret == null || oldSessionActivatationSecret.Length == 0)
-            {
-                return false;
-            }
-
-            if (newChannelThumbprint == null || newChannelThumbprint.Length == 0)
-            {
-                return false;
-            }
-
-            HMAC hmac;
-            
-            switch (KeyDerivationAlgorithm)
-            {
-                default:
-                case KeyDerivationAlgorithm.HKDFSha256:
-                    hmac = new HMACSHA256(oldSessionActivatationSecret);
-                    break;
-                case KeyDerivationAlgorithm.HKDFSha384:
-                    hmac = new HMACSHA384(oldSessionActivatationSecret);
-                    break;
-            }
-
-            using (hmac)
-            {
-                byte[] expectedToken = hmac.ComputeHash(newChannelThumbprint);
-
-                if (!Utils.IsEqual(expectedToken, sessionActivationToken))
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        /// <summary>
-        /// Creats a session activation token.
-        /// </summary>
-        public byte[] CreateSessionTransferToken(
-            byte[] newChannelThumbprint,
-            byte[] oldSessionActivatationSecret)
-        {
-            if (SecureChannelEnhancements == false)
-            {
-                // tokens are not used when secure channel enhancements are disabled.
-                return null;
-            }
-
-            if (oldSessionActivatationSecret == null || oldSessionActivatationSecret.Length == 0)
-            {
-                return null;
-            }
-
-            if (newChannelThumbprint == null || newChannelThumbprint.Length == 0)
-            {
-                return null;
-            }
-
-            HMAC hmac;
-
-            switch (KeyDerivationAlgorithm)
-            {
-                default:
-                case KeyDerivationAlgorithm.HKDFSha256:
-                    hmac = new HMACSHA256(oldSessionActivatationSecret);
-                    break;
-                case KeyDerivationAlgorithm.HKDFSha384:
-                    hmac = new HMACSHA384(oldSessionActivatationSecret);
-                    break;
-            }
-
-            using (hmac)
-            {
-                return hmac.ComputeHash(newChannelThumbprint);
-            }
         }
 
         /// <summary>
@@ -1086,10 +969,10 @@ namespace Opc.Ua
             SymmetricSignatureLength = 128 / 8,
             MinAsymmetricKeyLength = 2048,
             MaxAsymmetricKeyLength = 4096,
-            SecureChannelNonceLength = 512,
+            SecureChannelNonceLength = 384,
             LegacySequenceNumbers = false,
             AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.None,
-            AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.RsaPssSha256,
+            AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.RsaPkcs15Sha256,
             CertificateKeyFamily = CertificateKeyFamily.RSA,
             CertificateKeyAlgorithm = CertificateKeyAlgorithm.RSA,
             CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.RsaPkcs15Sha256,
@@ -1112,10 +995,10 @@ namespace Opc.Ua
             SymmetricSignatureLength = 128 / 8,
             MinAsymmetricKeyLength = 2048,
             MaxAsymmetricKeyLength = 4096,
-            SecureChannelNonceLength = 512,
+            SecureChannelNonceLength = 384,
             LegacySequenceNumbers = false,
             AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.None,
-            AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.RsaPssSha256,
+            AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.RsaPkcs15Sha256,
             CertificateKeyFamily = CertificateKeyFamily.RSA,
             CertificateKeyAlgorithm = CertificateKeyAlgorithm.RSA,
             CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.RsaPkcs15Sha256,

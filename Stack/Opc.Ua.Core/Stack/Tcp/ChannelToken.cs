@@ -150,10 +150,5 @@ namespace Opc.Ua.Bindings
         /// The initialization vector by the server when encrypting a message.
         /// </summary>
         internal byte[] ServerInitializationVector { get; set; }
-
-        /// <summary>
-        /// The secret used to re-activate sessions on a new secure channel.
-        /// </summary>
-        internal byte[] SessionActivationSecret { get; set; }
     }
 }

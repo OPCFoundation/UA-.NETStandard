@@ -1309,7 +1309,7 @@ namespace Opc.Ua.Client
                     m_preferredLocales = [.. preferredLocales];
                 }
 
-                var header = CreateRequestHeaderForSessionActivationToken(securityPolicy, null, tokenSecurityPolicyUri);
+                var header = CreateRequestHeaderForActivateSession(securityPolicy, tokenSecurityPolicyUri);
 
                 // activate session.
                 ActivateSessionResponse activateResponse = await ActivateSessionAsync(
@@ -1352,7 +1352,6 @@ namespace Opc.Ua.Client
                     m_previousServerNonce = m_serverNonce;
                     m_serverNonce = serverNonce;
                     m_serverCertificate = serverCertificate;
-                    m_sessionActivationSecret = TransportChannel.SessionActivationSecret;
 
                     // update system context.
                     m_systemContext.PreferredLocales = m_preferredLocales;
@@ -1529,13 +1528,8 @@ namespace Opc.Ua.Client
             SignedSoftwareCertificateCollection clientSoftwareCertificates = new();
 
             // during debugging send the sesson transfer token on all activations.
-            RequestHeader? requestHeader = CreateRequestHeaderForSessionActivationToken(
+            RequestHeader? requestHeader = CreateRequestHeaderForActivateSession(
                 securityPolicy,
-#if DEBUG
-                m_sessionActivationSecret,
-#else
-                null,
-#endif
                 tokenSecurityPolicyUri);
 
             ActivateSessionResponse response = await ActivateSessionAsync(
@@ -2476,9 +2470,8 @@ namespace Opc.Ua.Client
 
                 m_logger.LogInformation("Session RE-ACTIVATING {SessionId}.", SessionId);
 
-                var header = CreateRequestHeaderForSessionActivationToken(
+                var header = CreateRequestHeaderForActivateSession(
                     securityPolicy,
-                    m_sessionActivationSecret,
                     tokenSecurityPolicyUri);
 
                 if (header == null)
@@ -4843,38 +4836,18 @@ namespace Opc.Ua.Client
             return requestHeader;
         }
 
-        private RequestHeader? CreateRequestHeaderForSessionActivationToken(
+        private RequestHeader? CreateRequestHeaderForActivateSession(
             SecurityPolicyInfo securityPolicy,
-            byte[]? sessionActivationSecret,
             string userTokenSecurityPolicyUri)
         {
             var requestHeader = new RequestHeader();
             var parameters = new AdditionalParametersType();
 
-            if (sessionActivationSecret != null)
-            {
-                var sessionTransferToken = securityPolicy.CreateSessionTransferToken(
-                    TransportChannel.ChannelThumbprint,
-                    sessionActivationSecret);
-
-                if (sessionTransferToken != null && sessionTransferToken.Length > 0)
-                {
-                    parameters.Parameters.Add(
-                        new KeyValuePair
-                        {
-                            Key = AdditionalParameterNames.SessionTransferToken,
-                            Value = sessionTransferToken
-                        });
-
-                    m_logger.LogWarning("Sending SessionTransferToken {Policy}.", CryptoTrace.KeyToString(sessionTransferToken));
-                }
-            }
-
             if (userTokenSecurityPolicyUri != null)
             {
                 var userTokenSecurityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
 
-                if (userTokenSecurityPolicy.CertificateKeyFamily == CertificateKeyFamily.ECC)
+                if (userTokenSecurityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
                 {
                     parameters.Parameters.Add(
                         new KeyValuePair
@@ -5056,7 +5029,6 @@ namespace Opc.Ua.Client
         private byte[]? m_serverNonce;
         private byte[]? m_clientNonce;
         private byte[]? m_previousServerNonce;
-        private byte[]? m_sessionActivationSecret;
         private X509Certificate2? m_serverCertificate;
         private uint m_publishCounter;
         private int m_tooManyPublishRequests;

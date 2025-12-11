@@ -100,11 +100,6 @@ namespace Opc.Ua
         byte[] ChannelThumbprint { get; }
 
         /// <summary>
-        /// A secret used to re-activate sessions on a new secure channel.
-        /// </summary>
-        byte[] SessionActivationSecret { get; }
-
-        /// <summary>
         /// The client certificate used to establsih the secure channel.
         /// </summary>
         byte[] ClientChannelCertificate { get; }

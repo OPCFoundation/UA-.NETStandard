@@ -747,9 +747,6 @@ namespace Opc.Ua.Server
 
             try
             {
-                // validate the session transfer token if provided.
-                VerifySessionTransferToken(context, requestHeader);
-
                 // activate the session.
                 (bool identityChanged, serverNonce) = await ServerInternal.SessionManager.ActivateSessionAsync(
                         context,
@@ -833,47 +830,6 @@ namespace Opc.Ua.Server
             {
                 OnRequestComplete(context);
             }
-        }
-
-        /// <summary>
-        /// Verifies the session transfer token.
-        /// </summary>
-        protected bool VerifySessionTransferToken(OperationContext context, RequestHeader requestHeader)
-        {
-            byte[] sessionTransferToken = null;
-
-            var parameters =
-                ExtensionObject.ToEncodeable(
-                    requestHeader.AdditionalHeader) as AdditionalParametersType;
-
-            if (parameters != null)
-            {
-                foreach (KeyValuePair ii in parameters.Parameters)
-                {
-                    if (ii.Key == AdditionalParameterNames.SessionTransferToken)
-                    {
-                        if (ii.Value.TypeInfo != TypeInfo.Scalars.ByteString || ii.Value.Value is not byte[])
-                        {
-                            m_logger.LogWarning(
-                                "SessionTransferToken has an invalid DataType. Ignored.");
-                        }
-
-                        if (ii.Value.Value is byte[] token)
-                        {
-                            m_logger.LogWarning("SessionTransferToken received: {PublicKey}.", CryptoTrace.KeyToString(token));
-                            sessionTransferToken = token;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            ServerInternal.SessionManager.ValidateSessionTransferToken(
-                context,
-                requestHeader.AuthenticationToken,
-                sessionTransferToken);
-
-            return true;
         }
 
         /// <summary>

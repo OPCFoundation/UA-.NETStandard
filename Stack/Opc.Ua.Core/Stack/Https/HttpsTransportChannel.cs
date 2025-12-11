@@ -121,9 +121,6 @@ namespace Opc.Ua.Bindings
         public byte[] ChannelThumbprint => [];
 
         /// <inheritdoc/>
-        public byte[] SessionActivationSecret => [];
-
-        /// <inheritdoc/>
         public byte[] ClientChannelCertificate { get; private set; } = [];
 
         /// <inheritdoc/>

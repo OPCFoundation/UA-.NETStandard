@@ -1015,8 +1015,7 @@ namespace Opc.Ua.Bindings
                         RequestEncoding.Binary,
                         channel.ClientCertificate?.RawData,
                         channel.ServerCertificate?.RawData,
-                        channel.ChannelThumbprint,
-                        channel.SessionActivationSecret);
+                        channel.ChannelThumbprint);
 
                     IServiceResponse response = await m_callback.ProcessRequestAsync(
                         context,

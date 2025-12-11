@@ -45,10 +45,6 @@ namespace Opc.Ua
             => throw Unexpected(nameof(ChannelThumbprint));
 
         /// <inheritdoc/>
-        public byte[] SessionActivationSecret
-            => throw Unexpected(nameof(SessionActivationSecret));
-
-        /// <inheritdoc/>
         public byte[] ClientChannelCertificate
             => throw Unexpected(nameof(ClientChannelCertificate));
 

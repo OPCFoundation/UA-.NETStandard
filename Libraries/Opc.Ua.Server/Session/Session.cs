@@ -96,7 +96,6 @@ namespace Opc.Ua.Server
 
             SecureChannelId = context.ChannelContext.SecureChannelId;
             m_channelThumbprint = context.ChannelContext.ChannelThumbprint;
-            m_sessionActivationSecret = context.ChannelContext.SessionActivationSecret;
             MaxBrowseContinuationPoints = maxBrowseContinuationPoints;
             m_maxHistoryContinuationPoints = maxHistoryContinuationPoints;
             EndpointDescription = context.ChannelContext.EndpointDescription;
@@ -568,47 +567,6 @@ namespace Opc.Ua.Server
                 TraceState("VALIDATED");
             }
 
-        }
-
-        /// <inheritdoc/>
-        public void ValidateSessionTransferToken(
-            OperationContext context,
-            byte[] sessionActivationToken)
-        {
-            var newSecurityMode = context.ChannelContext.EndpointDescription.SecurityMode;
-            var oldSecurityMode = EndpointDescription.SecurityMode;
-
-            var newSecurityPolicyUri = context.ChannelContext.EndpointDescription.SecurityPolicyUri;
-            var oldSecurityPolicyUri = EndpointDescription.SecurityPolicyUri;
-
-            if (newSecurityMode != oldSecurityMode)
-            {
-                throw new ServiceResultException(StatusCodes.BadSecurityModeRejected);
-            }
-
-            if (newSecurityPolicyUri != oldSecurityPolicyUri)
-            {
-                throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected);
-            }
-
-            var info = SecurityPolicies.GetInfo(oldSecurityPolicyUri);
-
-            // check if session activation token is required.
-            if (sessionActivationToken == null)
-            {
-                if (newSecurityMode == MessageSecurityMode.Sign && info.SecureChannelEnhancements)
-                {
-                    throw new ServiceResultException(StatusCodes.BadApplicationSignatureInvalid);
-                }
-            }
-
-            if (!info.ValidateSessionActivationToken(
-                    sessionActivationToken,
-                    context.ChannelContext.ChannelThumbprint,
-                    m_sessionActivationSecret))
-            {
-                throw new ServiceResultException(StatusCodes.BadApplicationSignatureInvalid);
-            }
         }
 
         /// <summary>
@@ -1348,7 +1306,6 @@ namespace Opc.Ua.Server
         private X509Certificate2 m_serverCertificate;
         private Nonce m_serverNonce;
         private byte[] m_channelThumbprint;
-        private byte[] m_sessionActivationSecret;
         private string m_userTokenSecurityPolicyUri;
         private Nonce m_userTokenNonce;
         private readonly X509Certificate2Collection m_clientIssuerCertificates;

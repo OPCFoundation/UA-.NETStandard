@@ -242,9 +242,6 @@ namespace Opc.Ua.Bindings
         internal byte[] ChannelThumbprint { get; set; }
 
         /// <inheritdoc/>
-        internal byte[] SessionActivationSecret { get; set; }
-
-        /// <inheritdoc/>
         public byte[] ClientChannelCertificate { get; protected set; }
 
         /// <inheritdoc/>

@@ -365,9 +365,6 @@ namespace Opc.Ua
             public byte[] ChannelThumbprint => m_channel?.ChannelThumbprint ?? [];
 
             /// <inheritdoc/>
-            public byte[] SessionActivationSecret => m_channel?.SessionActivationSecret ?? [];
-
-            /// <inheritdoc/>
             public byte[] ClientChannelCertificate => m_channel?.ClientChannelCertificate ?? [];
 
             /// <inheritdoc/>

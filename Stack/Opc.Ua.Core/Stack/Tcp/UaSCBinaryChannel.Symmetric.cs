@@ -184,7 +184,6 @@ namespace Opc.Ua.Bindings
                 token.ClientSigningKey = signingKey;
                 token.ClientEncryptingKey = encryptingKey;
                 token.ClientInitializationVector = iv;
-                token.SessionActivationSecret = null;
             }
         }
 
@@ -215,26 +214,12 @@ namespace Opc.Ua.Bindings
                 token.ServerSigningKey = signingKey;
                 token.ServerEncryptingKey = encryptingKey;
                 token.ServerInitializationVector = iv;
-                token.SessionActivationSecret = null;
             }
             else
             {
                 token.ClientSigningKey = signingKey;
                 token.ClientEncryptingKey = encryptingKey;
                 token.ClientInitializationVector = iv;
-                token.SessionActivationSecret = null;
-
-                //if (SecurityPolicy.SecureChannelEnhancements)
-                //{
-                //    token.SessionActivationSecret = new byte[token.SecurityPolicy.SessionActivationSecretLength];
-
-                //    Buffer.BlockCopy(
-                //        keyData,
-                //        m_signatureKeySize + m_encryptionKeySize + EncryptionBlockSize,
-                //        token.SessionActivationSecret,
-                //        0,
-                //        token.SessionActivationSecret.Length);
-                //}
             }
         }
 
@@ -285,7 +270,6 @@ namespace Opc.Ua.Bindings
                     CryptoTrace.WriteLine($"ServerInitializationVector={CryptoTrace.KeyToString(token.ServerInitializationVector)}");
                     CryptoTrace.WriteLine($"ClientEncryptingKey={CryptoTrace.KeyToString(token.ClientEncryptingKey)}");
                     CryptoTrace.WriteLine($"ClientInitializationVector={CryptoTrace.KeyToString(token.ClientInitializationVector)}");
-                    CryptoTrace.WriteLine($"SessionActivationSecret={CryptoTrace.KeyToString(token.SessionActivationSecret)}");
                     CryptoTrace.Finish("ComputeKeys");
                     break;
                 }
@@ -298,8 +282,6 @@ namespace Opc.Ua.Bindings
                     DeriveKeysWithPSHA(algorithmName, clientSecret, serverSecret, token, true);
                     break;
             }
-
-            SessionActivationSecret = token.SessionActivationSecret;
         }
 
         /// <summary>
