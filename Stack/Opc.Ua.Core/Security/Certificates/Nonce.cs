@@ -312,6 +312,8 @@ namespace Opc.Ua
         {
             switch (securityPolicyUri)
             {
+                case SecurityPolicies.Basic128Rsa15:
+                    return 16;
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
