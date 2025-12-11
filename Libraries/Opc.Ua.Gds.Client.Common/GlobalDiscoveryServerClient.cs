@@ -1474,7 +1474,7 @@ namespace Opc.Ua.Gds.Client
                     byte[] bytes = (byte[])outputArguments[0];
                     
                     // Validate total size before writing
-                    totalBytesRead += bytes.Length;
+                    totalBytesRead += (long)bytes.Length;
                     if (totalBytesRead > kMaxTrustListSize)
                     {
                         throw ServiceResultException.Create(
