@@ -42,8 +42,7 @@
     <PackageIcon>images/logo.jpg</PackageIcon>
     <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
-    <!-- deprecated <PackageLicenseUrl>https://opcfoundation.org/license/source/1.11/index.html</PackageLicenseUrl>-->
-    <PackageLicenseFile>licenses/LICENSE.txt</PackageLicenseFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReleaseNotes>$(RepositoryUrl)/releases</PackageReleaseNotes>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <PackageTags>OPCFoundation OPC UA netstandard ios linux dotnet net netcore uwp</PackageTags>
@@ -67,28 +66,17 @@
       </PropertyGroup>
     </When>
   </Choose>
-  <ItemGroup Condition="'$(IsPackable)' != 'false' AND '$(PackageLicenseExpression)' == 'MIT'">
-    <None
-      Include="$(MSBuildThisFileDirectory)/licenses/OPC Foundation MIT license.txt"
-      Pack="true"
-      PackagePath="$(PackageLicenseFile)"
-    />
-  </ItemGroup>
-  <ItemGroup Condition="'$(IsPackable)' != 'false' AND '$(PackageLicenseExpression)' == ''">
+  <ItemGroup Condition="'$(IsPackable)' != 'false'">
     <None
       Include="$(MSBuildThisFileDirectory)/LICENSE.txt"
       Pack="true"
       PackagePath="$(PackageLicenseFile)"
     />
-  </ItemGroup>
-  <ItemGroup Condition="'$(IsPackable)' != 'false'">
     <None
       Include="$(MSBuildThisFileDirectory)/nuget/logo.jpg"
       Pack="true"
       PackagePath="$(PackageIcon)"
     />
-  </ItemGroup>
-  <ItemGroup Condition="'$(IsPackable)' != 'false'">
     <None
       Include="$(MSBuildThisFileDirectory)/Docs/NugetREADME.md"
       Pack="true"

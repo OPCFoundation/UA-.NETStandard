@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -246,7 +246,7 @@ namespace Opc.Ua.Gds.Tests
                 .ConfigureAwait(false);
 #else
             string[] baseAddresses = ["opc.tcp://localhost:58810/GlobalDiscoveryTestServer"];
-            string root = Path.Combine("%LocalApplicationData%", "OPC");
+            string root = Path.Combine(Path.GetTempPath(), "OPC");
             string gdsRoot = Path.Combine(root, "GDS");
             var gdsConfig = new GlobalDiscoveryServerConfiguration
             {

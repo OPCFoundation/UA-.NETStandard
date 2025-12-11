@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.PubSub
 {
@@ -82,7 +83,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Publish the network message
         /// </summary>
-        bool PublishNetworkMessage(UaNetworkMessage networkMessage);
+        Task<bool> PublishNetworkMessageAsync(UaNetworkMessage networkMessage);
 
         /// <summary>
         /// Get flag that indicates if all the network clients are connected

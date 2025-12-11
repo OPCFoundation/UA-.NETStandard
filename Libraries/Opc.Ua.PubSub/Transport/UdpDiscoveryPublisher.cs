@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -217,7 +217,7 @@ namespace Opc.Ua.PubSub.Transport
                             "UdpDiscoveryPublisher.SendResponseDataSetMetaData before sending message for DataSetWriterId:{DataSetWriterId}",
                             message.DataSetWriterId);
 
-                        m_udpConnection.PublishNetworkMessage(message);
+                        m_udpConnection.PublishNetworkMessageAsync(message);
                     }
                     m_metadataWriterIdsToSend.Clear();
                 }
@@ -251,7 +251,7 @@ namespace Opc.Ua.PubSub.Transport
                             "UdpDiscoveryPublisher.SendResponseDataSetWriterConfiguration Before sending message for DataSetWriterId:{DataSetWriterId}",
                             responsesMessage.DataSetWriterId);
 
-                        m_udpConnection.PublishNetworkMessage(responsesMessage);
+                        m_udpConnection.PublishNetworkMessageAsync(responsesMessage);
                     }
                 }
             }
@@ -280,7 +280,7 @@ namespace Opc.Ua.PubSub.Transport
                 m_logger.LogInformation(
                     "UdpDiscoveryPublisher.SendResponsePublisherEndpoints before sending message for PublisherEndpoints.");
 
-                m_udpConnection.PublishNetworkMessage(message);
+                m_udpConnection.PublishNetworkMessageAsync(message);
             }
         }
 

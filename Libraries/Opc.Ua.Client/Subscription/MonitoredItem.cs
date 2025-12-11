@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -136,6 +136,8 @@ namespace Opc.Ua.Client
             State = state;
             ClientHandle = state.ClientId;
             ServerId = state.ServerId;
+            TriggeringItemId = state.TriggeringItemId;
+            TriggeredItems = state.TriggeredItems != null ? new UInt32Collection(state.TriggeredItems) : null;
         }
 
         /// <inheritdoc/>
@@ -144,7 +146,9 @@ namespace Opc.Ua.Client
             state = new MonitoredItemState(State)
             {
                 ServerId = Status.Id,
-                ClientId = ClientHandle
+                ClientId = ClientHandle,
+                TriggeringItemId = TriggeringItemId,
+                TriggeredItems = TriggeredItems != null ? new UInt32Collection(TriggeredItems) : null
             };
         }
 
@@ -590,7 +594,6 @@ namespace Opc.Ua.Client
                 {
                     m_eventCache.OnNotification(eventchange);
                 }
-
                 m_Notification?.Invoke(this, new MonitoredItemNotificationEventArgs(newValue));
             }
         }
@@ -1070,6 +1073,18 @@ namespace Opc.Ua.Client
         private MonitoredItemEventCache? m_eventCache;
         private IEncodeable? m_lastNotification;
         private event MonitoredItemNotificationEventHandler? m_Notification;
+
+        /// <summary>
+        /// Server-side identifier of the triggering item if this monitored item
+        /// is triggered by another item. 0 indicates this item is not triggered.
+        /// </summary>
+        internal uint TriggeringItemId { get; set; }
+
+        /// <summary>
+        /// Collection of server-side identifiers of monitored items that are
+        /// triggered by this item. Null if this item does not trigger any other items.
+        /// </summary>
+        internal UInt32Collection? TriggeredItems { get; set; }
     }
 
     /// <summary>
@@ -1166,15 +1181,22 @@ namespace Opc.Ua.Client
         public void OnNotification(MonitoredItemNotification notification)
         {
             LastValue = notification.Value;
-            CoreClientUtils.EventLog.Notification(
-                (int)notification.ClientHandle,
-                LastValue.WrappedValue);
 
-            m_logger.LogDebug(
-                "Notification: ClientHandle={ClientHandle}, Value={Value}, SourceTime={SourceTime}",
-                notification.ClientHandle,
-                notification.Value.WrappedValue,
-                notification.Value.SourceTimestamp);
+            if (CoreClientUtils.EventLog.IsEnabled())
+            {
+                CoreClientUtils.EventLog.Notification(
+                    (int)notification.ClientHandle,
+                    LastValue.WrappedValue);
+            }
+
+            if (m_logger.IsEnabled(LogLevel.Debug))
+            {
+                m_logger.LogDebug(
+                    "Notification: ClientHandle={ClientHandle}, Value={Value}, SourceTime={SourceTime}",
+                    notification.ClientHandle,
+                    notification.Value.WrappedValue,
+                    notification.Value.SourceTimestamp);
+            }
 
             if (m_values != null)
             {
@@ -1185,11 +1207,14 @@ namespace Opc.Ua.Client
                     {
                         break;
                     }
-                    m_logger.LogInformation(
-                        "Dropped value: ClientHandle={ClientHandle}, Value={Value}, SourceTime={SourceTime}",
-                        notification.ClientHandle,
-                        dropped.WrappedValue,
-                        dropped.SourceTimestamp);
+                    if (m_logger.IsEnabled(LogLevel.Information))
+                    {
+                        m_logger.LogInformation(
+                            "Dropped value: ClientHandle={ClientHandle}, Value={Value}, SourceTime={SourceTime}",
+                            notification.ClientHandle,
+                            dropped.WrappedValue,
+                            dropped.SourceTimestamp);
+                    }
                 }
             }
         }

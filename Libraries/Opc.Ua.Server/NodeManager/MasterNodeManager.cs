@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -3691,11 +3691,9 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadMethodInvalid;
             }
 
-            // check input arguments
-            if (callMethodRequest.InputArguments == null)
-            {
-                return StatusCodes.BadStructureMissing;
-            }
+            // Initialize input arguments to empty collection if null.
+            // Methods with only output parameters (no input parameters) are valid.
+            callMethodRequest.InputArguments ??= new VariantCollection();
 
             return StatusCodes.Good;
         }

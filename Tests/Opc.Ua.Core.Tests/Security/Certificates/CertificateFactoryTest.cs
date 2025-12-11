@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -313,6 +313,53 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 NUnit.Framework.Assert.Ignore("No certificates for blob test");
             }
+        }
+
+        [Test]
+        [Category("X509Utils")]
+        public void CompareDistinguishedNameWithStateAbbreviations()
+        {
+            // Test that ST= and S= are treated as equivalent for stateOrProvinceName
+            // This addresses the Windows behavior where S= is used instead of ST=
+
+            // Test 1: Direct comparison with different state abbreviations
+            string dnWithST = "CN=OPCUA Client, O=MyOrg, ST=California, C=US";
+            string dnWithS = "CN=OPCUA Client, O=MyOrg, S=California, C=US";
+
+            Assert.True(X509Utils.CompareDistinguishedName(dnWithST, dnWithS),
+                "Distinguished names with ST= and S= should be considered equivalent");
+
+            // Test 2: Reverse comparison
+            Assert.True(X509Utils.CompareDistinguishedName(dnWithS, dnWithST),
+                "Distinguished names with S= and ST= should be considered equivalent (reversed)");
+
+            // Test 3: With parsed distinguished names
+            List<string> parsedDnWithST = X509Utils.ParseDistinguishedName(dnWithST);
+            List<string> parsedDnWithS = X509Utils.ParseDistinguishedName(dnWithS);
+
+            Assert.NotNull(parsedDnWithST);
+            Assert.NotNull(parsedDnWithS);
+
+            // Test 4: Case sensitivity for DC fields should still work
+            string dnWithDC1 = "CN=Test, DC=example, DC=com";
+            string dnWithDC2 = "CN=Test, DC=EXAMPLE, DC=COM";
+
+            Assert.True(X509Utils.CompareDistinguishedName(dnWithDC1, dnWithDC2),
+                "DC fields should be case-insensitive");
+
+            // Test 5: Different values should still fail
+            string dnDifferentState1 = "CN=OPCUA Client, O=MyOrg, ST=California, C=US";
+            string dnDifferentState2 = "CN=OPCUA Client, O=MyOrg, ST=NewYork, C=US";
+
+            Assert.False(X509Utils.CompareDistinguishedName(dnDifferentState1, dnDifferentState2),
+                "Distinguished names with different state values should not match");
+
+            // Test 6: Case with other fields
+            string dnComplex1 = "CN=Server, OU=Engineering, O=Company, ST=Texas, L=Austin, C=US";
+            string dnComplex2 = "CN=Server, OU=Engineering, O=Company, S=Texas, L=Austin, C=US";
+
+            Assert.True(X509Utils.CompareDistinguishedName(dnComplex1, dnComplex2),
+                "Complex DN with ST= and S= should match");
         }
 
         private X509Certificate2 GetIssuer(KeyHashPair keyHashPair)

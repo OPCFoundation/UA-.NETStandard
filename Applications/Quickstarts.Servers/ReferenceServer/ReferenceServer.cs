@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -62,6 +62,12 @@ namespace Quickstarts.ReferenceServer
         public bool UseSamplingGroupsInReferenceNodeManager { get; set; }
 
         /// <summary>
+        /// If true, the server starts in provisioning mode with limited namespace
+        /// and requires authenticated user access for certificate provisioning
+        /// </summary>
+        public bool ProvisioningMode { get; set; }
+
+        /// <summary>
         /// Creates the node managers for the server.
         /// </summary>
         /// <remarks>
@@ -77,25 +83,36 @@ namespace Quickstarts.ReferenceServer
                 Utils.TraceMasks.StartStop,
                 "Creating the Reference Server Node Manager.");
 
-            IList<INodeManager> nodeManagers =
-            [
-                // create the custom node manager.
-                new ReferenceNodeManager(
-                    server,
-                    configuration,
-                    UseSamplingGroupsInReferenceNodeManager)
-            ];
-
-            foreach (INodeManagerFactory nodeManagerFactory in NodeManagerFactories)
-            {
-                nodeManagers.Add(nodeManagerFactory.Create(server, configuration));
-            }
-
+            IList<INodeManager> nodeManagers;
             var asyncNodeManagers = new List<IAsyncNodeManager>();
 
-            foreach (IAsyncNodeManagerFactory nodeManagerFactory in AsyncNodeManagerFactories)
+            if (ProvisioningMode)
             {
-                asyncNodeManagers.Add(nodeManagerFactory.CreateAsync(server, configuration).AsTask().GetAwaiter().GetResult());
+                m_logger.LogInformation(
+                    Utils.TraceMasks.StartStop,
+                    "Server is in provisioning mode - limited namespace enabled.");
+                nodeManagers = [];
+            }
+            else
+            {
+                nodeManagers =
+                [
+                    // create the custom node manager.
+                    new ReferenceNodeManager(
+                        server,
+                        configuration,
+                        UseSamplingGroupsInReferenceNodeManager)
+                ];
+
+                foreach (INodeManagerFactory nodeManagerFactory in NodeManagerFactories)
+                {
+                    nodeManagers.Add(nodeManagerFactory.Create(server, configuration));
+                }
+
+                foreach (IAsyncNodeManagerFactory nodeManagerFactory in AsyncNodeManagerFactories)
+                {
+                    asyncNodeManagers.Add(nodeManagerFactory.CreateAsync(server, configuration).AsTask().GetAwaiter().GetResult());
+                }
             }
 
             return new MasterNodeManager(server, configuration, null, asyncNodeManagers, nodeManagers);
@@ -226,6 +243,12 @@ namespace Quickstarts.ReferenceServer
             UserTokenPolicyCollection policies = base.GetUserTokenPolicies(
                 configuration,
                 description);
+
+            // In provisioning mode, remove anonymous authentication
+            if (ProvisioningMode)
+            {
+                return [.. policies.Where(u => u.TokenType != UserTokenType.Anonymous)];
+            }
 
             // sample how to modify default user token policies
             //if (description.SecurityPolicyUri == SecurityPolicies.Aes256_Sha256_RsaPss &&

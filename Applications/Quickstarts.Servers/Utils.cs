@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -112,6 +112,15 @@ namespace Quickstarts.Servers
             ReferenceServer.ReferenceServer server)
         {
             server.UseSamplingGroupsInReferenceNodeManager = true;
+        }
+
+        /// <summary>
+        /// Enable provisioning mode in the ReferenceServer.
+        /// </summary>
+        public static void EnableProvisioningMode(
+            ReferenceServer.ReferenceServer server)
+        {
+            server.ProvisioningMode = true;
         }
 
         /// <summary>

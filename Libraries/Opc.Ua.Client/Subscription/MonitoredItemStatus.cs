@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -45,6 +45,12 @@ namespace Opc.Ua.Client
         /// Whether the item has been created on the server.
         /// </summary>
         public bool Created => Id != 0;
+
+        /// <summary>
+        /// Whether a create request has been sent to the server but not yet completed.
+        /// This flag is used to prevent duplicate creation requests in multi-threaded scenarios.
+        /// </summary>
+        internal bool Creating { get; set; }
 
         /// <summary>
         /// Any error condition associated with the monitored item.
@@ -170,6 +176,9 @@ namespace Opc.Ua.Client
                     FilterResult = Utils.Clone(result.FilterResult.Body) as MonitoringFilterResult;
                 }
             }
+
+            // Clear the Creating flag now that the create operation is complete
+            Creating = false;
         }
 
         /// <summary>

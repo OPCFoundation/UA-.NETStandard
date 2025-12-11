@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -245,7 +245,8 @@ namespace Opc.Ua.Server.Tests
                 requestHeader,
                 kMaxAge,
                 TimestampsToReturn.Neither,
-                readIdCollection, CancellationToken.None).ConfigureAwait(false);
+                readIdCollection,
+                CancellationToken.None).ConfigureAwait(false);
             ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, readIdCollection);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 readResponse.DiagnosticInfos,
@@ -980,6 +981,205 @@ namespace Opc.Ua.Server.Tests
             // Verify SubscribeToEvents bit is set (Server object should always support events)
             Assert.IsTrue((eventNotifier & EventNotifiers.SubscribeToEvents) != 0,
                 "Server EventNotifier should have SubscribeToEvents bit set");
+        }
+
+        /// <summary>
+        /// Verify that ServerStatus children have matching SourceTimestamp and ServerTimestamp.
+        /// </summary>
+        [Test]
+        public async Task ServerStatusTimestampsMatchAsync()
+        {
+            var logger = m_telemetry.CreateLogger<ReferenceServerTests>();
+
+            // Read ServerStatus children (CurrentTime, StartTime, State, etc.)
+            var nodesToRead = new ReadValueIdCollection
+            {
+                new ReadValueId { NodeId = VariableIds.Server_ServerStatus_CurrentTime, AttributeId = Attributes.Value },
+                new ReadValueId { NodeId = VariableIds.Server_ServerStatus_StartTime, AttributeId = Attributes.Value },
+                new ReadValueId { NodeId = VariableIds.Server_ServerStatus_State, AttributeId = Attributes.Value }
+            };
+
+            m_requestHeader.Timestamp = DateTime.UtcNow;
+            var readResponse = await m_server.ReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                0,
+                TimestampsToReturn.Both,
+                nodesToRead,
+                CancellationToken.None).ConfigureAwait(false);
+
+            ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, nodesToRead);
+            Assert.AreEqual(3, readResponse.Results.Count);
+
+            // Verify that SourceTimestamp and ServerTimestamp are equal for all ServerStatus children
+            for (int i = 0; i < readResponse.Results.Count; i++)
+            {
+                var result = readResponse.Results[i];
+                logger.LogInformation(
+                    "NodeId: {NodeId}, SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
+                    nodesToRead[i].NodeId,
+                    result.SourceTimestamp,
+                    result.ServerTimestamp);
+
+                Assert.AreEqual(result.SourceTimestamp, result.ServerTimestamp,
+                    $"SourceTimestamp and ServerTimestamp should be equal for {nodesToRead[i].NodeId}");
+            }
+        }
+
+        /// <summary>
+        /// Test that the Int32Value node (ns=3;i=2808) allows historical data access.
+        /// Verifies the fix for issue #2520 where the node was marked as historizing
+        /// but history read operations returned BadHistoryOperationUnsupported.
+        /// </summary>
+        [Test]
+        public async Task HistoryReadInt32ValueNodeAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<ReferenceServerTests>();
+
+            // Get the NodeId for Data_Dynamic_Scalar_Int32Value
+            NodeId int32ValueNodeId = new NodeId(
+                TestData.Variables.Data_Dynamic_Scalar_Int32Value,
+                (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(TestData.Namespaces.TestData));
+
+            logger.LogInformation("Testing history read for Int32Value node: {NodeId}", int32ValueNodeId);
+
+            // Verify the node has Historizing attribute set to true
+            var readIdCollection = new ReadValueIdCollection {
+                new ReadValueId {
+                    AttributeId = Attributes.Historizing,
+                    NodeId = int32ValueNodeId
+                },
+                new ReadValueId {
+                    AttributeId = Attributes.AccessLevel,
+                    NodeId = int32ValueNodeId
+                }
+            };
+
+            m_requestHeader.Timestamp = DateTime.UtcNow;
+            ReadResponse readResponse = await m_server.ReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                kMaxAge,
+                TimestampsToReturn.Neither,
+                readIdCollection,
+                CancellationToken.None).ConfigureAwait(false);
+
+            ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, readIdCollection);
+            Assert.AreEqual(2, readResponse.Results.Count);
+
+            bool historizing = (bool)readResponse.Results[0].Value;
+            byte accessLevel = (byte)readResponse.Results[1].Value;
+
+            logger.LogInformation("Historizing: {Historizing}, AccessLevel: {AccessLevel}", historizing, accessLevel);
+
+            Assert.IsTrue(historizing, "Int32Value node should have Historizing=true");
+            Assert.IsTrue((accessLevel & AccessLevels.HistoryRead) != 0,
+                "Int32Value node should have HistoryRead access level");
+
+            // Perform a history read operation
+            var historyReadDetails = new ReadRawModifiedDetails {
+                StartTime = DateTime.UtcNow.AddHours(-1),
+                EndTime = DateTime.UtcNow,
+                NumValuesPerNode = 10,
+                IsReadModified = false,
+                ReturnBounds = false
+            };
+
+            var nodesToRead = new HistoryReadValueIdCollection {
+                new HistoryReadValueId {
+                    NodeId = int32ValueNodeId
+                }
+            };
+
+            m_requestHeader.Timestamp = DateTime.UtcNow;
+            HistoryReadResponse historyReadResponse = await m_server.HistoryReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                new ExtensionObject(historyReadDetails),
+                TimestampsToReturn.Both,
+                false,
+                nodesToRead,
+                CancellationToken.None).ConfigureAwait(false);
+
+            ServerFixtureUtils.ValidateResponse(historyReadResponse.ResponseHeader, historyReadResponse.Results, nodesToRead);
+            Assert.AreEqual(1, historyReadResponse.Results.Count);
+
+            HistoryReadResult result = historyReadResponse.Results[0];
+
+            logger.LogInformation("History read StatusCode: {StatusCode}", result.StatusCode);
+
+            // The result should be Good or GoodMoreData (if there are more values)
+            Assert.IsTrue(StatusCode.IsGood(result.StatusCode),
+                $"History read should succeed, but got: {result.StatusCode}");
+            Assert.IsNotNull(result.HistoryData, "HistoryData should not be null");
+
+            // Verify we got HistoryData back
+            if (result.HistoryData.Body is HistoryData historyData)
+            {
+                logger.LogInformation("Retrieved {Count} history values", historyData.DataValues.Count);
+                Assert.IsNotNull(historyData.DataValues, "DataValues should not be null");
+                Assert.Greater(historyData.DataValues.Count, 0, "Should have at least one historical value");
+
+                // Verify the data values have proper timestamps
+                foreach (var dataValue in historyData.DataValues)
+                {
+                    Assert.IsNotNull(dataValue, "DataValue should not be null");
+                    Assert.IsTrue(dataValue.ServerTimestamp != DateTime.MinValue,
+                        "DataValue should have a valid ServerTimestamp");
+                }
+            }
+            else
+            {
+                Assert.Fail("HistoryData body should be of type HistoryData");
+            }
+        }
+
+        /// <summary>
+        /// Test provisioning mode - server should start with limited namespace.
+        /// </summary>
+        [Test]
+        public async Task ProvisioningModeTestAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            // start Ref server in provisioning mode
+            var fixture = new ServerFixture<ReferenceServer>
+            {
+                AllNodeManagers = false,
+                OperationLimits = false,
+                DurableSubscriptionsEnabled = false,
+                AutoAccept = true,
+                ProvisioningMode = true
+            };
+
+            ReferenceServer server = await fixture.StartAsync().ConfigureAwait(false);
+
+            // Verify provisioning mode is enabled
+            Assert.IsTrue(server.ProvisioningMode, "Server should be in provisioning mode");
+
+            // Get endpoints - in provisioning mode, anonymous authentication should not be allowed
+            EndpointDescriptionCollection endpoints = server.GetEndpoints();
+            Assert.IsNotNull(endpoints);
+            Assert.IsTrue(endpoints.Count > 0, "Server should have endpoints");
+
+            // Check that anonymous token policy is not present for at least one endpoint
+            bool hasEndpointWithoutAnonymous = false;
+            foreach (EndpointDescription endpoint in endpoints)
+            {
+                bool hasAnonymous = endpoint.UserIdentityTokens.Any(
+                    policy => policy.TokenType == UserTokenType.Anonymous);
+                if (!hasAnonymous)
+                {
+                    hasEndpointWithoutAnonymous = true;
+                    break;
+                }
+            }
+            Assert.IsTrue(hasEndpointWithoutAnonymous,
+                "At least one endpoint should not allow anonymous authentication in provisioning mode");
+
+            // Clean up
+            await fixture.StopAsync().ConfigureAwait(false);
         }
     }
 }

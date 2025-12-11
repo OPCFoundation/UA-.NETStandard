@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -69,8 +69,10 @@ namespace Quickstarts.ReferenceServer
             bool shadowConfig = false;
             bool samplingGroups = false;
             bool cttMode = false;
+            bool provisioningMode = false;
             char[] password = null;
             int timeout = -1;
+            string reverseConnectUrlString = null;
 
             string usage = Utils.IsRunningOnMono()
                 ? $"Usage: mono {applicationName}.exe [OPTIONS]"
@@ -92,7 +94,17 @@ namespace Quickstarts.ReferenceServer
                     "use the sampling group mechanism in the Reference Node Manager",
                     sg => samplingGroups = sg != null
                 },
-                { "ctt", "CTT mode, use to preset alarms for CTT testing.", c => cttMode = c != null }
+                { "ctt", "CTT mode, use to preset alarms for CTT testing.", c => cttMode = c != null },
+                {
+                    "provision",
+                    "start server in provisioning mode with limited namespace for certificate provisioning",
+                    p => provisioningMode = p != null
+                },
+                {
+                    "rc|reverseconnect=",
+                    "Connect to the specified client endpoint for reverse connect. (e.g. rc=opc.tcp://localhost:65300)",
+                    url => reverseConnectUrlString = url
+                }
             };
 
             using var telemetry = new ConsoleTelemetry();
@@ -161,6 +173,20 @@ namespace Quickstarts.ReferenceServer
                 // Create and add the node managers
                 server.Create(Servers.Utils.NodeManagerFactories);
 
+                // enable provisioning mode if requested
+                if (provisioningMode)
+                {
+                    logger.LogInformation("Enabling provisioning mode.");
+                    Servers.Utils.EnableProvisioningMode(server.Server);
+                    // Auto-accept is required in provisioning mode
+                    if (!autoAccept)
+                    {
+                        logger.LogInformation("Auto-accept enabled for provisioning mode.");
+                        autoAccept = true;
+                        server.AutoAccept = autoAccept;
+                    }
+                }
+
                 // enable the sampling groups if requested
                 if (samplingGroups)
                 {
@@ -170,6 +196,24 @@ namespace Quickstarts.ReferenceServer
                 // start the server
                 logger.LogInformation("Start the server.");
                 await server.StartAsync().ConfigureAwait(false);
+
+                // setup reverse connect if specified
+                if (!string.IsNullOrEmpty(reverseConnectUrlString))
+                {
+                    try
+                    {
+                        logger.LogInformation("Adding reverse connection to {Url}.", reverseConnectUrlString);
+                        var reverseConnectUrl = new Uri(reverseConnectUrlString);
+                        server.Server.AddReverseConnection(reverseConnectUrl);
+                    }
+                    catch (UriFormatException ex)
+                    {
+                        logger.LogError(ex, "Invalid reverse connect URL: {Url}", reverseConnectUrlString);
+                        throw new ErrorExitException(
+                            $"Invalid reverse connect URL: {reverseConnectUrlString}",
+                            ExitCode.ErrorInvalidCommandLine);
+                    }
+                }
 
                 // Apply custom settings for CTT testing
                 if (cttMode)

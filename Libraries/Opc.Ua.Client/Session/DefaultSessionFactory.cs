@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -232,7 +232,7 @@ namespace Opc.Ua.Client
             }
 
             // create message context.
-            ServiceMessageContext messageContext = configuration.CreateMessageContext(true);
+            ServiceMessageContext messageContext = configuration.CreateMessageContext();
 
             // update endpoint description using the discovery endpoint.
             if (endpoint.UpdateBeforeConnect && connection == null)

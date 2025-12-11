@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -55,7 +55,7 @@ namespace Opc.Ua.Gds.Client
             DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
         {
             Configuration = configuration;
-            MessageContext = configuration.CreateMessageContext(true);
+            MessageContext = configuration.CreateMessageContext();
             m_logger = MessageContext.Telemetry.CreateLogger<ServerPushConfigurationClient>();
             m_sessionFactory = sessionFactory ??
                 new DefaultSessionFactory(MessageContext.Telemetry)

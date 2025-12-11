@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -75,7 +75,7 @@ namespace Opc.Ua.Gds.Tests
             Config = await application.LoadApplicationConfigurationAsync(false)
                 .ConfigureAwait(false);
 #else
-            string root = Path.Combine("%LocalApplicationData%", "OPC");
+            string root = Path.Combine(Path.GetTempPath(), "OPC");
             string pkiRoot = Path.Combine(root, "pki");
             var clientConfig = new ServerConfigurationPushTestClientConfiguration
             {

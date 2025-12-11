@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.PubSub
@@ -68,7 +69,7 @@ namespace Opc.Ua.PubSub
                 WriterGroupConfiguration.Name,
                 WriterGroupConfiguration.PublishingInterval,
                 CanPublish,
-                PublishMessages,
+                PublishMessagesAsync,
                 telemetry);
         }
 
@@ -143,7 +144,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Generate and publish the messages
         /// </summary>
-        private void PublishMessages()
+        private async Task PublishMessagesAsync()
         {
             try
             {
@@ -156,8 +157,8 @@ namespace Opc.Ua.PubSub
                     {
                         if (uaNetworkMessage != null)
                         {
-                            bool success = PubSubConnection.PublishNetworkMessage(uaNetworkMessage);
-                            m_logger.LogInformation(
+                            bool success = await PubSubConnection.PublishNetworkMessageAsync(uaNetworkMessage).ConfigureAwait(false);
+                            m_logger.LogDebug(
                                 "UaPublisher - PublishNetworkMessage, WriterGroupId:{WriterGroupId}; success = {Success}",
                                 WriterGroupConfiguration.WriterGroupId,
                                 success);

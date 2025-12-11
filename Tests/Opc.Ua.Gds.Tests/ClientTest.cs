@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -131,6 +131,12 @@ namespace Opc.Ua.Gds.Tests
                     .SelectMany(cg => cg.CertificateTypes)
                     .Select(s => typeof(Ua.ObjectTypeIds).GetField(s).GetValue(null) as NodeId)
                     .Where(n => n != null && Utils.IsSupportedCertificateType(n))
+#if NETFRAMEWORK
+                    // Only rsa gds issuance supported in net framework
+                    .Where(n =>
+                        n == Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType ||
+                        n == Ua.ObjectTypeIds.RsaMinApplicationCertificateType)
+#endif
             ];
         }
 
