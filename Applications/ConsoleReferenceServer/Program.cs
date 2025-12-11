@@ -128,13 +128,13 @@ namespace Quickstarts.ReferenceServer
                 };
 
                 // load the server configuration, validate certificates
-                logger.LogInformation("Loading configuration from config section {Name}.", configSectionName);
+                Console.WriteLine($"Loading configuration from {configSectionName}.");
                 await server.LoadAsync(applicationName, configSectionName).ConfigureAwait(false);
 
                 // use the shadow config to map the config to an externally accessible location
                 if (shadowConfig)
                 {
-                    logger.LogInformation("Using shadow configuration.");
+                    Console.WriteLine("Using shadow configuration.");
                     string shadowPath = Directory
                         .GetParent(
                             Path.GetDirectoryName(
@@ -148,10 +148,10 @@ namespace Quickstarts.ReferenceServer
                     );
                     if (!File.Exists(shadowFilePath))
                     {
-                        logger.LogInformation("Create a copy of the config in the shadow location.");
+                        Console.WriteLine("Create a copy of the config in the shadow location.");
                         File.Copy(server.Configuration.SourceFilePath, shadowFilePath, true);
                     }
-                    logger.LogInformation("Reloading configuration from shadow location {FilePath}.", shadowFilePath);
+                    Console.WriteLine($"Reloading configuration from shadow location {shadowFilePath}.");
                     await server
                         .LoadAsync(applicationName, Path.Combine(shadowPath, configSectionName))
                         .ConfigureAwait(false);
@@ -161,7 +161,7 @@ namespace Quickstarts.ReferenceServer
                 telemetry.ConfigureLogging(server.Configuration, applicationName, logConsole, fileLog, appLog, LogLevel.Information);
 
                 // check or renew the certificate
-                logger.LogInformation("Check the certificate.");
+                Console.WriteLine("Check the certificate.");
                 await server.CheckCertificateAsync(renewCertificate).ConfigureAwait(false);
 
                 // Create and add the node managers
@@ -170,12 +170,12 @@ namespace Quickstarts.ReferenceServer
                 // enable provisioning mode if requested
                 if (provisioningMode)
                 {
-                    logger.LogInformation("Enabling provisioning mode.");
+                    Console.WriteLine("Enabling provisioning mode.");
                     Servers.Utils.EnableProvisioningMode(server.Server);
                     // Auto-accept is required in provisioning mode
                     if (!autoAccept)
                     {
-                        logger.LogInformation("Auto-accept enabled for provisioning mode.");
+                        Console.WriteLine("Auto-accept enabled for provisioning mode.");
                         autoAccept = true;
                         server.AutoAccept = autoAccept;
                     }
@@ -188,7 +188,7 @@ namespace Quickstarts.ReferenceServer
                 }
 
                 // start the server
-                logger.LogInformation("Start the server.");
+                Console.WriteLine("Start the server.");
                 await server.StartAsync().ConfigureAwait(false);
 
                 // setup reverse connect if specified
@@ -196,7 +196,7 @@ namespace Quickstarts.ReferenceServer
                 {
                     try
                     {
-                        logger.LogInformation("Adding reverse connection to {Url}.", reverseConnectUrlString);
+                        Console.WriteLine($"Adding reverse connection to {reverseConnectUrlString}.");
                         var reverseConnectUrl = new Uri(reverseConnectUrlString);
                         server.Server.AddReverseConnection(reverseConnectUrl);
                     }
@@ -212,13 +212,13 @@ namespace Quickstarts.ReferenceServer
                 // Apply custom settings for CTT testing
                 if (cttMode)
                 {
-                    logger.LogInformation("Apply settings for CTT.");
+                    Console.WriteLine("Apply settings for CTT.");
                     // start Alarms and other settings for CTT test
                     await Servers.Utils.ApplyCTTModeAsync(Console.Out, server.Server)
                         .ConfigureAwait(false);
                 }
 
-                logger.LogInformation("Server started. Press Ctrl-C to exit...");
+                Console.WriteLine("Server started. Press Ctrl-C to exit...");
 
                 // wait for timeout or Ctrl-C
                 var quitCTS = new CancellationTokenSource();
@@ -226,14 +226,14 @@ namespace Quickstarts.ReferenceServer
                 bool ctrlc = quitEvent.WaitOne(timeout);
 
                 // stop server. May have to wait for clients to disconnect.
-                logger.LogInformation("Server stopped. Waiting for exit...");
+                Console.WriteLine("Server stopped. Waiting for exit...");
                 await server.StopAsync().ConfigureAwait(false);
 
                 return (int)ExitCode.Ok;
             }
             catch (ErrorExitException eee)
             {
-                logger.LogInformation("The application exits with error: {ExitMessage}", eee.Message);
+                Console.WriteLine($"The application exits with error: {eee.Message}");
                 return (int)eee.ExitCode;
             }
         }
