@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -94,6 +94,38 @@ namespace Opc.Ua.PubSub.Transport
         /// Get the port from configured <see cref="PubSubConnectionDataType"/>.Address
         /// </summary>
         public int Port { get; }
+
+        /// <summary>
+        /// Gets the list of publisher UDP clients.
+        /// Returns a read-only list of active UDP clients used for publishing.
+        /// Can be used to configure socket settings such as ReceiveBuffer size.
+        /// </summary>
+        public IReadOnlyList<UdpClient> PublisherUdpClients
+        {
+            get
+            {
+                lock (Lock)
+                {
+                    return m_publisherUdpClients.AsReadOnly();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the list of subscriber UDP clients.
+        /// Returns a read-only list of active UDP clients used for subscribing.
+        /// Can be used to configure socket settings such as ReceiveBuffer size.
+        /// </summary>
+        public IReadOnlyList<UdpClient> SubscriberUdpClients
+        {
+            get
+            {
+                lock (Lock)
+                {
+                    return m_subscriberUdpClients.AsReadOnly();
+                }
+            }
+        }
 
         /// <summary>
         /// Perform specific Start tasks
@@ -384,13 +416,13 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Publish the network message
         /// </summary>
-        public override bool PublishNetworkMessage(UaNetworkMessage networkMessage)
+        public override Task<bool> PublishNetworkMessageAsync(UaNetworkMessage networkMessage)
         {
             if (networkMessage == null ||
                 m_publisherUdpClients == null ||
                 m_publisherUdpClients.Count == 0)
             {
-                return false;
+                return Task.FromResult(false);
             }
 
             try
@@ -416,20 +448,20 @@ namespace Opc.Ua.PubSub.Transport
                             catch (Exception ex)
                             {
                                 m_logger.LogError(ex, "UdpPubSubConnection.PublishNetworkMessage");
-                                return false;
+                                return Task.FromResult(false);
                             }
                         }
-                        return true;
+                        return Task.FromResult(true);
                     }
                 }
             }
             catch (Exception ex)
             {
                 m_logger.LogError(ex, "UdpPubSubConnection.PublishNetworkMessage");
-                return false;
+                return Task.FromResult(false);
             }
 
-            return false;
+            return Task.FromResult(false);
         }
 
         /// <summary>

@@ -1,14 +1,31 @@
-/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
-   The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation Corporate Members in good-standing
-     - GPL V2: everybody else
-   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
-   GNU General Public License as published by the Free Software Foundation;
-   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
-   This source code is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-*/
+/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
 
 using System;
 using System.Collections.Generic;
@@ -957,7 +974,7 @@ namespace Opc.Ua
                     }
                     catch (FormatException fe)
                     {
-                        throw CreateBadDecodingError(fieldName, fe);
+                        throw CreateBadDecodingError(fieldName, fe, value: xml);
                     }
                 }
             }
@@ -985,7 +1002,7 @@ namespace Opc.Ua
                 }
                 catch (FormatException fe)
                 {
-                    throw CreateBadDecodingError(fieldName, fe);
+                    throw CreateBadDecodingError(fieldName, fe, value: guidString);
                 }
 
                 EndField(fieldName);
@@ -1092,11 +1109,11 @@ namespace Opc.Ua
                 catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes
                     .BadNodeIdInvalid)
                 {
-                    throw CreateBadDecodingError(fieldName, sre);
+                    throw CreateBadDecodingError(fieldName, sre, value: identifierText);
                 }
                 catch (ArgumentException ae)
                 {
-                    throw CreateBadDecodingError(fieldName, ae);
+                    throw CreateBadDecodingError(fieldName, ae, value: identifierText);
                 }
 
                 EndField(fieldName);
@@ -1132,11 +1149,11 @@ namespace Opc.Ua
                 catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes
                     .BadNodeIdInvalid)
                 {
-                    throw CreateBadDecodingError(fieldName, sre);
+                    throw CreateBadDecodingError(fieldName, sre, value: identifierText);
                 }
                 catch (ArgumentException ae)
                 {
-                    throw CreateBadDecodingError(fieldName, ae);
+                    throw CreateBadDecodingError(fieldName, ae, value: identifierText);
                 }
 
                 EndField(fieldName);
@@ -1531,7 +1548,7 @@ namespace Opc.Ua
                     }
                     catch (Exception ex) when (ex is ArgumentException or FormatException or OverflowException)
                     {
-                        throw CreateBadDecodingError(fieldName, ex);
+                        throw CreateBadDecodingError(fieldName, ex, value: xml);
                     }
                 }
 
@@ -3145,8 +3162,19 @@ namespace Opc.Ua
         private static ServiceResultException CreateBadDecodingError(
             string fieldName,
             Exception ex,
-            [CallerMemberName] string functionName = null)
+            [CallerMemberName] string functionName = null,
+            string value = null)
         {
+            if (!string.IsNullOrEmpty(value))
+            {
+                return ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Unable to read field {0} in function {1}: {2}. Value: '{3}'",
+                    fieldName,
+                    functionName,
+                    ex.Message,
+                    value);
+            }
             return ServiceResultException.Create(
                 StatusCodes.BadDecodingError,
                 "Unable to read field {0} in function {1}: {2}",
@@ -3175,11 +3203,11 @@ namespace Opc.Ua
             }
             catch (OverflowException ove)
             {
-                throw CreateBadDecodingError(fieldName, ove, functionName);
+                throw CreateBadDecodingError(fieldName, ove, functionName: functionName, value: xml);
             }
             catch (FormatException fe)
             {
-                throw CreateBadDecodingError(fieldName, fe, functionName);
+                throw CreateBadDecodingError(fieldName, fe, functionName: functionName, value: xml);
             }
         }
 

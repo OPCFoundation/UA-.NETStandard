@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -79,6 +79,22 @@ namespace Opc.Ua.Client
         /// </summary>
         [DataMember(Order = 15)]
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+
+        /// <summary>
+        /// Server-side identifier of the triggering item if this monitored item
+        /// is triggered by another item. 0 indicates this item is not triggered.
+        /// Used to restore triggering links after session reconnect.
+        /// </summary>
+        [DataMember(Order = 16)]
+        public uint TriggeringItemId { get; init; }
+
+        /// <summary>
+        /// Collection of server-side identifiers of monitored items that are
+        /// triggered by this item. Empty or null if this item does not trigger
+        /// any other items. Used to restore triggering links after session reconnect.
+        /// </summary>
+        [DataMember(Order = 17)]
+        public UInt32Collection? TriggeredItems { get; init; }
     }
 
     /// <summary>

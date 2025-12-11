@@ -1,14 +1,31 @@
-/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
-   The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation Corporate Members in good-standing
-     - GPL V2: everybody else
-   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
-   GNU General Public License as published by the Free Software Foundation;
-   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
-   This source code is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-*/
+/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
 
 using System;
 using System.Collections.Generic;
@@ -106,13 +123,59 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Imports a node from the set.
         /// </summary>
-        public void Import(ISystemContext context, NodeStateCollection nodes)
+        /// <param name="context">The context.</param>
+        /// <param name="nodes">The collection to add imported nodes to.</param>
+        /// <param name="linkParentChild">If true, establishes parent-child relationships based on ParentNodeId attributes. Default is false for backward compatibility.</param>
+        public void Import(ISystemContext context, NodeStateCollection nodes, bool linkParentChild = false)
         {
             for (int ii = 0; ii < Items.Length; ii++)
             {
                 UANode node = Items[ii];
                 NodeState importedNode = Import(context, node);
                 nodes.Add(importedNode);
+            }
+
+            // Link parent-child relationships after all nodes are imported if requested
+            if (linkParentChild)
+            {
+                LinkParentChildRelationships(nodes);
+            }
+        }
+
+        /// <summary>
+        /// Links parent-child relationships for imported nodes.
+        /// </summary>
+        /// <param name="nodes">The collection of imported nodes.</param>
+        private static void LinkParentChildRelationships(NodeStateCollection nodes)
+        {
+            // Create a dictionary for fast lookup of nodes by NodeId
+            var nodeTable = new Dictionary<NodeId, NodeState>();
+            foreach (NodeState node in nodes)
+            {
+                if (!NodeId.IsNull(node.NodeId))
+                {
+                    nodeTable[node.NodeId] = node;
+                }
+            }
+
+            // Process each node to establish parent-child relationships
+            foreach (NodeState node in nodes)
+            {
+                if (node is BaseInstanceState instance && instance.Handle is NodeId parentNodeId)
+                {
+                    // Find the parent node
+                    if (nodeTable.TryGetValue(parentNodeId, out NodeState parent))
+                    {
+                        // Set the Parent property to establish the relationship
+                        instance.Parent = parent;
+
+                        // Add the child to the parent's children collection
+                        parent.AddChild(instance);
+                    }
+
+                    // Clear the Handle since we've processed it
+                    instance.Handle = null;
+                }
             }
         }
 

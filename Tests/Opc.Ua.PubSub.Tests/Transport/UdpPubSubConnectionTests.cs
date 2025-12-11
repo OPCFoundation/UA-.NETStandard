@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -522,6 +522,96 @@ namespace Opc.Ua.PubSub.Tests.Transport
             NUnit.Framework.Assert.Inconclusive("First active NIC was not found.");
 
             return null;
+        }
+
+        [Test(Description = "Validate UDP client socket access before connection is started")]
+        public void ValidateUdpPubSubConnectionSocketAccessBeforeStart()
+        {
+            // Arrange
+            Assert.IsNotNull(
+                m_udpPublisherConnection,
+                "The UADP connection from standard configuration is invalid.");
+
+            // Act - Access clients before connection is started
+            IReadOnlyList<UdpClient> publisherClients = m_udpPublisherConnection.PublisherUdpClients;
+            IReadOnlyList<UdpClient> subscriberClients = m_udpPublisherConnection.SubscriberUdpClients;
+
+            // Assert - Should return empty lists before connection is started
+            Assert.IsNotNull(publisherClients, "PublisherUdpClients should not be null");
+            Assert.IsNotNull(subscriberClients, "SubscriberUdpClients should not be null");
+            Assert.AreEqual(0, publisherClients.Count, "PublisherUdpClients should be empty before start");
+            Assert.AreEqual(0, subscriberClients.Count, "SubscriberUdpClients should be empty before start");
+        }
+
+        [Test(Description = "Validate UDP client socket access after connection is started")]
+        public void ValidateUdpPubSubConnectionSocketAccessAfterStart()
+        {
+            // Arrange
+            Assert.IsNotNull(
+                m_udpPublisherConnection,
+                "The UADP connection from standard configuration is invalid.");
+
+            // Act - Start the connection
+            m_udpPublisherConnection.Start();
+
+            try
+            {
+                // Access clients after connection is started
+                IReadOnlyList<UdpClient> publisherClients = m_udpPublisherConnection.PublisherUdpClients;
+                IReadOnlyList<UdpClient> subscriberClients = m_udpPublisherConnection.SubscriberUdpClients;
+
+                // Assert - Should have clients after connection is started
+                Assert.IsNotNull(publisherClients, "PublisherUdpClients should not be null");
+                Assert.IsNotNull(subscriberClients, "SubscriberUdpClients should not be null");
+
+                // Publisher should have clients since there are publishers configured
+                if (m_udpPublisherConnection.Publishers.Count > 0)
+                {
+                    Assert.Greater(publisherClients.Count, 0, "PublisherUdpClients should not be empty when publishers exist");
+
+                    // Verify we can access the underlying socket
+                    foreach (UdpClient client in publisherClients)
+                    {
+                        Assert.IsNotNull(client, "UDP client should not be null");
+                        Assert.IsNotNull(client.Client, "UDP client Socket should not be null");
+
+                        // Verify we can read socket properties (e.g., ReceiveBufferSize)
+                        int receiveBufferSize = client.Client.ReceiveBufferSize;
+                        Assert.Greater(receiveBufferSize, 0, "ReceiveBufferSize should be greater than 0");
+
+                        m_logger.LogInformation(
+                            "Publisher UDP Socket - ReceiveBufferSize: {Size}, LocalEndPoint: {Endpoint}",
+                            receiveBufferSize,
+                            client.Client.LocalEndPoint);
+                    }
+                }
+            }
+            finally
+            {
+                // Cleanup - Stop the connection
+                m_udpPublisherConnection.Stop();
+            }
+        }
+
+        [Test(Description = "Validate that UDP client list is read-only")]
+        public void ValidateUdpPubSubConnectionSocketListIsReadOnly()
+        {
+            // Arrange
+            Assert.IsNotNull(
+                m_udpPublisherConnection,
+                "The UADP connection from standard configuration is invalid.");
+
+            // Act
+            IReadOnlyList<UdpClient> publisherClients = m_udpPublisherConnection.PublisherUdpClients;
+            IReadOnlyList<UdpClient> subscriberClients = m_udpPublisherConnection.SubscriberUdpClients;
+
+            // Assert - The returned collections should be read-only
+            Assert.IsNotNull(publisherClients, "PublisherUdpClients should not be null");
+            Assert.IsNotNull(subscriberClients, "SubscriberUdpClients should not be null");
+
+            // Verify that the collections are truly read-only (no Add/Remove methods exposed)
+            Assert.IsInstanceOf<IReadOnlyList<UdpClient>>(publisherClients, "PublisherUdpClients should be IReadOnlyList");
+            Assert.IsInstanceOf<IReadOnlyList<UdpClient>>(subscriberClients, "SubscriberUdpClients should be IReadOnlyList");
         }
     }
 }

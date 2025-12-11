@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -33,6 +33,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Transport;
@@ -49,7 +50,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 #if !CUSTOM_TESTS
         [Ignore("A network interface controller is necessary in order to run correctly.")]
 #endif
-        public void ValidateUdpPubSubConnectionNetworkMessagePublishUnicast()
+        public async Task ValidateUdpPubSubConnectionNetworkMessagePublishUnicast()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -120,7 +121,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 {
                     if (uaNetworkMessage != null)
                     {
-                        publisherConnection.PublishNetworkMessage(uaNetworkMessage);
+                        await publisherConnection.PublishNetworkMessageAsync(uaNetworkMessage).ConfigureAwait(false);
                     }
                 }
             }
@@ -147,7 +148,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 #if !CUSTOM_TESTS
         [Ignore("A network interface controller is necessary in order to run correctly.")]
 #endif
-        public void ValidateUdpPubSubConnectionNetworkMessagePublishBroadcast()
+        public async Task ValidateUdpPubSubConnectionNetworkMessagePublishBroadcast()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();     //Arrange
             System.Net.NetworkInformation.UnicastIPAddressInformation localhost = GetFirstNic();
@@ -217,7 +218,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 {
                     if (uaNetworkMessage != null)
                     {
-                        publisherConnection.PublishNetworkMessage(uaNetworkMessage);
+                        await publisherConnection.PublishNetworkMessageAsync(uaNetworkMessage).ConfigureAwait(false);
                     }
                 }
             }
@@ -244,7 +245,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 #if !CUSTOM_TESTS
         [Ignore("A network interface controller is necessary in order to run correctly.")]
 #endif
-        public void ValidateUdpPubSubConnectionNetworkMessagePublishMulticast()
+        public async Task ValidateUdpPubSubConnectionNetworkMessagePublishMulticast()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -317,7 +318,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 {
                     if (uaNetworkMessage != null)
                     {
-                        publisherConnection.PublishNetworkMessage(uaNetworkMessage);
+                        await publisherConnection.PublishNetworkMessageAsync(uaNetworkMessage).ConfigureAwait(false);
                     }
                 }
             }
@@ -345,7 +346,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 #if !CUSTOM_TESTS
         [Ignore("A network interface controller is necessary in order to run correctly.")]
 #endif
-        public void ValidateUdpPubSubConnectionNetworkMessageDiscoveryPublish_DataSetMetadata()
+        public async Task ValidateUdpPubSubConnectionNetworkMessageDiscoveryPublish_DataSetMetadata()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -424,7 +425,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 {
                     if (uaNetworkMessage != null)
                     {
-                        publisherConnection.PublishNetworkMessage(uaNetworkMessage);
+                        await publisherConnection.PublishNetworkMessageAsync(uaNetworkMessage).ConfigureAwait(false);
                     }
                 }
             }
@@ -451,7 +452,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 #if !CUSTOM_TESTS
         [Ignore("A network interface controller is necessary in order to run correctly.")]
 #endif
-        public void ValidateUdpPubSubConnectionNetworkMessageDiscoveryPublish_DataSetWriterConfiguration()
+        public async Task ValidateUdpPubSubConnectionNetworkMessageDiscoveryPublish_DataSetWriterConfiguration()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -526,7 +527,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             if (networkMessage != null)
             {
-                publisherConnection.PublishNetworkMessage(networkMessage);
+                await publisherConnection.PublishNetworkMessageAsync(networkMessage).ConfigureAwait(false);
             }
 
             //Assert
@@ -552,7 +553,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 #if !CUSTOM_TESTS
         [Ignore("A network interface controller is necessary in order to run correctly.")]
 #endif
-        public void ValidateUdpPubSubConnectionNetworkMessageDiscoveryPublish_PublisherEndpoints()
+        public async Task ValidateUdpPubSubConnectionNetworkMessageDiscoveryPublish_PublisherEndpoints()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -654,7 +655,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             //Act
             publisherConnection.Start();
 
-            publisherConnection.PublishNetworkMessage(uaNetworkMessage);
+            await publisherConnection.PublishNetworkMessageAsync(uaNetworkMessage).ConfigureAwait(false);
 
             // Assert
             bool noMessageReceived = false;

@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -226,7 +226,7 @@ namespace Opc.Ua.PubSub
         /// </summary>
         /// <param name="networkMessage">The network message that needs to be published.</param>
         /// <returns>True if send was successful.</returns>
-        public abstract bool PublishNetworkMessage(UaNetworkMessage networkMessage);
+        public abstract Task<bool> PublishNetworkMessageAsync(UaNetworkMessage networkMessage);
 
         /// <summary>
         /// Get flag that indicates if all the network clients are connected

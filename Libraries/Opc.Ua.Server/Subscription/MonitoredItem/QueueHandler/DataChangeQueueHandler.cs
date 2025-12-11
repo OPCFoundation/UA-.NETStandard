@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -259,7 +259,7 @@ namespace Opc.Ua.Server
                     m_overflow = null;
                 }
 
-                if (!noEventLog)
+                if (!noEventLog && m_logger.IsEnabled(LogLevel.Trace))
                 {
                     m_logger.LogTrace(
                         "DEQUEUE VALUE: Value={Value} CODE={Code}<{Code:X8}> OVERFLOW={Overflow}",
@@ -279,7 +279,10 @@ namespace Opc.Ua.Server
             // check for empty queue.
             if (m_dataValueQueue.ItemsInQueue == 0)
             {
-                m_logger.LogTrace("ENQUEUE VALUE: Value={Value}", value.WrappedValue);
+                if (m_logger.IsEnabled(LogLevel.Trace))
+                {
+                    m_logger.LogTrace("ENQUEUE VALUE: Value={Value}", value.WrappedValue);
+                }
 
                 m_dataValueQueue.Enqueue(value, error);
 
@@ -330,7 +333,7 @@ namespace Opc.Ua.Server
                 //set overflow bit in oldest value
                 m_overflow = m_dataValueQueue.PeekOldestValue();
             }
-            else
+            else if (m_logger.IsEnabled(LogLevel.Trace))
             {
                 m_logger.LogTrace("ENQUEUE VALUE: Value={Value}", value.WrappedValue);
             }

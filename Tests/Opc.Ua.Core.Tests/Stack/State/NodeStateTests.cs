@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -137,6 +137,61 @@ namespace Opc.Ua.Core.Tests.Stack.State
             }
 
             return CreateDefaultNodeStateType(systemType) is NodeState;
+        }
+    }
+
+    /// <summary>
+    /// Tests for BaseEventState.MemberwiseClone.
+    /// </summary>
+    [TestFixture]
+    [Category("BaseEventState")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    [Parallelizable]
+    public class BaseEventStateTests
+    {
+        /// <summary>
+        /// Verify that MemberwiseClone works correctly for BaseEventState.
+        /// </summary>
+        [Test]
+        public void MemberwiseCloneBaseEventStateSucceeds()
+        {
+            var parent = new BaseObjectState(null);
+            var eventState = new BaseEventState(parent);
+
+            var clone = (BaseEventState)eventState.MemberwiseClone();
+
+            Assert.That(clone, Is.Not.Null);
+            Assert.That(clone.Parent, Is.SameAs(parent));
+        }
+
+        /// <summary>
+        /// Verify that MemberwiseClone works correctly for BaseEventState with null parent.
+        /// </summary>
+        [Test]
+        public void MemberwiseCloneBaseEventStateWithNullParentSucceeds()
+        {
+            var eventState = new BaseEventState(null);
+
+            var clone = (BaseEventState)eventState.MemberwiseClone();
+
+            Assert.That(clone, Is.Not.Null);
+            Assert.That(clone.Parent, Is.Null);
+        }
+
+        /// <summary>
+        /// Verify that Clone works correctly for derived event types.
+        /// </summary>
+        [Test]
+        public void CloneNonExclusiveLimitAlarmStateSucceeds()
+        {
+            var parent = new BaseObjectState(null);
+            var alarmState = new NonExclusiveLimitAlarmState(parent);
+
+            var clone = (NonExclusiveLimitAlarmState)alarmState.Clone();
+
+            Assert.That(clone, Is.Not.Null);
+            Assert.That(clone.Parent, Is.SameAs(parent));
         }
     }
 }
