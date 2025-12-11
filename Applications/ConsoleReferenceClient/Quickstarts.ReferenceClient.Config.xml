@@ -13,35 +13,35 @@
     <ApplicationCertificates>
       <CertificateIdentifier>
         <StoreType>Directory</StoreType>
-        <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>
+        <StorePath>./pki/own</StorePath>
         <SubjectName>CN=Quickstart Reference Client, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
         <CertificateTypeString>RsaSha256</CertificateTypeString>
       </CertificateIdentifier>
       <CertificateIdentifier>
         <!-- <TypeId>NistP256</TypeId> -->
         <StoreType>Directory</StoreType>
-        <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>
+        <StorePath>./pki/own</StorePath>
         <SubjectName>CN=Quickstart Reference Client, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
         <CertificateTypeString>NistP256</CertificateTypeString>
       </CertificateIdentifier>
       <CertificateIdentifier>
         <!-- <TypeId>NistP384</TypeId> -->
         <StoreType>Directory</StoreType>
-        <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>
+        <StorePath>./pki/own</StorePath>
         <SubjectName>CN=Quickstart Reference client, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
         <CertificateTypeString>NistP384</CertificateTypeString>
       </CertificateIdentifier>
       <CertificateIdentifier>
         <!-- <TypeId>BrainpoolP256r1</TypeId> -->
         <StoreType>Directory</StoreType>
-        <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>
+        <StorePath>./pki/own</StorePath>
         <SubjectName>CN=Quickstart Reference Client, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
         <CertificateTypeString>BrainpoolP256r1</CertificateTypeString>
       </CertificateIdentifier>
       <CertificateIdentifier>
         <!-- <TypeId>BrainpoolP384r1</TypeId> -->
         <StoreType>Directory</StoreType>
-        <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>
+        <StorePath>./pki/own</StorePath>
         <SubjectName>CN=Quickstart Reference Client, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
         <CertificateTypeString>BrainpoolP384r1</CertificateTypeString>
       </CertificateIdentifier>
@@ -49,17 +49,17 @@
     <!-- Where the issuer certificate are stored (certificate authorities) -->
     <TrustedIssuerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%LocalApplicationData%/OPC Foundation/pki/issuer</StorePath>
+      <StorePath>./pki/issuer</StorePath>
     </TrustedIssuerCertificates>
     <!-- Where the trust list is stored -->
     <TrustedPeerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%LocalApplicationData%/OPC Foundation/pki/trusted</StorePath>
+      <StorePath>./pki/trusted</StorePath>
     </TrustedPeerCertificates>
     <!-- The directory used to store invalid certificates for later review by the administrator. -->
     <RejectedCertificateStore>
       <StoreType>Directory</StoreType>
-      <StorePath>%LocalApplicationData%/OPC Foundation/pki/rejected</StorePath>
+      <StorePath>./pki/rejected</StorePath>
     </RejectedCertificateStore>
     <MaxRejectedCertificates>5</MaxRejectedCertificates>
     <!-- WARNING: The following setting (to automatically accept untrusted certificates) should be used
@@ -75,12 +75,12 @@
     <!-- Where the User issers list is stored-->
     <UserIssuerCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%LocalApplicationData%/OPC Foundation/pki/userIssuer</StorePath>
+      <StorePath>./pki/userIssuer</StorePath>
     </UserIssuerCertificates>
     <!-- Where the User trust list is stored-->
     <TrustedUserCertificates>
       <StoreType>Directory</StoreType>
-      <StorePath>%LocalApplicationData%/OPC Foundation/pki/trustedUser</StorePath>
+      <StorePath>./pki/trustedUser</StorePath>
     </TrustedUserCertificates>
   </SecurityConfiguration>
   <TransportConfigurations></TransportConfigurations>
@@ -92,7 +92,7 @@
     <MaxMessageSize>4194304</MaxMessageSize>
     <MaxBufferSize>65535</MaxBufferSize>
     <ChannelLifetime>300000</ChannelLifetime>
-    <SecurityTokenLifetime>3600000</SecurityTokenLifetime>
+    <SecurityTokenLifetime>30000</SecurityTokenLifetime>
   </TransportQuotas>
   <ClientConfiguration>
     <DefaultSessionTimeout>60000</DefaultSessionTimeout>
@@ -120,7 +120,7 @@
   </ClientConfiguration>
   <Extensions></Extensions>
   <TraceConfiguration>
-    <OutputFilePath>%LocalApplicationData%/OPC Foundation/Logs/Quickstarts.ReferenceClient.log.txt</OutputFilePath>
+    <OutputFilePath>./Logs/Quickstarts.ReferenceClient.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->

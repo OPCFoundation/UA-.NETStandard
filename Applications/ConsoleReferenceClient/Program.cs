@@ -54,6 +54,23 @@ namespace Quickstarts.ConsoleReferenceClient
         /// <exception cref="ErrorExitException"></exception>
         public static async Task Main(string[] args)
         {
+            //foreach (var group in Enum.GetValues(typeof(RSADiffieHellmanGroup)))
+            //{
+            //    var alice = RSADiffieHellman.Create((RSADiffieHellmanGroup)group);
+            //    var bob = RSADiffieHellman.Create((RSADiffieHellmanGroup)group);
+
+            //    var aliceNonce = alice.GetNonce();
+            //    var bobNonce = bob.GetNonce();
+
+            //    var bobAtAlice = RSADiffieHellman.Create(bobNonce);
+            //    var aliceAtBob = RSADiffieHellman.Create(aliceNonce);
+
+            //    var secret1 = alice.DeriveRawSecretAgreement(bobAtAlice);
+            //    CryptoTrace.WriteLine(CryptoTrace.KeyToString(secret1));
+            //    var secret2 = bob.DeriveRawSecretAgreement(aliceAtBob);
+            //    CryptoTrace.WriteLine(CryptoTrace.KeyToString(secret2));
+            //}
+
             Console.WriteLine("OPC UA Console Reference Client");
 
             Console.WriteLine(
@@ -75,8 +92,8 @@ namespace Quickstarts.ConsoleReferenceClient
             byte[] userpassword = null;
             string userCertificateThumbprint = null;
             byte[] userCertificatePassword = null;
-            bool logConsole = false;
-            bool appLog = false;
+            bool logConsole = true;
+            bool appLog = true;
             bool fileLog = false;
             bool renewCertificate = false;
             bool loadTypes = false;
@@ -333,7 +350,7 @@ namespace Quickstarts.ConsoleReferenceClient
                     logConsole,
                     fileLog,
                     appLog,
-                    LogLevel.Information);
+                    LogLevel.Warning);
 
                 // delete old certificate
                 if (renewCertificate)
@@ -369,6 +386,14 @@ namespace Quickstarts.ConsoleReferenceClient
                 var quitCTS = new CancellationTokenSource();
                 CancellationToken ct = quitCTS.Token;
                 ManualResetEvent quitEvent = ConsoleUtils.CtrlCHandler(quitCTS);
+
+                // insert security tester.
+                var tester = new SecurityTestClient.RunTest(config, telemetry);
+
+                if (await tester.RunAsync(quitEvent, ct).ConfigureAwait(false))
+                {
+                    return;
+                }
 
                 var userIdentity = new UserIdentity();
 

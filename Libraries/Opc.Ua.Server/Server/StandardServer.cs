@@ -529,7 +529,7 @@ namespace Opc.Ua.Server
                     serverEndpoints = GetEndpointDescriptions(endpointUrl, BaseAddresses, null);
 
                     // return the software certificates assigned to the server.
-                    serverSoftwareCertificates = [.. ServerProperties.SoftwareCertificates];
+                    serverSoftwareCertificates = new();
 
                     // sign the nonce provided by the client.
                     serverSignature = null;
@@ -537,10 +537,19 @@ namespace Opc.Ua.Server
                     //  sign the client nonce (if provided).
                     if (parsedClientCertificate != null && clientNonce != null)
                     {
-                        byte[] dataToSign = Utils.Append(parsedClientCertificate.RawData, clientNonce);
-                        serverSignature = SecurityPolicies.Sign(
-                            instanceCertificate,
+                        SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(context.SecurityPolicyUri);
+
+                        byte[] dataToSign = securityPolicy.GetServerSignatureData(
+                            context.ChannelContext.ChannelThumbprint,
+                            clientNonce,
+                            context.ChannelContext.ServerChannelCertificate,
+                            parsedClientCertificate.RawData,
+                            context.ChannelContext.ClientChannelCertificate,
+                            serverNonce);
+
+                        serverSignature = SecurityPolicies.CreateSignatureData(
                             context.SecurityPolicyUri,
+                            instanceCertificate,
                             dataToSign);
                     }
                 }
@@ -640,29 +649,36 @@ namespace Opc.Ua.Server
 
                 foreach (KeyValuePair ii in parameters.Parameters)
                 {
-                    if (ii.Key == "ECDHPolicyUri")
+                    if (ii.Key == AdditionalParameterNames.ECDHPolicyUri)
                     {
                         string policyUri = ii.Value.ToString();
+                        m_logger.LogWarning("Received request for new EphmeralKey using {SecurityPolicyUri}.", policyUri);
 
-                        if (EccUtils.IsEccPolicy(policyUri))
+                        var securityPolicy = SecurityPolicies.GetInfo(policyUri);
+
+                        if (securityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
                         {
-                            session.SetEccUserTokenSecurityPolicy(policyUri);
-                            EphemeralKeyType key = session.GetNewEccKey();
+                            session.SetUserTokenSecurityPolicy(policyUri);
+                            EphemeralKeyType key = session.GetNewEphmeralKey();
                             response.Parameters.Add(
                                 new KeyValuePair
                                 {
-                                    Key = "ECDHKey",
+                                    Key = AdditionalParameterNames.ECDHKey,
                                     Value = new ExtensionObject(key)
                                 });
+
+                            m_logger.LogWarning("Returning new EphmeralKey: {PublicKey}.", CryptoTrace.KeyToString(key.PublicKey));
                         }
                         else
                         {
                             response.Parameters.Add(
                                 new KeyValuePair
                                 {
-                                    Key = "ECDHKey",
+                                    Key = AdditionalParameterNames.ECDHKey,
                                     Value = StatusCodes.BadSecurityPolicyRejected
                                 });
+
+                            m_logger.LogWarning("Rejecting request for new EphmeralKey using {SecurityPolicyUri}.", policyUri);
                         }
                     }
                 }
@@ -683,13 +699,15 @@ namespace Opc.Ua.Server
         {
             AdditionalParametersType response = null;
 
-            EphemeralKeyType key = session.GetNewEccKey();
+            EphemeralKeyType key = session.GetNewEphmeralKey();
 
             if (key != null)
             {
                 response = new AdditionalParametersType();
                 response.Parameters
-                    .Add(new KeyValuePair { Key = "ECDHKey", Value = new ExtensionObject(key) });
+                    .Add(new KeyValuePair { Key = AdditionalParameterNames.ECDHKey, Value = new ExtensionObject(key) });
+
+                m_logger.LogWarning("Returning new EphmeralKey: {PublicKey}.", CryptoTrace.KeyToString(key.PublicKey));
             }
 
             return response;
@@ -729,64 +747,6 @@ namespace Opc.Ua.Server
 
             try
             {
-                if (context?.SecurityPolicyUri != SecurityPolicies.None)
-                {
-                    bool diagnosticsExist = false;
-
-                    if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                    {
-                        diagnosticInfos = [];
-                    }
-
-                    results = [];
-                    diagnosticInfos = [];
-
-                    foreach (SignedSoftwareCertificate signedCertificate in clientSoftwareCertificates)
-                    {
-                        ServiceResult result = SoftwareCertificate.Validate(
-                            CertificateValidator,
-                            signedCertificate.CertificateData,
-                            m_serverInternal.Telemetry,
-                            out SoftwareCertificate softwareCertificate);
-
-                        if (ServiceResult.IsBad(result))
-                        {
-                            results.Add(result.Code);
-
-                            // add diagnostics if requested.
-                            if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                            {
-                                DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
-                                    ServerInternal,
-                                    context,
-                                    result,
-                                    m_logger);
-                                diagnosticInfos.Add(diagnosticInfo);
-                                diagnosticsExist = true;
-                            }
-                        }
-                        else
-                        {
-                            softwareCertificates.Add(softwareCertificate);
-                            results.Add(StatusCodes.Good);
-
-                            // add diagnostics if requested.
-                            if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                            {
-                                diagnosticInfos.Add(null);
-                            }
-                        }
-                    }
-
-                    if (!diagnosticsExist && diagnosticInfos != null)
-                    {
-                        diagnosticInfos.Clear();
-                    }
-                }
-
-                // check if certificates meet the server's requirements.
-                ValidateSoftwareCertificates(softwareCertificates);
-
                 // activate the session.
                 (bool identityChanged, serverNonce) = await ServerInternal.SessionManager.ActivateSessionAsync(
                         context,
@@ -806,6 +766,7 @@ namespace Opc.Ua.Server
 
                 ISession session = ServerInternal.SessionManager
                     .GetSession(requestHeader.AuthenticationToken);
+
                 var parameters =
                     ExtensionObject.ToEncodeable(
                         requestHeader.AdditionalHeader) as AdditionalParametersType;
@@ -2726,16 +2687,6 @@ namespace Opc.Ua.Server
             ServiceResult result)
         {
             throw new ServiceResultException(result);
-        }
-
-        /// <summary>
-        /// Inspects the software certificates provided by the server.
-        /// </summary>
-        /// <param name="softwareCertificates">The software certificates.</param>
-        protected virtual void ValidateSoftwareCertificates(
-            List<SoftwareCertificate> softwareCertificates)
-        {
-            // always accept valid certificates.
         }
 
         /// <summary>

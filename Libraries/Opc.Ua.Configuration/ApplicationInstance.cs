@@ -943,7 +943,7 @@ namespace Opc.Ua.Configuration
             else
             {
                 ECCurve? curve =
-                    EccUtils.GetCurveFromCertificateTypeId(id.CertificateType)
+                    CryptoUtils.GetCurveFromCertificateTypeId(id.CertificateType)
                     ?? throw new ServiceResultException(
                         StatusCodes.BadConfigurationError,
                         "The Ecc certificate type is not supported.");

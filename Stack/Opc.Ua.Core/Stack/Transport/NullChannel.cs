@@ -58,8 +58,16 @@ namespace Opc.Ua
             => throw Unexpected(nameof(MessageContext));
 
         /// <inheritdoc/>
-        public ChannelToken CurrentToken
-            => throw Unexpected(nameof(CurrentToken));
+        public byte[] ChannelThumbprint
+            => throw Unexpected(nameof(ChannelThumbprint));
+
+        /// <inheritdoc/>
+        public byte[] ClientChannelCertificate
+            => throw Unexpected(nameof(ClientChannelCertificate));
+
+        /// <inheritdoc/>
+        public byte[] ServerChannelCertificate
+            => throw Unexpected(nameof(ServerChannelCertificate));
 
         /// <inheritdoc/>
         public int OperationTimeout { get; set; }
