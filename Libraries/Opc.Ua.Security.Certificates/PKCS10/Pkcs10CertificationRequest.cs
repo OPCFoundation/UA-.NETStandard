@@ -29,6 +29,7 @@
 
 using System;
 using System.Formats.Asn1;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
@@ -40,7 +41,7 @@ namespace Opc.Ua.Security.Certificates
     /// <remarks>
     /// This class provides functionality to parse and verify PKCS#10 CSRs
     /// using .NET Framework APIs, eliminating the need for BouncyCastle.
-    /// 
+    ///
     /// Based on RFC 2986: PKCS #10: Certification Request Syntax Specification
     /// https://tools.ietf.org/html/rfc2986
     /// </remarks>
@@ -76,7 +77,7 @@ namespace Opc.Ua.Security.Certificates
                 m_certificationRequestInfo = sequenceReader.ReadEncodedValue().ToArray();
 
                 // Parse CertificationRequestInfo to extract components
-                (m_subject, m_subjectPublicKeyInfo, m_attributes) = 
+                (m_subject, m_subjectPublicKeyInfo, m_attributes) =
                     ParseCertificationRequestInfo(m_certificationRequestInfo);
 
                 // Read SignatureAlgorithm
@@ -184,7 +185,7 @@ namespace Opc.Ua.Security.Certificates
             return m_certificationRequestInfo;
         }
 
-        private static (X500DistinguishedName subject, byte[] subjectPublicKeyInfo, byte[] attributes) 
+        private static (X500DistinguishedName subject, byte[] subjectPublicKeyInfo, byte[] attributes)
             ParseCertificationRequestInfo(byte[] certificationRequestInfo)
         {
             var infoReader = new AsnReader(certificationRequestInfo, AsnEncodingRules.DER);
@@ -218,8 +219,11 @@ namespace Opc.Ua.Security.Certificates
             AsnReader keySequence = keyReader.ReadSequence();
 
             // Read modulus and exponent
-            byte[] modulus = keySequence.ReadIntegerBytes().ToArray();
-            byte[] exponent = keySequence.ReadIntegerBytes().ToArray();
+            ReadOnlyMemory<byte> modulus = keySequence.ReadIntegerBytes();
+            if (modulus.Length > 1 && modulus.Span[0] == 0)
+            {
+                modulus = modulus[1..];
+            }
 
             // Validate key sizes to prevent issues with malformed CSRs
             // Modulus should be at least 1024 bits (128 bytes), commonly 2048+ bits
@@ -229,7 +233,8 @@ namespace Opc.Ua.Security.Certificates
                     $"RSA modulus is too small: {modulus.Length * 8} bits. Minimum is 1024 bits.");
             }
 
-            // Exponent should be small (commonly 3 or 65537)
+            // Exponent should be small (commonly 3)
+            ReadOnlyMemory<byte> exponent = keySequence.ReadIntegerBytes();
             if (exponent.Length > 8)
             {
                 throw new CryptographicException(
@@ -239,8 +244,8 @@ namespace Opc.Ua.Security.Certificates
             // Create RSA parameters
             var rsaParameters = new RSAParameters
             {
-                Modulus = modulus,
-                Exponent = exponent
+                Modulus = modulus.ToArray(),
+                Exponent = exponent.ToArray()
             };
 
             using var rsa = RSA.Create();
@@ -259,16 +264,15 @@ namespace Opc.Ua.Security.Certificates
 #if NET6_0_OR_GREATER
             // .NET 6+ has ImportSubjectPublicKeyInfo
             using var ecdsa = ECDsa.Create();
-            
             try
             {
                 ecdsa.ImportSubjectPublicKeyInfo(m_subjectPublicKeyInfo, out _);
-                
+
                 // PKCS#10 CSRs store ECDSA signatures in DER format (ASN.1 SEQUENCE)
                 // but .NET's VerifyData expects IEEE P1363 format (r || s)
                 // We need to convert the signature format
                 byte[] ieee1363Signature = ConvertEcdsaSignatureDerToIeee1363(m_signature);
-                
+
                 // Verify signature
                 return ecdsa.VerifyData(
                     m_certificationRequestInfo,
@@ -298,20 +302,20 @@ namespace Opc.Ua.Security.Certificates
             // Parse DER SEQUENCE
             var reader = new AsnReader(derSignature, AsnEncodingRules.DER);
             AsnReader sequenceReader = reader.ReadSequence();
-            
+
             // Read r and s as integers
             byte[] r = sequenceReader.ReadIntegerBytes().ToArray();
             byte[] s = sequenceReader.ReadIntegerBytes().ToArray();
-            
+
             // Remove leading zero bytes that may be present for sign bit in ASN.1 INTEGER encoding
             r = TrimLeadingZero(r);
             s = TrimLeadingZero(s);
-            
+
             // Determine the key size - both r and s should have the same size for ECDSA
             // The size is determined by the larger of the two after trimming
             // Common sizes: P-256: 32 bytes, P-384: 48 bytes, P-521: 66 bytes
             int keySize = Math.Max(r.Length, s.Length);
-            
+
             // For standard curves, round up to the nearest standard size if needed
             if (keySize <= 32)
             {
@@ -325,12 +329,12 @@ namespace Opc.Ua.Security.Certificates
             {
                 keySize = 66;  // P-521
             }
-            
+
             // Pad to the correct size
             byte[] ieee1363Signature = new byte[keySize * 2];
             Array.Copy(r, 0, ieee1363Signature, keySize - r.Length, r.Length);
             Array.Copy(s, 0, ieee1363Signature, keySize * 2 - s.Length, s.Length);
-            
+
             return ieee1363Signature;
         }
 

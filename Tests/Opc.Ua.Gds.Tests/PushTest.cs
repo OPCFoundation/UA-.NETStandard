@@ -664,6 +664,13 @@ namespace Opc.Ua.Gds.Tests
 
         public async Task UpdateCertificateCASignedAsync(bool regeneratePrivateKey)
         {
+#if NETFRAMEWORK
+            if (m_certificateType != OpcUa.ObjectTypeIds.RsaMinApplicationCertificateType &&
+                m_certificateType != OpcUa.ObjectTypeIds.RsaSha256ApplicationCertificateType)
+            {
+                NUnit.Framework.Assert.Ignore("ECC signing requests not yet supported on .NET Framework");
+            }
+#endif
             await ConnectPushClientAsync(true).ConfigureAwait(false);
             await ConnectGDSClientAsync(true).ConfigureAwait(false);
             TestContext.Out.WriteLine("Create Signing Request");
