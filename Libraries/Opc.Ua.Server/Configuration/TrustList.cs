@@ -270,7 +270,7 @@ namespace Opc.Ua.Server
                 }
 
                 // Check if we would exceed the maximum trust list size
-                if (m_totalBytesProcessed + length > m_maxTrustListSize)
+                if (m_totalBytesProcessed + (long)length > m_maxTrustListSize)
                 {
                     return ServiceResult.Create(
                         StatusCodes.BadEncodingLimitsExceeded,
@@ -319,7 +319,7 @@ namespace Opc.Ua.Server
                 }
 
                 // Check if we would exceed the maximum trust list size
-                if (m_totalBytesProcessed + data.Length > m_maxTrustListSize)
+                if (m_totalBytesProcessed + (long)data.Length > m_maxTrustListSize)
                 {
                     return ServiceResult.Create(
                         StatusCodes.BadEncodingLimitsExceeded,
