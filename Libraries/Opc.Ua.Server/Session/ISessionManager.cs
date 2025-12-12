@@ -59,6 +59,11 @@ namespace Opc.Ua.Server
         event SessionEventHandler SessionClosing;
 
         /// <summary>
+        /// Raised after diagnostics of an existing session were changed.
+        /// </summary>
+        event SessionEventHandler SessionDiagnosticsChanged;
+
+        /// <summary>
         /// Raised to signal a channel that the session is still alive.
         /// </summary>
         event SessionEventHandler SessionChannelKeepAlive;
@@ -141,6 +146,12 @@ namespace Opc.Ua.Server
         /// and that the sequence number is not out of order (update requests only).
         /// </remarks>
         OperationContext ValidateRequest(RequestHeader requestHeader, SecureChannelContext secureChannelContext, RequestType requestType);
+
+        /// <summary>
+        /// Marks the service diagnostics for the specified session as updated and triggers the
+        /// <see cref="ISessionManager.SessionDiagnosticsChanged"/> event so subscribers can react.
+        /// </summary>
+        void UpdateSessionDiagnostics(ISession session);
     }
 
     /// <summary>
@@ -193,6 +204,11 @@ namespace Opc.Ua.Server
         /// A session was activated and the user identity or preferred locales changed.
         /// </summary>
         Activated,
+
+        /// <summary>
+        /// The diagnostics of an existing session were changed.
+        /// </summary>
+        DiagnosticsChanged,
 
         /// <summary>
         /// A session is about to be closed.

@@ -571,6 +571,17 @@ namespace Opc.Ua.Server
                 m_maxHistoryContinuationPoints);
         }
 
+        /// <inheritdoc />
+        public virtual void UpdateSessionDiagnostics(ISession session)
+        {
+            if (session == null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
+
+            RaiseSessionEvent(session, SessionEventReason.DiagnosticsChanged);
+        }
+
         /// <summary>
         /// Raises an event related to a session.
         /// </summary>
@@ -591,6 +602,9 @@ namespace Opc.Ua.Server
                         break;
                     case SessionEventReason.Closing:
                         handler = m_SessionClosing;
+                        break;
+                    case SessionEventReason.DiagnosticsChanged:
+                        handler = m_SessionDiagnosticsChanged;
                         break;
                     case SessionEventReason.ChannelKeepAlive:
                         handler = m_SessionChannelKeepAlive;
@@ -688,6 +702,7 @@ namespace Opc.Ua.Server
         private event SessionEventHandler m_SessionCreated;
         private event SessionEventHandler m_SessionActivated;
         private event SessionEventHandler m_SessionClosing;
+        private event SessionEventHandler m_SessionDiagnosticsChanged;
         private event SessionEventHandler m_SessionChannelKeepAlive;
         private event ImpersonateEventHandler m_ImpersonateUser;
         private event EventHandler<ValidateSessionLessRequestEventArgs> m_ValidateSessionLessRequest;
@@ -726,6 +741,25 @@ namespace Opc.Ua.Server
                 lock (m_eventLock)
                 {
                     m_SessionActivated -= value;
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        public event SessionEventHandler SessionDiagnosticsChanged
+        {
+            add
+            {
+                lock (m_eventLock)
+                {
+                    m_SessionDiagnosticsChanged += value;
+                }
+            }
+            remove
+            {
+                lock (m_eventLock)
+                {
+                    m_SessionDiagnosticsChanged -= value;
                 }
             }
         }

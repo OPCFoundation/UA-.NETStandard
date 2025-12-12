@@ -350,7 +350,6 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-
                 if (secureChannelContext == null || !IsSecureChannelValid(secureChannelContext.SecureChannelId))
                 {
                     UpdateDiagnosticCounters(requestType, true, true);
@@ -1269,6 +1268,8 @@ namespace Opc.Ua.Server
                     {
                         counter.ErrorCount++;
                     }
+
+                    m_server.SessionManager.UpdateSessionDiagnostics(this);
                 }
             }
         }
