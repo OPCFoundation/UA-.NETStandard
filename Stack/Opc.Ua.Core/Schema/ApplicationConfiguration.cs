@@ -754,12 +754,10 @@ namespace Opc.Ua
                     return;
                 }
 
-                // Do not change IsDeprecatedConfiguration here: if a legacy
-                // <ApplicationCertificate> element was present during deserialization,
-                // the flag was already set by that setter and must not be cleared by
-                // the collection setter that follows.
-                // Leaving the flag untouched in the collection setter preserves the “legacy element was encountered” 
-                // state and avoids flipping the flag back to false when both legacy and modern elements are in the file.
+                // If both legacy (<ApplicationCertificate>) and modern (<ApplicationCertificates>) elements
+                // are present during deserialization (as a consequence of previous serialization that included both unintentionally), 
+                // prefer the modern representation and clear the
+                // deprecated flag when we process the collection below.
 
                 var newCertificates = new CertificateIdentifierCollection(value);
 
@@ -807,6 +805,9 @@ namespace Opc.Ua
 
                 m_applicationCertificates = newCertificates;
 
+                // Presence of the modern collection takes precedence over legacy; clear the flag so
+                // hybrid configurations are treated as modern.
+                IsDeprecatedConfiguration = false;
                 SupportedSecurityPolicies = BuildSupportedSecurityPolicies();
             }
         }

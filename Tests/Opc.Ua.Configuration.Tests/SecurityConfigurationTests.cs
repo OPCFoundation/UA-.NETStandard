@@ -251,6 +251,67 @@ namespace Opc.Ua.Configuration.Tests
                 "Deprecated configurations should not emit the ApplicationCertificates element.");
         }
 
+        [Test]
+        public void HybridConfigurationPrefersModernElementOnSave()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var serializer = new DataContractSerializer(typeof(ApplicationConfiguration));
+
+            var legacyCert = new CertificateIdentifier
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = "pki/own",
+                CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+            };
+
+            var modernCert = new CertificateIdentifier
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = "pki/own-modern",
+                CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+            };
+
+            var configuration = new ApplicationConfiguration(telemetry)
+            {
+                ApplicationName = "HybridConfiguration",
+                ApplicationUri = "urn:localhost:HybridConfiguration",
+                ApplicationType = ApplicationType.Server,
+                SecurityConfiguration = new SecurityConfiguration
+                {
+                    TrustedPeerCertificates = new CertificateTrustList { StorePath = "Test" },
+                    TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" }
+                }
+            };
+
+            // First set legacy to mark deprecated, then set the modern collection.
+            configuration.SecurityConfiguration.ApplicationCertificate = legacyCert;
+            configuration.SecurityConfiguration.ApplicationCertificates =
+                new CertificateIdentifierCollection { modernCert };
+
+            string xml;
+            using (var stream = new MemoryStream())
+            {
+                serializer.WriteObject(stream, configuration);
+                xml = Encoding.UTF8.GetString(stream.ToArray());
+            }
+
+            var document = XDocument.Parse(xml);
+            var roundTripped = (ApplicationConfiguration)serializer.ReadObject(
+                new MemoryStream(Encoding.UTF8.GetBytes(xml)));
+
+            Assert.That(configuration.SecurityConfiguration.IsDeprecatedConfiguration, Is.False);
+            Assert.That(roundTripped.SecurityConfiguration.IsDeprecatedConfiguration, Is.False);
+            Assert.That(
+                document.Descendants(XName.Get("ApplicationCertificate", Namespaces.OpcUaConfig)).Any(),
+                Is.False,
+                "Hybrid configurations should serialize as modern and omit the legacy element.");
+            Assert.That(
+                document.Descendants(XName.Get("ApplicationCertificates", Namespaces.OpcUaConfig)).Any(),
+                Is.True,
+                "Hybrid configurations should serialize the modern ApplicationCertificates element.");
+            Assert.That(roundTripped.SecurityConfiguration.ApplicationCertificates.Count, Is.EqualTo(1));
+        }
+
         private static IEnumerable<TestCaseData> GetInvalidConfigurations()
         {
             yield return new TestCaseData(
