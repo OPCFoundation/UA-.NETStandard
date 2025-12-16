@@ -72,6 +72,22 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
+        public async Task LoadingConfigurationWithApplicationCertificateShouldMarkItDeprecated()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var file = Path.Combine(TestContext.CurrentContext.WorkDirectory, "testlegacyconfig.xml");
+
+            var serializer = new DataContractSerializer(typeof(ApplicationConfiguration));
+            using var stream = new FileStream(file, FileMode.Open);
+            var reloadedConfiguration =
+                (ApplicationConfiguration)serializer.ReadObject(stream);
+
+            Assert.That(
+                reloadedConfiguration.SecurityConfiguration.IsDeprecatedConfiguration,
+                Is.True);
+        }
+
+        [Test]
         public async Task LoadingConfigurationWithApplicationCertificateAndApplicationCertificatesShouldNotMarkItDeprecated()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
