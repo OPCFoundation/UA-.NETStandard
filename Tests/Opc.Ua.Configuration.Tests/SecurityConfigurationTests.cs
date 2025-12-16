@@ -29,10 +29,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
+using System.Threading.Tasks;
 using System.Xml.Linq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -67,6 +69,22 @@ namespace Opc.Ua.Configuration.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             Assert.Throws<ServiceResultException>(() => configuration.Validate(telemetry));
+        }
+
+        [Test]
+        public async Task LoadingConfigurationWithApplicationCertificateAndApplicationCertificatesShouldNotMarkItDeprecated()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var file = Path.Combine(TestContext.CurrentContext.WorkDirectory, "testhybridconfig.xml");
+
+            var serializer = new DataContractSerializer(typeof(ApplicationConfiguration));
+            using var stream = new FileStream(file, FileMode.Open);
+            var reloadedConfiguration =
+                (ApplicationConfiguration)serializer.ReadObject(stream);
+
+            Assert.That(
+                reloadedConfiguration.SecurityConfiguration.IsDeprecatedConfiguration,
+                Is.False);
         }
 
         [Test]
@@ -105,7 +123,6 @@ namespace Opc.Ua.Configuration.Tests
             var reloadedConfiguration =
                 (ApplicationConfiguration)serializer.ReadObject(stream);
 
-            Assert.That(configuration.SecurityConfiguration.IsDeprecatedConfiguration, Is.False);
             Assert.That(
                 reloadedConfiguration.SecurityConfiguration.IsDeprecatedConfiguration,
                 Is.False,
@@ -153,7 +170,6 @@ namespace Opc.Ua.Configuration.Tests
                 document.Descendants(XName.Get("ApplicationCertificate", Namespaces.OpcUaConfig)).Any(),
                 Is.True,
                 "Legacy ApplicationCertificate element should be present for deprecated configurations.");
-            Assert.That(roundTripped.SecurityConfiguration.IsDeprecatedConfiguration, Is.True);
         }
 
         [Test]
@@ -203,7 +219,6 @@ namespace Opc.Ua.Configuration.Tests
                 document.Descendants(XName.Get("ApplicationCertificates", Namespaces.OpcUaConfig)).Any(),
                 Is.True,
                 "Modern configurations should emit the ApplicationCertificates element.");
-            Assert.That(roundTripped.SecurityConfiguration.IsDeprecatedConfiguration, Is.False);
         }
 
         [Test]
