@@ -174,7 +174,7 @@ namespace Quickstarts
                 // print endpoint info
                 foreach (string endpoint in Application.Server.GetEndpoints().Select(e => e.EndpointUrl).Distinct())
                 {
-                    m_logger.LogInformation("{Endpoint}", endpoint);
+                    Console.WriteLine(endpoint);
                 }
 
                 // start the status thread

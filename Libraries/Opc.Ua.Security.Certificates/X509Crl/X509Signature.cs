@@ -211,6 +211,10 @@ namespace Opc.Ua.Security.Certificates
                 return false;
             }
             byte[] decodedSignature = DecodeECDsa(Signature, key.KeySize);
+            if (decodedSignature == null)
+            {
+                return false;
+            }
             return key.VerifyData(Tbs, decodedSignature, Name);
         }
 
@@ -237,6 +241,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="signature">The signature to decode from ASN.1</param>
         /// <param name="keySize">The keySize in bits.</param>
+        /// <exception cref="CryptographicException"></exception>
         private static byte[] DecodeECDsa(ReadOnlyMemory<byte> signature, int keySize)
         {
             var reader = new AsnReader(signature, AsnEncodingRules.DER);
@@ -245,16 +250,21 @@ namespace Opc.Ua.Security.Certificates
             ReadOnlyMemory<byte> r = seqReader.ReadIntegerBytes();
             ReadOnlyMemory<byte> s = seqReader.ReadIntegerBytes();
             seqReader.ThrowIfNotEmpty();
-            keySize >>= 3;
-            if (r.Span[0] == 0 && r.Length > keySize)
+            if (r.Span[0] == 0 && r.Length > 1)
             {
                 r = r[1..];
             }
-            if (s.Span[0] == 0 && s.Length > keySize)
+            if (s.Span[0] == 0 && s.Length > 1)
             {
                 s = s[1..];
             }
+            keySize >>= 3;
             byte[] result = new byte[2 * keySize];
+            if (r.Length > keySize || s.Length > keySize)
+            {
+                // Size does not match our key size.
+                return null;
+            }
             int offset = keySize - r.Length;
             r.CopyTo(new Memory<byte>(result, offset, r.Length));
             offset = (2 * keySize) - s.Length;
