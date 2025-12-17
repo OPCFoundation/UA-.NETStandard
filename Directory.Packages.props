@@ -16,7 +16,7 @@
     <PackageVersion Include="Microsoft.Bcl.HashCode" Version="6.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.1" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.1" />
-    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.1" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.1" />
     <PackageVersion Include="Microsoft.IO.RecyclableMemoryStream" Version="3.0.1" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />

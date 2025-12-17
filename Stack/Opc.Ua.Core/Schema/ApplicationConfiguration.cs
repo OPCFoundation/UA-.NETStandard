@@ -694,7 +694,7 @@ namespace Opc.Ua
         /// This certificate must contain the application uri.
         /// For servers, URLs for each supported protocol must also be present.
         /// </remarks>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 0)]
+        [IgnoreDataMember]
         public CertificateIdentifier ApplicationCertificate
         {
             get
@@ -730,10 +730,19 @@ namespace Opc.Ua
             }
         }
 
+        // This private property exists solely to control serialization of the legacy single
+        // certificate element. It is emitted only when the configuration was marked deprecated.
+        [DataMember(Name = "ApplicationCertificate", IsRequired = false, EmitDefaultValue = false, Order = 0)]
+        private CertificateIdentifier ApplicationCertificateLegacy
+        {
+            get => IsDeprecatedConfiguration ? ApplicationCertificate : null;
+            set => ApplicationCertificate = value;
+        }
+
         /// <summary>
         /// The application instance certificates in use for the application.
         /// </summary>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 1)]
+        [IgnoreDataMember]
         public CertificateIdentifierCollection ApplicationCertificates
         {
             get => m_applicationCertificates;
@@ -744,6 +753,11 @@ namespace Opc.Ua
                     m_applicationCertificates = [];
                     return;
                 }
+
+                // If both legacy (<ApplicationCertificate>) and modern (<ApplicationCertificates>) elements
+                // are present during deserialization (as a consequence of previous serialization that included both unintentionally), 
+                // prefer the modern representation and clear the
+                // deprecated flag when we process the collection below.
 
                 var newCertificates = new CertificateIdentifierCollection(value);
 
@@ -791,8 +805,20 @@ namespace Opc.Ua
 
                 m_applicationCertificates = newCertificates;
 
+                // Presence of the modern collection takes precedence over legacy; clear the flag so
+                // hybrid configurations are treated as modern.
+                IsDeprecatedConfiguration = false;
                 SupportedSecurityPolicies = BuildSupportedSecurityPolicies();
             }
+        }
+
+        // This private property exists solely to control the serialization of the modern certificates collection.
+        // Emit only when the configuration is not marked deprecated.
+        [DataMember(Name = "ApplicationCertificates", IsRequired = false, EmitDefaultValue = false, Order = 1)]
+        private CertificateIdentifierCollection ApplicationCertificatesDataContract
+        {
+            get => IsDeprecatedConfiguration ? null : ApplicationCertificates;
+            set => ApplicationCertificates = value;
         }
 
         /// <summary>

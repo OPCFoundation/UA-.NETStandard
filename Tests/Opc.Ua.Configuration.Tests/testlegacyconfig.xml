@@ -1,0 +1,32 @@
+<ApplicationConfiguration xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd" xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+  <ApplicationName>HybridConfigurationTest</ApplicationName>
+  <ApplicationUri>urn:localhost:DeprecatedConfigurationTest</ApplicationUri>
+  <ProductUri i:nil="true"/>
+  <ApplicationType>Server_0</ApplicationType>
+  <SecurityConfiguration>
+    <ApplicationCertificate>
+      <StoreType>Directory</StoreType>
+      <StorePath>pki/own</StorePath>
+      <CertificateTypeString>RsaSha256</CertificateTypeString>
+    </ApplicationCertificate>
+    <TrustedIssuerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>Test</StorePath>
+      <TrustedCertificates/>
+    </TrustedIssuerCertificates>
+    <TrustedPeerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>Test</StorePath>
+      <TrustedCertificates/>
+    </TrustedPeerCertificates>
+    <NonceLength>32</NonceLength>
+    <MaxRejectedCertificates>5</MaxRejectedCertificates>
+    <UserRoleDirectory i:nil="true"/>
+    <RejectSHA1SignedCertificates>true</RejectSHA1SignedCertificates>
+    <MinimumCertificateKeySize>2048</MinimumCertificateKeySize>
+    <AddAppCertToTrustedStore>true</AddAppCertToTrustedStore>
+    <SendCertificateChain>true</SendCertificateChain>
+  </SecurityConfiguration>
+  <TransportConfigurations/>
+  <TransportQuotas i:nil="true"/>
+</ApplicationConfiguration>

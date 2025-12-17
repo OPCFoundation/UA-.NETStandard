@@ -664,7 +664,7 @@ namespace Opc.Ua.Gds.Tests
 
         public async Task UpdateCertificateCASignedAsync(bool regeneratePrivateKey)
         {
-#if NETFRAMEWORK
+#if NETFRAMEWORK || SKIP_ECC_CERTIFICATE_REQUEST_SIGNING
             if (m_certificateType != OpcUa.ObjectTypeIds.RsaMinApplicationCertificateType &&
                 m_certificateType != OpcUa.ObjectTypeIds.RsaSha256ApplicationCertificateType)
             {
