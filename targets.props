@@ -59,6 +59,7 @@
         <LibTypesTargetFrameworks>netstandard2.1</LibTypesTargetFrameworks>
         <LibxTargetFrameworks>netstandard2.1</LibxTargetFrameworks>
         <HttpsTargetFrameworks>netstandard2.1</HttpsTargetFrameworks>
+        <SKIP_ECC_CERTIFICATE_REQUEST_SIGNING>true</SKIP_ECC_CERTIFICATE_REQUEST_SIGNING>
       </PropertyGroup>
     </When>
     <When Condition="'$(CustomTestTarget)' == 'net48'">

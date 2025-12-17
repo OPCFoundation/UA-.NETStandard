@@ -131,7 +131,7 @@ namespace Opc.Ua.Gds.Tests
                     .SelectMany(cg => cg.CertificateTypes)
                     .Select(s => typeof(Ua.ObjectTypeIds).GetField(s).GetValue(null) as NodeId)
                     .Where(n => n != null && Utils.IsSupportedCertificateType(n))
-#if NETFRAMEWORK
+#if NETFRAMEWORK || SKIP_ECC_CERTIFICATE_REQUEST_SIGNING
                     // Only rsa gds issuance supported in net framework
                     .Where(n =>
                         n == Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType ||
