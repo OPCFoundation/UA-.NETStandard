@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Security.Cryptography;
 
 namespace Opc.Ua.Bindings
 {
@@ -52,6 +53,18 @@ namespace Opc.Ua.Bindings
         {
             if (!m_disposed)
             {
+                if (ServerHmac != null)
+                {
+                    ServerHmac.Dispose();
+                    ServerHmac = null;
+                }
+
+                if (ClientHmac != null)
+                {
+                    ClientHmac.Dispose();
+                    ClientHmac = null;
+                }
+
                 m_disposed = true;
             }
         }
@@ -167,5 +180,15 @@ namespace Opc.Ua.Bindings
         /// The initialization vector by the server when encrypting a message.
         /// </summary>
         internal byte[] ServerInitializationVector { get; set; }
+
+        /// <summary>
+        /// A pre-allocated HMAC used to improve performance for SecurityPolicies that need it.
+        /// </summary>
+        internal HMAC ServerHmac { get; set; }
+
+        /// <summary>
+        /// A pre-allocated HMAC used to improve performance for SecurityPolicies that need it.
+        /// </summary>
+        internal HMAC ClientHmac { get; set; }
     }
 }

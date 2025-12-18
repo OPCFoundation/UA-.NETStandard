@@ -54,23 +54,6 @@ namespace Quickstarts.ConsoleReferenceClient
         /// <exception cref="ErrorExitException"></exception>
         public static async Task Main(string[] args)
         {
-            //foreach (var group in Enum.GetValues(typeof(RSADiffieHellmanGroup)))
-            //{
-            //    var alice = RSADiffieHellman.Create((RSADiffieHellmanGroup)group);
-            //    var bob = RSADiffieHellman.Create((RSADiffieHellmanGroup)group);
-
-            //    var aliceNonce = alice.GetNonce();
-            //    var bobNonce = bob.GetNonce();
-
-            //    var bobAtAlice = RSADiffieHellman.Create(bobNonce);
-            //    var aliceAtBob = RSADiffieHellman.Create(aliceNonce);
-
-            //    var secret1 = alice.DeriveRawSecretAgreement(bobAtAlice);
-            //    CryptoTrace.WriteLine(CryptoTrace.KeyToString(secret1));
-            //    var secret2 = bob.DeriveRawSecretAgreement(aliceAtBob);
-            //    CryptoTrace.WriteLine(CryptoTrace.KeyToString(secret2));
-            //}
-
             Console.WriteLine("OPC UA Console Reference Client");
 
             Console.WriteLine(
@@ -111,6 +94,7 @@ namespace Quickstarts.ConsoleReferenceClient
             bool leakChannels = false;
             bool forever = false;
             bool enableDurableSubscriptions = false;
+            bool connectAllEndpointDescriptions = true;
 
             var options = new Mono.Options.OptionSet
             {
@@ -281,6 +265,17 @@ namespace Quickstarts.ConsoleReferenceClient
                             enableDurableSubscriptions = true;
                         }
                     }
+                },
+                {
+                    "ca|connectall",
+                    "Connects using all published EndpointDescriptions.",
+                    ca =>
+                    {
+                        if (ca != null)
+                        {
+                            connectAllEndpointDescriptions = true;
+                        }
+                    }
                 }
             };
 
@@ -387,12 +382,15 @@ namespace Quickstarts.ConsoleReferenceClient
                 CancellationToken ct = quitCTS.Token;
                 ManualResetEvent quitEvent = ConsoleUtils.CtrlCHandler(quitCTS);
 
-                // insert security tester.
-                var tester = new SecurityTestClient.RunTest(config, telemetry);
-
-                if (await tester.RunAsync(quitEvent, ct).ConfigureAwait(false))
+                // handle connect all endpoints test.
+                if (connectAllEndpointDescriptions)
                 {
-                    return;
+                    var tester = new SecurityTestClient.RunConnectAll(config, telemetry);
+
+                    if (await tester.RunAsync(quitEvent, ct).ConfigureAwait(false))
+                    {
+                        return;
+                    }
                 }
 
                 var userIdentity = new UserIdentity();

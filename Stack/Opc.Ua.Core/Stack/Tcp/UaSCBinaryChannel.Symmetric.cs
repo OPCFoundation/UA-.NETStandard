@@ -45,12 +45,12 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Returns the current security token.
         /// </summary>
-        protected ChannelToken PreviousToken { get; private set; }
+        protected internal ChannelToken PreviousToken { get; private set; }
 
         /// <summary>
         /// Returns the renewed but not yet activated token.
         /// </summary>
-        protected ChannelToken RenewedToken { get; private set; }
+        protected internal ChannelToken RenewedToken { get; private set; }
 
         /// <summary>
         /// Called when the token changes
@@ -195,12 +195,14 @@ namespace Opc.Ua.Bindings
                 token.ServerSigningKey = signingKey;
                 token.ServerEncryptingKey = encryptingKey;
                 token.ServerInitializationVector = iv;
+                token.ServerHmac = SecurityPolicy.CreateSignatureHmac(signingKey);
             }
             else
             {
                 token.ClientSigningKey = signingKey;
                 token.ClientEncryptingKey = encryptingKey;
                 token.ClientInitializationVector = iv;
+                token.ClientHmac = SecurityPolicy.CreateSignatureHmac(signingKey);
             }
         }
 
@@ -521,6 +523,7 @@ namespace Opc.Ua.Bindings
                 useClientKeys ? token.ClientEncryptingKey : token.ServerEncryptingKey,
                 useClientKeys ? token.ClientInitializationVector : token.ServerInitializationVector,
                 useClientKeys ? token.ClientSigningKey : token.ServerSigningKey,
+                useClientKeys ? token.ClientHmac : token.ServerHmac,
                 this.SecurityMode == MessageSecurityMode.Sign,
                 token.TokenId,
                 (uint)(m_localSequenceNumber - 1)); // already incremented to create this message. need the last one sent.

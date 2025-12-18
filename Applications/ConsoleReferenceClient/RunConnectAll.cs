@@ -15,7 +15,7 @@ using Opc.Ua.Configuration;
 
 namespace SecurityTestClient
 {
-    internal sealed class RunTest
+    internal sealed class RunConnectAll
     {
         private readonly Lock m_lock = new();
         private SessionReconnectHandler m_reconnectHandler;
@@ -30,7 +30,7 @@ namespace SecurityTestClient
         const int ReconnectPeriod = 1000;
         const int ReconnectPeriodExponentialBackoff = 15000;
 
-        public RunTest(ApplicationConfiguration configuration, ITelemetryContext context)
+        public RunConnectAll(ApplicationConfiguration configuration, ITelemetryContext context)
         {
             m_context = context;
             m_configuration = configuration;
@@ -118,7 +118,7 @@ namespace SecurityTestClient
                 foreach (var ii in endpoints)
                 {
                     var userCertificateFile = GetUserCertificateFile(ii.SecurityPolicyUri);
-                    var x509 = X509CertificateLoader.LoadCertificateFromFile(Path.Combine(".\\pki\\trustedUser\\certs", userCertificateFile));
+                    var x509 = X509CertificateLoader.LoadCertificateFromFile(Path.Combine("..\\..\\pki\\trustedUser\\certs", userCertificateFile));
                     var thumbprint = x509.Thumbprint;
 
                     var certificateIdentity = await LoadUserCertificateAsync(thumbprint, "password", ct).ConfigureAwait(false);

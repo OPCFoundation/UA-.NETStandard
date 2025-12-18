@@ -562,6 +562,7 @@ namespace Opc.Ua
             byte[] encryptingKey,
             byte[] iv,
             byte[] signingKey = null,
+            HMAC hmac = null,
             bool signOnly = false,
             uint tokenId = 0,
             uint lastSequenceNumber = 0)
@@ -604,7 +605,6 @@ namespace Opc.Ua
 
             if (signingKey != null)
             {
-                using HMAC hmac = securityPolicy.CreateSignatureHmac(signingKey);
                 byte[] hash = hmac.ComputeHash(data.Array, 0, data.Offset + data.Count);
 
                 Buffer.BlockCopy(

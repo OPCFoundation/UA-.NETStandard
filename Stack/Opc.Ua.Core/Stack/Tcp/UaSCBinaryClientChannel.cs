@@ -842,8 +842,6 @@ namespace Opc.Ua.Bindings
             uint messageType,
             ArraySegment<byte> messageChunk)
         {
-            //m_logger.LogWarning("IN:{Size}", TcpMessageType.GetTypeAndSize(messageChunk));
-
             // process a response.
             if (TcpMessageType.IsType(messageType, TcpMessageType.Message))
             {

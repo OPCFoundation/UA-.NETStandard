@@ -304,8 +304,6 @@ namespace Opc.Ua.Bindings
             {
                 SetResponseRequired(true);
 
-                //m_logger.LogWarning("IN:{Id}", TcpMessageType.GetTypeAndSize(messageChunk));
-
                 try
                 {
                     // process a response.

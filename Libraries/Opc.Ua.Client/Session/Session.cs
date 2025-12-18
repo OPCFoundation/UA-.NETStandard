@@ -1527,7 +1527,6 @@ namespace Opc.Ua.Client
             // send the software certificates assigned to the client.
             SignedSoftwareCertificateCollection clientSoftwareCertificates = new();
 
-            // during debugging send the sesson transfer token on all activations.
             RequestHeader? requestHeader = CreateRequestHeaderForActivateSession(
                 securityPolicy,
                 tokenSecurityPolicyUri);
