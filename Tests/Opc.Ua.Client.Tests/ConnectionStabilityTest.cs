@@ -289,7 +289,9 @@ namespace Opc.Ua.Client.Tests
                         int totalNotifications = valueChanges.Values.Sum();
                         int elapsedMinutes = reportCount * reportInterval / 60;
 
-                        TestContext.Out.WriteLine($"[Status Report {reportCount}] Elapsed: {elapsedMinutes} minutes, Total notifications: {totalNotifications}, Write count: {writeCount}, Errors: {errors.Count}");
+                        TestContext.Out.WriteLine(
+                            $"[Status Report {reportCount}] Elapsed: {elapsedMinutes} minutes, " +
+                            $"Total notifications: {totalNotifications}, Write count: {writeCount}, Errors: {errors.Count}");
 
                         // Report per-node statistics
                         if (reportCount % 5 == 0) // Every 5 minutes
@@ -371,7 +373,7 @@ namespace Opc.Ua.Client.Tests
                 }
 
                 // List all errors
-                if (errors.Count > 0)
+                if (!errors.IsEmpty)
                 {
                     TestContext.Out.WriteLine($"Errors encountered ({errors.Count}):");
                     foreach (string error in errors.Take(20)) // Show first 20 errors
