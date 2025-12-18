@@ -369,9 +369,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 if (reverseConnectUrlString != null)
                 {
                     // start the reverse connection manager
-                    logger.LogInformation(
-                        "Create reverse connection endpoint at {Url}.",
-                        reverseConnectUrlString);
+                    Console.WriteLine($"Create reverse connection endpoint at {reverseConnectUrlString}.");
                     reverseConnectManager = new ReverseConnectManager(telemetry);
                     reverseConnectManager.AddEndpoint(new Uri(reverseConnectUrlString));
                     reverseConnectManager.StartService(config);
@@ -400,15 +398,11 @@ namespace Quickstarts.ConsoleReferenceClient
                 {
                     if (userpassword == null)
                     {
-                        logger.LogInformation(
-                            "No password provided for user {Username}, using empty password.",
-                            username);
+                        Console.WriteLine($"No password provided for user {username}, using empty password.");
                     }
 
                     userIdentity = new UserIdentity(username, userpassword ?? ""u8);
-                    logger.LogInformation(
-                        "Connect with user identity for user {Username}",
-                        username);
+                    Console.WriteLine($"Connect with user identity for user {username}");
                 }
 
                 // set user identity of type certificate
@@ -433,15 +427,11 @@ namespace Quickstarts.ConsoleReferenceClient
                             ct
                         ).GetAwaiter().GetResult();
 
-                        logger.LogInformation(
-                            "Connect with user certificate with Thumbprint {UserCertificateThumbprint}",
-                            userCertificateThumbprint);
+                        Console.WriteLine($"Connect with user certificate with Thumbprint {userCertificateThumbprint}");
                     }
                     else
                     {
-                        logger.LogInformation(
-                            "Failed to load user certificate with Thumbprint {UserCertificateThumbprint}",
-                            userCertificateThumbprint);
+                        Console.WriteLine($"Failed to load user certificate with Thumbprint {userCertificateThumbprint}");
                     }
                 }
 
@@ -493,7 +483,7 @@ namespace Quickstarts.ConsoleReferenceClient
                         .ConfigureAwait(false);
                     if (connected)
                     {
-                        logger.LogInformation("Connected! Ctrl-C to quit.");
+                        Console.WriteLine("Connected! Ctrl-C to quit.");
 
                         // enable subscription transfer
                         uaClient.ReconnectPeriod = 1000;
@@ -523,7 +513,7 @@ namespace Quickstarts.ConsoleReferenceClient
 
                             if (browseall)
                             {
-                                logger.LogInformation("Browse the full address space.");
+                                Console.WriteLine("Browse the full address space.");
                                 referenceDescriptions = await samples
                                     .BrowseFullAddressSpaceAsync(uaClient, Objects.RootFolder, ct: ct)
                                     .ConfigureAwait(false);
@@ -542,7 +532,7 @@ namespace Quickstarts.ConsoleReferenceClient
 
                             if (managedbrowseall)
                             {
-                                logger.LogInformation("ManagedBrowse the full address space.");
+                                Console.WriteLine("ManagedBrowse the full address space.");
                                 referenceDescriptionsFromManagedBrowse = await samples
                                     .ManagedBrowseFullAddressSpaceAsync(
                                         uaClient,
@@ -654,9 +644,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                     .ConfigureAwait(false);
 
                                 // Wait for DataChange notifications from MonitoredItems
-                                logger.LogInformation(
-                                    "Subscribed to {Count} variables. Press Ctrl-C to exit.",
-                                    maxVariables);
+                                Console.WriteLine($"Subscribed to {maxVariables} variables. Press Ctrl-C to exit.");
 
                                 // free unused memory
                                 uaClient.Session.NodeCache.Clear();
@@ -678,18 +666,11 @@ namespace Quickstarts.ConsoleReferenceClient
                                                 .Session.ReadValueAsync(
                                                     variableIterator.Current.NodeId, ct)
                                                 .ConfigureAwait(false);
-                                            logger.LogInformation(
-                                                "Value of {NodeId} is {Value}",
-                                                variableIterator.Current.NodeId,
-                                                value
-                                            );
+                                            Console.WriteLine($"Value of {variableIterator.Current.NodeId} is {value}");
                                         }
                                         catch (Exception ex)
                                         {
-                                            logger.LogInformation(ex,
-                                                "Error reading value of {NodeId}",
-                                                variableIterator.Current.NodeId
-                                            );
+                                            Console.WriteLine($"Error reading value of {variableIterator.Current.NodeId}: {ex.Message}");
                                         }
                                     }
                                     else
@@ -737,7 +718,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                 enableDurableSubscriptions,
                                 ct).ConfigureAwait(false);
 
-                            logger.LogInformation("Waiting...");
+                            Console.WriteLine("Waiting...");
 
                             // Wait for some DataChange notifications from MonitoredItems
                             int waitCounters = 0;
@@ -755,17 +736,14 @@ namespace Quickstarts.ConsoleReferenceClient
                                     if (waitCounters == closeSessionTime &&
                                         uaClient.Session.SubscriptionCount == 1)
                                     {
-                                        logger.LogInformation(
-                                            "Closing Session (CurrentTime: {Time})",
-                                            DateTime.Now.ToLongTimeString());
+                                        Console.WriteLine($"Closing Session (CurrentTime: {DateTime.Now.ToLongTimeString()})");
                                         await uaClient.Session.CloseAsync(closeChannel: false, ct: ct)
                                             .ConfigureAwait(false);
                                     }
 
                                     if (waitCounters == restartSessionTime)
                                     {
-                                        logger.LogInformation("Restarting Session (CurrentTime: {Time})",
-                                            DateTime.Now.ToLongTimeString());
+                                        Console.WriteLine($"Restarting Session (CurrentTime: {DateTime.Now.ToLongTimeString()})");
                                         await uaClient
                                             .DurableSubscriptionTransferAsync(
                                                 serverUrl.ToString(),
@@ -787,23 +765,22 @@ namespace Quickstarts.ConsoleReferenceClient
                             }
                         }
 
-                        logger.LogInformation("Client disconnected.");
+                        Console.WriteLine("Client disconnected.");
 
                         await uaClient.DisconnectAsync(leakChannels, ct).ConfigureAwait(false);
                     }
                     else
                     {
-                        logger.LogInformation(
-                            "Could not connect to server! Retry in 10 seconds or Ctrl-C to quit.");
+                        Console.WriteLine("Could not connect to server! Retry in 10 seconds or Ctrl-C to quit.");
                         quit = quitEvent.WaitOne(Math.Min(10_000, waitTime));
                     }
                 } while (!quit);
 
-                logger.LogInformation("Client stopped.");
+                Console.WriteLine("Client stopped.");
             }
             catch (Exception ex)
             {
-                logger.LogInformation("{Error}", ex.Message);
+                Console.WriteLine($"{ex.Message}");
             }
             finally
             {

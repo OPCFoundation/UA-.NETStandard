@@ -159,16 +159,14 @@ namespace Quickstarts
                 subscriptions != null &&
                 Session != null)
             {
-                m_logger.LogInformation(
-                    "Transferring {Count} subscriptions from old session to new session...",
-                    subscriptions.Count);
+                Console.WriteLine($"Transferring {subscriptions.Count} subscriptions from old session to new session...");
                 success = await Session.TransferSubscriptionsAsync(
                     subscriptions,
                     true,
                     ct).ConfigureAwait(false);
                 if (success)
                 {
-                    m_logger.LogInformation("Subscriptions transferred.");
+                    Console.WriteLine("Subscriptions transferred.");
                 }
             }
 
@@ -200,7 +198,7 @@ namespace Quickstarts
             {
                 if (Session != null && Session.Connected)
                 {
-                    m_logger.LogInformation("Session already connected!");
+                    Console.WriteLine("Session already connected!");
                 }
                 else
                 {
@@ -208,7 +206,7 @@ namespace Quickstarts
                     EndpointDescription endpointDescription = null;
                     if (m_reverseConnectManager != null)
                     {
-                        m_logger.LogInformation("Waiting for reverse connection to.... {Url}", serverUrl);
+                        Console.WriteLine($"Waiting for reverse connection to.... {serverUrl}");
                         do
                         {
                             using var cts = new CancellationTokenSource(30_000);
@@ -227,7 +225,7 @@ namespace Quickstarts
                             }
                             if (endpointDescription == null)
                             {
-                                m_logger.LogInformation("Discover reverse connection endpoints....");
+                                Console.WriteLine("Discover reverse connection endpoints....");
                                 endpointDescription = await CoreClientUtils.SelectEndpointAsync(
                                     m_configuration,
                                     connection,
@@ -241,7 +239,7 @@ namespace Quickstarts
                     }
                     else
                     {
-                        m_logger.LogInformation("Connecting to... {Url}", serverUrl);
+                        Console.WriteLine($"Connecting to... {serverUrl}");
                         endpointDescription = await CoreClientUtils.SelectEndpointAsync(
                             m_configuration,
                             serverUrl,
@@ -299,9 +297,7 @@ namespace Quickstarts
                     }
 
                     // Session created successfully.
-                    m_logger.LogInformation(
-                        "New Session Created with SessionName = {SessionName}",
-                        Session.SessionName);
+                    Console.WriteLine($"New Session Created with SessionName = {Session.SessionName}");
                 }
 
                 return true;
@@ -309,7 +305,7 @@ namespace Quickstarts
             catch (Exception ex)
             {
                 // Log Error
-                m_logger.LogInformation("Create Session Error : {Message}", ex.Message);
+                Console.WriteLine($"Create Session Error : {ex.Message}");
                 return false;
             }
         }
@@ -324,7 +320,7 @@ namespace Quickstarts
             {
                 if (Session != null)
                 {
-                    m_logger.LogInformation("Disconnecting...");
+                    Console.WriteLine("Disconnecting...");
 
                     lock (m_lock)
                     {
@@ -344,11 +340,11 @@ namespace Quickstarts
                     Session = null;
 
                     // Log Session Disconnected event
-                    m_logger.LogInformation("Session Disconnected.");
+                    Console.WriteLine("Session Disconnected.");
                 }
                 else
                 {
-                    m_logger.LogInformation("Session not created!");
+                    Console.WriteLine("Session not created!");
                 }
             }
             catch (Exception ex)

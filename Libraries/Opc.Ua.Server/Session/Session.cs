@@ -356,7 +356,6 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-
                 if (secureChannelContext == null || !IsSecureChannelValid(secureChannelContext.SecureChannelId))
                 {
                     UpdateDiagnosticCounters(requestType, true, true);
@@ -1167,6 +1166,8 @@ namespace Opc.Ua.Server
             bool error,
             bool authorizationError)
         {
+            ServiceCounterDataType counter = null;
+
             lock (DiagnosticsLock)
             {
                 if (!error)
@@ -1185,8 +1186,6 @@ namespace Opc.Ua.Server
                         SessionDiagnostics.UnauthorizedRequestCount++;
                     }
                 }
-
-                ServiceCounterDataType counter = null;
 
                 switch (requestType)
                 {
@@ -1296,6 +1295,11 @@ namespace Opc.Ua.Server
                         counter.ErrorCount++;
                     }
                 }
+            }
+
+            if (counter != null)
+            {
+                m_server.SessionManager.RaiseSessionDiagnosticsChangedEvent(this);
             }
         }
 

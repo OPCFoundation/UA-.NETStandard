@@ -148,7 +148,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.Greater(csr.SubjectPublicKeyInfo.Length, 0);
 
             // Verify signature
-#if NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER && !SKIP_ECC_CERTIFICATE_REQUEST_SIGNING
             bool isValid = csr.Verify();
             Assert.True(isValid, "ECDSA CSR signature should be valid");
 #else

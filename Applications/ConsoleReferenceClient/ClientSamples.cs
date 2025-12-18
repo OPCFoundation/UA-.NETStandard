@@ -104,7 +104,7 @@ namespace Quickstarts
         {
             if (session == null || !session.Connected)
             {
-                m_logger.LogInformation("Session not connected!");
+                Console.WriteLine("Session not connected!");
                 return;
             }
 
@@ -132,7 +132,7 @@ namespace Quickstarts
                 };
 
                 // Read the node attributes
-                m_logger.LogInformation("Reading nodes...");
+                Console.WriteLine("Reading nodes...");
 
                 // Call Read Service
                 ReadResponse response = await session.ReadAsync(
@@ -151,18 +151,15 @@ namespace Quickstarts
                 // Display the results.
                 foreach (DataValue result in resultsValues)
                 {
-                    m_logger.LogInformation(
-                        "Read Value = {Value} , StatusCode = {StatusCode}",
-                        result.Value,
-                        result.StatusCode);
+                    Console.WriteLine($"Read Value = {result.Value} , StatusCode = {result.StatusCode}");
                 }
 
                 // Read Server NamespaceArray
-                m_logger.LogInformation("Reading Value of NamespaceArray node...");
+                Console.WriteLine("Reading Value of NamespaceArray node...");
                 DataValue namespaceArray = await session.ReadValueAsync(Variables.Server_NamespaceArray, ct)
                     .ConfigureAwait(false);
                 // Display the result
-                m_logger.LogInformation("NamespaceArray Value = {NamespaceArray}", namespaceArray);
+                Console.WriteLine($"NamespaceArray Value = {namespaceArray}");
             }
             catch (Exception ex)
             {
@@ -178,7 +175,7 @@ namespace Quickstarts
         {
             if (session == null || !session.Connected)
             {
-                m_logger.LogInformation("Session not connected!");
+                Console.WriteLine("Session not connected!");
                 return;
             }
 
@@ -215,7 +212,7 @@ namespace Quickstarts
                 nodesToWrite.Add(stringWriteVal);
 
                 // Write the node attributes
-                m_logger.LogInformation("Writing nodes...");
+                Console.WriteLine("Writing nodes...");
 
                 // Call Write Service
                 WriteResponse response = await session.WriteAsync(
@@ -230,11 +227,11 @@ namespace Quickstarts
                 m_validateResponse(results, nodesToWrite);
 
                 // Display the results.
-                m_logger.LogInformation("Write Results :");
+                Console.WriteLine("Write Results :");
 
                 foreach (StatusCode writeResult in results)
                 {
-                    m_logger.LogInformation("     {Result}", writeResult);
+                    Console.WriteLine($"     {writeResult}");
                 }
             }
             catch (Exception ex)
@@ -251,7 +248,7 @@ namespace Quickstarts
         {
             if (session == null || !session.Connected)
             {
-                m_logger.LogInformation("Session not connected!");
+                Console.WriteLine("Session not connected!");
                 return;
             }
 
@@ -270,19 +267,16 @@ namespace Quickstarts
                 NodeId nodeToBrowse = ObjectIds.Server;
 
                 // Call Browse service
-                m_logger.LogInformation("Browsing {Count} node...", nodeToBrowse);
+                Console.WriteLine($"Browsing {nodeToBrowse} node...");
                 ReferenceDescriptionCollection browseResults =
                     await browser.BrowseAsync(nodeToBrowse, ct).ConfigureAwait(false);
 
                 // Display the results
-                m_logger.LogInformation("Browse returned {Count} results:", browseResults.Count);
+                Console.WriteLine($"Browse returned {browseResults.Count} results:");
 
                 foreach (ReferenceDescription result in browseResults)
                 {
-                    m_logger.LogInformation(
-                        "     DisplayName = {DisplayName}, NodeClass = {NodeClass}",
-                        result.DisplayName.Text,
-                        result.NodeClass);
+                    Console.WriteLine($"     DisplayName = {result.DisplayName.Text}, NodeClass = {result.NodeClass}");
                 }
             }
             catch (Exception ex)
@@ -299,7 +293,7 @@ namespace Quickstarts
         {
             if (session == null || !session.Connected)
             {
-                m_logger.LogInformation("Session not connected!");
+                Console.WriteLine("Session not connected!");
                 return;
             }
 
@@ -317,7 +311,7 @@ namespace Quickstarts
                 IList<object> outputArguments = null;
 
                 // Invoke Call service
-                m_logger.LogInformation("Calling UAMethod for method node id {NodeId} ...", methodId);
+                Console.WriteLine($"Calling UAMethod for node {methodId} ...");
                 outputArguments = await session.CallAsync(
                     objectId,
                     methodId,
@@ -325,13 +319,11 @@ namespace Quickstarts
                     inputArguments).ConfigureAwait(false);
 
                 // Display results
-                m_logger.LogInformation(
-                    "Method call returned {Count} output argument(s):",
-                    outputArguments.Count);
+                Console.WriteLine($"Method call returned {outputArguments.Count} output argument(s):");
 
                 foreach (object outputArgument in outputArguments)
                 {
-                    m_logger.LogInformation("     OutputValue = {Value}", outputArgument);
+                    Console.WriteLine($"     OutputValue = {outputArgument}");
                 }
             }
             catch (Exception ex)
@@ -350,7 +342,7 @@ namespace Quickstarts
         {
             if (session == null || !session.Connected)
             {
-                m_logger.LogInformation("Session not connected!");
+                Console.WriteLine("Session not connected!");
                 return;
             }
 
@@ -368,7 +360,7 @@ namespace Quickstarts
                 IList<object> outputArguments = null;
 
                 // Invoke Call service
-                m_logger.LogInformation("Calling UAMethod for method node id {NodeId} ...", methodId);
+                Console.WriteLine($"Calling UAMethod for node {methodId} ...");
                 outputArguments = await session.CallAsync(
                     objectId,
                     methodId,
@@ -376,13 +368,11 @@ namespace Quickstarts
                     inputArguments).ConfigureAwait(false);
 
                 // Display results
-                m_logger.LogInformation(
-                    "Method call returned {Count} output argument(s):",
-                    outputArguments.Count);
+                Console.WriteLine($"Method call returned {outputArguments.Count} output argument(s):");
 
                 foreach (object outputArgument in outputArguments)
                 {
-                    m_logger.LogInformation("     OutputValue = {Value}", outputArgument);
+                    Console.WriteLine($"     OutputValue = {outputArgument}");
                 }
             }
             catch (Exception ex)
@@ -404,7 +394,7 @@ namespace Quickstarts
 
             if (session == null || !session.Connected)
             {
-                m_logger.LogInformation("Session not connected!");
+                Console.WriteLine("Session not connected!");
                 return isDurable;
             }
 
