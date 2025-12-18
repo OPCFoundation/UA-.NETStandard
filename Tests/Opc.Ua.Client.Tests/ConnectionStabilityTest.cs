@@ -49,6 +49,8 @@ namespace Opc.Ua.Client.Tests
     public class ConnectionStabilityTest : ClientTestFramework
     {
         private const int SecurityTokenLifetimeMs = 5 * 60 * 1000; // 5 minutes in milliseconds
+        private const int StatusReportIntervalSeconds = 60; // Report status every 60 seconds
+        private const double NotificationToleranceRatio = 0.95; // Accept 95% of expected notifications (5% tolerance)
 
         public ConnectionStabilityTest()
             : base(Utils.UriSchemeOpcTcp)
@@ -267,14 +269,13 @@ namespace Opc.Ua.Client.Tests
                 var statusReportingCts = new CancellationTokenSource();
                 var statusTask = Task.Run(async () =>
                 {
-                    int reportInterval = 60; // Report every 60 seconds
                     int reportCount = 0;
 
                     while (!statusReportingCts.IsCancellationRequested)
                     {
                         try
                         {
-                            await Task.Delay(TimeSpan.FromSeconds(reportInterval), statusReportingCts.Token).ConfigureAwait(false);
+                            await Task.Delay(TimeSpan.FromSeconds(StatusReportIntervalSeconds), statusReportingCts.Token).ConfigureAwait(false);
                         }
                         catch (OperationCanceledException)
                         {
@@ -283,7 +284,7 @@ namespace Opc.Ua.Client.Tests
 
                         reportCount++;
                         int totalNotifications = valueChanges.Values.Sum();
-                        int elapsedMinutes = reportCount * reportInterval / 60;
+                        int elapsedMinutes = reportCount * StatusReportIntervalSeconds / 60;
 
                         TestContext.Out.WriteLine(
                             $"[Status Report {reportCount}] Elapsed: {elapsedMinutes} minutes, " +
@@ -355,10 +356,10 @@ namespace Opc.Ua.Client.Tests
                     if (valueChanges.TryGetValue(nodeId, out int changes))
                     {
                         TestContext.Out.WriteLine($"  {nodeId}: {changes} notifications");
-                        if (changes < (writeCount * 0.95)) // Allow 5% tolerance
+                        if (changes < (writeCount * NotificationToleranceRatio))
                         {
                             allNodesReceivedData = false;
-                            TestContext.Out.WriteLine($"    WARNING: Expected at least {writeCount * 0.95:F0} notifications");
+                            TestContext.Out.WriteLine($"    WARNING: Expected at least {writeCount * NotificationToleranceRatio:F0} notifications");
                         }
                     }
                     else
