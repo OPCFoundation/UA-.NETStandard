@@ -305,7 +305,7 @@ namespace Opc.Ua.Server
         /// Create new ECC ephemeral key
         /// </summary>
         /// <returns>A new ephemeral key</returns>
-        public virtual EphemeralKeyType GetNewEphmeralKey()
+        public virtual EphemeralKeyType GetNewEphemeralKey()
         {
             lock (m_lock)
             {

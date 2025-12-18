@@ -134,7 +134,7 @@ namespace Opc.Ua.Server
         /// Create new ECC ephemeral key
         /// </summary>
         /// <returns>A new ephemeral key</returns>
-        EphemeralKeyType GetNewEphmeralKey();
+        EphemeralKeyType GetNewEphemeralKey();
 
         /// <summary>
         /// Checks if the secure channel is currently valid.

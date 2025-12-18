@@ -659,7 +659,7 @@ namespace Opc.Ua.Server
                         if (securityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
                         {
                             session.SetUserTokenSecurityPolicy(policyUri);
-                            EphemeralKeyType key = session.GetNewEphmeralKey();
+                            EphemeralKeyType key = session.GetNewEphemeralKey();
                             response.Parameters.Add(
                                 new KeyValuePair
                                 {
@@ -699,7 +699,7 @@ namespace Opc.Ua.Server
         {
             AdditionalParametersType response = null;
 
-            EphemeralKeyType key = session.GetNewEphmeralKey();
+            EphemeralKeyType key = session.GetNewEphemeralKey();
 
             if (key != null)
             {
