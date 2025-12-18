@@ -17,6 +17,9 @@ jobs:
     name: Connection Stability Test
     runs-on: ubuntu-latest
     timeout-minutes: 120  # Allow extra time beyond test duration for setup/teardown
+    
+    permissions:
+      contents: read
 
     env:
       DOTNET_VERSION: '10.0.x'
