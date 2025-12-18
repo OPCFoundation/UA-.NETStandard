@@ -128,8 +128,6 @@ namespace Opc.Ua.Client.Tests
             const int samplingInterval = 500;    // 500 ms
 
             var valueChanges = new ConcurrentDictionary<NodeId, int>();
-            var lastReceivedValues = new ConcurrentDictionary<NodeId, DataValue>();
-            var monitoredItems = new ConcurrentDictionary<uint, MonitoredItem>();
             var clientHandles = new ConcurrentDictionary<uint, NodeId>();
             var errors = new ConcurrentBag<string>();
 
@@ -177,7 +175,6 @@ namespace Opc.Ua.Client.Tests
 
                     valueChanges.TryAdd(nodeId, 0);
                     clientHandles.TryAdd(item.ClientHandle, nodeId);
-                    monitoredItems.TryAdd(item.ClientHandle, item);
                     subscription.AddItem(item);
                 }
 
@@ -197,7 +194,6 @@ namespace Opc.Ua.Client.Tests
                             else if (clientHandles.TryGetValue(notification.ClientHandle, out NodeId nodeId))
                             {
                                 valueChanges.AddOrUpdate(nodeId, 1, (key, count) => count + 1);
-                                lastReceivedValues[nodeId] = notification.Value;
                             }
                         }
                     }
