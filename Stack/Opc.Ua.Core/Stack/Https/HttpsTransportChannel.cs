@@ -135,6 +135,9 @@ namespace Opc.Ua.Bindings
             => m_quotas?.MessageContext ?? throw BadNotConnected();
 
         /// <inheritdoc/>
+        public ChannelToken CurrentToken => new();
+
+        /// <inheritdoc/>
         public byte[] ChannelThumbprint => [];
 
         /// <inheritdoc/>

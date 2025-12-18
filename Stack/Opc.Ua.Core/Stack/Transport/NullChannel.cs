@@ -42,6 +42,10 @@ namespace Opc.Ua
     internal sealed class NullChannel : ITransportChannel, ISecureChannel
     {
         /// <inheritdoc/>
+        public ChannelToken CurrentToken
+           => throw Unexpected(nameof(CurrentToken));
+
+        /// <inheritdoc/>
         public TransportChannelFeatures SupportedFeatures
             => throw Unexpected(nameof(SupportedFeatures));
 

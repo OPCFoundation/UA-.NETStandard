@@ -52,6 +52,11 @@ namespace Opc.Ua
     public interface ISecureChannel
     {
         /// <summary>
+        /// Gets the channel's current security token.
+        /// </summary>
+        ChannelToken? CurrentToken { get; }
+
+        /// <summary>
         /// Register for token change events
         /// </summary>
         event ChannelTokenActivatedEventHandler OnTokenActivated;
