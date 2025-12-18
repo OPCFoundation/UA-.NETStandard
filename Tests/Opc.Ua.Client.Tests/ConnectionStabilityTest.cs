@@ -443,12 +443,13 @@ namespace Opc.Ua.Client.Tests
                 return minutes;
             }
 
-            // Default to 90 minutes for nightly runs, but use 1 minute for manual/local testing
+            // Default to 90 minutes for nightly runs, but use 30 minutes for manual/local testing
+            // 30 minutes allows for 6 token renewals (token lifetime is 5 minutes)
             // Check if running in CI environment
             bool isCI = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CI")) ||
                        !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"));
 
-            return isCI ? 90 : 1; // 90 minutes for CI, 1 minute for local testing
+            return isCI ? 90 : 30; // 90 minutes for CI (18 renewals), 30 minutes for local (6 renewals)
         }
     }
 }
