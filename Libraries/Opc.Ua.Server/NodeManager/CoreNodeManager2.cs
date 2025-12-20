@@ -42,7 +42,7 @@ namespace Opc.Ua.Server
     /// This is a refactored version of CoreNodeManager that inherits from CustomNodeManager2
     /// to consolidate the NodeManager implementations in the server library.
     /// </remarks>
-    public class CoreNodeManager2 : CustomNodeManager2
+    public class CoreNodeManager2 : CustomNodeManager2, ICoreNodeManager
     {
         /// <summary>
         /// Initializes the node manager with default values.

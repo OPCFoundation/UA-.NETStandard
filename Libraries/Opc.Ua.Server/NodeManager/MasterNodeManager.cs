@@ -306,7 +306,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns the core node manager.
         /// </summary>
-        public CoreNodeManager2 CoreNodeManager => m_nodeManagers[1].SyncNodeManager as CoreNodeManager2;
+        public ICoreNodeManager CoreNodeManager => m_nodeManagers[1].SyncNodeManager as ICoreNodeManager;
 
         /// <summary>
         /// Returns the diagnostics node manager.

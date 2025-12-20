@@ -96,7 +96,7 @@ namespace Opc.Ua.Server
         /// The internal node manager for the servers.
         /// </summary>
         /// <value>The core node manager.</value>
-        CoreNodeManager2 CoreNodeManager { get; }
+        ICoreNodeManager CoreNodeManager { get; }
 
         /// <summary>
         /// Returns the node manager that managers the server diagnostics.

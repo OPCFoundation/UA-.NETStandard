@@ -101,7 +101,7 @@ namespace Opc.Ua.Server.Tests
             {
                 // Arrange & Act
                 StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
-                CoreNodeManager2 coreNodeManager = server.CurrentInstance.CoreNodeManager;
+                CoreNodeManager2 coreNodeManager = server.CurrentInstance.CoreNodeManager as CoreNodeManager2;
 
                 // Assert
                 Assert.That(coreNodeManager.DataLock, Is.Not.Null);
@@ -125,7 +125,7 @@ namespace Opc.Ua.Server.Tests
             {
                 // Arrange
                 StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
-                CoreNodeManager2 coreNodeManager = server.CurrentInstance.CoreNodeManager;
+                CoreNodeManager2 coreNodeManager = server.CurrentInstance.CoreNodeManager as CoreNodeManager2;
 
                 var testNode = new DataItemState(null)
                 {
@@ -161,7 +161,7 @@ namespace Opc.Ua.Server.Tests
             {
                 // Arrange
                 StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
-                CoreNodeManager2 coreNodeManager = server.CurrentInstance.CoreNodeManager;
+                CoreNodeManager2 coreNodeManager = server.CurrentInstance.CoreNodeManager as CoreNodeManager2;
 
                 // Act
                 NodeId nodeId1 = coreNodeManager.CreateUniqueNodeId();
@@ -192,7 +192,7 @@ namespace Opc.Ua.Server.Tests
             {
                 // Arrange & Act
                 StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
-                CoreNodeManager2 coreNodeManager = server.CurrentInstance.CoreNodeManager;
+                CoreNodeManager2 coreNodeManager = server.CurrentInstance.CoreNodeManager as CoreNodeManager2;
 
                 // Assert
                 Assert.That(coreNodeManager.NamespaceIndexes, Is.Not.Null);
@@ -217,7 +217,7 @@ namespace Opc.Ua.Server.Tests
             {
                 // Arrange & Act
                 StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
-                CoreNodeManager2 coreNodeManager = server.CurrentInstance.CoreNodeManager;
+                CoreNodeManager2 coreNodeManager = server.CurrentInstance.CoreNodeManager as CoreNodeManager2;
 
                 // Assert that the node manager is properly initialized
                 // The SamplingGroups support is enabled in the constructor
