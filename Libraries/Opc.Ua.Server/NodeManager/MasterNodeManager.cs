@@ -121,7 +121,7 @@ namespace Opc.Ua.Server
 
             // add the core node manager second because the diagnostics node manager takes priority.
             // always add the core node manager to the second of the list.
-            var coreNodeManager = new CoreNodeManager(Server, configuration, (ushort)dynamicNamespaceIndex);
+            var coreNodeManager = new CoreNodeManager2(Server, configuration, (ushort)dynamicNamespaceIndex);
             m_nodeManagers.Add(coreNodeManager.ToAsyncNodeManager());
 
             // register core node manager for default UA namespace.
@@ -306,7 +306,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns the core node manager.
         /// </summary>
-        public CoreNodeManager CoreNodeManager => m_nodeManagers[1].SyncNodeManager as CoreNodeManager;
+        public CoreNodeManager2 CoreNodeManager => m_nodeManagers[1].SyncNodeManager as CoreNodeManager2;
 
         /// <summary>
         /// Returns the diagnostics node manager.

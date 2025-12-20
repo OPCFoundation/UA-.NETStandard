@@ -281,7 +281,7 @@ namespace Opc.Ua.Server
         /// The internal node manager for the servers.
         /// </summary>
         /// <value>The core node manager.</value>
-        public CoreNodeManager CoreNodeManager { get; private set; }
+        public CoreNodeManager2 CoreNodeManager { get; private set; }
 
         /// <summary>
         /// Returns the node manager that managers the server diagnostics.

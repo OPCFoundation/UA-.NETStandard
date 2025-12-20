@@ -42,7 +42,9 @@ namespace Opc.Ua.Server
     /// <remarks>
     /// Every Server has one instance of this NodeManager.
     /// It stores objects that implement ILocalNode and indexes them by NodeId.
+    /// This class is deprecated. Use <see cref="CoreNodeManager2"/> instead.
     /// </remarks>
+    [Obsolete("Use CoreNodeManager2 instead. This class will be removed in a future version.")]
     public class CoreNodeManager : INodeManager, IDisposable
     {
         /// <summary>
@@ -148,11 +150,11 @@ namespace Opc.Ua.Server
                 node.Export(context, nodesToExport);
             }
 
-            lock (Server.CoreNodeManager.DataLock)
+            lock (DataLock)
             {
                 foreach (ILocalNode nodeToExport in nodesToExport.OfType<ILocalNode>())
                 {
-                    Server.CoreNodeManager.AttachNode(nodeToExport, isInternal);
+                    AttachNode(nodeToExport, isInternal);
                 }
             }
         }
