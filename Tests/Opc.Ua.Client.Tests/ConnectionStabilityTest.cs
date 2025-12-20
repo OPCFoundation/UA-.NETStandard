@@ -66,7 +66,6 @@ namespace Opc.Ua.Client.Tests
         public override async Task OneTimeSetUpAsync()
         {
             SupportsExternalServerUrl = true;
-            await base.OneTimeSetUpAsync().ConfigureAwait(false);
 
             // Check if running in CI environment
             bool isCI = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CI")) ||
@@ -77,15 +76,9 @@ namespace Opc.Ua.Client.Tests
             // Local: 10 seconds to force 6 renewals in 1 minute test
             int tokenLifetime = isCI ? SecurityTokenLifetimeCIMs : SecurityTokenLifetimeLocalMs;
 
-            if (ClientFixture?.Config?.TransportQuotas != null)
-            {
-                ClientFixture.Config.TransportQuotas.SecurityTokenLifetime = tokenLifetime;
-            }
+            SecurityTokenLifetime = tokenLifetime;
 
-            if (ServerFixture?.Config?.TransportQuotas != null)
-            {
-                ServerFixture.Config.TransportQuotas.SecurityTokenLifetime = tokenLifetime;
-            }
+            await base.OneTimeSetUpAsync().ConfigureAwait(false);
         }
 
         /// <summary>

@@ -435,7 +435,7 @@ namespace Opc.Ua.Client.Tests
             Uri url,
             CancellationToken ct = default)
         {
-            var endpointConfiguration = EndpointConfiguration.Create();
+            var endpointConfiguration = EndpointConfiguration.Create(Config);
             endpointConfiguration.OperationTimeout = OperationTimeout;
 
             using DiscoveryClient client = await DiscoveryClient.CreateAsync(
