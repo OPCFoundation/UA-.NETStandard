@@ -74,7 +74,7 @@ namespace Opc.Ua.Server
             }
 
             // Set up namespaces - CoreNodeManager handles namespace 0 (UA) and 1 (server namespace)
-            SetNamespaceIndexes([0, m_dynamicNamespaceIndex]);
+            SetNamespaceIndexes(new ushort[] { 0, m_dynamicNamespaceIndex });
         }
 
         /// <summary>

@@ -31,7 +31,6 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -51,7 +50,6 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task TestCoreNodeManager2Instantiation()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var fixture = new ServerFixture<StandardServer>();
 
             try
@@ -75,7 +73,6 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task TestCoreNodeManager2InheritsFromCustomNodeManager2()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var fixture = new ServerFixture<StandardServer>();
 
             try
@@ -98,7 +95,6 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task TestCoreNodeManager2HasDataLockProperty()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var fixture = new ServerFixture<StandardServer>();
 
             try
@@ -123,7 +119,6 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task TestCoreNodeManager2ImportNodes()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var fixture = new ServerFixture<StandardServer>();
 
             try
@@ -140,7 +135,7 @@ namespace Opc.Ua.Server.Tests
                 };
 
                 // Act
-                coreNodeManager.ImportNodes(coreNodeManager.SystemContext, [testNode]);
+                coreNodeManager.ImportNodes(coreNodeManager.SystemContext, new NodeState[] { testNode });
 
                 // Assert
                 NodeState foundNode = coreNodeManager.Find(testNode.NodeId);
@@ -160,7 +155,6 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task TestCoreNodeManager2CreateUniqueNodeId()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var fixture = new ServerFixture<StandardServer>();
 
             try
@@ -192,7 +186,6 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task TestCoreNodeManager2ManagesCorrectNamespaces()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var fixture = new ServerFixture<StandardServer>();
 
             try
@@ -218,7 +211,6 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task TestCoreNodeManager2UsesSamplingGroups()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var fixture = new ServerFixture<StandardServer>();
 
             try
