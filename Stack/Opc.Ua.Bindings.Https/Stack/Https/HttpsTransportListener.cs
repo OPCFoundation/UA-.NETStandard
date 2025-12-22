@@ -354,6 +354,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public async Task SendAsync(HttpContext context)
         {
+            // wait for certificate update to complete before processing requests.
+            m_quotas.CertificateValidator.CertificateUpdateInProgress.WaitOne();
+
             string message = string.Empty;
             CancellationToken ct = context.RequestAborted;
             try
@@ -606,6 +609,13 @@ namespace Opc.Ua.Bindings
             }
 
             return true;
+        }
+
+
+        /// <inheritdoc/>
+        public void CloseAllChannels(string reason)
+        {
+            // nothing to do
         }
 
         private EndpointDescriptionCollection m_descriptions;

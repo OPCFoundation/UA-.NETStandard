@@ -402,6 +402,15 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
+        public void CloseAllChannels(string reason)
+        {
+            foreach (TcpListenerChannel channel in m_channels.Values.ToList())
+            {
+                channel.ForceClose(reason);
+            }
+        }
+
+        /// <inheritdoc/>
         public void UpdateChannelLastActiveTime(string globalChannelId)
         {
             try
@@ -806,6 +815,9 @@ namespace Opc.Ua.Bindings
             do
             {
                 bool isBlocked = false;
+
+                // wait for certificate update to complete
+                m_quotas.CertificateValidator.CertificateUpdateInProgress.WaitOne();
 
                 // Track potential problematic client behavior only if Basic128Rsa15 security policy is offered
                 if (m_activeClientTracker != null)

@@ -39,6 +39,29 @@ namespace Opc.Ua
     public interface ICertificateValidator
     {
         /// <summary>
+        /// Raised when an application certificate update occurs.
+        /// </summary>
+        event CertificateUpdateEventHandler CertificateUpdate;
+
+        /// <summary>
+        /// Raised before an application certificate update occurs.
+        /// </summary>
+        event CertificateUpdateEventHandler CertificateUpdateStarted;
+
+        /// <summary>
+        /// An event that signals that a certificate update is in progress.
+        /// </summary>
+        WaitHandle CertificateUpdateInProgress { get; }
+
+        /// <summary>
+        /// Updates the validator with a new application certificate.
+        /// </summary>
+        Task UpdateCertificateAsync(
+            SecurityConfiguration securityConfiguration,
+            string applicationUri = null,
+            CancellationToken ct = default);
+
+        /// <summary>
         /// Validates a certificate.
         /// </summary>
         Task ValidateAsync(X509Certificate2 certificate, CancellationToken ct);

@@ -341,6 +341,7 @@ namespace Opc.Ua.Server.Tests
                     catch (ServiceResultException e) when ((e.StatusCode is
                         StatusCodes.BadServerHalted or
                         StatusCodes.BadSecureChannelClosed or
+                        StatusCodes.BadConnectionClosed or
                         StatusCodes.BadNoCommunication or
                         StatusCodes.BadNotConnected) &&
                         attempt < maxAttempts)
