@@ -376,6 +376,7 @@ namespace Opc.Ua.Gds.Client
                 }
                 catch (ServiceResultException e) when ((e.StatusCode is
                     StatusCodes.BadServerHalted or
+                    StatusCodes.BadConnectionClosed or
                     StatusCodes.BadSecureChannelClosed or
                     StatusCodes.BadNoCommunication) &&
                     attempt < maxAttempts)
@@ -432,6 +433,7 @@ namespace Opc.Ua.Gds.Client
                 catch (ServiceResultException e) when ((e.StatusCode is
                     StatusCodes.BadServerHalted or
                     StatusCodes.BadSecureChannelClosed or
+                    StatusCodes.BadConnectionClosed or
                     StatusCodes.BadNoCommunication) &&
                     attempt < maxAttempts)
                 {

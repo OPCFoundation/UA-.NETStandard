@@ -3340,6 +3340,7 @@ namespace Opc.Ua.Server
             }
 
             CertificateValidator.CertificateUpdate += OnCertificateUpdateAsync;
+            CertificateValidator.CertificateUpdateStarted += OnCertificateUpdateStartedAsync;
         }
 
         /// <summary>

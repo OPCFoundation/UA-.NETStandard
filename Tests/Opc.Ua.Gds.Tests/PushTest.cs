@@ -1079,6 +1079,48 @@ namespace Opc.Ua.Gds.Tests
 
             await DisconnectPushClientAsync().ConfigureAwait(false);
 
+            var certificateUpdate = new ManualResetEvent(false);
+            var certificateUpdateStarted = new ManualResetEvent(false);
+            Task OnCertificateUpdateStarted(object sender, EventArgs e)
+            {
+                certificateUpdateStarted.Set();
+                return Task.CompletedTask;
+            }
+            Task OnCertificateUpdated(object sender, EventArgs e)
+            {
+                certificateUpdate.Set();
+                return Task.CompletedTask;
+            }
+
+            var validator = m_server.Config.CertificateValidator;
+            try
+            {
+                validator.CertificateUpdateStarted += OnCertificateUpdateStarted;
+                validator.CertificateUpdate += OnCertificateUpdated;
+
+                if (!certificateUpdateStarted.WaitOne(TimeSpan.FromSeconds(10)))
+                {
+                    NUnit.Framework.Assert.Fail("Server certificate update did not start.");
+                }
+
+                if (!certificateUpdate.WaitOne(TimeSpan.FromSeconds(30)))
+                {
+                    NUnit.Framework.Assert.Fail("Server certificate update did not complete.");
+                }
+            }
+            finally
+            {
+                validator.CertificateUpdateStarted -= OnCertificateUpdateStarted;
+                validator.CertificateUpdate -= OnCertificateUpdated;
+                certificateUpdate.Dispose();
+                certificateUpdateStarted.Dispose();
+            }
+
+            if (!m_server.Config.CertificateValidator.CertificateUpdateInProgress.WaitOne(TimeSpan.FromSeconds(30)))
+            {
+                NUnit.Framework.Assert.Fail("Server certificate update is still in progress after waiting 30 seconds.");
+            }
+
             const int maxWaitSeconds = 10;
             const int retryIntervalMs = 2000;
             var stopwatch = Stopwatch.StartNew();
@@ -1100,6 +1142,7 @@ namespace Opc.Ua.Gds.Tests
                     }
 
                     await DisconnectPushClientAsync().ConfigureAwait(false);
+                    await DisconnectGDSClientAsync().ConfigureAwait(false);
                     await Task.Delay(retryIntervalMs).ConfigureAwait(false);
                 }
                 catch (Exception ex)

@@ -98,6 +98,15 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Raised before an application certificate update occurs.
+        /// </summary>
+        public event CertificateUpdateEventHandler CertificateUpdateStarted
+        {
+            add => m_CertificateUpdateStarted += value;
+            remove => m_CertificateUpdateStarted -= value;
+        }
+
+        /// <summary>
         /// Updates the validator with the current state of the configuration.
         /// </summary>
         [Obsolete("Use UpdateAsync instead.")]
@@ -284,51 +293,69 @@ namespace Opc.Ua
             string applicationUri = null,
             CancellationToken ct = default)
         {
-            await m_semaphore.WaitAsync(ct).ConfigureAwait(false);
+            m_updateEvent.Reset();
 
             try
             {
-                m_applicationCertificates.Clear();
-                //
-                // crash occurs if the cert is in use still and this has not run yet.
-                // This might be the intended design but this runs on a free task that
-                // might not be scheduled right away.
-                //
-                // TODO: We need a better way to disconnect all sessions when the cert is
-                // updated. (See caller of this method)
-                //
-                // foreach (CertificateIdentifier applicationCertificate in securityConfiguration
-                //     .ApplicationCertificates)
-                // {
-                //     applicationCertificate.DisposeCertificate();
-                // }
-
-                foreach (CertificateIdentifier applicationCertificate in securityConfiguration
-                    .ApplicationCertificates)
+                CertificateUpdateEventHandler started_callback = m_CertificateUpdateStarted;
+                if (started_callback != null)
                 {
-                    await applicationCertificate
-                        .LoadPrivateKeyExAsync(
-                            securityConfiguration.CertificatePasswordProvider,
-                            applicationUri,
-                            m_telemetry,
-                            ct)
-                        .ConfigureAwait(false);
+                    var args = new CertificateUpdateEventArgs(
+                        securityConfiguration,
+                        GetChannelValidator());
+                    await started_callback(this, args).ConfigureAwait(false);
+                }
+
+                await m_semaphore.WaitAsync(ct).ConfigureAwait(false);
+
+                try
+                {
+                    m_applicationCertificates.Clear();
+                    //
+                    // crash occurs if the cert is in use still and this has not run yet.
+                    // This might be the intended design but this runs on a free task that
+                    // might not be scheduled right away.
+                    //
+                    // TODO: We need a better way to disconnect all sessions when the cert is
+                    // updated. (See caller of this method)
+                    //
+                    // foreach (CertificateIdentifier applicationCertificate in securityConfiguration
+                    //     .ApplicationCertificates)
+                    // {
+                    //     applicationCertificate.DisposeCertificate();
+                    // }
+
+                    foreach (CertificateIdentifier applicationCertificate in securityConfiguration
+                        .ApplicationCertificates)
+                    {
+                        await applicationCertificate
+                            .LoadPrivateKeyExAsync(
+                                securityConfiguration.CertificatePasswordProvider,
+                                applicationUri,
+                                m_telemetry,
+                                ct)
+                            .ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    m_semaphore.Release();
+                }
+
+                await UpdateAsync(securityConfiguration, applicationUri, ct).ConfigureAwait(false);
+
+                CertificateUpdateEventHandler callback = m_CertificateUpdate;
+                if (callback != null)
+                {
+                    var args = new CertificateUpdateEventArgs(
+                        securityConfiguration,
+                        GetChannelValidator());
+                    await callback(this, args).ConfigureAwait(false);
                 }
             }
             finally
             {
-                m_semaphore.Release();
-            }
-
-            await UpdateAsync(securityConfiguration, applicationUri, ct).ConfigureAwait(false);
-
-            CertificateUpdateEventHandler callback = m_CertificateUpdate;
-            if (callback != null)
-            {
-                var args = new CertificateUpdateEventArgs(
-                    securityConfiguration,
-                    GetChannelValidator());
-                callback(this, args);
+                m_updateEvent.Set();
             }
         }
 
@@ -2234,6 +2261,9 @@ namespace Opc.Ua
             throw new NotSupportedException("Unsupported curve type.");
         }
 
+        /// <inheritdoc/>
+        public WaitHandle CertificateUpdateInProgress => m_updateEvent.WaitHandle;
+
         /// <summary>
         /// Flag to protect setting by application
         /// from a modification by a SecurityConfiguration.
@@ -2254,6 +2284,7 @@ namespace Opc.Ua
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
         private readonly Dictionary<string, X509Certificate2> m_validatedCertificates;
+        private readonly ManualResetEventSlim m_updateEvent = new(true);
         private CertificateStoreIdentifier m_trustedCertificateStore;
         private CertificateIdentifierCollection m_trustedCertificateList;
         private CertificateStoreIdentifier m_issuerCertificateStore;
@@ -2261,6 +2292,7 @@ namespace Opc.Ua
         private CertificateStoreIdentifier m_rejectedCertificateStore;
         private event CertificateValidationEventHandler m_CertificateValidation;
         private event CertificateUpdateEventHandler m_CertificateUpdate;
+        private event CertificateUpdateEventHandler m_CertificateUpdateStarted;
         private readonly List<X509Certificate2> m_applicationCertificates;
         private ProtectFlags m_protectFlags;
         private bool m_autoAcceptUntrustedCertificates;
@@ -2350,7 +2382,7 @@ namespace Opc.Ua
     /// <summary>
     /// Used to handle certificate update events.
     /// </summary>
-    public delegate void CertificateUpdateEventHandler(
+    public delegate Task CertificateUpdateEventHandler(
         CertificateValidator sender,
         CertificateUpdateEventArgs e);
 }
