@@ -251,21 +251,21 @@ namespace Quickstarts.ReferenceServer
             }
 
             // sample how to modify default user token policies
-            if (description.SecurityPolicyUri == SecurityPolicies.Aes256_Sha256_RsaPss &&
-                description.SecurityMode == MessageSecurityMode.SignAndEncrypt)
-            {
-                return [.. policies.Where(u => u.TokenType != UserTokenType.Certificate)];
-            }
-            else if (description.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep &&
-                description.SecurityMode == MessageSecurityMode.Sign)
-            {
-                return [.. policies.Where(u => u.TokenType != UserTokenType.Anonymous)];
-            }
-            else if (description.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep &&
-                description.SecurityMode == MessageSecurityMode.SignAndEncrypt)
-            {
-                return [.. policies.Where(u => u.TokenType != UserTokenType.UserName)];
-            }
+            //if (description.SecurityPolicyUri == SecurityPolicies.Aes256_Sha256_RsaPss &&
+            //    description.SecurityMode == MessageSecurityMode.SignAndEncrypt)
+            //{
+            //    return [.. policies.Where(u => u.TokenType != UserTokenType.Certificate)];
+            //}
+            //else if (description.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep &&
+            //    description.SecurityMode == MessageSecurityMode.Sign)
+            //{
+            //    return [.. policies.Where(u => u.TokenType != UserTokenType.Anonymous)];
+            //}
+            //else if (description.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep &&
+            //    description.SecurityMode == MessageSecurityMode.SignAndEncrypt)
+            //{
+            //    return [.. policies.Where(u => u.TokenType != UserTokenType.UserName)];
+            //}
             return policies;
         }
 
@@ -332,7 +332,7 @@ namespace Quickstarts.ReferenceServer
                 m_logger.LogInformation(
                     Utils.TraceMasks.Security,
                     "X509 Token Accepted: {Identity}",
-                    args.Identity?.DisplayName);
+                    args.Identity.DisplayName);
 
                 return;
             }
