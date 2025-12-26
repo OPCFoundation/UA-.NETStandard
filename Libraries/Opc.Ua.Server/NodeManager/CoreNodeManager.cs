@@ -42,8 +42,10 @@ namespace Opc.Ua.Server
     /// <remarks>
     /// Every Server has one instance of this NodeManager.
     /// It stores objects that implement ILocalNode and indexes them by NodeId.
+    /// This class is deprecated. Use <see cref="CoreNodeManager2"/> instead.
     /// </remarks>
-    public class CoreNodeManager : INodeManager, IDisposable
+    [Obsolete("Use CoreNodeManager2 instead. This class will be removed in a future version.")]
+    public class CoreNodeManager : INodeManager, ICoreNodeManager, IDisposable
     {
         /// <summary>
         /// Initializes the object with default values.
@@ -148,11 +150,11 @@ namespace Opc.Ua.Server
                 node.Export(context, nodesToExport);
             }
 
-            lock (Server.CoreNodeManager.DataLock)
+            lock (DataLock)
             {
                 foreach (ILocalNode nodeToExport in nodesToExport.OfType<ILocalNode>())
                 {
-                    Server.CoreNodeManager.AttachNode(nodeToExport, isInternal);
+                    AttachNode(nodeToExport, isInternal);
                 }
             }
         }
@@ -3571,6 +3573,11 @@ namespace Opc.Ua.Server
             return CreateUniqueNodeId(m_dynamicNamespaceIndex);
         }
 
+        /// <summary>
+        /// Returns the namespace index used for dynamically created nodes.
+        /// </summary>
+        public ushort DynamicNamespaceIndex => m_dynamicNamespaceIndex;
+
         /// <inheritdoc/>
         private object GetManagerHandle(ExpandedNodeId nodeId)
         {
@@ -3680,6 +3687,37 @@ namespace Opc.Ua.Server
         private NodeId CreateUniqueNodeId(ushort namespaceIndex)
         {
             return new NodeId(Utils.IncrementIdentifier(ref m_lastId), namespaceIndex);
+        }
+
+        /// <summary>
+        /// Called when the session is closed.
+        /// </summary>
+        public void SessionClosing(OperationContext context, NodeId sessionId, bool deleteSubscriptions)
+        {
+            // No special handling needed for session closing in the core node manager
+        }
+
+        /// <summary>
+        /// Returns true if the node is in the view.
+        /// </summary>
+        public bool IsNodeInView(OperationContext context, NodeId viewId, object nodeHandle)
+        {
+            // Core node manager supports all views
+            return true;
+        }
+
+        /// <summary>
+        /// Returns the metadata needed for validating permissions, associated with the node.
+        /// </summary>
+        public NodeMetadata GetPermissionMetadata(
+            OperationContext context,
+            object targetHandle,
+            BrowseResultMask resultMask,
+            Dictionary<NodeId, List<object>> uniqueNodesServiceAttributesCache,
+            bool permissionsOnly)
+        {
+            // Delegate to the standard GetNodeMetadata method
+            return GetNodeMetadata(context, targetHandle, resultMask);
         }
 
         private readonly NodeTable m_nodes;
