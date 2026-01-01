@@ -43,8 +43,12 @@ namespace Opc.Ua.Server
     /// </summary>
     public class TrustList
     {
-        private const int kDefaultTrustListCapacity = 0x10000;
-        private const int kDefaultMaxTrustListSize = 0x100000; // 1MB default max
+        private const int kDefaultTrustListCapacity = 1 * 1024 * 1024;
+
+        /// <summary>
+        /// 1MB default max trust list size
+        /// </summary>
+        private const int kDefaultMaxTrustListSize = 1 * 1024 * 1024;
 
         /// <summary>
         /// Initialize the trustlist with default values.
@@ -270,7 +274,7 @@ namespace Opc.Ua.Server
                 }
 
                 // Check if we would exceed the maximum trust list size
-                if (m_totalBytesProcessed + (long)length > m_maxTrustListSize)
+                if (m_totalBytesProcessed + length > m_maxTrustListSize)
                 {
                     return ServiceResult.Create(
                         StatusCodes.BadEncodingLimitsExceeded,
@@ -319,7 +323,7 @@ namespace Opc.Ua.Server
                 }
 
                 // Check if we would exceed the maximum trust list size
-                if (m_totalBytesProcessed + (long)data.Length > m_maxTrustListSize)
+                if (m_totalBytesProcessed + data.Length > m_maxTrustListSize)
                 {
                     return ServiceResult.Create(
                         StatusCodes.BadEncodingLimitsExceeded,

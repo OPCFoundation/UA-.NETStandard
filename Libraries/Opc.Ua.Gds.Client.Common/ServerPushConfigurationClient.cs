@@ -64,6 +64,11 @@ namespace Opc.Ua.Gds.Client
                 };
         }
 
+        /// <summary>
+        /// 1MB default max trust list size
+        /// </summary>
+        private const int kDefaultMaxTrustListSize = 1 * 1024 * 1024;
+
         public NodeId DefaultApplicationGroup { get; private set; }
         public NodeId DefaultHttpsGroup { get; private set; }
         public NodeId DefaultUserTokenGroup { get; private set; }
@@ -581,7 +586,8 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Updates the trust list.
         /// </summary>
-        public async Task<bool> UpdateTrustListAsync(TrustListDataType trustList, CancellationToken ct = default)
+        /// <exception cref="ServiceResultException"></exception>
+        public async Task<bool> UpdateTrustListAsync(TrustListDataType trustList, long maxTrustListSize = 0, CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             IUserIdentity oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
@@ -595,15 +601,20 @@ namespace Opc.Ua.Gds.Client
                 }
                 strm.Position = 0;
 
+                // Use a reasonable maximum size limit for trust lists
+                if (maxTrustListSize == 0)
+                {
+                    maxTrustListSize = kDefaultMaxTrustListSize;
+                }
+
                 // Validate trust list size before attempting to write
-                const int kMaxTrustListSize = 16 * 1024 * 1024; // 16MB max
-                if (strm.Length > kMaxTrustListSize)
+                if (strm.Length > maxTrustListSize)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadEncodingLimitsExceeded,
                         "Trust list size {0} exceeds maximum allowed size of {1} bytes",
                         strm.Length,
-                        kMaxTrustListSize);
+                        maxTrustListSize);
                 }
 
                 System.Collections.Generic.IList<object> outputArguments = await session.CallAsync(
