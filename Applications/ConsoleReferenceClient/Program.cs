@@ -75,8 +75,8 @@ namespace Quickstarts.ConsoleReferenceClient
             byte[] userpassword = null;
             string userCertificateThumbprint = null;
             byte[] userCertificatePassword = null;
-            bool logConsole = false;
-            bool appLog = false;
+            bool logConsole = true;
+            bool appLog = true;
             bool fileLog = false;
             bool renewCertificate = false;
             bool loadTypes = false;
@@ -94,6 +94,7 @@ namespace Quickstarts.ConsoleReferenceClient
             bool leakChannels = false;
             bool forever = false;
             bool enableDurableSubscriptions = false;
+            bool connectAllEndpointDescriptions = true;
 
             var options = new Mono.Options.OptionSet
             {
@@ -264,6 +265,17 @@ namespace Quickstarts.ConsoleReferenceClient
                             enableDurableSubscriptions = true;
                         }
                     }
+                },
+                {
+                    "ca|connectall",
+                    "Connects using all published EndpointDescriptions.",
+                    ca =>
+                    {
+                        if (ca != null)
+                        {
+                            connectAllEndpointDescriptions = true;
+                        }
+                    }
                 }
             };
 
@@ -333,7 +345,7 @@ namespace Quickstarts.ConsoleReferenceClient
                     logConsole,
                     fileLog,
                     appLog,
-                    LogLevel.Information);
+                    LogLevel.Warning);
 
                 // delete old certificate
                 if (renewCertificate)
@@ -367,6 +379,17 @@ namespace Quickstarts.ConsoleReferenceClient
                 var quitCTS = new CancellationTokenSource();
                 CancellationToken ct = quitCTS.Token;
                 ManualResetEvent quitEvent = ConsoleUtils.CtrlCHandler(quitCTS);
+
+                // handle connect all endpoints test.
+                if (connectAllEndpointDescriptions)
+                {
+                    var tester = new SecurityTestClient.RunConnectAll(config, telemetry);
+
+                    if (await tester.RunAsync(quitEvent, ct).ConfigureAwait(false))
+                    {
+                        return;
+                    }
+                }
 
                 var userIdentity = new UserIdentity();
 

@@ -58,7 +58,8 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
         {
             if (IsSupportedByPlatform(securityPolicyUri))
             {
-                uint nonceLength = Ua.Nonce.GetNonceLength(securityPolicyUri);
+                var info = Ua.SecurityPolicies.GetInfo(securityPolicyUri);
+                var nonceLength = info.SecureChannelNonceLength;
 
                 var nonce = Ua.Nonce.CreateNonce(securityPolicyUri);
 
@@ -84,10 +85,11 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
         {
             if (IsSupportedByPlatform(securityPolicyUri))
             {
-                uint nonceLength = Ua.Nonce.GetNonceLength(securityPolicyUri);
+                var info = Ua.SecurityPolicies.GetInfo(securityPolicyUri);
+                var nonceLength = info.SecureChannelNonceLength;
                 var nonceByLen = Ua.Nonce.CreateNonce(securityPolicyUri);
 
-                var nonceByData = Ua.Nonce.CreateNonce(securityPolicyUri, nonceByLen.Data);
+                var nonceByData = Ua.Nonce.CreateNonce(info, nonceByLen.Data);
 
                 Assert.IsNotNull(nonceByData);
                 Assert.IsNotNull(nonceByData.Data);
@@ -113,11 +115,12 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
         {
             if (IsSupportedByPlatform(securityPolicyUri))
             {
-                uint nonceLength = Ua.Nonce.GetNonceLength(securityPolicyUri);
+                var info = Ua.SecurityPolicies.GetInfo(securityPolicyUri);
+                var nonceLength = info.SecureChannelNonceLength;
 
                 byte[] randomValue = Ua.Nonce.CreateRandomNonceData(nonceLength);
 
-                if (securityPolicyUri.Contains("ECC_", StringComparison.Ordinal))
+                if (info.CertificateKeyFamily == CertificateKeyFamily.ECC)
                 {
                     if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) &&
                         (
@@ -128,11 +131,11 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
                             .Ignore("No exception is thrown on OSX with NIST curves");
                     }
                     NUnit.Framework.Assert.Throws<ArgumentException>(() =>
-                        Ua.Nonce.CreateNonce(securityPolicyUri, randomValue));
+                        Ua.Nonce.CreateNonce(info, randomValue));
                 }
                 else
                 {
-                    var rsaNonce = Ua.Nonce.CreateNonce(securityPolicyUri, randomValue);
+                    var rsaNonce = Ua.Nonce.CreateNonce(info, randomValue);
                     Assert.AreEqual(rsaNonce.Data, randomValue);
                 }
             }
