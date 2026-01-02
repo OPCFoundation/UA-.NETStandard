@@ -467,8 +467,10 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Reads the trust list.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public async Task<TrustListDataType> ReadTrustListAsync(
             TrustListMasks masks = TrustListMasks.All,
+            long maxTrustListSize = 0,
             CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
@@ -494,6 +496,14 @@ namespace Opc.Ua.Gds.Client
                 using var ostrm = new MemoryStream();
                 try
                 {
+                    // Use a reasonable maximum size limit for trust lists
+                    if (maxTrustListSize == 0)
+                    {
+                        maxTrustListSize = kDefaultMaxTrustListSize;
+                    }
+
+                    long totalBytesRead = 0;
+
                     while (true)
                     {
                         const int length = 256;
@@ -515,6 +525,17 @@ namespace Opc.Ua.Gds.Client
                             .ConfigureAwait(false);
 
                         byte[] bytes = (byte[])outputArguments[0];
+
+                        // Validate total size before reading
+                        totalBytesRead += bytes.Length;
+                        if (totalBytesRead > maxTrustListSize)
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadEncodingLimitsExceeded,
+                                "Trust list size exceeds maximum allowed size of {0} bytes",
+                                maxTrustListSize);
+                        }
+
                         ostrm.Write(bytes, 0, bytes.Length);
 
                         if (length != bytes.Length)
