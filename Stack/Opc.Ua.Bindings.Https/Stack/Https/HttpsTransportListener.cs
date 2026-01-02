@@ -615,7 +615,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public void CloseAllChannels(string reason)
         {
-            // nothing to do
+            Stop();
         }
 
         private EndpointDescriptionCollection m_descriptions;
