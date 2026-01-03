@@ -816,8 +816,18 @@ namespace Opc.Ua.Bindings
             {
                 bool isBlocked = false;
 
+                // Add null check before accessing CertificateValidator
+                ICertificateValidator certificateValidator = m_quotas?.CertificateValidator;
+                if (certificateValidator == null)
+                {
+                    // Listener is being disposed, don't process this connection
+                    m_logger?.LogDebug("OnAccept: CertificateValidator is null, listener likely disposed.");
+                    e?.Dispose();
+                    return;
+                }
+
                 // wait for certificate update to complete
-                m_quotas.CertificateValidator.CertificateUpdateInProgress.WaitOne();
+                certificateValidator.CertificateUpdateInProgress.WaitOne();
 
                 // Track potential problematic client behavior only if Basic128Rsa15 security policy is offered
                 if (m_activeClientTracker != null)
