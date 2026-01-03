@@ -3398,6 +3398,9 @@ namespace Opc.Ua.Server
                     Utils.SilentDispose(m_serverInternal);
                     m_serverInternal = null;
                 }
+
+                CertificateValidator.CertificateUpdate -= OnCertificateUpdateAsync;
+                CertificateValidator.CertificateUpdateStarted -= OnCertificateUpdateStartedAsync;
             }
         }
 
