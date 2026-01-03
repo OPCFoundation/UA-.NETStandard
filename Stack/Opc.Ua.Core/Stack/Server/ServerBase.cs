@@ -771,7 +771,7 @@ namespace Opc.Ua
         /// <summary>
         /// Called after the application certificate update.
         /// </summary>
-        protected virtual async void OnCertificateUpdateAsync(object sender, CertificateUpdateEventArgs e)
+        protected virtual async Task OnCertificateUpdateAsync(object sender, CertificateUpdateEventArgs e)
         {
             try
             {
@@ -808,6 +808,25 @@ namespace Opc.Ua
             {
                 m_logger.LogError(ex, "Failed to update Instance Certificates: {EventArgs}", e);
             }
+        }
+
+        /// <summary>
+        /// Called before the application certificate update.
+        /// </summary>
+        protected virtual Task OnCertificateUpdateStartedAsync(object sender, CertificateUpdateEventArgs e)
+        {
+            try
+            {
+                foreach (ITransportListener listener in TransportListeners)
+                {
+                    listener.CloseAllChannels("Update of ApplicationCertificate");
+                }
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogError(ex, "Failed to close all channels on certificate update: {EventArgs}", e);
+            }
+            return Task.CompletedTask;
         }
 
         /// <summary>

@@ -2073,8 +2073,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
-        private void OnCertificateUpdate(object sender, CertificateUpdateEventArgs e)
+        private Task OnCertificateUpdate(object sender, CertificateUpdateEventArgs e)
         {
+            return Task.CompletedTask;
         }
 
         private void OnCertificateValidation(object sender, CertificateValidationEventArgs e)

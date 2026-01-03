@@ -75,6 +75,11 @@ namespace Opc.Ua
         void Close();
 
         /// <summary>
+        /// Closes all connections of the listener.
+        /// </summary>
+        void CloseAllChannels(string reason);
+
+        /// <summary>
         /// Updates the application certificate for a listener.
         /// </summary>
         void CertificateUpdate(

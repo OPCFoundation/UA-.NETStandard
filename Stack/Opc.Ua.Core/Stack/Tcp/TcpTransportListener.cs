@@ -402,6 +402,15 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
+        public void CloseAllChannels(string reason)
+        {
+            foreach (TcpListenerChannel channel in m_channels.Values.ToList())
+            {
+                channel.ForceClose(reason);
+            }
+        }
+
+        /// <inheritdoc/>
         public void UpdateChannelLastActiveTime(string globalChannelId)
         {
             try
@@ -806,6 +815,19 @@ namespace Opc.Ua.Bindings
             do
             {
                 bool isBlocked = false;
+
+                // Add null check before accessing CertificateValidator
+                ICertificateValidator certificateValidator = m_quotas?.CertificateValidator;
+                if (certificateValidator == null)
+                {
+                    // Listener is being disposed, don't process this connection
+                    m_logger?.LogDebug("OnAccept: CertificateValidator is null, listener likely disposed.");
+                    e?.Dispose();
+                    return;
+                }
+
+                // wait for certificate update to complete
+                certificateValidator.CertificateUpdateInProgress.WaitOne();
 
                 // Track potential problematic client behavior only if Basic128Rsa15 security policy is offered
                 if (m_activeClientTracker != null)
