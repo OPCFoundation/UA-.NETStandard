@@ -1079,41 +1079,42 @@ namespace Opc.Ua.Gds.Tests
 
             await DisconnectPushClientAsync().ConfigureAwait(false);
 
-            var certificateUpdate = new ManualResetEvent(false);
-            var certificateUpdateStarted = new ManualResetEvent(false);
-            Task OnCertificateUpdateStarted(object sender, EventArgs e)
+            using (var certificateUpdate = new ManualResetEvent(false))
+            using (var certificateUpdateStarted = new ManualResetEvent(false))
             {
-                certificateUpdateStarted.Set();
-                return Task.CompletedTask;
-            }
-            Task OnCertificateUpdated(object sender, EventArgs e)
-            {
-                certificateUpdate.Set();
-                return Task.CompletedTask;
-            }
-
-            var validator = m_server.Config.CertificateValidator;
-            try
-            {
-                validator.CertificateUpdateStarted += OnCertificateUpdateStarted;
-                validator.CertificateUpdate += OnCertificateUpdated;
-
-                if (!certificateUpdateStarted.WaitOne(TimeSpan.FromSeconds(10)))
+                Task OnCertificateUpdateStarted(object sender, EventArgs e)
                 {
-                    NUnit.Framework.Assert.Fail("Server certificate update did not start.");
+                    certificateUpdateStarted.Set();
+                    return Task.CompletedTask;
                 }
 
-                if (!certificateUpdate.WaitOne(TimeSpan.FromSeconds(30)))
+                Task OnCertificateUpdated(object sender, EventArgs e)
                 {
-                    NUnit.Framework.Assert.Fail("Server certificate update did not complete.");
+                    certificateUpdate.Set();
+                    return Task.CompletedTask;
                 }
-            }
-            finally
-            {
-                validator.CertificateUpdateStarted -= OnCertificateUpdateStarted;
-                validator.CertificateUpdate -= OnCertificateUpdated;
-                certificateUpdate.Dispose();
-                certificateUpdateStarted.Dispose();
+
+                var validator = m_server.Config.CertificateValidator;
+                try
+                {
+                    validator.CertificateUpdateStarted += OnCertificateUpdateStarted;
+                    validator.CertificateUpdate += OnCertificateUpdated;
+
+                    if (!certificateUpdateStarted.WaitOne(TimeSpan.FromSeconds(10)))
+                    {
+                        NUnit.Framework.Assert.Fail("Server certificate update did not start.");
+                    }
+
+                    if (!certificateUpdate.WaitOne(TimeSpan.FromSeconds(30)))
+                    {
+                        NUnit.Framework.Assert.Fail("Server certificate update did not complete.");
+                    }
+                }
+                finally
+                {
+                    validator.CertificateUpdateStarted -= OnCertificateUpdateStarted;
+                    validator.CertificateUpdate -= OnCertificateUpdated;
+                }
             }
 
             if (!m_server.Config.CertificateValidator.CertificateUpdateInProgress.WaitOne(TimeSpan.FromSeconds(30)))

@@ -49,7 +49,8 @@ namespace Opc.Ua
         event CertificateUpdateEventHandler CertificateUpdateStarted;
 
         /// <summary>
-        /// An event that signals that a certificate update is in progress.
+        /// A wait handle that is signaled when no certificate update is in progress
+        /// and unsignaled while a certificate update is in progress.
         /// </summary>
         WaitHandle CertificateUpdateInProgress { get; }
 
