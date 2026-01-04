@@ -816,12 +816,11 @@ namespace Opc.Ua.Bindings
             {
                 bool isBlocked = false;
 
-                // Add null check before accessing CertificateValidator
                 ICertificateValidator certificateValidator = m_quotas?.CertificateValidator;
                 if (certificateValidator == null)
                 {
-                    // Listener is being disposed, don't process this connection
-                    m_logger?.LogDebug("OnAccept: CertificateValidator is null, listener likely disposed.");
+                    // Listener is closed, don't process this connection
+                    m_logger?.LogDebug("OnAccept: CertificateValidator is null, listener is closed.");
                     e?.Dispose();
                     return;
                 }

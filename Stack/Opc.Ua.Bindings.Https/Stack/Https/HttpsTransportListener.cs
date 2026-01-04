@@ -354,13 +354,20 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public async Task SendAsync(HttpContext context)
         {
-            // wait for certificate update to complete before processing requests.
-            m_quotas.CertificateValidator.CertificateUpdateInProgress.WaitOne();
-
             string message = string.Empty;
             CancellationToken ct = context.RequestAborted;
             try
             {
+                ICertificateValidator certificateValidator = m_quotas?.CertificateValidator;
+                if (certificateValidator == null)
+                {
+                    // Listener is closed, don't process this connection
+                    throw new InvalidOperationException("CertificateValidator is null, listener is closed.");
+                }
+
+                // wait for certificate update to complete before processing requests.
+                certificateValidator.CertificateUpdateInProgress.WaitOne();
+
                 if (m_callback == null)
                 {
                     await WriteResponseAsync(
