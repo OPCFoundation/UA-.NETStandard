@@ -297,6 +297,7 @@ namespace Opc.Ua.Client.Tests
                             $"[Status Report {reportCount}] Elapsed: {elapsedMinutes} minutes, " +
                             $"Total notifications: {totalNotifications}, Write count: {writeCount}, Errors: {errors.Count}");
 
+#if DEBUG
                         // Report per-node statistics
                         if (reportCount % 5 == 0) // Every 5 minutes
                         {
@@ -306,6 +307,7 @@ namespace Opc.Ua.Client.Tests
                                 TestContext.Out.WriteLine($"  {kvp.Key}: {kvp.Value} notifications");
                             }
                         }
+#endif
                     }
                 }, statusReportingCts.Token);
 
@@ -362,7 +364,9 @@ namespace Opc.Ua.Client.Tests
                 {
                     if (valueChanges.TryGetValue(nodeId, out int changes))
                     {
+#if DEBUG
                         TestContext.Out.WriteLine($"  {nodeId}: {changes} notifications");
+#endif
                         if (changes < (writeCount * NotificationToleranceRatio))
                         {
                             allNodesReceivedData = false;
