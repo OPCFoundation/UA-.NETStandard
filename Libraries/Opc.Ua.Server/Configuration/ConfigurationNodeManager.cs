@@ -319,7 +319,8 @@ namespace Opc.Ua.Server
                     certGroup.IssuerStore,
                     new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
                     new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
-                    Server.Telemetry);
+                    Server.Telemetry,
+                    m_configuration.ServerConfiguration.MaxTrustListSize);
                 certGroup.Node.ClearChangeMasks(systemContext, true);
             }
 
