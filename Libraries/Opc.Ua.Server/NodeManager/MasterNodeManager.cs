@@ -648,6 +648,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns node handle and its node manager.
         /// </summary>
+        [Obsolete("Use GetManagerHandleAsync instead.")]
         public virtual object GetManagerHandle(NodeId nodeId, out IAsyncNodeManager nodeManager)
         {
             (object handle, IAsyncNodeManager nodeManager) result =
@@ -706,6 +707,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Adds the references to the target.
         /// </summary>
+        [Obsolete("Use AddReferencesAsync instead.")]
         public virtual void AddReferences(NodeId sourceId, IList<IReference> references)
         {
             AddReferencesAsync(sourceId, references).AsTask().GetAwaiter().GetResult();
@@ -890,6 +892,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="browsePaths"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
+        [Obsolete("Use TranslateBrowsePathsToNodeIdsAsync instead.")]
         public virtual void TranslateBrowsePathsToNodeIds(
             OperationContext context,
             BrowsePathCollection browsePaths,
@@ -2551,35 +2554,6 @@ namespace Opc.Ua.Server
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
         /// <exception cref="ServiceResultException"></exception>
-        public virtual void CreateMonitoredItems(
-            OperationContext context,
-            uint subscriptionId,
-            double publishingInterval,
-            TimestampsToReturn timestampsToReturn,
-            IList<MonitoredItemCreateRequest> itemsToCreate,
-            IList<ServiceResult> errors,
-            IList<MonitoringFilterResult> filterResults,
-            IList<IMonitoredItem> monitoredItems,
-            bool createDurable)
-        {
-            CreateMonitoredItemsAsync(
-                context,
-                subscriptionId,
-                publishingInterval,
-                timestampsToReturn,
-                itemsToCreate,
-                errors,
-                filterResults,
-                monitoredItems,
-                createDurable).AsTask().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Creates a set of monitored items.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        /// <exception cref="ArgumentOutOfRangeException"></exception>
-        /// <exception cref="ServiceResultException"></exception>
         public virtual async ValueTask CreateMonitoredItemsAsync(
             OperationContext context,
             uint subscriptionId,
@@ -2988,28 +2962,6 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
-        public virtual void ModifyMonitoredItems(
-            OperationContext context,
-            TimestampsToReturn timestampsToReturn,
-            IList<IMonitoredItem> monitoredItems,
-            IList<MonitoredItemModifyRequest> itemsToModify,
-            IList<ServiceResult> errors,
-            IList<MonitoringFilterResult> filterResults)
-        {
-            ModifyMonitoredItemsAsync(
-                context,
-                timestampsToReturn,
-                monitoredItems,
-                itemsToModify,
-                errors,
-                filterResults).AsTask().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Modifies a set of monitored items.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException"></exception>
         public virtual async ValueTask ModifyMonitoredItemsAsync(
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
@@ -3207,23 +3159,6 @@ namespace Opc.Ua.Server
         /// Transfers a set of monitored items.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public virtual void TransferMonitoredItems(
-            OperationContext context,
-            bool sendInitialValues,
-            IList<IMonitoredItem> monitoredItems,
-            IList<ServiceResult> errors)
-        {
-            TransferMonitoredItemsAsync(
-                context,
-                sendInitialValues,
-                monitoredItems,
-                errors).AsTask().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Transfers a set of monitored items.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public virtual async ValueTask TransferMonitoredItemsAsync(
             OperationContext context,
             bool sendInitialValues,
@@ -3267,23 +3202,6 @@ namespace Opc.Ua.Server
                         cancellationToken)
                     .ConfigureAwait(false);
             }
-        }
-
-        /// <summary>
-        /// Deletes a set of monitored items.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public virtual void DeleteMonitoredItems(
-            OperationContext context,
-            uint subscriptionId,
-            IList<IMonitoredItem> itemsToDelete,
-            IList<ServiceResult> errors)
-        {
-            DeleteMonitoredItemsAsync(
-                context,
-                subscriptionId,
-                itemsToDelete,
-                errors).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>

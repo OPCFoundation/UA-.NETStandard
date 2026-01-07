@@ -5068,26 +5068,23 @@ namespace Quickstarts.ReferenceServer
             NodeId nodeId,
             IDictionary<NodeId, NodeState> cache)
         {
-            lock (Lock)
+            // quickly exclude nodes that are not in the namespace.
+            if (!IsNodeIdInNamespace(nodeId))
             {
-                // quickly exclude nodes that are not in the namespace.
-                if (!IsNodeIdInNamespace(nodeId))
-                {
-                    return null;
-                }
-
-                if (!PredefinedNodes.TryGetValue(nodeId, out NodeState node))
-                {
-                    return null;
-                }
-
-                return new NodeHandle
-                {
-                    NodeId = nodeId,
-                    Node = node,
-                    Validated = true
-                };
+                return null;
             }
+
+            if (!PredefinedNodes.TryGetValue(nodeId, out NodeState node))
+            {
+                return null;
+            }
+
+            return new NodeHandle
+            {
+                NodeId = nodeId,
+                Node = node,
+                Validated = true
+            };
         }
 
         /// <summary>

@@ -62,6 +62,7 @@ namespace Opc.Ua.Client.Tests
         public override Task OneTimeSetUpAsync()
         {
             SupportsExternalServerUrl = true;
+            UseSamplingGroupsInReferenceNodeManager = false;
             return base.OneTimeSetUpAsync();
         }
 

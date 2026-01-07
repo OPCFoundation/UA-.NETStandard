@@ -1542,7 +1542,7 @@ namespace Opc.Ua.Server
         /// <returns>
         /// Returns a <see cref="CreateSubscriptionResponse"/> object
         /// </returns>
-        public override Task<CreateSubscriptionResponse> CreateSubscriptionAsync(
+        public override async Task<CreateSubscriptionResponse> CreateSubscriptionAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             double requestedPublishingInterval,
@@ -1560,7 +1560,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                ServerInternal.SubscriptionManager.CreateSubscription(
+                CreateSubscriptionResponse response = await ServerInternal.SubscriptionManager.CreateSubscriptionAsync(
                     context,
                     requestedPublishingInterval,
                     requestedLifetimeCount,
@@ -1568,19 +1568,11 @@ namespace Opc.Ua.Server
                     maxNotificationsPerPublish,
                     publishingEnabled,
                     priority,
-                    out uint subscriptionId,
-                    out double revisedPublishingInterval,
-                    out uint revisedLifetimeCount,
-                    out uint revisedMaxKeepAliveCount);
+                    ct).ConfigureAwait(false);
 
-                return Task.FromResult(new CreateSubscriptionResponse
-                {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
-                    SubscriptionId = subscriptionId,
-                    RevisedPublishingInterval = revisedPublishingInterval,
-                    RevisedLifetimeCount = revisedLifetimeCount,
-                    RevisedMaxKeepAliveCount = revisedMaxKeepAliveCount
-                });
+                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -1610,7 +1602,7 @@ namespace Opc.Ua.Server
         /// <param name="subscriptionIds">The list of Subscriptions to transfer.</param>
         /// <param name="sendInitialValues">If the initial values should be sent.</param>
         /// <param name="ct">The cancellation token.</param>
-        public override Task<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
+        public override async Task<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
@@ -1626,19 +1618,15 @@ namespace Opc.Ua.Server
             {
                 ValidateOperationLimits(subscriptionIds);
 
-                ServerInternal.SubscriptionManager.TransferSubscriptions(
+                TransferSubscriptionsResponse response = await ServerInternal.SubscriptionManager.TransferSubscriptionsAsync(
                     context,
                     subscriptionIds,
                     sendInitialValues,
-                    out TransferResultCollection results,
-                    out DiagnosticInfoCollection diagnosticInfos);
+                    ct).ConfigureAwait(false);
 
-                return Task.FromResult(new TransferSubscriptionsResponse
-                {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
-                    Results = results,
-                    DiagnosticInfos = diagnosticInfos
-                });
+                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -1670,7 +1658,7 @@ namespace Opc.Ua.Server
         /// <returns>
         /// Returns a <see cref="DeleteSubscriptionsResponse"/> object
         /// </returns>
-        public override Task<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
+        public override async Task<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
@@ -1685,18 +1673,14 @@ namespace Opc.Ua.Server
             {
                 ValidateOperationLimits(subscriptionIds);
 
-                ServerInternal.SubscriptionManager.DeleteSubscriptions(
+                DeleteSubscriptionsResponse response = await ServerInternal.SubscriptionManager.DeleteSubscriptionsAsync(
                     context,
                     subscriptionIds,
-                    out StatusCodeCollection results,
-                    out DiagnosticInfoCollection diagnosticInfos);
+                    ct).ConfigureAwait(false);
 
-                return Task.FromResult(new DeleteSubscriptionsResponse
-                {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
-                    Results = results,
-                    DiagnosticInfos = diagnosticInfos
-                });
+                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -2073,7 +2057,7 @@ namespace Opc.Ua.Server
         /// <returns>
         /// Returns a <see cref="CreateMonitoredItemsResponse"/> object
         /// </returns>
-        public override Task<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
+        public override async Task<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint subscriptionId,
@@ -2090,20 +2074,16 @@ namespace Opc.Ua.Server
             {
                 ValidateOperationLimits(itemsToCreate, OperationLimits.MaxMonitoredItemsPerCall);
 
-                ServerInternal.SubscriptionManager.CreateMonitoredItems(
+                CreateMonitoredItemsResponse result = await ServerInternal.SubscriptionManager.CreateMonitoredItemsAsync(
                     context,
                     subscriptionId,
                     timestampsToReturn,
                     itemsToCreate,
-                    out MonitoredItemCreateResultCollection results,
-                    out DiagnosticInfoCollection diagnosticInfos);
+                    ct).ConfigureAwait(false);
 
-                return Task.FromResult(new CreateMonitoredItemsResponse
-                {
-                    Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
-                });
+                result.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+
+                return result;
             }
             catch (ServiceResultException e)
             {
@@ -2137,7 +2117,7 @@ namespace Opc.Ua.Server
         /// <returns>
         /// Returns a <see cref="ModifyMonitoredItemsResponse"/> object
         /// </returns>
-        public override Task<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
+        public override async Task<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint subscriptionId,
@@ -2154,20 +2134,16 @@ namespace Opc.Ua.Server
             {
                 ValidateOperationLimits(itemsToModify, OperationLimits.MaxMonitoredItemsPerCall);
 
-                ServerInternal.SubscriptionManager.ModifyMonitoredItems(
+                ModifyMonitoredItemsResponse response = await ServerInternal.SubscriptionManager.ModifyMonitoredItemsAsync(
                     context,
                     subscriptionId,
                     timestampsToReturn,
                     itemsToModify,
-                    out MonitoredItemModifyResultCollection results,
-                    out DiagnosticInfoCollection diagnosticInfos);
+                    ct).ConfigureAwait(false);
 
-                return Task.FromResult(new ModifyMonitoredItemsResponse
-                {
-                    Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
-                });
+                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -2200,7 +2176,7 @@ namespace Opc.Ua.Server
         /// <returns>
         /// Returns a <see cref="DeleteMonitoredItemsResponse"/> object
         /// </returns>
-        public override Task<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
+        public override async Task<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint subscriptionId,
@@ -2216,19 +2192,15 @@ namespace Opc.Ua.Server
             {
                 ValidateOperationLimits(monitoredItemIds, OperationLimits.MaxMonitoredItemsPerCall);
 
-                ServerInternal.SubscriptionManager.DeleteMonitoredItems(
+                DeleteMonitoredItemsResponse response = await ServerInternal.SubscriptionManager.DeleteMonitoredItemsAsync(
                     context,
                     subscriptionId,
                     monitoredItemIds,
-                    out StatusCodeCollection results,
-                    out DiagnosticInfoCollection diagnosticInfos);
+                    ct).ConfigureAwait(false);
 
-                return Task.FromResult(new DeleteMonitoredItemsResponse
-                {
-                    Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
-                });
+                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -2448,109 +2420,109 @@ namespace Opc.Ua.Server
             if (m_registrationEndpoints != null)
             {
                 foreach (ConfiguredEndpoint endpoint in m_registrationEndpoints.Endpoints)
+                {
+                    RegistrationClient client = null;
+                    int i = 0;
+
+                    while (i++ < 2)
                     {
-                        RegistrationClient client = null;
-                        int i = 0;
-
-                        while (i++ < 2)
+                        try
                         {
-                            try
+                            // update from the server.
+                            bool updateRequired = true;
+
+                            lock (m_registrationLock)
                             {
-                                // update from the server.
-                                bool updateRequired = true;
+                                updateRequired = endpoint.UpdateBeforeConnect;
+                            }
 
-                                lock (m_registrationLock)
-                                {
-                                    updateRequired = endpoint.UpdateBeforeConnect;
-                                }
+                            if (updateRequired)
+                            {
+                                await endpoint.UpdateFromServerAsync(MessageContext.Telemetry, ct).ConfigureAwait(false);
+                            }
 
-                                if (updateRequired)
-                                {
-                                    await endpoint.UpdateFromServerAsync(MessageContext.Telemetry, ct).ConfigureAwait(false);
-                                }
+                            lock (m_registrationLock)
+                            {
+                                endpoint.UpdateBeforeConnect = false;
+                            }
 
-                                lock (m_registrationLock)
-                                {
-                                    endpoint.UpdateBeforeConnect = false;
-                                }
+                            var requestHeader = new RequestHeader
+                            {
+                                Timestamp = DateTime.UtcNow
+                            };
 
-                                var requestHeader = new RequestHeader
+                            // create the client.
+                            X509Certificate2 instanceCertificate =
+                                InstanceCertificateTypesProvider.GetInstanceCertificate(
+                                    endpoint.Description?.SecurityPolicyUri ??
+                                    SecurityPolicies.None);
+                            client = await RegistrationClient.CreateAsync(
+                                configuration,
+                                endpoint.Description,
+                                endpoint.Configuration,
+                                instanceCertificate,
+                                ct: ct).ConfigureAwait(false);
+
+                            client.OperationTimeout = 10000;
+
+                            // register the server.
+                            if (m_useRegisterServer2)
+                            {
+                                var discoveryConfiguration = new ExtensionObjectCollection();
+                                var mdnsDiscoveryConfig = new MdnsDiscoveryConfiguration
                                 {
-                                    Timestamp = DateTime.UtcNow
+                                    ServerCapabilities = configuration.ServerConfiguration
+                                        .ServerCapabilities,
+                                    MdnsServerName = Utils.GetHostName()
                                 };
-
-                                // create the client.
-                                X509Certificate2 instanceCertificate =
-                                    InstanceCertificateTypesProvider.GetInstanceCertificate(
-                                        endpoint.Description?.SecurityPolicyUri ??
-                                        SecurityPolicies.None);
-                                client = await RegistrationClient.CreateAsync(
-                                    configuration,
-                                    endpoint.Description,
-                                    endpoint.Configuration,
-                                    instanceCertificate,
-                                    ct: ct).ConfigureAwait(false);
-
-                                client.OperationTimeout = 10000;
-
-                                // register the server.
-                                if (m_useRegisterServer2)
-                                {
-                                    var discoveryConfiguration = new ExtensionObjectCollection();
-                                    var mdnsDiscoveryConfig = new MdnsDiscoveryConfiguration
-                                    {
-                                        ServerCapabilities = configuration.ServerConfiguration
-                                            .ServerCapabilities,
-                                        MdnsServerName = Utils.GetHostName()
-                                    };
-                                    var extensionObject = new ExtensionObject(mdnsDiscoveryConfig);
-                                    discoveryConfiguration.Add(extensionObject);
-                                    await client.RegisterServer2Async(
-                                        requestHeader,
-                                        m_registrationInfo,
-                                        discoveryConfiguration,
-                                        ct).ConfigureAwait(false);
-                                }
-                                else
-                                {
-                                    await client.RegisterServerAsync(
-                                        requestHeader,
-                                        m_registrationInfo,
-                                        ct)
-                                        .ConfigureAwait(false);
-                                }
-
-                                m_registeredWithDiscoveryServer = m_registrationInfo.IsOnline;
-                                return true;
+                                var extensionObject = new ExtensionObject(mdnsDiscoveryConfig);
+                                discoveryConfiguration.Add(extensionObject);
+                                await client.RegisterServer2Async(
+                                    requestHeader,
+                                    m_registrationInfo,
+                                    discoveryConfiguration,
+                                    ct).ConfigureAwait(false);
                             }
-                            catch (Exception e)
+                            else
                             {
-                                m_logger.LogWarning(
-                                    "RegisterServer{Api} failed for {EndpointUrl}. Exception={ErrorMessage}",
-                                    m_useRegisterServer2 ? "2" : string.Empty,
-                                    endpoint.EndpointUrl,
-                                    e.Message);
-                                m_useRegisterServer2 = !m_useRegisterServer2;
+                                await client.RegisterServerAsync(
+                                    requestHeader,
+                                    m_registrationInfo,
+                                    ct)
+                                    .ConfigureAwait(false);
                             }
-                            finally
+
+                            m_registeredWithDiscoveryServer = m_registrationInfo.IsOnline;
+                            return true;
+                        }
+                        catch (Exception e)
+                        {
+                            m_logger.LogWarning(
+                                "RegisterServer{Api} failed for {EndpointUrl}. Exception={ErrorMessage}",
+                                m_useRegisterServer2 ? "2" : string.Empty,
+                                endpoint.EndpointUrl,
+                                e.Message);
+                            m_useRegisterServer2 = !m_useRegisterServer2;
+                        }
+                        finally
+                        {
+                            if (client != null)
                             {
-                                if (client != null)
+                                try
                                 {
-                                    try
-                                    {
-                                        await client.CloseAsync(ct).ConfigureAwait(false);
-                                        client = null;
-                                    }
-                                    catch (Exception e)
-                                    {
-                                        m_logger.LogWarning(
-                                            "Could not cleanly close connection with LDS. Exception={ErrorMessage}",
-                                            e.Message);
-                                    }
+                                    await client.CloseAsync(ct).ConfigureAwait(false);
+                                    client = null;
+                                }
+                                catch (Exception e)
+                                {
+                                    m_logger.LogWarning(
+                                        "Could not cleanly close connection with LDS. Exception={ErrorMessage}",
+                                        e.Message);
                                 }
                             }
                         }
                     }
+                }
                 // retry to start with RegisterServer2 if both failed
                 m_useRegisterServer2 = true;
             }

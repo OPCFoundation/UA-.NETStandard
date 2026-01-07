@@ -390,7 +390,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Deletes the subscription.
         /// </summary>
-        public void Delete(OperationContext context)
+        public async ValueTask DeleteAsync(OperationContext context, CancellationToken cancellationToken = default)
         {
             // delete the diagnostics.
             if (m_diagnosticsId != null && !m_diagnosticsId.IsNullNodeId)
@@ -400,34 +400,30 @@ namespace Opc.Ua.Server
                     .DeleteSubscriptionDiagnostics(systemContext, m_diagnosticsId);
             }
 
-            lock (m_lock)
+            try
             {
-                try
-                {
-                    TraceState(LogLevel.Information, TraceStateId.Deleted, "DELETED");
+                TraceState(LogLevel.Information, TraceStateId.Deleted, "DELETED");
 
-                    // the context may be null if the server is cleaning up expired subscriptions.
-                    // in this case we create a context with a dummy request and use the current session.
-                    if (context == null)
+                // the context may be null if the server is cleaning up expired subscriptions.
+                // in this case we create a context with a dummy request and use the current session.
+                if (context == null)
+                {
+                    var requestHeader = new RequestHeader
                     {
-                        var requestHeader = new RequestHeader
-                        {
-                            ReturnDiagnostics = (int)DiagnosticsMasks.OperationSymbolicIdAndText
-                        };
-                        context = new OperationContext(requestHeader, null, RequestType.Unknown);
-                    }
+                        ReturnDiagnostics = (int)DiagnosticsMasks.OperationSymbolicIdAndText
+                    };
+                    context = new OperationContext(requestHeader, null, RequestType.Unknown);
+                }
 
-                    DeleteMonitoredItems(
-                        context,
-                        [.. m_monitoredItems.Keys],
-                        true,
-                        out StatusCodeCollection results,
-                        out DiagnosticInfoCollection diagnosticInfos);
-                }
-                catch (Exception e)
-                {
-                    m_logger.LogError(e, "Delete items for subscription failed.");
-                }
+                await DeleteMonitoredItemsAsync(
+                    context,
+                    [.. m_monitoredItems.Keys],
+                    true,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                m_logger.LogError(e, "Delete items for subscription failed.");
             }
         }
 
@@ -579,7 +575,8 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="context">The session to which the subscription is transferred.</param>
         /// <param name="sendInitialValues">Whether the first Publish response shall contain current values.</param>
-        public void TransferSession(OperationContext context, bool sendInitialValues)
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public async ValueTask TransferSessionAsync(OperationContext context, bool sendInitialValues, CancellationToken cancellationToken = default)
         {
             // locked by caller
             Session = context.Session;
@@ -591,8 +588,9 @@ namespace Opc.Ua.Server
                 errors.Add(null);
             }
 
-            m_server.NodeManager
-                .TransferMonitoredItems(context, sendInitialValues, monitoredItems, errors);
+            await m_server.NodeManager
+                .TransferMonitoredItemsAsync(context, sendInitialValues, monitoredItems, errors, cancellationToken)
+                .ConfigureAwait(false);
 
             int badTransfers = 0;
             for (int ii = 0; ii < errors.Count; ii++)
@@ -1540,12 +1538,11 @@ namespace Opc.Ua.Server
         /// Adds monitored items to a subscription.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public void CreateMonitoredItems(
+        public async ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequestCollection itemsToCreate,
-            out MonitoredItemCreateResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken cancellationToken = default)
         {
             if (context == null)
             {
@@ -1558,6 +1555,9 @@ namespace Opc.Ua.Server
             }
 
             int count = itemsToCreate.Count;
+
+            MonitoredItemCreateResultCollection results;
+            DiagnosticInfoCollection diagnosticInfos;
 
             lock (m_lock)
             {
@@ -1580,7 +1580,7 @@ namespace Opc.Ua.Server
                 filterResults.Add(null);
             }
 
-            m_server.NodeManager.CreateMonitoredItems(
+            await m_server.NodeManager.CreateMonitoredItemsAsync(
                 context,
                 Id,
                 m_publishingInterval,
@@ -1589,7 +1589,8 @@ namespace Opc.Ua.Server
                 errors,
                 filterResults,
                 monitoredItems,
-                IsDurable);
+                IsDurable,
+                cancellationToken).ConfigureAwait(false);
 
             // allocate results.
             bool diagnosticsExist = false;
@@ -1670,6 +1671,12 @@ namespace Opc.Ua.Server
 
                 TraceState(LogLevel.Information, TraceStateId.Items, "ITEMS CREATED");
             }
+
+            return new CreateMonitoredItemsResponse
+            {
+                Results = results,
+                DiagnosticInfos = diagnosticInfos
+            };
         }
 
         /// <summary>
@@ -1748,12 +1755,11 @@ namespace Opc.Ua.Server
         /// Modifies monitored items in a subscription.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public void ModifyMonitoredItems(
+        public async ValueTask<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             MonitoredItemModifyRequestCollection itemsToModify,
-            out MonitoredItemModifyResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken cancellationToken = default)
         {
             if (context == null)
             {
@@ -1769,8 +1775,8 @@ namespace Opc.Ua.Server
 
             // allocate results.
             bool diagnosticsExist = false;
-            results = new MonitoredItemModifyResultCollection(count);
-            diagnosticInfos = null;
+            var results = new MonitoredItemModifyResultCollection(count);
+            DiagnosticInfoCollection diagnosticInfos = null;
 
             if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
             {
@@ -1837,13 +1843,15 @@ namespace Opc.Ua.Server
             // update items.
             if (validItems)
             {
-                m_server.NodeManager.ModifyMonitoredItems(
+                await m_server.NodeManager.ModifyMonitoredItemsAsync(
                     context,
                     timestampsToReturn,
                     monitoredItems,
                     itemsToModify,
                     errors,
-                    filterResults);
+                    filterResults,
+                    cancellationToken)
+                    .ConfigureAwait(false);
             }
 
             lock (m_lock)
@@ -1908,35 +1916,38 @@ namespace Opc.Ua.Server
 
                 TraceState(LogLevel.Information, TraceStateId.Items, "ITEMS MODIFIED");
             }
+
+            return new ModifyMonitoredItemsResponse
+            {
+                Results = results,
+                DiagnosticInfos = diagnosticInfos
+            };
         }
 
         /// <summary>
         /// Deletes the monitored items in a subscription.
         /// </summary>
-        public void DeleteMonitoredItems(
+        public ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
             OperationContext context,
             UInt32Collection monitoredItemIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken cancellationToken = default)
         {
-            DeleteMonitoredItems(
+            return DeleteMonitoredItemsAsync(
                 context,
                 monitoredItemIds,
                 false,
-                out results,
-                out diagnosticInfos);
+                cancellationToken);
         }
 
         /// <summary>
         /// Deletes the monitored items in a subscription.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        private void DeleteMonitoredItems(
+        private async ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
             OperationContext context,
             UInt32Collection monitoredItemIds,
             bool doNotCheckSession,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            CancellationToken cancellationToken = default)
         {
             if (context == null)
             {
@@ -1951,8 +1962,8 @@ namespace Opc.Ua.Server
             int count = monitoredItemIds.Count;
 
             bool diagnosticsExist = false;
-            results = new StatusCodeCollection(count);
-            diagnosticInfos = null;
+            var results = new StatusCodeCollection(count);
+            DiagnosticInfoCollection diagnosticInfos = null;
 
             if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
             {
@@ -2043,7 +2054,8 @@ namespace Opc.Ua.Server
             // update items.
             if (validItems)
             {
-                m_server.NodeManager.DeleteMonitoredItems(context, Id, monitoredItems, errors);
+                await m_server.NodeManager.DeleteMonitoredItemsAsync(context, Id, monitoredItems, errors, cancellationToken)
+                    .ConfigureAwait(false);
             }
 
             //dispose monitored Items
@@ -2097,6 +2109,12 @@ namespace Opc.Ua.Server
 
                 TraceState(LogLevel.Information, TraceStateId.Items, "ITEMS DELETED");
             }
+
+            return new DeleteMonitoredItemsResponse
+            {
+                Results = results,
+                DiagnosticInfos = diagnosticInfos
+            };
         }
 
         /// <summary>
