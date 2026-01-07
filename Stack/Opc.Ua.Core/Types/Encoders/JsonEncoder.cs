@@ -3348,7 +3348,7 @@ namespace Opc.Ua
                             WriteExpandedNodeId(null, (ExpandedNodeId)value);
                             return;
                         case BuiltInType.StatusCode:
-                            WriteStatusCode(null, (StatusCode)value);
+                            WriteStatusCode(null, value is StatusCode sc ? sc : new StatusCode((uint)value));
                             return;
                         case BuiltInType.QualifiedName:
                             WriteQualifiedName(null, (QualifiedName)value);
