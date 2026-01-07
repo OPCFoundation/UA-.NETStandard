@@ -346,7 +346,6 @@ namespace Opc.Ua.Server
             byte[] serverNonce;
             byte[] serverCertificate = null;
             EndpointDescriptionCollection serverEndpoints = null;
-            SignedSoftwareCertificateCollection serverSoftwareCertificates = null;
             SignatureData serverSignature = null;
             uint maxRequestMessageSize = (uint)MessageContext.MaxMessageSize;
 
@@ -528,9 +527,6 @@ namespace Opc.Ua.Server
                     // return the endpoints supported by the server.
                     serverEndpoints = GetEndpointDescriptions(endpointUrl, BaseAddresses, null);
 
-                    // return the software certificates assigned to the server.
-                    serverSoftwareCertificates = [.. ServerProperties.SoftwareCertificates];
-
                     // sign the nonce provided by the client.
                     serverSignature = null;
 
@@ -580,7 +576,6 @@ namespace Opc.Ua.Server
                     ServerNonce = serverNonce,
                     ServerCertificate = serverCertificate,
                     ServerEndpoints = serverEndpoints,
-                    ServerSoftwareCertificates = serverSoftwareCertificates,
                     ServerSignature = serverSignature,
                     MaxRequestMessageSize = maxRequestMessageSize
                 };
@@ -724,75 +719,14 @@ namespace Opc.Ua.Server
             DiagnosticInfoCollection diagnosticInfos = null;
 
             OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.ActivateSession);
-            // validate client's software certificates.
-            var softwareCertificates = new List<SoftwareCertificate>();
 
             try
             {
-                if (context?.SecurityPolicyUri != SecurityPolicies.None)
-                {
-                    bool diagnosticsExist = false;
-
-                    if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                    {
-                        diagnosticInfos = [];
-                    }
-
-                    results = [];
-                    diagnosticInfos = [];
-
-                    foreach (SignedSoftwareCertificate signedCertificate in clientSoftwareCertificates)
-                    {
-                        ServiceResult result = SoftwareCertificate.Validate(
-                            CertificateValidator,
-                            signedCertificate.CertificateData,
-                            m_serverInternal.Telemetry,
-                            out SoftwareCertificate softwareCertificate);
-
-                        if (ServiceResult.IsBad(result))
-                        {
-                            results.Add(result.Code);
-
-                            // add diagnostics if requested.
-                            if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                            {
-                                DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
-                                    ServerInternal,
-                                    context,
-                                    result,
-                                    m_logger);
-                                diagnosticInfos.Add(diagnosticInfo);
-                                diagnosticsExist = true;
-                            }
-                        }
-                        else
-                        {
-                            softwareCertificates.Add(softwareCertificate);
-                            results.Add(StatusCodes.Good);
-
-                            // add diagnostics if requested.
-                            if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                            {
-                                diagnosticInfos.Add(null);
-                            }
-                        }
-                    }
-
-                    if (!diagnosticsExist && diagnosticInfos != null)
-                    {
-                        diagnosticInfos.Clear();
-                    }
-                }
-
-                // check if certificates meet the server's requirements.
-                ValidateSoftwareCertificates(softwareCertificates);
-
                 // activate the session.
                 (bool identityChanged, serverNonce) = await ServerInternal.SessionManager.ActivateSessionAsync(
                         context,
                         requestHeader.AuthenticationToken,
                         clientSignature,
-                        softwareCertificates,
                         userIdentityToken,
                         userTokenSignature,
                         localeIds,
@@ -817,8 +751,7 @@ namespace Opc.Ua.Server
                 ServerInternal.ReportAuditActivateSessionEvent(
                     m_logger,
                     context?.AuditEntryId,
-                    session,
-                    softwareCertificates);
+                    session);
 
                 ResponseHeader responseHeader = CreateResponse(requestHeader, StatusCodes.Good);
 
@@ -845,7 +778,6 @@ namespace Opc.Ua.Server
                     m_logger,
                     context?.AuditEntryId,
                     session,
-                    softwareCertificates,
                     e);
 
                 lock (ServerInternal.DiagnosticsWriteLock)
@@ -2726,16 +2658,6 @@ namespace Opc.Ua.Server
             ServiceResult result)
         {
             throw new ServiceResultException(result);
-        }
-
-        /// <summary>
-        /// Inspects the software certificates provided by the server.
-        /// </summary>
-        /// <param name="softwareCertificates">The software certificates.</param>
-        protected virtual void ValidateSoftwareCertificates(
-            List<SoftwareCertificate> softwareCertificates)
-        {
-            // always accept valid certificates.
         }
 
         /// <summary>
