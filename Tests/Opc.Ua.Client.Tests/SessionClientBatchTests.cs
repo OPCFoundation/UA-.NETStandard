@@ -64,7 +64,6 @@ namespace Opc.Ua.Client.Tests
             RequestHeader requestHeader)
         {
             var clientSignature = new SignatureData();
-            var clientSoftwareCertificates = new SignedSoftwareCertificateCollection();
             var localeIds = new StringCollection();
             var userIdentityToken = new ExtensionObject();
             var userTokenSignature = new SignatureData();
@@ -81,7 +80,7 @@ namespace Opc.Ua.Client.Tests
             ActivateSessionResponse response = await sessionMock.ActivateSessionAsync(
                 requestHeader,
                 clientSignature,
-                clientSoftwareCertificates,
+                null,
                 localeIds,
                 userIdentityToken,
                 userTokenSignature,
@@ -100,7 +99,6 @@ namespace Opc.Ua.Client.Tests
             RequestHeader requestHeader)
         {
             var clientSignature = new SignatureData();
-            var clientSoftwareCertificates = new SignedSoftwareCertificateCollection();
             var localeIds = new StringCollection();
             var userIdentityToken = new ExtensionObject();
             var userTokenSignature = new SignatureData();
@@ -124,7 +122,7 @@ namespace Opc.Ua.Client.Tests
                 async () => await sessionMock.ActivateSessionAsync(
                     requestHeader,
                     clientSignature,
-                    clientSoftwareCertificates,
+                    null,
                     localeIds,
                     userIdentityToken,
                     userTokenSignature,
@@ -138,7 +136,6 @@ namespace Opc.Ua.Client.Tests
             RequestHeader requestHeader)
         {
             var clientSignature = new SignatureData();
-            var clientSoftwareCertificates = new SignedSoftwareCertificateCollection();
             var localeIds = new StringCollection();
             var userIdentityToken = new ExtensionObject();
             var userTokenSignature = new SignatureData();
@@ -156,7 +153,7 @@ namespace Opc.Ua.Client.Tests
                 async () => await sessionMock.ActivateSessionAsync(
                     requestHeader,
                     clientSignature,
-                    clientSoftwareCertificates,
+                    null,
                     localeIds,
                     userIdentityToken,
                     userTokenSignature,
