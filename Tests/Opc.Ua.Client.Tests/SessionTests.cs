@@ -28,11 +28,13 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -1339,6 +1341,36 @@ namespace Opc.Ua.Client.Tests
                 async () => await sut.OpenAsync("test", new UserIdentity(), ct).ConfigureAwait(false));
 
             sut.Channel.Verify();
+        }
+
+        [Test]
+        public void SaveShouldOnlySaveSpecifiedSubscriptions()
+        {
+            var sut = SessionMock.Create();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var subscription1 = new Subscription(telemetry, new SubscriptionOptions { DisplayName = "Subscription1" });
+            var subscription2 = new Subscription(telemetry, new SubscriptionOptions { DisplayName = "Subscription2" });
+            var subscription3 = new Subscription(telemetry, new SubscriptionOptions { DisplayName = "Subscription3" });
+
+            sut.AddSubscription(subscription1);
+            sut.AddSubscription(subscription2);
+            sut.AddSubscription(subscription3);
+
+            Assert.That(sut.SubscriptionCount, Is.EqualTo(3));
+
+            // Only save a subset of subscriptions (subscription1 and subscription3)
+            Subscription[] subscriptionsToSave = [subscription1, subscription3];
+
+            using var stream = new MemoryStream();
+            sut.Save(stream, subscriptionsToSave);
+            stream.Position = 0;
+
+            var loadSession = SessionMock.Create();
+            var loadedSubscriptions = loadSession.Load(stream).ToList();
+
+            Assert.That(loadedSubscriptions.Count, Is.EqualTo(2), "Only the specified subscriptions should be saved");
+            Assert.That(loadedSubscriptions.Select(s => s.DisplayName), Is.EquivalentTo(["Subscription1", "Subscription3"]));
         }
     }
 }
