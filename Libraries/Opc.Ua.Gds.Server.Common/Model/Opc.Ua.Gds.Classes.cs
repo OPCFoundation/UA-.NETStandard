@@ -3153,7 +3153,7 @@ namespace Opc.Ua.Gds
 
             byte[] certificate = (byte[])_inputArguments[0];
 
-            StatusCode certificateStatus = (StatusCode)_outputArguments[0];
+            StatusCode certificateStatus = _outputArguments[0] is StatusCode sc ? sc : new StatusCode((uint)_outputArguments[0]);
             DateTime validityTime = (DateTime)_outputArguments[1];
 
             if (OnCall != null)

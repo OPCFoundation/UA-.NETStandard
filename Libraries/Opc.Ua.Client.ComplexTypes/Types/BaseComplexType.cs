@@ -485,7 +485,10 @@ namespace Opc.Ua.Client.ComplexTypes
                     encoder.WriteExpandedNodeId(name, (ExpandedNodeId)property.GetValue(this));
                     break;
                 case BuiltInType.StatusCode:
-                    encoder.WriteStatusCode(name, (StatusCode)property.GetValue(this));
+                    {
+                        var propValue = property.GetValue(this);
+                        encoder.WriteStatusCode(name, propValue is StatusCode sc ? sc : new StatusCode((uint)propValue));
+                    }
                     break;
                 case BuiltInType.DiagnosticInfo:
                     encoder.WriteDiagnosticInfo(name, (DiagnosticInfo)property.GetValue(this));
