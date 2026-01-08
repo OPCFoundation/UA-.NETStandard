@@ -123,7 +123,6 @@ namespace Opc.Ua.Server
             OperationContext context,
             NodeId authenticationToken,
             SignatureData clientSignature,
-            List<SoftwareCertificate> clientSoftwareCertificates,
             ExtensionObject userIdentityToken,
             SignatureData userTokenSignature,
             StringCollection localeIds,
