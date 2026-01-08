@@ -1923,7 +1923,7 @@ namespace Opc.Ua
                 {
                     return ServiceResult.Create(
                         StatusCodes.BadCertificateUriInvalid,
-                        "The Server Certificate ({1}) does not contain an applicationUri.",
+                        "The Server Certificate ({0}) does not contain an applicationUri.",
                         serverCertificate.Subject);
                 }
 
