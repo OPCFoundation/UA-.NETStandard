@@ -494,7 +494,8 @@ namespace Opc.Ua.Server
         {
             await NodeManager.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
                 .ConfigureAwait(false);
-            SubscriptionManager.SessionClosing(context, sessionId, deleteSubscriptions);
+            await SubscriptionManager.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
+                .ConfigureAwait(false);
             SessionManager.CloseSession(sessionId);
         }
 
@@ -502,9 +503,10 @@ namespace Opc.Ua.Server
         /// Deletes the specified subscription.
         /// </summary>
         /// <param name="subscriptionId">The subscription identifier.</param>
-        public void DeleteSubscription(uint subscriptionId)
+        /// <param name="cancellationToken">The cancellation token</param>
+        public async ValueTask DeleteSubscriptionAsync(uint subscriptionId, CancellationToken cancellationToken = default)
         {
-            SubscriptionManager.DeleteSubscription(null, subscriptionId);
+            await SubscriptionManager.DeleteSubscriptionAsync(null, subscriptionId, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>

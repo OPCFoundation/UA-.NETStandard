@@ -240,7 +240,8 @@ namespace Opc.Ua.Server
         /// Deletes the specified subscription.
         /// </summary>
         /// <param name="subscriptionId">The subscription identifier.</param>
-        void DeleteSubscription(uint subscriptionId);
+        /// <param name="cancellationToken">The cancellation token.</param>
+        ValueTask DeleteSubscriptionAsync(uint subscriptionId, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called by any component to report a global event.

@@ -158,31 +158,28 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Deletes the monitored items in a subscription.
         /// </summary>
-        void DeleteMonitoredItems(
+        ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
             OperationContext context,
             UInt32Collection monitoredItemIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Modifies monitored items in a subscription.
         /// </summary>
-        void ModifyMonitoredItems(
+        ValueTask<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             MonitoredItemModifyRequestCollection itemsToModify,
-            out MonitoredItemModifyResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Adds monitored items to a subscription.
         /// </summary>
-        void CreateMonitoredItems(
+        ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequestCollection itemsToCreate,
-            out MonitoredItemCreateResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Gets the monitored items for the subscription.
@@ -212,7 +209,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Deletes the subscription.
         /// </summary>
-        void Delete(OperationContext context);
+        ValueTask DeleteAsync(OperationContext context, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Verifies that a condition refresh operation is permitted.
@@ -252,7 +249,8 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="context">The session to which the subscription is transferred.</param>
         /// <param name="sendInitialValues">Whether the first Publish response shall contain current values.</param>
-        void TransferSession(OperationContext context, bool sendInitialValues);
+        /// <param name="cancellationToken">The cancellation token.</param>
+        ValueTask TransferSessionAsync(OperationContext context, bool sendInitialValues, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Updates the triggers for the monitored item.

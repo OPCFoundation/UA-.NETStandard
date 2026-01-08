@@ -63,6 +63,7 @@ namespace Opc.Ua.Client.Tests
         public bool SingleSession { get; set; } = true;
         public int MaxChannelCount { get; set; } = 100;
         public bool SupportsExternalServerUrl { get; set; }
+        public bool UseSamplingGroupsInReferenceNodeManager { get; set; }
         public ServerFixture<ReferenceServer> ServerFixture { get; set; }
         public ClientFixture ClientFixture { get; set; }
         public ReferenceServer ReferenceServer { get; set; }
@@ -217,7 +218,8 @@ namespace Opc.Ua.Client.Tests
                 SecurityNone = securityNone,
                 AutoAccept = true,
                 AllNodeManagers = true,
-                OperationLimits = true
+                OperationLimits = true,
+                UseSamplingGroupsInReferenceNodeManager = UseSamplingGroupsInReferenceNodeManager
             };
 
             await ServerFixture.LoadConfigurationAsync(PkiRoot).ConfigureAwait(false);
