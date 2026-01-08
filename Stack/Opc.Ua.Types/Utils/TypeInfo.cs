@@ -2472,7 +2472,7 @@ namespace Opc.Ua
                 case BuiltInType.String:
                     return XmlConvert.ToUInt16((string)value);
                 case BuiltInType.StatusCode:
-                    var code = (StatusCode)value;
+                    var code = value is StatusCode sc ? sc : new StatusCode((uint)value);
                     return (ushort)(code.CodeBits >> 16);
                 case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                     // conversion not supported.
@@ -3045,7 +3045,7 @@ namespace Opc.Ua
             switch (sourceType.BuiltInType)
             {
                 case BuiltInType.StatusCode:
-                    return (StatusCode)value;
+                    return value is StatusCode sc ? sc : new StatusCode((uint)value);
                 case BuiltInType.UInt16:
                     uint code = Convert.ToUInt32((ushort)value, CultureInfo.InvariantCulture);
                     code <<= 16;
