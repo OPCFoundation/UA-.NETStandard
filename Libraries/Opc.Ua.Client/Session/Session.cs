@@ -950,8 +950,8 @@ namespace Opc.Ua.Client
         {
             using Activity? activity = m_telemetry.StartActivity();
             // Snapshot subscription state
-            var subscriptionStateCollection = new SubscriptionStateCollection(SubscriptionCount);
-            foreach (Subscription subscription in Subscriptions)
+            var subscriptionStateCollection = new SubscriptionStateCollection();
+            foreach (Subscription subscription in subscriptions)
             {
                 subscription.Snapshot(out SubscriptionState state);
                 subscriptionStateCollection.Add(state);
