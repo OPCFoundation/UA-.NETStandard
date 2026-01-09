@@ -757,7 +757,9 @@ namespace Opc.Ua.Test
                 }
                 if (systemType == typeof(StatusCode))
                 {
-                    return CompareStatusCode((StatusCode)value1.Value, (StatusCode)value2.Value);
+                    var sc1 = value1.Value is StatusCode s1 ? s1 : new StatusCode((uint)value1.Value);
+                    var sc2 = value2.Value is StatusCode s2 ? s2 : new StatusCode((uint)value2.Value);
+                    return CompareStatusCode(sc1, sc2);
                 }
                 if (systemType == typeof(DiagnosticInfo))
                 {

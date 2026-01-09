@@ -1013,7 +1013,7 @@ namespace Opc.Ua.Gds.Client
 
             if (outputArguments.Count >= 2)
             {
-                certificateStatus = (StatusCode)outputArguments[0];
+                certificateStatus = outputArguments[0] is StatusCode sc ? sc : new StatusCode((uint)outputArguments[0]);
                 validityTime = (DateTime)outputArguments[1];
             }
             return (certificateStatus, validityTime);

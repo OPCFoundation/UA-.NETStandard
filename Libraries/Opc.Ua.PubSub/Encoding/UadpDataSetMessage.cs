@@ -807,7 +807,7 @@ namespace Opc.Ua.PubSub.Encoding
                                 valueToEncode as ExpandedNodeId);
                             break;
                         case BuiltInType.StatusCode:
-                            binaryEncoder.WriteStatusCode("StatusCode", (StatusCode)valueToEncode);
+                            binaryEncoder.WriteStatusCode("StatusCode", valueToEncode is StatusCode sc ? sc : new StatusCode((uint)valueToEncode));
                             break;
                         case BuiltInType.XmlElement:
                             binaryEncoder.WriteXmlElement(
