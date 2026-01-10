@@ -43,7 +43,7 @@ namespace Opc.Ua.Gds.Tests
     public class GlobalDiscoveryTestServer
     {
         public GlobalDiscoverySampleServer Server { get; private set; }
-        public ApplicationInstance Application { get; private set; }
+        public IApplicationInstance Application { get; private set; }
         public ApplicationConfiguration Config { get; private set; }
         public int BasePort { get; private set; }
 
@@ -237,7 +237,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         private static async Task<ApplicationConfiguration> LoadAsync(
-            ApplicationInstance application,
+            IApplicationInstance application,
             int basePort,
             int maxTrustListSize)
         {

@@ -43,9 +43,9 @@ namespace Opc.Ua.Server.Tests
     /// </summary>
     /// <typeparam name="T">A server class T used for testing.</typeparam>
     public class ServerFixture<T>
-        where T : ServerBase, new()
+        where T : IServerBase, new()
     {
-        public ApplicationInstance Application { get; private set; }
+        public IApplicationInstance Application { get; private set; }
         public ApplicationConfiguration Config { get; private set; }
         public T Server { get; private set; }
         public bool AutoAccept { get; set; }
