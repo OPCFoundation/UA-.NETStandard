@@ -190,6 +190,28 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Force the channel to close immediately, e.g. due to certificate update.
+        /// </summary>
+        public void ForceClose(string reason)
+        {
+            TcpChannelState state;
+
+            lock (DataLock)
+            {
+                state = State;
+                if (state is TcpChannelState.Open or TcpChannelState.Connecting)
+                {
+                    state = State = TcpChannelState.Closing;
+                }
+            }
+
+            if (state is TcpChannelState.Closing or TcpChannelState.Opening or TcpChannelState.Faulted)
+            {
+                OnForceClosed(reason);
+            }
+        }
+
+        /// <summary>
         /// The time in milliseconds elapsed since the channel received or sent messages
         /// or received a keep alive.
         /// </summary>
@@ -343,6 +365,32 @@ namespace Opc.Ua.Bindings
                     CurrentToken != null ? CurrentToken.ChannelId : 0,
                     CurrentToken != null ? CurrentToken.TokenId : 0,
                     reason.ToString());
+
+                // close channel.
+                ChannelClosed();
+            }
+        }
+
+        /// <summary>
+        /// Called when the channel is force closed.
+        /// </summary>
+        private void OnForceClosed(string reason)
+        {
+            lock (DataLock)
+            {
+                // nothing to do if the channel is now open or closed.
+                if (State is TcpChannelState.Closed or TcpChannelState.Open)
+                {
+                    return;
+                }
+
+                m_logger.LogInformation(
+                    "{Channel} Force Close Socket={SocketHandle:X8}, ChannelId={ChannelId}, TokenId={TokenId}, Reason={Reason}",
+                    ChannelName,
+                    (Socket?.Handle) ?? 0,
+                    CurrentToken != null ? CurrentToken.ChannelId : 0,
+                    CurrentToken != null ? CurrentToken.TokenId : 0,
+                    reason);
 
                 // close channel.
                 ChannelClosed();

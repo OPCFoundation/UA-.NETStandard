@@ -3234,6 +3234,7 @@ namespace Opc.Ua.Server
             }
 
             CertificateValidator.CertificateUpdate += OnCertificateUpdateAsync;
+            CertificateValidator.CertificateUpdateStarted += OnCertificateUpdateStartedAsync;
         }
 
         /// <summary>
@@ -3291,6 +3292,9 @@ namespace Opc.Ua.Server
                     Utils.SilentDispose(m_serverInternal);
                     m_serverInternal = null;
                 }
+
+                CertificateValidator.CertificateUpdate -= OnCertificateUpdateAsync;
+                CertificateValidator.CertificateUpdateStarted -= OnCertificateUpdateStartedAsync;
             }
         }
 

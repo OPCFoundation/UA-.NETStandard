@@ -241,6 +241,7 @@ namespace Opc.Ua.Client.Tests
                 catch (ServiceResultException e) when ((e.StatusCode is
                     StatusCodes.BadServerHalted or
                     StatusCodes.BadSecureChannelClosed or
+                    StatusCodes.BadConnectionClosed or
                     StatusCodes.BadNoCommunication) &&
                     attempt < maxAttempts)
                 {
@@ -286,6 +287,7 @@ namespace Opc.Ua.Client.Tests
                 catch (ServiceResultException e) when ((e.StatusCode is
                     StatusCodes.BadServerHalted or
                     StatusCodes.BadSecureChannelClosed or
+                    StatusCodes.BadConnectionClosed or
                     StatusCodes.BadNoCommunication) &&
                     attempt < maxAttempts)
                 {
