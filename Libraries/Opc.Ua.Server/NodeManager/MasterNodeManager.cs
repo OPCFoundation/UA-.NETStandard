@@ -110,9 +110,9 @@ namespace Opc.Ua.Server
             };
 
             // always add the diagnostics and configuration node manager to the start of the list.
-            var configurationAndDiagnosticsManager = new ConfigurationNodeManager(
-                server,
-                configuration);
+            IConfigurationNodeManager configurationAndDiagnosticsManager
+                = server.MainNodeManagerFactory.CreateConfigurationNodeManager();
+
             RegisterNodeManager(
                 configurationAndDiagnosticsManager.ToAsyncNodeManager(),
                 registeredManagers,
@@ -120,7 +120,8 @@ namespace Opc.Ua.Server
 
             // add the core node manager second because the diagnostics node manager takes priority.
             // always add the core node manager to the second of the list.
-            var coreNodeManager = new CoreNodeManager(Server, configuration, (ushort)dynamicNamespaceIndex);
+            ICoreNodeManager coreNodeManager = server.MainNodeManagerFactory.CreateCoreNodeManager((ushort)dynamicNamespaceIndex);
+
             m_nodeManagers.Add(coreNodeManager.ToAsyncNodeManager());
 
             // register core node manager for default UA namespace.

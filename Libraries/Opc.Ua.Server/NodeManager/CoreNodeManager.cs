@@ -2983,7 +2983,7 @@ namespace Opc.Ua.Server
             {
                 try
                 {
-                    Server.NodeManager.DeleteReferences(current.Key, current.Value);
+                    ((MasterNodeManager)Server.NodeManager).DeleteReferences(current.Key, current.Value);
                 }
                 catch (Exception e)
                 {

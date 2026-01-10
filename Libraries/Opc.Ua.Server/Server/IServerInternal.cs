@@ -87,10 +87,16 @@ namespace Opc.Ua.Server
         TypeTable TypeTree { get; }
 
         /// <summary>
+        /// The factory which helps creating main
+        /// node managers used by the server.
+        /// </summary>
+        IMainNodeManagerFactory MainNodeManagerFactory { get; }
+
+        /// <summary>
         /// The master node manager for the server.
         /// </summary>
         /// <value>The node manager.</value>
-        MasterNodeManager NodeManager { get; }
+        IMasterNodeManager NodeManager { get; }
 
         /// <summary>
         /// The internal node manager for the servers.
@@ -103,6 +109,12 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <value>The diagnostics node manager.</value>
         IDiagnosticsNodeManager DiagnosticsNodeManager { get; }
+
+        /// <summary>
+        /// Returns the node manager that managers the server configuration.
+        /// </summary>
+        /// <value>The configuration node manager.</value>
+        IConfigurationNodeManager ConfigurationNodeManager { get; }
 
         /// <summary>
         /// The manager for events that all components use to queue events that occur.
@@ -286,7 +298,13 @@ namespace Opc.Ua.Server
         /// Stores the MasterNodeManager and the CoreNodeManager
         /// </summary>
         /// <param name="nodeManager">The node manager.</param>
-        void SetNodeManager(MasterNodeManager nodeManager);
+        void SetNodeManager(IMasterNodeManager nodeManager);
+
+        /// <summary>
+        /// Stores the MainNodeManagerFactory
+        /// </summary>
+        /// <param name="mainNodeManagerFactory">The main node manager factory.</param>
+        void SetMainNodeManagerFactory(IMainNodeManagerFactory mainNodeManagerFactory);
 
         /// <summary>
         /// Stores the SessionManager, the SubscriptionManager in the datastore.

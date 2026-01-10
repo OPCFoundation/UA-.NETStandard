@@ -27,41 +27,41 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Configuration;
 
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// The Server Configuration Node Manager.
+    /// The factory that creates the main node managers of the server. The main
+    /// node managers are the one always present when creating a server.
     /// </summary>
-    public interface IConfigurationNodeManager : INodeManager2
+    public class MainNodeManagerFactory : IMainNodeManagerFactory
     {
         /// <summary>
-        /// Gets or creates the <see cref="NamespaceMetadataState"/> node for the specified NamespaceUri.
+        /// Initializes the object with default values.
         /// </summary>
-        NamespaceMetadataState CreateNamespaceMetadataState(string namespaceUri);
+        public MainNodeManagerFactory(
+            ApplicationConfiguration applicationConfiguration,
+            IServerInternal server)
+        {
+            m_applicationconfiguration = applicationConfiguration;
+            m_server = server;
+        }
 
-        /// <summary>
-        /// Creates the configuration node for the server.
-        /// </summary>
-        void CreateServerConfiguration(ServerSystemContext systemContext, ApplicationConfiguration configuration);
+        /// <inheritdoc/>
+        public IConfigurationNodeManager CreateConfigurationNodeManager()
+        {
+            return new ConfigurationNodeManager(m_server, m_applicationconfiguration);
+        }
 
-        /// <summary>
-        /// Gets and returns the <see cref="NamespaceMetadataState"/> node associated with the specified NamespaceUri
-        /// </summary>
-        NamespaceMetadataState GetNamespaceMetadataState(string namespaceUri);
+        /// <inheritdoc/>
 
-        /// <summary>
-        /// Determine if the impersonated user has admin access.
-        /// </summary>
-        /// <exception cref="ServiceResultException"/>
-        /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
-        void HasApplicationSecureAdminAccess(ISystemContext context);
+        public ICoreNodeManager CreateCoreNodeManager(ushort dynamicNamespaceIndex)
+        {
+            return new CoreNodeManager(m_server, m_applicationconfiguration, dynamicNamespaceIndex);
+        }
 
-        /// <summary>
-        /// Determine if the impersonated user has admin access.
-        /// </summary>
-        /// <exception cref="ServiceResultException"/>
-        /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
-        void HasApplicationSecureAdminAccess(ISystemContext context, CertificateStoreIdentifier _);
+        private readonly ApplicationConfiguration m_applicationconfiguration;
+        private readonly IServerInternal m_server;
     }
 }

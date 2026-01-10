@@ -41,10 +41,8 @@ using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Server
 {
-    /// <summary>
-    /// The standard implementation of a UA server.
-    /// </summary>
-    public class StandardServer : SessionServerBase
+    /// <inheritdoc/>
+    public class StandardServer : SessionServerBase, IStandardServer
     {
         /// <summary>
         /// An overrideable version of the Dispose.
@@ -2272,12 +2270,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// The state object associated with the server.
-        /// It provides the shared components for the Server.
-        /// </summary>
-        /// <value>The current instance.</value>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <inheritdoc/>
         public IServerInternal CurrentInstance
         {
             get
@@ -2331,10 +2324,7 @@ namespace Opc.Ua.Server
             return RegisterWithDiscoveryServerAsync().AsTask().GetAwaiter().GetResult();
         }
 
-        /// <summary>
-        /// Registers the server with the discovery server.
-        /// </summary>
-        /// <returns>Boolean value.</returns>
+        /// <inheritdoc/>
         public async ValueTask<bool> RegisterWithDiscoveryServerAsync(CancellationToken ct = default)
         {
             var configuration = new ApplicationConfiguration(Configuration);
@@ -3047,9 +3037,14 @@ namespace Opc.Ua.Server
                     m_serverInternal,
                     configuration);
 
+                //create the main node manager factory
+                IMainNodeManagerFactory mainNodeManagerFactory = CreateMainNodeManagerFactory(m_serverInternal, configuration);
+
+                m_serverInternal.SetMainNodeManagerFactory(mainNodeManagerFactory);
+
                 // create the master node manager.
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateMasterNodeManager.");
-                MasterNodeManager masterNodeManager = CreateMasterNodeManager(
+                IMasterNodeManager masterNodeManager = CreateMasterNodeManager(
                     m_serverInternal,
                     configuration);
 
@@ -3631,7 +3626,7 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="configuration">The configuration.</param>
         /// <returns>Returns the master node manager for the server, the return type is <seealso cref="MasterNodeManager"/>.</returns>
-        protected virtual MasterNodeManager CreateMasterNodeManager(
+        protected virtual IMasterNodeManager CreateMasterNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
@@ -3650,6 +3645,19 @@ namespace Opc.Ua.Server
             }
 
             return new MasterNodeManager(server, configuration, null, asyncNodeManagers, nodeManagers);
+        }
+
+        /// <summary>
+        /// Creates the master node manager for the server.
+        /// </summary>
+        /// <param name="server">The server.</param>
+        /// <param name="configuration">The configuration.</param>
+        /// <returns>Returns the master node manager for the server, the return type is <seealso cref="MasterNodeManager"/>.</returns>
+        protected virtual IMainNodeManagerFactory CreateMainNodeManagerFactory(
+            IServerInternal server,
+            ApplicationConfiguration configuration)
+        {
+            return new MainNodeManagerFactory(configuration, server);
         }
 
         /// <summary>
@@ -3738,54 +3746,32 @@ namespace Opc.Ua.Server
             // may be overridden by the subclass.
         }
 
-        /// <summary>
-        /// The node manager factories that are used on startup of the server.
-        /// </summary>
+        /// <inheritdoc/>
         public IEnumerable<INodeManagerFactory> NodeManagerFactories => m_nodeManagerFactories;
 
-        /// <summary>
-        /// The async node manager factories that are used on startup of the server.
-        /// </summary>
+        /// <inheritdoc/>
         public IEnumerable<IAsyncNodeManagerFactory> AsyncNodeManagerFactories
             => m_asyncNodeManagerFactories;
 
-        /// <summary>
-        /// Add a node manager factory which is used on server start
-        /// to instantiate the node manager in the server.
-        /// </summary>
-        /// <param name="nodeManagerFactory">The node manager factory used to create the NodeManager.</param>
+        /// <inheritdoc/>
         public virtual void AddNodeManager(INodeManagerFactory nodeManagerFactory)
         {
             m_nodeManagerFactories.Add(nodeManagerFactory);
         }
 
-        /// <summary>
-        /// Add a node manager factory which is used on server start
-        /// to instantiate the node manager in the server.
-        /// </summary>
-        /// <param name="nodeManagerFactory">The node manager factory used to create the NodeManager.</param>
+        /// <inheritdoc/>
         public virtual void AddNodeManager(IAsyncNodeManagerFactory nodeManagerFactory)
         {
             m_asyncNodeManagerFactories.Add(nodeManagerFactory);
         }
 
-        /// <summary>
-        /// Remove a node manager factory from the list of node managers.
-        /// Does not remove a NodeManager from a running server,
-        /// only removes the factory before the server starts.
-        /// </summary>
-        /// <param name="nodeManagerFactory">The node manager factory to remove.</param>
+        /// <inheritdoc/>
         public virtual void RemoveNodeManager(INodeManagerFactory nodeManagerFactory)
         {
             m_nodeManagerFactories.Remove(nodeManagerFactory);
         }
 
-        /// <summary>
-        /// Remove a node manager factory from the list of node managers.
-        /// Does not remove a NodeManager from a running server,
-        /// only removes the factory before the server starts.
-        /// </summary>
-        /// <param name="nodeManagerFactory">The node manager factory to remove.</param>
+        /// <inheritdoc/>
         public virtual void RemoveNodeManager(IAsyncNodeManagerFactory nodeManagerFactory)
         {
             m_asyncNodeManagerFactories.Remove(nodeManagerFactory);

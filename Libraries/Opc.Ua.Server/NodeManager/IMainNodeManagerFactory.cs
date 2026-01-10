@@ -27,41 +27,25 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// The Server Configuration Node Manager.
+    /// Interface of the core node manager factory which helps creating main
+    /// node managers used by the server.
     /// </summary>
-    public interface IConfigurationNodeManager : INodeManager2
+    public interface IMainNodeManagerFactory
     {
         /// <summary>
-        /// Gets or creates the <see cref="NamespaceMetadataState"/> node for the specified NamespaceUri.
+        /// Creates the configuration node manager.
         /// </summary>
-        NamespaceMetadataState CreateNamespaceMetadataState(string namespaceUri);
+        /// <returns>The configuration node manager.</returns>
+        IConfigurationNodeManager CreateConfigurationNodeManager();
 
         /// <summary>
-        /// Creates the configuration node for the server.
+        /// Creates the core node manager.
         /// </summary>
-        void CreateServerConfiguration(ServerSystemContext systemContext, ApplicationConfiguration configuration);
-
-        /// <summary>
-        /// Gets and returns the <see cref="NamespaceMetadataState"/> node associated with the specified NamespaceUri
-        /// </summary>
-        NamespaceMetadataState GetNamespaceMetadataState(string namespaceUri);
-
-        /// <summary>
-        /// Determine if the impersonated user has admin access.
-        /// </summary>
-        /// <exception cref="ServiceResultException"/>
-        /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
-        void HasApplicationSecureAdminAccess(ISystemContext context);
-
-        /// <summary>
-        /// Determine if the impersonated user has admin access.
-        /// </summary>
-        /// <exception cref="ServiceResultException"/>
-        /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
-        void HasApplicationSecureAdminAccess(ISystemContext context, CertificateStoreIdentifier _);
+        /// <param name="dynamicNamespaceIndex">The namespace index of the dynamic namespace.</param>
+        /// <returns></returns>
+        ICoreNodeManager CreateCoreNodeManager(ushort dynamicNamespaceIndex);
     }
 }
