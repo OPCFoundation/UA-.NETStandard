@@ -96,13 +96,13 @@ namespace Opc.Ua.Server
         /// The internal node manager for the servers.
         /// </summary>
         /// <value>The core node manager.</value>
-        CoreNodeManager CoreNodeManager { get; }
+        ICoreNodeManager CoreNodeManager { get; }
 
         /// <summary>
         /// Returns the node manager that managers the server diagnostics.
         /// </summary>
         /// <value>The diagnostics node manager.</value>
-        DiagnosticsNodeManager DiagnosticsNodeManager { get; }
+        IDiagnosticsNodeManager DiagnosticsNodeManager { get; }
 
         /// <summary>
         /// The manager for events that all components use to queue events that occur.

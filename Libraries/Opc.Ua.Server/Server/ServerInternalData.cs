@@ -281,13 +281,13 @@ namespace Opc.Ua.Server
         /// The internal node manager for the servers.
         /// </summary>
         /// <value>The core node manager.</value>
-        public CoreNodeManager CoreNodeManager { get; private set; }
+        public ICoreNodeManager CoreNodeManager { get; private set; }
 
         /// <summary>
         /// Returns the node manager that managers the server diagnostics.
         /// </summary>
         /// <value>The diagnostics node manager.</value>
-        public DiagnosticsNodeManager DiagnosticsNodeManager { get; private set; }
+        public IDiagnosticsNodeManager DiagnosticsNodeManager { get; private set; }
 
         /// <summary>
         /// The manager for events that all components use to queue events that occur.
@@ -599,7 +599,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private void CreateServerObject()
         {
-            lock (DiagnosticsNodeManager.Lock)
+            lock (DiagnosticsLock)
             {
                 // get the server object.
                 ServerObjectState serverObject = ServerObject = (ServerObjectState)
