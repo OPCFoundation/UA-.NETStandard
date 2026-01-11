@@ -4045,6 +4045,7 @@ namespace Quickstarts.ReferenceServer
             variable.Value = TypeInfo.GetDefaultValue((uint)dataType, valueRank, Server.TypeTree);
             variable.StatusCode = StatusCodes.Good;
             variable.Timestamp = DateTime.UtcNow;
+            variable.OnReadValue = OnReadValue;
 
             if (valueRank == ValueRanks.OneDimension)
             {
@@ -4177,6 +4178,7 @@ namespace Quickstarts.ReferenceServer
 
             variable.StatusCode = StatusCodes.Good;
             variable.Timestamp = DateTime.UtcNow;
+            variable.OnReadValue = OnReadValue;
             // The latest UNECE version (Rev 11, published in 2015) is available here:
             // http://www.opcfoundation.org/UA/EngineeringUnits/UNECE/rec20_latest_08052015.zip
             variable.EngineeringUnits.Value = new EUInformation(
@@ -4234,6 +4236,7 @@ namespace Quickstarts.ReferenceServer
             variable.Value = (bool)GetNewValue(variable);
             variable.StatusCode = StatusCodes.Good;
             variable.Timestamp = DateTime.UtcNow;
+            variable.OnReadValue = OnReadValue;
 
             variable.TrueState.Value = trueState;
             variable.TrueState.AccessLevel = AccessLevels.CurrentReadOrWrite;
@@ -4278,6 +4281,7 @@ namespace Quickstarts.ReferenceServer
             variable.Value = (uint)0;
             variable.StatusCode = StatusCodes.Good;
             variable.Timestamp = DateTime.UtcNow;
+            variable.OnReadValue = OnReadValue;
             variable.OnWriteValue = OnWriteDiscrete;
 
             var strings = new LocalizedText[values.Length];
@@ -4339,6 +4343,7 @@ namespace Quickstarts.ReferenceServer
             variable.Value = (uint)0;
             variable.StatusCode = StatusCodes.Good;
             variable.Timestamp = DateTime.UtcNow;
+            variable.OnReadValue = OnReadValue;
             variable.OnWriteValue = OnWriteValueDiscrete;
 
             // there are two enumerations for this type:
@@ -4560,6 +4565,23 @@ namespace Quickstarts.ReferenceServer
         }
 
         /// <summary>
+        /// Callback for reading variable values that updates the timestamp to current time.
+        /// </summary>
+        private ServiceResult OnReadValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
+        {
+            // Update timestamp to current time on read
+            timestamp = DateTime.UtcNow;
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
         /// Creates a new variable.
         /// </summary>
         private BaseDataVariableState CreateVariable(
@@ -4601,6 +4623,7 @@ namespace Quickstarts.ReferenceServer
             variable.Value = GetNewValue(variable);
             variable.StatusCode = StatusCodes.Good;
             variable.Timestamp = DateTime.UtcNow;
+            variable.OnReadValue = OnReadValue;
 
             if (valueRank == ValueRanks.OneDimension)
             {
