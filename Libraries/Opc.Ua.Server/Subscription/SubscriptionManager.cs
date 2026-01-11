@@ -2158,7 +2158,7 @@ namespace Opc.Ua.Server
             catch (ObjectDisposedException)
             {
                 m_logger.LogInformation(
-                    "Subscription - Publish Task {TaskId:X8} Exited Normally.",
+                    "Subscription - Publish Task {TaskId:X8} Exited Normally (disposed during shutdown).",
                     Task.CurrentId);
             }
             catch (Exception e)
@@ -2227,7 +2227,7 @@ namespace Opc.Ua.Server
             catch (ObjectDisposedException)
             {
                 m_logger.LogInformation(
-                    "Subscription - ConditionRefresh Task {TaskId:X8} Exited Normally.",
+                    "Subscription - ConditionRefresh Task {TaskId:X8} Exited Normally (disposed during shutdown).",
                     Task.CurrentId);
             }
             catch (Exception e)
