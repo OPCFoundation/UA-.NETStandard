@@ -265,10 +265,6 @@
     <MaxPublishRequestCount>20</MaxPublishRequestCount>
     <MaxSubscriptionCount>100</MaxSubscriptionCount>
     <MaxEventQueueSize>10000</MaxEventQueueSize>
-    <DurableSubscriptionsEnabled>true</DurableSubscriptionsEnabled>
-    <MaxDurableNotificationQueueSize>10000</MaxDurableNotificationQueueSize>
-    <MaxDurableEventQueueSize>10000</MaxDurableEventQueueSize>
-    <MaxDurableSubscriptionLifetimeInHours>10</MaxDurableSubscriptionLifetimeInHours>
     <!-- see https://opcfoundation-onlineapplications.org/profilereporting/ for list of available profiles -->
     <ServerProfileArray>
       <ua:String>http://opcfoundation.org/UA-Profile/Server/StandardUA2017</ua:String>
@@ -305,7 +301,10 @@
     <OperationLimits>
       <MaxNodesPerRead>2500</MaxNodesPerRead>
       <MaxNodesPerHistoryReadData>1000</MaxNodesPerHistoryReadData>
+      <MaxNodesPerHistoryReadEvents>1000</MaxNodesPerHistoryReadEvents>
       <MaxNodesPerWrite>2500</MaxNodesPerWrite>
+      <MaxNodesPerHistoryUpdateData>1000</MaxNodesPerHistoryUpdateData>
+      <MaxNodesPerHistoryUpdateEvents>1000</MaxNodesPerHistoryUpdateEvents>
       <MaxNodesPerMethodCall>2500</MaxNodesPerMethodCall>
       <MaxNodesPerBrowse>2500</MaxNodesPerBrowse>
       <MaxNodesPerRegisterNodes>2500</MaxNodesPerRegisterNodes>
@@ -315,6 +314,10 @@
     </OperationLimits>
     <AuditingEnabled>true</AuditingEnabled>
     <HttpsMutualTls>true</HttpsMutualTls>
+    <DurableSubscriptionsEnabled>true</DurableSubscriptionsEnabled>
+    <MaxDurableNotificationQueueSize>10000</MaxDurableNotificationQueueSize>
+    <MaxDurableEventQueueSize>10000</MaxDurableEventQueueSize>
+    <MaxDurableSubscriptionLifetimeInHours>10</MaxDurableSubscriptionLifetimeInHours>
   </ServerConfiguration>
   <Extensions>
     <ua:XmlElement>
