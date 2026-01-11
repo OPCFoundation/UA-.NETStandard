@@ -30,7 +30,7 @@
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Interface of the core node manager factory which helps creating main
+    /// Interface of the main node manager factory which helps creating main
     /// node managers used by the server.
     /// </summary>
     public interface IMainNodeManagerFactory
@@ -45,7 +45,7 @@ namespace Opc.Ua.Server
         /// Creates the core node manager.
         /// </summary>
         /// <param name="dynamicNamespaceIndex">The namespace index of the dynamic namespace.</param>
-        /// <returns></returns>
+        /// <returns>The core node manager</returns>
         ICoreNodeManager CreateCoreNodeManager(ushort dynamicNamespaceIndex);
     }
 }

@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 namespace Opc.Ua.Server
 {
     /// <summary>
@@ -62,6 +61,6 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ServiceResultException"/>
         /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
-        void HasApplicationSecureAdminAccess(ISystemContext context, CertificateStoreIdentifier _);
+        void HasApplicationSecureAdminAccess(ISystemContext context, CertificateStoreIdentifier trustedStore);
     }
 }

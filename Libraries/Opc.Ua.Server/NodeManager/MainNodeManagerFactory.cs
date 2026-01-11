@@ -44,24 +44,23 @@ namespace Opc.Ua.Server
             ApplicationConfiguration applicationConfiguration,
             IServerInternal server)
         {
-            m_applicationconfiguration = applicationConfiguration;
+            m_applicationConfiguration = applicationConfiguration;
             m_server = server;
         }
 
         /// <inheritdoc/>
         public IConfigurationNodeManager CreateConfigurationNodeManager()
         {
-            return new ConfigurationNodeManager(m_server, m_applicationconfiguration);
+            return new ConfigurationNodeManager(m_server, m_applicationConfiguration);
         }
 
         /// <inheritdoc/>
-
         public ICoreNodeManager CreateCoreNodeManager(ushort dynamicNamespaceIndex)
         {
-            return new CoreNodeManager(m_server, m_applicationconfiguration, dynamicNamespaceIndex);
+            return new CoreNodeManager(m_server, m_applicationConfiguration, dynamicNamespaceIndex);
         }
 
-        private readonly ApplicationConfiguration m_applicationconfiguration;
+        private readonly ApplicationConfiguration m_applicationConfiguration;
         private readonly IServerInternal m_server;
     }
 }

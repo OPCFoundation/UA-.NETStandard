@@ -43,7 +43,6 @@ using System.Runtime.InteropServices;
 
 namespace Opc.Ua.Server
 {
-
     /// <summary>
     /// The Server Configuration Node Manager.
     /// </summary>

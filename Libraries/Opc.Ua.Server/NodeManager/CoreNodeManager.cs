@@ -2888,7 +2888,7 @@ namespace Opc.Ua.Server
 
             if (referencesToDelete.Count > 0)
             {
-                Task.Run(() => OnDeleteReferences(referencesToDelete));
+                Task.Run(() => OnDeleteReferencesAsync(referencesToDelete));
             }
         }
 
@@ -2970,20 +2970,14 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Deletes the external references to a node in a background thread.
         /// </summary>
-        private void OnDeleteReferences(object state)
+        private async ValueTask OnDeleteReferencesAsync(Dictionary<NodeId, IList<IReference>> referencesToDelete)
         {
-            var referencesToDelete = state as Dictionary<NodeId, IList<IReference>>;
-
-            if (state == null)
-            {
-                return;
-            }
-
             foreach (KeyValuePair<NodeId, IList<IReference>> current in referencesToDelete)
             {
                 try
                 {
-                    ((MasterNodeManager)Server.NodeManager).DeleteReferences(current.Key, current.Value);
+                    await Server.NodeManager.DeleteReferencesAsync(current.Key, current.Value)
+                        .ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {

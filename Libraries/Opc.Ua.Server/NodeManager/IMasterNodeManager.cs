@@ -113,7 +113,6 @@ namespace Opc.Ua.Server
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
         /// <exception cref="ServiceResultException"></exception>
-
         ValueTask CreateMonitoredItemsAsync(
             OperationContext context,
             uint subscriptionId,
@@ -146,13 +145,11 @@ namespace Opc.Ua.Server
         /// Returns node handle and its node manager.
         /// </summary>
         [Obsolete("Use GetManagerHandleAsync instead.")]
-
         object GetManagerHandle(NodeId nodeId, out IAsyncNodeManager nodeManager);
 
         /// <summary>
         /// Returns node handle and its node manager.
         /// </summary>
-
         object GetManagerHandle(NodeId nodeId, out INodeManager nodeManager);
 
         /// <summary>
@@ -245,7 +242,6 @@ namespace Opc.Ua.Server
         /// </para>
         /// </remarks>
         /// <exception cref="ArgumentNullException">Throw if the namespaceUri or the nodeManager are null.</exception>
-
         void RegisterNamespaceManager(string namespaceUri, INodeManager nodeManager);
 
         /// <summary>
@@ -285,7 +281,6 @@ namespace Opc.Ua.Server
         /// Changes the monitoring mode for a set of items.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-
         ValueTask SetMonitoringModeAsync(
             OperationContext context,
             MonitoringMode monitoringMode,
@@ -333,7 +328,6 @@ namespace Opc.Ua.Server
         /// <returns>A value indicating whether the node manager was successfully unregistered.</returns>
         /// <exception cref="ArgumentNullException">Throw if the namespaceUri or the nodeManager are null.</exception>
         bool UnregisterNamespaceManager(string namespaceUri, IAsyncNodeManager nodeManager);
-
 
         /// <summary>
         /// Unregisters the node manager as the node manager for Nodes in the specified namespace.

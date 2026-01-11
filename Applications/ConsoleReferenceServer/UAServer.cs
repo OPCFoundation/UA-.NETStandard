@@ -41,7 +41,7 @@ using Opc.Ua.Server;
 namespace Quickstarts
 {
     public class UAServer<T>
-        where T : IStandardServer, new()
+        where T : StandardServer, new()
     {
         public IApplicationInstance Application { get; private set; }
 

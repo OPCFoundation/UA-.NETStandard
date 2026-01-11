@@ -38,7 +38,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
-
     /// <inheritdoc/>
     public class MasterNodeManager : IDisposable, IMasterNodeManager
     {
@@ -665,14 +664,6 @@ namespace Opc.Ua.Server
             var map = new Dictionary<NodeId, IList<IReference>> { { sourceId, references } };
             await nodeManager.AddReferencesAsync(map, cancellationToken)
                 .ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// Deletes the references to the target.
-        /// </summary>
-        public virtual void DeleteReferences(NodeId targetId, IList<IReference> references)
-        {
-            DeleteReferencesAsync(targetId, references).AsTask().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc/>
