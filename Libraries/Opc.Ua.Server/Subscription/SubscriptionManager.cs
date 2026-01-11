@@ -2155,6 +2155,12 @@ namespace Opc.Ua.Server
                     await Task.Delay(timeToWait, cancellationToken).ConfigureAwait(false);
                 }
             }
+            catch (ObjectDisposedException)
+            {
+                m_logger.LogInformation(
+                    "Subscription - Publish Task {TaskId:X8} Exited Normally.",
+                    Task.CurrentId);
+            }
             catch (Exception e)
             {
                 m_logger.LogError(
@@ -2217,6 +2223,12 @@ namespace Opc.Ua.Server
                         break;
                     }
                 }
+            }
+            catch (ObjectDisposedException)
+            {
+                m_logger.LogInformation(
+                    "Subscription - ConditionRefresh Task {TaskId:X8} Exited Normally.",
+                    Task.CurrentId);
             }
             catch (Exception e)
             {
