@@ -9,10 +9,10 @@
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <PackageVersion Include="EmbedIO" Version="3.5.2" />
     <PackageVersion Include="Microsoft.AspNetCore.Http" Version="2.3.0" />
-    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel" Version="2.3.0" />
-    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel.Core" Version="2.3.6" />
+    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel" Version="2.3.9" />
+    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel.Core" Version="2.3.8" />
     <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel.Https" Version="2.3.0" />
-    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets" Version="2.3.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets" Version="2.3.9" />
     <PackageVersion Include="Microsoft.Bcl.HashCode" Version="6.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.1" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.1" />
