@@ -515,6 +515,13 @@ namespace Opc.Ua.Client.Tests
         {
             if (ServiceResult.IsBad(e.Status))
             {
+                // Ignore expected errors during test shutdown to reduce noise in CI logs
+                if (e.Status.StatusCode == StatusCodes.BadServerHalted ||
+                    e.Status.StatusCode == StatusCodes.BadNoCommunication)
+                {
+                    return;
+                }
+
                 m_logger.LogError(
                     "Session '{SessionName}' keep alive error: {StatusCode}",
                     session.SessionName,
