@@ -43,11 +43,10 @@ using System.Runtime.InteropServices;
 
 namespace Opc.Ua.Server
 {
-
     /// <summary>
     /// The Server Configuration Node Manager.
     /// </summary>
-    public class ConfigurationNodeManager : DiagnosticsNodeManager, ICallAsyncNodeManager
+    public class ConfigurationNodeManager : DiagnosticsNodeManager, ICallAsyncNodeManager, IConfigurationNodeManager
     {
         /// <summary>
         /// Initializes the configuration and diagnostics manager.
@@ -250,9 +249,7 @@ namespace Opc.Ua.Server
             return base.AddBehaviourToPredefinedNode(context, predefinedNode);
         }
 
-        /// <summary>
-        /// Creates the configuration node for the server.
-        /// </summary>
+        ///<inheritdoc/>
         public void CreateServerConfiguration(
             ServerSystemContext systemContext,
             ApplicationConfiguration configuration)
@@ -318,9 +315,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Gets and returns the <see cref="NamespaceMetadataState"/> node associated with the specified NamespaceUri
-        /// </summary>
+        ///<inheritdoc/>
         public NamespaceMetadataState GetNamespaceMetadataState(string namespaceUri)
         {
             if (namespaceUri == null)
@@ -347,9 +342,7 @@ namespace Opc.Ua.Server
             return namespaceMetadataState;
         }
 
-        /// <summary>
-        /// Gets or creates the <see cref="NamespaceMetadataState"/> node for the specified NamespaceUri.
-        /// </summary>
+        /// <inheritdoc/>
         public NamespaceMetadataState CreateNamespaceMetadataState(string namespaceUri)
         {
             NamespaceMetadataState namespaceMetadataState = FindNamespaceMetadataState(
@@ -391,21 +384,13 @@ namespace Opc.Ua.Server
             return namespaceMetadataState;
         }
 
-        /// <summary>
-        /// Determine if the impersonated user has admin access.
-        /// </summary>
-        /// <exception cref="ServiceResultException"/>
-        /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
+        /// <inheritdoc/>
         public void HasApplicationSecureAdminAccess(ISystemContext context)
         {
             HasApplicationSecureAdminAccess(context, null);
         }
 
-        /// <summary>
-        /// Determine if the impersonated user has admin access.
-        /// </summary>
-        /// <exception cref="ServiceResultException"/>
-        /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
+        /// <inheritdoc/>
         public void HasApplicationSecureAdminAccess(
             ISystemContext context,
             CertificateStoreIdentifier _)
