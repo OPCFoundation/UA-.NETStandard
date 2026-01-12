@@ -3626,6 +3626,7 @@ namespace Opc.Ua.Client
                         });
                         return;
                     case StatusCodes.BadTimeout:
+                    case StatusCodes.BadRequestTimeout:
                         break;
                     default:
                         m_logger.LogError(
