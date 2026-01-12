@@ -1341,6 +1341,7 @@ namespace Opc.Ua
             m_supportedPrivateKeyFormats = new string[] { "PFX", "PEM" };
             MaxTrustListSize = 0;
             MultiCastDnsEnabled = false;
+            OperationLimits = new OperationLimits();
             AuditingEnabled = false;
             HttpsMutualTls = true;
             DurableSubscriptionsEnabled = false;
