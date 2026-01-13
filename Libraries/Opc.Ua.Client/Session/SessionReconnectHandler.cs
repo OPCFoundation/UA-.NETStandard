@@ -512,23 +512,22 @@ namespace Opc.Ua.Client
             try
             {
                 ISession session;
-                if (transportChannel == null)
-                {
-                    throw ServiceResultException.Unexpected(
-                        "Transport channel is null for reverse connect session recreation.");
-                }
                 if (m_reverseConnectManager != null)
                 {
                     ITransportWaitingConnection? connection;
                     do
                     {
-                        EndpointDescription endpointDescription =
-                            current.Endpoint ?? transportChannel.EndpointDescription;
-
+                        EndpointDescription? endpointDescription =
+                            current.Endpoint ?? transportChannel?.EndpointDescription;
+                        if (endpointDescription == null)
+                        {
+                            throw ServiceResultException.Unexpected(
+                                "EndpointDescription is null for reverse connect session recreation.");
+                        }
                         connection = await m_reverseConnectManager
                             .WaitForConnectionAsync(
                                 new Uri(endpointDescription.EndpointUrl),
-                                endpointDescription.Server.ApplicationUri)
+                                endpointDescription.Server?.ApplicationUri)
                             .ConfigureAwait(false);
 
                         if (m_updateFromServer)
@@ -564,10 +563,18 @@ namespace Opc.Ua.Client
                             .ConfigureAwait(false);
                         m_updateFromServer = false;
                     }
-
-                    session = await current
-                        .SessionFactory.RecreateAsync(current, transportChannel)
-                        .ConfigureAwait(false);
+                    if (transportChannel == null)
+                    {
+                        session = await current
+                            .SessionFactory.RecreateAsync(current)
+                            .ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        session = await current
+                            .SessionFactory.RecreateAsync(current, transportChannel)
+                            .ConfigureAwait(false);
+                    }
                 }
                 // note: the template session is not connected at this point
                 //       and must be disposed by the owner
