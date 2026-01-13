@@ -563,18 +563,13 @@ namespace Opc.Ua.Client
                             .ConfigureAwait(false);
                         m_updateFromServer = false;
                     }
-                    if (transportChannel == null)
-                    {
-                        session = await current
+                    session = transportChannel == null
+                        ? await current
                             .SessionFactory.RecreateAsync(current)
-                            .ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        session = await current
+                            .ConfigureAwait(false)
+                        : await current
                             .SessionFactory.RecreateAsync(current, transportChannel)
                             .ConfigureAwait(false);
-                    }
                 }
                 // note: the template session is not connected at this point
                 //       and must be disposed by the owner
