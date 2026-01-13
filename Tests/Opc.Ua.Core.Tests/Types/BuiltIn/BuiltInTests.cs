@@ -221,7 +221,6 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             
             // Cast the Value to StatusCode
             StatusCode statusCode = (StatusCode)variant.Value;
-            Assert.AreEqual(statusCodeValue, statusCode.Code);
             Assert.AreEqual(StatusCodes.Good, statusCode.Code);
             
             // Test with different status code values
@@ -230,7 +229,6 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             
             Assert.AreEqual(BuiltInType.StatusCode, variant2.TypeInfo.BuiltInType);
             StatusCode statusCode2 = (StatusCode)variant2.Value;
-            Assert.AreEqual(badNodeIdValue, statusCode2.Code);
             Assert.AreEqual(StatusCodes.BadNodeIdInvalid, statusCode2.Code);
             
             // Test with custom status code value
