@@ -755,7 +755,7 @@ namespace Opc.Ua
                 }
 
                 // If both legacy (<ApplicationCertificate>) and modern (<ApplicationCertificates>) elements
-                // are present during deserialization (as a consequence of previous serialization that included both unintentionally), 
+                // are present during deserialization (as a consequence of previous serialization that included both unintentionally),
                 // prefer the modern representation and clear the
                 // deprecated flag when we process the collection below.
 
@@ -2039,7 +2039,7 @@ namespace Opc.Ua
         /// Gets or sets the default operation limits of the OPC UA client.
         /// </summary>
         /// <remarks>
-        /// Values not equal to zero are overwritten with smaller values set by the server.
+        /// Values are overwritten with values set by the server.
         /// The values are used to limit client service calls.
         /// </remarks>
         [DataMember(IsRequired = false, Order = 6)]
