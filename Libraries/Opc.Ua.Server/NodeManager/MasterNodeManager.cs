@@ -38,10 +38,8 @@ using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
-    /// <summary>
-    /// The master node manager for the server.
-    /// </summary>
-    public class MasterNodeManager : IDisposable
+    /// <inheritdoc/>
+    public class MasterNodeManager : IDisposable, IMasterNodeManager
     {
         /// <summary>
         /// Initializes the object with default values.
@@ -111,9 +109,9 @@ namespace Opc.Ua.Server
             };
 
             // always add the diagnostics and configuration node manager to the start of the list.
-            var configurationAndDiagnosticsManager = new ConfigurationNodeManager(
-                server,
-                configuration);
+            IConfigurationNodeManager configurationAndDiagnosticsManager
+                = server.MainNodeManagerFactory.CreateConfigurationNodeManager();
+
             RegisterNodeManager(
                 configurationAndDiagnosticsManager.ToAsyncNodeManager(),
                 registeredManagers,
@@ -121,7 +119,8 @@ namespace Opc.Ua.Server
 
             // add the core node manager second because the diagnostics node manager takes priority.
             // always add the core node manager to the second of the list.
-            var coreNodeManager = new CoreNodeManager(Server, configuration, (ushort)dynamicNamespaceIndex);
+            ICoreNodeManager coreNodeManager = server.MainNodeManagerFactory.CreateCoreNodeManager((ushort)dynamicNamespaceIndex);
+
             m_nodeManagers.Add(coreNodeManager.ToAsyncNodeManager());
 
             // register core node manager for default UA namespace.
@@ -303,26 +302,18 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Returns the core node manager.
-        /// </summary>
-        public CoreNodeManager CoreNodeManager => m_nodeManagers[1].SyncNodeManager as CoreNodeManager;
+        /// <inheritdoc/>
+        public ICoreNodeManager CoreNodeManager => m_nodeManagers[1].SyncNodeManager as ICoreNodeManager;
 
-        /// <summary>
-        /// Returns the diagnostics node manager.
-        /// </summary>
-        public DiagnosticsNodeManager DiagnosticsNodeManager
-            => m_nodeManagers[0].SyncNodeManager as DiagnosticsNodeManager;
+        /// <inheritdoc/>
+        public IDiagnosticsNodeManager DiagnosticsNodeManager
+            => m_nodeManagers[0].SyncNodeManager as IDiagnosticsNodeManager;
 
-        /// <summary>
-        /// Returns the configuration node manager.
-        /// </summary>
-        public ConfigurationNodeManager ConfigurationNodeManager
-            => m_nodeManagers[0].SyncNodeManager as ConfigurationNodeManager;
+        /// <inheritdoc/>
+        public IConfigurationNodeManager ConfigurationNodeManager
+            => m_nodeManagers[0].SyncNodeManager as IConfigurationNodeManager;
 
-        /// <summary>
-        /// Creates the node managers and start them
-        /// </summary>
+        /// <inheritdoc/>
         public virtual async ValueTask StartupAsync(CancellationToken cancellationToken = default)
         {
             await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -377,9 +368,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Signals that a session is closing.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual async ValueTask SessionClosingAsync(
             OperationContext context,
             NodeId sessionId,
@@ -411,9 +400,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Shuts down the node managers.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual async ValueTask ShutdownAsync(CancellationToken cancellationToken = default)
         {
             await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -437,47 +424,13 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Registers the node manager as the node manager for Nodes in the specified namespace.
-        /// </summary>
-        /// <param name="namespaceUri">The URI of the namespace.</param>
-        /// <param name="nodeManager">The NodeManager which owns node in the namespace.</param>
-        /// <remarks>
-        /// <para>
-        /// Multiple NodeManagers may register interest in a Namespace.
-        /// The order in which this method is called determines the precedence if multiple NodeManagers exist.
-        /// This method adds the namespaceUri to the Server's Namespace table if it does not already exist.
-        /// </para>
-        /// <para>This method is thread safe and can be called at anytime.</para>
-        /// <para>
-        /// This method does not have to be called for any namespaces that were in the NodeManager's
-        /// NamespaceUri property when the MasterNodeManager was created.
-        /// </para>
-        /// </remarks>
-        /// <exception cref="ArgumentNullException">Throw if the namespaceUri or the nodeManager are null.</exception>
+        /// <inheritdoc/>
         public void RegisterNamespaceManager(string namespaceUri, INodeManager nodeManager)
         {
             RegisterNamespaceManager(namespaceUri, nodeManager.ToAsyncNodeManager());
         }
 
-        /// <summary>
-        /// Registers the node manager as the node manager for Nodes in the specified namespace.
-        /// </summary>
-        /// <param name="namespaceUri">The URI of the namespace.</param>
-        /// <param name="nodeManager">The NodeManager which owns node in the namespace.</param>
-        /// <remarks>
-        /// <para>
-        /// Multiple NodeManagers may register interest in a Namespace.
-        /// The order in which this method is called determines the precedence if multiple NodeManagers exist.
-        /// This method adds the namespaceUri to the Server's Namespace table if it does not already exist.
-        /// </para>
-        /// <para>This method is thread safe and can be called at anytime.</para>
-        /// <para>
-        /// This method does not have to be called for any namespaces that were in the NodeManager's
-        /// NamespaceUri property when the MasterNodeManager was created.
-        /// </para>
-        /// </remarks>
-        /// <exception cref="ArgumentNullException">Throw if the namespaceUri or the nodeManager are null.</exception>
+        /// <inheritdoc/>
         public void RegisterNamespaceManager(string namespaceUri, IAsyncNodeManager nodeManager)
         {
             if (string.IsNullOrEmpty(namespaceUri))
@@ -519,25 +472,13 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Unregisters the node manager as the node manager for Nodes in the specified namespace.
-        /// </summary>
-        /// <param name="namespaceUri">The URI of the namespace.</param>
-        /// <param name="nodeManager">The NodeManager which no longer owns nodes in the namespace.</param>
-        /// <returns>A value indicating whether the node manager was successfully unregistered.</returns>
-        /// <exception cref="ArgumentNullException">Throw if the namespaceUri or the nodeManager are null.</exception>
+        /// <inheritdoc/>
         public bool UnregisterNamespaceManager(string namespaceUri, INodeManager nodeManager)
         {
             return UnregisterNamespaceManager(namespaceUri, null, nodeManager);
         }
 
-        /// <summary>
-        /// Unregisters the node manager as the node manager for Nodes in the specified namespace.
-        /// </summary>
-        /// <param name="namespaceUri">The URI of the namespace.</param>
-        /// <param name="nodeManager">The NodeManager which no longer owns nodes in the namespace.</param>
-        /// <returns>A value indicating whether the node manager was successfully unregistered.</returns>
-        /// <exception cref="ArgumentNullException">Throw if the namespaceUri or the nodeManager are null.</exception>
+        /// <inheritdoc/>
         public bool UnregisterNamespaceManager(string namespaceUri, IAsyncNodeManager nodeManager)
         {
             return UnregisterNamespaceManager(namespaceUri, nodeManager, null);
@@ -600,9 +541,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Returns node handle and its node manager.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual object GetManagerHandle(NodeId nodeId, out INodeManager nodeManager)
         {
             object handle;
@@ -645,9 +584,8 @@ namespace Opc.Ua.Server
             return null;
         }
 
-        /// <summary>
-        /// Returns node handle and its node manager.
-        /// </summary>
+        /// <inheritdoc/>
+        [Obsolete("Use GetManagerHandleAsync instead.")]
         public virtual object GetManagerHandle(NodeId nodeId, out IAsyncNodeManager nodeManager)
         {
             (object handle, IAsyncNodeManager nodeManager) result =
@@ -658,9 +596,7 @@ namespace Opc.Ua.Server
             return result.handle;
         }
 
-        /// <summary>
-        /// Returns node handle and its node manager.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual async ValueTask<(object handle, IAsyncNodeManager nodeManager)>
             GetManagerHandleAsync(NodeId nodeId, CancellationToken cancellationToken = default)
         {
@@ -706,14 +642,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Adds the references to the target.
         /// </summary>
+        [Obsolete("Use AddReferencesAsync instead.")]
         public virtual void AddReferences(NodeId sourceId, IList<IReference> references)
         {
             AddReferencesAsync(sourceId, references).AsTask().GetAwaiter().GetResult();
         }
 
-        /// <summary>
-        /// Adds the references to the target.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual async ValueTask AddReferencesAsync(NodeId sourceId,
                                                           IList<IReference> references,
                                                           CancellationToken cancellationToken = default)
@@ -731,17 +666,7 @@ namespace Opc.Ua.Server
                 .ConfigureAwait(false);
         }
 
-        /// <summary>
-        /// Deletes the references to the target.
-        /// </summary>
-        public virtual void DeleteReferences(NodeId targetId, IList<IReference> references)
-        {
-            DeleteReferencesAsync(targetId, references).AsTask().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Deletes the references to the target.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual async ValueTask DeleteReferencesAsync(NodeId targetId,
                                                              IList<IReference> references,
                                                              CancellationToken cancellationToken = default)
@@ -771,17 +696,13 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Deletes the specified references.
-        /// </summary>
+        /// <inheritdoc/>
         public void RemoveReferences(List<LocalReference> referencesToRemove)
         {
             RemoveReferencesAsync(referencesToRemove).AsTask().GetAwaiter().GetResult();
         }
 
-        /// <summary>
-        /// Deletes the specified references.
-        /// </summary>
+        /// <inheritdoc/>
         public async ValueTask RemoveReferencesAsync(List<LocalReference> referencesToRemove, CancellationToken cancellationToken = default)
         {
             for (int ii = 0; ii < referencesToRemove.Count; ii++)
@@ -811,10 +732,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Registers a set of node ids.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="nodesToRegister"/> is <c>null</c>.</exception>
+        /// <inheritdoc/>
         public virtual void RegisterNodes(
             OperationContext context,
             NodeIdCollection nodesToRegister,
@@ -853,10 +771,7 @@ namespace Opc.Ua.Server
             */
         }
 
-        /// <summary>
-        /// Unregisters a set of node ids.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="nodesToUnregister"/> is <c>null</c>.</exception>
+        /// <inheritdoc/>
         public virtual void UnregisterNodes(
             OperationContext context,
             NodeIdCollection nodesToUnregister)
@@ -890,6 +805,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="browsePaths"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
+        [Obsolete("Use TranslateBrowsePathsToNodeIdsAsync instead.")]
         public virtual void TranslateBrowsePathsToNodeIds(
             OperationContext context,
             BrowsePathCollection browsePaths,
@@ -901,11 +817,7 @@ namespace Opc.Ua.Server
                 browsePaths).AsTask().GetAwaiter().GetResult();
         }
 
-        /// <summary>
-        /// Translates a start node id plus a relative paths into a node id.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="browsePaths"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <inheritdoc/>
         public virtual async ValueTask<(BrowsePathResultCollection results, DiagnosticInfoCollection diagnosticInfos)>
             TranslateBrowsePathsToNodeIdsAsync(
             OperationContext context,
@@ -1283,11 +1195,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Returns the set of references that meet the filter criteria.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <inheritdoc/>
         public virtual async ValueTask<(BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos)> BrowseAsync(
             OperationContext context,
             ViewDescription view,
@@ -1471,11 +1379,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Continues a browse operation that was previously halted.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <inheritdoc/>
         public virtual async ValueTask<(BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos)>
             BrowseNextAsync(
                 OperationContext context,
@@ -1882,11 +1786,7 @@ namespace Opc.Ua.Server
             return true;
         }
 
-        /// <summary>
-        /// Reads a set of nodes.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="nodesToRead"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <inheritdoc/>
         public virtual async ValueTask<(DataValueCollection values, DiagnosticInfoCollection diagnosticInfos)> ReadAsync(
             OperationContext context,
             double maxAge,
@@ -2026,10 +1926,7 @@ namespace Opc.Ua.Server
             return (values, diagnosticInfos);
         }
 
-        /// <summary>
-        /// Reads the history of a set of items.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <inheritdoc/>
         public virtual async ValueTask<(HistoryReadResultCollection values, DiagnosticInfoCollection diagnosticInfos)> HistoryReadAsync(
             OperationContext context,
             ExtensionObject historyReadDetails,
@@ -2157,10 +2054,7 @@ namespace Opc.Ua.Server
             return (results, diagnosticInfos);
         }
 
-        /// <summary>
-        /// Writes a set of values.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <inheritdoc/>
         public virtual async ValueTask<(StatusCodeCollection results, DiagnosticInfoCollection diagnosticInfos)> WriteAsync(
             OperationContext context,
             WriteValueCollection nodesToWrite,
@@ -2269,9 +2163,7 @@ namespace Opc.Ua.Server
             return (results, diagnosticInfos);
         }
 
-        /// <summary>
-        /// Updates the history for a set of nodes.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual async ValueTask<(HistoryUpdateResultCollection results, DiagnosticInfoCollection diagnosticInfos)>
             HistoryUpdateAsync(
                 OperationContext context,
@@ -2406,11 +2298,7 @@ namespace Opc.Ua.Server
             return (results, diagnosticInfos);
         }
 
-        /// <summary>
-        /// Calls a method defined on an object.
-        /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// <paramref name="context"/> is <c>null</c>.</exception>
+        /// <inheritdoc/>
         public virtual async ValueTask<(CallMethodResultCollection results, DiagnosticInfoCollection diagnosticInfos)>
             CallAsync(
                 OperationContext context,
@@ -2523,9 +2411,7 @@ namespace Opc.Ua.Server
             return (results, diagnosticInfos);
         }
 
-        /// <summary>
-        /// Handles condition refresh request.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual async ValueTask ConditionRefreshAsync(
             OperationContext context,
             IList<IEventMonitoredItem> monitoredItems,
@@ -2545,41 +2431,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Creates a set of monitored items.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        /// <exception cref="ArgumentOutOfRangeException"></exception>
-        /// <exception cref="ServiceResultException"></exception>
-        public virtual void CreateMonitoredItems(
-            OperationContext context,
-            uint subscriptionId,
-            double publishingInterval,
-            TimestampsToReturn timestampsToReturn,
-            IList<MonitoredItemCreateRequest> itemsToCreate,
-            IList<ServiceResult> errors,
-            IList<MonitoringFilterResult> filterResults,
-            IList<IMonitoredItem> monitoredItems,
-            bool createDurable)
-        {
-            CreateMonitoredItemsAsync(
-                context,
-                subscriptionId,
-                publishingInterval,
-                timestampsToReturn,
-                itemsToCreate,
-                errors,
-                filterResults,
-                monitoredItems,
-                createDurable).AsTask().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Creates a set of monitored items.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        /// <exception cref="ArgumentOutOfRangeException"></exception>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <inheritdoc/>
         public virtual async ValueTask CreateMonitoredItemsAsync(
             OperationContext context,
             uint subscriptionId,
@@ -2854,11 +2706,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Restore a set of monitored items after a Server Restart.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="itemsToRestore"/> is <c>null</c>.</exception>
-        /// <exception cref="InvalidOperationException"></exception>
+        /// <inheritdoc/>
         public virtual async ValueTask RestoreMonitoredItemsAsync(
             IList<IStoredMonitoredItem> itemsToRestore,
             IList<IMonitoredItem> monitoredItems,
@@ -2983,33 +2831,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Modifies a set of monitored items.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException"></exception>
-        public virtual void ModifyMonitoredItems(
-            OperationContext context,
-            TimestampsToReturn timestampsToReturn,
-            IList<IMonitoredItem> monitoredItems,
-            IList<MonitoredItemModifyRequest> itemsToModify,
-            IList<ServiceResult> errors,
-            IList<MonitoringFilterResult> filterResults)
-        {
-            ModifyMonitoredItemsAsync(
-                context,
-                timestampsToReturn,
-                monitoredItems,
-                itemsToModify,
-                errors,
-                filterResults).AsTask().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Modifies a set of monitored items.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <inheritdoc/>
         public virtual async ValueTask ModifyMonitoredItemsAsync(
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
@@ -3203,27 +3025,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Transfers a set of monitored items.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public virtual void TransferMonitoredItems(
-            OperationContext context,
-            bool sendInitialValues,
-            IList<IMonitoredItem> monitoredItems,
-            IList<ServiceResult> errors)
-        {
-            TransferMonitoredItemsAsync(
-                context,
-                sendInitialValues,
-                monitoredItems,
-                errors).AsTask().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Transfers a set of monitored items.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <inheritdoc/>
         public virtual async ValueTask TransferMonitoredItemsAsync(
             OperationContext context,
             bool sendInitialValues,
@@ -3269,27 +3071,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Deletes a set of monitored items.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public virtual void DeleteMonitoredItems(
-            OperationContext context,
-            uint subscriptionId,
-            IList<IMonitoredItem> itemsToDelete,
-            IList<ServiceResult> errors)
-        {
-            DeleteMonitoredItemsAsync(
-                context,
-                subscriptionId,
-                itemsToDelete,
-                errors).AsTask().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Deletes a set of monitored items.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <inheritdoc/>
         public virtual async ValueTask DeleteMonitoredItemsAsync(
             OperationContext context,
             uint subscriptionId,
@@ -3406,10 +3188,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Changes the monitoring mode for a set of items.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <inheritdoc/>
         public virtual async ValueTask SetMonitoringModeAsync(
             OperationContext context,
             MonitoringMode monitoringMode,
@@ -3504,14 +3283,10 @@ namespace Opc.Ua.Server
         /// </summary>
         protected IServerInternal Server { get; }
 
-        /// <summary>
-        /// The node managers being managed.
-        /// </summary>
+        /// <inheritdoc/>
         public IReadOnlyList<IAsyncNodeManager> AsyncNodeManagers => m_nodeManagers;
 
-        /// <summary>
-        /// The node managers being managed.
-        /// </summary>
+        /// <inheritdoc/>
         public IReadOnlyList<INodeManager> NodeManagers => m_nodeManagers.ConvertAll(m => m.SyncNodeManager);
 
         /// <summary>

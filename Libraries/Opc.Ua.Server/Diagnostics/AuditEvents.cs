@@ -1021,14 +1021,12 @@ namespace Opc.Ua.Server
         /// <param name="logger">A contextual logger to log to</param>
         /// <param name="auditEntryId">The audit entry id.</param>
         /// <param name="session">The session that is activated.</param>
-        /// <param name="softwareCertificates">The software certificates</param>
         /// <param name="exception">The exception received during activate session request</param>
         public static void ReportAuditActivateSessionEvent(
             this IAuditEventServer server,
             ILogger logger,
             string auditEntryId,
             ISession session,
-            IList<SoftwareCertificate> softwareCertificates,
             Exception exception = null)
         {
             if (server?.Auditing != true)

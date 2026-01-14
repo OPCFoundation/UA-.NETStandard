@@ -36,14 +36,8 @@ using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
-    /// <summary>
-    /// The default node manager for the server.
-    /// </summary>
-    /// <remarks>
-    /// Every Server has one instance of this NodeManager.
-    /// It stores objects that implement ILocalNode and indexes them by NodeId.
-    /// </remarks>
-    public class CoreNodeManager : INodeManager, IDisposable
+    /// <inheritdoc/>
+    public class CoreNodeManager : INodeManager, IDisposable, ICoreNodeManager
     {
         /// <summary>
         /// Initializes the object with default values.
@@ -122,18 +116,14 @@ namespace Opc.Ua.Server
         /// </summary>
         public object DataLock { get; } = new object();
 
-        /// <summary>
-        /// Imports the nodes from a dictionary of NodeState objects.
-        /// </summary>
+        /// <inheritdoc/>
         public void ImportNodes(ISystemContext context, IEnumerable<NodeState> predefinedNodes)
         {
             ImportNodes(context, predefinedNodes, false);
         }
 
-        /// <summary>
-        /// Imports the nodes from a dictionary of NodeState objects.
-        /// </summary>
-        internal void ImportNodes(
+        /// <inheritdoc/>
+        public void ImportNodes(
             ISystemContext context,
             IEnumerable<NodeState> predefinedNodes,
             bool isInternal)
@@ -148,11 +138,11 @@ namespace Opc.Ua.Server
                 node.Export(context, nodesToExport);
             }
 
-            lock (Server.CoreNodeManager.DataLock)
+            lock (DataLock)
             {
                 foreach (ILocalNode nodeToExport in nodesToExport.OfType<ILocalNode>())
                 {
-                    Server.CoreNodeManager.AttachNode(nodeToExport, isInternal);
+                    AttachNode(nodeToExport, isInternal);
                 }
             }
         }
@@ -791,7 +781,7 @@ namespace Opc.Ua.Server
                         {
                             value.SourceTimestamp = DateTime.UtcNow;
                         }
-                        
+
                         // Set ServerTimestamp to match SourceTimestamp for Value attributes
                         // This ensures ServerTimestamp and SourceTimestamp are equal,
                         // which is important for nodes like ServerStatus children where
@@ -2898,7 +2888,7 @@ namespace Opc.Ua.Server
 
             if (referencesToDelete.Count > 0)
             {
-                Task.Run(() => OnDeleteReferences(referencesToDelete));
+                Task.Run(() => OnDeleteReferencesAsync(referencesToDelete));
             }
         }
 
@@ -2980,20 +2970,14 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Deletes the external references to a node in a background thread.
         /// </summary>
-        private void OnDeleteReferences(object state)
+        private async ValueTask OnDeleteReferencesAsync(Dictionary<NodeId, IList<IReference>> referencesToDelete)
         {
-            var referencesToDelete = state as Dictionary<NodeId, IList<IReference>>;
-
-            if (state == null)
-            {
-                return;
-            }
-
             foreach (KeyValuePair<NodeId, IList<IReference>> current in referencesToDelete)
             {
                 try
                 {
-                    Server.NodeManager.DeleteReferences(current.Key, current.Value);
+                    await Server.NodeManager.DeleteReferencesAsync(current.Key, current.Value)
+                        .ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -3169,7 +3153,7 @@ namespace Opc.Ua.Server
 
             if (!isInternal && source.NodeId.NamespaceIndex == 0)
             {
-                lock (Server.DiagnosticsNodeManager.Lock)
+                lock (Server.DiagnosticsLock)
                 {
                     NodeState state = Server.DiagnosticsNodeManager
                         .FindPredefinedNode(source.NodeId, null);

@@ -95,6 +95,12 @@ namespace Opc.Ua.Client
         /// </summary>
         [DataMember(Order = 17)]
         public UInt32Collection? TriggeredItems { get; init; }
+
+        /// <summary>
+        /// The queue size used by the client-side cache.
+        /// </summary>
+        [DataMember(Order = 18)]
+        public uint CacheQueueSize { get; init; }
     }
 
     /// <summary>

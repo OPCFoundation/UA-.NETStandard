@@ -118,7 +118,6 @@ namespace Opc.Ua.Server
         /// </summary>
         bool Activate(
             OperationContext context,
-            List<SoftwareCertificate> clientSoftwareCertificates,
             UserIdentityToken identityToken,
             IUserIdentity identity,
             IUserIdentity effectiveIdentity,
@@ -192,7 +191,6 @@ namespace Opc.Ua.Server
         void ValidateBeforeActivate(
             OperationContext context,
             SignatureData clientSignature,
-            List<SoftwareCertificate> clientSoftwareCertificates,
             ExtensionObject userIdentityToken,
             SignatureData userTokenSignature,
             out UserIdentityToken identityToken,

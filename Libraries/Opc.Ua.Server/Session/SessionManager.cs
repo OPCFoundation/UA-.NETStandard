@@ -282,7 +282,6 @@ namespace Opc.Ua.Server
             OperationContext context,
             NodeId authenticationToken,
             SignatureData clientSignature,
-            List<SoftwareCertificate> clientSoftwareCertificates,
             ExtensionObject userIdentityToken,
             SignatureData userTokenSignature,
             StringCollection localeIds,
@@ -331,7 +330,6 @@ namespace Opc.Ua.Server
                 session.ValidateBeforeActivate(
                     context,
                     clientSignature,
-                    clientSoftwareCertificates,
                     userIdentityToken,
                     userTokenSignature,
                     out newIdentity,
@@ -399,7 +397,6 @@ namespace Opc.Ua.Server
 
             bool contextChanged = session.Activate(
                 context,
-                clientSoftwareCertificates,
                 newIdentity,
                 identity,
                 effectiveIdentity,

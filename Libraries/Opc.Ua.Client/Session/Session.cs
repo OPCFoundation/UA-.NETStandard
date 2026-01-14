@@ -950,8 +950,8 @@ namespace Opc.Ua.Client
         {
             using Activity? activity = m_telemetry.StartActivity();
             // Snapshot subscription state
-            var subscriptionStateCollection = new SubscriptionStateCollection(SubscriptionCount);
-            foreach (Subscription subscription in Subscriptions)
+            var subscriptionStateCollection = new SubscriptionStateCollection();
+            foreach (Subscription subscription in subscriptions)
             {
                 subscription.Snapshot(out SubscriptionState state);
                 subscriptionStateCollection.Add(state);
@@ -1300,9 +1300,6 @@ namespace Opc.Ua.Client
                         m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
                 }
 
-                // send the software certificates assigned to the client.
-                SignedSoftwareCertificateCollection clientSoftwareCertificates = new();
-
                 // copy the preferred locales if provided.
                 if (preferredLocales != null && preferredLocales.Count > 0)
                 {
@@ -1315,7 +1312,7 @@ namespace Opc.Ua.Client
                 ActivateSessionResponse activateResponse = await ActivateSessionAsync(
                     header,
                     clientSignature,
-                    clientSoftwareCertificates,
+                        null,
                     m_preferredLocales,
                     new ExtensionObject(identityToken),
                     userTokenSignature,
@@ -1534,7 +1531,7 @@ namespace Opc.Ua.Client
             ActivateSessionResponse response = await ActivateSessionAsync(
                 requestHeader,
                 clientSignature,
-                clientSoftwareCertificates,
+                null,
                 preferredLocales,
                 new ExtensionObject(identityToken),
                 userTokenSignature,
@@ -3717,6 +3714,7 @@ namespace Opc.Ua.Client
                         });
                         return;
                     case StatusCodes.BadTimeout:
+                    case StatusCodes.BadRequestTimeout:
                         break;
                     default:
                         m_logger.LogError(

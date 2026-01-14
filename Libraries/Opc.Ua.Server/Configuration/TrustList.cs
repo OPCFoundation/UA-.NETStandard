@@ -43,7 +43,12 @@ namespace Opc.Ua.Server
     /// </summary>
     public class TrustList
     {
-        private const int kDefaultTrustListCapacity = 0x10000;
+        private const int kDefaultTrustListCapacity = 1 * 1024 * 1024;
+
+        /// <summary>
+        /// 1MB default max trust list size
+        /// </summary>
+        private const int kDefaultMaxTrustListSize = 1 * 1024 * 1024;
 
         /// <summary>
         /// Initialize the trustlist with default values.
@@ -54,7 +59,8 @@ namespace Opc.Ua.Server
             CertificateStoreIdentifier issuerListStore,
             SecureAccess readAccess,
             SecureAccess writeAccess,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            int maxTrustListSize = 0)
         {
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<TrustList>();
@@ -63,6 +69,8 @@ namespace Opc.Ua.Server
             m_issuerStore = issuerListStore;
             m_readAccess = readAccess;
             m_writeAccess = writeAccess;
+            // If maxTrustListSize is 0 (unlimited), use a sensible default limit
+            m_maxTrustListSize = maxTrustListSize > 0 ? maxTrustListSize : kDefaultMaxTrustListSize;
 
             node.Open.OnCall = new OpenMethodStateMethodCallHandler(Open);
             node.OpenWithMasks.OnCall
@@ -155,6 +163,7 @@ namespace Opc.Ua.Server
                 m_readMode = mode == OpenFileMode.Read;
                 m_sessionId = (context as ISessionSystemContext)?.SessionId;
                 fileHandle = ++m_fileHandle;
+                m_totalBytesProcessed = 0; // Reset counter for new file operation
 
                 var trustList = new TrustListDataType { SpecifiedLists = (uint)masks };
 
@@ -264,10 +273,21 @@ namespace Opc.Ua.Server
                         "Invalid file handle");
                 }
 
+                // Check if we would exceed the maximum trust list size
+                if (m_totalBytesProcessed + length > m_maxTrustListSize)
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "Trust list size exceeds maximum allowed size of {0} bytes",
+                        m_maxTrustListSize);
+                }
+
                 data = new byte[length];
 
                 int bytesRead = m_strm.Read(data, 0, length);
                 Debug.Assert(bytesRead >= 0);
+
+                m_totalBytesProcessed += bytesRead;
 
                 if (bytesRead < length)
                 {
@@ -302,7 +322,17 @@ namespace Opc.Ua.Server
                     return StatusCodes.BadInvalidArgument;
                 }
 
+                // Check if we would exceed the maximum trust list size
+                if (m_totalBytesProcessed + data.Length > m_maxTrustListSize)
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "Trust list size exceeds maximum allowed size of {0} bytes",
+                        m_maxTrustListSize);
+                }
+
                 m_strm.Write(data, 0, data.Length);
+                m_totalBytesProcessed += data.Length;
             }
 
             return ServiceResult.Good;
@@ -825,5 +855,7 @@ namespace Opc.Ua.Server
         private readonly TrustListState m_node;
         private MemoryStream m_strm;
         private bool m_readMode;
+        private readonly int m_maxTrustListSize;
+        private long m_totalBytesProcessed;
     }
 }

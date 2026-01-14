@@ -40,10 +40,8 @@ using System.Security.Cryptography;
 
 namespace Opc.Ua.Configuration
 {
-    /// <summary>
-    /// A class that install, configures and runs a UA application.
-    /// </summary>
-    public class ApplicationInstance
+    /// <inheritdoc/>
+    public class ApplicationInstance : IApplicationInstance
     {
         /// <summary>
         /// Obsolete constructor
@@ -86,41 +84,22 @@ namespace Opc.Ua.Configuration
             ApplicationConfiguration = applicationConfiguration;
         }
 
-        /// <summary>
-        /// Gets or sets the name of the application.
-        /// </summary>
-        /// <value>The name of the application.</value>
+        /// <inheritdoc/>
         public string ApplicationName { get; set; }
 
-        /// <summary>
-        /// Gets or sets the type of the application.
-        /// </summary>
-        /// <value>The type of the application.</value>
+        /// <inheritdoc/>
         public ApplicationType ApplicationType { get; set; }
 
-        /// <summary>
-        /// Gets or sets the name of the config section containing the path
-        /// to the application configuration file.
-        /// </summary>
-        /// <value>The name of the config section.</value>
+        /// <inheritdoc/>
         public string ConfigSectionName { get; set; }
 
-        /// <summary>
-        /// Gets or sets the type of configuration file.
-        /// </summary>
-        /// <value>The type of configuration file.</value>
+        /// <inheritdoc/>
         public Type ConfigurationType { get; set; }
 
-        /// <summary>
-        /// Gets the server.
-        /// </summary>
-        /// <value>The server.</value>
-        public ServerBase Server { get; private set; }
+        /// <inheritdoc/>
+        public IServerBase Server { get; private set; }
 
-        /// <summary>
-        /// Gets the application configuration used when the Start() method was called.
-        /// </summary>
-        /// <value>The application configuration.</value>
+        /// <inheritdoc/>
         public ApplicationConfiguration ApplicationConfiguration { get; set; }
 
         /// <summary>
@@ -128,29 +107,14 @@ namespace Opc.Ua.Configuration
         /// </summary>
         public static IApplicationMessageDlg MessageDlg { get; set; }
 
-        /// <summary>
-        /// Get or set the certificate password provider.
-        /// </summary>
+        /// <inheritdoc/>
         public ICertificatePasswordProvider CertificatePasswordProvider { get; set; }
 
-        /// <summary>
-        /// Get or set bool which indicates if the auto creation
-        /// of a new application certificate during startup is disabled.
-        /// Default is enabled./>
-        /// </summary>
-        /// <remarks>
-        /// Prevents auto self signed cert creation in use cases
-        /// where an expired certificate should not be automatically
-        /// renewed or where it is required to only use certificates
-        /// provided by the user.
-        /// </remarks>
+        /// <inheritdoc/>
         public bool DisableCertificateAutoCreation { get; set; }
 
-        /// <summary>
-        /// Starts the UA server.
-        /// </summary>
-        /// <param name="server">The server.</param>
-        public async Task StartAsync(ServerBase server)
+        /// <inheritdoc/>
+        public async Task StartAsync(IServerBase server)
         {
             Server = server;
 
@@ -162,9 +126,7 @@ namespace Opc.Ua.Configuration
             await server.StartAsync(ApplicationConfiguration).ConfigureAwait(false);
         }
 
-        /// <summary>
-        /// Stops the UA server.
-        /// </summary>
+        /// <inheritdoc/>
         public ValueTask StopAsync()
         {
             return Server.StopAsync();
@@ -179,10 +141,7 @@ namespace Opc.Ua.Configuration
             Server.Stop();
         }
 
-        /// <summary>
-        /// Loads the application configuration.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <inheritdoc/>
         public async Task<ApplicationConfiguration> LoadApplicationConfigurationAsync(
             Stream stream,
             bool silent,
@@ -218,10 +177,7 @@ namespace Opc.Ua.Configuration
             return configuration;
         }
 
-        /// <summary>
-        /// Loads the application configuration.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <inheritdoc/>
         public async ValueTask<ApplicationConfiguration> LoadApplicationConfigurationAsync(
             string filePath,
             bool silent,
@@ -257,9 +213,7 @@ namespace Opc.Ua.Configuration
             return configuration;
         }
 
-        /// <summary>
-        /// Loads the application configuration.
-        /// </summary>
+        /// <inheritdoc/>
         public ValueTask<ApplicationConfiguration> LoadApplicationConfigurationAsync(
             bool silent,
             CancellationToken ct = default)
@@ -288,9 +242,7 @@ namespace Opc.Ua.Configuration
             return configuration;
         }
 
-        /// <summary>
-        /// Create a builder for a UA application configuration.
-        /// </summary>
+        /// <inheritdoc/>
         public IApplicationConfigurationBuilderTypes Build(string applicationUri, string productUri)
         {
             // App Uri and cert subject
@@ -312,10 +264,7 @@ namespace Opc.Ua.Configuration
             return new ApplicationConfigurationBuilder(this);
         }
 
-        /// <summary>
-        /// Deletes all application certificates.
-        /// </summary>
-        /// <exception cref="ArgumentException"></exception>
+        /// <inheritdoc/>
         public async ValueTask DeleteApplicationInstanceCertificateAsync(
             string[] profileIds = null,
             CancellationToken ct = default)
@@ -334,13 +283,7 @@ namespace Opc.Ua.Configuration
             }
         }
 
-        /// <summary>
-        /// Checks for a valid application instance certificate.
-        /// </summary>
-        /// <param name="silent">if set to <c>true</c> no dialogs will be displayed.</param>
-        /// <param name="lifeTimeInMonths">The lifetime in months.</param>
-        /// <param name="ct">Cancellation token to cancel operation with</param>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <inheritdoc/>
         public async ValueTask<bool> CheckApplicationInstanceCertificatesAsync(
             bool silent,
             ushort? lifeTimeInMonths = null,
@@ -554,11 +497,7 @@ namespace Opc.Ua.Configuration
             return true;
         }
 
-        /// <summary>
-        /// Adds a Certificate to the Trusted Store of the Application, needed e.g. for the GDS to trust it´s own CA
-        /// </summary>
-        /// <param name="certificate">The certificate to add to the store</param>
-        /// <param name="ct">The cancellation token</param>
+        /// <inheritdoc/>
         public async Task AddOwnCertificateToTrustedStoreAsync(
             X509Certificate2 certificate,
             CancellationToken ct)
