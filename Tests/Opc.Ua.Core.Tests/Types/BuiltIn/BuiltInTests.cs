@@ -205,6 +205,91 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         }
 
         /// <summary>
+        /// Initialize Variant from uint with StatusCode TypeInfo.
+        /// Tests that a Variant created from uint with StatusCode TypeInfo
+        /// can be properly cast to StatusCode.
+        /// </summary>
+        [Test]
+        public void VariantFromUIntWithStatusCodeTypeInfo()
+        {
+            // Test scalar StatusCode creation from uint
+            uint statusCodeValue = StatusCodes.Good;
+            var variant = new Variant(statusCodeValue, TypeInfo.Scalars.StatusCode);
+            
+            Assert.AreEqual(BuiltInType.StatusCode, variant.TypeInfo.BuiltInType);
+            Assert.NotNull(variant.Value);
+            
+            // Cast the Value to StatusCode
+            StatusCode statusCode = (StatusCode)variant.Value;
+            Assert.AreEqual(StatusCodes.Good, statusCode.Code);
+            
+            // Test with different status code values
+            uint badNodeIdValue = StatusCodes.BadNodeIdInvalid;
+            var variant2 = new Variant(badNodeIdValue, TypeInfo.Scalars.StatusCode);
+            
+            Assert.AreEqual(BuiltInType.StatusCode, variant2.TypeInfo.BuiltInType);
+            StatusCode statusCode2 = (StatusCode)variant2.Value;
+            Assert.AreEqual(StatusCodes.BadNodeIdInvalid, statusCode2.Code);
+            
+            // Test with custom status code value
+            uint customValue = 0x80AB0000;
+            var variant3 = new Variant(customValue, TypeInfo.Scalars.StatusCode);
+            
+            Assert.AreEqual(BuiltInType.StatusCode, variant3.TypeInfo.BuiltInType);
+            StatusCode statusCode3 = (StatusCode)variant3.Value;
+            Assert.AreEqual(customValue, statusCode3.Code);
+        }
+
+        /// <summary>
+        /// Initialize Variant from uint array with StatusCode TypeInfo.
+        /// Tests that a Variant created from uint[] with StatusCode TypeInfo
+        /// can be properly cast to StatusCode[].
+        /// </summary>
+        [Test]
+        public void VariantFromUIntArrayWithStatusCodeTypeInfo()
+        {
+            // Test array StatusCode creation from uint[]
+            uint[] statusCodeValues = [
+                StatusCodes.Good,
+                StatusCodes.BadNodeIdInvalid,
+                StatusCodes.BadUnexpectedError,
+                StatusCodes.BadInternalError
+            ];
+            
+            var variant = new Variant(statusCodeValues, TypeInfo.Arrays.StatusCode);
+            
+            Assert.AreEqual(BuiltInType.StatusCode, variant.TypeInfo.BuiltInType);
+            Assert.NotNull(variant.Value);
+            Assert.IsTrue(variant.Value is StatusCode[]);
+            
+            // Cast the Value to StatusCode array
+            StatusCode[] statusCodes = (StatusCode[])variant.Value;
+            Assert.AreEqual(statusCodeValues.Length, statusCodes.Length);
+            
+            for (int i = 0; i < statusCodeValues.Length; i++)
+            {
+                Assert.AreEqual(statusCodeValues[i], statusCodes[i].Code);
+            }
+            
+            // Test empty array
+            uint[] emptyArray = [];
+            var variant2 = new Variant(emptyArray, TypeInfo.Arrays.StatusCode);
+            
+            Assert.AreEqual(BuiltInType.StatusCode, variant2.TypeInfo.BuiltInType);
+            StatusCode[] emptyStatusCodes = (StatusCode[])variant2.Value;
+            Assert.AreEqual(0, emptyStatusCodes.Length);
+            
+            // Test single element array
+            uint[] singleElement = [StatusCodes.BadTimeout];
+            var variant3 = new Variant(singleElement, TypeInfo.Arrays.StatusCode);
+            
+            Assert.AreEqual(BuiltInType.StatusCode, variant3.TypeInfo.BuiltInType);
+            StatusCode[] singleStatusCode = (StatusCode[])variant3.Value;
+            Assert.AreEqual(1, singleStatusCode.Length);
+            Assert.AreEqual(StatusCodes.BadTimeout, singleStatusCode[0].Code);
+        }
+
+        /// <summary>
         /// Validate ExtensionObject special cases and constructors.
         /// </summary>
         [Test]
