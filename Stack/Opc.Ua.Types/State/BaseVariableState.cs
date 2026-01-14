@@ -1541,11 +1541,8 @@ namespace Opc.Ua
                 return StatusCodes.BadUserAccessDenied;
             }
 
-            // ensure a value timestamp exists.
-            if (m_timestamp == DateTime.MinValue)
-            {
-                m_timestamp = DateTime.UtcNow;
-            }
+            // update the timestamp on each read to reflect current time.
+            m_timestamp = DateTime.UtcNow;
 
             value = m_value;
             sourceTimestamp = m_timestamp;
