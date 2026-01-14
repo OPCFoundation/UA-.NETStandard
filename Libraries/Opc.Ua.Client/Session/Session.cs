@@ -3064,6 +3064,10 @@ namespace Opc.Ua.Client
                 {
                     // This should not happen, but we fail gracefully anyway
                 }
+                catch (TaskCanceledException)
+                {
+                    //expected exception type
+                }
                 catch (Exception e)
                 {
                     m_logger.LogError(
@@ -3512,7 +3516,7 @@ namespace Opc.Ua.Client
                 if (m_subscriptions.Count == 0)
                 {
                     // Publish responses with error should occur after deleting the last subscription.
-                    m_logger.LogError(
+                    m_logger.LogWarning(
                         "Publish #{RequestHandle}, Subscription count = 0, Error: {Message}",
                         requestHeader.RequestHandle,
                         e.Message);
