@@ -54,7 +54,7 @@ jobs:
         dotnet test ./Tests/Opc.Ua.Client.Tests/Opc.Ua.Client.Tests.csproj \
           --configuration ${{ env.CONFIGURATION }} \
           --no-build \
-          --framework ${{ env.TARGET_FRAMEWORK }}
+          --framework ${{ env.TARGET_FRAMEWORK }} \
           --filter "Category=ConnectionStability" \
           --logger "console;verbosity=detailed" \
           --results-directory ./TestResults
