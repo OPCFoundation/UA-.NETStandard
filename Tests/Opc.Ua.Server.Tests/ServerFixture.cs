@@ -45,7 +45,7 @@ namespace Opc.Ua.Server.Tests
     public class ServerFixture<T>
         where T : ServerBase, new()
     {
-        public ApplicationInstance Application { get; private set; }
+        public IApplicationInstance Application { get; private set; }
         public ApplicationConfiguration Config { get; private set; }
         public T Server { get; private set; }
         public bool AutoAccept { get; set; }

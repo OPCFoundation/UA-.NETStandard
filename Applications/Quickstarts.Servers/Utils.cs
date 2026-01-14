@@ -47,7 +47,7 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Applies custom settings to quickstart servers for CTT run.
         /// </summary>
-        public static async Task ApplyCTTModeAsync(TextWriter output, StandardServer server)
+        public static async Task ApplyCTTModeAsync(TextWriter output, IStandardServer server)
         {
             var methodsToCall = new CallMethodRequestCollection();
             int index = server.CurrentInstance.NamespaceUris.GetIndex(Alarms.Namespaces.Alarms);
@@ -97,7 +97,7 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Add all available node manager factories to the server.
         /// </summary>
-        public static void AddDefaultNodeManagers(StandardServer server)
+        public static void AddDefaultNodeManagers(IStandardServer server)
         {
             foreach (INodeManagerFactory nodeManagerFactory in NodeManagerFactories)
             {

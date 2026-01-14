@@ -97,7 +97,7 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
-        protected override MasterNodeManager CreateMasterNodeManager(
+        protected override IMasterNodeManager CreateMasterNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration)
         {

@@ -145,14 +145,24 @@ namespace Opc.Ua.Server
         public ISubscriptionManager SubscriptionManager { get; private set; }
 
         /// <summary>
-        /// Stores the MasterNodeManager and the CoreNodeManager
+        /// Stores the MasterNodeManager, the DiagnosticsNodeManager and the CoreNodeManager
         /// </summary>
         /// <param name="nodeManager">The node manager.</param>
-        public void SetNodeManager(MasterNodeManager nodeManager)
+        public void SetNodeManager(IMasterNodeManager nodeManager)
         {
             NodeManager = nodeManager;
             DiagnosticsNodeManager = nodeManager.DiagnosticsNodeManager;
+            ConfigurationNodeManager = nodeManager.ConfigurationNodeManager;
             CoreNodeManager = nodeManager.CoreNodeManager;
+        }
+
+        /// <summary>
+        /// Stores the MainNodeManagerFactory
+        /// </summary>
+        /// <param name="mainNodeManagerFactory">The main node manager factory.</param>
+        public void SetMainNodeManagerFactory(IMainNodeManagerFactory mainNodeManagerFactory)
+        {
+            MainNodeManagerFactory = mainNodeManagerFactory;
         }
 
         /// <summary>
@@ -275,19 +285,25 @@ namespace Opc.Ua.Server
         /// The master node manager for the server.
         /// </summary>
         /// <value>The node manager.</value>
-        public MasterNodeManager NodeManager { get; private set; }
+        public IMasterNodeManager NodeManager { get; private set; }
+
+        /// <inheritdoc/>
+        public IMainNodeManagerFactory MainNodeManagerFactory { get; private set; }
 
         /// <summary>
         /// The internal node manager for the servers.
         /// </summary>
         /// <value>The core node manager.</value>
-        public CoreNodeManager CoreNodeManager { get; private set; }
+        public ICoreNodeManager CoreNodeManager { get; private set; }
 
         /// <summary>
         /// Returns the node manager that managers the server diagnostics.
         /// </summary>
         /// <value>The diagnostics node manager.</value>
-        public DiagnosticsNodeManager DiagnosticsNodeManager { get; private set; }
+        public IDiagnosticsNodeManager DiagnosticsNodeManager { get; private set; }
+
+        /// <inheritdoc/>
+        public IConfigurationNodeManager ConfigurationNodeManager { get; private set; }
 
         /// <summary>
         /// The manager for events that all components use to queue events that occur.
@@ -599,7 +615,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private void CreateServerObject()
         {
-            lock (DiagnosticsNodeManager.Lock)
+            lock (DiagnosticsLock)
             {
                 // get the server object.
                 ServerObjectState serverObject = ServerObject = (ServerObjectState)
@@ -845,6 +861,7 @@ namespace Opc.Ua.Server
                 {
                     serverStatusState.Timestamp = now;
                     serverStatusState.CurrentTime.Timestamp = now;
+                    serverStatusState.State.Timestamp = now;
                 }
             }
         }
