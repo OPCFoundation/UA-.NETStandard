@@ -5,7 +5,8 @@
 This is the official OPC UA .NET Standard Stack from the OPC Foundation. It provides a reference implementation of OPC UA (Open Platform Communications Unified Architecture) targeting .NET Standard, allowing development of applications that run on multiple platforms including Windows, Linux, iOS, and Android.
 
 ### Key Technologies
-- **Language**: C# with LangVersion 13.0
+- **SDK**: .net 10 SDK
+- **Language**: C# with LangVersion 14.0
 - **Target Frameworks**: .NET Standard 2.0/2.1, .NET Framework 4.8, .NET 8.0 (LTS), .NET 9.0, .NET 10.0 (LTS)
 - **Project Type**: Class libraries, console applications, and reference implementations
 - **Architecture**: OPC UA Stack with Client, Server, Configuration, Complex Types, GDS, and PubSub components
@@ -13,15 +14,14 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 ## Code Style and Standards
 
 ### General Guidelines
-- Follow the `.editorconfig` settings strictly
+- Follow the `.editorconfig` settings *strictly*. Fix all warnings, errors and informational messages before proposing a fix.
 - Use 4 spaces for indentation in C# files
 - Maximum line length: 120 characters
 - End-of-line: CRLF
 - Always insert final newline
 - Trim trailing whitespace
 - Use UTF-8 encoding
-- Defined in .editorconfig
-- Add the OPC Foundation MIT license header to all source files. Exception: All files in Opc.Ua.Core project which have a dual license header.
+- Add the OPC Foundation MIT license header to all source files.
 
 ### C# Conventions
 - **Braces**: Use Allman style (braces on new line for control blocks, types, and methods)
@@ -55,19 +55,22 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 ## Testing Standards
 
 ### Test Requirements
-- All new features must include unit tests
+- All new features must include unit tests.  Tests should be simple and cover positive and negative scenarios.
+- Maintain or improve code coverage; critical components should have at least 80% coverage.
 - Use NUnit framework (match existing test projects)
 - Test projects follow naming convention: `<Component>.Tests`
 - Tests must be deterministic and pass in CI/CD environment
-- Code coverage is monitored via Coverlet
-- Run tests with `dotnet test` from solution root
-- Use NUnit asserts methods, no other library or classic Nunit asserts.
+- Code coverage is monitored via Coverlet and MUST NOT decrease
+- Integration tests should be included for critical components
+- Run all tests with `dotnet test` from solution root on UA.slnx
+- Use NUnit asserts methods (Assert.That), no other library. DO NOT USE the classic Nunit asserts (E.g. Assert.AreEquals).
+- When updating tests fix above for the test only.
 
 ### Test Organization
-- Place tests in the `Tests/` directory
+- Place tests in a project that corresponds to the component package under the `Tests/` directory.
 - Mirror the structure of the code being tested
 - Use descriptive test method names that explain what is being tested
-- Do not use _ in test method names; use PascalCase
+- DO NOT use _ in test method names; use PascalCase
 
 ## Build and Development
 
@@ -126,7 +129,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 ### Package Guidelines
 - Use centralized package management (Directory.Packages.props)
 - Audit packages for security vulnerabilities (NuGetAudit is enabled)
-- Only add necessary dependencies
+- Only add necessary dependencies and ask for approval for new dependencies
 - Prefer stable, well-maintained packages
 - Check compatibility with all target frameworks
 
@@ -161,7 +164,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 5. Consider backward compatibility
 
 ### Certificate Management
-- Never commit certificates to the repository
+- NEVER commit certificates or secrets of any kind to the repository
 - Use the certificate store APIs
 - Follow guidelines in `Docs/Certificates.md`
 - Test with different certificate configurations
@@ -178,7 +181,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 - OPC UA Specification: https://reference.opcfoundation.org/
 - Documentation: See `Docs/` directory
 - Samples Repository: https://github.com/OPCFoundation/UA-.NETStandard-Samples
-- NuGet Packages: 
+- NuGet Packages:
   - Types: https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Types/
   - Core: https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Core/
   - Client: https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Client/
