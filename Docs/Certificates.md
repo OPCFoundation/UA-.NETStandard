@@ -59,9 +59,11 @@ The certificate validation process follows these steps:
 1. **Pre-validation Check**: If the certificate was previously validated and `UseValidatedCertificates` is enabled, the validation is skipped.
 
 2. **Trust Check**: The validator checks if the certificate is explicitly trusted by searching in:
-   - The trusted certificate list (`TrustedPeerCertificates`)
-   - The trusted certificate store
-   - The application's own certificate collection
+   - The **trusted certificate list** (`TrustedPeerCertificates.TrustedCertificates`) - An in-memory collection of explicitly trusted certificates
+   - The **trusted certificate store** (`TrustedPeerCertificates.StorePath`) - A file system directory or X509Store containing trusted certificates
+   - The **application's own certificate collection** (`ApplicationCertificates`) - The certificates used by the application itself
+
+   See [Certificate List Configuration](#certificate-list-configuration) for details on how these lists are populated.
 
 3. **Issuer Chain Validation**: For certificates issued by a CA, the validator builds and validates the complete certificate chain. See [Chain Building Process](#chain-building-process) for detailed technical documentation.
 
@@ -413,6 +415,192 @@ These results are then used by the main validation logic to determine if the cer
 4. **Circular Chain Detection**: Prevents infinite loops by checking for duplicate thumbprints
 5. **Partial Chains**: If no issuer is found, the chain is marked incomplete but processing continues
 6. **Self-Signed Detection**: Chain building stops when a self-signed certificate is encountered
+
+### Certificate List Configuration
+
+This section describes how certificate lists and stores are configured and populated in the OPC UA .NET Standard Stack.
+
+#### Configuration Sources
+
+Certificate lists are populated from two primary sources:
+
+1. **Configuration File** (XML): The `ApplicationConfiguration` file defines certificate store locations and optional explicit certificate lists
+2. **Runtime API**: Applications can programmatically add certificates to trust lists using the `SecurityConfiguration` API
+
+#### Configuration File Structure
+
+The `SecurityConfiguration` section in the application configuration file (`*.Config.xml`) defines certificate stores:
+
+```xml
+<SecurityConfiguration>
+  <!-- Application's own certificates -->
+  <ApplicationCertificates>
+    <CertificateIdentifier>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>
+      <SubjectName>CN=MyApplication, O=MyOrganization</SubjectName>
+      <CertificateTypeString>RsaSha256</CertificateTypeString>
+    </CertificateIdentifier>
+  </ApplicationCertificates>
+
+  <!-- Issuer certificates (Certificate Authorities) -->
+  <TrustedIssuerCertificates>
+    <StoreType>Directory</StoreType>
+    <StorePath>%LocalApplicationData%/OPC Foundation/pki/issuer</StorePath>
+    <!-- Optional: Explicit certificate list -->
+    <TrustedCertificates>
+      <CertificateIdentifier>
+        <Thumbprint>1234567890ABCDEF...</Thumbprint>
+      </CertificateIdentifier>
+    </TrustedCertificates>
+  </TrustedIssuerCertificates>
+
+  <!-- Trusted peer certificates (applications) -->
+  <TrustedPeerCertificates>
+    <StoreType>Directory</StoreType>
+    <StorePath>%LocalApplicationData%/OPC Foundation/pki/trusted</StorePath>
+    <!-- Optional: Explicit certificate list -->
+    <TrustedCertificates>
+      <CertificateIdentifier>
+        <Thumbprint>FEDCBA0987654321...</Thumbprint>
+      </CertificateIdentifier>
+    </TrustedCertificates>
+  </TrustedPeerCertificates>
+
+  <!-- Rejected certificates -->
+  <RejectedCertificateStore>
+    <StoreType>Directory</StoreType>
+    <StorePath>%LocalApplicationData%/OPC Foundation/pki/rejected</StorePath>
+  </RejectedCertificateStore>
+</SecurityConfiguration>
+```
+
+#### Certificate Store Types
+
+Two store types are supported:
+
+1. **Directory**: File system-based certificate store
+   - Certificates stored as `.der` or `.crt` files in `certs/` subdirectory
+   - Private keys stored as `.pfx` or `.pem` files in `private/` subdirectory
+   - CRLs stored in `crl/` subdirectory
+   - Example: `%LocalApplicationData%/OPC Foundation/pki/trusted`
+
+2. **X509Store**: Windows certificate store (on Windows platforms)
+   - Uses Windows Certificate Store API
+   - Example: `CurrentUser\My` or `LocalMachine\Root`
+   - Supports CRL operations on Windows only
+
+#### Certificate List Population
+
+The `CertificateValidator` is populated through the following process:
+
+##### 1. Initialization via ApplicationConfiguration
+
+```csharp
+// Load configuration from file
+ApplicationConfiguration config = await ApplicationConfiguration
+    .Load(new FileInfo("MyApp.Config.xml"), ApplicationType.Client, null)
+    .ConfigureAwait(false);
+
+// Update validator with configuration
+await config.CertificateValidator.UpdateAsync(config).ConfigureAwait(false);
+```
+
+##### 2. Internal Update Process
+
+When `UpdateAsync()` is called, the validator performs these steps:
+
+```
+// From SecurityConfiguration
+trustedStore = config.SecurityConfiguration.TrustedPeerCertificates
+issuerStore = config.SecurityConfiguration.TrustedIssuerCertificates
+
+// Populate internal structures
+m_trustedCertificateStore = trustedStore.StorePath
+m_trustedCertificateList = trustedStore.TrustedCertificates (if specified)
+m_issuerCertificateStore = issuerStore.StorePath
+m_issuerCertificateList = issuerStore.TrustedCertificates (if specified)
+m_applicationCertificates = config.SecurityConfiguration.ApplicationCertificates
+```
+
+##### 3. Certificate Search Behavior
+
+During validation, certificates are searched in the following order:
+
+**For Trusted Certificates:**
+1. Search `m_trustedCertificateList` (explicit list) - if populated
+2. Search `m_trustedCertificateStore` (file system or X509Store)
+3. Search `m_applicationCertificates` (application's own certificates)
+
+**For Issuer Certificates:**
+1. Search `m_issuerCertificateList` (explicit list) - if populated
+2. Search `m_issuerCertificateStore` (file system or X509Store)
+
+#### Runtime Certificate Management
+
+Applications can dynamically add certificates to trust lists:
+
+```csharp
+// Add a trusted peer certificate programmatically
+byte[] certificateData = File.ReadAllBytes("peer-cert.der");
+config.SecurityConfiguration.AddTrustedPeer(certificateData);
+
+// Or add to the explicit list
+var certId = new CertificateIdentifier(certificateData);
+config.SecurityConfiguration.TrustedPeerCertificates.TrustedCertificates.Add(certId);
+
+// Update the validator to apply changes
+await config.CertificateValidator.UpdateAsync(config).ConfigureAwait(false);
+```
+
+#### Certificate Store Management
+
+Certificates in file system stores are managed as follows:
+
+1. **Adding Certificates**: Copy certificate files to the `certs/` subdirectory of the store path
+   - Format: `[Thumbprint].der` or `[Thumbprint].crt`
+   - Example: `%LocalApplicationData%/OPC Foundation/pki/trusted/certs/1234567890ABCDEF.der`
+
+2. **Adding CRLs**: Copy CRL files to the `crl/` subdirectory
+   - Format: `[IssuerThumbprint].crl`
+   - Example: `%LocalApplicationData%/OPC Foundation/pki/issuer/crl/FEDCBA0987654321.crl`
+
+3. **Rejected Certificates**: Automatically added by the validator when validation fails
+   - Stored in the rejected certificate store
+   - Can be manually moved to trusted store to establish trust
+
+#### Dual-Mode Operation
+
+The validator supports both explicit lists and certificate stores:
+
+- **Explicit List Only**: Specify certificates in `<TrustedCertificates>` without a store path
+- **Store Only**: Specify store path without explicit certificates (most common)
+- **Combined Mode**: Use both explicit list and store for maximum flexibility
+  - Explicit list is searched first for performance
+  - Store is searched if not found in list
+
+#### Configuration Best Practices
+
+1. **Store Path**: Use environment variables for platform independence:
+   - `%LocalApplicationData%` - Per-user application data
+   - `%CommonApplicationData%` - Machine-wide application data
+   - Relative paths - Relative to application directory
+
+2. **Explicit Lists**: Use for:
+   - Small, fixed set of trusted certificates
+   - Performance optimization (faster than store enumeration)
+   - Pre-deployment certificate distribution
+
+3. **Certificate Stores**: Use for:
+   - Dynamic trust management
+   - Administrator-managed certificate stores
+   - Integration with OS certificate infrastructure
+
+4. **Separation**: Keep different certificate types in separate stores:
+   - Application certificates: `pki/own`
+   - Trusted peers: `pki/trusted`
+   - Trusted CAs: `pki/issuer`
+   - Rejected: `pki/rejected`
 
 ### Configuration Settings
 
