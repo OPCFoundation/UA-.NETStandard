@@ -6,19 +6,19 @@ The UA stack allows also for using CA issued application certificates and remote
 
 ### Certificate stores
 
-The layout of the certificate stores for sample applications which store the certificates in the file system follow the recommended layout in the [specification](https://reference.opcfoundation.org/v104/GDS/docs/F.1/), where certificates are stored in a `certs` folder, private keys under a `private` folder and revocation lists under a `crl` folder with a `<root>` folder called `pki`. 
+The layout of the certificate stores for sample applications which store the certificates in the file system follow the recommended layout in the [specification](https://reference.opcfoundation.org/v104/GDS/docs/F.1/), where certificates are stored in a `certs` folder, private keys under a `private` folder and revocation lists under a `crl` folder with a `<root>` folder called `pki`.
 
 The UA .NET Standard stack supports the following certificate stores:
 
 - The **Application** store  `<root>/own`which contains private keys used by the application.
 
-- The **Issuer** store  `<root>/issuer`which contains certificates which are needed for validation, for example to complete the validation of a certificate chain. A certificate in the *Issuer* store is *not* trusted! 
+- The **Issuer** store  `<root>/issuer`which contains certificates which are needed for validation, for example to complete the validation of a certificate chain. A certificate in the *Issuer* store is *not* trusted!
 
-- The **Trusted** store  `<root>/trusted`which contains certificates which are trusted by the application. The certificates in this store can either be self signed, leaf, root CA or sub CA certificates. 
-  The most common use case is to add a self signed application certificate to the *Trusted* store to establish trust with that application. 
+- The **Trusted** store  `<root>/trusted`which contains certificates which are trusted by the application. The certificates in this store can either be self signed, leaf, root CA or sub CA certificates.
+  The most common use case is to add a self signed application certificate to the *Trusted* store to establish trust with that application.
   If the application certificate is the leaf of a chain, the trust can be established by adding the root CA, a sub CA or the leaf certificate itself to the *Trusted* store. Each of the options enables a different set of trusted certificates. A trusted Root CA or Sub CA certificate is used as the trust anchor for the certificate chain, which means any leaf certificate with a chain which contains the Root CA and Sub CA certificate is trusted, but the specification still mandates the validation of the whole chain. For the chain validation any certificate in the chain except the leaf certificate must be available from the *Issuer* store.
 
-  If only the leaf certificate is in the *Trusted* store and the rest of the chain is stored in the *Issuer* store, then only the leaf certificate is trusted. 
+  If only the leaf certificate is in the *Trusted* store and the rest of the chain is stored in the *Issuer* store, then only the leaf certificate is trusted.
   As an example, to trust an application certificate that is issued by a Root CA, only the Root CA certificate is required in the *Trusted* store to establish trust to all application certificates issued by the CA. This option can greatly simplify the management of OPC UA Clients and Servers because only one certificate needs to be distributed across all systems.
 
 - The **Rejected** store  `<root>/rejected` which contains certificates which have been rejected. This store is provided as a convenience for the administrator of an application to allow to copy an untrusted certificate from the *Rejected* to the *Trusted* store to establish trust with that application.
@@ -36,10 +36,10 @@ Starting with Version 1.5.xx of the UA .NET Standard Stack the X509Store support
 This enables the usage of the X509Store instead of the Directory Store for stores requiring the use of crls, e.g. the issuer or the directory Store.
 
 ### Windows .NET applications
-By default the self signed certificates are stored in a **X509Store** called **CurrentUser\\UA_MachineDefault**. The certificates can be viewed or deleted with the Windows Certificate Management Console (certmgr.msc). The *trusted*, *issuer* and *rejected* stores remain in a folder called **OPC Foundation\pki** with a root folder which is specified by the `SpecialFolder` variable **%CommonApplicationData%**. On Windows 7/8/8.1/10 this is usually the invisible folder **C:\ProgramData**. 
+By default the self signed certificates are stored in a **X509Store** called **CurrentUser\\UA_MachineDefault**. The certificates can be viewed or deleted with the Windows Certificate Management Console (certmgr.msc). The *trusted*, *issuer* and *rejected* stores remain in a folder called **OPC Foundation\pki** with a root folder which is specified by the `SpecialFolder` variable **%CommonApplicationData%**. On Windows 7/8/8.1/10 this is usually the invisible folder **C:\ProgramData**.
 
 ### Windows UWP applications
-By default the self signed certificates are stored in a **X509Store** called **CurrentUser\\UA_MachineDefault**. The certificates can be viewed or deleted with the Windows Certificate Management Console (certmgr.msc). 
+By default the self signed certificates are stored in a **X509Store** called **CurrentUser\\UA_MachineDefault**. The certificates can be viewed or deleted with the Windows Certificate Management Console (certmgr.msc).
 
 The *trusted*, *issuer* and *rejected* stores remain in a folder called **OPC Foundation\pki** in the **LocalState** folder of the installed universal windows package. Deleting the application state also deletes the certificate stores.
 
@@ -177,7 +177,7 @@ private void CertificateValidationCallback(
     // Log the validation error
     Console.WriteLine($"Certificate validation error: {e.Error}");
     Console.WriteLine($"Certificate Subject: {e.Certificate.Subject}");
-    
+
     // Decide whether to accept the certificate
     // For example, auto-accept BadCertificateUntrusted in development
     if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
@@ -185,10 +185,10 @@ private void CertificateValidationCallback(
         Console.WriteLine("Auto-accepting untrusted certificate in development mode.");
         e.Accept = true; // Accept this specific error
     }
-    
+
     // To accept all errors for this certificate (use with caution):
     // e.AcceptAll = true;
-    
+
     // To provide a custom error message:
     // e.ApplicationErrorMsg = "Custom error message";
 }
@@ -213,7 +213,7 @@ public class CustomCertificateValidator : ICertificateValidator
     {
         // Implement your custom validation logic
         X509Certificate2 certificate = certificateChain[0];
-        
+
         // Example: Check custom requirements
         if (!MeetsCustomRequirements(certificate))
         {
@@ -221,10 +221,10 @@ public class CustomCertificateValidator : ICertificateValidator
                 StatusCodes.BadCertificateInvalid,
                 "Certificate does not meet custom requirements.");
         }
-        
+
         return Task.CompletedTask;
     }
-    
+
     private bool MeetsCustomRequirements(X509Certificate2 certificate)
     {
         // Implement your custom validation logic
@@ -242,7 +242,7 @@ Alternatively, you can extend the default `CertificateValidator` class to custom
 ```csharp
 public class ExtendedCertificateValidator : CertificateValidator
 {
-    public ExtendedCertificateValidator(ITelemetryContext telemetry) 
+    public ExtendedCertificateValidator(ITelemetryContext telemetry)
         : base(telemetry)
     {
     }
@@ -254,10 +254,10 @@ public class ExtendedCertificateValidator : CertificateValidator
     {
         // Call base validation first
         await base.InternalValidateAsync(certificates, endpoint, ct);
-        
+
         // Add your custom validation logic
         X509Certificate2 certificate = certificates[0];
-        
+
         if (!CustomValidationCheck(certificate))
         {
             throw new ServiceResultException(
@@ -265,7 +265,7 @@ public class ExtendedCertificateValidator : CertificateValidator
                 "Custom validation failed.");
         }
     }
-    
+
     private bool CustomValidationCheck(X509Certificate2 certificate)
     {
         // Implement additional validation logic
