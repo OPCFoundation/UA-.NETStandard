@@ -525,9 +525,6 @@ namespace Opc.Ua.Server
                     // return the endpoints supported by the server.
                     serverEndpoints = GetEndpointDescriptions(endpointUrl, BaseAddresses, null);
 
-                    // return the software certificates assigned to the server.
-                    serverSoftwareCertificates = new();
-
                     // sign the nonce provided by the client.
                     serverSignature = null;
 

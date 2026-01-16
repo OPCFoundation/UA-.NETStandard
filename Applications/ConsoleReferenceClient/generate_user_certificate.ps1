@@ -1,6 +1,6 @@
 # 1. Ensure directories exist
-$certDir   = "./pki/trustedUser/certs"
-$privateDir = "./pki/trustedUser/private"
+$certDir   = "./bin/pki/trustedUser/certs"
+$privateDir = "./bin/pki/trustedUser/private"
 
 $curves = @(
     'nistP256',

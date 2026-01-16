@@ -787,7 +787,7 @@ namespace Opc.Ua
 
                 case AsymmetricSignatureAlgorithm.RsaPkcs15Sha256:
                 {
-                    if (signature.Algorithm == SecurityAlgorithms.RsaSha256)
+                    if (String.IsNullOrEmpty(signature.Algorithm) || signature.Algorithm == SecurityAlgorithms.RsaSha256)
                     {
                         return RsaUtils.Rsa_Verify(
                             new ArraySegment<byte>(dataToVerify),
@@ -801,7 +801,7 @@ namespace Opc.Ua
 
                 case AsymmetricSignatureAlgorithm.RsaPssSha256:
                 {
-                    if (signature.Algorithm == SecurityAlgorithms.RsaPssSha256)
+                    if (String.IsNullOrEmpty(signature.Algorithm) || signature.Algorithm == SecurityAlgorithms.RsaPssSha256)
                     {
                         return RsaUtils.Rsa_Verify(
                             new ArraySegment<byte>(dataToVerify),
@@ -815,7 +815,7 @@ namespace Opc.Ua
 
                 case AsymmetricSignatureAlgorithm.EcdsaSha256:
                 {
-                    if (signature.Algorithm == null || signature.Algorithm == securityPolicy.Uri)
+                    if (String.IsNullOrEmpty(signature.Algorithm) || signature.Algorithm == securityPolicy.Uri)
                     {
                         return CryptoUtils.Verify(
                             new ArraySegment<byte>(dataToVerify),
@@ -829,7 +829,7 @@ namespace Opc.Ua
 
                 case AsymmetricSignatureAlgorithm.EcdsaSha384:
                 {
-                    if (signature.Algorithm == null || signature.Algorithm == securityPolicy.Uri)
+                    if (String.IsNullOrEmpty(signature.Algorithm) || signature.Algorithm == securityPolicy.Uri)
                     {
                         return CryptoUtils.Verify(
                             new ArraySegment<byte>(dataToVerify),
