@@ -63,11 +63,7 @@ The certificate validation process follows these steps:
    - The trusted certificate store
    - The application's own certificate collection
 
-3. **Issuer Chain Validation**: For certificates issued by a CA, the validator:
-   - Builds the certificate chain by searching for issuers in the trusted and issuer stores
-   - Validates each certificate in the chain
-   - Checks Certificate Revocation Lists (CRLs) if available
-   - Verifies that the chain is complete (ends with a self-signed root CA)
+3. **Issuer Chain Validation**: For certificates issued by a CA, the validator builds and validates the complete certificate chain. See [Chain Building Process](#chain-building-process) for detailed technical documentation.
 
 4. **Certificate Properties Validation**: The validator checks:
    - Certificate expiration dates (NotBefore/NotAfter)
@@ -85,6 +81,338 @@ The certificate validation process follows these steps:
    - **Non-suppressible errors**: Always cause validation to fail
 
 8. **Rejected Certificate Storage**: Failed certificates are saved to the rejected certificate store for administrator review.
+
+### Chain Building Process
+
+This section provides detailed technical documentation of the certificate chain building and validation algorithm implemented in `CertificateValidator.GetIssuersNoExceptionsOnGetIssuerAsync()`.
+
+#### Overview
+
+The chain building process constructs a complete certificate chain from a leaf certificate up to a self-signed root CA certificate. The algorithm searches through multiple certificate stores in a specific priority order and performs revocation checking at each step.
+
+#### Chain Building Algorithm Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     Start Chain Building                        │
+│                   Input: Certificate Chain                      │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+                             ▼
+                ┌────────────────────────────┐
+                │  Current = certificates[0] │
+                │  (Leaf Certificate)        │
+                └────────────┬───────────────┘
+                             │
+                             ▼
+                ┌────────────────────────────┐
+                │  Create untrusted list     │
+                │  from certificates[1..n]   │
+                └────────────┬───────────────┘
+                             │
+                ┌────────────▼───────────────┐
+                │ Loop: Find Issuer Chain    │
+                └────────────┬───────────────┘
+                             │
+                ┌────────────▼───────────────────────────┐
+                │ Is Current certificate self-signed?    │
+                └─┬─────────────────────────────────┬────┘
+                  │ YES                             │ NO
+                  │                                 │
+                  ▼                                 ▼
+         ┌────────────────┐          ┌─────────────────────────────┐
+         │ Chain Complete │          │ Search for Issuer (Step 1)  │
+         │ Return Result  │          │ Location: Trusted Store     │
+         └────────────────┘          └──────────┬──────────────────┘
+                                                 │
+                                     ┌───────────▼──────────────┐
+                                     │ Issuer Found in Trusted? │
+                                     └─┬─────────────────────┬──┘
+                                       │ YES                 │ NO
+                                       │                     │
+                                       ▼                     ▼
+                          ┌────────────────────┐  ┌──────────────────────────┐
+                          │ Mark as Trusted    │  │ Search for Issuer (Step 2)│
+                          │ Check Revocation   │  │ Location: Issuer Store    │
+                          └──────┬─────────────┘  └────────┬─────────────────┘
+                                 │                         │
+                                 │             ┌───────────▼──────────────┐
+                                 │             │ Issuer Found in Issuer?  │
+                                 │             └─┬─────────────────────┬──┘
+                                 │               │ YES                 │ NO
+                                 │               │                     │
+                                 │               ▼                     ▼
+                                 │    ┌──────────────────┐  ┌──────────────────────────┐
+                                 │    │ Check Revocation │  │ Search for Issuer (Step 3)│
+                                 │    └────────┬─────────┘  │ Location: Untrusted Certs │
+                                 │             │            └────────┬─────────────────┘
+                                 │             │                     │
+                                 │             │         ┌───────────▼──────────────┐
+                                 │             │         │ Issuer Found in Chain?   │
+                                 │             │         └─┬─────────────────────┬──┘
+                                 │             │           │ YES                 │ NO
+                                 │             │           │                     │
+                                 │             │           ▼                     ▼
+                                 │             │  ┌──────────────────┐  ┌──────────────┐
+                                 │             │  │ Check Revocation │  │ Chain Broken │
+                                 │             │  └────────┬─────────┘  │ Return Result│
+                                 │             │           │            └──────────────┘
+                                 │             │           │
+                                 └─────────────┴───────────┘
+                                               │
+                                 ┌─────────────▼──────────────┐
+                                 │ Check for Circular Chain   │
+                                 │ (Duplicate Thumbprint)     │
+                                 └─┬────────────────────────┬─┘
+                                   │ DUPLICATE              │ UNIQUE
+                                   │                        │
+                                   ▼                        ▼
+                          ┌────────────────┐    ┌──────────────────────┐
+                          │ Chain Complete │    │ Add Issuer to List   │
+                          │ Return Result  │    │ Current = Issuer Cert│
+                          └────────────────┘    └──────────┬───────────┘
+                                                            │
+                                                            │
+                                        ┌───────────────────┘
+                                        │ Loop Back to Top
+                                        └──────────────────────┐
+                                                               │
+                                                               ▼
+                                                    (Continue Building Chain)
+```
+
+#### Detailed Algorithm Steps
+
+##### Step 1: Initialization
+
+```
+INPUT:
+  - certificates: X509Certificate2Collection (certificate chain from peer)
+  - issuers: List<CertificateIdentifier> (output list, initially empty)
+  - validationErrors: Dictionary<X509Certificate2, ServiceResultException> (output)
+
+INITIALIZE:
+  - isTrusted ← false
+  - current ← certificates[0]  // Leaf certificate
+  - untrustedCollection ← certificates[1..n]  // Additional certs from peer
+```
+
+##### Step 2: Iterative Chain Building Loop
+
+```
+WHILE (issuer is found) DO:
+
+  // Exit condition: Self-signed certificate reached
+  IF (IsSelfSigned(current)) THEN
+    BREAK  // Chain is complete
+  END IF
+
+  // Step 2.1: Search in Trusted Certificate Store
+  issuer ← FindIssuer(
+    certificate: current,
+    location: TrustedCertificateList + TrustedCertificateStore,
+    checkRevocation: true
+  )
+
+  IF (issuer != null) THEN
+    isTrusted ← true  // Chain ends in trusted store
+    revocationStatus ← CheckCRL(issuer, current)
+    validationErrors[current] ← revocationStatus
+    GOTO Step_2.4
+  END IF
+
+  // Step 2.2: Search in Issuer Certificate Store
+  issuer ← FindIssuer(
+    certificate: current,
+    location: IssuerCertificateList + IssuerCertificateStore,
+    checkRevocation: true
+  )
+
+  IF (issuer != null) THEN
+    revocationStatus ← CheckCRL(issuer, current)
+    validationErrors[current] ← revocationStatus
+    GOTO Step_2.4
+  END IF
+
+  // Step 2.3: Search in Untrusted Certificates (from peer)
+  issuer ← FindIssuer(
+    certificate: current,
+    location: untrustedCollection,
+    checkRevocation: true
+  )
+
+  IF (issuer == null) THEN
+    BREAK  // Chain building failed - no issuer found
+  END IF
+
+  // Step 2.4: Circular Chain Detection
+  FOR EACH existingIssuer IN issuers DO
+    IF (existingIssuer.Thumbprint == issuer.Thumbprint) THEN
+      BREAK LOOP  // Circular chain detected
+    END IF
+  END FOR
+
+  // Step 2.5: Add Issuer to Chain
+  issuers.Add(issuer)
+  current ← LoadCertificate(issuer)
+
+END WHILE
+
+RETURN isTrusted
+```
+
+##### Step 3: Issuer Matching Algorithm
+
+The `FindIssuer()` function uses the following matching criteria:
+
+```
+FUNCTION FindIssuer(certificate, location, checkRevocation):
+
+  // Extract issuer information from certificate
+  subjectName ← certificate.IssuerName
+  authorityKeyId ← ExtractAuthorityKeyIdentifier(certificate)
+  serialNumber ← ExtractSerialNumber(certificate)
+
+  // Search all certificates in location
+  FOR EACH candidate IN location DO
+
+    // Basic matching criteria
+    IF (candidate.SubjectName != subjectName) THEN
+      CONTINUE  // Subject name must match issuer name
+    END IF
+
+    // Check if issuer is allowed (not end-entity cert)
+    IF (NOT IsIssuerAllowed(candidate)) THEN
+      CONTINUE  // Must have CA capabilities
+    END IF
+
+    // Optional: Match by serial number
+    IF (serialNumber != null AND candidate.SerialNumber != serialNumber) THEN
+      CONTINUE
+    END IF
+
+    // Optional: Match by Authority Key Identifier
+    IF (authorityKeyId != null) THEN
+      subjectKeyId ← candidate.SubjectKeyIdentifier
+      IF (subjectKeyId != authorityKeyId) THEN
+        CONTINUE
+      END IF
+    END IF
+
+    // Candidate matches - perform revocation check
+    IF (checkRevocation) THEN
+      revocationStatus ← CheckCRL(candidate, certificate)
+      IF (revocationStatus == Revoked) THEN
+        RETURN (candidate, RevocationError)
+      END IF
+    END IF
+
+    RETURN (candidate, revocationStatus)
+  END FOR
+
+  RETURN (null, null)  // No matching issuer found
+END FUNCTION
+```
+
+##### Step 4: Certificate Revocation List (CRL) Checking
+
+```
+FUNCTION CheckCRL(issuer, certificate):
+
+  // Only check if store supports CRL operations
+  IF (store.SupportsCRL()) THEN
+
+    crlStatus ← store.IsRevoked(issuer, certificate)
+
+    CASE crlStatus OF
+      StatusCodes.Good:
+        RETURN null  // Not revoked
+
+      StatusCodes.BadCertificateRevoked:
+        IF (IsCertificateAuthority(certificate)) THEN
+          RETURN BadCertificateIssuerRevoked
+        ELSE
+          RETURN BadCertificateRevoked
+        END IF
+
+      StatusCodes.BadCertificateRevocationUnknown:
+        IF (IsCertificateAuthority(certificate)) THEN
+          statusCode ← BadCertificateIssuerRevocationUnknown
+        ELSE
+          statusCode ← BadCertificateRevocationUnknown
+        END IF
+
+        // Check if error should be suppressed
+        IF (RejectUnknownRevocationStatus AND
+            NOT HasValidationOption(SuppressRevocationStatusUnknown)) THEN
+          RETURN statusCode
+        END IF
+        RETURN null  // Suppressed
+
+      StatusCodes.BadNotSupported:
+        RETURN null  // CRL not supported by store
+    END CASE
+  END IF
+
+  RETURN null
+END FUNCTION
+```
+
+#### X509Chain Validation
+
+After building the issuer chain, the validator uses .NET's `X509Chain` to verify cryptographic signatures and certificate properties:
+
+```
+// Configure chain policy
+policy ← new X509ChainPolicy()
+policy.RevocationMode ← NoCheck  // Already checked via CRL
+policy.RevocationFlag ← EntireChain
+policy.VerificationFlags ← ConfigureFromValidationOptions(issuers)
+
+// Add all found issuers to extra store
+FOR EACH issuer IN issuers DO
+  policy.ExtraStore.Add(issuer.Certificate)
+END FOR
+
+// Build and validate chain
+chain ← new X509Chain()
+chain.ChainPolicy ← policy
+chain.Build(certificate)
+
+// Process chain status
+FOR EACH chainStatus IN chain.ChainStatus DO
+  ProcessChainStatus(chainStatus)
+END FOR
+
+// Verify chain matches issuers
+IF (chain.ChainElements.Count != issuers.Count + 1) THEN
+  chainIncomplete ← true
+END IF
+
+// Validate each chain element
+FOR EACH element IN chain.ChainElements DO
+  ValidateChainElement(element)
+END FOR
+```
+
+#### Chain Validation Results
+
+The chain building process returns:
+
+1. **isTrusted**: `true` if any issuer was found in the trusted store, `false` otherwise
+2. **issuers**: List of all issuer certificates in the chain (leaf to root, excluding the leaf itself)
+3. **validationErrors**: Dictionary mapping certificates to their revocation status errors
+
+These results are then used by the main validation logic to determine if the certificate should be accepted or rejected.
+
+#### Key Behaviors
+
+1. **Search Priority**: Trusted store → Issuer store → Untrusted collection (from peer)
+2. **Trust Anchoring**: If any issuer is found in the trusted store, the entire chain is considered to have a trusted anchor
+3. **CRL Checking**: Performed during chain building if the store supports it
+4. **Circular Chain Detection**: Prevents infinite loops by checking for duplicate thumbprints
+5. **Partial Chains**: If no issuer is found, the chain is marked incomplete but processing continues
+6. **Self-Signed Detection**: Chain building stops when a self-signed certificate is encountered
 
 ### Configuration Settings
 
