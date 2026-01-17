@@ -1290,7 +1290,7 @@ namespace Opc.Ua.Server
             bool isTrustedCertificate,
             CancellationToken cancellationToken)
         {
-            object[] inputParameters = [thumbprint];
+            object[] inputParameters = [thumbprint, isTrustedCertificate];
             m_node.ReportTrustListUpdateRequestedAuditEvent(
                 context,
                 objectId,
