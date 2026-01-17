@@ -119,7 +119,7 @@ namespace Opc.Ua.Server
                 method,
                 objectId,
                 mode,
-                CancellationToken.None).AsTask().GetAwaiter().GetResult();
+                CancellationToken.None).AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
             fileHandle = result.FileHandle;
             return result.ServiceResult;
         }
@@ -152,7 +152,7 @@ namespace Opc.Ua.Server
                 method,
                 objectId,
                 masks,
-                CancellationToken.None).AsTask().GetAwaiter().GetResult();
+                CancellationToken.None).AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
             fileHandle = result.FileHandle;
             return result.ServiceResult;
         }
@@ -335,7 +335,7 @@ namespace Opc.Ua.Server
                 objectId,
                 fileHandle,
                 length,
-                CancellationToken.None).AsTask().GetAwaiter().GetResult();
+                CancellationToken.None).AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
             data = result.Data;
             return result.ServiceResult;
         }
@@ -419,13 +419,14 @@ namespace Opc.Ua.Server
             uint fileHandle,
             byte[] data)
         {
-            return WriteAsync(
+            var result = WriteAsync(
                 context,
                 method,
                 objectId,
                 fileHandle,
                 data,
-                CancellationToken.None).AsTask().GetAwaiter().GetResult().ServiceResult;
+                CancellationToken.None).AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
+            return result.ServiceResult;
         }
 
         private ValueTask<WriteMethodStateResult> WriteAsync(
@@ -485,12 +486,13 @@ namespace Opc.Ua.Server
             NodeId objectId,
             uint fileHandle)
         {
-            return CloseAsync(
+            var result = CloseAsync(
                 context,
                 method,
                 objectId,
                 fileHandle,
-                CancellationToken.None).AsTask().GetAwaiter().GetResult().ServiceResult;
+                CancellationToken.None).AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
+            return result.ServiceResult;
         }
 
         private ValueTask<CloseMethodStateResult> CloseAsync(
@@ -544,7 +546,7 @@ namespace Opc.Ua.Server
                 method,
                 objectId,
                 fileHandle,
-                CancellationToken.None).AsTask().GetAwaiter().GetResult();
+                CancellationToken.None).AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
             restartRequired = result.ApplyChangesRequired;
             return result.ServiceResult;
         }
@@ -707,13 +709,14 @@ namespace Opc.Ua.Server
             byte[] certificate,
             bool isTrustedCertificate)
         {
-            return AddCertificateAsync(
+            var result = AddCertificateAsync(
                 context,
                 method,
                 objectId,
                 certificate,
                 isTrustedCertificate,
-                CancellationToken.None).AsTask().GetAwaiter().GetResult().ServiceResult;
+                CancellationToken.None).AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
+            return result.ServiceResult;
         }
 
         private async ValueTask<AddCertificateMethodStateResult> AddCertificateAsync(
@@ -813,13 +816,14 @@ namespace Opc.Ua.Server
             string thumbprint,
             bool isTrustedCertificate)
         {
-            return RemoveCertificateAsync(
+            var result = RemoveCertificateAsync(
                 context,
                 method,
                 objectId,
                 thumbprint,
                 isTrustedCertificate,
-                CancellationToken.None).AsTask().GetAwaiter().GetResult().ServiceResult;
+                CancellationToken.None).AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
+            return result.ServiceResult;
         }
 
         private async ValueTask<RemoveCertificateMethodStateResult> RemoveCertificateAsync(
