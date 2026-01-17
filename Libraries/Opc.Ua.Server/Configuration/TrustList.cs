@@ -114,148 +114,14 @@ namespace Opc.Ua.Server
             byte mode,
             ref uint fileHandle)
         {
-            return Open(
+            var result = OpenAsync(
                 context,
                 method,
                 objectId,
-                (OpenFileMode)mode,
-                TrustListMasks.All,
-                ref fileHandle);
-        }
-
-        private ServiceResult OpenWithMasks(
-            ISystemContext context,
-            MethodState method,
-            NodeId objectId,
-            uint masks,
-            ref uint fileHandle)
-        {
-            return Open(
-                context,
-                method,
-                objectId,
-                OpenFileMode.Read,
-                (TrustListMasks)masks,
-                ref fileHandle);
-        }
-
-        private ServiceResult Open(
-            ISystemContext context,
-            MethodState method,
-            NodeId objectId,
-            OpenFileMode mode,
-            TrustListMasks masks,
-            ref uint fileHandle)
-        {
-            HasSecureReadAccess(context);
-
-            if (mode == OpenFileMode.Read)
-            {
-                HasSecureReadAccess(context);
-            }
-            else if ((int)mode == ((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting))
-            {
-                HasSecureWriteAccess(context);
-            }
-            else
-            {
-                return StatusCodes.BadNotWritable;
-            }
-
-            lock (m_lock)
-            {
-                if (m_sessionId != null)
-                {
-                    // to avoid deadlocks, last open always wins
-                    m_sessionId = null;
-                    m_strm = null;
-                    m_node.OpenCount.Value = 0;
-                }
-
-                m_readMode = mode == OpenFileMode.Read;
-                m_sessionId = (context as ISessionSystemContext)?.SessionId;
-                fileHandle = ++m_fileHandle;
-                m_totalBytesProcessed = 0; // Reset counter for new file operation
-
-                var trustList = new TrustListDataType { SpecifiedLists = (uint)masks };
-
-                ICertificateStore store = m_trustedStore.OpenStore(m_telemetry);
-                try
-                {
-                    if (store == null)
-                    {
-                        throw new ServiceResultException(
-                            StatusCodes.BadConfigurationError,
-                            "Failed to open trusted certificate store.");
-                    }
-
-                    if (((int)masks & (int)TrustListMasks.TrustedCertificates) != 0)
-                    {
-                        foreach (X509Certificate2 certificate in store.EnumerateAsync().GetAwaiter()
-                            .GetResult())
-                        {
-                            trustList.TrustedCertificates.Add(certificate.RawData);
-                        }
-                    }
-
-                    if (((int)masks & (int)TrustListMasks.TrustedCrls) != 0)
-                    {
-                        foreach (X509CRL crl in store.EnumerateCRLsAsync().GetAwaiter().GetResult())
-                        {
-                            trustList.TrustedCrls.Add(crl.RawData);
-                        }
-                    }
-                }
-                finally
-                {
-                    store.Close();
-                }
-
-                store = m_issuerStore.OpenStore(m_telemetry);
-                try
-                {
-                    if (store == null)
-                    {
-                        throw new ServiceResultException(
-                            StatusCodes.BadConfigurationError,
-                            "Failed to open issuer certificate store.");
-                    }
-
-                    if (((int)masks & (int)TrustListMasks.IssuerCertificates) != 0)
-                    {
-                        foreach (X509Certificate2 certificate in store.EnumerateAsync().GetAwaiter()
-                            .GetResult())
-                        {
-                            trustList.IssuerCertificates.Add(certificate.RawData);
-                        }
-                    }
-
-                    if (((int)masks & (int)TrustListMasks.IssuerCrls) != 0)
-                    {
-                        foreach (X509CRL crl in store.EnumerateCRLsAsync().GetAwaiter().GetResult())
-                        {
-                            trustList.IssuerCrls.Add(crl.RawData);
-                        }
-                    }
-                }
-                finally
-                {
-                    store.Close();
-                }
-
-                if (m_readMode)
-                {
-                    m_strm = EncodeTrustListData(context, trustList);
-                }
-                else
-                {
-                    m_strm = new MemoryStream(kDefaultTrustListCapacity);
-                }
-
-                m_node.OpenCount.Value = 1;
-            }
-
-            return ServiceResult.Good;
+                mode,
+                CancellationToken.None).AsTask().GetAwaiter().GetResult();
+            fileHandle = result.FileHandle;
+            return result.ServiceResult;
         }
 
         private ValueTask<OpenMethodStateResult> OpenAsync(
@@ -265,13 +131,30 @@ namespace Opc.Ua.Server
             byte mode,
             CancellationToken cancellationToken)
         {
-            return OpenAsync(
+            return OpenCoreAsync(
                 context,
                 method,
                 objectId,
                 (OpenFileMode)mode,
                 TrustListMasks.All,
                 cancellationToken);
+        }
+
+        private ServiceResult OpenWithMasks(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            uint masks,
+            ref uint fileHandle)
+        {
+            var result = OpenWithMasksAsync(
+                context,
+                method,
+                objectId,
+                masks,
+                CancellationToken.None).AsTask().GetAwaiter().GetResult();
+            fileHandle = result.FileHandle;
+            return result.ServiceResult;
         }
 
         private async ValueTask<OpenWithMasksMethodStateResult> OpenWithMasksAsync(
@@ -281,7 +164,7 @@ namespace Opc.Ua.Server
             uint masks,
             CancellationToken cancellationToken)
         {
-            var result = await OpenAsync(
+            var result = await OpenCoreAsync(
                 context,
                 method,
                 objectId,
@@ -296,7 +179,7 @@ namespace Opc.Ua.Server
             };
         }
 
-        private async ValueTask<OpenMethodStateResult> OpenAsync(
+        private async ValueTask<OpenMethodStateResult> OpenCoreAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -446,53 +329,18 @@ namespace Opc.Ua.Server
             int length,
             ref byte[] data)
         {
-            HasSecureReadAccess(context);
-
-            lock (m_lock)
-            {
-                if (context is ISessionSystemContext session &&
-                    m_sessionId != session.SessionId)
-                {
-                    return ServiceResult.Create(
-                        StatusCodes.BadUserAccessDenied,
-                        "Session not authorized");
-                }
-
-                if (m_fileHandle != fileHandle)
-                {
-                    return ServiceResult.Create(
-                        StatusCodes.BadInvalidArgument,
-                        "Invalid file handle");
-                }
-
-                // Check if we would exceed the maximum trust list size
-                if (m_totalBytesProcessed + length > m_maxTrustListSize)
-                {
-                    return ServiceResult.Create(
-                        StatusCodes.BadEncodingLimitsExceeded,
-                        "Trust list size exceeds maximum allowed size of {0} bytes",
-                        m_maxTrustListSize);
-                }
-
-                data = new byte[length];
-
-                int bytesRead = m_strm.Read(data, 0, length);
-                Debug.Assert(bytesRead >= 0);
-
-                m_totalBytesProcessed += bytesRead;
-
-                if (bytesRead < length)
-                {
-                    byte[] bytes = new byte[bytesRead];
-                    Array.Copy(data, bytes, bytesRead);
-                    data = bytes;
-                }
-            }
-
-            return ServiceResult.Good;
+            var result = ReadAsync(
+                context,
+                method,
+                objectId,
+                fileHandle,
+                length,
+                CancellationToken.None).AsTask().GetAwaiter().GetResult();
+            data = result.Data;
+            return result.ServiceResult;
         }
 
-        private async ValueTask<ReadMethodStateResult> ReadAsync(
+        private ValueTask<ReadMethodStateResult> ReadAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -509,37 +357,37 @@ namespace Opc.Ua.Server
                 if (context is ISessionSystemContext session &&
                     m_sessionId != session.SessionId)
                 {
-                    return new ReadMethodStateResult
+                    return new ValueTask<ReadMethodStateResult>(new ReadMethodStateResult
                     {
                         ServiceResult = ServiceResult.Create(
                             StatusCodes.BadUserAccessDenied,
                             "Session not authorized"),
                         Data = null
-                    };
+                    });
                 }
 
                 if (m_fileHandle != fileHandle)
                 {
-                    return new ReadMethodStateResult
+                    return new ValueTask<ReadMethodStateResult>(new ReadMethodStateResult
                     {
                         ServiceResult = ServiceResult.Create(
                             StatusCodes.BadInvalidArgument,
                             "Invalid file handle"),
                         Data = null
-                    };
+                    });
                 }
 
                 // Check if we would exceed the maximum trust list size
                 if (m_totalBytesProcessed + length > m_maxTrustListSize)
                 {
-                    return new ReadMethodStateResult
+                    return new ValueTask<ReadMethodStateResult>(new ReadMethodStateResult
                     {
                         ServiceResult = ServiceResult.Create(
                             StatusCodes.BadEncodingLimitsExceeded,
                             "Trust list size exceeds maximum allowed size of {0} bytes",
                             m_maxTrustListSize),
                         Data = null
-                    };
+                    });
                 }
 
                 data = new byte[length];
@@ -557,11 +405,11 @@ namespace Opc.Ua.Server
                 }
             }
 
-            return new ReadMethodStateResult
+            return new ValueTask<ReadMethodStateResult>(new ReadMethodStateResult
             {
                 ServiceResult = ServiceResult.Good,
                 Data = data
-            };
+            });
         }
 
         private ServiceResult Write(
@@ -571,38 +419,16 @@ namespace Opc.Ua.Server
             uint fileHandle,
             byte[] data)
         {
-            HasSecureWriteAccess(context);
-
-            lock (m_lock)
-            {
-                if (context is ISessionSystemContext session &&
-                    m_sessionId != session.SessionId)
-                {
-                    return StatusCodes.BadUserAccessDenied;
-                }
-
-                if (m_fileHandle != fileHandle)
-                {
-                    return StatusCodes.BadInvalidArgument;
-                }
-
-                // Check if we would exceed the maximum trust list size
-                if (m_totalBytesProcessed + data.Length > m_maxTrustListSize)
-                {
-                    return ServiceResult.Create(
-                        StatusCodes.BadEncodingLimitsExceeded,
-                        "Trust list size exceeds maximum allowed size of {0} bytes",
-                        m_maxTrustListSize);
-                }
-
-                m_strm.Write(data, 0, data.Length);
-                m_totalBytesProcessed += data.Length;
-            }
-
-            return ServiceResult.Good;
+            return WriteAsync(
+                context,
+                method,
+                objectId,
+                fileHandle,
+                data,
+                CancellationToken.None).AsTask().GetAwaiter().GetResult().ServiceResult;
         }
 
-        private async ValueTask<WriteMethodStateResult> WriteAsync(
+        private ValueTask<WriteMethodStateResult> WriteAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -617,40 +443,40 @@ namespace Opc.Ua.Server
                 if (context is ISessionSystemContext session &&
                     m_sessionId != session.SessionId)
                 {
-                    return new WriteMethodStateResult
+                    return new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
                     {
                         ServiceResult = StatusCodes.BadUserAccessDenied
-                    };
+                    });
                 }
 
                 if (m_fileHandle != fileHandle)
                 {
-                    return new WriteMethodStateResult
+                    return new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
                     {
                         ServiceResult = StatusCodes.BadInvalidArgument
-                    };
+                    });
                 }
 
                 // Check if we would exceed the maximum trust list size
                 if (m_totalBytesProcessed + data.Length > m_maxTrustListSize)
                 {
-                    return new WriteMethodStateResult
+                    return new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
                     {
                         ServiceResult = ServiceResult.Create(
                             StatusCodes.BadEncodingLimitsExceeded,
                             "Trust list size exceeds maximum allowed size of {0} bytes",
                             m_maxTrustListSize)
-                    };
+                    });
                 }
 
                 m_strm.Write(data, 0, data.Length);
                 m_totalBytesProcessed += data.Length;
             }
 
-            return new WriteMethodStateResult
+            return new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
             {
                 ServiceResult = ServiceResult.Good
-            };
+            });
         }
 
         private ServiceResult Close(
@@ -659,30 +485,15 @@ namespace Opc.Ua.Server
             NodeId objectId,
             uint fileHandle)
         {
-            HasSecureReadAccess(context);
-
-            lock (m_lock)
-            {
-                if (context is ISessionSystemContext session &&
-                    m_sessionId != session.SessionId)
-                {
-                    return StatusCodes.BadUserAccessDenied;
-                }
-
-                if (m_fileHandle != fileHandle)
-                {
-                    return StatusCodes.BadInvalidArgument;
-                }
-
-                m_sessionId = null;
-                m_strm = null;
-                m_node.OpenCount.Value = 0;
-            }
-
-            return ServiceResult.Good;
+            return CloseAsync(
+                context,
+                method,
+                objectId,
+                fileHandle,
+                CancellationToken.None).AsTask().GetAwaiter().GetResult().ServiceResult;
         }
 
-        private async ValueTask<CloseMethodStateResult> CloseAsync(
+        private ValueTask<CloseMethodStateResult> CloseAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -696,18 +507,18 @@ namespace Opc.Ua.Server
                 if (context is ISessionSystemContext session &&
                     m_sessionId != session.SessionId)
                 {
-                    return new CloseMethodStateResult
+                    return new ValueTask<CloseMethodStateResult>(new CloseMethodStateResult
                     {
                         ServiceResult = StatusCodes.BadUserAccessDenied
-                    };
+                    });
                 }
 
                 if (m_fileHandle != fileHandle)
                 {
-                    return new CloseMethodStateResult
+                    return new ValueTask<CloseMethodStateResult>(new CloseMethodStateResult
                     {
                         ServiceResult = StatusCodes.BadInvalidArgument
-                    };
+                    });
                 }
 
                 m_sessionId = null;
@@ -715,10 +526,10 @@ namespace Opc.Ua.Server
                 m_node.OpenCount.Value = 0;
             }
 
-            return new CloseMethodStateResult
+            return new ValueTask<CloseMethodStateResult>(new CloseMethodStateResult
             {
                 ServiceResult = ServiceResult.Good
-            };
+            });
         }
 
         private ServiceResult CloseAndUpdate(
@@ -728,133 +539,14 @@ namespace Opc.Ua.Server
             uint fileHandle,
             ref bool restartRequired)
         {
-            object[] inputParameters = [fileHandle];
-            m_node.ReportTrustListUpdateRequestedAuditEvent(
+            var result = CloseAndUpdateAsync(
                 context,
+                method,
                 objectId,
-                "Method/CloseAndUpdate",
-                method.NodeId,
-                inputParameters,
-                m_logger);
-            HasSecureWriteAccess(context);
-
-            ServiceResult result = StatusCodes.Good;
-
-            lock (m_lock)
-            {
-                if (context is ISessionSystemContext session &&
-                    m_sessionId != session.SessionId)
-                {
-                    return StatusCodes.BadUserAccessDenied;
-                }
-
-                if (m_fileHandle != fileHandle)
-                {
-                    return StatusCodes.BadInvalidArgument;
-                }
-
-                try
-                {
-                    TrustListDataType trustList = DecodeTrustListData(context, m_strm);
-                    int masks = (int)trustList.SpecifiedLists;
-
-                    X509Certificate2Collection issuerCertificates = null;
-                    X509CRLCollection issuerCrls = null;
-                    X509Certificate2Collection trustedCertificates = null;
-                    X509CRLCollection trustedCrls = null;
-
-                    // test integrity of all CRLs
-                    if ((masks & (int)TrustListMasks.IssuerCertificates) != 0)
-                    {
-                        issuerCertificates = [];
-                        foreach (byte[] cert in trustList.IssuerCertificates)
-                        {
-                            issuerCertificates.Add(X509CertificateLoader.LoadCertificate(cert));
-                        }
-                    }
-                    if ((masks & (int)TrustListMasks.IssuerCrls) != 0)
-                    {
-                        issuerCrls = [];
-                        foreach (byte[] crl in trustList.IssuerCrls)
-                        {
-                            issuerCrls.Add(new X509CRL(crl));
-                        }
-                    }
-                    if ((masks & (int)TrustListMasks.TrustedCertificates) != 0)
-                    {
-                        trustedCertificates = [];
-                        foreach (byte[] cert in trustList.TrustedCertificates)
-                        {
-                            trustedCertificates.Add(CertificateFactory.Create(cert));
-                        }
-                    }
-                    if ((masks & (int)TrustListMasks.TrustedCrls) != 0)
-                    {
-                        trustedCrls = [];
-                        foreach (byte[] crl in trustList.TrustedCrls)
-                        {
-                            trustedCrls.Add(new X509CRL(crl));
-                        }
-                    }
-
-                    // update store
-                    // test integrity of all CRLs
-                    int updateMasks = (int)TrustListMasks.None;
-                    if ((masks & (int)TrustListMasks.IssuerCertificates) != 0 &&
-                        UpdateStoreCertificatesAsync(m_issuerStore, issuerCertificates).GetAwaiter()
-                            .GetResult())
-                    {
-                        updateMasks |= (int)TrustListMasks.IssuerCertificates;
-                    }
-                    if ((masks & (int)TrustListMasks.IssuerCrls) != 0 &&
-                        UpdateStoreCrlsAsync(m_issuerStore, issuerCrls).GetAwaiter().GetResult())
-                    {
-                        updateMasks |= (int)TrustListMasks.IssuerCrls;
-                    }
-                    if ((masks & (int)TrustListMasks.TrustedCertificates) != 0 &&
-                        UpdateStoreCertificatesAsync(m_trustedStore, trustedCertificates)
-                            .GetAwaiter()
-                            .GetResult())
-                    {
-                        updateMasks |= (int)TrustListMasks.TrustedCertificates;
-                    }
-                    if ((masks & (int)TrustListMasks.TrustedCrls) != 0 &&
-                        UpdateStoreCrlsAsync(m_trustedStore, trustedCrls).GetAwaiter().GetResult())
-                    {
-                        updateMasks |= (int)TrustListMasks.TrustedCrls;
-                    }
-
-                    if (masks != updateMasks)
-                    {
-                        result = StatusCodes.BadCertificateInvalid;
-                    }
-                }
-                catch
-                {
-                    result = StatusCodes.BadCertificateInvalid;
-                }
-                finally
-                {
-                    m_sessionId = null;
-                    m_strm = null;
-                    m_node.LastUpdateTime.Value = DateTime.UtcNow;
-                    m_node.OpenCount.Value = 0;
-                }
-            }
-
-            restartRequired = false;
-
-            // report the TrustListUpdatedAuditEvent
-            m_node.ReportTrustListUpdatedAuditEvent(
-                context,
-                objectId,
-                "Method/CloseAndUpdate",
-                method.NodeId,
-                inputParameters,
-                result.StatusCode,
-                m_logger);
-
-            return result;
+                fileHandle,
+                CancellationToken.None).AsTask().GetAwaiter().GetResult();
+            restartRequired = result.ApplyChangesRequired;
+            return result.ServiceResult;
         }
 
         private async ValueTask<CloseAndUpdateMethodStateResult> CloseAndUpdateAsync(
@@ -1015,73 +707,13 @@ namespace Opc.Ua.Server
             byte[] certificate,
             bool isTrustedCertificate)
         {
-            object[] inputParameters = [certificate, isTrustedCertificate];
-            m_node.ReportTrustListUpdateRequestedAuditEvent(
+            return AddCertificateAsync(
                 context,
+                method,
                 objectId,
-                "Method/AddCertificate",
-                method.NodeId,
-                inputParameters,
-                m_logger);
-            HasSecureWriteAccess(context);
-
-            ServiceResult result = StatusCodes.Good;
-            lock (m_lock)
-            {
-                if (m_sessionId != null)
-                {
-                    result = StatusCodes.BadInvalidState;
-                }
-                else if (certificate == null)
-                {
-                    result = StatusCodes.BadInvalidArgument;
-                }
-                else
-                {
-                    X509Certificate2 cert = null;
-                    try
-                    {
-                        cert = CertificateFactory.Create(certificate);
-                    }
-                    catch
-                    {
-                        // note: a previous version of the sample code accepted also CRL,
-                        // but the behaviour was not as specified and removed
-                        // https://mantis.opcfoundation.org/view.php?id=6342
-                        result = StatusCodes.BadCertificateInvalid;
-                    }
-
-                    CertificateStoreIdentifier storeIdentifier = isTrustedCertificate
-                        ? m_trustedStore
-                        : m_issuerStore;
-                    ICertificateStore store = storeIdentifier.OpenStore(m_telemetry);
-                    try
-                    {
-                        if (cert != null && store != null)
-                        {
-                            store.AddAsync(cert).GetAwaiter().GetResult();
-                        }
-                    }
-                    finally
-                    {
-                        store?.Close();
-                    }
-
-                    m_node.LastUpdateTime.Value = DateTime.UtcNow;
-                }
-            }
-
-            // report the TrustListUpdatedAuditEvent
-            m_node.ReportTrustListUpdatedAuditEvent(
-                context,
-                objectId,
-                "Method/AddCertificate",
-                method.NodeId,
-                inputParameters,
-                result.StatusCode,
-                m_logger);
-
-            return result;
+                certificate,
+                isTrustedCertificate,
+                CancellationToken.None).AsTask().GetAwaiter().GetResult().ServiceResult;
         }
 
         private async ValueTask<AddCertificateMethodStateResult> AddCertificateAsync(
@@ -1181,105 +813,13 @@ namespace Opc.Ua.Server
             string thumbprint,
             bool isTrustedCertificate)
         {
-            object[] inputParameters = [thumbprint];
-            m_node.ReportTrustListUpdateRequestedAuditEvent(
+            return RemoveCertificateAsync(
                 context,
+                method,
                 objectId,
-                "Method/RemoveCertificate",
-                method.NodeId,
-                inputParameters,
-                m_logger);
-
-            HasSecureWriteAccess(context);
-            ServiceResult result = StatusCodes.Good;
-            lock (m_lock)
-            {
-                if (m_sessionId != null)
-                {
-                    result = StatusCodes.BadInvalidState;
-                }
-                else if (string.IsNullOrEmpty(thumbprint))
-                {
-                    result = StatusCodes.BadInvalidArgument;
-                }
-                else
-                {
-                    CertificateStoreIdentifier storeIdentifier = isTrustedCertificate
-                        ? m_trustedStore
-                        : m_issuerStore;
-                    using (ICertificateStore store = storeIdentifier.OpenStore(m_telemetry))
-                    {
-                        if (store == null)
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadConfigurationError,
-                                "Failed to open certificate store.");
-                        }
-
-                        X509Certificate2Collection certCollection = store
-                            .FindByThumbprintAsync(thumbprint)
-                            .GetAwaiter()
-                            .GetResult();
-
-                        if (certCollection.Count == 0)
-                        {
-                            result = StatusCodes.BadInvalidArgument;
-                        }
-                        else
-                        {
-                            // delete all CRLs signed by cert
-                            var crlsToDelete = new X509CRLCollection();
-                            foreach (X509CRL crl in store.EnumerateCRLsAsync().GetAwaiter()
-                                .GetResult())
-                            {
-                                foreach (X509Certificate2 cert in certCollection)
-                                {
-                                    if (X509Utils.CompareDistinguishedName(
-                                            cert.SubjectName,
-                                            crl.IssuerName) &&
-                                        crl.VerifySignature(cert, false))
-                                    {
-                                        crlsToDelete.Add(crl);
-                                        break;
-                                    }
-                                }
-                            }
-
-                            if (!store.DeleteAsync(thumbprint).GetAwaiter().GetResult())
-                            {
-                                result = StatusCodes.BadInvalidArgument;
-                            }
-                            else
-                            {
-                                foreach (X509CRL crl in crlsToDelete)
-                                {
-                                    if (!store.DeleteCRLAsync(crl).GetAwaiter().GetResult())
-                                    {
-                                        // intentionally ignore errors, try best effort
-                                        m_logger.LogError(
-                                            "RemoveCertificate: Failed to delete CRL {Crl}.",
-                                            crl.ToString());
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    m_node.LastUpdateTime.Value = DateTime.UtcNow;
-                }
-            }
-
-            // report the TrustListUpdatedAuditEvent
-            m_node.ReportTrustListUpdatedAuditEvent(
-                context,
-                objectId,
-                "Method/RemoveCertificate",
-                method.NodeId,
-                inputParameters,
-                result.StatusCode,
-                m_logger);
-
-            return result;
+                thumbprint,
+                isTrustedCertificate,
+                CancellationToken.None).AsTask().GetAwaiter().GetResult().ServiceResult;
         }
 
         private async ValueTask<RemoveCertificateMethodStateResult> RemoveCertificateAsync(
