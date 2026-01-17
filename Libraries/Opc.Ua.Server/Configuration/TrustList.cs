@@ -73,17 +73,29 @@ namespace Opc.Ua.Server
             m_maxTrustListSize = maxTrustListSize > 0 ? maxTrustListSize : kDefaultMaxTrustListSize;
 
             node.Open.OnCall = new OpenMethodStateMethodCallHandler(Open);
+            node.Open.OnCallAsync = new OpenMethodStateMethodAsyncCallHandler(OpenAsync);
             node.OpenWithMasks.OnCall
                 = new OpenWithMasksMethodStateMethodCallHandler(OpenWithMasks);
+            node.OpenWithMasks.OnCallAsync
+                = new OpenWithMasksMethodStateMethodAsyncCallHandler(OpenWithMasksAsync);
             node.Read.OnCall = new ReadMethodStateMethodCallHandler(Read);
+            node.Read.OnCallAsync = new ReadMethodStateMethodAsyncCallHandler(ReadAsync);
             node.Write.OnCall = new WriteMethodStateMethodCallHandler(Write);
+            node.Write.OnCallAsync = new WriteMethodStateMethodAsyncCallHandler(WriteAsync);
             node.Close.OnCall = new CloseMethodStateMethodCallHandler(Close);
+            node.Close.OnCallAsync = new CloseMethodStateMethodAsyncCallHandler(CloseAsync);
             node.CloseAndUpdate.OnCall
                 = new CloseAndUpdateMethodStateMethodCallHandler(CloseAndUpdate);
+            node.CloseAndUpdate.OnCallAsync
+                = new CloseAndUpdateMethodStateMethodAsyncCallHandler(CloseAndUpdateAsync);
             node.AddCertificate.OnCall
                 = new AddCertificateMethodStateMethodCallHandler(AddCertificate);
+            node.AddCertificate.OnCallAsync
+                = new AddCertificateMethodStateMethodAsyncCallHandler(AddCertificateAsync);
             node.RemoveCertificate.OnCall
                 = new RemoveCertificateMethodStateMethodCallHandler(RemoveCertificate);
+            node.RemoveCertificate.OnCallAsync
+                = new RemoveCertificateMethodStateMethodAsyncCallHandler(RemoveCertificateAsync);
         }
 
         /// <summary>
@@ -246,6 +258,188 @@ namespace Opc.Ua.Server
             return ServiceResult.Good;
         }
 
+        private ValueTask<OpenMethodStateResult> OpenAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            byte mode,
+            CancellationToken cancellationToken)
+        {
+            return OpenAsync(
+                context,
+                method,
+                objectId,
+                (OpenFileMode)mode,
+                TrustListMasks.All,
+                cancellationToken);
+        }
+
+        private async ValueTask<OpenWithMasksMethodStateResult> OpenWithMasksAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            uint masks,
+            CancellationToken cancellationToken)
+        {
+            var result = await OpenAsync(
+                context,
+                method,
+                objectId,
+                OpenFileMode.Read,
+                (TrustListMasks)masks,
+                cancellationToken).ConfigureAwait(false);
+
+            return new OpenWithMasksMethodStateResult
+            {
+                ServiceResult = result.ServiceResult,
+                FileHandle = result.FileHandle
+            };
+        }
+
+        private async ValueTask<OpenMethodStateResult> OpenAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            OpenFileMode mode,
+            TrustListMasks masks,
+            CancellationToken cancellationToken)
+        {
+            HasSecureReadAccess(context);
+
+            if (mode == OpenFileMode.Read)
+            {
+                HasSecureReadAccess(context);
+            }
+            else if ((int)mode == ((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting))
+            {
+                HasSecureWriteAccess(context);
+            }
+            else
+            {
+                return new OpenMethodStateResult
+                {
+                    ServiceResult = StatusCodes.BadNotWritable,
+                    FileHandle = 0
+                };
+            }
+
+            uint fileHandle = 0;
+            MemoryStream strm = null;
+
+            try
+            {
+                var trustList = new TrustListDataType { SpecifiedLists = (uint)masks };
+
+                ICertificateStore store = m_trustedStore.OpenStore(m_telemetry);
+                try
+                {
+                    if (store == null)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadConfigurationError,
+                            "Failed to open trusted certificate store.");
+                    }
+
+                    if (((int)masks & (int)TrustListMasks.TrustedCertificates) != 0)
+                    {
+                        X509Certificate2Collection certificates = await store.EnumerateAsync(cancellationToken)
+                            .ConfigureAwait(false);
+                        foreach (X509Certificate2 certificate in certificates)
+                        {
+                            trustList.TrustedCertificates.Add(certificate.RawData);
+                        }
+                    }
+
+                    if (((int)masks & (int)TrustListMasks.TrustedCrls) != 0)
+                    {
+                        X509CRLCollection crls = await store.EnumerateCRLsAsync(cancellationToken)
+                            .ConfigureAwait(false);
+                        foreach (X509CRL crl in crls)
+                        {
+                            trustList.TrustedCrls.Add(crl.RawData);
+                        }
+                    }
+                }
+                finally
+                {
+                    store.Close();
+                }
+
+                store = m_issuerStore.OpenStore(m_telemetry);
+                try
+                {
+                    if (store == null)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadConfigurationError,
+                            "Failed to open issuer certificate store.");
+                    }
+
+                    if (((int)masks & (int)TrustListMasks.IssuerCertificates) != 0)
+                    {
+                        X509Certificate2Collection certificates = await store.EnumerateAsync(cancellationToken)
+                            .ConfigureAwait(false);
+                        foreach (X509Certificate2 certificate in certificates)
+                        {
+                            trustList.IssuerCertificates.Add(certificate.RawData);
+                        }
+                    }
+
+                    if (((int)masks & (int)TrustListMasks.IssuerCrls) != 0)
+                    {
+                        X509CRLCollection crls = await store.EnumerateCRLsAsync(cancellationToken)
+                            .ConfigureAwait(false);
+                        foreach (X509CRL crl in crls)
+                        {
+                            trustList.IssuerCrls.Add(crl.RawData);
+                        }
+                    }
+                }
+                finally
+                {
+                    store.Close();
+                }
+
+                if (mode == OpenFileMode.Read)
+                {
+                    strm = EncodeTrustListData(context, trustList);
+                }
+                else
+                {
+                    strm = new MemoryStream(kDefaultTrustListCapacity);
+                }
+
+                lock (m_lock)
+                {
+                    if (m_sessionId != null)
+                    {
+                        // to avoid deadlocks, last open always wins
+                        m_sessionId = null;
+                        m_strm = null;
+                        m_node.OpenCount.Value = 0;
+                    }
+
+                    m_readMode = mode == OpenFileMode.Read;
+                    m_sessionId = (context as ISessionSystemContext)?.SessionId;
+                    fileHandle = ++m_fileHandle;
+                    m_totalBytesProcessed = 0; // Reset counter for new file operation
+                    m_strm = strm;
+                    m_node.OpenCount.Value = 1;
+                }
+            }
+            catch
+            {
+                strm?.Dispose();
+                throw;
+            }
+
+            return new OpenMethodStateResult
+            {
+                ServiceResult = ServiceResult.Good,
+                FileHandle = fileHandle
+            };
+        }
+
         private ServiceResult Read(
             ISystemContext context,
             MethodState method,
@@ -300,6 +494,78 @@ namespace Opc.Ua.Server
             return ServiceResult.Good;
         }
 
+        private async ValueTask<ReadMethodStateResult> ReadAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            uint fileHandle,
+            int length,
+            CancellationToken cancellationToken)
+        {
+            HasSecureReadAccess(context);
+
+            byte[] data;
+
+            lock (m_lock)
+            {
+                if (context is ISessionSystemContext session &&
+                    m_sessionId != session.SessionId)
+                {
+                    return new ReadMethodStateResult
+                    {
+                        ServiceResult = ServiceResult.Create(
+                            StatusCodes.BadUserAccessDenied,
+                            "Session not authorized"),
+                        Data = null
+                    };
+                }
+
+                if (m_fileHandle != fileHandle)
+                {
+                    return new ReadMethodStateResult
+                    {
+                        ServiceResult = ServiceResult.Create(
+                            StatusCodes.BadInvalidArgument,
+                            "Invalid file handle"),
+                        Data = null
+                    };
+                }
+
+                // Check if we would exceed the maximum trust list size
+                if (m_totalBytesProcessed + length > m_maxTrustListSize)
+                {
+                    return new ReadMethodStateResult
+                    {
+                        ServiceResult = ServiceResult.Create(
+                            StatusCodes.BadEncodingLimitsExceeded,
+                            "Trust list size exceeds maximum allowed size of {0} bytes",
+                            m_maxTrustListSize),
+                        Data = null
+                    };
+                }
+
+                data = new byte[length];
+
+                int bytesRead = m_strm.Read(data, 0, length);
+                Debug.Assert(bytesRead >= 0);
+
+                m_totalBytesProcessed += bytesRead;
+
+                if (bytesRead < length)
+                {
+                    byte[] bytes = new byte[bytesRead];
+                    Array.Copy(data, bytes, bytesRead);
+                    data = bytes;
+                }
+            }
+
+            return new ReadMethodStateResult
+            {
+                ServiceResult = ServiceResult.Good,
+                Data = data
+            };
+        }
+
         private ServiceResult Write(
             ISystemContext context,
             MethodState method,
@@ -338,6 +604,57 @@ namespace Opc.Ua.Server
             return ServiceResult.Good;
         }
 
+        private async ValueTask<WriteMethodStateResult> WriteAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            uint fileHandle,
+            byte[] data,
+            CancellationToken cancellationToken)
+        {
+            HasSecureWriteAccess(context);
+
+            lock (m_lock)
+            {
+                if (context is ISessionSystemContext session &&
+                    m_sessionId != session.SessionId)
+                {
+                    return new WriteMethodStateResult
+                    {
+                        ServiceResult = StatusCodes.BadUserAccessDenied
+                    };
+                }
+
+                if (m_fileHandle != fileHandle)
+                {
+                    return new WriteMethodStateResult
+                    {
+                        ServiceResult = StatusCodes.BadInvalidArgument
+                    };
+                }
+
+                // Check if we would exceed the maximum trust list size
+                if (m_totalBytesProcessed + data.Length > m_maxTrustListSize)
+                {
+                    return new WriteMethodStateResult
+                    {
+                        ServiceResult = ServiceResult.Create(
+                            StatusCodes.BadEncodingLimitsExceeded,
+                            "Trust list size exceeds maximum allowed size of {0} bytes",
+                            m_maxTrustListSize)
+                    };
+                }
+
+                m_strm.Write(data, 0, data.Length);
+                m_totalBytesProcessed += data.Length;
+            }
+
+            return new WriteMethodStateResult
+            {
+                ServiceResult = ServiceResult.Good
+            };
+        }
+
         private ServiceResult Close(
             ISystemContext context,
             MethodState method,
@@ -365,6 +682,45 @@ namespace Opc.Ua.Server
             }
 
             return ServiceResult.Good;
+        }
+
+        private async ValueTask<CloseMethodStateResult> CloseAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            uint fileHandle,
+            CancellationToken cancellationToken)
+        {
+            HasSecureReadAccess(context);
+
+            lock (m_lock)
+            {
+                if (context is ISessionSystemContext session &&
+                    m_sessionId != session.SessionId)
+                {
+                    return new CloseMethodStateResult
+                    {
+                        ServiceResult = StatusCodes.BadUserAccessDenied
+                    };
+                }
+
+                if (m_fileHandle != fileHandle)
+                {
+                    return new CloseMethodStateResult
+                    {
+                        ServiceResult = StatusCodes.BadInvalidArgument
+                    };
+                }
+
+                m_sessionId = null;
+                m_strm = null;
+                m_node.OpenCount.Value = 0;
+            }
+
+            return new CloseMethodStateResult
+            {
+                ServiceResult = ServiceResult.Good
+            };
         }
 
         private ServiceResult CloseAndUpdate(
@@ -503,6 +859,157 @@ namespace Opc.Ua.Server
             return result;
         }
 
+        private async ValueTask<CloseAndUpdateMethodStateResult> CloseAndUpdateAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            uint fileHandle,
+            CancellationToken cancellationToken)
+        {
+            object[] inputParameters = [fileHandle];
+            m_node.ReportTrustListUpdateRequestedAuditEvent(
+                context,
+                objectId,
+                "Method/CloseAndUpdate",
+                method.NodeId,
+                inputParameters,
+                m_logger);
+            HasSecureWriteAccess(context);
+
+            ServiceResult result = StatusCodes.Good;
+
+            MemoryStream strm = null;
+
+            lock (m_lock)
+            {
+                if (context is ISessionSystemContext session &&
+                    m_sessionId != session.SessionId)
+                {
+                    return new CloseAndUpdateMethodStateResult
+                    {
+                        ServiceResult = StatusCodes.BadUserAccessDenied,
+                        ApplyChangesRequired = false
+                    };
+                }
+
+                if (m_fileHandle != fileHandle)
+                {
+                    return new CloseAndUpdateMethodStateResult
+                    {
+                        ServiceResult = StatusCodes.BadInvalidArgument,
+                        ApplyChangesRequired = false
+                    };
+                }
+
+                strm = m_strm;
+            }
+
+            try
+            {
+                TrustListDataType trustList = DecodeTrustListData(context, strm);
+                int masks = (int)trustList.SpecifiedLists;
+
+                X509Certificate2Collection issuerCertificates = null;
+                X509CRLCollection issuerCrls = null;
+                X509Certificate2Collection trustedCertificates = null;
+                X509CRLCollection trustedCrls = null;
+
+                // test integrity of all CRLs
+                if ((masks & (int)TrustListMasks.IssuerCertificates) != 0)
+                {
+                    issuerCertificates = [];
+                    foreach (byte[] cert in trustList.IssuerCertificates)
+                    {
+                        issuerCertificates.Add(X509CertificateLoader.LoadCertificate(cert));
+                    }
+                }
+                if ((masks & (int)TrustListMasks.IssuerCrls) != 0)
+                {
+                    issuerCrls = [];
+                    foreach (byte[] crl in trustList.IssuerCrls)
+                    {
+                        issuerCrls.Add(new X509CRL(crl));
+                    }
+                }
+                if ((masks & (int)TrustListMasks.TrustedCertificates) != 0)
+                {
+                    trustedCertificates = [];
+                    foreach (byte[] cert in trustList.TrustedCertificates)
+                    {
+                        trustedCertificates.Add(CertificateFactory.Create(cert));
+                    }
+                }
+                if ((masks & (int)TrustListMasks.TrustedCrls) != 0)
+                {
+                    trustedCrls = [];
+                    foreach (byte[] crl in trustList.TrustedCrls)
+                    {
+                        trustedCrls.Add(new X509CRL(crl));
+                    }
+                }
+
+                // update store
+                int updateMasks = (int)TrustListMasks.None;
+                if ((masks & (int)TrustListMasks.IssuerCertificates) != 0 &&
+                    await UpdateStoreCertificatesAsync(m_issuerStore, issuerCertificates)
+                        .ConfigureAwait(false))
+                {
+                    updateMasks |= (int)TrustListMasks.IssuerCertificates;
+                }
+                if ((masks & (int)TrustListMasks.IssuerCrls) != 0 &&
+                    await UpdateStoreCrlsAsync(m_issuerStore, issuerCrls).ConfigureAwait(false))
+                {
+                    updateMasks |= (int)TrustListMasks.IssuerCrls;
+                }
+                if ((masks & (int)TrustListMasks.TrustedCertificates) != 0 &&
+                    await UpdateStoreCertificatesAsync(m_trustedStore, trustedCertificates)
+                        .ConfigureAwait(false))
+                {
+                    updateMasks |= (int)TrustListMasks.TrustedCertificates;
+                }
+                if ((masks & (int)TrustListMasks.TrustedCrls) != 0 &&
+                    await UpdateStoreCrlsAsync(m_trustedStore, trustedCrls).ConfigureAwait(false))
+                {
+                    updateMasks |= (int)TrustListMasks.TrustedCrls;
+                }
+
+                if (masks != updateMasks)
+                {
+                    result = StatusCodes.BadCertificateInvalid;
+                }
+            }
+            catch
+            {
+                result = StatusCodes.BadCertificateInvalid;
+            }
+            finally
+            {
+                lock (m_lock)
+                {
+                    m_sessionId = null;
+                    m_strm = null;
+                    m_node.LastUpdateTime.Value = DateTime.UtcNow;
+                    m_node.OpenCount.Value = 0;
+                }
+            }
+
+            // report the TrustListUpdatedAuditEvent
+            m_node.ReportTrustListUpdatedAuditEvent(
+                context,
+                objectId,
+                "Method/CloseAndUpdate",
+                method.NodeId,
+                inputParameters,
+                result.StatusCode,
+                m_logger);
+
+            return new CloseAndUpdateMethodStateResult
+            {
+                ServiceResult = result,
+                ApplyChangesRequired = false
+            };
+        }
+
         private ServiceResult AddCertificate(
             ISystemContext context,
             MethodState method,
@@ -577,6 +1084,96 @@ namespace Opc.Ua.Server
                 m_logger);
 
             return result;
+        }
+
+        private async ValueTask<AddCertificateMethodStateResult> AddCertificateAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            byte[] certificate,
+            bool isTrustedCertificate,
+            CancellationToken cancellationToken)
+        {
+            object[] inputParameters = [certificate, isTrustedCertificate];
+            m_node.ReportTrustListUpdateRequestedAuditEvent(
+                context,
+                objectId,
+                "Method/AddCertificate",
+                method.NodeId,
+                inputParameters,
+                m_logger);
+            HasSecureWriteAccess(context);
+
+            ServiceResult result = StatusCodes.Good;
+
+            bool isSessionOpen;
+            lock (m_lock)
+            {
+                isSessionOpen = m_sessionId != null;
+            }
+
+            if (isSessionOpen)
+            {
+                result = StatusCodes.BadInvalidState;
+            }
+            else if (certificate == null)
+            {
+                result = StatusCodes.BadInvalidArgument;
+            }
+            else
+            {
+                X509Certificate2 cert = null;
+                try
+                {
+                    cert = CertificateFactory.Create(certificate);
+                }
+                catch
+                {
+                    // note: a previous version of the sample code accepted also CRL,
+                    // but the behaviour was not as specified and removed
+                    // https://mantis.opcfoundation.org/view.php?id=6342
+                    result = StatusCodes.BadCertificateInvalid;
+                }
+
+                if (cert != null)
+                {
+                    CertificateStoreIdentifier storeIdentifier = isTrustedCertificate
+                        ? m_trustedStore
+                        : m_issuerStore;
+                    ICertificateStore store = storeIdentifier.OpenStore(m_telemetry);
+                    try
+                    {
+                        if (store != null)
+                        {
+                            await store.AddAsync(cert, null, cancellationToken).ConfigureAwait(false);
+                        }
+                    }
+                    finally
+                    {
+                        store?.Close();
+                    }
+
+                    lock (m_lock)
+                    {
+                        m_node.LastUpdateTime.Value = DateTime.UtcNow;
+                    }
+                }
+            }
+
+            // report the TrustListUpdatedAuditEvent
+            m_node.ReportTrustListUpdatedAuditEvent(
+                context,
+                objectId,
+                "Method/AddCertificate",
+                method.NodeId,
+                inputParameters,
+                result.StatusCode,
+                m_logger);
+
+            return new AddCertificateMethodStateResult
+            {
+                ServiceResult = result
+            };
         }
 
         private ServiceResult RemoveCertificate(
@@ -685,6 +1282,127 @@ namespace Opc.Ua.Server
                 m_logger);
 
             return result;
+        }
+
+        private async ValueTask<RemoveCertificateMethodStateResult> RemoveCertificateAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            string thumbprint,
+            bool isTrustedCertificate,
+            CancellationToken cancellationToken)
+        {
+            object[] inputParameters = [thumbprint];
+            m_node.ReportTrustListUpdateRequestedAuditEvent(
+                context,
+                objectId,
+                "Method/RemoveCertificate",
+                method.NodeId,
+                inputParameters,
+                m_logger);
+
+            HasSecureWriteAccess(context);
+            ServiceResult result = StatusCodes.Good;
+
+            bool isSessionOpen;
+            lock (m_lock)
+            {
+                isSessionOpen = m_sessionId != null;
+            }
+
+            if (isSessionOpen)
+            {
+                result = StatusCodes.BadInvalidState;
+            }
+            else if (string.IsNullOrEmpty(thumbprint))
+            {
+                result = StatusCodes.BadInvalidArgument;
+            }
+            else
+            {
+                CertificateStoreIdentifier storeIdentifier = isTrustedCertificate
+                    ? m_trustedStore
+                    : m_issuerStore;
+                using (ICertificateStore store = storeIdentifier.OpenStore(m_telemetry))
+                {
+                    if (store == null)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadConfigurationError,
+                            "Failed to open certificate store.");
+                    }
+
+                    X509Certificate2Collection certCollection = await store
+                        .FindByThumbprintAsync(thumbprint, cancellationToken)
+                        .ConfigureAwait(false);
+
+                    if (certCollection.Count == 0)
+                    {
+                        result = StatusCodes.BadInvalidArgument;
+                    }
+                    else
+                    {
+                        // delete all CRLs signed by cert
+                        var crlsToDelete = new X509CRLCollection();
+                        X509CRLCollection crls = await store.EnumerateCRLsAsync(cancellationToken)
+                            .ConfigureAwait(false);
+                        foreach (X509CRL crl in crls)
+                        {
+                            foreach (X509Certificate2 cert in certCollection)
+                            {
+                                if (X509Utils.CompareDistinguishedName(
+                                        cert.SubjectName,
+                                        crl.IssuerName) &&
+                                    crl.VerifySignature(cert, false))
+                                {
+                                    crlsToDelete.Add(crl);
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (!await store.DeleteAsync(thumbprint, cancellationToken)
+                            .ConfigureAwait(false))
+                        {
+                            result = StatusCodes.BadInvalidArgument;
+                        }
+                        else
+                        {
+                            foreach (X509CRL crl in crlsToDelete)
+                            {
+                                if (!await store.DeleteCRLAsync(crl, cancellationToken)
+                                    .ConfigureAwait(false))
+                                {
+                                    // intentionally ignore errors, try best effort
+                                    m_logger.LogError(
+                                        "RemoveCertificate: Failed to delete CRL {Crl}.",
+                                        crl.ToString());
+                                }
+                            }
+                        }
+                    }
+                }
+
+                lock (m_lock)
+                {
+                    m_node.LastUpdateTime.Value = DateTime.UtcNow;
+                }
+            }
+
+            // report the TrustListUpdatedAuditEvent
+            m_node.ReportTrustListUpdatedAuditEvent(
+                context,
+                objectId,
+                "Method/RemoveCertificate",
+                method.NodeId,
+                inputParameters,
+                result.StatusCode,
+                m_logger);
+
+            return new RemoveCertificateMethodStateResult
+            {
+                ServiceResult = result
+            };
         }
 
         private static MemoryStream EncodeTrustListData(
