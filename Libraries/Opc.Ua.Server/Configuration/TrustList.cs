@@ -304,8 +304,6 @@ namespace Opc.Ua.Server
             TrustListMasks masks,
             CancellationToken cancellationToken)
         {
-            HasSecureReadAccess(context);
-
             if (mode == OpenFileMode.Read)
             {
                 HasSecureReadAccess(context);
