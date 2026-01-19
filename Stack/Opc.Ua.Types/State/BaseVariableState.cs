@@ -1544,11 +1544,14 @@ namespace Opc.Ua
             // ensure a value timestamp exists.
             if (m_timestamp == DateTime.MinValue)
             {
-                m_timestamp = DateTime.UtcNow;
+                sourceTimestamp = DateTime.UtcNow;
+            }
+            else
+            {
+                sourceTimestamp = m_timestamp;
             }
 
             value = m_value;
-            sourceTimestamp = m_timestamp;
             StatusCode statusCode = m_statusCode;
 
             ServiceResult result = null;
