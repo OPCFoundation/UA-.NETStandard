@@ -41,9 +41,9 @@ namespace Opc.Ua.Client
     {
         /// <summary>
         /// Whether to export value elements for variables.
-        /// Default is true.
+        /// Default is false (values are only exported for Complete option).
         /// </summary>
-        public bool ExportValues { get; set; } = true;
+        public bool ExportValues { get; set; } = false;
 
         /// <summary>
         /// Whether to export the ParentNodeId attribute.
@@ -52,48 +52,25 @@ namespace Opc.Ua.Client
         public bool ExportParentNodeId { get; set; } = false;
 
         /// <summary>
-        /// Whether to export the UserAccessLevel attribute.
-        /// Default is false (UserAccessLevel often matches AccessLevel).
-        /// </summary>
-        public bool ExportUserAccessLevel { get; set; } = false;
-
-        /// <summary>
-        /// Whether to export the MethodDeclarationId attribute.
-        /// Default is false (MethodDeclarationId is often redundant).
-        /// </summary>
-        public bool ExportMethodDeclarationId { get; set; } = false;
-
-        /// <summary>
-        /// Gets the default export options with all values exported.
+        /// Gets the default export options (no values, essential attributes only).
+        /// This produces minimal file size suitable for schema definitions.
+        /// MethodDeclarationId is always exported. UserAccessLevel is exported only when different from AccessLevel.
         /// </summary>
         public static NodeSetExportOptions Default => new NodeSetExportOptions
         {
-            ExportValues = true,
-            ExportParentNodeId = false,
-            ExportUserAccessLevel = false,
-            ExportMethodDeclarationId = false
-        };
-
-        /// <summary>
-        /// Gets minimal export options (smallest file size, values omitted).
-        /// </summary>
-        public static NodeSetExportOptions Minimal => new NodeSetExportOptions
-        {
             ExportValues = false,
-            ExportParentNodeId = false,
-            ExportUserAccessLevel = false,
-            ExportMethodDeclarationId = false
+            ExportParentNodeId = false
         };
 
         /// <summary>
-        /// Gets complete export options with all metadata.
+        /// Gets complete export options with all metadata and values.
+        /// Use this for full data export including runtime values.
+        /// MethodDeclarationId is always exported. UserAccessLevel is exported only when different from AccessLevel.
         /// </summary>
         public static NodeSetExportOptions Complete => new NodeSetExportOptions
         {
             ExportValues = true,
-            ExportParentNodeId = true,
-            ExportUserAccessLevel = true,
-            ExportMethodDeclarationId = true
+            ExportParentNodeId = true
         };
     }
 
@@ -225,10 +202,16 @@ namespace Opc.Ua.Client
                         state.Value = variableNode.Value;
                     }
 
-                    // Export UserAccessLevel only if requested
-                    if (options.ExportUserAccessLevel)
+                    // Export UserAccessLevel only if different from AccessLevel
+                    if (variableNode != null)
                     {
-                        state.UserAccessLevel = variableNode?.UserAccessLevel ?? 0;
+                        byte userAccessLevel = variableNode.UserAccessLevel;
+                        byte accessLevel = variableNode.AccessLevel;
+                        
+                        if (userAccessLevel != accessLevel)
+                        {
+                            state.UserAccessLevel = userAccessLevel;
+                        }
                     }
 
                     if (variableNode?.ArrayDimensions != null && variableNode.ArrayDimensions.Count > 0)
@@ -258,6 +241,12 @@ namespace Opc.Ua.Client
                         Executable = methodNode?.Executable ?? false,
                         UserExecutable = methodNode?.UserExecutable ?? false
                     };
+
+                    // Always export MethodDeclarationId (important type system metadata)
+                    if (node.TypeDefinitionId != null && !NodeId.IsNull(node.TypeDefinitionId))
+                    {
+                        state.MethodDeclarationId = ExpandedNodeId.ToNodeId(node.TypeDefinitionId, context.NamespaceUris);
+                    }
 
                     if (node is ILocalNode localNode)
                     {

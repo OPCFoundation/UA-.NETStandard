@@ -313,10 +313,10 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
-        /// Test exporting nodes with minimal options (no values).
+        /// Test exporting nodes with default options (no values).
         /// </summary>
         [Test]
-        public async Task ExportNodesToNodeSet2_MinimalOptions()
+        public async Task ExportNodesToNodeSet2_DefaultOptions()
         {
             var allNodes = new List<INode>();
 
@@ -336,7 +336,7 @@ namespace Opc.Ua.Client.Tests
 
             Assert.Greater(allNodes.Count, 0, "Should have found at least one node");
 
-            // Export with minimal options
+            // Export with default options
             string tempFile = Path.GetTempFileName();
             try
             {
@@ -348,7 +348,7 @@ namespace Opc.Ua.Client.Tests
                         ServerUris = Session.ServerUris
                     };
 
-                    CoreClientUtils.ExportNodesToNodeSet2(systemContext, allNodes, stream, NodeSetExportOptions.Minimal);
+                    CoreClientUtils.ExportNodesToNodeSet2(systemContext, allNodes, stream, NodeSetExportOptions.Default);
                 }
 
                 // Read it back and verify values are not exported
@@ -362,19 +362,19 @@ namespace Opc.Ua.Client.Tests
                     var variables = nodeSet.Items.OfType<Export.UAVariable>().ToList();
                     foreach (var variable in variables)
                     {
-                        Assert.IsNull(variable.Value, "Value should not be exported with Minimal options");
+                        Assert.IsNull(variable.Value, "Value should not be exported with Default options");
                     }
                 }
 
-                // Verify file is smaller than default
-                FileInfo minimalFile = new FileInfo(tempFile);
-                long minimalSize = minimalFile.Length;
+                // Verify default file is smaller or equal to complete
+                FileInfo defaultFile = new FileInfo(tempFile);
+                long defaultSize = defaultFile.Length;
 
-                // Export with default options
-                string tempFileDefault = Path.GetTempFileName();
+                // Export with complete options
+                string tempFileComplete = Path.GetTempFileName();
                 try
                 {
-                    using (var stream = new FileStream(tempFileDefault, FileMode.Create))
+                    using (var stream = new FileStream(tempFileComplete, FileMode.Create))
                     {
                         var systemContext = new SystemContext(Telemetry)
                         {
@@ -382,20 +382,21 @@ namespace Opc.Ua.Client.Tests
                             ServerUris = Session.ServerUris
                         };
 
-                        CoreClientUtils.ExportNodesToNodeSet2(systemContext, allNodes, stream, NodeSetExportOptions.Default);
+                        CoreClientUtils.ExportNodesToNodeSet2(systemContext, allNodes, stream, NodeSetExportOptions.Complete);
                     }
 
-                    FileInfo defaultFile = new FileInfo(tempFileDefault);
-                    long defaultSize = defaultFile.Length;
+                    FileInfo completeFile = new FileInfo(tempFileComplete);
+                    long completeSize = completeFile.Length;
 
-                    // Minimal should be smaller or equal
-                    Assert.LessOrEqual(minimalSize, defaultSize, "Minimal export should produce smaller or equal file");
+                    // Default should be smaller or equal to complete
+                    // (Equal if nodes don't have values to export)
+                    Assert.LessOrEqual(defaultSize, completeSize, "Default export should not be larger than Complete");
                 }
                 finally
                 {
-                    if (File.Exists(tempFileDefault))
+                    if (File.Exists(tempFileComplete))
                     {
-                        File.Delete(tempFileDefault);
+                        File.Delete(tempFileComplete);
                     }
                 }
             }
@@ -474,13 +475,11 @@ namespace Opc.Ua.Client.Tests
 
             Assert.Greater(allNodes.Count, 0, "Should have found at least one node");
 
-            // Export with custom options - values but no user access level
+            // Export with custom options - values exported
             var customOptions = new NodeSetExportOptions
             {
                 ExportValues = true,
-                ExportUserAccessLevel = false,
-                ExportParentNodeId = false,
-                ExportMethodDeclarationId = false
+                ExportParentNodeId = false
             };
 
             string tempFile = Path.GetTempFileName();
