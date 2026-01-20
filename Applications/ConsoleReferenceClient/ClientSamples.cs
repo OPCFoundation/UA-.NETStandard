@@ -1703,7 +1703,7 @@ namespace Quickstarts
                         ServerUris = session.ServerUris
                     };
 
-                    CoreClientUtils.ExportNodesToNodeSet2(systemContext, kvp.Value, outputStream);
+                    CoreClientUtils.ExportNodesToNodeSet2(systemContext, kvp.Value, outputStream, NodeSetExportOptions.Complete);
                 }, cancellationToken).ConfigureAwait(false);
 
                 exportedFiles[namespaceUri] = filePath;

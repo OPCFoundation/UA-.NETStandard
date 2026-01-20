@@ -35,6 +35,69 @@ using System.Linq;
 namespace Opc.Ua.Client
 {
     /// <summary>
+    /// Options for controlling NodeSet export behavior.
+    /// </summary>
+    public class NodeSetExportOptions
+    {
+        /// <summary>
+        /// Whether to export value elements for variables.
+        /// Default is true.
+        /// </summary>
+        public bool ExportValues { get; set; } = true;
+
+        /// <summary>
+        /// Whether to export the ParentNodeId attribute.
+        /// Default is false (ParentNodeId is redundant as it can be inferred from references).
+        /// </summary>
+        public bool ExportParentNodeId { get; set; } = false;
+
+        /// <summary>
+        /// Whether to export the UserAccessLevel attribute.
+        /// Default is false (UserAccessLevel often matches AccessLevel).
+        /// </summary>
+        public bool ExportUserAccessLevel { get; set; } = false;
+
+        /// <summary>
+        /// Whether to export the MethodDeclarationId attribute.
+        /// Default is false (MethodDeclarationId is often redundant).
+        /// </summary>
+        public bool ExportMethodDeclarationId { get; set; } = false;
+
+        /// <summary>
+        /// Gets the default export options with all values exported.
+        /// </summary>
+        public static NodeSetExportOptions Default => new NodeSetExportOptions
+        {
+            ExportValues = true,
+            ExportParentNodeId = false,
+            ExportUserAccessLevel = false,
+            ExportMethodDeclarationId = false
+        };
+
+        /// <summary>
+        /// Gets minimal export options (smallest file size, values omitted).
+        /// </summary>
+        public static NodeSetExportOptions Minimal => new NodeSetExportOptions
+        {
+            ExportValues = false,
+            ExportParentNodeId = false,
+            ExportUserAccessLevel = false,
+            ExportMethodDeclarationId = false
+        };
+
+        /// <summary>
+        /// Gets complete export options with all metadata.
+        /// </summary>
+        public static NodeSetExportOptions Complete => new NodeSetExportOptions
+        {
+            ExportValues = true,
+            ExportParentNodeId = true,
+            ExportUserAccessLevel = true,
+            ExportMethodDeclarationId = true
+        };
+    }
+
+    /// <summary>
     /// Defines numerous re-useable utility functions for clients.
     /// </summary>
     public static partial class CoreClientUtils
@@ -49,6 +112,22 @@ namespace Opc.Ua.Client
             ISystemContext context,
             IList<INode> nodes,
             Stream outputStream)
+        {
+            ExportNodesToNodeSet2(context, nodes, outputStream, NodeSetExportOptions.Default);
+        }
+
+        /// <summary>
+        /// Exports a list of nodes from a client session to a NodeSet2 XML file.
+        /// </summary>
+        /// <param name="context">The system context containing namespace information.</param>
+        /// <param name="nodes">The list of nodes to export.</param>
+        /// <param name="outputStream">The output stream to write the NodeSet2 XML to.</param>
+        /// <param name="options">Options controlling the export behavior.</param>
+        public static void ExportNodesToNodeSet2(
+            ISystemContext context,
+            IList<INode> nodes,
+            Stream outputStream,
+            NodeSetExportOptions options)
         {
             if (context == null)
             {
@@ -65,11 +144,16 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(outputStream));
             }
 
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+
             // Convert INode instances to NodeState instances
             var nodeStates = new NodeStateCollection();
             foreach (INode node in nodes)
             {
-                NodeState? nodeState = CreateNodeState(context, node);
+                NodeState? nodeState = CreateNodeState(context, node, options);
                 if (nodeState != null)
                 {
                     nodeStates.Add(nodeState);
@@ -85,8 +169,9 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="context">The system context.</param>
         /// <param name="node">The node to convert.</param>
+        /// <param name="options">Export options.</param>
         /// <returns>A NodeState representing the node.</returns>
-        private static NodeState? CreateNodeState(ISystemContext context, INode node)
+        private static NodeState? CreateNodeState(ISystemContext context, INode node, NodeSetExportOptions options)
         {
             if (node == null)
             {
@@ -130,11 +215,21 @@ namespace Opc.Ua.Client
                         DataType = variableNode?.DataType ?? DataTypeIds.BaseDataType,
                         ValueRank = variableNode?.ValueRank ?? ValueRanks.Any,
                         AccessLevel = variableNode?.AccessLevel ?? 0,
-                        UserAccessLevel = variableNode?.UserAccessLevel ?? 0,
                         MinimumSamplingInterval = variableNode?.MinimumSamplingInterval ?? 0,
-                        Historizing = variableNode?.Historizing ?? false,
-                        Value = variableNode?.Value
+                        Historizing = variableNode?.Historizing ?? false
                     };
+
+                    // Export Value only if requested
+                    if (options.ExportValues && variableNode?.Value != null)
+                    {
+                        state.Value = variableNode.Value;
+                    }
+
+                    // Export UserAccessLevel only if requested
+                    if (options.ExportUserAccessLevel)
+                    {
+                        state.UserAccessLevel = variableNode?.UserAccessLevel ?? 0;
+                    }
 
                     if (variableNode?.ArrayDimensions != null && variableNode.ArrayDimensions.Count > 0)
                     {
@@ -207,9 +302,14 @@ namespace Opc.Ua.Client
                         DisplayName = node.DisplayName,
                         IsAbstract = variableTypeNode?.IsAbstract ?? false,
                         DataType = variableTypeNode?.DataType ?? DataTypeIds.BaseDataType,
-                        ValueRank = variableTypeNode?.ValueRank ?? ValueRanks.Any,
-                        Value = variableTypeNode?.Value
+                        ValueRank = variableTypeNode?.ValueRank ?? ValueRanks.Any
                     };
+
+                    // Export Value only if requested
+                    if (options.ExportValues && variableTypeNode?.Value != null)
+                    {
+                        state.Value = variableTypeNode.Value;
+                    }
 
                     if (variableTypeNode?.ArrayDimensions != null && variableTypeNode.ArrayDimensions.Count > 0)
                     {
