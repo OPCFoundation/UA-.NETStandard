@@ -293,6 +293,8 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.Greater(requestInfo.Length, 0);
         }
 
+        static readonly string[] kHosts = new[] { "localhost" };
+
         /// <summary>
         /// Test parsing multiple CSRs in sequence.
         /// </summary>
@@ -310,7 +312,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 using X509Certificate2 certificate = CertificateBuilder.Create(subject)
                     .SetNotBefore(DateTime.UtcNow.AddDays(-1))
                     .SetLifeTime(TimeSpan.FromDays(30))
-                    .AddExtension(new X509SubjectAltNameExtension(applicationUri, new[] { "localhost" }))
+                    .AddExtension(new X509SubjectAltNameExtension(applicationUri, kHosts))
                     .CreateForRSA();
 
                 byte[] csrData = CertificateFactory.CreateSigningRequest(certificate);
