@@ -575,5 +575,127 @@ namespace Opc.Ua.Client.Tests
                 }
             }
         }
+
+        /// <summary>
+        /// Test exporting with user context option.
+        /// </summary>
+        [Test]
+        public async Task ExportNodesToNodeSet2_UserContextOptions()
+        {
+            var allNodes = new List<INode>();
+
+            // Get method node that has UserExecutable
+            INode getMonitoredItemsNode = await Session.NodeCache.FindAsync(MethodIds.Server_GetMonitoredItems).ConfigureAwait(false);
+            if (getMonitoredItemsNode != null)
+            {
+                allNodes.Add(getMonitoredItemsNode);
+            }
+
+            // Get variable node that has UserAccessLevel
+            INode serverStatusNode = await Session.NodeCache.FindAsync(VariableIds.Server_ServerStatus).ConfigureAwait(false);
+            if (serverStatusNode != null)
+            {
+                allNodes.Add(serverStatusNode);
+            }
+
+            Assert.Greater(allNodes.Count, 0, "Should have found at least one node");
+
+            // Export WITHOUT user context
+            string tempFileNoContext = Path.GetTempFileName();
+            try
+            {
+                using (var stream = new FileStream(tempFileNoContext, FileMode.Create))
+                {
+                    var systemContext = new SystemContext(Telemetry)
+                    {
+                        NamespaceUris = Session.NamespaceUris,
+                        ServerUris = Session.ServerUris
+                    };
+
+                    var optionsNoContext = new NodeSetExportOptions
+                    {
+                        ExportValues = false,
+                        ExportParentNodeId = false,
+                        ExportUserContext = false
+                    };
+
+                    CoreClientUtils.ExportNodesToNodeSet2(systemContext, allNodes, stream, optionsNoContext);
+                }
+
+                // Export WITH user context
+                string tempFileWithContext = Path.GetTempFileName();
+                try
+                {
+                    using (var stream = new FileStream(tempFileWithContext, FileMode.Create))
+                    {
+                        var systemContext = new SystemContext(Telemetry)
+                        {
+                            NamespaceUris = Session.NamespaceUris,
+                            ServerUris = Session.ServerUris
+                        };
+
+                        var optionsWithContext = new NodeSetExportOptions
+                        {
+                            ExportValues = false,
+                            ExportParentNodeId = false,
+                            ExportUserContext = true
+                        };
+
+                        CoreClientUtils.ExportNodesToNodeSet2(systemContext, allNodes, stream, optionsWithContext);
+                    }
+
+                    // Read both files and compare
+                    Export.UANodeSet nodeSetNoContext;
+                    using (var stream = new FileStream(tempFileNoContext, FileMode.Open))
+                    {
+                        nodeSetNoContext = UANodeSet.Read(stream);
+                        Assert.IsNotNull(nodeSetNoContext, "Should be able to read NodeSet without user context");
+                    }
+
+                    Export.UANodeSet nodeSetWithContext;
+                    using (var stream = new FileStream(tempFileWithContext, FileMode.Open))
+                    {
+                        nodeSetWithContext = UANodeSet.Read(stream);
+                        Assert.IsNotNull(nodeSetWithContext, "Should be able to read NodeSet with user context");
+                    }
+
+                    // Verify that methods in the context version have UserExecutable
+                    var methodsNoContext = nodeSetNoContext.Items?.OfType<Export.UAMethod>().ToList() ?? new List<Export.UAMethod>();
+                    var methodsWithContext = nodeSetWithContext.Items?.OfType<Export.UAMethod>().ToList() ?? new List<Export.UAMethod>();
+                    
+                    Assert.AreEqual(methodsNoContext.Count, methodsWithContext.Count, "Should have same number of methods");
+                    
+                    if (methodsWithContext.Count > 0)
+                    {
+                        // Methods with context should have UserExecutable specified
+                        foreach (var method in methodsWithContext)
+                        {
+                            Assert.IsTrue(method.UserExecutableSpecified, 
+                                $"Method {method.BrowseName} should have UserExecutable when ExportUserContext is true");
+                        }
+                    }
+
+                    // File with user context should be larger or equal
+                    FileInfo fileNoContext = new FileInfo(tempFileNoContext);
+                    FileInfo fileWithContext = new FileInfo(tempFileWithContext);
+                    Assert.GreaterOrEqual(fileWithContext.Length, fileNoContext.Length, 
+                        "Export with user context should not be smaller than without");
+                }
+                finally
+                {
+                    if (File.Exists(tempFileWithContext))
+                    {
+                        File.Delete(tempFileWithContext);
+                    }
+                }
+            }
+            finally
+            {
+                if (File.Exists(tempFileNoContext))
+                {
+                    File.Delete(tempFileNoContext);
+                }
+            }
+        }
     }
 }
