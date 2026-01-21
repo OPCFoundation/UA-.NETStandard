@@ -41,7 +41,6 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
-using static System.Collections.Specialized.BitVector32;
 
 namespace Quickstarts.ConsoleReferenceClient
 {
