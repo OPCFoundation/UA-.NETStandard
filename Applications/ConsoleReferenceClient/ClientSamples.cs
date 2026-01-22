@@ -1617,6 +1617,146 @@ namespace Quickstarts
                 stopwatch.ElapsedMilliseconds);
         }
 
+
+        /// <summary>
+        /// Exports nodes to separate NodeSet2 XML files, one per namespace.
+        /// Excludes OPC Foundation companion specifications (namespaces starting with http://opcfoundation.org/UA/).
+        /// </summary>
+        /// <param name="session">The session to use for exporting.</param>
+        /// <param name="nodes">The list of nodes to export.</param>
+        /// <param name="outputDirectory">The directory where NodeSet2 XML files will be saved.</param>
+        /// <param name="cancellationToken">Optional cancellation token.</param>
+        /// <returns>A dictionary mapping namespace URI to the file path of the exported NodeSet2 file.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when session, nodes, or outputDirectory is null.</exception>
+        /// <exception cref="ArgumentException">Thrown when outputDirectory is empty or whitespace.</exception>
+        public async Task<IReadOnlyDictionary<string, string>> ExportNodesToNodeSet2PerNamespaceAsync(
+            ISession session,
+            IList<INode> nodes,
+            string outputDirectory,
+            CancellationToken cancellationToken = default)
+        {
+            if (session == null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
+            if (nodes == null)
+            {
+                throw new ArgumentNullException(nameof(nodes));
+            }
+            if (string.IsNullOrWhiteSpace(outputDirectory))
+            {
+                throw new ArgumentException("Value cannot be null or whitespace.", nameof(outputDirectory));
+            }
+
+            m_logger.LogInformation(
+                "Exporting {Count} nodes to separate NodeSet2 files per namespace in {Directory}...",
+                nodes.Count,
+                outputDirectory);
+
+            var stopwatch = Stopwatch.StartNew();
+
+            // Ensure output directory exists
+            Directory.CreateDirectory(outputDirectory);
+
+            // Group nodes by namespace, excluding OPC Foundation companion specs
+            var nodesByNamespace = nodes
+                .Where(node => node.NodeId.NamespaceIndex > 0) // Skip namespace 0 (OPC UA base)
+                .GroupBy(node => node.NodeId.NamespaceIndex)
+                .Where(group =>
+                {
+                    var namespaceUri = session.NamespaceUris.GetString(group.Key);
+                    // Exclude OPC Foundation companion specifications
+                    return !string.IsNullOrEmpty(namespaceUri) &&
+                           !namespaceUri.StartsWith("http://opcfoundation.org/UA/", StringComparison.OrdinalIgnoreCase);
+                })
+                .ToDictionary(
+                    group => group.Key,
+                    group => group.ToList());
+
+            var exportedFiles = new Dictionary<string, string>();
+
+            // Export each namespace to its own file
+            foreach (var kvp in nodesByNamespace)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var namespaceUri = session.NamespaceUris.GetString(kvp.Key);
+                
+                // Create a safe filename from the namespace URI
+                
+                var fileName = CreateSafeFileName(namespaceUri, kvp.Key);
+                var filePath = Path.Combine(outputDirectory, fileName);
+
+                m_logger.LogInformation(
+                    "Exporting namespace {NamespaceIndex} ({NamespaceUri}): {Count} nodes to {FilePath}",
+                    kvp.Key,
+                    namespaceUri,
+                    kvp.Value.Count,
+                    filePath);
+
+                await Task.Run(() =>
+                {
+                    using var outputStream = new FileStream(filePath, FileMode.Create);
+                    var systemContext = new SystemContext(m_telemetry)
+                    {
+                        NamespaceUris = session.NamespaceUris,
+                        ServerUris = session.ServerUris
+                    };
+
+                    CoreClientUtils.ExportNodesToNodeSet2(systemContext, kvp.Value, outputStream, NodeSetExportOptions.Complete);
+                }, cancellationToken).ConfigureAwait(false);
+
+                exportedFiles[namespaceUri] = filePath;
+            }
+
+            stopwatch.Stop();
+
+            m_logger.LogInformation(
+                "Exported {NamespaceCount} namespaces ({NodeCount} total nodes) in {Duration}ms",
+                exportedFiles.Count,
+                nodes.Count,
+                stopwatch.ElapsedMilliseconds);
+
+            return exportedFiles;
+        }
+
+        /// <summary>
+        /// Creates a safe filename from a namespace URI.
+        /// </summary>
+        /// <param name="namespaceUri">The namespace URI.</param>
+        /// <param name="namespaceIndex">The namespace index (used as fallback).</param>
+        /// <returns>A safe filename for the NodeSet2 export.</returns>
+        private static string CreateSafeFileName(string namespaceUri, ushort namespaceIndex)
+        {
+            // Extract meaningful part from URI
+            var fileName = namespaceUri
+                .Replace("http://", "")
+                .Replace("https://", "")
+                .Replace("urn:", "");
+
+            // Replace invalid filename characters
+            var invalidChars = Path.GetInvalidFileNameChars();
+            foreach (var c in invalidChars)
+            {
+                fileName = fileName.Replace(c, '_');
+            }
+
+            // Additional cleanup for common URI characters
+            fileName = fileName
+                .Replace('/', '_')
+                .Replace('\\', '_')
+                .Replace(':', '_')
+                .TrimEnd('_');
+
+            // Limit length and ensure uniqueness with namespace index
+            if (fileName.Length > 200)
+            {
+                fileName = fileName[..200];
+            }
+
+            return $"{fileName}_ns{namespaceIndex}.xml";
+        }
+
         /// <summary>
         /// Create the continuation point collection from the browse result
         /// collection for the BrowseNext service.

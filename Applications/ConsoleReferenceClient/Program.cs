@@ -36,6 +36,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
@@ -94,6 +95,7 @@ namespace Quickstarts.ConsoleReferenceClient
             bool leakChannels = false;
             bool forever = false;
             bool enableDurableSubscriptions = false;
+            bool exportNodes = false;
 
             var options = new Mono.Options.OptionSet
             {
@@ -180,6 +182,17 @@ namespace Quickstarts.ConsoleReferenceClient
                         if (b != null)
                         {
                             browseall = true;
+                        }
+                    }
+                },
+                {
+                    "e|export",
+                    "Export all fetched nodes into Nodeset2 xml per default",
+                    e =>
+                    {
+                        if (e != null)
+                        {
+                            exportNodes = true;
                         }
                     }
                 },
@@ -560,6 +573,13 @@ namespace Quickstarts.ConsoleReferenceClient
                                             r.NodeId,
                                             uaClient.Session.NamespaceUris))
                                 ];
+
+                                if (exportNodes)
+                                {
+                                    await samples
+                                        .ExportNodesToNodeSet2PerNamespaceAsync(uaClient.Session, allNodes, Environment.CurrentDirectory)
+                                        .ConfigureAwait(false);
+                                }
                             }
 
                             if (jsonvalues && variableIds != null)
