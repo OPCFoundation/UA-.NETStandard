@@ -3044,7 +3044,7 @@ namespace Opc.Ua.Server
 
                 // create the master node manager.
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateMasterNodeManager.");
-                IMasterNodeManager masterNodeManager = CreateMasterNodeManager(
+                MasterNodeManager masterNodeManager = CreateMasterNodeManager(
                     m_serverInternal,
                     configuration);
 
@@ -3626,7 +3626,7 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="configuration">The configuration.</param>
         /// <returns>Returns the master node manager for the server, the return type is <seealso cref="MasterNodeManager"/>.</returns>
-        protected virtual IMasterNodeManager CreateMasterNodeManager(
+        protected virtual MasterNodeManager CreateMasterNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration)
         {

@@ -47,17 +47,17 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns the configuration node manager.
         /// </summary>
-        IConfigurationNodeManager ConfigurationNodeManager { get; }
+        ConfigurationNodeManager ConfigurationNodeManager { get; }
 
         /// <summary>
         /// Returns the core node manager.
         /// </summary>
-        ICoreNodeManager CoreNodeManager { get; }
+        CoreNodeManager CoreNodeManager { get; }
 
         /// <summary>
         /// Returns the diagnostics node manager.
         /// </summary>
-        IDiagnosticsNodeManager DiagnosticsNodeManager { get; }
+        DiagnosticsNodeManager DiagnosticsNodeManager { get; }
 
         /// <summary>
         /// The node managers being managed.
