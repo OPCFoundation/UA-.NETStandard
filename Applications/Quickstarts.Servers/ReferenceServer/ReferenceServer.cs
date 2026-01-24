@@ -332,7 +332,7 @@ namespace Quickstarts.ReferenceServer
                 m_logger.LogInformation(
                     Utils.TraceMasks.Security,
                     "X509 Token Accepted: {Identity}",
-                    args.Identity?.DisplayName);
+                    args.Identity.DisplayName);
 
                 return;
             }
