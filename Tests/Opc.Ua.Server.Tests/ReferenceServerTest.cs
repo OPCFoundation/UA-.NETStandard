@@ -1138,7 +1138,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ServerStatusTimestampsMatchAsync()
         {
-            var logger = m_telemetry.CreateLogger<ReferenceServerTests>();
+            ILogger<ReferenceServerTests> logger = m_telemetry.CreateLogger<ReferenceServerTests>();
 
             // Read ServerStatus children (CurrentTime, StartTime, State, etc.)
             var nodesToRead = new ReadValueIdCollection
@@ -1149,7 +1149,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             m_requestHeader.Timestamp = DateTime.UtcNow;
-            var readResponse = await m_server.ReadAsync(
+            ReadResponse readResponse = await m_server.ReadAsync(
                 m_secureChannelContext,
                 m_requestHeader,
                 0,
@@ -1163,7 +1163,7 @@ namespace Opc.Ua.Server.Tests
             // Verify that SourceTimestamp and ServerTimestamp are equal for all ServerStatus children
             for (int i = 0; i < readResponse.Results.Count; i++)
             {
-                var result = readResponse.Results[i];
+                DataValue result = readResponse.Results[i];
                 logger.LogInformation(
                     "NodeId: {NodeId}, SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
                     nodesToRead[i].NodeId,
@@ -1187,7 +1187,7 @@ namespace Opc.Ua.Server.Tests
             ILogger logger = telemetry.CreateLogger<ReferenceServerTests>();
 
             // Get the NodeId for Data_Dynamic_Scalar_Int32Value
-            NodeId int32ValueNodeId = new NodeId(
+            var int32ValueNodeId = new NodeId(
                 TestData.Variables.Data_Dynamic_Scalar_Int32Value,
                 (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(TestData.Namespaces.TestData));
 
@@ -1227,7 +1227,8 @@ namespace Opc.Ua.Server.Tests
                 "Int32Value node should have HistoryRead access level");
 
             // Perform a history read operation
-            var historyReadDetails = new ReadRawModifiedDetails {
+            var historyReadDetails = new ReadRawModifiedDetails
+            {
                 StartTime = DateTime.UtcNow.AddHours(-1),
                 EndTime = DateTime.UtcNow,
                 NumValuesPerNode = 10,
@@ -1271,7 +1272,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.Greater(historyData.DataValues.Count, 0, "Should have at least one historical value");
 
                 // Verify the data values have proper timestamps
-                foreach (var dataValue in historyData.DataValues)
+                foreach (DataValue dataValue in historyData.DataValues)
                 {
                     Assert.IsNotNull(dataValue, "DataValue should not be null");
                     Assert.IsTrue(dataValue.ServerTimestamp != DateTime.MinValue,
@@ -1280,7 +1281,7 @@ namespace Opc.Ua.Server.Tests
             }
             else
             {
-                Assert.Fail("HistoryData body should be of type HistoryData");
+                NUnit.Framework.Assert.Fail("HistoryData body should be of type HistoryData");
             }
         }
 

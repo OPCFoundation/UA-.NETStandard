@@ -1617,7 +1617,6 @@ namespace Quickstarts
                 stopwatch.ElapsedMilliseconds);
         }
 
-
         /// <summary>
         /// Exports nodes to separate NodeSet2 XML files, one per namespace.
         /// Excludes OPC Foundation companion specifications (namespaces starting with http://opcfoundation.org/UA/).
@@ -1664,10 +1663,10 @@ namespace Quickstarts
                 .GroupBy(node => node.NodeId.NamespaceIndex)
                 .Where(group =>
                 {
-                    var namespaceUri = session.NamespaceUris.GetString(group.Key);
+                    string namespaceUri = session.NamespaceUris.GetString(group.Key);
                     // Exclude OPC Foundation companion specifications
                     return !string.IsNullOrEmpty(namespaceUri) &&
-                           !namespaceUri.StartsWith("http://opcfoundation.org/UA/", StringComparison.OrdinalIgnoreCase);
+                        !namespaceUri.StartsWith("http://opcfoundation.org/UA/", StringComparison.OrdinalIgnoreCase);
                 })
                 .ToDictionary(
                     group => group.Key,
@@ -1676,16 +1675,16 @@ namespace Quickstarts
             var exportedFiles = new Dictionary<string, string>();
 
             // Export each namespace to its own file
-            foreach (var kvp in nodesByNamespace)
+            foreach (KeyValuePair<ushort, List<INode>> kvp in nodesByNamespace)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var namespaceUri = session.NamespaceUris.GetString(kvp.Key);
-                
+                string namespaceUri = session.NamespaceUris.GetString(kvp.Key);
+
                 // Create a safe filename from the namespace URI
-                
-                var fileName = CreateSafeFileName(namespaceUri, kvp.Key);
-                var filePath = Path.Combine(outputDirectory, fileName);
+
+                string fileName = CreateSafeFileName(namespaceUri, kvp.Key);
+                string filePath = Path.Combine(outputDirectory, fileName);
 
                 m_logger.LogInformation(
                     "Exporting namespace {NamespaceIndex} ({NamespaceUri}): {Count} nodes to {FilePath}",
@@ -1729,14 +1728,13 @@ namespace Quickstarts
         private static string CreateSafeFileName(string namespaceUri, ushort namespaceIndex)
         {
             // Extract meaningful part from URI
-            var fileName = namespaceUri
-                .Replace("http://", "")
-                .Replace("https://", "")
-                .Replace("urn:", "");
+            string fileName = namespaceUri
+                .Replace("http://", string.Empty, StringComparison.OrdinalIgnoreCase)
+                .Replace("https://", string.Empty, StringComparison.OrdinalIgnoreCase)
+                .Replace("urn:", string.Empty, StringComparison.OrdinalIgnoreCase);
 
             // Replace invalid filename characters
-            var invalidChars = Path.GetInvalidFileNameChars();
-            foreach (var c in invalidChars)
+            foreach (char c in Path.GetInvalidFileNameChars())
             {
                 fileName = fileName.Replace(c, '_');
             }

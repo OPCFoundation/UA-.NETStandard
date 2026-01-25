@@ -91,7 +91,7 @@ namespace Opc.Ua.Gds.Server
         /// always creates a CoreNodeManager which handles the built-in nodes defined by the specification.
         /// Any additional NodeManagers are expected to handle application specific nodes.
         /// </remarks>
-        protected override IMasterNodeManager CreateMasterNodeManager(
+        protected override MasterNodeManager CreateMasterNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration)
         {

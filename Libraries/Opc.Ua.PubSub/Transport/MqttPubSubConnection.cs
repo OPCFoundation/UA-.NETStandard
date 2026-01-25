@@ -257,13 +257,13 @@ namespace Opc.Ua.PubSub.Transport
 
             try
             {
-                IMqttClient publisherClient;
+                MqttClient publisherClient;
                 lock (Lock)
                 {
                     publisherClient = m_publisherMqttClient;
                 }
 
-                if (publisherClient != null && publisherClient.IsConnected)
+                if (publisherClient.IsConnected)
                 {
                     // get the encoded bytes
                     byte[] bytes = networkMessage.Encode(MessageContext);

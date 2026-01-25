@@ -303,15 +303,15 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ICoreNodeManager CoreNodeManager => m_nodeManagers[1].SyncNodeManager as ICoreNodeManager;
+        public CoreNodeManager CoreNodeManager => m_nodeManagers[1].SyncNodeManager as CoreNodeManager;
 
         /// <inheritdoc/>
-        public IDiagnosticsNodeManager DiagnosticsNodeManager
-            => m_nodeManagers[0].SyncNodeManager as IDiagnosticsNodeManager;
+        public DiagnosticsNodeManager DiagnosticsNodeManager
+            => m_nodeManagers[0].SyncNodeManager as DiagnosticsNodeManager;
 
         /// <inheritdoc/>
-        public IConfigurationNodeManager ConfigurationNodeManager
-            => m_nodeManagers[0].SyncNodeManager as IConfigurationNodeManager;
+        public ConfigurationNodeManager ConfigurationNodeManager
+            => m_nodeManagers[0].SyncNodeManager as ConfigurationNodeManager;
 
         /// <inheritdoc/>
         public virtual async ValueTask StartupAsync(CancellationToken cancellationToken = default)
@@ -3468,7 +3468,7 @@ namespace Opc.Ua.Server
 
             // Initialize input arguments to empty collection if null.
             // Methods with only output parameters (no input parameters) are valid.
-            callMethodRequest.InputArguments ??= new VariantCollection();
+            callMethodRequest.InputArguments ??= [];
 
             return StatusCodes.Good;
         }

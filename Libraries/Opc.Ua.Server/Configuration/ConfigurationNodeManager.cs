@@ -393,7 +393,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void HasApplicationSecureAdminAccess(
             ISystemContext context,
-            CertificateStoreIdentifier _)
+            CertificateStoreIdentifier trustedStore)
         {
             if (context is SessionSystemContext { OperationContext: OperationContext operationContext })
             {
