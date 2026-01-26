@@ -52,7 +52,7 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Create the mock
         /// </summary>
-        private SessionMock(
+        internal SessionMock(
             Mock<ITransportChannel> channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint)

@@ -223,6 +223,25 @@ namespace Opc.Ua.Client
             DefaultSubscription.MinLifetimeInterval = (uint)m_configuration.ClientConfiguration
                 .MinSubscriptionLifetime;
 
+            // initialize operation limits from client configuration.
+            if (m_configuration.ClientConfiguration.OperationLimits != null)
+            {
+                OperationLimits clientLimits = m_configuration.ClientConfiguration.OperationLimits;
+                OperationLimits.MaxNodesPerRead = clientLimits.MaxNodesPerRead;
+                OperationLimits.MaxNodesPerHistoryReadData = clientLimits.MaxNodesPerHistoryReadData;
+                OperationLimits.MaxNodesPerHistoryReadEvents = clientLimits.MaxNodesPerHistoryReadEvents;
+                OperationLimits.MaxNodesPerWrite = clientLimits.MaxNodesPerWrite;
+                OperationLimits.MaxNodesPerHistoryUpdateData = clientLimits.MaxNodesPerHistoryUpdateData;
+                OperationLimits.MaxNodesPerHistoryUpdateEvents = clientLimits.MaxNodesPerHistoryUpdateEvents;
+                OperationLimits.MaxNodesPerMethodCall = clientLimits.MaxNodesPerMethodCall;
+                OperationLimits.MaxNodesPerBrowse = clientLimits.MaxNodesPerBrowse;
+                OperationLimits.MaxNodesPerRegisterNodes = clientLimits.MaxNodesPerRegisterNodes;
+                OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds =
+                    clientLimits.MaxNodesPerTranslateBrowsePathsToNodeIds;
+                OperationLimits.MaxNodesPerNodeManagement = clientLimits.MaxNodesPerNodeManagement;
+                OperationLimits.MaxMonitoredItemsPerCall = clientLimits.MaxMonitoredItemsPerCall;
+            }
+
             NamespaceUris = messageContext.NamespaceUris;
             ServerUris = messageContext.ServerUris;
             Factory = messageContext.Factory;
@@ -1835,6 +1854,35 @@ namespace Opc.Ua.Client
         public async Task FetchOperationLimitsAsync(CancellationToken ct)
         {
             using Activity? activity = m_telemetry.StartActivity();
+
+            // Helper extraction
+            static T Get<T>(ref int index, IList<DataValue> values, IList<ServiceResult> errors)
+                where T : struct
+            {
+                DataValue value = values[index];
+                ServiceResult error = errors.Count > 0 ? errors[index] : ServiceResult.Good;
+                index++;
+                if (ServiceResult.IsNotBad(error) && value.Value is T retVal)
+                {
+                    return retVal;
+                }
+                return default;
+            }
+
+            // Apply operation limit logic: if client value is 0, use server value; otherwise use min(client, server)
+            static uint ApplyOperationLimit(uint clientLimit, uint serverLimit)
+            {
+                if (clientLimit == 0)
+                {
+                    return serverLimit;
+                }
+                if (serverLimit == 0)
+                {
+                    return clientLimit;
+                }
+                return Math.Min(clientLimit, serverLimit);
+            }
+
             // First we read the node read max to optimize the second read.
             var nodeIds = new List<NodeId>
             {
@@ -1843,7 +1891,7 @@ namespace Opc.Ua.Client
             (DataValueCollection values, IList<ServiceResult> errors) =
                 await this.ReadValuesAsync(nodeIds, ct).ConfigureAwait(false);
             int index = 0;
-            OperationLimits.MaxNodesPerRead = Get<uint>(ref index, values, errors);
+            OperationLimits.MaxNodesPerRead = ApplyOperationLimit(OperationLimits.MaxNodesPerRead, Get<uint>(ref index, values, errors));
 
             nodeIds =
             [
@@ -1878,18 +1926,31 @@ namespace Opc.Ua.Client
 
             (values, errors) = await this.ReadValuesAsync(nodeIds, ct).ConfigureAwait(false);
             index = 0;
-            OperationLimits.MaxNodesPerHistoryReadData = Get<uint>(ref index, values, errors);
-            OperationLimits.MaxNodesPerHistoryReadEvents = Get<uint>(ref index, values, errors);
-            OperationLimits.MaxNodesPerWrite = Get<uint>(ref index, values, errors);
-            OperationLimits.MaxNodesPerRead = Get<uint>(ref index, values, errors);
-            OperationLimits.MaxNodesPerHistoryUpdateData = Get<uint>(ref index, values, errors);
-            OperationLimits.MaxNodesPerHistoryUpdateEvents = Get<uint>(ref index, values, errors);
-            OperationLimits.MaxNodesPerMethodCall = Get<uint>(ref index, values, errors);
-            OperationLimits.MaxNodesPerBrowse = Get<uint>(ref index, values, errors);
-            OperationLimits.MaxNodesPerRegisterNodes = Get<uint>(ref index, values, errors);
-            OperationLimits.MaxNodesPerNodeManagement = Get<uint>(ref index, values, errors);
-            OperationLimits.MaxMonitoredItemsPerCall = Get<uint>(ref index, values, errors);
-            OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds = Get<uint>(ref index, values, errors);
+            OperationLimits.MaxNodesPerHistoryReadData = ApplyOperationLimit(
+                OperationLimits.MaxNodesPerHistoryReadData, Get<uint>(ref index, values, errors));
+            OperationLimits.MaxNodesPerHistoryReadEvents = ApplyOperationLimit(
+                OperationLimits.MaxNodesPerHistoryReadEvents, Get<uint>(ref index, values, errors));
+            OperationLimits.MaxNodesPerWrite = ApplyOperationLimit(
+                OperationLimits.MaxNodesPerWrite, Get<uint>(ref index, values, errors));
+            OperationLimits.MaxNodesPerRead = ApplyOperationLimit(
+                OperationLimits.MaxNodesPerRead, Get<uint>(ref index, values, errors));
+            OperationLimits.MaxNodesPerHistoryUpdateData = ApplyOperationLimit(
+                OperationLimits.MaxNodesPerHistoryUpdateData, Get<uint>(ref index, values, errors));
+            OperationLimits.MaxNodesPerHistoryUpdateEvents = ApplyOperationLimit(
+                OperationLimits.MaxNodesPerHistoryUpdateEvents, Get<uint>(ref index, values, errors));
+            OperationLimits.MaxNodesPerMethodCall = ApplyOperationLimit(
+                OperationLimits.MaxNodesPerMethodCall, Get<uint>(ref index, values, errors));
+            OperationLimits.MaxNodesPerBrowse = ApplyOperationLimit(
+                OperationLimits.MaxNodesPerBrowse, Get<uint>(ref index, values, errors));
+            OperationLimits.MaxNodesPerRegisterNodes = ApplyOperationLimit(
+                OperationLimits.MaxNodesPerRegisterNodes, Get<uint>(ref index, values, errors));
+            OperationLimits.MaxNodesPerNodeManagement = ApplyOperationLimit(
+                OperationLimits.MaxNodesPerNodeManagement, Get<uint>(ref index, values, errors));
+            OperationLimits.MaxMonitoredItemsPerCall = ApplyOperationLimit(
+                OperationLimits.MaxMonitoredItemsPerCall, Get<uint>(ref index, values, errors));
+            OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds = ApplyOperationLimit(
+                OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds,
+                Get<uint>(ref index, values, errors));
             ServerCapabilities.MaxBrowseContinuationPoints = Get<ushort>(ref index, values, errors);
             ServerCapabilities.MaxHistoryContinuationPoints = Get<ushort>(ref index, values, errors);
             ServerCapabilities.MaxQueryContinuationPoints = Get<ushort>(ref index, values, errors);
@@ -1905,20 +1966,6 @@ namespace Opc.Ua.Client
             ServerCapabilities.MaxSubscriptionsPerSession = Get<uint>(ref index, values, errors);
             ServerCapabilities.MaxWhereClauseParameters = Get<uint>(ref index, values, errors);
             ServerCapabilities.MaxSelectClauseParameters = Get<uint>(ref index, values, errors);
-
-            // Helper extraction
-            static T Get<T>(ref int index, IList<DataValue> values, IList<ServiceResult> errors)
-                where T : struct
-            {
-                DataValue value = values[index];
-                ServiceResult error = errors.Count > 0 ? errors[index] : ServiceResult.Good;
-                index++;
-                if (ServiceResult.IsNotBad(error) && value.Value is T retVal)
-                {
-                    return retVal;
-                }
-                return default;
-            }
 
             uint maxByteStringLength = (uint?)m_configuration.TransportQuotas?.MaxByteStringLength ?? 0u;
             if (maxByteStringLength != 0 &&
