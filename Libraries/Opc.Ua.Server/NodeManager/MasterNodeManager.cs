@@ -666,6 +666,15 @@ namespace Opc.Ua.Server
                 .ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Deletes the references to the target.
+        /// </summary>
+        [Obsolete("Use DeleteReferencesAsync")]
+        public virtual void DeleteReferences(NodeId targetId, IList<IReference> references)
+        {
+            DeleteReferencesAsync(targetId, references).AsTask().GetAwaiter().GetResult();
+        }
+
         /// <inheritdoc/>
         public virtual async ValueTask DeleteReferencesAsync(NodeId targetId,
                                                              IList<IReference> references,
@@ -2431,6 +2440,36 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Creates a set of monitored items.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        [Obsolete("Use CreateMonitoredItemsAsync")]
+        public virtual void CreateMonitoredItems(
+            OperationContext context,
+            uint subscriptionId,
+            double publishingInterval,
+            TimestampsToReturn timestampsToReturn,
+            IList<MonitoredItemCreateRequest> itemsToCreate,
+            IList<ServiceResult> errors,
+            IList<MonitoringFilterResult> filterResults,
+            IList<IMonitoredItem> monitoredItems,
+            bool createDurable)
+        {
+            CreateMonitoredItemsAsync(
+                context,
+                subscriptionId,
+                publishingInterval,
+                timestampsToReturn,
+                itemsToCreate,
+                errors,
+                filterResults,
+                monitoredItems,
+                createDurable).AsTask().GetAwaiter().GetResult();
+        }
+
         /// <inheritdoc/>
         public virtual async ValueTask CreateMonitoredItemsAsync(
             OperationContext context,
@@ -2831,6 +2870,29 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Modifies a set of monitored items.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        [Obsolete("Use ModifyMonitoredItemsAsync")]
+        public virtual void ModifyMonitoredItems(
+            OperationContext context,
+            TimestampsToReturn timestampsToReturn,
+            IList<IMonitoredItem> monitoredItems,
+            IList<MonitoredItemModifyRequest> itemsToModify,
+            IList<ServiceResult> errors,
+            IList<MonitoringFilterResult> filterResults)
+        {
+            ModifyMonitoredItemsAsync(
+                context,
+                timestampsToReturn,
+                monitoredItems,
+                itemsToModify,
+                errors,
+                filterResults).AsTask().GetAwaiter().GetResult();
+        }
+
         /// <inheritdoc/>
         public virtual async ValueTask ModifyMonitoredItemsAsync(
             OperationContext context,
@@ -3025,6 +3087,24 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Transfers a set of monitored items.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        [Obsolete("User TransferMonitoredItemsAsync")]
+        public virtual void TransferMonitoredItems(
+            OperationContext context,
+            bool sendInitialValues,
+            IList<IMonitoredItem> monitoredItems,
+            IList<ServiceResult> errors)
+        {
+            TransferMonitoredItemsAsync(
+                context,
+                sendInitialValues,
+                monitoredItems,
+                errors).AsTask().GetAwaiter().GetResult();
+        }
+
         /// <inheritdoc/>
         public virtual async ValueTask TransferMonitoredItemsAsync(
             OperationContext context,
@@ -3069,6 +3149,24 @@ namespace Opc.Ua.Server
                         cancellationToken)
                     .ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Deletes a set of monitored items.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        [Obsolete("Use DeleteMonitoredItemsAsync")]
+        public virtual void DeleteMonitoredItems(
+            OperationContext context,
+            uint subscriptionId,
+            IList<IMonitoredItem> itemsToDelete,
+            IList<ServiceResult> errors)
+        {
+            DeleteMonitoredItemsAsync(
+                context,
+                subscriptionId,
+                itemsToDelete,
+                errors).AsTask().GetAwaiter().GetResult();
         }
 
         /// <inheritdoc/>

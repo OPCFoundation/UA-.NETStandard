@@ -1441,7 +1441,7 @@ namespace Opc.Ua.Gds.Client
         [Obsolete("Use ReadTrustListAsync instead.")]
         public TrustListDataType ReadTrustList(NodeId trustListId)
         {
-            return ReadTrustListAsync(trustListId, 0).GetAwaiter().GetResult();
+            return ReadTrustListAsync(trustListId).GetAwaiter().GetResult();
         }
 
         /// <summary>
