@@ -437,7 +437,20 @@ namespace Quickstarts
                             m_reconnectHandler.Session.SessionId
                         );
                         ISession session = Session;
+
+                        // Remove KeepAlive handler from old session before disposing
+                        session.KeepAlive -= Session_KeepAlive;
+
                         Session = m_reconnectHandler.Session;
+
+                        // Configure the new session with the same settings as initial connection
+                        Session.KeepAliveInterval = KeepAliveInterval;
+                        Session.DeleteSubscriptionsOnClose = false;
+                        Session.TransferSubscriptionsOnReconnect = true;
+
+                        // Register KeepAlive handler on the new session - this is critical for connection monitoring
+                        Session.KeepAlive += Session_KeepAlive;
+
                         Utils.SilentDispose(session);
                     }
                     else
