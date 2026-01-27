@@ -608,7 +608,16 @@ namespace Opc.Ua.Gds.Client
         /// Updates the trust list.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public async Task<bool> UpdateTrustListAsync(TrustListDataType trustList, long maxTrustListSize = 0, CancellationToken ct = default)
+        public Task<bool> UpdateTrustListAsync(TrustListDataType trustList, CancellationToken ct = default)
+        {
+            return UpdateTrustListAsync(trustList, 0, ct);
+        }
+
+        /// <summary>
+        /// Updates the trust list.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        public async Task<bool> UpdateTrustListAsync(TrustListDataType trustList, long maxTrustListSize, CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             IUserIdentity oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);

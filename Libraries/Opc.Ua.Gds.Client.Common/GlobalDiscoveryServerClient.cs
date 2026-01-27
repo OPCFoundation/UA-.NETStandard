@@ -1448,7 +1448,16 @@ namespace Opc.Ua.Gds.Client
         /// Reads the trust list.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public async Task<TrustListDataType> ReadTrustListAsync(NodeId trustListId, long maxTrustListSize = 0, CancellationToken ct = default)
+        public Task<TrustListDataType> ReadTrustListAsync(NodeId trustListId, CancellationToken ct = default)
+        {
+            return ReadTrustListAsync(trustListId, 0, ct);
+        }
+
+        /// <summary>
+        /// Reads the trust list.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        public async Task<TrustListDataType> ReadTrustListAsync(NodeId trustListId, long maxTrustListSize, CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
