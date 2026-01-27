@@ -2510,18 +2510,18 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Recreate the subscriptions in a recreated session.
         /// </summary>
-        /// <param name="transferSbscriptionTemplates">Uses Transfer service
+        /// <param name="transferSubscriptionTemplates">Uses Transfer service
         /// if set to <c>true</c>.</param>
         /// <param name="subscriptionsTemplate">The template for the subscriptions.</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         private async Task RecreateSubscriptionsAsync(
-            bool transferSbscriptionTemplates,
+            bool transferSubscriptionTemplates,
             IEnumerable<Subscription> subscriptionsTemplate,
             CancellationToken ct)
         {
             using Activity? activity = m_telemetry.StartActivity();
             bool transferred = false;
-            if (transferSbscriptionTemplates)
+            if (transferSubscriptionTemplates)
             {
                 try
                 {
@@ -3533,7 +3533,8 @@ namespace Opc.Ua.Client
                 // raise an error event.
                 var error = new ServiceResult(e);
 
-                if (error.Code != StatusCodes.BadNoSubscription)
+                // raise publish error even for BadNoSubscription if there are active subscriptions.
+                if (error.Code != StatusCodes.BadNoSubscription || m_subscriptions.Any(s => s.Created))
                 {
                     PublishErrorEventHandler? callback = m_PublishError;
 
