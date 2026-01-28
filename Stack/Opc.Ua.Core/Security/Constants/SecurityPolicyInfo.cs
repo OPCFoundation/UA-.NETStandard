@@ -860,7 +860,7 @@ namespace Opc.Ua
         public readonly static SecurityPolicyInfo ECC_brainpoolP256r1_ChaChaPoly = new(SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly)
         {
             DerivedSignatureKeyLength = 0,
-            SymmetricEncryptionKeyLength = 128 / 8,
+            SymmetricEncryptionKeyLength = 256 / 8,
             InitializationVectorLength = 96 / 8,
             SymmetricSignatureLength = 128 / 8,
             MinAsymmetricKeyLength = 256,
