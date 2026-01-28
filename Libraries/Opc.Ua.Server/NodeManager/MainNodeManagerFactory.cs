@@ -27,51 +27,40 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.IO;
-using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.Configuration;
 
-namespace Opc.Ua
+namespace Opc.Ua.Server
 {
     /// <summary>
-    /// The SoftwareCertificate class.
+    /// The factory that creates the main node managers of the server. The main
+    /// node managers are the one always present when creating a server.
     /// </summary>
-    public class SoftwareCertificate
+    public class MainNodeManagerFactory : IMainNodeManagerFactory
     {
         /// <summary>
-        /// The SignedSoftwareCertificate that contains the SoftwareCertificate
+        /// Initializes the object with default values.
         /// </summary>
-        public X509Certificate2 SignedCertificate { get; set; }
-
-        /// <summary>
-        /// Validates a software certificate.
-        /// </summary>
-        public static ServiceResult Validate(
-            CertificateValidator validator,
-            byte[] signedCertificate,
-            ITelemetryContext telemetry,
-            out SoftwareCertificate softwareCertificate)
+        public MainNodeManagerFactory(
+            ApplicationConfiguration applicationConfiguration,
+            IServerInternal server)
         {
-            softwareCertificate = null;
-
-            // validate the certificate.
-            X509Certificate2 certificate;
-            try
-            {
-                certificate = CertificateFactory.Create(signedCertificate);
-                validator.ValidateAsync(certificate, default).GetAwaiter().GetResult();
-            }
-            catch (Exception e)
-            {
-                return ServiceResult.Create(
-                    e,
-                    StatusCodes.BadDecodingError,
-                    "Could not decode software certificate body.");
-            }
-
-            // certificate is valid.
-            return ServiceResult.Good;
+            m_applicationConfiguration = applicationConfiguration;
+            m_server = server;
         }
+
+        /// <inheritdoc/>
+        public IConfigurationNodeManager CreateConfigurationNodeManager()
+        {
+            return new ConfigurationNodeManager(m_server, m_applicationConfiguration);
+        }
+
+        /// <inheritdoc/>
+        public ICoreNodeManager CreateCoreNodeManager(ushort dynamicNamespaceIndex)
+        {
+            return new CoreNodeManager(m_server, m_applicationConfiguration, dynamicNamespaceIndex);
+        }
+
+        private readonly ApplicationConfiguration m_applicationConfiguration;
+        private readonly IServerInternal m_server;
     }
 }

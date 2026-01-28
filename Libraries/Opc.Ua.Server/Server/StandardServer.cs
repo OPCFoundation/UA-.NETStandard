@@ -41,10 +41,8 @@ using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Server
 {
-    /// <summary>
-    /// The standard implementation of a UA server.
-    /// </summary>
-    public class StandardServer : SessionServerBase
+    /// <inheritdoc/>
+    public class StandardServer : SessionServerBase, IStandardServer
     {
         /// <summary>
         /// An overrideable version of the Dispose.
@@ -346,7 +344,6 @@ namespace Opc.Ua.Server
             byte[] serverNonce;
             byte[] serverCertificate = null;
             EndpointDescriptionCollection serverEndpoints = null;
-            SignedSoftwareCertificateCollection serverSoftwareCertificates = null;
             SignatureData serverSignature = null;
             uint maxRequestMessageSize = (uint)MessageContext.MaxMessageSize;
 
@@ -528,9 +525,6 @@ namespace Opc.Ua.Server
                     // return the endpoints supported by the server.
                     serverEndpoints = GetEndpointDescriptions(endpointUrl, BaseAddresses, null);
 
-                    // return the software certificates assigned to the server.
-                    serverSoftwareCertificates = [.. ServerProperties.SoftwareCertificates];
-
                     // sign the nonce provided by the client.
                     serverSignature = null;
 
@@ -580,7 +574,6 @@ namespace Opc.Ua.Server
                     ServerNonce = serverNonce,
                     ServerCertificate = serverCertificate,
                     ServerEndpoints = serverEndpoints,
-                    ServerSoftwareCertificates = serverSoftwareCertificates,
                     ServerSignature = serverSignature,
                     MaxRequestMessageSize = maxRequestMessageSize
                 };
@@ -724,75 +717,14 @@ namespace Opc.Ua.Server
             DiagnosticInfoCollection diagnosticInfos = null;
 
             OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.ActivateSession);
-            // validate client's software certificates.
-            var softwareCertificates = new List<SoftwareCertificate>();
 
             try
             {
-                if (context?.SecurityPolicyUri != SecurityPolicies.None)
-                {
-                    bool diagnosticsExist = false;
-
-                    if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                    {
-                        diagnosticInfos = [];
-                    }
-
-                    results = [];
-                    diagnosticInfos = [];
-
-                    foreach (SignedSoftwareCertificate signedCertificate in clientSoftwareCertificates)
-                    {
-                        ServiceResult result = SoftwareCertificate.Validate(
-                            CertificateValidator,
-                            signedCertificate.CertificateData,
-                            m_serverInternal.Telemetry,
-                            out SoftwareCertificate softwareCertificate);
-
-                        if (ServiceResult.IsBad(result))
-                        {
-                            results.Add(result.Code);
-
-                            // add diagnostics if requested.
-                            if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                            {
-                                DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
-                                    ServerInternal,
-                                    context,
-                                    result,
-                                    m_logger);
-                                diagnosticInfos.Add(diagnosticInfo);
-                                diagnosticsExist = true;
-                            }
-                        }
-                        else
-                        {
-                            softwareCertificates.Add(softwareCertificate);
-                            results.Add(StatusCodes.Good);
-
-                            // add diagnostics if requested.
-                            if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                            {
-                                diagnosticInfos.Add(null);
-                            }
-                        }
-                    }
-
-                    if (!diagnosticsExist && diagnosticInfos != null)
-                    {
-                        diagnosticInfos.Clear();
-                    }
-                }
-
-                // check if certificates meet the server's requirements.
-                ValidateSoftwareCertificates(softwareCertificates);
-
                 // activate the session.
                 (bool identityChanged, serverNonce) = await ServerInternal.SessionManager.ActivateSessionAsync(
                         context,
                         requestHeader.AuthenticationToken,
                         clientSignature,
-                        softwareCertificates,
                         userIdentityToken,
                         userTokenSignature,
                         localeIds,
@@ -817,8 +749,7 @@ namespace Opc.Ua.Server
                 ServerInternal.ReportAuditActivateSessionEvent(
                     m_logger,
                     context?.AuditEntryId,
-                    session,
-                    softwareCertificates);
+                    session);
 
                 ResponseHeader responseHeader = CreateResponse(requestHeader, StatusCodes.Good);
 
@@ -845,7 +776,6 @@ namespace Opc.Ua.Server
                     m_logger,
                     context?.AuditEntryId,
                     session,
-                    softwareCertificates,
                     e);
 
                 lock (ServerInternal.DiagnosticsWriteLock)
@@ -1542,7 +1472,7 @@ namespace Opc.Ua.Server
         /// <returns>
         /// Returns a <see cref="CreateSubscriptionResponse"/> object
         /// </returns>
-        public override Task<CreateSubscriptionResponse> CreateSubscriptionAsync(
+        public override async Task<CreateSubscriptionResponse> CreateSubscriptionAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             double requestedPublishingInterval,
@@ -1560,7 +1490,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                ServerInternal.SubscriptionManager.CreateSubscription(
+                CreateSubscriptionResponse response = await ServerInternal.SubscriptionManager.CreateSubscriptionAsync(
                     context,
                     requestedPublishingInterval,
                     requestedLifetimeCount,
@@ -1568,19 +1498,11 @@ namespace Opc.Ua.Server
                     maxNotificationsPerPublish,
                     publishingEnabled,
                     priority,
-                    out uint subscriptionId,
-                    out double revisedPublishingInterval,
-                    out uint revisedLifetimeCount,
-                    out uint revisedMaxKeepAliveCount);
+                    ct).ConfigureAwait(false);
 
-                return Task.FromResult(new CreateSubscriptionResponse
-                {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
-                    SubscriptionId = subscriptionId,
-                    RevisedPublishingInterval = revisedPublishingInterval,
-                    RevisedLifetimeCount = revisedLifetimeCount,
-                    RevisedMaxKeepAliveCount = revisedMaxKeepAliveCount
-                });
+                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -1610,7 +1532,7 @@ namespace Opc.Ua.Server
         /// <param name="subscriptionIds">The list of Subscriptions to transfer.</param>
         /// <param name="sendInitialValues">If the initial values should be sent.</param>
         /// <param name="ct">The cancellation token.</param>
-        public override Task<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
+        public override async Task<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
@@ -1626,19 +1548,15 @@ namespace Opc.Ua.Server
             {
                 ValidateOperationLimits(subscriptionIds);
 
-                ServerInternal.SubscriptionManager.TransferSubscriptions(
+                TransferSubscriptionsResponse response = await ServerInternal.SubscriptionManager.TransferSubscriptionsAsync(
                     context,
                     subscriptionIds,
                     sendInitialValues,
-                    out TransferResultCollection results,
-                    out DiagnosticInfoCollection diagnosticInfos);
+                    ct).ConfigureAwait(false);
 
-                return Task.FromResult(new TransferSubscriptionsResponse
-                {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
-                    Results = results,
-                    DiagnosticInfos = diagnosticInfos
-                });
+                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -1670,7 +1588,7 @@ namespace Opc.Ua.Server
         /// <returns>
         /// Returns a <see cref="DeleteSubscriptionsResponse"/> object
         /// </returns>
-        public override Task<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
+        public override async Task<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
@@ -1685,18 +1603,14 @@ namespace Opc.Ua.Server
             {
                 ValidateOperationLimits(subscriptionIds);
 
-                ServerInternal.SubscriptionManager.DeleteSubscriptions(
+                DeleteSubscriptionsResponse response = await ServerInternal.SubscriptionManager.DeleteSubscriptionsAsync(
                     context,
                     subscriptionIds,
-                    out StatusCodeCollection results,
-                    out DiagnosticInfoCollection diagnosticInfos);
+                    ct).ConfigureAwait(false);
 
-                return Task.FromResult(new DeleteSubscriptionsResponse
-                {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
-                    Results = results,
-                    DiagnosticInfos = diagnosticInfos
-                });
+                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -2073,7 +1987,7 @@ namespace Opc.Ua.Server
         /// <returns>
         /// Returns a <see cref="CreateMonitoredItemsResponse"/> object
         /// </returns>
-        public override Task<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
+        public override async Task<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint subscriptionId,
@@ -2090,20 +2004,16 @@ namespace Opc.Ua.Server
             {
                 ValidateOperationLimits(itemsToCreate, OperationLimits.MaxMonitoredItemsPerCall);
 
-                ServerInternal.SubscriptionManager.CreateMonitoredItems(
+                CreateMonitoredItemsResponse result = await ServerInternal.SubscriptionManager.CreateMonitoredItemsAsync(
                     context,
                     subscriptionId,
                     timestampsToReturn,
                     itemsToCreate,
-                    out MonitoredItemCreateResultCollection results,
-                    out DiagnosticInfoCollection diagnosticInfos);
+                    ct).ConfigureAwait(false);
 
-                return Task.FromResult(new CreateMonitoredItemsResponse
-                {
-                    Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
-                });
+                result.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+
+                return result;
             }
             catch (ServiceResultException e)
             {
@@ -2137,7 +2047,7 @@ namespace Opc.Ua.Server
         /// <returns>
         /// Returns a <see cref="ModifyMonitoredItemsResponse"/> object
         /// </returns>
-        public override Task<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
+        public override async Task<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint subscriptionId,
@@ -2154,20 +2064,16 @@ namespace Opc.Ua.Server
             {
                 ValidateOperationLimits(itemsToModify, OperationLimits.MaxMonitoredItemsPerCall);
 
-                ServerInternal.SubscriptionManager.ModifyMonitoredItems(
+                ModifyMonitoredItemsResponse response = await ServerInternal.SubscriptionManager.ModifyMonitoredItemsAsync(
                     context,
                     subscriptionId,
                     timestampsToReturn,
                     itemsToModify,
-                    out MonitoredItemModifyResultCollection results,
-                    out DiagnosticInfoCollection diagnosticInfos);
+                    ct).ConfigureAwait(false);
 
-                return Task.FromResult(new ModifyMonitoredItemsResponse
-                {
-                    Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
-                });
+                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -2200,7 +2106,7 @@ namespace Opc.Ua.Server
         /// <returns>
         /// Returns a <see cref="DeleteMonitoredItemsResponse"/> object
         /// </returns>
-        public override Task<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
+        public override async Task<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint subscriptionId,
@@ -2216,19 +2122,15 @@ namespace Opc.Ua.Server
             {
                 ValidateOperationLimits(monitoredItemIds, OperationLimits.MaxMonitoredItemsPerCall);
 
-                ServerInternal.SubscriptionManager.DeleteMonitoredItems(
+                DeleteMonitoredItemsResponse response = await ServerInternal.SubscriptionManager.DeleteMonitoredItemsAsync(
                     context,
                     subscriptionId,
                     monitoredItemIds,
-                    out StatusCodeCollection results,
-                    out DiagnosticInfoCollection diagnosticInfos);
+                    ct).ConfigureAwait(false);
 
-                return Task.FromResult(new DeleteMonitoredItemsResponse
-                {
-                    Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
-                });
+                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -2368,12 +2270,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// The state object associated with the server.
-        /// It provides the shared components for the Server.
-        /// </summary>
-        /// <value>The current instance.</value>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <inheritdoc/>
         public IServerInternal CurrentInstance
         {
             get
@@ -2427,16 +2324,14 @@ namespace Opc.Ua.Server
             return RegisterWithDiscoveryServerAsync().AsTask().GetAwaiter().GetResult();
         }
 
-        /// <summary>
-        /// Registers the server with the discovery server.
-        /// </summary>
-        /// <returns>Boolean value.</returns>
+        /// <inheritdoc/>
         public async ValueTask<bool> RegisterWithDiscoveryServerAsync(CancellationToken ct = default)
         {
-            var configuration = new ApplicationConfiguration(Configuration);
-
-            // use a dedicated certificate validator with the registration, but derive behavior from server config
-            configuration.CertificateValidator = new CertificateValidator(MessageContext.Telemetry);
+            var configuration = new ApplicationConfiguration(Configuration)
+            {
+                // use a dedicated certificate validator with the registration, but derive behavior from server config
+                CertificateValidator = new CertificateValidator(MessageContext.Telemetry)
+            };
             await configuration
                 .CertificateValidator.UpdateAsync(
                     configuration.SecurityConfiguration,
@@ -2448,109 +2343,109 @@ namespace Opc.Ua.Server
             if (m_registrationEndpoints != null)
             {
                 foreach (ConfiguredEndpoint endpoint in m_registrationEndpoints.Endpoints)
+                {
+                    RegistrationClient client = null;
+                    int i = 0;
+
+                    while (i++ < 2)
                     {
-                        RegistrationClient client = null;
-                        int i = 0;
-
-                        while (i++ < 2)
+                        try
                         {
-                            try
+                            // update from the server.
+                            bool updateRequired = true;
+
+                            lock (m_registrationLock)
                             {
-                                // update from the server.
-                                bool updateRequired = true;
+                                updateRequired = endpoint.UpdateBeforeConnect;
+                            }
 
-                                lock (m_registrationLock)
-                                {
-                                    updateRequired = endpoint.UpdateBeforeConnect;
-                                }
+                            if (updateRequired)
+                            {
+                                await endpoint.UpdateFromServerAsync(MessageContext.Telemetry, ct).ConfigureAwait(false);
+                            }
 
-                                if (updateRequired)
-                                {
-                                    await endpoint.UpdateFromServerAsync(MessageContext.Telemetry, ct).ConfigureAwait(false);
-                                }
+                            lock (m_registrationLock)
+                            {
+                                endpoint.UpdateBeforeConnect = false;
+                            }
 
-                                lock (m_registrationLock)
-                                {
-                                    endpoint.UpdateBeforeConnect = false;
-                                }
+                            var requestHeader = new RequestHeader
+                            {
+                                Timestamp = DateTime.UtcNow
+                            };
 
-                                var requestHeader = new RequestHeader
+                            // create the client.
+                            X509Certificate2 instanceCertificate =
+                                InstanceCertificateTypesProvider.GetInstanceCertificate(
+                                    endpoint.Description?.SecurityPolicyUri ??
+                                    SecurityPolicies.None);
+                            client = await RegistrationClient.CreateAsync(
+                                configuration,
+                                endpoint.Description,
+                                endpoint.Configuration,
+                                instanceCertificate,
+                                ct: ct).ConfigureAwait(false);
+
+                            client.OperationTimeout = 10000;
+
+                            // register the server.
+                            if (m_useRegisterServer2)
+                            {
+                                var discoveryConfiguration = new ExtensionObjectCollection();
+                                var mdnsDiscoveryConfig = new MdnsDiscoveryConfiguration
                                 {
-                                    Timestamp = DateTime.UtcNow
+                                    ServerCapabilities = configuration.ServerConfiguration
+                                        .ServerCapabilities,
+                                    MdnsServerName = Utils.GetHostName()
                                 };
-
-                                // create the client.
-                                X509Certificate2 instanceCertificate =
-                                    InstanceCertificateTypesProvider.GetInstanceCertificate(
-                                        endpoint.Description?.SecurityPolicyUri ??
-                                        SecurityPolicies.None);
-                                client = await RegistrationClient.CreateAsync(
-                                    configuration,
-                                    endpoint.Description,
-                                    endpoint.Configuration,
-                                    instanceCertificate,
-                                    ct: ct).ConfigureAwait(false);
-
-                                client.OperationTimeout = 10000;
-
-                                // register the server.
-                                if (m_useRegisterServer2)
-                                {
-                                    var discoveryConfiguration = new ExtensionObjectCollection();
-                                    var mdnsDiscoveryConfig = new MdnsDiscoveryConfiguration
-                                    {
-                                        ServerCapabilities = configuration.ServerConfiguration
-                                            .ServerCapabilities,
-                                        MdnsServerName = Utils.GetHostName()
-                                    };
-                                    var extensionObject = new ExtensionObject(mdnsDiscoveryConfig);
-                                    discoveryConfiguration.Add(extensionObject);
-                                    await client.RegisterServer2Async(
-                                        requestHeader,
-                                        m_registrationInfo,
-                                        discoveryConfiguration,
-                                        ct).ConfigureAwait(false);
-                                }
-                                else
-                                {
-                                    await client.RegisterServerAsync(
-                                        requestHeader,
-                                        m_registrationInfo,
-                                        ct)
-                                        .ConfigureAwait(false);
-                                }
-
-                                m_registeredWithDiscoveryServer = m_registrationInfo.IsOnline;
-                                return true;
+                                var extensionObject = new ExtensionObject(mdnsDiscoveryConfig);
+                                discoveryConfiguration.Add(extensionObject);
+                                await client.RegisterServer2Async(
+                                    requestHeader,
+                                    m_registrationInfo,
+                                    discoveryConfiguration,
+                                    ct).ConfigureAwait(false);
                             }
-                            catch (Exception e)
+                            else
                             {
-                                m_logger.LogWarning(
-                                    "RegisterServer{Api} failed for {EndpointUrl}. Exception={ErrorMessage}",
-                                    m_useRegisterServer2 ? "2" : string.Empty,
-                                    endpoint.EndpointUrl,
-                                    e.Message);
-                                m_useRegisterServer2 = !m_useRegisterServer2;
+                                await client.RegisterServerAsync(
+                                    requestHeader,
+                                    m_registrationInfo,
+                                    ct)
+                                    .ConfigureAwait(false);
                             }
-                            finally
+
+                            m_registeredWithDiscoveryServer = m_registrationInfo.IsOnline;
+                            return true;
+                        }
+                        catch (Exception e)
+                        {
+                            m_logger.LogWarning(
+                                "RegisterServer{Api} failed for {EndpointUrl}. Exception={ErrorMessage}",
+                                m_useRegisterServer2 ? "2" : string.Empty,
+                                endpoint.EndpointUrl,
+                                e.Message);
+                            m_useRegisterServer2 = !m_useRegisterServer2;
+                        }
+                        finally
+                        {
+                            if (client != null)
                             {
-                                if (client != null)
+                                try
                                 {
-                                    try
-                                    {
-                                        await client.CloseAsync(ct).ConfigureAwait(false);
-                                        client = null;
-                                    }
-                                    catch (Exception e)
-                                    {
-                                        m_logger.LogWarning(
-                                            "Could not cleanly close connection with LDS. Exception={ErrorMessage}",
-                                            e.Message);
-                                    }
+                                    await client.CloseAsync(ct).ConfigureAwait(false);
+                                    client = null;
+                                }
+                                catch (Exception e)
+                                {
+                                    m_logger.LogWarning(
+                                        "Could not cleanly close connection with LDS. Exception={ErrorMessage}",
+                                        e.Message);
                                 }
                             }
                         }
                     }
+                }
                 // retry to start with RegisterServer2 if both failed
                 m_useRegisterServer2 = true;
             }
@@ -2729,20 +2624,10 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Inspects the software certificates provided by the server.
-        /// </summary>
-        /// <param name="softwareCertificates">The software certificates.</param>
-        protected virtual void ValidateSoftwareCertificates(
-            List<SoftwareCertificate> softwareCertificates)
-        {
-            // always accept valid certificates.
-        }
-
-        /// <summary>
         /// Verifies that the request header is valid.
         /// </summary>
-        /// <param name="requestHeader">The request header.</param>
         /// <param name="secureChannelContext">The secure channel context.</param>
+        /// <param name="requestHeader">The request header.</param>
         /// <param name="requestType">Type of the request.</param>
         /// <exception cref="ServiceResultException"></exception>
         protected virtual OperationContext ValidateRequest(
@@ -3152,6 +3037,11 @@ namespace Opc.Ua.Server
                 RequestManager requestManager = CreateRequestManager(
                     m_serverInternal,
                     configuration);
+
+                //create the main node manager factory
+                IMainNodeManagerFactory mainNodeManagerFactory = CreateMainNodeManagerFactory(m_serverInternal, configuration);
+
+                m_serverInternal.SetMainNodeManagerFactory(mainNodeManagerFactory);
 
                 // create the master node manager.
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateMasterNodeManager.");
@@ -3759,6 +3649,19 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Creates the master node manager for the server.
+        /// </summary>
+        /// <param name="server">The server.</param>
+        /// <param name="configuration">The configuration.</param>
+        /// <returns>Returns the master node manager for the server, the return type is <seealso cref="MasterNodeManager"/>.</returns>
+        protected virtual IMainNodeManagerFactory CreateMainNodeManagerFactory(
+            IServerInternal server,
+            ApplicationConfiguration configuration)
+        {
+            return new MainNodeManagerFactory(configuration, server);
+        }
+
+        /// <summary>
         /// Creates the event manager for the server.
         /// </summary>
         /// <param name="server">The server.</param>
@@ -3844,54 +3747,32 @@ namespace Opc.Ua.Server
             // may be overridden by the subclass.
         }
 
-        /// <summary>
-        /// The node manager factories that are used on startup of the server.
-        /// </summary>
+        /// <inheritdoc/>
         public IEnumerable<INodeManagerFactory> NodeManagerFactories => m_nodeManagerFactories;
 
-        /// <summary>
-        /// The async node manager factories that are used on startup of the server.
-        /// </summary>
+        /// <inheritdoc/>
         public IEnumerable<IAsyncNodeManagerFactory> AsyncNodeManagerFactories
             => m_asyncNodeManagerFactories;
 
-        /// <summary>
-        /// Add a node manager factory which is used on server start
-        /// to instantiate the node manager in the server.
-        /// </summary>
-        /// <param name="nodeManagerFactory">The node manager factory used to create the NodeManager.</param>
+        /// <inheritdoc/>
         public virtual void AddNodeManager(INodeManagerFactory nodeManagerFactory)
         {
             m_nodeManagerFactories.Add(nodeManagerFactory);
         }
 
-        /// <summary>
-        /// Add a node manager factory which is used on server start
-        /// to instantiate the node manager in the server.
-        /// </summary>
-        /// <param name="nodeManagerFactory">The node manager factory used to create the NodeManager.</param>
+        /// <inheritdoc/>
         public virtual void AddNodeManager(IAsyncNodeManagerFactory nodeManagerFactory)
         {
             m_asyncNodeManagerFactories.Add(nodeManagerFactory);
         }
 
-        /// <summary>
-        /// Remove a node manager factory from the list of node managers.
-        /// Does not remove a NodeManager from a running server,
-        /// only removes the factory before the server starts.
-        /// </summary>
-        /// <param name="nodeManagerFactory">The node manager factory to remove.</param>
+        /// <inheritdoc/>
         public virtual void RemoveNodeManager(INodeManagerFactory nodeManagerFactory)
         {
             m_nodeManagerFactories.Remove(nodeManagerFactory);
         }
 
-        /// <summary>
-        /// Remove a node manager factory from the list of node managers.
-        /// Does not remove a NodeManager from a running server,
-        /// only removes the factory before the server starts.
-        /// </summary>
-        /// <param name="nodeManagerFactory">The node manager factory to remove.</param>
+        /// <inheritdoc/>
         public virtual void RemoveNodeManager(IAsyncNodeManagerFactory nodeManagerFactory)
         {
             m_asyncNodeManagerFactories.Remove(nodeManagerFactory);

@@ -43,15 +43,16 @@ namespace Opc.Ua.Gds.Tests
     public class GlobalDiscoveryTestServer
     {
         public GlobalDiscoverySampleServer Server { get; private set; }
-        public ApplicationInstance Application { get; private set; }
+        public IApplicationInstance Application { get; private set; }
         public ApplicationConfiguration Config { get; private set; }
         public int BasePort { get; private set; }
 
-        public GlobalDiscoveryTestServer(bool autoAccept, ITelemetryContext telemetry)
+        public GlobalDiscoveryTestServer(bool autoAccept, ITelemetryContext telemetry, int maxTrustListSize)
         {
             s_autoAccept = autoAccept;
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<GlobalDiscoveryTestServer>();
+            m_maxTrustListSize = maxTrustListSize;
         }
 
         public async Task StartServerAsync(
@@ -79,7 +80,7 @@ namespace Opc.Ua.Gds.Tests
             };
 
             BasePort = basePort;
-            Config = await LoadAsync(Application, basePort).ConfigureAwait(false);
+            Config = await LoadAsync(Application, basePort, m_maxTrustListSize).ConfigureAwait(false);
 
             if (clean)
             {
@@ -110,7 +111,7 @@ namespace Opc.Ua.Gds.Tests
                         Config.SecurityConfiguration.RejectedCertificateStore, m_telemetry)
                     .ConfigureAwait(false);
 
-                Config = await LoadAsync(Application, basePort).ConfigureAwait(false);
+                Config = await LoadAsync(Application, basePort, m_maxTrustListSize).ConfigureAwait(false);
             }
 
             // check the application certificate.
@@ -236,8 +237,9 @@ namespace Opc.Ua.Gds.Tests
         }
 
         private static async Task<ApplicationConfiguration> LoadAsync(
-            ApplicationInstance application,
-            int basePort)
+            IApplicationInstance application,
+            int basePort,
+            int maxTrustListSize)
         {
 #if !USE_FILE_CONFIG
             // load the application configuration.
@@ -313,6 +315,9 @@ namespace Opc.Ua.Gds.Tests
                 .CreateAsync()
                 .ConfigureAwait(false);
 #endif
+
+            config.ServerConfiguration.MaxTrustListSize = maxTrustListSize;
+
             TestUtils.PatchBaseAddressesPorts(config, basePort);
             return config;
         }
@@ -320,5 +325,6 @@ namespace Opc.Ua.Gds.Tests
         private static bool s_autoAccept;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
+        private readonly int m_maxTrustListSize = 0;
     }
 }

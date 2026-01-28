@@ -37,10 +37,8 @@ using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
-    /// <summary>
-    /// A node manager the diagnostic information exposed by the server.
-    /// </summary>
-    public class DiagnosticsNodeManager : CustomNodeManager2
+    /// <inheritdoc/>
+    public class DiagnosticsNodeManager : CustomNodeManager2, IDiagnosticsNodeManager
     {
         /// <summary>
         /// Initializes the node manager.
@@ -508,7 +506,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Handles a request to refresh conditions for a subscription.
         /// </summary>
-        private ServiceResult OnConditionRefresh(
+        protected ServiceResult OnConditionRefresh(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -524,7 +522,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Handles a request to refresh conditions for a subscription and specific monitored item.
         /// </summary>
-        private ServiceResult OnConditionRefresh2(
+        protected ServiceResult OnConditionRefresh2(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -598,22 +596,16 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Force out of band diagnostics update after a change of diagnostics variables.
-        /// </summary>
+        /// <inheritdoc/>
         public void ForceDiagnosticsScan()
         {
             m_lastDiagnosticsScanTime = DateTime.MinValue;
         }
 
-        /// <summary>
-        /// True if diagnostics are currently enabled.
-        /// </summary>
+        /// <inheritdoc/>
         public bool DiagnosticsEnabled { get; private set; }
 
-        /// <summary>
-        /// Sets the flag controlling whether diagnostics is enabled for the server.
-        /// </summary>
+        /// <inheritdoc/>
         public void SetDiagnosticsEnabled(ServerSystemContext context, bool enabled)
         {
             var nodesToDelete = new List<NodeState>();
@@ -730,9 +722,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Creates the diagnostics node for the server.
-        /// </summary>
+        /// <inheritdoc/>
         public void CreateServerDiagnostics(
             ServerSystemContext systemContext,
             ServerDiagnosticsSummaryDataType diagnostics,
@@ -804,9 +794,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Creates the diagnostics node for a subscription.
-        /// </summary>
+        /// <inheritdoc/>
         public NodeId CreateSessionDiagnostics(
             ServerSystemContext systemContext,
             SessionDiagnosticsDataType diagnostics,
@@ -908,9 +896,7 @@ namespace Opc.Ua.Server
             return nodeId;
         }
 
-        /// <summary>
-        /// Delete the diagnostics node for a session.
-        /// </summary>
+        /// <inheritdoc/>
         public void DeleteSessionDiagnostics(ServerSystemContext systemContext, NodeId nodeId)
         {
             lock (Lock)
@@ -936,9 +922,7 @@ namespace Opc.Ua.Server
             DeleteNode(systemContext, nodeId);
         }
 
-        /// <summary>
-        /// Creates the diagnostics node for a subscription.
-        /// </summary>
+        /// <inheritdoc/>
         public NodeId CreateSubscriptionDiagnostics(
             ServerSystemContext systemContext,
             SubscriptionDiagnosticsDataType diagnostics,
@@ -1030,9 +1014,7 @@ namespace Opc.Ua.Server
             return nodeId;
         }
 
-        /// <summary>
-        /// Delete the diagnostics node for a subscription.
-        /// </summary>
+        /// <inheritdoc/>
         public void DeleteSubscriptionDiagnostics(ServerSystemContext systemContext, NodeId nodeId)
         {
             lock (Lock)
@@ -1052,9 +1034,7 @@ namespace Opc.Ua.Server
             DeleteNode(systemContext, nodeId);
         }
 
-        /// <summary>
-        /// Gets the default history capabilities object.
-        /// </summary>
+        /// <inheritdoc/>
         public HistoryServerCapabilitiesState GetDefaultHistoryCapabilities()
         {
             lock (Lock)
@@ -1121,13 +1101,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Updates the Server object EventNotifier based on history capabilities.
-        /// </summary>
-        /// <remarks>
-        /// This method can be overridden to customize the Server EventNotifier based on
-        /// history capabilities settings.
-        /// </remarks>
+        /// <inheritdoc/>
         public virtual void UpdateServerEventNotifier()
         {
             lock (Lock)
@@ -1176,9 +1150,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Adds an aggregate function to the server capabilities object.
-        /// </summary>
+        /// <inheritdoc/>
         public void AddAggregateFunction(
             NodeId aggregateId,
             string aggregateName,
@@ -1226,9 +1198,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Adds a modelling rule to the server capabilities object.
-        /// </summary>
+        /// <inheritdoc/>
         public void AddModellingRule(
             NodeId modellingRuleId,
             string modellingRuleName)

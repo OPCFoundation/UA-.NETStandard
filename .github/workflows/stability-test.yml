@@ -1,0 +1,80 @@
+name: Connection Stability Test
+
+on:
+  schedule:
+    # Run nightly at 2:00 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: 'Test duration in minutes'
+        required: false
+        default: '90'
+        type: string
+
+jobs:
+  stability-test:
+    name: Connection Stability Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 120  # Allow extra time beyond test duration for setup/teardown
+
+    permissions:
+      contents: read
+
+    env:
+      DOTNET_VERSION: '10.0.x'
+      TARGET_FRAMEWORK: 'net10.0'
+      CONFIGURATION: 'Release'
+      TEST_DURATION_MINUTES: ${{ github.event.inputs.duration || '90' }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET ${{ env.DOTNET_VERSION }}
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Set Cloud Version
+      shell: pwsh
+      run: ./.azurepipelines/set-version.ps1
+
+    - name: Restore dependencies
+      run: dotnet restore 'UA.slnx'
+
+    - name: Build Client Tests
+      run: dotnet build ./Tests/Opc.Ua.Client.Tests/Opc.Ua.Client.Tests.csproj --configuration ${{ env.CONFIGURATION }} --no-restore
+
+    - name: Run Connection Stability Test
+      run: |
+        echo "Starting connection stability test for ${{ env.TEST_DURATION_MINUTES }} minutes"
+        dotnet test ./Tests/Opc.Ua.Client.Tests/Opc.Ua.Client.Tests.csproj \
+          --configuration ${{ env.CONFIGURATION }} \
+          --no-build \
+          --framework ${{ env.TARGET_FRAMEWORK }} \
+          --filter "Category=ConnectionStability" \
+          --logger "console;verbosity=detailed" \
+          --results-directory ./TestResults
+      timeout-minutes: 110  # Slightly longer than expected test duration
+      env:
+        TEST_DURATION_MINUTES: ${{ env.TEST_DURATION_MINUTES }}
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v6
+      with:
+        name: stability-test-results
+        path: ./TestResults
+      if: always()
+
+    - name: Check test results
+      if: always()
+      run: |
+        if [ -f ./TestResults/*.trx ]; then
+          echo "Test results found"
+          cat ./TestResults/*.trx
+        else
+          echo "No test results found"
+        fi

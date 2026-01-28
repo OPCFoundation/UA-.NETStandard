@@ -43,7 +43,7 @@ namespace Quickstarts
     public class UAServer<T>
         where T : StandardServer, new()
     {
-        public ApplicationInstance Application { get; private set; }
+        public IApplicationInstance Application { get; private set; }
 
         public ApplicationConfiguration Configuration => Application.ApplicationConfiguration;
 

@@ -27,62 +27,40 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-
-namespace Opc.Ua
+namespace Opc.Ua.Server
 {
     /// <summary>
-    /// The properties of the current server instance.
+    /// The Server Configuration Node Manager.
     /// </summary>
-    public class ServerProperties
+    public interface IConfigurationNodeManager : INodeManager2
     {
         /// <summary>
-        /// The default constructor.
+        /// Gets or creates the <see cref="NamespaceMetadataState"/> node for the specified NamespaceUri.
         /// </summary>
-        public ServerProperties()
-        {
-            ProductUri = string.Empty;
-            ManufacturerName = string.Empty;
-            ProductName = string.Empty;
-            SoftwareVersion = string.Empty;
-            BuildNumber = string.Empty;
-            BuildDate = DateTime.MinValue;
-            DatatypeAssemblies = [];
-        }
+        NamespaceMetadataState CreateNamespaceMetadataState(string namespaceUri);
 
         /// <summary>
-        /// The unique identifier for the product.
+        /// Creates the configuration node for the server.
         /// </summary>
-        public string ProductUri { get; set; }
+        void CreateServerConfiguration(ServerSystemContext systemContext, ApplicationConfiguration configuration);
 
         /// <summary>
-        /// The name of the product
+        /// Gets and returns the <see cref="NamespaceMetadataState"/> node associated with the specified NamespaceUri
         /// </summary>
-        public string ProductName { get; set; }
+        NamespaceMetadataState GetNamespaceMetadataState(string namespaceUri);
 
         /// <summary>
-        /// The name of the manufacturer
+        /// Determine if the impersonated user has admin access.
         /// </summary>
-        public string ManufacturerName { get; set; }
+        /// <exception cref="ServiceResultException"/>
+        /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
+        void HasApplicationSecureAdminAccess(ISystemContext context);
 
         /// <summary>
-        /// The software version for the application
+        /// Determine if the impersonated user has admin access.
         /// </summary>
-        public string SoftwareVersion { get; set; }
-
-        /// <summary>
-        /// The build number for the application
-        /// </summary>
-        public string BuildNumber { get; set; }
-
-        /// <summary>
-        /// When the application was built.
-        /// </summary>
-        public DateTime BuildDate { get; set; }
-
-        /// <summary>
-        /// The assemblies that contain encodeable types that could be uses a variable values.
-        /// </summary>
-        public StringCollection DatatypeAssemblies { get; }
+        /// <exception cref="ServiceResultException"/>
+        /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
+        void HasApplicationSecureAdminAccess(ISystemContext context, CertificateStoreIdentifier trustedStore);
     }
 }

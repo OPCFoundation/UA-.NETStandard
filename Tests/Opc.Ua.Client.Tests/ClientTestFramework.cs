@@ -63,6 +63,7 @@ namespace Opc.Ua.Client.Tests
         public bool SingleSession { get; set; } = true;
         public int MaxChannelCount { get; set; } = 100;
         public bool SupportsExternalServerUrl { get; set; }
+        public bool UseSamplingGroupsInReferenceNodeManager { get; set; }
         public ServerFixture<ReferenceServer> ServerFixture { get; set; }
         public ClientFixture ClientFixture { get; set; }
         public ReferenceServer ReferenceServer { get; set; }
@@ -70,6 +71,7 @@ namespace Opc.Ua.Client.Tests
         public ReferenceDescriptionCollection ReferenceDescriptions { get; set; }
         public ISession Session { get; protected set; }
         public OperationLimits OperationLimits { get; private set; }
+        public int SecurityTokenLifetime { get; set; } = 3_600_000;
         public string UriScheme { get; }
         public string PkiRoot { get; set; }
         public Uri ServerUrl { get; private set; }
@@ -164,6 +166,7 @@ namespace Opc.Ua.Client.Tests
                 .Config
                 .TransportQuotas
                 .MaxStringLength = TransportQuotaMaxStringLength;
+            ClientFixture.Config.TransportQuotas.SecurityTokenLifetime = SecurityTokenLifetime;
 
             if (!string.IsNullOrEmpty(customUrl))
             {
@@ -215,7 +218,8 @@ namespace Opc.Ua.Client.Tests
                 SecurityNone = securityNone,
                 AutoAccept = true,
                 AllNodeManagers = true,
-                OperationLimits = true
+                OperationLimits = true,
+                UseSamplingGroupsInReferenceNodeManager = UseSamplingGroupsInReferenceNodeManager
             };
 
             await ServerFixture.LoadConfigurationAsync(PkiRoot).ConfigureAwait(false);
@@ -224,6 +228,7 @@ namespace Opc.Ua.Client.Tests
                 .Config
                 .TransportQuotas
                 .MaxStringLength = TransportQuotaMaxStringLength;
+            ServerFixture.Config.TransportQuotas.SecurityTokenLifetime = SecurityTokenLifetime;
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies
                 .Add(new UserTokenPolicy(UserTokenType.UserName));
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(

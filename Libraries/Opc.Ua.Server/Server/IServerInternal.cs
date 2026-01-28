@@ -87,6 +87,12 @@ namespace Opc.Ua.Server
         TypeTable TypeTree { get; }
 
         /// <summary>
+        /// The factory which helps creating main
+        /// node managers used by the server.
+        /// </summary>
+        IMainNodeManagerFactory MainNodeManagerFactory { get; }
+
+        /// <summary>
         /// The master node manager for the server.
         /// </summary>
         /// <value>The node manager.</value>
@@ -103,6 +109,12 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <value>The diagnostics node manager.</value>
         DiagnosticsNodeManager DiagnosticsNodeManager { get; }
+
+        /// <summary>
+        /// Returns the node manager that managers the server configuration.
+        /// </summary>
+        /// <value>The configuration node manager.</value>
+        ConfigurationNodeManager ConfigurationNodeManager { get; }
 
         /// <summary>
         /// The manager for events that all components use to queue events that occur.
@@ -240,7 +252,8 @@ namespace Opc.Ua.Server
         /// Deletes the specified subscription.
         /// </summary>
         /// <param name="subscriptionId">The subscription identifier.</param>
-        void DeleteSubscription(uint subscriptionId);
+        /// <param name="cancellationToken">The cancellation token.</param>
+        ValueTask DeleteSubscriptionAsync(uint subscriptionId, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called by any component to report a global event.
@@ -286,6 +299,12 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="nodeManager">The node manager.</param>
         void SetNodeManager(MasterNodeManager nodeManager);
+
+        /// <summary>
+        /// Stores the MainNodeManagerFactory
+        /// </summary>
+        /// <param name="mainNodeManagerFactory">The main node manager factory.</param>
+        void SetMainNodeManagerFactory(IMainNodeManagerFactory mainNodeManagerFactory);
 
         /// <summary>
         /// Stores the SessionManager, the SubscriptionManager in the datastore.

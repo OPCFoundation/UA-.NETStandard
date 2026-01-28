@@ -2354,6 +2354,14 @@ namespace Opc.Ua
                     m_value = ((Variant)value).Value;
                     TypeInfo = TypeInfo.Construct(m_value);
                     return;
+                case BuiltInType.StatusCode:
+                    if (value is uint code)
+                    {
+                        m_value = new StatusCode(code);
+                        return;
+                    }
+                    m_value = value;
+                    return;
                 // just save the value.
                 case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                     m_value = value;
@@ -2408,6 +2416,19 @@ namespace Opc.Ua
                         return;
                     }
 
+                    m_value = array;
+                    return;
+                case BuiltInType.StatusCode:
+                    if (array is uint[] codes)
+                    {
+                        var statusCodes = new StatusCode[codes.Length];
+                        for (int ii = 0; ii < codes.Length; ii++)
+                        {
+                            statusCodes[ii] = new StatusCode(codes[ii]);
+                        }
+                        m_value = statusCodes;
+                        return;
+                    }
                     m_value = array;
                     return;
                 // convert encodeables to extension objects.

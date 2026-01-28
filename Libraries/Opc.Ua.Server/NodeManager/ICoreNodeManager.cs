@@ -27,62 +27,30 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
+using System.Collections.Generic;
 
-namespace Opc.Ua
+namespace Opc.Ua.Server
 {
     /// <summary>
-    /// The properties of the current server instance.
+    /// The default node manager for the server.
     /// </summary>
-    public class ServerProperties
+    /// <remarks>
+    /// Every Server has one instance of this NodeManager.
+    /// It stores objects that implement ILocalNode and indexes them by NodeId.
+    /// </remarks>
+    public interface ICoreNodeManager : INodeManager
     {
         /// <summary>
-        /// The default constructor.
+        /// Imports the nodes from a dictionary of NodeState objects.
         /// </summary>
-        public ServerProperties()
-        {
-            ProductUri = string.Empty;
-            ManufacturerName = string.Empty;
-            ProductName = string.Empty;
-            SoftwareVersion = string.Empty;
-            BuildNumber = string.Empty;
-            BuildDate = DateTime.MinValue;
-            DatatypeAssemblies = [];
-        }
+        void ImportNodes(ISystemContext context, IEnumerable<NodeState> predefinedNodes);
 
         /// <summary>
-        /// The unique identifier for the product.
+        /// Imports the nodes from a dictionary of NodeState objects.
         /// </summary>
-        public string ProductUri { get; set; }
-
-        /// <summary>
-        /// The name of the product
-        /// </summary>
-        public string ProductName { get; set; }
-
-        /// <summary>
-        /// The name of the manufacturer
-        /// </summary>
-        public string ManufacturerName { get; set; }
-
-        /// <summary>
-        /// The software version for the application
-        /// </summary>
-        public string SoftwareVersion { get; set; }
-
-        /// <summary>
-        /// The build number for the application
-        /// </summary>
-        public string BuildNumber { get; set; }
-
-        /// <summary>
-        /// When the application was built.
-        /// </summary>
-        public DateTime BuildDate { get; set; }
-
-        /// <summary>
-        /// The assemblies that contain encodeable types that could be uses a variable values.
-        /// </summary>
-        public StringCollection DatatypeAssemblies { get; }
+        void ImportNodes(
+            ISystemContext context,
+            IEnumerable<NodeState> predefinedNodes,
+            bool isInternal);
     }
 }

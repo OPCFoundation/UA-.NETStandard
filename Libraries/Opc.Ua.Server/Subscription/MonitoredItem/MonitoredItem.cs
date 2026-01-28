@@ -866,11 +866,14 @@ namespace Opc.Ua.Server
                 // make a shallow copy of the value.
                 if (value != null)
                 {
-                    m_logger.LogTrace(
-                        Utils.TraceMasks.OperationDetail,
-                        "RECEIVED VALUE[{MonitoredItemId}] Value={Value}",
-                        Id,
-                        value.WrappedValue);
+                    if (m_logger.IsEnabled(LogLevel.Trace))
+                    {
+                        m_logger.LogTrace(
+                            Utils.TraceMasks.OperationDetail,
+                            "RECEIVED VALUE[{MonitoredItemId}] Value={Value}",
+                            Id,
+                            value.WrappedValue);
+                    }
 
                     value = new DataValue
                     {

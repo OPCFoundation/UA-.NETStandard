@@ -138,7 +138,7 @@ namespace Opc.Ua
                 }
             }
 
-            [Conditional("DEBUG")]
+            [Conditional("CHECKED")]
             private static void DebugCheck()
             {
                 Debug.Fail("Using a NullLogger");
