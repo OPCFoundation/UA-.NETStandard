@@ -978,7 +978,7 @@ namespace Opc.Ua
             CertificateSignatureAlgorithm = AsymmetricSignatureAlgorithm.RsaPkcs15Sha256,
             EphemeralKeyAlgorithm = CertificateKeyAlgorithm.RSADH,
             KeyDerivationAlgorithm = KeyDerivationAlgorithm.HKDFSha256,
-            SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes256Gcm,
+            SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes128Gcm,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.Aes128Gcm,
             SecureChannelEnhancements = true,
             IsDeprecated = false

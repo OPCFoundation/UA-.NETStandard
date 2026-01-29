@@ -151,32 +151,32 @@
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256_AesGcm</SecurityPolicyUri>
       </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>Sign_2</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1_ChaChaPoly</SecurityPolicyUri>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1_ChaChaPoly</SecurityPolicyUri>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>Sign_2</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1_ChaChaPoly</SecurityPolicyUri>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1_ChaChaPoly</SecurityPolicyUri>
+      </ServerSecurityPolicy>
       -->
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1_ChaChaPoly</SecurityPolicyUri>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#RSA_DH_AesGcm</SecurityPolicyUri>
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1_ChaChaPoly</SecurityPolicyUri>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#RSA_DH_AesGcm</SecurityPolicyUri>
       </ServerSecurityPolicy>
       <!--
-      <ServerSecurityPolicy>
-        <SecurityMode>Sign_2</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1_ChaChaPoly</SecurityPolicyUri>
-      </ServerSecurityPolicy>
-      <ServerSecurityPolicy>
-        <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1_ChaChaPoly</SecurityPolicyUri>
-      </ServerSecurityPolicy>
-      <ServerSecurityPolicy>
-        <SecurityMode>Sign_2</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#RSA_DH_AesGcm</SecurityPolicyUri>
-      </ServerSecurityPolicy>
-      <ServerSecurityPolicy>
-        <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#RSA_DH_AesGcm</SecurityPolicyUri>
-      </ServerSecurityPolicy>
       -->
       <!--<ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>-->
