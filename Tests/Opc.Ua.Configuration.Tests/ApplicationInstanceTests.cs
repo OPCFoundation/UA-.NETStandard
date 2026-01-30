@@ -143,6 +143,48 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
+        public async Task TestNoFileConfigRespectsMinimumKeySizeOnCreationAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            Assert.NotNull(applicationInstance);
+
+            CertificateIdentifierCollection applicationCerts =
+                ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                    SubjectName,
+                    CertificateStoreType.Directory,
+                    m_pkiRoot);
+
+            const ushort minimumKeySize = 4096;
+
+            ApplicationConfiguration config = await applicationInstance
+                .Build(ApplicationUri, ProductUri)
+                .AsClient()
+                .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
+                .SetMinimumCertificateKeySize(minimumKeySize)
+                .CreateAsync()
+                .ConfigureAwait(false);
+            Assert.NotNull(config);
+
+            bool certOK = await applicationInstance
+                .CheckApplicationInstanceCertificatesAsync(true)
+                .ConfigureAwait(false);
+            Assert.True(certOK);
+
+            CertificateIdentifier certId = config.SecurityConfiguration.ApplicationCertificates[0];
+            X509Certificate2 certificate = await certId
+                .FindAsync(
+                    true,
+                    config.ApplicationUri,
+                    telemetry)
+                .ConfigureAwait(false);
+
+            Assert.NotNull(certificate);
+            Assert.AreEqual(minimumKeySize, X509Utils.GetPublicKeySize(certificate));
+        }
+
+        [Test]
         public async Task TestBadApplicationInstanceAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
