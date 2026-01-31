@@ -950,9 +950,10 @@ namespace Opc.Ua.Server
         /// </summary>
         private void AddValueToQueue(DataValue value, ServiceResult error)
         {
+            bool overflow = false;
             if (QueueSize > 1)
             {
-                m_dataChangeQueueHandler.QueueValue(value, error);
+                overflow = m_dataChangeQueueHandler.QueueValue(value, error);
             }
 
             if (m_lastValue != null)
@@ -965,14 +966,17 @@ namespace Opc.Ua.Server
             m_lastError = error;
             m_readyToPublish = true;
 
-            m_logger.LogTrace(
-                Utils.TraceMasks.OperationDetail,
-                "QUEUE VALUE[{MonitoredItemId}]: Value={Value} CODE={Code}<{Code:X8}> OVERFLOW={Overflow}",
-                Id,
-                m_lastValue.WrappedValue,
-                m_lastValue.StatusCode.Code,
-                m_lastValue.StatusCode.Code,
-                m_lastValue.StatusCode.Overflow);
+            if (m_logger.IsEnabled(LogLevel.Trace))
+            {
+                m_logger.LogTrace(
+                    Utils.TraceMasks.OperationDetail,
+                    "QUEUE VALUE[{MonitoredItemId}]: Value={Value} CODE={Code}<{Code:X8}> OVERFLOW={Overflow}",
+                    Id,
+                    m_lastValue.WrappedValue,
+                    m_lastValue.StatusCode.Code,
+                    m_lastValue.StatusCode.Code,
+                    overflow);
+            }
         }
 
         /// <summary>
