@@ -342,9 +342,19 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
                 foreach (Application result in results)
                 {
-                    LocalizedText[] names = null;
+                    var names = new List<LocalizedText>();
 
-                    if (result.ApplicationName != null)
+                    IEnumerable<ApplicationName> applicationNames =
+                    from ii in ApplicationNames
+                    where ii.ApplicationId == result.ApplicationId
+                    select ii;
+
+                    foreach (ApplicationName applicationName in applicationNames)
+                    {
+                        names.Add(new LocalizedText(applicationName.Locale, applicationName.Text));
+                    }
+
+                    if (names.Count == 0 && result.ApplicationName != null)
                     {
                         names = [result.ApplicationName];
                     }
@@ -503,12 +513,24 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                         lastID = result.ID;
                     }
 
+                    var names = new List<LocalizedText>();
+
+                    IEnumerable<ApplicationName> applicationNames =
+                    from ii in ApplicationNames
+                    where ii.ApplicationId == result.ApplicationId
+                    select ii;
+
+                    foreach (ApplicationName appName in applicationNames)
+                    {
+                        names.Add(new LocalizedText(appName.Locale, appName.Text));
+                    }
+
                     records.Add(
                         new ApplicationDescription
                         {
                             ApplicationUri = result.ApplicationUri,
                             ProductUri = result.ProductUri,
-                            ApplicationName = result.ApplicationName,
+                            ApplicationName = names.FirstOrDefault() ?? result.ApplicationName,
                             ApplicationType = (ApplicationType)result.ApplicationType,
                             GatewayServerUri = null,
                             DiscoveryProfileUri = null,
