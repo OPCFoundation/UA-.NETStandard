@@ -218,6 +218,21 @@ namespace Opc.Ua.Server
                 // check if too soon for another sample.
                 if (now < m_nextSampleTime)
                 {
+                    if (m_logger.IsEnabled(LogLevel.Trace))
+                    {
+                        DataValue overwrittenValue = m_dataValueQueue.PeekLastValue();
+
+                        m_logger.LogTrace(
+                            "OVERWRITTEN VALUE (TOO SOON FOR ANOTHER SAMPLE): Value={Value} CODE={Code}<{Code:X8}> SamplingInterval={SamplingInterval}" +
+                            "QueueValueCall {Now} NextSampleTime {NextSampleTime}",
+                            overwrittenValue.WrappedValue,
+                            overwrittenValue.StatusCode.Code,
+                            value.StatusCode.Code,
+                            m_samplingInterval,
+                            now,
+                            m_nextSampleTime);
+                    }
+
                     m_dataValueQueue.OverwriteLastValue(value, error);
 
                     m_discardedValueHandler?.Invoke();

@@ -384,7 +384,7 @@ namespace Quickstarts.ReferenceServer
                                 "XmlElement",
                                 DataTypeIds.XmlElement,
                                 ValueRanks.Scalar)
-                            .MinimumSamplingInterval(1000));
+                            .MinimumSamplingInterval(100));
 
                     BaseDataVariableState decimalVariable = CreateVariable(
                         staticFolder,
