@@ -35,6 +35,55 @@ using System.Linq;
 namespace Opc.Ua.Client
 {
     /// <summary>
+    /// Options for controlling NodeSet export behavior.
+    /// </summary>
+    public class NodeSetExportOptions
+    {
+        /// <summary>
+        /// Whether to export value elements for variables.
+        /// Default is false (values are only exported for Complete option).
+        /// </summary>
+        public bool ExportValues { get; set; } = false;
+
+        /// <summary>
+        /// Whether to export the ParentNodeId attribute.
+        /// Default is false (ParentNodeId is redundant as it can be inferred from references).
+        /// </summary>
+        public bool ExportParentNodeId { get; set; } = false;
+
+        /// <summary>
+        /// Whether to export user context attributes (UserAccessLevel, UserExecutable, UserWriteMask, UserRolePermissions).
+        /// Default is false (user context attributes are not exported).
+        /// When true, UserAccessLevel is only exported if it differs from AccessLevel.
+        /// </summary>
+        public bool ExportUserContext { get; set; } = false;
+
+        /// <summary>
+        /// Gets the default export options (no values, essential attributes only).
+        /// This produces minimal file size suitable for schema definitions.
+        /// MethodDeclarationId is always exported. User context attributes are not exported.
+        /// </summary>
+        public static NodeSetExportOptions Default => new NodeSetExportOptions
+        {
+            ExportValues = false,
+            ExportParentNodeId = false,
+            ExportUserContext = false
+        };
+
+        /// <summary>
+        /// Gets complete export options with all metadata and values.
+        /// Use this for full data export including runtime values and user context attributes.
+        /// MethodDeclarationId is always exported. UserAccessLevel is only exported when different from AccessLevel.
+        /// </summary>
+        public static NodeSetExportOptions Complete => new NodeSetExportOptions
+        {
+            ExportValues = true,
+            ExportParentNodeId = true,
+            ExportUserContext = true
+        };
+    }
+
+    /// <summary>
     /// Defines numerous re-useable utility functions for clients.
     /// </summary>
     public static partial class CoreClientUtils
@@ -49,6 +98,22 @@ namespace Opc.Ua.Client
             ISystemContext context,
             IList<INode> nodes,
             Stream outputStream)
+        {
+            ExportNodesToNodeSet2(context, nodes, outputStream, NodeSetExportOptions.Default);
+        }
+
+        /// <summary>
+        /// Exports a list of nodes from a client session to a NodeSet2 XML file.
+        /// </summary>
+        /// <param name="context">The system context containing namespace information.</param>
+        /// <param name="nodes">The list of nodes to export.</param>
+        /// <param name="outputStream">The output stream to write the NodeSet2 XML to.</param>
+        /// <param name="options">Options controlling the export behavior.</param>
+        public static void ExportNodesToNodeSet2(
+            ISystemContext context,
+            IList<INode> nodes,
+            Stream outputStream,
+            NodeSetExportOptions options)
         {
             if (context == null)
             {
@@ -65,11 +130,16 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(outputStream));
             }
 
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+
             // Convert INode instances to NodeState instances
             var nodeStates = new NodeStateCollection();
             foreach (INode node in nodes)
             {
-                NodeState? nodeState = CreateNodeState(context, node);
+                NodeState? nodeState = CreateNodeState(context, node, options);
                 if (nodeState != null)
                 {
                     nodeStates.Add(nodeState);
@@ -85,8 +155,9 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="context">The system context.</param>
         /// <param name="node">The node to convert.</param>
+        /// <param name="options">Export options.</param>
         /// <returns>A NodeState representing the node.</returns>
-        private static NodeState? CreateNodeState(ISystemContext context, INode node)
+        private static NodeState? CreateNodeState(ISystemContext context, INode node, NodeSetExportOptions options)
         {
             if (node == null)
             {
@@ -112,7 +183,12 @@ namespace Opc.Ua.Client
                     {
                         state.Description = localNode.Description;
                         state.WriteMask = (AttributeWriteMask)localNode.WriteMask;
-                        state.UserWriteMask = (AttributeWriteMask)localNode.UserWriteMask;
+                        
+                        // Export UserWriteMask only if ExportUserContext is enabled
+                        if (options.ExportUserContext)
+                        {
+                            state.UserWriteMask = (AttributeWriteMask)localNode.UserWriteMask;
+                        }
                     }
 
                     nodeState = state;
@@ -130,11 +206,27 @@ namespace Opc.Ua.Client
                         DataType = variableNode?.DataType ?? DataTypeIds.BaseDataType,
                         ValueRank = variableNode?.ValueRank ?? ValueRanks.Any,
                         AccessLevel = variableNode?.AccessLevel ?? 0,
-                        UserAccessLevel = variableNode?.UserAccessLevel ?? 0,
                         MinimumSamplingInterval = variableNode?.MinimumSamplingInterval ?? 0,
-                        Historizing = variableNode?.Historizing ?? false,
-                        Value = variableNode?.Value
+                        Historizing = variableNode?.Historizing ?? false
                     };
+
+                    // Export Value only if requested
+                    if (options.ExportValues && variableNode?.Value != null)
+                    {
+                        state.Value = variableNode.Value;
+                    }
+
+                    // Export UserAccessLevel only if ExportUserContext is enabled AND it differs from AccessLevel
+                    if (options.ExportUserContext && variableNode != null)
+                    {
+                        byte userAccessLevel = variableNode.UserAccessLevel;
+                        byte accessLevel = variableNode.AccessLevel;
+                        
+                        if (userAccessLevel != accessLevel)
+                        {
+                            state.UserAccessLevel = userAccessLevel;
+                        }
+                    }
 
                     if (variableNode?.ArrayDimensions != null && variableNode.ArrayDimensions.Count > 0)
                     {
@@ -145,7 +237,12 @@ namespace Opc.Ua.Client
                     {
                         state.Description = localNode.Description;
                         state.WriteMask = (AttributeWriteMask)localNode.WriteMask;
-                        state.UserWriteMask = (AttributeWriteMask)localNode.UserWriteMask;
+                        
+                        // Export UserWriteMask only if ExportUserContext is enabled
+                        if (options.ExportUserContext)
+                        {
+                            state.UserWriteMask = (AttributeWriteMask)localNode.UserWriteMask;
+                        }
                     }
 
                     nodeState = state;
@@ -160,15 +257,31 @@ namespace Opc.Ua.Client
                         NodeId = ExpandedNodeId.ToNodeId(node.NodeId, context.NamespaceUris),
                         BrowseName = node.BrowseName,
                         DisplayName = node.DisplayName,
-                        Executable = methodNode?.Executable ?? false,
-                        UserExecutable = methodNode?.UserExecutable ?? false
+                        Executable = methodNode?.Executable ?? false
                     };
+
+                    // Export UserExecutable only if ExportUserContext is enabled
+                    if (options.ExportUserContext && methodNode != null)
+                    {
+                        state.UserExecutable = methodNode.UserExecutable;
+                    }
+
+                    // Always export MethodDeclarationId (important type system metadata)
+                    if (node.TypeDefinitionId != null && !NodeId.IsNull(node.TypeDefinitionId))
+                    {
+                        state.MethodDeclarationId = ExpandedNodeId.ToNodeId(node.TypeDefinitionId, context.NamespaceUris);
+                    }
 
                     if (node is ILocalNode localNode)
                     {
                         state.Description = localNode.Description;
                         state.WriteMask = (AttributeWriteMask)localNode.WriteMask;
-                        state.UserWriteMask = (AttributeWriteMask)localNode.UserWriteMask;
+                        
+                        // Export UserWriteMask only if ExportUserContext is enabled
+                        if (options.ExportUserContext)
+                        {
+                            state.UserWriteMask = (AttributeWriteMask)localNode.UserWriteMask;
+                        }
                     }
 
                     nodeState = state;
@@ -190,7 +303,12 @@ namespace Opc.Ua.Client
                     {
                         state.Description = localNode.Description;
                         state.WriteMask = (AttributeWriteMask)localNode.WriteMask;
-                        state.UserWriteMask = (AttributeWriteMask)localNode.UserWriteMask;
+                        
+                        // Export UserWriteMask only if ExportUserContext is enabled
+                        if (options.ExportUserContext)
+                        {
+                            state.UserWriteMask = (AttributeWriteMask)localNode.UserWriteMask;
+                        }
                     }
 
                     nodeState = state;
@@ -207,9 +325,14 @@ namespace Opc.Ua.Client
                         DisplayName = node.DisplayName,
                         IsAbstract = variableTypeNode?.IsAbstract ?? false,
                         DataType = variableTypeNode?.DataType ?? DataTypeIds.BaseDataType,
-                        ValueRank = variableTypeNode?.ValueRank ?? ValueRanks.Any,
-                        Value = variableTypeNode?.Value
+                        ValueRank = variableTypeNode?.ValueRank ?? ValueRanks.Any
                     };
+
+                    // Export Value only if requested
+                    if (options.ExportValues && variableTypeNode?.Value != null)
+                    {
+                        state.Value = variableTypeNode.Value;
+                    }
 
                     if (variableTypeNode?.ArrayDimensions != null && variableTypeNode.ArrayDimensions.Count > 0)
                     {
@@ -220,7 +343,12 @@ namespace Opc.Ua.Client
                     {
                         state.Description = localNode.Description;
                         state.WriteMask = (AttributeWriteMask)localNode.WriteMask;
-                        state.UserWriteMask = (AttributeWriteMask)localNode.UserWriteMask;
+                        
+                        // Export UserWriteMask only if ExportUserContext is enabled
+                        if (options.ExportUserContext)
+                        {
+                            state.UserWriteMask = (AttributeWriteMask)localNode.UserWriteMask;
+                        }
                     }
 
                     nodeState = state;
@@ -242,7 +370,12 @@ namespace Opc.Ua.Client
                     {
                         state.Description = localNode.Description;
                         state.WriteMask = (AttributeWriteMask)localNode.WriteMask;
-                        state.UserWriteMask = (AttributeWriteMask)localNode.UserWriteMask;
+                        
+                        // Export UserWriteMask only if ExportUserContext is enabled
+                        if (options.ExportUserContext)
+                        {
+                            state.UserWriteMask = (AttributeWriteMask)localNode.UserWriteMask;
+                        }
                     }
 
                     nodeState = state;
@@ -266,7 +399,12 @@ namespace Opc.Ua.Client
                     {
                         state.Description = localNode.Description;
                         state.WriteMask = (AttributeWriteMask)localNode.WriteMask;
-                        state.UserWriteMask = (AttributeWriteMask)localNode.UserWriteMask;
+                        
+                        // Export UserWriteMask only if ExportUserContext is enabled
+                        if (options.ExportUserContext)
+                        {
+                            state.UserWriteMask = (AttributeWriteMask)localNode.UserWriteMask;
+                        }
                     }
 
                     nodeState = state;
@@ -289,7 +427,12 @@ namespace Opc.Ua.Client
                     {
                         state.Description = localNode.Description;
                         state.WriteMask = (AttributeWriteMask)localNode.WriteMask;
-                        state.UserWriteMask = (AttributeWriteMask)localNode.UserWriteMask;
+                        
+                        // Export UserWriteMask only if ExportUserContext is enabled
+                        if (options.ExportUserContext)
+                        {
+                            state.UserWriteMask = (AttributeWriteMask)localNode.UserWriteMask;
+                        }
                     }
 
                     nodeState = state;

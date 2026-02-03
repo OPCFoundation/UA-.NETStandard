@@ -2346,10 +2346,11 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public async ValueTask<bool> RegisterWithDiscoveryServerAsync(CancellationToken ct = default)
         {
-            var configuration = new ApplicationConfiguration(Configuration);
-
-            // use a dedicated certificate validator with the registration, but derive behavior from server config
-            configuration.CertificateValidator = new CertificateValidator(MessageContext.Telemetry);
+            var configuration = new ApplicationConfiguration(Configuration)
+            {
+                // use a dedicated certificate validator with the registration, but derive behavior from server config
+                CertificateValidator = new CertificateValidator(MessageContext.Telemetry)
+            };
             await configuration
                 .CertificateValidator.UpdateAsync(
                     configuration.SecurityConfiguration,
@@ -2644,8 +2645,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Verifies that the request header is valid.
         /// </summary>
-        /// <param name="requestHeader">The request header.</param>
         /// <param name="secureChannelContext">The secure channel context.</param>
+        /// <param name="requestHeader">The request header.</param>
         /// <param name="requestType">Type of the request.</param>
         /// <exception cref="ServiceResultException"></exception>
         protected virtual OperationContext ValidateRequest(
@@ -3063,7 +3064,7 @@ namespace Opc.Ua.Server
 
                 // create the master node manager.
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateMasterNodeManager.");
-                IMasterNodeManager masterNodeManager = CreateMasterNodeManager(
+                MasterNodeManager masterNodeManager = CreateMasterNodeManager(
                     m_serverInternal,
                     configuration);
 
@@ -3645,7 +3646,7 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="configuration">The configuration.</param>
         /// <returns>Returns the master node manager for the server, the return type is <seealso cref="MasterNodeManager"/>.</returns>
-        protected virtual IMasterNodeManager CreateMasterNodeManager(
+        protected virtual MasterNodeManager CreateMasterNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration)
         {

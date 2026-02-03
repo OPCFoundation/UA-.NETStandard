@@ -47,17 +47,17 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns the configuration node manager.
         /// </summary>
-        IConfigurationNodeManager ConfigurationNodeManager { get; }
+        ConfigurationNodeManager ConfigurationNodeManager { get; }
 
         /// <summary>
         /// Returns the core node manager.
         /// </summary>
-        ICoreNodeManager CoreNodeManager { get; }
+        CoreNodeManager CoreNodeManager { get; }
 
         /// <summary>
         /// Returns the diagnostics node manager.
         /// </summary>
-        IDiagnosticsNodeManager DiagnosticsNodeManager { get; }
+        DiagnosticsNodeManager DiagnosticsNodeManager { get; }
 
         /// <summary>
         /// The node managers being managed.
@@ -221,7 +221,6 @@ namespace Opc.Ua.Server
         /// </para>
         /// </remarks>
         /// <exception cref="ArgumentNullException">Throw if the namespaceUri or the nodeManager are null.</exception>
-
         void RegisterNamespaceManager(string namespaceUri, IAsyncNodeManager nodeManager);
 
         /// <summary>
@@ -248,7 +247,6 @@ namespace Opc.Ua.Server
         /// Registers a set of node ids.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="nodesToRegister"/> is <c>null</c>.</exception>
-
         void RegisterNodes(OperationContext context, NodeIdCollection nodesToRegister, out NodeIdCollection registeredNodeIds);
 
         /// <summary>

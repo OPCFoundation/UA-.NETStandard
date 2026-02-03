@@ -394,7 +394,7 @@ namespace Opc.Ua.Server
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1725:Parameter names should match base declaration", Justification = "<Pending>")]
         public void HasApplicationSecureAdminAccess(
             ISystemContext context,
-            CertificateStoreIdentifier _)
+            CertificateStoreIdentifier trustedStore)
         {
             if (context is SessionSystemContext { OperationContext: OperationContext operationContext })
             {

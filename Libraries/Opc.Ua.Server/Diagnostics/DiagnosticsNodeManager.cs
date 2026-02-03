@@ -235,7 +235,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Called when a client sets a subscription as durable.
         /// </summary>
-        protected ServiceResult OnSetSubscriptionDurable(
+        public ServiceResult OnSetSubscriptionDurable(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -253,7 +253,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Called when a client gets the monitored items of a subscription.
         /// </summary>
-        protected ServiceResult OnGetMonitoredItems(
+        public ServiceResult OnGetMonitoredItems(
             ISystemContext context,
             MethodState method,
             IList<object> inputArguments,
@@ -299,7 +299,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Called when a client initiates resending of all data monitored items in a Subscription.
         /// </summary>
-        protected ServiceResult OnResendData(
+        public ServiceResult OnResendData(
             ISystemContext context,
             MethodState method,
             IList<object> inputArguments,
@@ -340,7 +340,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Called when a client locks the server.
         /// </summary>
-        protected ServiceResult OnLockServer(
+        public ServiceResult OnLockServer(
             ISystemContext context,
             MethodState method,
             IList<object> inputArguments,
@@ -361,7 +361,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Called when a client locks the server.
         /// </summary>
-        protected ServiceResult OnUnlockServer(
+        public ServiceResult OnUnlockServer(
             ISystemContext context,
             MethodState method,
             IList<object> inputArguments,
