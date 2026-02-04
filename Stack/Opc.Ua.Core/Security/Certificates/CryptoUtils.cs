@@ -487,11 +487,12 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="data">buffer with unencrypted data starting at 0; plaintext data starting at offset; no padding.</param>
         /// <param name="blockSize"></param>
+        /// <param name="trailingBytes">Additional bytes that will be appended after padding (e.g., HMAC) and must be considered for block alignment.</param>
         /// <returns>Output: buffer with unencrypted data starting at 0; plaintext data starting at offset; padding added.</returns>
-        private static ArraySegment<byte> AddPadding(ArraySegment<byte> data, int blockSize)
+        private static ArraySegment<byte> AddPadding(ArraySegment<byte> data, int blockSize, int trailingBytes = 0)
         {
             int paddingByteSize = blockSize > byte.MaxValue ? 2 : 1;
-            int paddingSize = blockSize - ((data.Count + paddingByteSize) % blockSize);
+            int paddingSize = blockSize - ((data.Count + paddingByteSize + trailingBytes) % blockSize);
             paddingSize %= blockSize;
 
             int endOfData = data.Offset + data.Count;
@@ -598,9 +599,21 @@ namespace Opc.Ua
 #endif
             }
 
+            int hashLength = 0;
+
+            if (signingKey != null)
+            {
+                if (hmac == null)
+                {
+                    throw new CryptographicException("Missing HMAC for symmetric signing.");
+                }
+
+                hashLength = hmac.HashSize / 8;
+            }
+
             if (!signOnly)
             {
-                data = AddPadding(data, iv.Length);
+                data = AddPadding(data, iv.Length, hashLength);
             }
 
             if (signingKey != null)

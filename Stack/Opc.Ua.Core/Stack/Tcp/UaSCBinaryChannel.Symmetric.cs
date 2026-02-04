@@ -233,12 +233,14 @@ namespace Opc.Ua.Bindings
                 token.ServerSigningKey = signingKey;
                 token.ServerEncryptingKey = encryptingKey;
                 token.ServerInitializationVector = iv;
+                token.ServerHmac = token.SecurityPolicy.CreateSignatureHmac(signingKey);
             }
             else
             {
                 token.ClientSigningKey = signingKey;
                 token.ClientEncryptingKey = encryptingKey;
                 token.ClientInitializationVector = iv;
+                token.ClientHmac = token.SecurityPolicy.CreateSignatureHmac(signingKey);
             }
         }
 
@@ -325,14 +327,15 @@ namespace Opc.Ua.Bindings
                 int maxCipherBlocks = maxCipherTextSize / EncryptionBlockSize;
                 int maxPlainTextSize = maxCipherBlocks * EncryptionBlockSize;
 
+                int signatureSize = SymmetricSignatureSize;
                 int paddingCountSize =
                     (SecurityMode != MessageSecurityMode.SignAndEncrypt || token.SecurityPolicy.NoSymmetricEncryptionPadding)
                     ? 0
-                    : 1;
+                    : (EncryptionBlockSize > byte.MaxValue ? 2 : 1);
 
                 int maxPayloadSize =
                     maxPlainTextSize -
-                    SymmetricSignatureSize -
+                    signatureSize -
                     TcpMessageLimits.SequenceHeaderSize -
                     paddingCountSize;
 
@@ -447,6 +450,7 @@ namespace Opc.Ua.Bindings
                     count += TcpMessageLimits.SequenceHeaderSize;
                     count += chunkToProcess.Count;
                     count += paddingCountSize;
+                    count += signatureSize;
 
                     int padding = 0;
 
@@ -454,14 +458,18 @@ namespace Opc.Ua.Bindings
                     {
                         padding = EncryptionBlockSize - (count % EncryptionBlockSize);
 
-                        if (padding < EncryptionBlockSize)
+                        if (padding == EncryptionBlockSize)
+                        {
+                            padding = 0;
+                        }
+
+                        if (padding > 0)
                         {
                             count += padding;
                         }
                     }
 
                     count += TcpMessageLimits.SymmetricHeaderSize;
-                    count += SymmetricSignatureSize;
 
                     encoder.WriteUInt32(null, (uint)count);
                     encoder.WriteUInt32(null, ChannelId);
