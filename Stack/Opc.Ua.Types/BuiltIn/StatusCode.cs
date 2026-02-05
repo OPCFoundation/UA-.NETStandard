@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.Serialization;
 using System.Text;
@@ -211,7 +212,19 @@ namespace Opc.Ua
         /// The symbolic name for the code bits of the status code.
         /// This value is not serialized and lost on deserialization.
         /// </summary>
-        public string SymbolicId { get; }
+        public string SymbolicId
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(field))
+                {
+#pragma warning disable CS0618 // Type or member is obsolete
+                    field = LookupSymbolicIdHook?.Invoke(CodeBits);
+#pragma warning restore CS0618 // Type or member is obsolete
+                }
+                return field;
+            }
+        }
 
         /// <summary>
         /// The 16 code bits of the status code.
@@ -486,7 +499,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public readonly string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
             {
@@ -525,7 +538,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override readonly string ToString()
+        public override string ToString()
         {
             var buffer = new StringBuilder();
 
@@ -683,6 +696,38 @@ namespace Opc.Ua
             return (code.Code & 0x80000000) == 0;
         }
 
+        /// <summary>
+        /// Lookup symbolic identifier hook
+        /// </summary>
+        [Obsolete("Temporary work around - do not use. Will be removed in next version")]
+        public static Func<uint, string> LookupSymbolicIdHook { get; set; }
+
+        /// <summary>
+        /// Looks up the symbolic name for a status code.
+        /// </summary>
+        /// <param name="code">The numeric error-code to convert to a textual description</param>
+        [Obsolete("Use SymbolicId property instead. Will be removed in next version")]
+
+        public static string LookupSymbolicId(uint code)
+        {
+            return LookupSymbolicIdHook?.Invoke(code);
+        }
+
+        /// <summary>
+        /// Looks up the Utf8 encoded symbolic name for a status code.
+        /// </summary>
+        /// <param name="code">The numeric error-code to convert to a textual description</param>
+        [Obsolete("Use SymbolicId property instead. Will be removed in next version")]
+        public static byte[] LookupUtf8SymbolicId(uint code)
+        {
+            string symbolicId = LookupSymbolicIdHook?.Invoke(code);
+            if (symbolicId != null)
+            {
+                return Encoding.UTF8.GetBytes(symbolicId);
+            }
+            return null;
+        }
+
         private const uint kAggregateBits = 0x001F;
         private const uint kOverflowBit = 0x0080;
         private const uint kLimitBits = 0x0300;
@@ -832,27 +877,6 @@ namespace Opc.Ua
         public new object MemberwiseClone()
         {
             return new StatusCodeCollection(this);
-        }
-
-        /// <summary>
-        /// Looks up the symbolic name for a status code.
-        /// </summary>
-        /// <param name="code">The numeric error-code to convert to a textual description</param>
-        [Obsolete("Unsupported. Use ToSymbolicId() extension method instead.")]
-
-        public static string LookupSymbolicId(uint code)
-        {
-            return null;
-        }
-
-        /// <summary>
-        /// Looks up the Utf8 encoded symbolic name for a status code.
-        /// </summary>
-        /// <param name="code">The numeric error-code to convert to a textual description</param>
-        [Obsolete("Unsupported. Use ToSymbolicId() extension method instead.")]
-        public static byte[] LookupUtf8SymbolicId(uint code)
-        {
-            return null;
         }
     }
 }

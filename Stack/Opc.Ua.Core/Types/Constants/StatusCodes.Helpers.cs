@@ -194,5 +194,12 @@ namespace Opc.Ua
                 return new ReadOnlyDictionary<uint, byte[]>(keyValuePairs);
 #endif
             });
+
+        static StatusCodes()
+        {
+#pragma warning disable CS0618 // Type or member is obsolete
+            StatusCode.LookupSymbolicIdHook = LookupSymbolicId;
+#pragma warning restore CS0618 // Type or member is obsolete
+        }
     }
 }
