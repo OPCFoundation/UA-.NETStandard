@@ -481,6 +481,11 @@ namespace Opc.Ua
                     }
                 }
             }
+            else
+            {
+                // No asymmetric encryption is defined for this policy – return the plaintext.
+                encryptedData.Data = plainText.ToArray();
+            }
 
             return encryptedData;
         }
