@@ -768,7 +768,7 @@ namespace Opc.Ua.Client.ComplexTypes
             if (structTypesToDoList.Count > 0)
             {
                 m_logger.LogWarning(
-                    "{TodoCount} structure types ccould not be loaded from the server.",
+                    "{TodoCount} structure types could not be loaded from the server.",
                     structTypesToDoList.Count);
                 if (structTypesToDoList.Count < 10)
                 {
