@@ -96,6 +96,11 @@ namespace Opc.Ua
                     ServiceHosts.Clear();
                 }
 
+                if (UserTokenPolicys != null)
+                {
+                    UserTokenPolicys.Clear();
+                }
+
                 Utils.SilentDispose(m_requestQueue);
             }
         }
@@ -753,6 +758,11 @@ namespace Opc.Ua
         protected List<ITransportListener> TransportListeners { get; } = [];
 
         /// <summary>
+        /// List of all server wide supported token policys
+        /// </summary>
+        protected IList<UserTokenPolicy> UserTokenPolicys { get; } = [];
+
+        /// <summary>
         /// Returns the service contract to use.
         /// </summary>
         protected virtual Type GetServiceContract()
@@ -902,10 +912,17 @@ namespace Opc.Ua
                     }
                 }
 
-                // ensure each policy has a unique id within the context of the Server
-                clone.PolicyId = Utils.Format("{0}", ++m_userTokenPolicyId);
+                var existingPolicy = UserTokenPolicys.FirstOrDefault(o => o.Equals(policy));
 
-                policies.Add(clone);
+                // Ensure each policy has a unique ID within the context of the Server
+                if (existingPolicy == null)
+                {
+                    clone.PolicyId = Utils.Format("{0}", UserTokenPolicys.Count + 1);
+                    UserTokenPolicys.Add(clone);
+                    existingPolicy = clone;
+                }
+
+                policies.Add(existingPolicy);
             }
 
             return policies;

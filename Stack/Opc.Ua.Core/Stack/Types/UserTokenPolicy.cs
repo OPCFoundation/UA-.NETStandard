@@ -34,7 +34,7 @@ namespace Opc.Ua
     /// <summary>
     /// Defines constants for key user token policies.
     /// </summary>
-    public partial class UserTokenPolicy : IFormattable
+    public partial class UserTokenPolicy : IFormattable, IEquatable<UserTokenPolicy>
     {
         /// <summary>
         /// Creates an empty token policy with the specified token type.
@@ -65,6 +65,28 @@ namespace Opc.Ua
             }
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(UserTokenPolicy other)
+        {
+            
+            if (ReferenceEquals(null, other))
+            {
+                return false;
+            }
+
+            if (ReferenceEquals(this, other))
+            {
+                return true;
+            }
+
+            return
+                TokenType == other.TokenType &&
+                string.Equals(SecurityPolicyUri, other.SecurityPolicyUri, StringComparison.Ordinal) &&
+                string.Equals(IssuedTokenType, other.IssuedTokenType, StringComparison.Ordinal) &&
+                string.Equals(IssuerEndpointUrl, other.IssuerEndpointUrl, StringComparison.Ordinal);
+            
         }
     }
 }
