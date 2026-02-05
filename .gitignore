@@ -268,3 +268,4 @@ testEnvironments.json
 /Fuzzing/**/findings/
 /Fuzzing/**/Testcases/
 !/Fuzzing/**/Testcases/*.bin
+**/Properties/launchSettings.json

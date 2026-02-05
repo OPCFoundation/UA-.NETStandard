@@ -153,9 +153,9 @@ namespace Opc.Ua.Client.ComplexTypes
 
             if (references.Count == 0)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadNodeIdInvalid,
-                    "Type system does not contain a valid data dictionary.");
+                // Allow empty data type systems on newer servers that do not support dictionaries.
+                m_logger.LogWarning("Type system on server does not contain any data types.");
+                return DataTypeSystem;
             }
 
             // batch read all encodings and namespaces
