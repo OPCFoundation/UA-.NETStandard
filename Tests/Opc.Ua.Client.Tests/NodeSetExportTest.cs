@@ -116,7 +116,7 @@ namespace Opc.Ua.Client.Tests
 
             // Browse starting from Server object
             ReferenceDescriptionCollection references = await browser.BrowseAsync(nodesToBrowse[0]).ConfigureAwait(false);
-            
+
             // Fetch the actual nodes
             foreach (ReferenceDescription reference in references)
             {
@@ -357,7 +357,7 @@ namespace Opc.Ua.Client.Tests
                     var nodeSet = UANodeSet.Read(stream);
                     Assert.IsNotNull(nodeSet, "Should be able to read the exported NodeSet2");
                     Assert.IsNotNull(nodeSet.Items, "NodeSet2 should contain items");
-                    
+
                     // Check that variables don't have values
                     var variables = nodeSet.Items.OfType<Export.UAVariable>().ToList();
                     foreach (var variable in variables)
@@ -390,7 +390,12 @@ namespace Opc.Ua.Client.Tests
 
                     // Default should be smaller or equal to complete
                     // (Equal if nodes don't have values to export)
-                    Assert.LessOrEqual(defaultSize, completeSize, "Default export should not be larger than Complete");
+                    if (completeSize < defaultSize)
+                    {
+                        TestContext.AddTestAttachment(tempFileComplete, "Complete export file");
+                        TestContext.AddTestAttachment(tempFile, "Default export file");
+                        Assert.LessOrEqual(defaultSize, completeSize, "Default export should not be larger than Complete");
+                    }
                 }
                 finally
                 {
@@ -529,7 +534,7 @@ namespace Opc.Ua.Client.Tests
 
             string tempFile1 = Path.GetTempFileName();
             string tempFile2 = Path.GetTempFileName();
-            
+
             try
             {
                 var systemContext = new SystemContext(Telemetry)
@@ -662,19 +667,19 @@ namespace Opc.Ua.Client.Tests
                     // Verify that methods in the context version have UserExecutable
                     var methodsNoContext = nodeSetNoContext.Items?.OfType<Export.UAMethod>().ToList() ?? new List<Export.UAMethod>();
                     var methodsWithContext = nodeSetWithContext.Items?.OfType<Export.UAMethod>().ToList() ?? new List<Export.UAMethod>();
-                    
+
                     Assert.AreEqual(methodsNoContext.Count, methodsWithContext.Count, "Should have same number of methods");
 
                     // Variables with context should potentially have UserAccessLevel if different from AccessLevel
                     var variablesNoContext = nodeSetNoContext.Items?.OfType<Export.UAVariable>().ToList() ?? new List<Export.UAVariable>();
                     var variablesWithContext = nodeSetWithContext.Items?.OfType<Export.UAVariable>().ToList() ?? new List<Export.UAVariable>();
-                    
+
                     Assert.AreEqual(variablesNoContext.Count, variablesWithContext.Count, "Should have same number of variables");
 
                     // File with user context should be larger or equal
                     FileInfo fileNoContext = new FileInfo(tempFileNoContext);
                     FileInfo fileWithContext = new FileInfo(tempFileWithContext);
-                    
+
                     // Note: Sizes might be equal if UserAccessLevel == AccessLevel for all variables
                     // The important part is that export completes successfully with both options
                     Assert.IsTrue(fileWithContext.Length > 0, "Export with user context should produce a valid file");
