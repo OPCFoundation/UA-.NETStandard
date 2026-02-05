@@ -190,7 +190,7 @@ namespace Opc.Ua
 
                     if (result != 0)
                     {
-                        throw new ServiceResultException(StatusCodes.BadIdentityTokenRejected);
+                        throw new ServiceResultException(StatusCodes.BadIdentityTokenInvalid);
                     }
                 }
 
