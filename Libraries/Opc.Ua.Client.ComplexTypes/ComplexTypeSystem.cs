@@ -1356,6 +1356,32 @@ namespace Opc.Ua.Client.ComplexTypes
             return dataTypeNode?.IsAbstract == true;
         }
 
+        private async Task<bool> IsDerivedFromStructureAsync(
+            NodeId dataType,
+            CancellationToken ct = default)
+        {
+            const int maxSuperTypes = 100; // Limit to prevent infinite loops in case of circular references
+            int iterations = 0;
+            NodeId currentType = dataType;
+
+            while (iterations++ < maxSuperTypes)
+            {
+                NodeId superType = await m_complexTypeResolver.FindSuperTypeAsync(currentType, ct)
+                    .ConfigureAwait(false);
+                if (superType?.IsNullNodeId != false)
+                {
+                    return false;
+                }
+                if (superType == DataTypeIds.Structure)
+                {
+                    return true;
+                }
+                currentType = superType;
+            }
+
+            return false;
+        }
+
         private static bool IsRecursiveDataType(NodeId structureDataType, NodeId fieldDataType)
         {
             return fieldDataType.Equals(structureDataType);
@@ -1381,6 +1407,21 @@ namespace Opc.Ua.Client.ComplexTypes
                 field.DataType.NamespaceIndex == 0
                     ? TypeInfo.GetSystemType(field.DataType, m_complexTypeResolver.FactoryBuilder)
                     : GetSystemType(field.DataType);
+
+            // If fieldType is not null and allowSubTypes is true, check if it's a structure-derived type
+            // In that case, we should use ExtensionObject to allow subtypes
+            if (fieldType != null && allowSubTypes && field.DataType != DataTypeIds.Structure)
+            {
+                // Check if the field datatype is derived from Structure by traversing the hierarchy
+                bool isDerivedFromStructure = await IsDerivedFromStructureAsync(field.DataType, ct)
+                    .ConfigureAwait(false);
+                if (isDerivedFromStructure)
+                {
+                    // This is a structure-derived type in a structure that allows subtypes
+                    // Use ExtensionObject instead of the generated type
+                    fieldType = typeof(ExtensionObject);
+                }
+            }
 
             if (fieldType == null)
             {
@@ -1446,20 +1487,28 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                     else if (superType == DataTypeIds.Structure)
                     {
-                        // throw on invalid combinations of allowSubTypes, isOptional and abstract types
-                        // in such case the encoding as ExtensionObject is undetermined and not specified
-                        if ((dataType != DataTypeIds.Structure) &&
-                            ((allowSubTypes && !isOptional) || !allowSubTypes) &&
-                            await IsAbstractTypeAsync(dataType, ct).ConfigureAwait(false))
-                        {
-                            throw new DataTypeNotSupportedException(
-                                "Invalid definition of a abstract subtype of a structure.");
-                        }
-
-                        if (allowSubTypes && isOptional)
+                        // If the field datatype is exactly Structure (i=22), emit ExtensionObject type
+                        // which allows any subtype (except abstract)
+                        if (dataType == DataTypeIds.Structure)
                         {
                             return superType;
                         }
+
+                        // For concrete datatypes derived from Structure (e.g., OptionSet):
+                        // - If structure allows subtyped values, emit ExtensionObject
+                        // - Otherwise, return null to use the generated IEncodeable type
+                        if (allowSubTypes)
+                        {
+                            return superType;
+                        }
+
+                        // Validate abstract types are not used in incompatible structures
+                        if (await IsAbstractTypeAsync(dataType, ct).ConfigureAwait(false))
+                        {
+                            throw new DataTypeNotSupportedException(
+                                "Invalid definition of an abstract subtype of a structure.");
+                        }
+
                         return null;
                     }
                     // end search if a valid BuiltInType is found. Treat type as opaque.
