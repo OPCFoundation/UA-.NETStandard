@@ -747,7 +747,37 @@ namespace Opc.Ua.Client.ComplexTypes
             } while (repeatDataTypeLoad);
 
             // all types loaded
-            return enumTypesToDoList.Count == 0 && structTypesToDoList.Count == 0;
+            if (enumTypesToDoList.Count == 0 && structTypesToDoList.Count == 0)
+            {
+                return true;
+            }
+
+            // Provide some diagnostics so users understand why types could not be serialized.
+            if (enumTypesToDoList.Count > 0)
+            {
+                m_logger.LogWarning(
+                    "{TodoCount} enum types could not be loaded from the server.",
+                    enumTypesToDoList.Count);
+                if (enumTypesToDoList.Count < 10)
+                {
+                    m_logger.LogInformation(
+                        "Missing enum types: {MissingEnumTypes}",
+                        string.Join(", ", enumTypesToDoList.Select(e => e.BrowseName)));
+                }
+            }
+            if (structTypesToDoList.Count > 0)
+            {
+                m_logger.LogWarning(
+                    "{TodoCount} structure types could not be loaded from the server.",
+                    structTypesToDoList.Count);
+                if (structTypesToDoList.Count < 10)
+                {
+                    m_logger.LogInformation(
+                        "Missing structure types: {MissingStructureTypes}",
+                        string.Join(", ", structTypesToDoList.Select(e => e.BrowseName)));
+                }
+            }
+            return false;
         }
 
         /// <summary>
