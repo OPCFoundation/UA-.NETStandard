@@ -262,6 +262,22 @@ namespace Opc.Ua
 
             int endOfSecret = encoder.Position;
 
+            // reserve space for the outer padding that SymmetricEncryptAndSign will add (CBC only).
+            int outerPaddingSize = 0;
+            if (SecurityPolicy.SymmetricEncryptionAlgorithm is SymmetricEncryptionAlgorithm.Aes128Cbc or SymmetricEncryptionAlgorithm.Aes256Cbc)
+            {
+                int blockSize = SecurityPolicy.InitializationVectorLength;
+                int paddingByteSize = blockSize > byte.MaxValue ? 2 : 1;
+                int paddingSize = blockSize - ((endOfSecret - startOfSecret + paddingByteSize) % blockSize);
+                paddingSize %= blockSize;
+                outerPaddingSize = paddingSize + paddingByteSize;
+
+                for (int ii = 0; ii < outerPaddingSize; ii++)
+                {
+                    encoder.WriteByte(null, 0xCD);
+                }
+            }
+
             // save space for tag.
             for (int ii = 0; ii < tagLength; ii++)
             {
@@ -300,7 +316,7 @@ namespace Opc.Ua
                 signature,
                 0,
                 message,
-                endOfSecret + tagLength,
+                endOfSecret + outerPaddingSize + tagLength,
                 signatureLength);
 
             return message;
