@@ -68,6 +68,12 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public override bool Equals(object obj)
+        {
+            return Equals(obj as UserTokenPolicy);
+        }
+
+        /// <inheritdoc/>
         public bool Equals(UserTokenPolicy other)
         {
             
