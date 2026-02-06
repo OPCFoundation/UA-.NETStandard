@@ -1360,11 +1360,11 @@ namespace Opc.Ua.Client.ComplexTypes
             NodeId dataType,
             CancellationToken ct = default)
         {
-            const int maxIterations = 100;
+            const int maxSuperTypes = 100; // Limit to prevent infinite loops in case of circular references
             int iterations = 0;
             NodeId currentType = dataType;
 
-            while (iterations++ < maxIterations)
+            while (iterations++ < maxSuperTypes)
             {
                 NodeId superType = await m_complexTypeResolver.FindSuperTypeAsync(currentType, ct)
                     .ConfigureAwait(false);
