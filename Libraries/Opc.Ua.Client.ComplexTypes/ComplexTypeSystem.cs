@@ -1356,6 +1356,32 @@ namespace Opc.Ua.Client.ComplexTypes
             return dataTypeNode?.IsAbstract == true;
         }
 
+        private async Task<bool> IsDerivedFromStructureAsync(
+            NodeId dataType,
+            CancellationToken ct = default)
+        {
+            const int maxIterations = 100;
+            int iterations = 0;
+            NodeId currentType = dataType;
+
+            while (iterations++ < maxIterations)
+            {
+                NodeId superType = await m_complexTypeResolver.FindSuperTypeAsync(currentType, ct)
+                    .ConfigureAwait(false);
+                if (superType?.IsNullNodeId != false)
+                {
+                    return false;
+                }
+                if (superType == DataTypeIds.Structure)
+                {
+                    return true;
+                }
+                currentType = superType;
+            }
+
+            return false;
+        }
+
         private static bool IsRecursiveDataType(NodeId structureDataType, NodeId fieldDataType)
         {
             return fieldDataType.Equals(structureDataType);
@@ -1381,6 +1407,21 @@ namespace Opc.Ua.Client.ComplexTypes
                 field.DataType.NamespaceIndex == 0
                     ? TypeInfo.GetSystemType(field.DataType, m_complexTypeResolver.FactoryBuilder)
                     : GetSystemType(field.DataType);
+
+            // If fieldType is not null and allowSubTypes is true, check if it's a structure-derived type
+            // In that case, we should use ExtensionObject to allow subtypes
+            if (fieldType != null && allowSubTypes && field.DataType != DataTypeIds.Structure)
+            {
+                // Check if the field datatype is derived from Structure by traversing the hierarchy
+                bool isDerivedFromStructure = await IsDerivedFromStructureAsync(field.DataType, ct)
+                    .ConfigureAwait(false);
+                if (isDerivedFromStructure)
+                {
+                    // This is a structure-derived type in a structure that allows subtypes
+                    // Use ExtensionObject instead of the generated type
+                    fieldType = typeof(ExtensionObject);
+                }
+            }
 
             if (fieldType == null)
             {
