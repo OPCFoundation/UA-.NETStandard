@@ -661,7 +661,9 @@ namespace Opc.Ua.Client.ComplexTypes
 
             if (schema == null || schema.Length == 0)
             {
-                throw ServiceResultException.Unexpected("Cannot parse empty data dictionary.");
+                // Dictionary with 0 references - skip processing
+                m_logger.LogInformation("Dictionary {DictionaryId} is empty and will be skipped.", dictionaryId);
+                return;
             }
 
             // Interoperability: some server may return a null terminated dictionary string

@@ -1446,20 +1446,28 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                     else if (superType == DataTypeIds.Structure)
                     {
-                        // throw on invalid combinations of allowSubTypes, isOptional and abstract types
-                        // in such case the encoding as ExtensionObject is undetermined and not specified
-                        if ((dataType != DataTypeIds.Structure) &&
-                            ((allowSubTypes && !isOptional) || !allowSubTypes) &&
-                            await IsAbstractTypeAsync(dataType, ct).ConfigureAwait(false))
-                        {
-                            throw new DataTypeNotSupportedException(
-                                "Invalid definition of a abstract subtype of a structure.");
-                        }
-
-                        if (allowSubTypes && isOptional)
+                        // If the field datatype is exactly Structure (i=22), emit ExtensionObject type
+                        // which allows any subtype (except abstract)
+                        if (dataType == DataTypeIds.Structure)
                         {
                             return superType;
                         }
+
+                        // For concrete datatypes derived from Structure (e.g., OptionSet):
+                        // - If structure allows subtyped values, emit ExtensionObject
+                        // - Otherwise, return null to use the generated IEncodeable type
+                        if (allowSubTypes)
+                        {
+                            return superType;
+                        }
+
+                        // Validate abstract types are not used in incompatible structures
+                        if (await IsAbstractTypeAsync(dataType, ct).ConfigureAwait(false))
+                        {
+                            throw new DataTypeNotSupportedException(
+                                "Invalid definition of an abstract subtype of a structure.");
+                        }
+
                         return null;
                     }
                     // end search if a valid BuiltInType is found. Treat type as opaque.
