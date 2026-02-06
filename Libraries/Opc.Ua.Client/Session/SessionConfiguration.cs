@@ -123,10 +123,11 @@ namespace Opc.Ua.Client
         public NodeId AuthenticationToken { get; init; } = NodeId.Null;
 
         /// <summary>
-        /// The last server nonce received.
+        /// The raw bytes of the last server nonce received.
+        /// Persisting bytes avoids object-serialization ambiguity for Nonce internals.
         /// </summary>
         [DataMember(IsRequired = true, Order = 80)]
-        public Nonce? ServerNonce { get; init; }
+        public byte[]? ServerNonce { get; init; }
 
         /// <summary>
         /// The user identity token policy which was used to create the session.
@@ -135,10 +136,10 @@ namespace Opc.Ua.Client
         public string? UserIdentityTokenPolicy { get; init; }
 
         /// <summary>
-        /// The last server ecc ephemeral key received.
+        /// The raw bytes of the last server ECC ephemeral key received.
         /// </summary>
         [DataMember(IsRequired = false, Order = 100)]
-        public Nonce? ServerEccEphemeralKey { get; init; }
+        public byte[]? ServerEccEphemeralKey { get; init; }
 
         /// <summary>
         /// Allows the list of subscriptions to be saved/restored

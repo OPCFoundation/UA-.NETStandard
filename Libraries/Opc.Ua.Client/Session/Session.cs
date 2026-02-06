@@ -893,9 +893,10 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void Snapshot(out SessionConfiguration sessionConfiguration)
         {
-            var serverNonce = Nonce.CreateNonce(
-                SecurityPolicies.GetInfo(m_endpoint.Description?.SecurityPolicyUri),
-                m_serverNonce);
+            byte[]? serverNonce = m_serverNonce != null ? [.. m_serverNonce] : null;
+            byte[]? serverEccEphemeralKey = m_eccServerEphemeralKey?.Data != null
+                ? [.. m_eccServerEphemeralKey.Data]
+                : null;
             sessionConfiguration = new SessionConfiguration
             {
                 SessionName = SessionName,
@@ -905,7 +906,7 @@ namespace Opc.Ua.Client
                 ConfiguredEndpoint = ConfiguredEndpoint,
                 CheckDomain = CheckDomain,
                 ServerNonce = serverNonce,
-                ServerEccEphemeralKey = m_eccServerEphemeralKey,
+                ServerEccEphemeralKey = serverEccEphemeralKey,
                 UserIdentityTokenPolicy = m_userTokenSecurityPolicyUri
             };
         }
@@ -922,9 +923,24 @@ namespace Opc.Ua.Client
                     : null;
             m_identity = sessionConfiguration.Identity ?? new UserIdentity();
             m_checkDomain = sessionConfiguration.CheckDomain;
-            m_serverNonce = sessionConfiguration.ServerNonce?.Data;
+            m_serverNonce = sessionConfiguration.ServerNonce != null
+                ? [.. sessionConfiguration.ServerNonce]
+                : null;
             m_userTokenSecurityPolicyUri = sessionConfiguration.UserIdentityTokenPolicy;
-            m_eccServerEphemeralKey = sessionConfiguration.ServerEccEphemeralKey;
+            if (sessionConfiguration.ServerEccEphemeralKey?.Length > 0)
+            {
+                string ephemeralKeyPolicyUri = !string.IsNullOrEmpty(m_userTokenSecurityPolicyUri)
+                    ? m_userTokenSecurityPolicyUri
+                    : m_endpoint.Description?.SecurityPolicyUri ?? SecurityPolicies.None;
+                SecurityPolicyInfo ephemeralKeyPolicy = SecurityPolicies.GetInfo(ephemeralKeyPolicyUri);
+                m_eccServerEphemeralKey = Nonce.CreateNonce(
+                    ephemeralKeyPolicy,
+                    sessionConfiguration.ServerEccEphemeralKey);
+            }
+            else
+            {
+                m_eccServerEphemeralKey = null;
+            }
 
             lock (m_lock)
             {
@@ -1286,6 +1302,9 @@ namespace Opc.Ua.Client
                     m_previousServerNonce,
                     m_endpoint.Description.SecurityMode);
 
+                // remember the policy actually used to encrypt the user token
+                m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
+
                 SignatureData? userTokenSignature = null;
 
                 if (identityToken is X509IdentityToken)
@@ -1311,7 +1330,7 @@ namespace Opc.Ua.Client
                     identityToken.Encrypt(
                         serverCertificate,
                         serverNonce,
-                        m_userTokenSecurityPolicyUri,
+                        tokenSecurityPolicyUri,
                         MessageContext,
                         m_eccServerEphemeralKey,
                         m_instanceCertificate,
@@ -2365,22 +2384,7 @@ namespace Opc.Ua.Client
 
                 string securityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
                 SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
-
-                // create the client signature.
-                byte[] dataToSign = securityPolicy.GetClientSignatureData(
-                    TransportChannel.ChannelThumbprint,
-                    m_serverNonce,
-                    m_serverCertificate?.RawData,
-                    TransportChannel.ServerChannelCertificate,
-                    TransportChannel.ClientChannelCertificate,
-                    m_clientNonce ?? []);
-
                 EndpointDescription endpoint = m_endpoint.Description;
-
-                SignatureData clientSignature = SecurityPolicies.CreateSignatureData(
-                    endpoint.SecurityPolicyUri,
-                    m_instanceCertificate,
-                    dataToSign);
 
                 // check that the user identity is supported by the endpoint.
                 UserTokenPolicy identityPolicy = endpoint.FindUserTokenPolicy(
@@ -2418,34 +2422,6 @@ namespace Opc.Ua.Client
                 // sign data with user token.
                 UserIdentityToken identityToken = m_identity.GetIdentityToken();
                 identityToken.PolicyId = identityPolicy.PolicyId;
-
-                dataToSign = securityPolicy.GetUserTokenSignatureData(
-                    TransportChannel.ChannelThumbprint,
-                    m_serverNonce,
-                    m_serverCertificate?.RawData,
-                    TransportChannel.ServerChannelCertificate,
-                    m_instanceCertificate?.RawData,
-                    TransportChannel.ClientChannelCertificate,
-                    m_clientNonce ?? []);
-
-                SignatureData userTokenSignature = identityToken.Sign(
-                    dataToSign,
-                    tokenSecurityPolicyUri,
-                    m_telemetry);
-
-                // encrypt token.
-                identityToken.Encrypt(
-                    m_serverCertificate,
-                    m_serverNonce,
-                    m_userTokenSecurityPolicyUri,
-                    MessageContext,
-                    m_eccServerEphemeralKey,
-                    m_instanceCertificate,
-                    m_instanceCertificateChain,
-                    m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
-
-                // send the software certificates assigned to the client.
-                SignedSoftwareCertificateCollection clientSoftwareCertificates = new();
 
                 m_logger.LogInformation("Session REPLACING channel for {SessionId}.", SessionId);
 
@@ -2510,6 +2486,68 @@ namespace Opc.Ua.Client
                         TransportChannel = transportChannel;
                     }
                 }
+
+                ITransportChannel activeChannel = TransportChannel;
+
+                byte[] channelThumbprint = activeChannel.ChannelThumbprint;
+                byte[] serverChannelCertificate = activeChannel.ServerChannelCertificate;
+                byte[] clientChannelCertificate = activeChannel.ClientChannelCertificate;
+
+                // HTTPS channels populate the server TLS certificate lazily after the first request.
+                // Reconnect signs before that, so use the server certificate from the session state.
+                if ((serverChannelCertificate == null || serverChannelCertificate.Length == 0) &&
+                    m_serverCertificate != null)
+                {
+                    serverChannelCertificate = m_serverCertificate.RawData;
+                }
+
+                if ((clientChannelCertificate == null || clientChannelCertificate.Length == 0) &&
+                    m_instanceCertificate != null)
+                {
+                    clientChannelCertificate = m_instanceCertificate.RawData;
+                }
+
+                // create the client signature.
+                byte[] dataToSign = securityPolicy.GetClientSignatureData(
+                    channelThumbprint,
+                    m_serverNonce,
+                    m_serverCertificate?.RawData,
+                    serverChannelCertificate,
+                    clientChannelCertificate,
+                    m_clientNonce ?? []);
+
+                SignatureData clientSignature = SecurityPolicies.CreateSignatureData(
+                    endpoint.SecurityPolicyUri,
+                    m_instanceCertificate,
+                    dataToSign);
+
+                dataToSign = securityPolicy.GetUserTokenSignatureData(
+                    channelThumbprint,
+                    m_serverNonce,
+                    m_serverCertificate?.RawData,
+                    serverChannelCertificate,
+                    m_instanceCertificate?.RawData,
+                    clientChannelCertificate,
+                    m_clientNonce ?? []);
+
+                SignatureData userTokenSignature = identityToken.Sign(
+                    dataToSign,
+                    tokenSecurityPolicyUri,
+                    m_telemetry);
+
+                // encrypt token.
+                identityToken.Encrypt(
+                    m_serverCertificate,
+                    m_serverNonce,
+                    m_userTokenSecurityPolicyUri,
+                    MessageContext,
+                    m_eccServerEphemeralKey,
+                    m_instanceCertificate,
+                    m_instanceCertificateChain,
+                    m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
+
+                // send the software certificates assigned to the client.
+                SignedSoftwareCertificateCollection clientSoftwareCertificates = new();
 
                 m_logger.LogInformation("Session RE-ACTIVATING {SessionId}.", SessionId);
 
