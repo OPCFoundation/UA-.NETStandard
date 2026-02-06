@@ -86,7 +86,38 @@ namespace Opc.Ua
                 string.Equals(SecurityPolicyUri, other.SecurityPolicyUri, StringComparison.Ordinal) &&
                 string.Equals(IssuedTokenType, other.IssuedTokenType, StringComparison.Ordinal) &&
                 string.Equals(IssuerEndpointUrl, other.IssuerEndpointUrl, StringComparison.Ordinal);
-            
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(
+                TokenType,
+                SecurityPolicyUri,
+                IssuedTokenType,
+                IssuerEndpointUrl);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(UserTokenPolicy left, UserTokenPolicy right)
+        {
+            if (ReferenceEquals(left, right))
+            {
+                return true;
+            }
+
+            if (ReferenceEquals(left, null))
+            {
+                return false;
+            }
+
+            return left.Equals(right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(UserTokenPolicy left, UserTokenPolicy right)
+        {
+            return !(left == right);
         }
     }
 }
