@@ -2321,7 +2321,7 @@ namespace Opc.Ua
         CertificateValidationEventArgs e);
 
     /// <summary>
-    /// The event arguments provided when a certificate validation error occurs.
+    /// The event arguments provided when a certificate update occurs.
     /// </summary>
     public class CertificateUpdateEventArgs : EventArgs
     {
