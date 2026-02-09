@@ -4938,9 +4938,6 @@ namespace Quickstarts.ReferenceServer
         private int m_simulationsRunning;
         private readonly List<BaseDataVariableState> m_dynamicNodes = [];
 
-        private static readonly bool[] s_booleanArray
-            = [true, false, true, false, true, false, true, false, true];
-
         private static readonly double[] s_doubleArray =
         [
             9.00001d,
@@ -4958,23 +4955,6 @@ namespace Quickstarts.ReferenceServer
             = [0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 1.1f, 2.2f, 3.3f, 4.4f, 5.5f];
 
         private static readonly int[] s_int32Array = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
-
-        private static readonly string[] s_stringArray
-            = ["en", "fr", "de", "en", "fr", "de", "en", "fr", "de", "en"];
-
-        private static readonly string[] s_stringArray0 =
-        [
-            "a00",
-            "b10",
-            "c20",
-            "d30",
-            "e40",
-            "f50",
-            "g60",
-            "h70",
-            "i80",
-            "j90"
-        ];
 
         private static readonly string[] s_stringArray1 = ["open", "closed", "jammed"];
         private static readonly string[] s_stringArray2 = ["red", "green", "blue", "cyan"];
