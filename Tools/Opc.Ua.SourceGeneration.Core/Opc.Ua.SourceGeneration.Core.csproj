@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>$(LibTypesTargetFrameworks)</TargetFrameworks>
+    <TargetFrameworks>$(LibCoreTargetFrameworks);netstandard2.0</TargetFrameworks>
     <AssemblyName>$(AssemblyPrefix).SourceGeneration.Core</AssemblyName>
     <PackageId>$(PackagePrefix).Opc.Ua.SourceGeneration.Core</PackageId>
     <RootNamespace>Opc.Ua.SourceGeneration</RootNamespace>

@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>$(LibTypesTargetFrameworks)</TargetFrameworks>
+    <TargetFrameworks>$(LibCoreTargetFrameworks);netstandard2.0</TargetFrameworks>
     <PackageId>$(PackagePrefix).Opc.Ua.Types</PackageId>
     <AssemblyName>$(AssemblyPrefix).Types</AssemblyName>
     <RootNamespace>Opc.Ua</RootNamespace>
