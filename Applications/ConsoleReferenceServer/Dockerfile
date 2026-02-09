@@ -7,6 +7,10 @@ WORKDIR /src
 # copy csproj and restore as distinct layers
 COPY *.* .
 COPY ["Applications/ConsoleReferenceServer/ConsoleReferenceServer.csproj", "Applications/ConsoleReferenceServer/"]
+COPY ["Tools/Opc.Ua.SourceGeneration.Core/Opc.Ua.SourceGeneration.Core.csproj", "Tools/Opc.Ua.SourceGeneration.Core/"]
+COPY ["Tools/Opc.Ua.SourceGeneration.Stack/Opc.Ua.SourceGeneration.Stack.csproj", "Tools/Opc.Ua.SourceGeneration.Stack/"]
+COPY ["Tools/Opc.Ua.SourceGeneration/Opc.Ua.SourceGeneration.csproj", "Tools/Opc.Ua.SourceGeneration/"]
+COPY ["Stack/Opc.Ua/Opc.Ua.csproj", "Stack/Opc.Ua/"]
 COPY ["Stack/Opc.Ua.Core/Opc.Ua.Core.csproj", "Stack/Opc.Ua.Core/"]
 COPY ["Stack/Opc.Ua.Types/Opc.Ua.Types.csproj", "Stack/Opc.Ua.Types/"]
 COPY ["Libraries/Opc.Ua.Security.Certificates/Opc.Ua.Security.Certificates.csproj", "Libraries/Opc.Ua.Security.Certificates/"]
