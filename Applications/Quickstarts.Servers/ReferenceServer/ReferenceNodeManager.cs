@@ -4423,6 +4423,7 @@ namespace Quickstarts.ReferenceServer
             };
             variable.Value = GetNewValue(variable);
             variable.StatusCode = StatusCodes.Good;
+            variable.Description = "Default Description";
 
             if (valueRank == ValueRanks.OneDimension)
             {
