@@ -147,7 +147,7 @@ namespace Opc.Ua.Server
         OperationContext ValidateRequest(RequestHeader requestHeader, SecureChannelContext secureChannelContext, RequestType requestType);
 
         /// <summary>
-        /// Triggers the <see cref="ISessionManager.SessionDiagnosticsChanged"/> event so subscribers can react.
+        /// Triggers the <see cref="SessionDiagnosticsChanged"/> event so subscribers can react.
         /// </summary>
         void RaiseSessionDiagnosticsChangedEvent(ISession session);
     }

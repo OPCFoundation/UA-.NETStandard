@@ -650,8 +650,8 @@ namespace Opc.Ua.Server
 
         /// <inheritdoc/>
         public virtual async ValueTask AddReferencesAsync(NodeId sourceId,
-                                                          IList<IReference> references,
-                                                          CancellationToken cancellationToken = default)
+            IList<IReference> references,
+            CancellationToken cancellationToken = default)
         {
             // find source node.
             (object sourceHandle, IAsyncNodeManager nodeManager) = await GetManagerHandleAsync(sourceId, cancellationToken)
@@ -677,8 +677,8 @@ namespace Opc.Ua.Server
 
         /// <inheritdoc/>
         public virtual async ValueTask DeleteReferencesAsync(NodeId targetId,
-                                                             IList<IReference> references,
-                                                             CancellationToken cancellationToken = default)
+            IList<IReference> references,
+            CancellationToken cancellationToken = default)
         {
             foreach (ReferenceNode reference in references.OfType<ReferenceNode>())
             {
@@ -1364,11 +1364,11 @@ namespace Opc.Ua.Server
             for (int i = 0; i < nodesCollection.Count; i++)
             {
                 Type listType = typeof(T);
-                NodeId nodeId = null;
+                NodeId nodeId = default;
 
                 if (listType == typeof(ReadValueId))
                 {
-                    nodeId = (nodesCollection[i] as ReadValueId)?.NodeId;
+                    nodeId = (nodesCollection[i] as ReadValueId)?.NodeId ?? default;
                 }
 
                 if (nodeId == null)

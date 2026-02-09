@@ -384,11 +384,10 @@ namespace Opc.Ua.Bindings
                 {
                     ClientCertificateOptions = ClientCertificateOption.Manual,
                     AllowAutoRedirect = false,
+                    // limit the number of concurrent connections, if supported
+                    MaxConnectionsPerServer = kMaxConnectionsPerServer,
                     MaxRequestContentBufferSize = m_quotas!.MaxMessageSize
                 };
-
-                // limit the number of concurrent connections, if supported
-                handler.MaxConnectionsPerServer = kMaxConnectionsPerServer;
 
                 // send client certificate for servers that require TLS client authentication
                 if (m_settings!.ClientCertificate != null)

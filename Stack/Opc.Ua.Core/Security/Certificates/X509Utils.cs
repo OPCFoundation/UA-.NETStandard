@@ -425,11 +425,7 @@ namespace Opc.Ua
             if (field.StartsWith("S=", StringComparison.OrdinalIgnoreCase) &&
                 !field.StartsWith("ST=", StringComparison.OrdinalIgnoreCase))
             {
-#if NET5_0_OR_GREATER
-                return string.Concat("ST=", field.AsSpan(2));
-#else
-                return "ST=" + field.Substring(2);
-#endif
+                return $"ST={field[2..]}";
             }
 
             return field;

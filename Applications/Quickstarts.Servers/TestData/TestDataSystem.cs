@@ -763,11 +763,8 @@ namespace TestData
                     // m_samplingEvent.Set();
                     m_minimumSamplingInterval = int.MaxValue;
 
-                    if (m_timer != null)
-                    {
-                        m_timer.Dispose();
-                        m_timer = null;
-                    }
+                    m_timer?.Dispose();
+                    m_timer = null;
 
                     return;
                 }
@@ -781,11 +778,8 @@ namespace TestData
                         m_minimumSamplingInterval = 100;
                     }
 
-                    if (m_timer != null)
-                    {
-                        m_timer.Dispose();
-                        m_timer = null;
-                    }
+                    m_timer?.Dispose();
+                    m_timer = null;
 
                     m_timer = new Timer(
                         DoSample,

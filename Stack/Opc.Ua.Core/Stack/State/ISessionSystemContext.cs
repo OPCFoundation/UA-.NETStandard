@@ -85,6 +85,9 @@ namespace Opc.Ua
         /// <value>The system handle.</value>
         public object SystemHandle { get; set; }
 
+        /// <inheritdoc/>
+        public string UserId => UserIdentity?.DisplayName;
+
         /// <summary>
         /// The identifier for the session (null if multiple sessions are associated with the operation).
         /// </summary>

@@ -36,7 +36,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// The standard implementation of a UA server.
     /// </summary>
-    public interface IStandardServer: ISessionServer
+    public interface IStandardServer : ISessionServer
     {
         /// <summary>
         /// The async node manager factories that are used on startup of the server.
@@ -55,6 +55,7 @@ namespace Opc.Ua.Server
         /// The current state of the Server
         /// </summary>
         ServerState CurrentState { get; }
+
         /// <summary>
         /// The node manager factories that are used on startup of the server.
         /// </summary>
@@ -72,7 +73,6 @@ namespace Opc.Ua.Server
         /// to instantiate the node manager in the server.
         /// </summary>
         /// <param name="nodeManagerFactory">The node manager factory used to create the NodeManager.</param>
-
         void AddNodeManager(INodeManagerFactory nodeManagerFactory);
 
         /// <summary>

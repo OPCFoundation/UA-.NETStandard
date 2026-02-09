@@ -810,37 +810,32 @@ namespace Opc.Ua.Server
         /// </returns>
         protected bool IsSecurityError(StatusCode error)
         {
-            switch (error.CodeBits)
-            {
-                case StatusCodes.BadUserSignatureInvalid:
-                case StatusCodes.BadUserAccessDenied:
-                case StatusCodes.BadSecurityPolicyRejected:
-                case StatusCodes.BadSecurityModeRejected:
-                case StatusCodes.BadSecurityChecksFailed:
-                case StatusCodes.BadSecureChannelTokenUnknown:
-                case StatusCodes.BadSecureChannelIdInvalid:
-                case StatusCodes.BadNoValidCertificates:
-                case StatusCodes.BadIdentityTokenInvalid:
-                case StatusCodes.BadIdentityTokenRejected:
-                case StatusCodes.BadIdentityChangeNotSupported:
-                case StatusCodes.BadCertificateUseNotAllowed:
-                case StatusCodes.BadCertificateUriInvalid:
-                case StatusCodes.BadCertificateUntrusted:
-                case StatusCodes.BadCertificateTimeInvalid:
-                case StatusCodes.BadCertificateRevoked:
-                case StatusCodes.BadCertificateRevocationUnknown:
-                case StatusCodes.BadCertificateIssuerUseNotAllowed:
-                case StatusCodes.BadCertificateIssuerTimeInvalid:
-                case StatusCodes.BadCertificateIssuerRevoked:
-                case StatusCodes.BadCertificateIssuerRevocationUnknown:
-                case StatusCodes.BadCertificateInvalid:
-                case StatusCodes.BadCertificateHostNameInvalid:
-                case StatusCodes.BadCertificatePolicyCheckFailed:
-                case StatusCodes.BadApplicationSignatureInvalid:
-                    return true;
-                default:
-                    return false;
-            }
+            return
+                error == StatusCodes.BadUserSignatureInvalid ||
+                error == StatusCodes.BadUserAccessDenied ||
+                error == StatusCodes.BadSecurityPolicyRejected ||
+                error == StatusCodes.BadSecurityModeRejected ||
+                error == StatusCodes.BadSecurityChecksFailed ||
+                error == StatusCodes.BadSecureChannelTokenUnknown ||
+                error == StatusCodes.BadSecureChannelIdInvalid ||
+                error == StatusCodes.BadNoValidCertificates ||
+                error == StatusCodes.BadIdentityTokenInvalid ||
+                error == StatusCodes.BadIdentityTokenRejected ||
+                error == StatusCodes.BadIdentityChangeNotSupported ||
+                error == StatusCodes.BadCertificateUseNotAllowed ||
+                error == StatusCodes.BadCertificateUriInvalid ||
+                error == StatusCodes.BadCertificateUntrusted ||
+                error == StatusCodes.BadCertificateTimeInvalid ||
+                error == StatusCodes.BadCertificateRevoked ||
+                error == StatusCodes.BadCertificateRevocationUnknown ||
+                error == StatusCodes.BadCertificateIssuerUseNotAllowed ||
+                error == StatusCodes.BadCertificateIssuerTimeInvalid ||
+                error == StatusCodes.BadCertificateIssuerRevoked ||
+                error == StatusCodes.BadCertificateIssuerRevocationUnknown ||
+                error == StatusCodes.BadCertificateInvalid ||
+                error == StatusCodes.BadCertificateHostNameInvalid ||
+                error == StatusCodes.BadCertificatePolicyCheckFailed ||
+                error == StatusCodes.BadApplicationSignatureInvalid;
         }
 
         /// <summary>
@@ -2645,7 +2640,15 @@ namespace Opc.Ua.Server
             OperationContext context = ServerInternal.SessionManager
                 .ValidateRequest(requestHeader, secureChannelContext, requestType);
 
-            ServerUtils.EventLog.ServerCall(context.RequestType, context.RequestId);
+            if (ServerUtils.EventLog.IsEnabled())
+            {
+                string requestTypeString = Enum.GetName(
+#if !NET8_0_OR_GREATER
+                   typeof(RequestType),
+#endif
+                   context.RequestType);
+                ServerUtils.EventLog.ServerCall(requestTypeString, context.RequestId);
+            }
             m_logger.LogTrace("Server Call={RequestType}, Id={RequestId}", context.RequestType, context.RequestId);
 
             // notify the request manager.

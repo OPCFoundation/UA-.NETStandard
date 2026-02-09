@@ -91,7 +91,7 @@ namespace Opc.Ua
 
         private void Initialize()
         {
-            NodeId = null;
+            NodeId = default;
             NodeClass = NodeClass.Unspecified;
             BrowseName = null;
             DisplayName = null;

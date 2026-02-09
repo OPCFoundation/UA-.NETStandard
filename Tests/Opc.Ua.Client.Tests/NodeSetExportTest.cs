@@ -49,7 +49,7 @@ namespace Opc.Ua.Client.Tests
     [TestFixtureSource(nameof(FixtureArgs))]
     public class NodeSetExportTest : ClientTestFramework
     {
-        public static readonly new object[] FixtureArgs =
+        public static new readonly object[] FixtureArgs =
         [
             new object[] { Utils.UriSchemeOpcTcp }
         ];
@@ -100,7 +100,7 @@ namespace Opc.Ua.Client.Tests
         /// Test exporting nodes to NodeSet2 XML.
         /// </summary>
         [Test]
-        public async Task ExportNodesToNodeSet2()
+        public async Task ExportNodesToNodeSet2Async()
         {
             // Browse to get some nodes
             var browser = new Browser(Session)
@@ -145,7 +145,7 @@ namespace Opc.Ua.Client.Tests
                 }
 
                 // Verify the file was created and has content
-                FileInfo fileInfo = new FileInfo(tempFile);
+                var fileInfo = new FileInfo(tempFile);
                 Assert.IsTrue(fileInfo.Exists, "NodeSet2 file should exist");
                 Assert.Greater(fileInfo.Length, 0, "NodeSet2 file should not be empty");
 
@@ -171,7 +171,7 @@ namespace Opc.Ua.Client.Tests
         /// Test exporting different node types to NodeSet2 XML.
         /// </summary>
         [Test]
-        public async Task ExportDifferentNodeTypes()
+        public async Task ExportDifferentNodeTypesAsync()
         {
             var allNodes = new List<INode>();
 
@@ -247,7 +247,7 @@ namespace Opc.Ua.Client.Tests
         /// Test exporting and re-importing nodes.
         /// </summary>
         [Test]
-        public async Task ExportAndReimportNodes()
+        public async Task ExportAndReimportNodesAsync()
         {
             var allNodes = new List<INode>();
 
@@ -316,7 +316,7 @@ namespace Opc.Ua.Client.Tests
         /// Test exporting nodes with default options (no values).
         /// </summary>
         [Test]
-        public async Task ExportNodesToNodeSet2_DefaultOptions()
+        public async Task ExportNodesToNodeSet2_DefaultOptionsAsync()
         {
             var allNodes = new List<INode>();
 
@@ -359,15 +359,14 @@ namespace Opc.Ua.Client.Tests
                     Assert.IsNotNull(nodeSet.Items, "NodeSet2 should contain items");
 
                     // Check that variables don't have values
-                    var variables = nodeSet.Items.OfType<Export.UAVariable>().ToList();
-                    foreach (var variable in variables)
+                    foreach (UAVariable variable in nodeSet.Items.OfType<UAVariable>())
                     {
                         Assert.IsNull(variable.Value, "Value should not be exported with Default options");
                     }
                 }
 
                 // Verify default file is smaller or equal to complete
-                FileInfo defaultFile = new FileInfo(tempFile);
+                var defaultFile = new FileInfo(tempFile);
                 long defaultSize = defaultFile.Length;
 
                 // Export with complete options
@@ -385,7 +384,7 @@ namespace Opc.Ua.Client.Tests
                         CoreClientUtils.ExportNodesToNodeSet2(systemContext, allNodes, stream, NodeSetExportOptions.Complete);
                     }
 
-                    FileInfo completeFile = new FileInfo(tempFileComplete);
+                    var completeFile = new FileInfo(tempFileComplete);
                     long completeSize = completeFile.Length;
 
                     // Default should be smaller or equal to complete
@@ -418,7 +417,7 @@ namespace Opc.Ua.Client.Tests
         /// Test exporting nodes with complete options (all metadata).
         /// </summary>
         [Test]
-        public async Task ExportNodesToNodeSet2_CompleteOptions()
+        public async Task ExportNodesToNodeSet2_CompleteOptionsAsync()
         {
             var allNodes = new List<INode>();
 
@@ -467,7 +466,7 @@ namespace Opc.Ua.Client.Tests
         /// Test exporting nodes with custom options.
         /// </summary>
         [Test]
-        public async Task ExportNodesToNodeSet2_CustomOptions()
+        public async Task ExportNodesToNodeSet2_CustomOptionsAsync()
         {
             var allNodes = new List<INode>();
 
@@ -502,7 +501,7 @@ namespace Opc.Ua.Client.Tests
                 }
 
                 // Verify the file was created and has content
-                FileInfo fileInfo = new FileInfo(tempFile);
+                var fileInfo = new FileInfo(tempFile);
                 Assert.IsTrue(fileInfo.Exists, "NodeSet2 file should exist");
                 Assert.Greater(fileInfo.Length, 0, "NodeSet2 file should not be empty");
             }
@@ -519,7 +518,7 @@ namespace Opc.Ua.Client.Tests
         /// Test that default export options preserve backward compatibility.
         /// </summary>
         [Test]
-        public async Task ExportNodesToNodeSet2_BackwardCompatibility()
+        public async Task ExportNodesToNodeSet2_BackwardCompatibilityAsync()
         {
             var allNodes = new List<INode>();
 
@@ -585,7 +584,7 @@ namespace Opc.Ua.Client.Tests
         /// Test exporting with user context option.
         /// </summary>
         [Test]
-        public async Task ExportNodesToNodeSet2_UserContextOptions()
+        public async Task ExportNodesToNodeSet2_UserContextOptionsAsync()
         {
             var allNodes = new List<INode>();
 
@@ -650,14 +649,14 @@ namespace Opc.Ua.Client.Tests
                     }
 
                     // Read both files and compare
-                    Export.UANodeSet nodeSetNoContext;
+                    UANodeSet nodeSetNoContext;
                     using (var stream = new FileStream(tempFileNoContext, FileMode.Open))
                     {
                         nodeSetNoContext = UANodeSet.Read(stream);
                         Assert.IsNotNull(nodeSetNoContext, "Should be able to read NodeSet without user context");
                     }
 
-                    Export.UANodeSet nodeSetWithContext;
+                    UANodeSet nodeSetWithContext;
                     using (var stream = new FileStream(tempFileWithContext, FileMode.Open))
                     {
                         nodeSetWithContext = UANodeSet.Read(stream);
@@ -665,20 +664,20 @@ namespace Opc.Ua.Client.Tests
                     }
 
                     // Verify that methods in the context version have UserExecutable
-                    var methodsNoContext = nodeSetNoContext.Items?.OfType<Export.UAMethod>().ToList() ?? new List<Export.UAMethod>();
-                    var methodsWithContext = nodeSetWithContext.Items?.OfType<Export.UAMethod>().ToList() ?? new List<Export.UAMethod>();
+                    List<UAMethod> methodsNoContext = nodeSetNoContext.Items?.OfType<UAMethod>().ToList() ?? [];
+                    List<UAMethod> methodsWithContext = nodeSetWithContext.Items?.OfType<UAMethod>().ToList() ?? [];
 
                     Assert.AreEqual(methodsNoContext.Count, methodsWithContext.Count, "Should have same number of methods");
 
                     // Variables with context should potentially have UserAccessLevel if different from AccessLevel
-                    var variablesNoContext = nodeSetNoContext.Items?.OfType<Export.UAVariable>().ToList() ?? new List<Export.UAVariable>();
-                    var variablesWithContext = nodeSetWithContext.Items?.OfType<Export.UAVariable>().ToList() ?? new List<Export.UAVariable>();
+                    List<UAVariable> variablesNoContext = nodeSetNoContext.Items?.OfType<UAVariable>().ToList() ?? [];
+                    List<UAVariable> variablesWithContext = nodeSetWithContext.Items?.OfType<UAVariable>().ToList() ?? [];
 
                     Assert.AreEqual(variablesNoContext.Count, variablesWithContext.Count, "Should have same number of variables");
 
                     // File with user context should be larger or equal
-                    FileInfo fileNoContext = new FileInfo(tempFileNoContext);
-                    FileInfo fileWithContext = new FileInfo(tempFileWithContext);
+                    var fileNoContext = new FileInfo(tempFileNoContext);
+                    var fileWithContext = new FileInfo(tempFileWithContext);
 
                     // Note: Sizes might be equal if UserAccessLevel == AccessLevel for all variables
                     // The important part is that export completes successfully with both options

@@ -190,9 +190,8 @@ namespace TestData
 
 #if CONDITION_SAMPLES
                 // start monitoring the system status.
-                m_systemStatusCondition = (TestSystemConditionState)FindPredefinedNode(
-                    new NodeId(Objects.Data_Conditions_SystemStatus, m_typeNamespaceIndex),
-                    typeof(TestSystemConditionState));
+                m_systemStatusCondition = FindPredefinedNode<TestSystemConditionState>(
+                    new NodeId(Objects.Data_Conditions_SystemStatus, m_typeNamespaceIndex));
 
                 if (m_systemStatusCondition != null)
                 {
@@ -202,24 +201,22 @@ namespace TestData
                 }
 #endif
                 // link all conditions to the conditions folder.
-                NodeState conditionsFolder = FindPredefinedNode(
-                    new NodeId(Objects.Data_Conditions, m_typeNamespaceIndex),
-                    typeof(NodeState));
+                NodeState conditionsFolder = FindPredefinedNode<NodeState>(
+                    new NodeId(Objects.Data_Conditions, m_typeNamespaceIndex));
 
                 foreach (NodeState node in PredefinedNodes.Values)
                 {
                     if (node is ConditionState condition &&
                         !ReferenceEquals(condition.Parent, conditionsFolder))
                     {
-                        condition.AddNotifier(SystemContext, null, true, conditionsFolder);
-                        conditionsFolder.AddNotifier(SystemContext, null, false, condition);
+                        condition.AddNotifier(SystemContext, default, true, conditionsFolder);
+                        conditionsFolder.AddNotifier(SystemContext, default, false, condition);
                     }
                 }
 
                 // enable history for all numeric scalar values.
-                var scalarValues = (ScalarValueObjectState)FindPredefinedNode(
-                    new NodeId(Objects.Data_Dynamic_Scalar, m_typeNamespaceIndex),
-                    typeof(ScalarValueObjectState));
+                ScalarValueObjectState scalarValues = FindPredefinedNode<ScalarValueObjectState>(
+                    new NodeId(Objects.Data_Dynamic_Scalar, m_typeNamespaceIndex));
 
                 scalarValues.Int32Value.Historizing = true;
                 scalarValues.Int32Value.AccessLevel = (byte)(
@@ -856,9 +853,8 @@ namespace TestData
             where TS : NodeState
         {
             var expandedNodeId = new ExpandedNodeId(nodeId, Namespaces.TestData);
-            return FindPredefinedNode(
-                ExpandedNodeId.ToNodeId(expandedNodeId, Server.NamespaceUris),
-                typeof(TS)) as TS;
+            return FindPredefinedNode<TS>(
+                ExpandedNodeId.ToNodeId(expandedNodeId, Server.NamespaceUris));
         }
 
 #if CONDITION_SAMPLES

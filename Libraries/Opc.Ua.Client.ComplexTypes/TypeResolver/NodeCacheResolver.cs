@@ -126,7 +126,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
         /// <inheritdoc/>
         public async Task<IReadOnlyDictionary<NodeId, DataDictionary>> LoadDataTypeSystem(
-            NodeId dataTypeSystem = null,
+            NodeId dataTypeSystem = default,
             CancellationToken ct = default)
         {
             if (dataTypeSystem == null)
@@ -329,11 +329,13 @@ namespace Opc.Ua.Client.ComplexTypes
 
             ExpandedNodeId binaryEncodingId = references
                 .FirstOrDefault(r => r.BrowseName.Name == BrowseNames.DefaultBinary)?
-                .NodeId;
+                .NodeId ??
+                ExpandedNodeId.Null;
             binaryEncodingId = NormalizeExpandedNodeId(binaryEncodingId);
             ExpandedNodeId xmlEncodingId = references
                 .FirstOrDefault(r => r.BrowseName.Name == BrowseNames.DefaultXml)?
-                .NodeId;
+                .NodeId ??
+                ExpandedNodeId.Null;
             xmlEncodingId = NormalizeExpandedNodeId(xmlEncodingId);
             return (
                 references
@@ -548,8 +550,8 @@ namespace Opc.Ua.Client.ComplexTypes
                 // return as a byte array.
                 return values[0].Value as byte[];
             }
-            catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes
-                .BadEncodingLimitsExceeded)
+            catch (ServiceResultException ex) when
+                (ex.StatusCode == StatusCodes.BadEncodingLimitsExceeded)
             {
                 // Fall back to reading the byte string in chunks.
                 try
@@ -644,7 +646,7 @@ namespace Opc.Ua.Client.ComplexTypes
             NodeId dictionaryId,
             string name,
             byte[] schema = null,
-            IDictionary<string, byte[]> imports = null,
+            Dictionary<string, byte[]> imports = null,
             CancellationToken ct = default)
         {
             if (dictionaryId == null)

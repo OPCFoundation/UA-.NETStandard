@@ -318,7 +318,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            return null;
+            return default;
         }
 
         /// <summary>

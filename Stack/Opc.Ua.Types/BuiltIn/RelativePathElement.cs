@@ -54,7 +54,7 @@ namespace Opc.Ua
 
         private void Initialize()
         {
-            ReferenceTypeId = null;
+            ReferenceTypeId = default;
             IsInverse = true;
             IncludeSubtypes = true;
             TargetName = null;

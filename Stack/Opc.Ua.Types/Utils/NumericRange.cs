@@ -947,7 +947,7 @@ namespace Opc.Ua
 
             // check for list type.
             IList list = null;
-            TypeInfo typeInfo = null;
+            TypeInfo typeInfo = default;
 
             if (array == null)
             {

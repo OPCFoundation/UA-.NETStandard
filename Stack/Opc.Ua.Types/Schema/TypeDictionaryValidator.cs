@@ -515,7 +515,7 @@ namespace Opc.Ua.Schema
                 throw Exception("The enumerated type '{0}' does not have any values specified.", enumeratedType.Name);
             }
 
-            int nextIndex = 0;
+            decimal nextIndex = 0;
             var values = new Dictionary<string, EnumeratedValue>();
 
             for (int ii = 0; ii < enumeratedType.Value.Length; ii++)

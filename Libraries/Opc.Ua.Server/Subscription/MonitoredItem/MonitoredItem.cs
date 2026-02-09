@@ -239,7 +239,7 @@ namespace Opc.Ua.Server
             ManagerHandle = null;
             SubscriptionId = 0;
             Id = 0;
-            NodeId = null;
+            NodeId = default;
             AttributeId = 0;
             m_indexRange = null;
             m_parsedIndexRange = NumericRange.Empty;
@@ -1122,7 +1122,7 @@ namespace Opc.Ua.Server
             bool passedFilter = filter.WhereClause.Evaluate(context, instance);
 
             ConditionState alarmCondition = null;
-            NodeId conditionId = null;
+            NodeId conditionId = default;
             if (instance is InstanceStateSnapshot instanceStateSnapshot)
             {
                 alarmCondition = instanceStateSnapshot.Handle as ConditionState;
@@ -1452,10 +1452,7 @@ namespace Opc.Ua.Server
             // set semantics changed bit.
             if (m_semanticsChanged)
             {
-                if (value != null)
-                {
-                    value.StatusCode = value.StatusCode.SetSemanticsChanged(true);
-                }
+                value?.StatusCode = value.StatusCode.SetSemanticsChanged(true);
 
                 if (error != null)
                 {
@@ -1473,10 +1470,7 @@ namespace Opc.Ua.Server
             // set structure changed bit.
             if (m_structureChanged)
             {
-                if (value != null)
-                {
-                    value.StatusCode = value.StatusCode.SetStructureChanged(true);
-                }
+                value?.StatusCode = value.StatusCode.SetStructureChanged(true);
 
                 if (error != null)
                 {

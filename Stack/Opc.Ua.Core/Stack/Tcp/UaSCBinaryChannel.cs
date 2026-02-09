@@ -226,17 +226,11 @@ namespace Opc.Ua.Bindings
             if (disposing)
             {
                 DiscardTokens();
-                if (m_localNonce != null)
-                {
-                    m_localNonce.Dispose();
-                    m_localNonce = null;
-                }
+                m_localNonce?.Dispose();
+                m_localNonce = null;
 
-                if (m_remoteNonce != null)
-                {
-                    m_remoteNonce.Dispose();
-                    m_remoteNonce = null;
-                }
+                m_remoteNonce?.Dispose();
+                m_remoteNonce = null;
             }
         }
 
@@ -966,7 +960,6 @@ namespace Opc.Ua.Bindings
         /// treat TcpChannelState as int to use Interlocked
         /// </summary>
         private int m_state;
-
         private int m_activeWriteRequests;
         private readonly string m_contextId;
         private readonly ILogger m_logger;

@@ -111,7 +111,7 @@ namespace Opc.Ua.Server
                 // extract any additional arguments from the translation info.
                 object[] args = null;
 
-                if (result.LocalizedText != null && result.LocalizedText.TranslationInfo != null)
+                if (result.LocalizedText != null)
                 {
                     TranslationInfo info = result.LocalizedText.TranslationInfo;
 

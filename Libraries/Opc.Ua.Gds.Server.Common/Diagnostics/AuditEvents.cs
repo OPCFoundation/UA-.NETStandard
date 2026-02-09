@@ -72,7 +72,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                 e.SetChildValue(
                     systemContext,
                     Ua.BrowseNames.LocalTime,
-                    Utils.GetTimeZoneInfo(),
+                    TimeZoneDataType.Local,
                     false);
 
                 e.SetChildValue(systemContext, Ua.BrowseNames.MethodId, method?.NodeId, false);
@@ -119,7 +119,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             {
                 var e = new CertificateRequestedAuditEventState(null);
 
-                TranslationInfo message = null;
+                TranslationInfo message = default;
                 if (exception == null)
                 {
                     message = new TranslationInfo(
@@ -153,7 +153,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                 e.SetChildValue(
                     systemContext,
                     Ua.BrowseNames.LocalTime,
-                    Utils.GetTimeZoneInfo(),
+                    TimeZoneDataType.Local,
                     false);
 
                 e.SetChildValue(systemContext, Ua.BrowseNames.MethodId, method?.NodeId, false);
@@ -221,7 +221,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                 e.SetChildValue(
                     systemContext,
                     Ua.BrowseNames.LocalTime,
-                    Utils.GetTimeZoneInfo(),
+                    TimeZoneDataType.Local,
                     false);
 
                 e.SetChildValue(systemContext, Ua.BrowseNames.MethodId, method?.NodeId, false);

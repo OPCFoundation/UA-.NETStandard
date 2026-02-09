@@ -54,8 +54,8 @@ namespace Opc.Ua
 
         private void Initialize()
         {
-            DefaultEncodingId = null;
-            BaseDataType = null;
+            DefaultEncodingId = default;
+            BaseDataType = default;
             StructureType = StructureType.Structure;
             m_fields = [];
         }
@@ -96,6 +96,11 @@ namespace Opc.Ua
                 }
             }
         }
+
+        /// <summary>
+        /// The first non-inherited field in the structure definition.
+        /// </summary>
+        public int FirstExplicitFieldIndex { get; set; }
 
         /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.StructureDefinition;

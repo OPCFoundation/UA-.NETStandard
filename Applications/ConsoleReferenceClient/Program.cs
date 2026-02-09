@@ -455,7 +455,7 @@ namespace Quickstarts.ConsoleReferenceClient
                         application.ApplicationConfiguration,
                         reverseConnectManager,
                         telemetry,
-                        ClientBase.ValidateResponse
+                        null
                     )
                     {
                         AutoAccept = autoAccept,
@@ -482,7 +482,7 @@ namespace Quickstarts.ConsoleReferenceClient
                         uaClient.Session.TransferSubscriptionsOnReconnect = true;
                         var samples = new ClientSamples(
                             telemetry,
-                            ClientBase.ValidateResponse,
+                            null,
                             quitEvent,
                             verbose);
                         if (loadTypes)
@@ -733,14 +733,14 @@ namespace Quickstarts.ConsoleReferenceClient
                                     if (waitCounters == closeSessionTime &&
                                         uaClient.Session.SubscriptionCount == 1)
                                     {
-                                        Console.WriteLine($"Closing Session (CurrentTime: {DateTime.Now.ToLongTimeString()})");
+                                        Console.WriteLine($"Closing Session (CurrentTime: {DateTime.Now:T})");
                                         await uaClient.Session.CloseAsync(closeChannel: false, ct: ct)
                                             .ConfigureAwait(false);
                                     }
 
                                     if (waitCounters == restartSessionTime)
                                     {
-                                        Console.WriteLine($"Restarting Session (CurrentTime: {DateTime.Now.ToLongTimeString()})");
+                                        Console.WriteLine($"Restarting Session (CurrentTime: {DateTime.Now:T})");
                                         await uaClient
                                             .DurableSubscriptionTransferAsync(
                                                 serverUrl.ToString(),

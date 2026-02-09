@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -70,13 +70,10 @@ namespace Opc.Ua.Types.Tests.State
 
             // Create an Argument (IEncodeable type that can be in ExtensionObject)
             var testArg = new Argument("arg1", DataTypeIds.String, -1, "test description");
-            
-            // Wrap in ExtensionObject
-            var extensionObject = new ExtensionObject(testArg);
 
-            // Set the value using the base Value property (object type)
+            // Wrap in ExtensionObject and set the value using the base Value property (object type)
             // This should trigger ExtractValueFromVariant to unwrap the ExtensionObject
-            ((BaseVariableState)propertyState).Value = extensionObject;
+            ((BaseVariableState)propertyState).Value = new ExtensionObject(testArg);
 
             // The value should be extracted from the ExtensionObject
             Assert.IsNotNull(propertyState.Value);
@@ -85,7 +82,8 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         /// <summary>
-        /// Test that setting a value wrapped in an ExtensionObject for a complex type extracts correctly.
+        /// Test that setting a value wrapped in an ExtensionObject for a complex type
+        /// extracts correctly.
         /// </summary>
         [Test]
         public void PropertyStateExtractsComplexTypeFromExtensionObject()
@@ -96,20 +94,18 @@ namespace Opc.Ua.Types.Tests.State
             // Create a RelativePath (IEncodeable type)
             var testValue = new RelativePath
             {
-                Elements = new RelativePathElementCollection
-                {
+                Elements =
+                [
                     new RelativePathElement
                     {
                         TargetName = new QualifiedName("TestName"),
                         IsInverse = false
                     }
-                }
+                ]
             };
-            
-            var extensionObject = new ExtensionObject(testValue);
 
             // Set the value
-            ((BaseVariableState)propertyState).Value = extensionObject;
+            ((BaseVariableState)propertyState).Value = new ExtensionObject(testValue);
 
             // The value should be extracted
             Assert.IsNotNull(propertyState.Value);
@@ -125,7 +121,7 @@ namespace Opc.Ua.Types.Tests.State
         public void PropertyStateAcceptsDirectValue()
         {
             var propertyState = new PropertyState<string>(null);
-            var testString = "DirectValue";
+            const string testString = "DirectValue";
 
             // Set value directly (not in ExtensionObject)
             ((BaseVariableState)propertyState).Value = testString;
@@ -157,9 +153,7 @@ namespace Opc.Ua.Types.Tests.State
 
             // Create an Argument (IEncodeable type)
             var testArg = new Argument("testArg", DataTypeIds.Int32, -1, "test description");
-            var extensionObject = new ExtensionObject(testArg);
-
-            ((BaseVariableState)variableState).Value = extensionObject;
+            ((BaseVariableState)variableState).Value = new ExtensionObject(testArg);
 
             Assert.IsNotNull(variableState.Value);
             Assert.AreEqual("testArg", variableState.Value.Name);
@@ -172,11 +166,10 @@ namespace Opc.Ua.Types.Tests.State
         public void PropertyStateExtractsValueFromVariant()
         {
             var propertyState = new PropertyState<string>(null);
-            var testString = "VariantValue";
-            var variant = new Variant(testString);
+            const string testString = "VariantValue";
 
             // Use WrappedValue property which calls ExtractValueFromVariant
-            propertyState.WrappedValue = variant;
+            propertyState.WrappedValue = new Variant(testString);
 
             Assert.AreEqual(testString, propertyState.Value);
         }
@@ -190,10 +183,9 @@ namespace Opc.Ua.Types.Tests.State
             var propertyState = new PropertyState<Argument>(null);
             var testArg = new Argument("variantArg", DataTypeIds.Double, -1, "test description");
             var extensionObject = new ExtensionObject(testArg);
-            var variant = new Variant(extensionObject);
 
             // Use WrappedValue property
-            propertyState.WrappedValue = variant;
+            propertyState.WrappedValue = new Variant(extensionObject);
 
             Assert.IsNotNull(propertyState.Value);
             Assert.AreEqual("variantArg", propertyState.Value.Name);

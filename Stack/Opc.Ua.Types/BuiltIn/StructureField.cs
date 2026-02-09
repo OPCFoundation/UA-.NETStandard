@@ -56,7 +56,7 @@ namespace Opc.Ua
         {
             Name = null;
             Description = null;
-            DataType = null;
+            DataType = default;
             ValueRank = 0;
             m_arrayDimensions = [];
             MaxStringLength = 0;

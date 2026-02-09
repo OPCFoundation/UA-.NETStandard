@@ -113,7 +113,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.LocalTime,
-                    Utils.GetTimeZoneInfo(),
+                    TimeZoneDataType.Local,
                     false);
 
                 e.SetChildValue(
@@ -187,7 +187,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.LocalTime,
-                    Utils.GetTimeZoneInfo(),
+                    TimeZoneDataType.Local,
                     false);
 
                 e.SetChildValue(
@@ -647,42 +647,45 @@ namespace Opc.Ua.Server
                 if (StatusCode.IsBad(sre.InnerResult.Code))
                 {
                     AuditCertificateEventState auditCertificateEventState;
-                    switch (sre.StatusCode)
+                    if (sre.StatusCode == StatusCodes.BadCertificateTimeInvalid ||
+                        sre.StatusCode == StatusCodes.BadCertificateIssuerTimeInvalid)
                     {
-                        case StatusCodes.BadCertificateTimeInvalid:
-                        case StatusCodes.BadCertificateIssuerTimeInvalid:
-                            // create AuditCertificateExpiredEventType
-                            auditCertificateEventState = new AuditCertificateExpiredEventState(
-                                null);
-                            break;
-                        case StatusCodes.BadCertificateInvalid:
-                        case StatusCodes.BadCertificateChainIncomplete:
-                        case StatusCodes.BadCertificatePolicyCheckFailed:
-                            // create AuditCertificateInvalidEventType
-                            auditCertificateEventState = new AuditCertificateInvalidEventState(
-                                null);
-                            break;
-                        case StatusCodes.BadCertificateUntrusted:
-                            // create AuditCertificateUntrustedEventType
-                            auditCertificateEventState = new AuditCertificateUntrustedEventState(
-                                null);
-                            break;
-                        case StatusCodes.BadCertificateRevoked:
-                        case StatusCodes.BadCertificateIssuerRevoked:
-                        case StatusCodes.BadCertificateRevocationUnknown:
-                        case StatusCodes.BadCertificateIssuerRevocationUnknown:
-                            // create AuditCertificateRevokedEventType
-                            auditCertificateEventState = new AuditCertificateRevokedEventState(
-                                null);
-                            break;
-                        case StatusCodes.BadCertificateUseNotAllowed:
-                        case StatusCodes.BadCertificateIssuerUseNotAllowed:
-                            // create AuditCertificateMismatchEventType
-                            auditCertificateEventState = new AuditCertificateMismatchEventState(
-                                null);
-                            break;
-                        default:
-                            return;
+                        // create AuditCertificateExpiredEventType
+                        auditCertificateEventState = new AuditCertificateExpiredEventState(
+                            null);
+                    }
+                    else if (sre.StatusCode == StatusCodes.BadCertificateInvalid ||
+                        sre.StatusCode == StatusCodes.BadCertificateChainIncomplete ||
+                        sre.StatusCode == StatusCodes.BadCertificatePolicyCheckFailed)
+                    {
+                        // create AuditCertificateInvalidEventType
+                        auditCertificateEventState = new AuditCertificateInvalidEventState(
+                            null);
+                    }
+                    else if (sre.StatusCode == StatusCodes.BadCertificateUntrusted)
+                    {
+                        // create AuditCertificateUntrustedEventType
+                        auditCertificateEventState = new AuditCertificateUntrustedEventState(
+                            null);
+                    }
+                    else if (sre.StatusCode == StatusCodes.BadCertificateRevoked ||
+                        sre.StatusCode == StatusCodes.BadCertificateIssuerRevoked ||
+                        sre.StatusCode == StatusCodes.BadCertificateRevocationUnknown)
+                    {
+                        // create AuditCertificateRevokedEventType
+                        auditCertificateEventState = new AuditCertificateRevokedEventState(
+                            null);
+                    }
+                    else if (sre.StatusCode == StatusCodes.BadCertificateUseNotAllowed ||
+                        sre.StatusCode == StatusCodes.BadCertificateIssuerUseNotAllowed)
+                    {
+                        // create AuditCertificateMismatchEventType
+                        auditCertificateEventState = new AuditCertificateMismatchEventState(
+                            null);
+                    }
+                    else
+                    {
+                        return;
                     }
 
                     auditCertificateEventState.Initialize(
@@ -775,7 +778,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.LocalTime,
-                    Utils.GetTimeZoneInfo(),
+                    TimeZoneDataType.Local,
                     false);
 
                 // set AuditSecurityEventType fields
@@ -842,7 +845,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.LocalTime,
-                    Utils.GetTimeZoneInfo(),
+                    TimeZoneDataType.Local,
                     false);
 
                 // set AuditSecurityEventType fields
@@ -904,7 +907,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.LocalTime,
-                    Utils.GetTimeZoneInfo(),
+                    TimeZoneDataType.Local,
                     false);
 
                 // set AuditUpdateMethodEventType fields
@@ -951,7 +954,7 @@ namespace Opc.Ua.Server
                 // raise an audit event.
                 var e = new AuditCreateSessionEventState(null);
 
-                TranslationInfo message = null;
+                TranslationInfo message = default;
                 if (exception == null)
                 {
                     message = new TranslationInfo(
@@ -1041,7 +1044,7 @@ namespace Opc.Ua.Server
 
                 var e = new AuditActivateSessionEventState(null);
 
-                TranslationInfo message = null;
+                TranslationInfo message = default;
                 if (exception == null)
                 {
                     message = new TranslationInfo(
@@ -1307,7 +1310,7 @@ namespace Opc.Ua.Server
             {
                 var e = new CertificateUpdatedAuditEventState(null);
 
-                TranslationInfo message = null;
+                TranslationInfo message = default;
                 if (exception == null)
                 {
                     message = new TranslationInfo(
@@ -1341,7 +1344,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.LocalTime,
-                    Utils.GetTimeZoneInfo(),
+                    TimeZoneDataType.Local,
                     false);
 
                 e.SetChildValue(systemContext, BrowseNames.MethodId, method.NodeId, false);
@@ -1405,7 +1408,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.LocalTime,
-                    Utils.GetTimeZoneInfo(),
+                    TimeZoneDataType.Local,
                     false);
 
                 e.SetChildValue(systemContext, BrowseNames.MethodId, method?.NodeId, false);
@@ -1471,7 +1474,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.LocalTime,
-                    Utils.GetTimeZoneInfo(),
+                    TimeZoneDataType.Local,
                     false);
 
                 e.SetChildValue(systemContext, BrowseNames.NodesToAdd, addNodesItems, false);
@@ -1534,7 +1537,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.LocalTime,
-                    Utils.GetTimeZoneInfo(),
+                    TimeZoneDataType.Local,
                     false);
 
                 e.SetChildValue(systemContext, BrowseNames.NodesToDelete, nodesToDelete, false);
@@ -1576,7 +1579,7 @@ namespace Opc.Ua.Server
             {
                 // raise an audit event.
                 var e = new AuditOpenSecureChannelEventState(null);
-                TranslationInfo message = null;
+                TranslationInfo message = default;
                 if (exception == null)
                 {
                     message = new TranslationInfo(
@@ -1641,7 +1644,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.LocalTime,
-                    Utils.GetTimeZoneInfo(),
+                    TimeZoneDataType.Local,
                     false);
 
                 // set AuditSecurityEventType fields
@@ -1714,7 +1717,7 @@ namespace Opc.Ua.Server
                 // raise an audit event.
                 var e = new AuditChannelEventState(null);
 
-                TranslationInfo message = null;
+                TranslationInfo message = default;
                 if (exception == null)
                 {
                     message = new TranslationInfo(
@@ -1765,7 +1768,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.LocalTime,
-                    Utils.GetTimeZoneInfo(),
+                    TimeZoneDataType.Local,
                     false);
 
                 // set AuditSecurityEventType fields
@@ -1831,7 +1834,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.LocalTime,
-                    Utils.GetTimeZoneInfo(),
+                    TimeZoneDataType.Local,
                     false);
 
                 e.SetChildValue(
@@ -1900,7 +1903,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.LocalTime,
-                    Utils.GetTimeZoneInfo(),
+                    TimeZoneDataType.Local,
                     false);
 
                 e.SetChildValue(systemContext, BrowseNames.MethodId, methodId, false);
@@ -1949,7 +1952,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.LocalTime,
-                    Utils.GetTimeZoneInfo(),
+                    TimeZoneDataType.Local,
                     false);
 
                 e.SetChildValue(systemContext, BrowseNames.MethodId, methodId, false);
@@ -2002,7 +2005,7 @@ namespace Opc.Ua.Server
                 historyUpdateDetails.NodeId,
                 false);
             e.SetChildValue(systemContext, BrowseNames.SourceName, sourceName, false);
-            e.SetChildValue(systemContext, BrowseNames.LocalTime, Utils.GetTimeZoneInfo(), false);
+            e.SetChildValue(systemContext, BrowseNames.LocalTime, TimeZoneDataType.Local, false);
 
             e.SetChildValue(
                 systemContext,

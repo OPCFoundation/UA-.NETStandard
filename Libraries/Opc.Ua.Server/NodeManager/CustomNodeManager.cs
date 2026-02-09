@@ -410,7 +410,7 @@ namespace Opc.Ua.Server
                     parent.AddChild(instance);
                 }
 
-                instance.Create(contextToUse, null, browseName, null, true);
+                instance.Create(contextToUse, default, browseName, null, true);
                 AddPredefinedNode(contextToUse, instance);
 
                 return instance.NodeId;
@@ -558,11 +558,6 @@ namespace Opc.Ua.Server
             ISystemContext context,
             NodeState predefinedNode)
         {
-            if (predefinedNode is not BaseObjectState)
-            {
-                return predefinedNode;
-            }
-
             return predefinedNode;
         }
 
@@ -853,6 +848,7 @@ namespace Opc.Ua.Server
         /// Finds the specified and checks if it is of the expected type.
         /// </summary>
         /// <returns>Returns null if not found or not of the correct type.</returns>
+        [Obsolete("Use FindPredefinedNode<T> instead.")]
         public NodeState FindPredefinedNode(NodeId nodeId, Type expectedType)
         {
             if (nodeId == null)
@@ -871,6 +867,31 @@ namespace Opc.Ua.Server
             }
 
             return node;
+        }
+
+        /// <summary>
+        /// Finds the specified and checks if it is of the expected type.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns>Returns null if not found or not of the correct type.</returns>
+        public T FindPredefinedNode<T>(NodeId nodeId) where T : NodeState
+        {
+            if (nodeId == null)
+            {
+                return null;
+            }
+
+            if (!PredefinedNodes.TryGetValue(nodeId, out NodeState node))
+            {
+                return null;
+            }
+
+            if (typeof(T) != null && !typeof(T).IsInstanceOfType(node))
+            {
+                return null;
+            }
+
+            return node is T typedNode ? typedNode : null;
         }
 
         /// <summary>
@@ -1076,7 +1097,7 @@ namespace Opc.Ua.Server
                         ((uint)values[1]));
                 }
 
-                metadata.DataType = (NodeId)values[2];
+                metadata.DataType = values[2] is NodeId nodeId ? nodeId : default;
 
                 if (values[3] != null)
                 {
@@ -1323,7 +1344,7 @@ namespace Opc.Ua.Server
             }
 
             _ =
-                (ViewState)FindPredefinedNode(view.ViewId, typeof(ViewState))
+                FindPredefinedNode<ViewState>(view.ViewId)
                 ?? throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
 
             if (view.Timestamp != DateTime.MinValue)
@@ -1361,7 +1382,7 @@ namespace Opc.Ua.Server
             NodeId viewId,
             NodeState node)
         {
-            var view = (ViewState)FindPredefinedNode(viewId, typeof(ViewState));
+            ViewState view = FindPredefinedNode<ViewState>(viewId);
 
             return view != null;
         }
@@ -1456,7 +1477,7 @@ namespace Opc.Ua.Server
             }
 
             // look up the type definition.
-            NodeId typeDefinition = null;
+            NodeId typeDefinition = default;
 
             if (target is BaseInstanceState instance)
             {
@@ -2262,7 +2283,7 @@ namespace Opc.Ua.Server
                     // create an initial result.
                     HistoryReadResult result = results[ii] = new HistoryReadResult();
 
-                    result.HistoryData = null;
+                    result.HistoryData = default;
                     result.ContinuationPoint = null;
                     result.StatusCode = StatusCodes.Good;
 
@@ -3064,9 +3085,8 @@ namespace Opc.Ua.Server
                             false,
                             methodToCall.MethodId))
                         {
-                            method = (MethodState)FindPredefinedNode(
-                                methodToCall.MethodId,
-                                typeof(MethodState));
+                            method = FindPredefinedNode<MethodState>(
+                                methodToCall.MethodId);
                         }
 
                         if (method == null)
@@ -3935,10 +3955,9 @@ namespace Opc.Ua.Server
             error = ReadInitialValue(context, handle, dataChangeMonitoredItem);
             if (ServiceResult.IsBad(error))
             {
-                if (error.StatusCode.Code
-                    is StatusCodes.BadAttributeIdInvalid
-                        or StatusCodes.BadDataEncodingInvalid
-                        or StatusCodes.BadDataEncodingUnsupported)
+                if (error.StatusCode == StatusCodes.BadAttributeIdInvalid ||
+                    error.StatusCode == StatusCodes.BadDataEncodingInvalid ||
+                    error.StatusCode == StatusCodes.BadDataEncodingUnsupported)
                 {
                     return error;
                 }
@@ -4037,8 +4056,8 @@ namespace Opc.Ua.Server
             IEventMonitoredItem monitoredItem,
             IFilterTarget filterTarget)
         {
-            NodeId eventTypeId = null;
-            NodeId sourceNodeId = null;
+            NodeId eventTypeId = default;
+            NodeId sourceNodeId = default;
             var baseEventState = filterTarget as BaseEventState;
 
             if (baseEventState == null && filterTarget is InstanceStateSnapshot snapshot)
@@ -4049,8 +4068,8 @@ namespace Opc.Ua.Server
 
             if (baseEventState != null)
             {
-                eventTypeId = baseEventState.EventType?.Value;
-                sourceNodeId = baseEventState.SourceNode?.Value;
+                eventTypeId = baseEventState.EventType?.Value ?? default;
+                sourceNodeId = baseEventState.SourceNode?.Value ?? default;
             }
 
             var operationContext = new OperationContext(monitoredItem);
@@ -4238,7 +4257,7 @@ namespace Opc.Ua.Server
             if (filterToUse.AggregateConfiguration.UseServerCapabilitiesDefaults)
             {
                 filterToUse.AggregateConfiguration = Server.AggregateManager
-                    .GetDefaultConfiguration(null);
+                    .GetDefaultConfiguration(default);
             }
 
             return StatusCodes.Good;

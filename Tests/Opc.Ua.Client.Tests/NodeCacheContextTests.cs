@@ -234,7 +234,7 @@ namespace Opc.Ua.Client.Tests
                 .Verifiable(Times.Once);
 
             Assert.ThrowsAsync<OperationCanceledException>(
-                async () => await sut.FetchValuesAsync(null, nodeIds, cts.Token).ConfigureAwait(false));
+                async () => _ = await sut.FetchValuesAsync(null, nodeIds, cts.Token).ConfigureAwait(false));
         }
 
         [Test]
@@ -359,11 +359,11 @@ namespace Opc.Ua.Client.Tests
                             var value = new DataValue();
                             if (r.NodeId == nodeIds[0])
                             {
-                                nodes[0].Read(null!, r.AttributeId, value);
+                                nodes[0].Read(null, r.AttributeId, value);
                             }
                             else
                             {
-                                nodes[1].Read(null!, r.AttributeId, value);
+                                nodes[1].Read(null, r.AttributeId, value);
                             }
                             return value;
                         }));
@@ -442,11 +442,11 @@ namespace Opc.Ua.Client.Tests
                             }
                             if (r.NodeId == nodeIds[0])
                             {
-                                nodes[0].Read(null!, r.AttributeId, value);
+                                nodes[0].Read(null, r.AttributeId, value);
                             }
                             else
                             {
-                                nodes[1].Read(null!, r.AttributeId, value);
+                                nodes[1].Read(null, r.AttributeId, value);
                             }
                             return value;
                         }));
@@ -497,7 +497,7 @@ namespace Opc.Ua.Client.Tests
                         .Select(r =>
                         {
                             var value = new DataValue();
-                            node.Read(null!, r.AttributeId, value);
+                            node.Read(null, r.AttributeId, value);
                             return value;
                         }));
                     return new ValueTask<IServiceResponse>(new ReadResponse
@@ -623,7 +623,7 @@ namespace Opc.Ua.Client.Tests
                             if (r.NodeId == nodeIds[0])
                             {
                                 var value = new DataValue();
-                                nodes[0].Read(null!, r.AttributeId, value);
+                                nodes[0].Read(null, r.AttributeId, value);
                                 return value;
                             }
                             return new DataValue(StatusCodes.BadUnexpectedError);
@@ -701,11 +701,11 @@ namespace Opc.Ua.Client.Tests
                             var value = new DataValue();
                             if (r.NodeId == nodeIds[0])
                             {
-                                nodes[0].Read(null!, r.AttributeId, value);
+                                nodes[0].Read(null, r.AttributeId, value);
                             }
                             else
                             {
-                                nodes[1].Read(null!, r.AttributeId, value);
+                                nodes[1].Read(null, r.AttributeId, value);
                             }
                             return value;
                         }));
@@ -770,7 +770,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new OperationCanceledException())
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<OperationCanceledException>(async () => await sut.FetchNodesAsync(
+            Assert.ThrowsAsync<OperationCanceledException>(async () => _ = await sut.FetchNodesAsync(
                 null,
                 nodeIds,
                 NodeClass.Unspecified,
@@ -806,7 +806,7 @@ namespace Opc.Ua.Client.Tests
                         .Select(r =>
                         {
                             var value = new DataValue();
-                            node.Read(null!, r.AttributeId, value);
+                            node.Read(null, r.AttributeId, value);
                             return value;
                         }));
                     return new ValueTask<IServiceResponse>(new ReadResponse
@@ -875,11 +875,11 @@ namespace Opc.Ua.Client.Tests
                             var value = new DataValue();
                             if (r.NodeId == nodeIds[0])
                             {
-                                nodes[0].Read(null!, r.AttributeId, value);
+                                nodes[0].Read(null, r.AttributeId, value);
                             }
                             else
                             {
-                                nodes[1].Read(null!, r.AttributeId, value);
+                                nodes[1].Read(null, r.AttributeId, value);
                             }
                             return value;
                         }));
@@ -915,14 +915,14 @@ namespace Opc.Ua.Client.Tests
             {
                 new ReferenceDescription
                 {
-                    NodeId = new ExpandedNodeId("ns=2;s=TestNode1"),
+                    NodeId = ExpandedNodeId.Parse("ns=2;s=TestNode1"),
                     BrowseName = "TestBrowseName1",
                     DisplayName = "TestDisplayName1",
                     NodeClass = NodeClass.Variable
                 },
                 new ReferenceDescription
                 {
-                    NodeId = new ExpandedNodeId("ns=2;s=TestNode2"),
+                    NodeId = ExpandedNodeId.Parse("ns=2;s=TestNode2"),
                     BrowseName = "TestBrowseName2",
                     DisplayName = "TestDisplayName2",
                     NodeClass = NodeClass.Variable
@@ -987,14 +987,14 @@ namespace Opc.Ua.Client.Tests
             {
                 new ReferenceDescription
                 {
-                    NodeId = new ExpandedNodeId("ns=2;s=TestNode1"),
+                    NodeId = ExpandedNodeId.Parse("ns=2;s=TestNode1"),
                     BrowseName = "TestBrowseName1",
                     DisplayName = "TestDisplayName1",
                     NodeClass = NodeClass.Variable
                 },
                 new ReferenceDescription
                 {
-                    NodeId = new ExpandedNodeId("ns=2;s=TestNode2"),
+                    NodeId = ExpandedNodeId.Parse("ns=2;s=TestNode2"),
                     BrowseName = "TestBrowseName2",
                     DisplayName = "TestDisplayName2",
                     NodeClass = NodeClass.Variable
@@ -1058,7 +1058,7 @@ namespace Opc.Ua.Client.Tests
                 .Verifiable(Times.Once);
 
             Assert.ThrowsAsync<OperationCanceledException>(
-                async () => await sut.FetchReferencesAsync(null, nodeIds, cts.Token).ConfigureAwait(false));
+                async () => _ = await sut.FetchReferencesAsync(null, nodeIds, cts.Token).ConfigureAwait(false));
         }
 
         [Test]
@@ -1070,7 +1070,7 @@ namespace Opc.Ua.Client.Tests
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             var reference = new ReferenceDescription
             {
-                NodeId = new ExpandedNodeId("ns=2;s=TestNode1"),
+                NodeId = ExpandedNodeId.Parse("ns=2;s=TestNode1"),
                 BrowseName = "TestBrowseName1",
                 DisplayName = "TestDisplayName1",
                 NodeClass = NodeClass.Variable
@@ -1112,7 +1112,7 @@ namespace Opc.Ua.Client.Tests
             var nodeId = NodeId.Parse("ns=2;s=TestNode");
             var reference = new ReferenceDescription
             {
-                NodeId = new ExpandedNodeId("ns=2;s=TestNode1"),
+                NodeId = ExpandedNodeId.Parse("ns=2;s=TestNode1"),
                 BrowseName = "TestBrowseName1",
                 DisplayName = "TestDisplayName1",
                 NodeClass = NodeClass.Variable

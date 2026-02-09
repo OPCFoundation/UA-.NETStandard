@@ -269,7 +269,7 @@ namespace Opc.Ua.Bindings
                 if (State is not TcpChannelState.Connecting and not TcpChannelState.Opening)
                 {
                     int? socketHandle = Socket?.Handle;
-                    if (socketHandle is not null and not (-1))
+                    if (socketHandle is not null and not -1)
                     {
                         m_logger.LogError(
                             "{Channel} ForceChannelFault Socket={SocketHandle:X8}, ChannelId={ChannelId}, TokenId={TokenId}, Reason={Reason}",

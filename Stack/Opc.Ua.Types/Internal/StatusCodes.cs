@@ -147,6 +147,11 @@ namespace Opc.Ua.Types
         public const uint BadNotImplemented = 0x80400000;
 
         /// <summary>
+        /// The configuration is bad
+        /// </summary>
+        public const uint  BadConfigurationError = 0x80890000;
+
+        /// <summary>
         /// A mandatory structured parameter was missing or null.
         /// </summary>
         public const uint BadStructureMissing = 0x80460000;

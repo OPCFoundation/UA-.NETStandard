@@ -72,6 +72,13 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync([])
                 .Verifiable(Times.Once);
+            context
+                .Setup(c => c.FetchReferencesAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.Is<NodeId>(i => i != datatypeId),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync([])
+                .Verifiable(Times.Never);
 
             // Act
             BuiltInType result = await nodeCache.GetBuiltInTypeAsync(datatypeId, default)
@@ -1012,6 +1019,13 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync([])
                 .Verifiable(Times.Once);
+            context
+                .Setup(c => c.FetchReferencesAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.Is<NodeId>(i => i != subTypeId),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync([])
+                .Verifiable(Times.Never);
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             // Act

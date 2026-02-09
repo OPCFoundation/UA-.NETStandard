@@ -148,11 +148,8 @@ namespace Opc.Ua.Client
             {
                 lock (m_lock)
                 {
-                    if (m_reconnectTimer != null)
-                    {
-                        m_reconnectTimer.Dispose();
-                        m_reconnectTimer = null;
-                    }
+                    m_reconnectTimer?.Dispose();
+                    m_reconnectTimer = null;
                     m_state = ReconnectState.Disposed;
                 }
             }
@@ -289,9 +286,8 @@ namespace Opc.Ua.Client
             // The factors result in a jitter of 10%.
             const int jitterResolution = 1000;
             const int jitterFactor = 10;
-            int jitter =
-                reconnectPeriod *
-                 UnsecureRandom.Shared.Next(-jitterResolution, jitterResolution) /
+            int jitter = reconnectPeriod *
+                UnsecureRandom.Shared.Next(-jitterResolution, jitterResolution) /
                 (jitterResolution * jitterFactor);
             return reconnectPeriod + jitter;
         }
@@ -343,7 +339,6 @@ namespace Opc.Ua.Client
                 }
 
                 bool keepaliveRecovered = false;
-
 
                 // preserve legacy behavior if reconnectAbort is not set
                 if (m_reconnectAbort &&
@@ -430,9 +425,12 @@ namespace Opc.Ua.Client
                 {
                     if (m_reverseConnectManager != null)
                     {
+                        string? endpointUrl = current.Endpoint.EndpointUrl
+                            ?? throw ServiceResultException.Unexpected(
+                                "Endpoint Url is null for reverse connect session RECONNECT.");
                         ITransportWaitingConnection connection = await m_reverseConnectManager
                             .WaitForConnectionAsync(
-                                new Uri(current.Endpoint.EndpointUrl),
+                                new Uri(endpointUrl),
                                 current.Endpoint.Server.ApplicationUri)
                             .ConfigureAwait(false);
 
@@ -454,14 +452,13 @@ namespace Opc.Ua.Client
                         m_logger.LogWarning("Reconnect failed. Reason={Reason}.", sre.Result);
 
                         // check if the server endpoint could not be reached.
-                        if (sre.StatusCode
-                            is StatusCodes.BadTcpInternalError
-                                or StatusCodes.BadCommunicationError
-                                or StatusCodes.BadNotConnected
-                                or StatusCodes.BadRequestTimeout
-                                or StatusCodes.BadTimeout
-                                or StatusCodes.BadNoCommunication
-                                or StatusCodes.BadConnectionClosed)
+                        if (sre.StatusCode == StatusCodes.BadTcpInternalError ||
+                            sre.StatusCode == StatusCodes.BadCommunicationError ||
+                            sre.StatusCode == StatusCodes.BadNotConnected ||
+                            sre.StatusCode == StatusCodes.BadRequestTimeout ||
+                            sre.StatusCode == StatusCodes.BadTimeout ||
+                            sre.StatusCode == StatusCodes.BadNoCommunication ||
+                            sre.StatusCode == StatusCodes.BadConnectionClosed)
                         {
                             // check if reactivating is still an option.
                             int timeout =
@@ -477,8 +474,8 @@ namespace Opc.Ua.Client
                         }
 
                         // check if the security configuration may have changed
-                        if (sre.StatusCode is StatusCodes.BadSecurityChecksFailed or StatusCodes
-                            .BadCertificateInvalid)
+                        if (sre.StatusCode == StatusCodes.BadSecurityChecksFailed ||
+                            sre.StatusCode == StatusCodes.BadCertificateInvalid)
                         {
                             m_updateFromServer = true;
                             m_logger.LogInformation(
@@ -519,15 +516,13 @@ namespace Opc.Ua.Client
                     {
                         EndpointDescription? endpointDescription =
                             current.Endpoint ?? transportChannel?.EndpointDescription;
-                        if (endpointDescription == null)
-                        {
-                            throw ServiceResultException.Unexpected(
-                                "EndpointDescription is null for reverse connect session recreation.");
-                        }
+                        string? endpointUrl = endpointDescription?.EndpointUrl
+                            ?? throw ServiceResultException.Unexpected(
+                                "Endpoint Url is null for reverse connect session RECREATE.");
                         connection = await m_reverseConnectManager
                             .WaitForConnectionAsync(
-                                new Uri(endpointDescription.EndpointUrl),
-                                endpointDescription.Server?.ApplicationUri)
+                                new Uri(endpointUrl),
+                                endpointDescription?.Server?.ApplicationUri)
                             .ConfigureAwait(false);
 
                         if (m_updateFromServer)

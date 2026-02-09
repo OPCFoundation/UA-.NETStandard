@@ -68,7 +68,7 @@ namespace Opc.Ua
         private void Initialize()
         {
             IsAbstract = true;
-            DataTypeDefinition = null;
+            DataTypeDefinition = default;
         }
 
         /// <summary>

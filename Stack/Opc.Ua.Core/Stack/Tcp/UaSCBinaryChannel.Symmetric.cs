@@ -1033,6 +1033,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Signs the message using HMAC.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private static byte[] SymmetricSign(
             ChannelToken token,
             ReadOnlySpan<byte> dataToSign,
@@ -1049,7 +1050,7 @@ namespace Opc.Ua.Bindings
             // check result
             if (!result || bytesWritten != hashSizeInBytes)
             {
-                ServiceResultException.Create(
+                throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
                     "The computed hash doesn't match the expected size.");
             }

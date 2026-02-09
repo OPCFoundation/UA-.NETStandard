@@ -77,7 +77,7 @@ namespace Opc.Ua
         private void Initialize()
         {
             Value = Variant.Null;
-            DataType = null;
+            DataType = default;
             ValueRank = 0;
             m_arrayDimensions = [];
             IsAbstract = true;

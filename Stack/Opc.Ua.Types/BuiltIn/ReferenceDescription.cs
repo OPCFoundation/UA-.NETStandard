@@ -55,7 +55,7 @@ namespace Opc.Ua
 
         private void Initialize()
         {
-            ReferenceTypeId = null;
+            ReferenceTypeId = default;
             IsForward = true;
             NodeId = null;
             BrowseName = null;

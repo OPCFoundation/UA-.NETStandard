@@ -56,7 +56,7 @@ namespace Opc.Ua
 
         private void Initialize()
         {
-            RoleId = null;
+            RoleId = default;
             Permissions = 0;
         }
 

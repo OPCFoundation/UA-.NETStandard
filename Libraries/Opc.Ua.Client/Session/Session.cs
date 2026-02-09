@@ -264,7 +264,7 @@ namespace Opc.Ua.Client
                 ServerUris = ServerUris,
                 TypeTable = TypeTree,
                 PreferredLocales = null,
-                SessionId = null,
+                SessionId = default,
                 UserIdentity = null
             };
         }
@@ -298,9 +298,9 @@ namespace Opc.Ua.Client
                 return;
             }
 
-            throw new ServiceResultException(
-                StatusCodes.BadConfigurationError,
-                $"The client configuration does not specify the {configurationField}.");
+            throw ServiceResultException.ConfigurationError(
+                "The client configuration does not specify the configuration field {0}.",
+                configurationField);
         }
 
         /// <summary>
@@ -1098,7 +1098,7 @@ namespace Opc.Ua.Client
 
             // validate the server certificate /certificate chain.
             X509Certificate2? serverCertificate = null;
-            byte[] certificateData = m_endpoint.Description.ServerCertificate;
+            byte[]? certificateData = m_endpoint.Description.ServerCertificate;
 
             if (certificateData != null && certificateData.Length > 0)
             {
@@ -1211,8 +1211,8 @@ namespace Opc.Ua.Client
             }
             NodeId sessionId = response.SessionId;
             NodeId sessionCookie = response.AuthenticationToken;
-            byte[] serverNonce = response.ServerNonce;
-            byte[] serverCertificateData = response.ServerCertificate;
+            byte[]? serverNonce = response.ServerNonce;
+            byte[]? serverCertificateData = response.ServerCertificate;
             SignatureData serverSignature = response.ServerSignature;
             EndpointDescriptionCollection serverEndpoints = response.ServerEndpoints;
 
@@ -1260,7 +1260,7 @@ namespace Opc.Ua.Client
                     dataToSign);
 
                 // select the security policy for the user token.
-                string tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
+                string? tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
 
                 if (string.IsNullOrEmpty(tokenSecurityPolicyUri))
                 {
@@ -1303,14 +1303,13 @@ namespace Opc.Ua.Client
 
                 // activate session.
                 ActivateSessionResponse activateResponse = await ActivateSessionAsync(
-                        null,
-                        clientSignature,
-                        null,
-                        m_preferredLocales,
-                        new ExtensionObject(identityToken),
-                        userTokenSignature,
-                        ct)
-                    .ConfigureAwait(false);
+                    null,
+                    clientSignature,
+                    [],
+                    m_preferredLocales,
+                    new ExtensionObject(identityToken),
+                    userTokenSignature,
+                    ct).ConfigureAwait(false);
 
                 //  process additional header
                 ProcessResponseAdditionalHeader(activateResponse.ResponseHeader, serverCertificate);
@@ -1377,7 +1376,7 @@ namespace Opc.Ua.Client
                 {
                     lock (m_lock)
                     {
-                        SessionCreated(null, null);
+                        SessionCreated(default, default);
                     }
                 }
                 if (closeChannel)
@@ -1423,7 +1422,8 @@ namespace Opc.Ua.Client
             }
 
             // get the identity token.
-            string securityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
+            string securityPolicyUri =
+                m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
 
             // create the client signature.
             byte[] dataToSign = Utils.Append(m_serverCertificate?.RawData, serverNonce);
@@ -1446,11 +1446,10 @@ namespace Opc.Ua.Client
                     "Endpoint does not support the user identity type provided.");
 
             // select the security policy for the user token.
-            string tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
-
+            string? tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
             if (string.IsNullOrEmpty(tokenSecurityPolicyUri))
             {
-                tokenSecurityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
+                tokenSecurityPolicyUri = securityPolicyUri;
             }
 
             bool requireEncryption = tokenSecurityPolicyUri != SecurityPolicies.None;
@@ -1460,7 +1459,9 @@ namespace Opc.Ua.Client
                 requireEncryption &&
                 identity.TokenType != UserTokenType.Anonymous)
             {
-                await m_configuration.CertificateValidator.ValidateAsync(m_serverCertificate, ct).ConfigureAwait(false);
+                await m_configuration.CertificateValidator.ValidateAsync(
+                    m_serverCertificate,
+                    ct).ConfigureAwait(false);
             }
 
             // validate server nonce and security parameters for user identity.
@@ -1495,7 +1496,7 @@ namespace Opc.Ua.Client
             ActivateSessionResponse response = await ActivateSessionAsync(
                 null,
                 clientSignature,
-                null,
+                [],
                 preferredLocales,
                 new ExtensionObject(identityToken),
                 userTokenSignature,
@@ -2229,7 +2230,7 @@ namespace Opc.Ua.Client
                         // raised notification indicating the session is closed.
                         lock (m_lock)
                         {
-                            SessionCreated(null, null);
+                            SessionCreated(default, default);
                         }
                     }
                 }
@@ -2333,8 +2334,7 @@ namespace Opc.Ua.Client
                 }
 
                 // select the security policy for the user token.
-                string tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
-
+                string? tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
                 if (string.IsNullOrEmpty(tokenSecurityPolicyUri))
                 {
                     tokenSecurityPolicyUri = endpoint.SecurityPolicyUri;
@@ -2444,13 +2444,13 @@ namespace Opc.Ua.Client
                     ActivateSessionResponse activateResult = await ActivateSessionAsync(
                         header,
                         clientSignature,
-                        null,
+                        [],
                         m_preferredLocales,
                         new ExtensionObject(identityToken),
                         userTokenSignature,
                         timeout.Token).ConfigureAwait(false);
 
-                    byte[] serverNonce = activateResult.ServerNonce;
+                    byte[]? serverNonce = activateResult.ServerNonce;
                     StatusCodeCollection certificateResults = activateResult.Results;
                     DiagnosticInfoCollection certificateDiagnosticInfos = activateResult.DiagnosticInfos;
 
@@ -2696,7 +2696,7 @@ namespace Opc.Ua.Client
                 {
                     NodeId = Variables.Server_ServerStatus_State,
                     AttributeId = Attributes.Value,
-                    DataEncoding = null,
+                    DataEncoding = QualifiedName.Null,
                     IndexRange = null
                 }
             };
@@ -2709,17 +2709,14 @@ namespace Opc.Ua.Client
 
                 if (m_keepAliveWorker == null)
                 {
-                    m_keepAliveCancellation = new CancellationTokenSource();
+                    var keepAliveCancellation = new CancellationTokenSource();
 
-                    // start timer
-                    m_keepAliveWorker = Task
-                        .Factory.StartNew(
-                            () => OnSendKeepAliveAsync(
-                                nodesToRead,
-                                m_keepAliveCancellation.Token),
-                            m_keepAliveCancellation.Token,
-                            TaskCreationOptions.LongRunning,
-                            TaskScheduler.Default);
+                    m_keepAliveWorker = Task.Run(
+                        () => OnSendKeepAliveAsync(nodesToRead, keepAliveCancellation.Token),
+                        keepAliveCancellation.Token);
+
+                    m_keepAliveCancellation?.Dispose();
+                    m_keepAliveCancellation = keepAliveCancellation;
                 }
 
                 // send initial keep alive.
@@ -3303,14 +3300,12 @@ namespace Opc.Ua.Client
             string[] namespaceArray = (string[])values[0].Value;
             if (namespaceArray.Length == 0)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "Retrieved namespace list contain no entries.");
             }
             if (namespaceArray[0] != Namespaces.OpcUa)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "Retrieved namespaces are missing OPC UA namespace at index 0.");
             }
 
@@ -3642,51 +3637,54 @@ namespace Opc.Ua.Client
 
                 // don't send another publish for these errors,
                 // or throttle to avoid server overload.
-                switch (error.Code)
+                if (error.StatusCode == StatusCodes.BadTooManyPublishRequests)
                 {
-                    case StatusCodes.BadTooManyPublishRequests:
-                        int tooManyPublishRequests = GoodPublishRequestCount;
-                        if (BelowPublishRequestLimit(tooManyPublishRequests))
-                        {
-                            m_tooManyPublishRequests = tooManyPublishRequests;
-                            m_logger.LogInformation(
-                                "PUBLISH - Too many requests, set limit to GoodPublishRequestCount={GoodRequestCount}.",
-                                m_tooManyPublishRequests);
-                        }
-                        return;
-                    case StatusCodes.BadNoSubscription:
-                    case StatusCodes.BadSessionClosed:
-                    case StatusCodes.BadSecurityChecksFailed:
-                    case StatusCodes.BadCertificateInvalid:
-                    case StatusCodes.BadServerHalted:
-                        return;
-                    // may require a reconnect or activate to recover
-                    case StatusCodes.BadSessionIdInvalid:
-                    case StatusCodes.BadSecureChannelIdInvalid:
-                    case StatusCodes.BadSecureChannelClosed:
-                        OnKeepAliveError(error);
-                        return;
-                    // Servers may return this error when overloaded
-                    case StatusCodes.BadTooManyOperations:
-                    case StatusCodes.BadTcpServerTooBusy:
-                    case StatusCodes.BadServerTooBusy:
-                        // throttle the next publish to reduce server load
-                        _ = Task.Run(async () =>
-                        {
-                            await Task.Delay(100).ConfigureAwait(false);
-                            QueueBeginPublish();
-                        });
-                        return;
-                    case StatusCodes.BadTimeout:
-                    case StatusCodes.BadRequestTimeout:
-                        break;
-                    default:
+                    int tooManyPublishRequests = GoodPublishRequestCount;
+                    if (BelowPublishRequestLimit(tooManyPublishRequests))
+                    {
+                        m_tooManyPublishRequests = tooManyPublishRequests;
+                        m_logger.LogInformation(
+                            "PUBLISH - Too many requests, set limit to GoodPublishRequestCount={GoodRequestCount}.",
+                            m_tooManyPublishRequests);
+                    }
+                    return;
+                }
+                if (error.StatusCode == StatusCodes.BadNoSubscription ||
+                    error.StatusCode == StatusCodes.BadSessionClosed ||
+                    error.StatusCode == StatusCodes.BadSecurityChecksFailed ||
+                    error.StatusCode == StatusCodes.BadCertificateInvalid ||
+                    error.StatusCode == StatusCodes.BadServerHalted)
+                {
+                    return;
+                }
+                if (error.StatusCode == StatusCodes.BadSessionIdInvalid ||
+                    error.StatusCode == StatusCodes.BadSecureChannelIdInvalid ||
+                    error.StatusCode == StatusCodes.BadSecureChannelClosed)
+                {
+                    OnKeepAliveError(error);
+                    return;
+                }
+                // Servers may return this error when overloaded
+                if (error.StatusCode != StatusCodes.BadTimeout &&
+                    error.StatusCode != StatusCodes.BadRequestTimeout)
+                {
+                    if (error.StatusCode != StatusCodes.BadTooManyOperations &&
+                        error.StatusCode != StatusCodes.BadTcpServerTooBusy &&
+                        error.StatusCode != StatusCodes.BadServerTooBusy)
+                    {
                         m_logger.LogError(
                             e,
                             "PUBLISH #{RequestHandle} - Unhandled error {StatusCode} during Publish.",
                             requestHeader.RequestHandle,
                             error.StatusCode);
-                        goto case StatusCodes.BadServerTooBusy;
+                    }
+                    // throttle the next publish to reduce server load
+                    _ = Task.Run(async () =>
+                    {
+                        await Task.Delay(100).ConfigureAwait(false);
+                        QueueBeginPublish();
+                    });
+                    return;
                 }
             }
 
@@ -3763,7 +3761,7 @@ namespace Opc.Ua.Client
                 }
             }
 
-            securityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
+            securityPolicyUri = m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
 
             // catch security policies which are not supported by core
             if (SecurityPolicies.GetDisplayName(securityPolicyUri) == null)
@@ -3838,7 +3836,7 @@ namespace Opc.Ua.Client
         /// Validates the server certificate returned.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void ValidateServerCertificateData(byte[] serverCertificateData)
+        private void ValidateServerCertificateData(byte[]? serverCertificateData)
         {
             if (serverCertificateData != null &&
                 m_endpoint.Description.ServerCertificate != null &&
@@ -4118,35 +4116,35 @@ namespace Opc.Ua.Client
             var error = new ServiceResult(e);
 
             bool result = true;
-            switch (error.StatusCode.Code)
+            if (error.StatusCode == StatusCodes.BadSubscriptionIdInvalid ||
+                error.StatusCode == StatusCodes.BadMessageNotAvailable)
             {
-                case StatusCodes.BadSubscriptionIdInvalid:
-                case StatusCodes.BadMessageNotAvailable:
-                    m_logger.LogWarning(
-                        "Message {SubscriptionId}-{SequenceNumber} no longer available.",
-                        subscriptionId,
-                        sequenceNumber);
-                    break;
+                m_logger.LogWarning(
+                    "Message {SubscriptionId}-{SequenceNumber} no longer available.",
+                    subscriptionId,
+                    sequenceNumber);
+            }
+            else if (error.StatusCode == StatusCodes.BadEncodingLimitsExceeded)
+            {
                 // if encoding limits are exceeded, the issue is logged and
                 // the published data is acknowledged to prevent the endless republish loop.
-                case StatusCodes.BadEncodingLimitsExceeded:
-                    m_logger.LogError(
-                        e,
-                        "Message {SubscriptionId}-{SequenceNumber} exceeded size limits, ignored.",
+                m_logger.LogError(
+                    e,
+                    "Message {SubscriptionId}-{SequenceNumber} exceeded size limits, ignored.",
+                    subscriptionId,
+                    sequenceNumber);
+                lock (m_acknowledgementsToSendLock)
+                {
+                    AddAcknowledgementToSend(
+                        m_acknowledgementsToSend,
                         subscriptionId,
                         sequenceNumber);
-                    lock (m_acknowledgementsToSendLock)
-                    {
-                        AddAcknowledgementToSend(
-                            m_acknowledgementsToSend,
-                            subscriptionId,
-                            sequenceNumber);
-                    }
-                    break;
-                default:
-                    result = false;
-                    m_logger.LogError(e, "Unexpected error sending republish request.");
-                    break;
+                }
+            }
+            else
+            {
+                result = false;
+                m_logger.LogError(e, "Unexpected error sending republish request.");
             }
 
             PublishErrorEventHandler? callback = m_PublishError;
@@ -4397,7 +4395,7 @@ namespace Opc.Ua.Client
                         notificationMessage,
                         responseHeader.StringTable);
 
-                    Task.Run(() => OnRaisePublishNotification(publishEventHandler, args));
+                    _ = Task.Run(() => OnRaisePublishNotification(publishEventHandler, args));
                 }
             }
             else if (DeleteSubscriptionsOnClose && !Reconnecting && !subscriptionCreationInProgress)
@@ -4407,7 +4405,7 @@ namespace Opc.Ua.Client
                     "Received Publish Response for Unknown SubscriptionId={SubscriptionId}. Deleting abandoned subscription from server.",
                     subscriptionId);
 
-                Task.Run(() => DeleteSubscriptionAsync(subscriptionId));
+                _ = Task.Run(() => DeleteSubscriptionAsync(subscriptionId));
             }
             else
             {
@@ -4491,6 +4489,7 @@ namespace Opc.Ua.Client
             bool throwIfConfigurationChangedFromLastLoad,
             CancellationToken ct = default)
         {
+            m_endpoint.Description.SecurityPolicyUri ??= SecurityPolicies.None;
             if (m_endpoint.Description.SecurityPolicyUri == SecurityPolicies.None)
             {
                 // No need to load instance certificates
@@ -4506,7 +4505,7 @@ namespace Opc.Ua.Client
                     // Updating a live session must be prevented unless the session was
                     // closed. Therefore we need to throw here to catch this case during any
                     // reconnect or other activation operation
-                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError,
+                    throw ServiceResultException.ConfigurationError(
                         "Configuration was changed for an active session.");
                 }
                 // If the configured endpoint was updated while we are closed we reload.
@@ -4523,8 +4522,7 @@ namespace Opc.Ua.Client
                     .ConfigureAwait(false);
                 if (m_instanceCertificate == null)
                 {
-                    throw new ServiceResultException(
-                        StatusCodes.BadConfigurationError,
+                    throw ServiceResultException.ConfigurationError(
                         "The client configuration does not specify an application instance certificate.");
                 }
                 m_effectiveEndpoint = m_endpoint;
@@ -4534,8 +4532,7 @@ namespace Opc.Ua.Client
             // check for private key.
             if (!m_instanceCertificate.HasPrivateKey)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
+                throw ServiceResultException.ConfigurationError(
                     "Client certificate configured for security policy {0} is missing a private key.",
                     m_endpoint.Description.SecurityPolicyUri);
             }
@@ -4562,8 +4559,7 @@ namespace Opc.Ua.Client
                 privateKey: true,
                 telemetry,
                 ct).ConfigureAwait(false)
-                ?? throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
+                ?? throw ServiceResultException.ConfigurationError(
                     "ApplicationCertificate for the security profile {0} cannot be found.",
                     securityProfile);
         }
@@ -4767,11 +4763,11 @@ namespace Opc.Ua.Client
         /// for the ecc user token security policy, if needed.
         /// </summary>
         private RequestHeader CreateRequestHeaderPerUserTokenPolicy(
-            string identityTokenSecurityPolicyUri,
-            string endpointSecurityPolicyUri)
+            string? identityTokenSecurityPolicyUri,
+            string? endpointSecurityPolicyUri)
         {
             var requestHeader = new RequestHeader();
-            string userTokenSecurityPolicyUri = identityTokenSecurityPolicyUri;
+            string? userTokenSecurityPolicyUri = identityTokenSecurityPolicyUri;
             if (string.IsNullOrEmpty(userTokenSecurityPolicyUri))
             {
                 userTokenSecurityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
@@ -4828,7 +4824,7 @@ namespace Opc.Ua.Client
                         }
 
                         if (!EccUtils.Verify(
-                                new ArraySegment<byte>(key.PublicKey),
+                                new ArraySegment<byte>(key.PublicKey ?? []),
                                 key.Signature,
                                 serverCertificate,
                                 m_userTokenSecurityPolicyUri))
@@ -4944,6 +4940,7 @@ namespace Opc.Ua.Client
         private Subscription? m_defaultSubscription;
         private readonly EndpointDescriptionCollection? m_discoveryServerEndpoints;
         private readonly StringCollection? m_discoveryProfileUris;
+        private new readonly ILogger m_logger;
 
         private sealed class AsyncRequestState : IDisposable
         {

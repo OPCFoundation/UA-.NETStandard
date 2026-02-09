@@ -52,7 +52,7 @@ namespace Opc.Ua
         {
             if (disposing)
             {
-                SessionId = null;
+                SessionId = default;
             }
 
             base.Dispose(disposing);

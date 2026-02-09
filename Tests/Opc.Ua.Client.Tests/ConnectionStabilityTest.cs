@@ -378,10 +378,12 @@ namespace Opc.Ua.Client.Tests
 #if DEBUG
                         TestContext.Out.WriteLine($"  {nodeId}: {changes} notifications");
 #endif
-                        if (changes < (writeCount * kNotificationToleranceRatio))
+                        double expected = writeCount * kNotificationToleranceRatio;
+                        if (changes < expected)
                         {
                             allNodesReceivedData = false;
-                            TestContext.Out.WriteLine($"    WARNING: Expected at least {writeCount * kNotificationToleranceRatio:F0} notifications");
+                            TestContext.Out.WriteLine(
+                                $"    WARNING: Expected at least {expected:F0} but got {changes} on {nodeId}");
                         }
                     }
                     else

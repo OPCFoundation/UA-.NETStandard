@@ -34,7 +34,7 @@ using System.Xml;
 namespace Opc.Ua
 {
     /// <summary>
-    /// Defines functions used to dencode objects from a stream.
+    /// Defines functions used to decode objects from a stream.
     /// </summary>
     public interface IDecoder : IDisposable
     {
@@ -210,7 +210,7 @@ namespace Opc.Ua
         IEncodeable ReadEncodeable(
             string fieldName,
             Type systemType,
-            ExpandedNodeId encodeableTypeId = null);
+            ExpandedNodeId encodeableTypeId = default);
 
         /// <summary>
         ///  Reads an enumerated value from the stream.
@@ -352,7 +352,7 @@ namespace Opc.Ua
         Array ReadEncodeableArray(
             string fieldName,
             Type systemType,
-            ExpandedNodeId encodeableTypeId = null);
+            ExpandedNodeId encodeableTypeId = default);
 
         /// <summary>
         /// Reads an enumerated value array from the stream.
@@ -373,7 +373,7 @@ namespace Opc.Ua
             int valueRank,
             BuiltInType builtInType,
             Type systemType = null,
-            ExpandedNodeId encodeableTypeId = null);
+            ExpandedNodeId encodeableTypeId = default);
 
         /// <summary>
         /// Decode the switch field for a union.

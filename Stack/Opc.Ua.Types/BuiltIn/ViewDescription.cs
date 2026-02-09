@@ -53,7 +53,7 @@ namespace Opc.Ua
 
         private void Initialize()
         {
-            ViewId = null;
+            ViewId = default;
             Timestamp = DateTime.MinValue;
             ViewVersion = 0;
         }

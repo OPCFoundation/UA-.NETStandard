@@ -63,7 +63,7 @@ namespace Opc.Ua
         public ServiceResultException(Exception e, StatusCode defaultCode)
             : base(e.Message, e)
         {
-            Result = ServiceResult.Create(e, defaultCode, string.Empty);
+            Result = ServiceResult.Create(e, defaultCode, defaultCode.SymbolicId);
         }
 
         /// <summary>
@@ -215,10 +215,18 @@ namespace Opc.Ua
         /// <summary>
         /// Unexpected error occurred
         /// </summary>
-        /// <param name="format"></param>
-        /// <param name="args"></param>
-        /// <returns></returns>
         public static ServiceResultException Unexpected(
+            string format,
+            params object[] args)
+        {
+            return Unexpected(null, format, args);
+        }
+
+        /// <summary>
+        /// Unexpected error occurred
+        /// </summary>
+        public static ServiceResultException Unexpected(
+            Exception exception,
             string format,
             params object[] args)
         {
@@ -231,6 +239,19 @@ namespace Opc.Ua
 #endif
             System.Diagnostics.Debug.WriteLine($"{message}\n{new System.Diagnostics.StackTrace()}");
 #endif
+            if (exception != null)
+            {
+                if (format == null)
+                {
+                    return new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        exception);
+                }
+                return new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    CoreUtils.Format(format, args),
+                    exception);
+            }
             if (format == null)
             {
                 return new ServiceResultException(
@@ -238,6 +259,56 @@ namespace Opc.Ua
             }
             return new ServiceResultException(
                 StatusCodes.BadUnexpectedError,
+                CoreUtils.Format(format, args));
+        }
+
+        /// <summary>
+        /// Configuration error occurred
+        /// </summary>
+        public static ServiceResultException ConfigurationError(
+            string format,
+            params object[] args)
+        {
+            return ConfigurationError(null, format, args);
+        }
+
+        /// <summary>
+        /// Configuration error occurred
+        /// </summary>
+        public static ServiceResultException ConfigurationError(
+            Exception exception,
+            string format,
+            params object[] args)
+        {
+#if DEBUG
+            string message = format == null ?
+                "A configuration error occurred" :
+                CoreUtils.Format(format, args);
+#if DEBUGCHK
+            System.Diagnostics.Debug.Fail(message);
+#endif
+            System.Diagnostics.Debug.WriteLine($"{message}\n{new System.Diagnostics.StackTrace()}");
+#endif
+            if (exception != null)
+            {
+                if (format == null)
+                {
+                    return new ServiceResultException(
+                        StatusCodes.BadConfigurationError,
+                        exception);
+                }
+                return new ServiceResultException(
+                    StatusCodes.BadConfigurationError,
+                    CoreUtils.Format(format, args),
+                    exception);
+            }
+            if (format == null)
+            {
+                return new ServiceResultException(
+                    StatusCodes.BadConfigurationError);
+            }
+            return new ServiceResultException(
+                StatusCodes.BadConfigurationError,
                 CoreUtils.Format(format, args));
         }
 

@@ -56,7 +56,6 @@ namespace Opc.Ua.PubSub.Configuration
 
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = true;
-
             using var writer = XmlWriter.Create(ostrm, settings);
             var serializer = new DataContractSerializer(typeof(PubSubConfigurationDataType));
             using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
@@ -82,17 +81,11 @@ namespace Opc.Ua.PubSub.Configuration
             }
             catch (Exception e)
             {
-                var buffer = new StringBuilder();
-                buffer.AppendFormat(
-                    CultureInfo.InvariantCulture,
-                    "Configuration file could not be loaded: {0}\r\n",
-                    filePath)
-                    .AppendFormat(CultureInfo.InvariantCulture, "Error: {0}", e.Message);
-
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
+                throw ServiceResultException.ConfigurationError(
                     e,
-                    buffer.ToString());
+                    "Configuration file could not be loaded: {0}\nError: {1}",
+                    filePath,
+                    e.Message);
             }
         }
     }

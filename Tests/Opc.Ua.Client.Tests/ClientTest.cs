@@ -277,17 +277,13 @@ namespace Opc.Ua.Client.Tests
                 await client.GetEndpointsAsync(null).ConfigureAwait(false);
             Assert.NotNull(endpoints);
 
-            // cast Innerchannel to ISessionChannel
             ITransportChannel channel = client.TransportChannel;
-
             var sessionClient = new SessionClient(channel, telemetry)
             {
                 ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText
             };
 
             var request = new ReadRequest { RequestHeader = null };
-
-            var readMessage = new ReadMessage { ReadRequest = request };
 
             var readValueId = new ReadValueId
             {
@@ -302,13 +298,13 @@ namespace Opc.Ua.Client.Tests
             }
 
             // try to read nodes using discovery channel
-            ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() =>
-                sessionClient.ReadAsync(
+            ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await sessionClient.ReadAsync(
                     null,
                     0,
                     TimestampsToReturn.Neither,
                     readValues,
-                    default));
+                    default).ConfigureAwait(false));
             StatusCode statusCode = StatusCodes.BadSecurityPolicyRejected;
             // race condition, if socket closed is detected before the error was returned,
             // client may report channel closed instead of security policy rejected
@@ -441,7 +437,7 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(session);
             Session.SessionClosing += SessionClosing;
 
-            var nodeId = new NodeId(VariableIds.ServerStatusType_BuildInfo);
+            NodeId nodeId = VariableIds.ServerStatusType_BuildInfo;
             Node node = await session.ReadNodeAsync(nodeId, CancellationToken.None)
                 .ConfigureAwait(false);
             DataValue value = await session.ReadValueAsync(nodeId, CancellationToken.None)
@@ -476,7 +472,7 @@ namespace Opc.Ua.Client.Tests
             IUserIdentity userIdentity = session.Identity;
             string sessionName = session.SessionName;
 
-            var nodeId = new NodeId(VariableIds.ServerStatusType_BuildInfo);
+            NodeId nodeId = VariableIds.ServerStatusType_BuildInfo;
             Node node = await session.ReadNodeAsync(nodeId, CancellationToken.None)
                 .ConfigureAwait(false);
             DataValue value = await session.ReadValueAsync(nodeId, CancellationToken.None)
@@ -520,7 +516,7 @@ namespace Opc.Ua.Client.Tests
             IUserIdentity userIdentity = session.Identity;
             string sessionName = session.SessionName;
 
-            var nodeId = new NodeId(VariableIds.ServerStatusType_BuildInfo);
+            NodeId nodeId = VariableIds.ServerStatusType_BuildInfo;
             Node node = await session.ReadNodeAsync(nodeId, CancellationToken.None)
                 .ConfigureAwait(false);
             DataValue value = await session.ReadValueAsync(nodeId, CancellationToken.None)
@@ -1101,7 +1097,7 @@ namespace Opc.Ua.Client.Tests
         {
             TestContext.Out.WriteLine("Identity         : {0}", Session.Identity);
             TestContext.Out.WriteLine("IdentityHistory  : {0}", Session.IdentityHistory);
-            TestContext.Out.WriteLine("NamespaceUris    : {0}", Session.NamespaceUris.ToString());
+            TestContext.Out.WriteLine("NamespaceUris    : {0}", string.Join(", ", Session.NamespaceUris));
             TestContext.Out.WriteLine("ServerUris       : {0}", Session.ServerUris);
             TestContext.Out.WriteLine("SystemContext    : {0}", Session.SystemContext);
             TestContext.Out.WriteLine("Factory          : {0}", Session.Factory);
@@ -1459,8 +1455,8 @@ namespace Opc.Ua.Client.Tests
             foreach (Node node in nodeCollection)
             {
                 Assert.NotNull(node);
-                Assert.AreEqual(ServiceResult.Good, errors[ii]);
                 TestContext.Out.WriteLine("NodeId: {0} Node: {1}", node.NodeId, node);
+                Assert.AreEqual(ServiceResult.Good, errors[ii]);
                 if (node is VariableNode)
                 {
                     try
@@ -1735,7 +1731,7 @@ namespace Opc.Ua.Client.Tests
             var activityListener = new ActivityListener
             {
                 ShouldListenTo = _ => true,
-                Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded
+                Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded
             };
 
             ActivitySource.AddActivityListener(activityListener);
@@ -1855,7 +1851,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ||
                 (securityPolicy != SecurityPolicies.ECC_brainpoolP256r1 &&
-                 securityPolicy != SecurityPolicies.ECC_brainpoolP384r1))
+                    securityPolicy != SecurityPolicies.ECC_brainpoolP384r1))
             {
                 var userIdentity = new UserIdentity("user1", "password"u8);
 
@@ -1904,7 +1900,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ||
                 (securityPolicy != SecurityPolicies.ECC_brainpoolP256r1 &&
-                 securityPolicy != SecurityPolicies.ECC_brainpoolP384r1))
+                    securityPolicy != SecurityPolicies.ECC_brainpoolP384r1))
             {
                 const string identityToken = "fakeTokenString";
 

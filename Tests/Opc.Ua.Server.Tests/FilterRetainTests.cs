@@ -274,7 +274,7 @@ namespace Opc.Ua.Server.Tests
                 SelectClauses = GetSelectFields(),
                 WhereClause = GetStateFilter()
             };
-            filter.Validate(filterContext);
+            _ = filter.Validate(filterContext);
 
             MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
 
@@ -410,8 +410,9 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry)
         {
             var alarm = new ExclusiveLevelAlarmState(null);
+            SystemContext context = GetSystemContext(telemetry);
             alarm.Create(
-                GetSystemContext(telemetry),
+                context,
                 new NodeId(12345, 1),
                 new QualifiedName("AnyAlarm", 1),
                 new LocalizedText(string.Empty, "AnyAlarm"),
@@ -488,7 +489,7 @@ namespace Opc.Ua.Server.Tests
                 filter.SelectClauses = GetSelectFields();
                 filter.WhereClause = GetHighOnlyFilter();
             }
-            filter.Validate(GetFilterContext(telemetry));
+            _ = filter.Validate(GetFilterContext(telemetry));
             return filter;
         }
 
@@ -526,7 +527,7 @@ namespace Opc.Ua.Server.Tests
             var notOutOfServiceState = new SimpleAttributeOperand
             {
                 AttributeId = Attributes.Value,
-                TypeDefinitionId = null,
+                TypeDefinitionId = default,
                 BrowsePath = [.. new QualifiedName[] { BrowseNames.OutOfServiceState }]
             };
 
@@ -539,7 +540,7 @@ namespace Opc.Ua.Server.Tests
             var notSuppressed = new SimpleAttributeOperand
             {
                 AttributeId = Attributes.Value,
-                TypeDefinitionId = null,
+                TypeDefinitionId = default,
                 BrowsePath = [.. new QualifiedName[] { BrowseNames.SuppressedState }]
             };
 
@@ -552,7 +553,7 @@ namespace Opc.Ua.Server.Tests
             var activeState = new SimpleAttributeOperand
             {
                 AttributeId = Attributes.Value,
-                TypeDefinitionId = null,
+                TypeDefinitionId = default,
                 BrowsePath = [.. new QualifiedName[] { BrowseNames.ActiveState }]
             };
 
@@ -576,7 +577,7 @@ namespace Opc.Ua.Server.Tests
                 m_systemContext = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
                 m_systemContext.NamespaceUris.Append(Ua.Namespaces.OpcUa);
                 var typeTable = new TypeTable(m_systemContext.NamespaceUris);
-                typeTable.AddSubtype(ObjectTypeIds.BaseObjectType, null);
+                typeTable.AddSubtype(ObjectTypeIds.BaseObjectType, default);
                 typeTable.AddSubtype(ObjectTypeIds.BaseEventType, ObjectTypeIds.BaseObjectType);
                 typeTable.AddSubtype(ObjectTypeIds.ConditionType, ObjectTypeIds.BaseEventType);
                 typeTable.AddSubtype(

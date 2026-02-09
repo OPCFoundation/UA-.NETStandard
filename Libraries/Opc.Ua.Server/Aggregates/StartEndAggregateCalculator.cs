@@ -287,7 +287,7 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            TypeInfo originalType = null;
+            TypeInfo originalType = default;
 
             // convert to doubles.
             double startValue;

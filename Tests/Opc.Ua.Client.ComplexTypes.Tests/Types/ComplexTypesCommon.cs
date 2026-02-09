@@ -155,7 +155,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 BaseDataType = structureType == StructureType.Union
                     ? DataTypeIds.Union
                     : DataTypeIds.Structure,
-                DefaultEncodingId = null,
+                DefaultEncodingId = default,
                 Fields = GetAllBuiltInTypesFields(),
                 StructureType = structureType
             };

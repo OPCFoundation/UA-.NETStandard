@@ -329,7 +329,7 @@ namespace Opc.Ua.Server
                 if (!m_discardOldest)
                 {
                     ServerUtils.ReportDiscardedValue(
-                        null,
+                        default,
                         m_monitoredItemId,
                         m_dataValueQueue.PeekLastValue());
 
@@ -344,7 +344,7 @@ namespace Opc.Ua.Server
                 // remove oldest value.
                 if (m_dataValueQueue.Dequeue(out DataValue discardedValue, out _))
                 {
-                    ServerUtils.ReportDiscardedValue(null, m_monitoredItemId, discardedValue);
+                    ServerUtils.ReportDiscardedValue(default, m_monitoredItemId, discardedValue);
                 }
                 else
                 {

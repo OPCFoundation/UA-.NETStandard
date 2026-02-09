@@ -54,9 +54,9 @@ namespace Opc.Ua
 
         private void Initialize()
         {
-            NodeId = null;
+            NodeId = default;
             BrowseDirection = BrowseDirection.Forward;
-            ReferenceTypeId = null;
+            ReferenceTypeId = default;
             IncludeSubtypes = true;
             NodeClassMask = 0;
             ResultMask = 0;

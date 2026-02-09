@@ -1517,7 +1517,7 @@ namespace Opc.Ua.Configuration.Tests
             IList<string> applicationUris,
             string subjectName,
             IList<string> domainNames,
-            NodeId certificateType = null)
+            NodeId certificateType = default)
         {
             DateTime notBefore = DateTime.Today.AddDays(-1);
             DateTime notAfter = DateTime.Today.AddYears(1);

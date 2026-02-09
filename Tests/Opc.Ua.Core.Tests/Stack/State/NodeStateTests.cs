@@ -82,7 +82,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             var testObject = CreateDefaultNodeStateType(systemType) as NodeState;
             Assert.NotNull(testObject);
-            Assert.False(testObject.Initialized);
             var context = new SystemContext(telemetry) { NamespaceUris = Context.NamespaceUris };
             Assert.AreEqual(0, context.NamespaceUris.GetIndexOrAppend(OpcUa));
             testObject.Create(context, new NodeId(1000), "Name", "DisplayName", true);
@@ -105,9 +104,21 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 {
                     instance = Activator.CreateInstance(systemType, (NodeState)null);
                 }
+                else if (systemType.IsAbstract)
+                {
+                    instance = null;
+                }
                 else
                 {
-                    instance = Activator.CreateInstance(systemType);
+                    ConstructorInfo defaultConstructor = systemType.GetConstructor([]);
+                    if (defaultConstructor == null || !defaultConstructor.IsPublic)
+                    {
+                        instance = null;
+                    }
+                    else
+                    {
+                        instance = Activator.CreateInstance(systemType);
+                    }
                 }
             }
             catch
@@ -151,29 +162,29 @@ namespace Opc.Ua.Core.Tests.Stack.State
     public class BaseEventStateTests
     {
         /// <summary>
-        /// Verify that MemberwiseClone works correctly for BaseEventState.
+        /// Verify that Clone works correctly for BaseEventState.
         /// </summary>
         [Test]
-        public void MemberwiseCloneBaseEventStateSucceeds()
+        public void CloneBaseEventStateSucceeds()
         {
             var parent = new BaseObjectState(null);
             var eventState = new BaseEventState(parent);
 
-            var clone = (BaseEventState)eventState.MemberwiseClone();
+            var clone = (BaseEventState)eventState.Clone();
 
             Assert.That(clone, Is.Not.Null);
             Assert.That(clone.Parent, Is.SameAs(parent));
         }
 
         /// <summary>
-        /// Verify that MemberwiseClone works correctly for BaseEventState with null parent.
+        /// Verify that Clone works correctly for BaseEventState with null parent.
         /// </summary>
         [Test]
-        public void MemberwiseCloneBaseEventStateWithNullParentSucceeds()
+        public void CloneBaseEventStateWithNullParentSucceeds()
         {
             var eventState = new BaseEventState(null);
 
-            var clone = (BaseEventState)eventState.MemberwiseClone();
+            var clone = (BaseEventState)eventState.Clone();
 
             Assert.That(clone, Is.Not.Null);
             Assert.That(clone.Parent, Is.Null);

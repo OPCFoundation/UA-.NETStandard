@@ -179,7 +179,7 @@ namespace Opc.Ua.Server.Tests
                     // If a valid ID is found, all subsequent IDs must also be greater.
                     if (firstValidIdIndex != -1)
                     {
-                        List<uint> subsequentIds = idsAfterReset.Skip(firstValidIdIndex).ToList();
+                        List<uint> subsequentIds = [.. idsAfterReset.Skip(firstValidIdIndex)];
                         Assert.That(subsequentIds.All(id => id > startValue), Is.True,
                             $"An ID was generated that was not greater than the new start value {startValue} after a reset.");
 
