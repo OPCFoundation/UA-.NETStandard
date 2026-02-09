@@ -37,7 +37,6 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Xml;
-using System.Runtime.Serialization;
 
 #if NETFRAMEWORK
 using System.Runtime.InteropServices;

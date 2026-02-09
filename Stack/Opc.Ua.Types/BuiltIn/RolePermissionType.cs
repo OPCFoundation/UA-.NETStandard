@@ -144,7 +144,7 @@ namespace Opc.Ua
             var clone = (RolePermissionType)base.MemberwiseClone();
 
             clone.RoleId = CoreUtils.Clone(RoleId);
-            clone.Permissions = (uint)CoreUtils.Clone(Permissions);
+            clone.Permissions = CoreUtils.Clone(Permissions);
 
             return clone;
         }

@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Text;
@@ -177,7 +176,7 @@ namespace Opc.Ua
         [Obsolete("Use CreateMessageContext() without parameters or CreateMessageContext(IEncodeableFactory) instead.")]
         public ServiceMessageContext CreateMessageContext(bool clonedFactory)
         {
-            return CreateMessageContext((IEncodeableFactory)null);
+            return CreateMessageContext(null);
         }
 
         /// <summary>
@@ -186,7 +185,7 @@ namespace Opc.Ua
         /// <returns>A new instance of a ServiceMessageContext object with a new encodeable factory.</returns>
         public ServiceMessageContext CreateMessageContext()
         {
-            return CreateMessageContext((IEncodeableFactory)null);
+            return CreateMessageContext(null);
         }
 
         /// <summary>

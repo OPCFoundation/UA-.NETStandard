@@ -161,8 +161,8 @@ namespace Opc.Ua
             var clone = (ViewDescription)base.MemberwiseClone();
 
             clone.ViewId = CoreUtils.Clone(ViewId);
-            clone.Timestamp = (DateTime)CoreUtils.Clone(Timestamp);
-            clone.ViewVersion = (uint)CoreUtils.Clone(ViewVersion);
+            clone.Timestamp = CoreUtils.Clone(Timestamp);
+            clone.ViewVersion = CoreUtils.Clone(ViewVersion);
 
             return clone;
         }

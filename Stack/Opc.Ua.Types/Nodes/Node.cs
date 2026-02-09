@@ -346,15 +346,15 @@ namespace Opc.Ua
             var clone = (Node)base.MemberwiseClone();
 
             clone.NodeId = CoreUtils.Clone(NodeId);
-            clone.NodeClass = (NodeClass)CoreUtils.Clone(NodeClass);
+            clone.NodeClass = CoreUtils.Clone(NodeClass);
             clone.BrowseName = CoreUtils.Clone(BrowseName);
             clone.DisplayName = CoreUtils.Clone(DisplayName);
             clone.Description = CoreUtils.Clone(Description);
-            clone.WriteMask = (uint)CoreUtils.Clone(WriteMask);
-            clone.UserWriteMask = (uint)CoreUtils.Clone(UserWriteMask);
+            clone.WriteMask = CoreUtils.Clone(WriteMask);
+            clone.UserWriteMask = CoreUtils.Clone(UserWriteMask);
             clone.m_rolePermissions = CoreUtils.Clone(m_rolePermissions);
             clone.m_userRolePermissions = CoreUtils.Clone(m_userRolePermissions);
-            clone.AccessRestrictions = (ushort)CoreUtils.Clone(AccessRestrictions);
+            clone.AccessRestrictions = CoreUtils.Clone(AccessRestrictions);
             clone.m_references = CoreUtils.Clone(m_references);
 
             return clone;

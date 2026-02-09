@@ -47,7 +47,7 @@ namespace Opc.Ua.Core.Tests.Types.ServiceMessageContextTests
         public void ConstructorWithNullFactoryCreatesNewFactory()
         {
             // Arrange & Act
-            var context = new ServiceMessageContext((ITelemetryContext)null, (IEncodeableFactory)null);
+            var context = new ServiceMessageContext(null, (IEncodeableFactory)null);
 
             // Assert
             Assert.IsNotNull(context.Factory);

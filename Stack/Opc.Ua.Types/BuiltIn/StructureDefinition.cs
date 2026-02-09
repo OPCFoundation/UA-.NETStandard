@@ -38,7 +38,7 @@ namespace Opc.Ua
     /// Structure definition
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public partial class StructureDefinition : DataTypeDefinition
+    public class StructureDefinition : DataTypeDefinition
     {
         /// <inheritdoc/>
         public StructureDefinition()
@@ -189,7 +189,7 @@ namespace Opc.Ua
 
             clone.DefaultEncodingId = CoreUtils.Clone(DefaultEncodingId);
             clone.BaseDataType = CoreUtils.Clone(BaseDataType);
-            clone.StructureType = (StructureType)CoreUtils.Clone(StructureType);
+            clone.StructureType = CoreUtils.Clone(StructureType);
             clone.m_fields = CoreUtils.Clone(m_fields);
 
             return clone;

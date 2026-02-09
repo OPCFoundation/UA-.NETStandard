@@ -28,10 +28,8 @@
  * ======================================================================*/
 
 using System;
-using System.Globalization;
 using System.IO;
 using System.Runtime.Serialization;
-using System.Text;
 using System.Xml;
 
 namespace Opc.Ua.PubSub.Configuration

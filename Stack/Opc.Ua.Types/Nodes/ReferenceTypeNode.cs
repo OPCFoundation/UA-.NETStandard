@@ -174,8 +174,8 @@ namespace Opc.Ua
         {
             var clone = (ReferenceTypeNode)base.MemberwiseClone();
 
-            clone.IsAbstract = (bool)CoreUtils.Clone(IsAbstract);
-            clone.Symmetric = (bool)CoreUtils.Clone(Symmetric);
+            clone.IsAbstract = CoreUtils.Clone(IsAbstract);
+            clone.Symmetric = CoreUtils.Clone(Symmetric);
             clone.InverseName = CoreUtils.Clone(InverseName);
 
             return clone;

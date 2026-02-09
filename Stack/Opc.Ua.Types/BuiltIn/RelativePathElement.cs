@@ -170,8 +170,8 @@ namespace Opc.Ua
             var clone = (RelativePathElement)base.MemberwiseClone();
 
             clone.ReferenceTypeId = CoreUtils.Clone(ReferenceTypeId);
-            clone.IsInverse = (bool)CoreUtils.Clone(IsInverse);
-            clone.IncludeSubtypes = (bool)CoreUtils.Clone(IncludeSubtypes);
+            clone.IsInverse = CoreUtils.Clone(IsInverse);
+            clone.IncludeSubtypes = CoreUtils.Clone(IncludeSubtypes);
             clone.TargetName = CoreUtils.Clone(TargetName);
 
             return clone;
