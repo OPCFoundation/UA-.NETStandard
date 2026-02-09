@@ -46,7 +46,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator
                 .PubSubConfiguration;
             configurator.Disable(pubSub);
-            Assert.AreEqual((StatusCode)StatusCodes.Good, configurator.Enable(pubSub));
+            Assert.AreEqual(StatusCodes.Good, configurator.Enable(pubSub));
         }
 
         [Test(Description = "Validate Call Enable on Enabled object")]
@@ -58,7 +58,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator
                 .PubSubConfiguration;
             configurator.Enable(pubSub);
-            Assert.AreEqual((StatusCode)StatusCodes.BadInvalidState, configurator.Enable(pubSub));
+            Assert.AreEqual(StatusCodes.BadInvalidState, configurator.Enable(pubSub));
         }
 
         [Test(Description = "Validate Call Disable on Enabled object")]
@@ -70,7 +70,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator
                 .PubSubConfiguration;
             configurator.Enable(pubSub);
-            Assert.AreEqual((StatusCode)StatusCodes.Good, configurator.Disable(pubSub));
+            Assert.AreEqual(StatusCodes.Good, configurator.Disable(pubSub));
         }
 
         [Test(Description = "Validate Call Disable on Disabled object")]
@@ -82,7 +82,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator
                 .PubSubConfiguration;
             configurator.Disable(pubSub);
-            Assert.AreEqual((StatusCode)StatusCodes.BadInvalidState, configurator.Disable(pubSub));
+            Assert.AreEqual(StatusCodes.BadInvalidState, configurator.Disable(pubSub));
         }
 
         [Test(Description = "Validate Call Enable on null object")]

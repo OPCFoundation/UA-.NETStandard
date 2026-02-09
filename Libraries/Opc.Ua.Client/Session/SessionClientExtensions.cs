@@ -187,7 +187,7 @@ namespace Opc.Ua.Client
                 IList<NodeId> nodesToBrowse,
                 uint maxResultsToReturn,
                 BrowseDirection browseDirection,
-                NodeId? referenceTypeId,
+                NodeId referenceTypeId,
                 bool includeSubtypes,
                 uint nodeClassMask,
                 CancellationToken ct = default)
@@ -198,7 +198,7 @@ namespace Opc.Ua.Client
                 View = view,
                 MaxReferencesReturned = maxResultsToReturn,
                 BrowseDirection = browseDirection,
-                ReferenceTypeId = referenceTypeId ?? NodeId.Null,
+                ReferenceTypeId = referenceTypeId,
                 IncludeSubtypes = includeSubtypes,
                 NodeClassMask = (int)nodeClassMask
             });
@@ -426,7 +426,7 @@ namespace Opc.Ua.Client
                 // extract the name.
                 LocalizedText displayName = results[ii].GetValue(LocalizedText.Null);
 
-                if (!LocalizedText.IsNullOrEmpty(displayName))
+                if (!displayName.IsNullOrEmpty)
                 {
                     displayNames[ii] = displayName.Text;
                 }
@@ -873,7 +873,7 @@ namespace Opc.Ua.Client
 
             foreach (Variant arg in results[0].OutputArguments)
             {
-                outputArguments.Add(arg.Value);
+                outputArguments.Add(arg.AsBoxedObject());
             }
 
             return outputArguments;

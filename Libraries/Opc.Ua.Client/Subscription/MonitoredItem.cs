@@ -174,7 +174,7 @@ namespace Opc.Ua.Client
         public NodeId StartNodeId
         {
             get => State.StartNodeId;
-            set => State = State with { StartNodeId = value ?? NodeId.Null };
+            set => State = State with { StartNodeId = value };
         }
 
         /// <summary>
@@ -256,7 +256,7 @@ namespace Opc.Ua.Client
         public QualifiedName Encoding
         {
             get => State.Encoding;
-            set => State = State with { Encoding = value ?? QualifiedName.Null };
+            set => State = State with { Encoding = value };
         }
 
         /// <summary>
@@ -838,7 +838,7 @@ namespace Opc.Ua.Client
                     }
 
                     // ignore event type id when matching null browse paths.
-                    return eventFields.EventFields[ii].Value;
+                    return eventFields.EventFields[ii].AsBoxedObject();
                 }
 
                 // match browse path.
@@ -874,7 +874,7 @@ namespace Opc.Ua.Client
                 }
 
                 // return value.
-                return eventFields.EventFields[ii].Value;
+                return eventFields.EventFields[ii].AsBoxedObject();
             }
 
             // no event type in event field list.
@@ -889,12 +889,15 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             // get event type.
-            var eventTypeId = GetFieldValue(
+            if (GetFieldValue(
                 eventFields,
                 ObjectTypes.BaseEventType,
-                BrowseNames.EventType) as NodeId;
+                BrowseNames.EventType) is not NodeId eventTypeId)
+            {
+                return null;
+            }
 
-            if (eventTypeId != null &&
+            if (!eventTypeId.IsNullNodeId &&
                 Subscription != null &&
                 Subscription.Session != null)
             {
@@ -974,8 +977,7 @@ namespace Opc.Ua.Client
             }
 
             if (ExtensionObject.ToEncodeable(
-                    eventFields.EventFields[index].Value as ExtensionObject)
-                is not StatusResult status)
+                eventFields.EventFields[index].GetExtensionObject()) is not StatusResult status)
             {
                 return null;
             }

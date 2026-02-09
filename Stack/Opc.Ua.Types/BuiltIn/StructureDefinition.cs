@@ -187,8 +187,8 @@ namespace Opc.Ua
         {
             var clone = (StructureDefinition)base.MemberwiseClone();
 
-            clone.DefaultEncodingId = CoreUtils.Clone(DefaultEncodingId);
-            clone.BaseDataType = CoreUtils.Clone(BaseDataType);
+            clone.DefaultEncodingId = DefaultEncodingId;
+            clone.BaseDataType = BaseDataType;
             clone.StructureType = CoreUtils.Clone(StructureType);
             clone.m_fields = CoreUtils.Clone(m_fields);
 
@@ -212,7 +212,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(context));
             }
 
-            if (dataEncoding?.Name == BrowseNames.DefaultJson)
+            if (dataEncoding.Name == BrowseNames.DefaultJson)
             {
                 DefaultEncodingId = ExpandedNodeId.ToNodeId(typeId, context.NamespaceUris);
                 return;
@@ -224,7 +224,7 @@ namespace Opc.Ua
             if (systemType != null &&
                 Activator.CreateInstance(systemType) is IEncodeable encodeable)
             {
-                if (dataEncoding == null || dataEncoding.Name == BrowseNames.DefaultBinary)
+                if (dataEncoding.IsNullQn || dataEncoding.Name == BrowseNames.DefaultBinary)
                 {
                     DefaultEncodingId = ExpandedNodeId.ToNodeId(
                         encodeable.BinaryEncodingId,

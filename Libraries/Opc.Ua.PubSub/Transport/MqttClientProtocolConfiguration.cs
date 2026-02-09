@@ -104,7 +104,7 @@ namespace Opc.Ua.PubSub.Transport
                 keyValuePairs
                     .Find(kvp => kvp.Key.Name
                         .Equals(qCaCertificatePath.Name, StringComparison.Ordinal))?
-                    .Value.Value as string;
+                    .Value.GetString();
 
             ClientCertificatePath = string.Empty;
             QualifiedName qClientCertificatePath = nameof(
@@ -113,7 +113,7 @@ namespace Opc.Ua.PubSub.Transport
                 keyValuePairs
                     .Find(kvp => kvp.Key.Name
                         .Equals(qClientCertificatePath.Name, StringComparison.Ordinal))?
-                    .Value.Value as string;
+                    .Value.GetString();
 
             ClientCertificatePassword = null;
             QualifiedName qClientCertificatePassword = nameof(
@@ -122,7 +122,7 @@ namespace Opc.Ua.PubSub.Transport
                 ((keyValuePairs
                     .Find(kvp => kvp.Key.Name
                         .Equals(qClientCertificatePassword.Name, StringComparison.Ordinal))?
-                    .Value.Value as string)?.ToCharArray());
+                    .Value.GetString())?.ToCharArray());
 
             KeyValuePairs = keyValuePairs;
 
@@ -240,7 +240,7 @@ namespace Opc.Ua.PubSub.Transport
                             qTrustedIssuerCertificatesStoreType.Name,
                             StringComparison.Ordinal)
                     )?
-                    .Value.Value as string;
+                    .Value.GetString();
             QualifiedName qTrustedIssuerCertificatesStorePath = nameof(
                 EnumMqttClientConfigurationParameters.TrustedIssuerCertificatesStorePath);
             string issuerCertificatesStorePath =
@@ -250,7 +250,7 @@ namespace Opc.Ua.PubSub.Transport
                             qTrustedIssuerCertificatesStorePath.Name,
                             StringComparison.Ordinal)
                     )?
-                    .Value.Value as string;
+                    .Value.GetString();
 
             TrustedIssuerCertificates = new CertificateTrustList
             {
@@ -264,14 +264,14 @@ namespace Opc.Ua.PubSub.Transport
                 kvpMqttOptions
                     .Find(kvp => kvp.Key.Name
                         .Equals(qTrustedPeerCertificatesStoreType.Name, StringComparison.Ordinal))?
-                    .Value.Value as string;
+                    .Value.GetString();
             QualifiedName qTrustedPeerCertificatesStorePath = nameof(
                 EnumMqttClientConfigurationParameters.TrustedPeerCertificatesStorePath);
             string peerCertificatesStorePath =
                 kvpMqttOptions
                     .Find(kvp => kvp.Key.Name
                         .Equals(qTrustedPeerCertificatesStorePath.Name, StringComparison.Ordinal))?
-                    .Value.Value as string;
+                    .Value.GetString();
 
             TrustedPeerCertificates = new CertificateTrustList
             {
@@ -287,7 +287,7 @@ namespace Opc.Ua.PubSub.Transport
                         kvp => kvp.Key.Name.Equals(
                             qRejectedCertificateStoreStoreType.Name,
                             StringComparison.Ordinal))?
-                    .Value.Value as string;
+                    .Value.GetString();
             QualifiedName qRejectedCertificateStoreStorePath = nameof(
                 EnumMqttClientConfigurationParameters.RejectedCertificateStoreStorePath);
             string rejectedCertificateStoreStorePath =
@@ -296,7 +296,7 @@ namespace Opc.Ua.PubSub.Transport
                         kvp => kvp.Key.Name.Equals(
                             qRejectedCertificateStoreStorePath.Name,
                             StringComparison.Ordinal))?
-                    .Value.Value as string;
+                    .Value.GetString();
 
             RejectedCertificateStore = new CertificateTrustList
             {
@@ -513,12 +513,12 @@ namespace Opc.Ua.PubSub.Transport
         {
             UserName = new SecureString();
             QualifiedName qUserName = nameof(EnumMqttClientConfigurationParameters.UserName);
-            if (connectionProperties
+            if ((connectionProperties
                     .Find(kvp => kvp.Key.Name.Equals(qUserName.Name, StringComparison.Ordinal))?
-                    .Value.Value
-                is string sUserName)
+                    .Value ??
+                default).TryGet(out string sUserName))
             {
-                foreach (char c in sUserName.ToCharArray())
+                foreach (char c in sUserName)
                 {
                     UserName.AppendChar(c);
                 }
@@ -526,12 +526,12 @@ namespace Opc.Ua.PubSub.Transport
 
             Password = new SecureString();
             QualifiedName qPassword = nameof(EnumMqttClientConfigurationParameters.Password);
-            if (connectionProperties
+            if ((connectionProperties
                     .Find(kvp => kvp.Key.Name.Equals(qPassword.Name, StringComparison.Ordinal))?
-                    .Value.Value
-                is string sPassword)
+                    .Value ??
+                default).TryGet(out string sPassword))
             {
-                foreach (char c in sPassword.ToCharArray())
+                foreach (char c in sPassword)
                 {
                     Password.AppendChar(c);
                 }

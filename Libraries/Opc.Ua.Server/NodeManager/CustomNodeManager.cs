@@ -327,7 +327,7 @@ namespace Opc.Ua.Server
         protected virtual bool IsNodeIdInNamespace(NodeId nodeId)
         {
             // nulls are never a valid node.
-            if (NodeId.IsNull(nodeId))
+            if (nodeId.IsNullNodeId)
             {
                 return false;
             }
@@ -397,7 +397,7 @@ namespace Opc.Ua.Server
 
                 NodeState parent = null;
 
-                if (parentId != null)
+                if (!parentId.IsNullNodeId)
                 {
                     if (!PredefinedNodes.TryGetValue(parentId, out parent))
                     {
@@ -447,7 +447,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public NodeState FindNodeInAddressSpace(NodeId nodeId)
         {
-            if (nodeId == null)
+            if (nodeId.IsNullNodeId)
             {
                 return null;
             }
@@ -718,7 +718,7 @@ namespace Opc.Ua.Server
                     IReference reference = references[ii];
 
                     // nothing to do with external nodes.
-                    if (reference.TargetId == null || reference.TargetId.IsAbsolute)
+                    if (reference.TargetId.IsNull || reference.TargetId.IsAbsolute)
                     {
                         continue;
                     }
@@ -811,7 +811,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected void AddTypesToTypeTree(BaseTypeState type)
         {
-            if (!NodeId.IsNull(type.SuperTypeId) && !Server.TypeTree.IsKnown(type.SuperTypeId))
+            if (!type.SuperTypeId.IsNullNodeId && !Server.TypeTree.IsKnown(type.SuperTypeId))
             {
                 AddTypesToTypeTree(type.SuperTypeId);
             }
@@ -851,7 +851,7 @@ namespace Opc.Ua.Server
         [Obsolete("Use FindPredefinedNode<T> instead.")]
         public NodeState FindPredefinedNode(NodeId nodeId, Type expectedType)
         {
-            if (nodeId == null)
+            if (nodeId.IsNullNodeId)
             {
                 return null;
             }
@@ -876,7 +876,7 @@ namespace Opc.Ua.Server
         /// <returns>Returns null if not found or not of the correct type.</returns>
         public T FindPredefinedNode<T>(NodeId nodeId) where T : NodeState
         {
-            if (nodeId == null)
+            if (nodeId.IsNullNodeId)
             {
                 return null;
             }

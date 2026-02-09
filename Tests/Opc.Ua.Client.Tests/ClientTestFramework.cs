@@ -211,6 +211,7 @@ namespace Opc.Ua.Client.Tests
         {
             // start Ref server
             ServerFixture = new ServerFixture<ReferenceServer>(
+                t => new ReferenceServer(t),
                 enableTracing,
                 disableActivityLogging)
             {
@@ -398,7 +399,7 @@ namespace Opc.Ua.Client.Tests
         public IList<NodeId> GetTestSetStatic(NamespaceTable namespaceUris)
         {
             return [.. TestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
-                .Where(n => n != null)];
+                .Where(n => !n.IsNullNodeId)];
         }
 
         /// <summary>
@@ -416,7 +417,7 @@ namespace Opc.Ua.Client.Tests
                 foreach (ExpandedNodeId expandedNodeId in entry.NodeIds)
                 {
                     var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, namespaceUris);
-                    if (nodeId != null)
+                    if (!nodeId.IsNullNodeId)
                     {
                         result[nodeId] = type;
                     }
@@ -433,7 +434,7 @@ namespace Opc.Ua.Client.Tests
         public IList<NodeId> GetTestSetSimulation(NamespaceTable namespaceUris)
         {
             return [.. TestSetSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
-                .Where(n => n != null)];
+                .Where(n => !n.IsNullNodeId)];
         }
 
         /// <summary>
@@ -445,11 +446,11 @@ namespace Opc.Ua.Client.Tests
         {
             var simulation = TestSetSimulation
                 .Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
-                .Where(n => n != null)
+                .Where(n => !n.IsNullNodeId)
                 .ToList();
             simulation.AddRange(
                 TestSetDataSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
-                    .Where(n => n != null));
+                    .Where(n => !n.IsNullNodeId));
             return simulation;
         }
 
@@ -463,7 +464,7 @@ namespace Opc.Ua.Client.Tests
             return
             [
                 .. TestSetDataSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
-                    .Where(n => n != null)
+                    .Where(n => !n.IsNullNodeId)
             ];
         }
 
@@ -475,7 +476,7 @@ namespace Opc.Ua.Client.Tests
         public IList<NodeId> GetTestSetHistory(NamespaceTable namespaceUris)
         {
             return [.. TestSetHistory.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
-                .Where(n => n != null)];
+                .Where(n => !n.IsNullNodeId)];
         }
 
         /// <summary>

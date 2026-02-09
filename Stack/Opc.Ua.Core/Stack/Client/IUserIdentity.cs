@@ -83,6 +83,6 @@ namespace Opc.Ua
         /// </para>
         /// </summary>
         /// <returns>UA user identity token containing the user information.</returns>
-        UserIdentityToken GetIdentityToken();
+        IUserIdentityTokenHandler TokenHandler { get; }
     }
 }

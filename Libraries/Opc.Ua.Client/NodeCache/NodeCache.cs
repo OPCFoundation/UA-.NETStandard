@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -97,7 +96,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             // check for null.
-            if (NodeId.IsNull(nodeId))
+            if (nodeId.IsNull)
             {
                 return null;
             }
@@ -369,7 +368,7 @@ namespace Opc.Ua.Client
         {
             var localId = ExpandedNodeId.ToNodeId(nodeId, m_context.NamespaceUris);
 
-            if (localId == null)
+            if (localId.IsNullNodeId)
             {
                 return null;
             }
@@ -393,7 +392,7 @@ namespace Opc.Ua.Client
                         if (!m_nodes.Exists(reference.NodeId))
                         {
                             // transform absolute identifiers.
-                            if (reference.NodeId != null && reference.NodeId.IsAbsolute)
+                            if (!reference.NodeId.IsNull && reference.NodeId.IsAbsolute)
                             {
                                 reference.NodeId = ExpandedNodeId.ToNodeId(
                                     reference.NodeId,
@@ -469,7 +468,7 @@ namespace Opc.Ua.Client
                             if (!m_nodes.Exists(reference.NodeId))
                             {
                                 // transform absolute identifiers.
-                                if (reference.NodeId != null && reference.NodeId.IsAbsolute)
+                                if (!reference.NodeId.IsNull && reference.NodeId.IsAbsolute)
                                 {
                                     reference.NodeId = ExpandedNodeId.ToNodeId(
                                         reference.NodeId,
@@ -813,11 +812,11 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public ValueTask<QualifiedName?> FindReferenceTypeNameAsync(
+        public ValueTask<QualifiedName> FindReferenceTypeNameAsync(
             NodeId referenceTypeId,
             CancellationToken ct = default)
         {
-            QualifiedName? typeName;
+            QualifiedName typeName;
             m_cacheLock.EnterReadLock();
             try
             {
@@ -827,7 +826,7 @@ namespace Opc.Ua.Client
             {
                 m_cacheLock.ExitReadLock();
             }
-            return new ValueTask<QualifiedName?>(typeName);
+            return new ValueTask<QualifiedName>(typeName);
         }
 
         /// <inheritdoc/>
@@ -892,7 +891,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             // no match on null values.
-            if (value == null)
+            if (value.IsNull)
             {
                 return false;
             }
@@ -949,13 +948,13 @@ namespace Opc.Ua.Client
             }
 
             // null expected datatype matches everything.
-            if (NodeId.IsNull(expectedTypeId))
+            if (expectedTypeId.IsNullNodeId)
             {
                 return true;
             }
 
             // get the actual datatype.
-            NodeId actualTypeId = TypeInfo.GetDataTypeId(value);
+            NodeId actualTypeId = TypeInfo.GetDataTypeId(value, m_context.NamespaceUris);
 
             // value is valid if the expected datatype is same as or a supertype of the actual datatype
             // for example: expected datatype of 'Integer' matches an actual datatype of 'UInt32'.
@@ -1080,13 +1079,7 @@ namespace Opc.Ua.Client
                 return;
             }
 
-            var predefinedNodes = new NodeStateCollection();
-            Assembly assembly = typeof(ReadRequest).GetTypeInfo().Assembly;
-            predefinedNodes.LoadFromBinaryResource(
-                context,
-                "Opc.Ua.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes",
-                assembly,
-                true);
+            NodeStateCollection predefinedNodes = new NodeStateCollection().AddOpcUa(context);
 
             m_cacheLock.EnterWriteLock();
             try
@@ -1198,7 +1191,7 @@ namespace Opc.Ua.Client
             ExpandedNodeId nodeId,
             CancellationToken ct = default)
         {
-            if (NodeId.IsNull(nodeId))
+            if (nodeId.IsNull)
             {
                 return string.Empty;
             }
@@ -1222,7 +1215,7 @@ namespace Opc.Ua.Client
             ReferenceDescription reference,
             CancellationToken ct = default)
         {
-            if (reference == null || NodeId.IsNull(reference.NodeId))
+            if (reference == null || reference.NodeId.IsNull)
             {
                 return string.Empty;
             }

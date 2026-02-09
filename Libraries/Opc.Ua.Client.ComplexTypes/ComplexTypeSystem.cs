@@ -393,7 +393,7 @@ namespace Opc.Ua.Client.ComplexTypes
             var dataTypeNodeId = ExpandedNodeId.ToNodeId(
                 dataTypeId,
                 m_complexTypeResolver.NamespaceUris);
-            if (!NodeId.IsNull(dataTypeNodeId))
+            if (!dataTypeNodeId.IsNullNodeId)
             {
                 CollectAllDataTypeDefinitions(dataTypeNodeId, dataTypeDefinitions);
             }
@@ -404,7 +404,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 NodeId nodeId,
                 NodeIdDictionary<DataTypeDefinition> collect)
             {
-                if (NodeId.IsNull(nodeId))
+                if (nodeId.IsNullNodeId)
                 {
                     return;
                 }
@@ -538,7 +538,7 @@ namespace Opc.Ua.Client.ComplexTypes
                                 NodeId nodeId = dictionary.DataTypes
                                     .FirstOrDefault(d => d.Value.Name == item.Name)
                                     .Key;
-                                if (nodeId == null)
+                                if (nodeId.IsNullNodeId)
                                 {
                                     m_logger.LogError(
                                         Utils.TraceMasks.Error,
@@ -1001,7 +1001,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private static StructureDefinition GetStructureDefinition(DataTypeNode dataTypeNode)
         {
-            if (dataTypeNode.DataTypeDefinition?.Body is StructureDefinition structureDefinition)
+            if (dataTypeNode.DataTypeDefinition.TryGetEncodeable(
+                out StructureDefinition structureDefinition))
             {
                 // Validate the DataTypeDefinition structure,
                 // but not if the type is supported
@@ -1187,7 +1188,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private void AddEncodeableType(ExpandedNodeId nodeId, Type type)
         {
-            if (NodeId.IsNull(nodeId) || type == null)
+            if (nodeId.IsNull || type == null)
             {
                 return;
             }
@@ -1211,7 +1212,8 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 // 1. use DataTypeDefinition
                 if (DisableDataTypeDefinition ||
-                    enumTypeNode.DataTypeDefinition?.Body is not EnumDefinition enumDefinition)
+                    !enumTypeNode.DataTypeDefinition.TryGetEncodeable(
+                        out EnumDefinition enumDefinition))
                 {
                     // browse for EnumFields or EnumStrings property
                     object enumTypeArray = await m_complexTypeResolver
@@ -1392,10 +1394,12 @@ namespace Opc.Ua.Client.ComplexTypes
                     field.IsOptional,
                     ct)
                     .ConfigureAwait(false);
-                if (superType?.IsNullNodeId == false)
+                if (!superType.IsNullNodeId)
                 {
                     field.DataType = superType;
+#pragma warning disable EPC30 // Method calls itself recursively
                     return await GetFieldTypeAsync(field, allowSubTypes, ct).ConfigureAwait(false);
+#pragma warning restore EPC30 // Method calls itself recursively
                 }
                 return null;
             }
@@ -1430,7 +1434,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 superType = await m_complexTypeResolver.FindSuperTypeAsync(superType, ct)
                     .ConfigureAwait(false);
-                if (superType?.IsNullNodeId != false)
+                if (superType.IsNullNodeId)
                 {
                     return default;
                 }
@@ -1465,9 +1469,9 @@ namespace Opc.Ua.Client.ComplexTypes
                         return default;
                     }
                     // end search if a valid BuiltInType is found. Treat type as opaque.
-                    else if (superType.IdType == IdType.Numeric &&
-                        (uint)superType.Identifier >= (uint)BuiltInType.Boolean &&
-                        (uint)superType.Identifier <= (uint)BuiltInType.DiagnosticInfo)
+                    else if (superType.TryGetIdentifier(out uint id) &&
+                        id >= (uint)BuiltInType.Boolean &&
+                        id <= (uint)BuiltInType.DiagnosticInfo)
                     {
                         return superType;
                     }

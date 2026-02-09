@@ -110,7 +110,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         public override NodeId RegisterApplication(ApplicationRecordDataType application)
         {
             NodeId appNodeId = base.RegisterApplication(application);
-            if (NodeId.IsNull(appNodeId))
+            if (appNodeId.IsNullNodeId)
             {
                 appNodeId = new NodeId(Guid.NewGuid(), NamespaceIndex);
             }

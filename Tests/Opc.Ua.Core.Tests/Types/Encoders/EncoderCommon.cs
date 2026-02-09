@@ -821,7 +821,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 case BuiltInType.Null:
                     Variant variant = decoder.ReadVariant(fieldName);
-                    return variant.Value;
+                    return variant.AsBoxedObject();
                 case BuiltInType.Boolean:
                     return decoder.ReadBoolean(fieldName);
                 case BuiltInType.SByte:
@@ -1366,7 +1366,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             public DynamicEncodeable GetDynamicEncodeableForEncoding(ExpandedNodeId typeId)
             {
-                if (typeId != null &&
+                if (!typeId.IsNull &&
                     m_dynamicEncodeables.TryGetValue(
                         typeId,
                         out DynamicEncodeable dynamicEncodeable))

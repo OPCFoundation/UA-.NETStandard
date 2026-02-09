@@ -988,7 +988,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public Uuid ReadGuid(string fieldName)
         {
-            var value = new Uuid();
+            Uuid value = Uuid.Empty;
 
             if (BeginField(fieldName, true))
             {
@@ -998,7 +998,7 @@ namespace Opc.Ua
 
                 try
                 {
-                    value.GuidString = guidString;
+                    value = Uuid.Parse(guidString);
                 }
                 catch (FormatException fe)
                 {
@@ -1121,7 +1121,7 @@ namespace Opc.Ua
                 if (m_namespaceMappings != null &&
                     m_namespaceMappings.Length > value.NamespaceIndex)
                 {
-                    value.SetNamespaceIndex(m_namespaceMappings[value.NamespaceIndex]);
+                    return value.WithNamespaceIndex(m_namespaceMappings[value.NamespaceIndex]);
                 }
 
                 return value;
@@ -1162,14 +1162,14 @@ namespace Opc.Ua
                     m_namespaceMappings.Length > value.NamespaceIndex &&
                     !value.IsNull)
                 {
-                    value.SetNamespaceIndex(m_namespaceMappings[value.NamespaceIndex]);
+                    value = value.WithNamespaceIndex(m_namespaceMappings[value.NamespaceIndex]);
                 }
 
                 if (m_serverMappings != null &&
                     m_serverMappings.Length > value.ServerIndex &&
                     !value.IsNull)
                 {
-                    value.SetServerIndex(m_serverMappings[value.ServerIndex]);
+                    value = value.WithServerIndex(m_serverMappings[value.ServerIndex]);
                 }
 
                 return value;
@@ -1183,17 +1183,20 @@ namespace Opc.Ua
         /// </summary>
         public StatusCode ReadStatusCode(string fieldName)
         {
-            var value = new StatusCode();
+            StatusCode value;
 
             if (BeginField(fieldName, true))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
-                value.Code = ReadUInt32("Code");
+                value = ReadUInt32("Code");
                 PopNamespace();
 
                 EndField(fieldName);
             }
-
+            else
+            {
+                value = StatusCodes.Good;
+            }
             return value;
         }
 
@@ -1327,7 +1330,7 @@ namespace Opc.Ua
                         catch (Exception ex) when (ex is not ServiceResultException)
                         {
                             m_logger.LogError(ex, "XmlDecoder: Error reading variant.");
-                            value = new Variant((StatusCode)StatusCodes.BadDecodingError);
+                            value = new Variant(StatusCodes.BadDecodingError);
                         }
                         EndField("Value");
                     }
@@ -1376,9 +1379,9 @@ namespace Opc.Ua
         /// </summary>
         public ExtensionObject ReadExtensionObject(string fieldName)
         {
-            if (!BeginField(fieldName, true, out bool isNil))
+            if (!BeginField(fieldName, true))
             {
-                return isNil ? null : ExtensionObject.Null;
+                return ExtensionObject.Null;
             }
 
             PushNamespace(Namespaces.OpcUaXsd);
@@ -1389,7 +1392,7 @@ namespace Opc.Ua
             // convert to absolute type id.
             var absoluteId = NodeId.ToExpandedNodeId(typeId, Context.NamespaceUris);
 
-            if (!NodeId.IsNull(typeId) && NodeId.IsNull(absoluteId))
+            if (!typeId.IsNullNodeId && absoluteId.IsNull)
             {
                 m_logger.LogWarning(
                     "Cannot de-serialize extension objects if the NamespaceUri is not in the NamespaceTable: Type = {Type}",
@@ -1452,7 +1455,7 @@ namespace Opc.Ua
                     systemType.FullName);
             }
 
-            if (encodeableTypeId != null)
+            if (!encodeableTypeId.IsNull)
             {
                 // set type identifier for custom complex data types before decode.
 
@@ -3132,7 +3135,7 @@ namespace Opc.Ua
             ref Type systemType,
             ExpandedNodeId encodeableTypeId)
         {
-            if (encodeableTypeId != null && systemType == null)
+            if (!encodeableTypeId.IsNull && systemType == null)
             {
                 systemType = Context.Factory.GetSystemType(encodeableTypeId);
             }

@@ -103,7 +103,7 @@ namespace Opc.Ua.Buffers
         {
             if (m_disposed)
             {
-                throw new ObjectDisposedException(nameof(ArrayPoolBufferWriter<T>));
+                throw new ObjectDisposedException(nameof(ArrayPoolBufferWriter<>));
             }
 
             if (count < 0)
@@ -160,7 +160,7 @@ namespace Opc.Ua.Buffers
         {
             if (m_disposed)
             {
-                throw new ObjectDisposedException(nameof(ArrayPoolBufferWriter<T>));
+                throw new ObjectDisposedException(nameof(ArrayPoolBufferWriter<>));
             }
 
             AddSegment();
@@ -208,7 +208,7 @@ namespace Opc.Ua.Buffers
         {
             if (m_disposed)
             {
-                throw new ObjectDisposedException(nameof(ArrayPoolBufferWriter<T>));
+                throw new ObjectDisposedException(nameof(ArrayPoolBufferWriter<>));
             }
 
             int remainingSpace = m_currentBuffer.Length - m_offset;

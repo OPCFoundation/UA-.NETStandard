@@ -40,15 +40,6 @@ namespace Opc.Ua
     public partial class RegistrationClient
     {
         /// <summary>
-        /// Intializes the object with a channel and a message context.
-        /// </summary>
-        public RegistrationClient(ITransportChannel channel, ITelemetryContext telemetry)
-            : this(channel)
-        {
-            m_logger = telemetry.CreateLogger<RegistrationClient>();
-        }
-
-        /// <summary>
         /// Creates a binding for to use for discovering servers.
         /// </summary>
         /// <param name="configuration">The configuration.</param>
@@ -92,34 +83,6 @@ namespace Opc.Ua
             {
                 ReturnDiagnostics = returnDiagnostics
             };
-        }
-    }
-
-    /// <summary>
-    /// A channel object used by clients to access a UA registration service.
-    /// </summary>
-    [Obsolete("Use RegistrationClient.CreateAsync instead to create a registrations client.")]
-    public partial class RegistrationChannel
-    {
-        /// <summary>
-        /// Creates a new transport channel that supports registration
-        /// </summary>
-        [Obsolete("Use ClientChannelFactory.CreateChannelAsync instead.")]
-        public static ITransportChannel Create(
-            ApplicationConfiguration configuration,
-            EndpointDescription description,
-            EndpointConfiguration endpointConfiguration,
-            X509Certificate2 clientCertificate,
-            IServiceMessageContext messageContext)
-        {
-            return ClientChannelManager.CreateUaBinaryChannelAsync(
-                configuration,
-                description,
-                endpointConfiguration,
-                clientCertificate,
-                null,
-                messageContext,
-                null).AsTask().GetAwaiter().GetResult();
         }
     }
 }

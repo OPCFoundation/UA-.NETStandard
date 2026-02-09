@@ -31,8 +31,10 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Reflection;
 using System.Text;
 using System.Xml;
+using System.Xml.Schema;
 using System.Xml.Serialization;
 using Opc.Ua.Types;
 
@@ -48,6 +50,67 @@ namespace Opc.Ua.Export
         /// </summary>
         public UANodeSet()
         {
+        }
+
+        /// <summary>
+        /// Validate the nodeset against the schema.
+        /// </summary>
+        /// <param name="istrm"></param>
+        /// <param name="errors"></param>
+        /// <returns></returns>
+        public static bool Validate(Stream istrm, out IReadOnlyList<string> errors)
+        {
+            var validationErrors = new List<string>();
+            errors = validationErrors;
+            bool success = true;
+            try
+            {
+                using Stream schemaContent = Assembly
+                    .GetExecutingAssembly()
+                    .GetManifestResourceStream("Opc.Ua.Schema.UANodeSet.xsd");
+                using var schema = XmlReader.Create(schemaContent);
+                XmlReaderSettings settings = CoreUtils.DefaultXmlReaderSettings();
+                settings.Schemas.Add("http://opcfoundation.org/UA/2011/03/UANodeSet.xsd", schema);
+                settings.ValidationType = ValidationType.Schema;
+
+                using var reader = XmlReader.Create(istrm, settings);
+                var document = new XmlDocument();
+                document.Load(reader);
+
+                var eventHandler = new ValidationEventHandler(ValidationEventHandler);
+                document.Validate(eventHandler);
+                void ValidationEventHandler(object sender, ValidationEventArgs e)
+                {
+                    switch (e.Severity)
+                    {
+                        case XmlSeverityType.Error:
+                            validationErrors.Add(CoreUtils.Format("Error: {0}", e.Message));
+                            success = false;
+                            break;
+                        case XmlSeverityType.Warning:
+                            validationErrors.Add(CoreUtils.Format("Warning: {0}", e.Message));
+                            break;
+                    }
+                }
+                return success;
+            }
+            catch (XmlSchemaValidationException xve)
+            {
+                validationErrors.Add(CoreUtils.Format(
+                    "XmlSchemaValidationException: {0} at line {1} char: {2}",
+                    xve.Message,
+                    xve.LineNumber,
+                    xve.LinePosition));
+                return false;
+            }
+            catch (Exception e)
+            {
+                validationErrors.Add(CoreUtils.Format(
+                    "{0}: {1}",
+                    e.GetType().Name,
+                    e.Message));
+                return false;
+            }
         }
 
         /// <summary>
@@ -152,7 +215,7 @@ namespace Opc.Ua.Export
             var nodeTable = new Dictionary<NodeId, NodeState>();
             foreach (NodeState node in nodes)
             {
-                if (!NodeId.IsNull(node.NodeId))
+                if (!node.NodeId.IsNullNodeId)
                 {
                     nodeTable[node.NodeId] = node;
                 }
@@ -192,7 +255,7 @@ namespace Opc.Ua.Export
                 throw new ArgumentNullException(nameof(node));
             }
 
-            if (NodeId.IsNull(node.NodeId))
+            if (node.NodeId.IsNullNodeId)
             {
                 throw new ArgumentException("A non-null NodeId must be specified.");
             }
@@ -260,8 +323,7 @@ namespace Opc.Ua.Export
                         DesignToolOnly = node.DesignToolOnly
                     };
 
-                    if (o.MethodDeclarationId != null &&
-                        !o.MethodDeclarationId.IsNullNodeId &&
+                    if (!o.MethodDeclarationId.IsNullNodeId &&
                         o.MethodDeclarationId != o.NodeId)
                     {
                         value.MethodDeclarationId = Export(
@@ -338,7 +400,7 @@ namespace Opc.Ua.Export
                     var o = (ReferenceTypeState)node;
                     var value = new UAReferenceType { IsAbstract = o.IsAbstract };
 
-                    if (!Ua.LocalizedText.IsNullOrEmpty(o.InverseName))
+                    if (!o.InverseName.IsNullOrEmpty)
                     {
                         value.InverseName = Export([o.InverseName]);
                     }
@@ -367,7 +429,7 @@ namespace Opc.Ua.Export
                 exportedNode.DisplayName = null;
             }
 
-            if (node.Description != null && !string.IsNullOrEmpty(node.Description.Text))
+            if (!string.IsNullOrEmpty(node.Description.Text))
             {
                 exportedNode.Description = Export([node.Description]);
             }
@@ -421,7 +483,7 @@ namespace Opc.Ua.Export
             INodeBrowser browser = node.CreateBrowser(
                 context,
                 null,
-                null,
+                default,
                 true,
                 BrowseDirection.Both,
                 null,
@@ -487,12 +549,7 @@ namespace Opc.Ua.Export
         /// </summary>
         private XmlEncoder CreateEncoder(ISystemContext context)
         {
-            IServiceMessageContext messageContext = new ServiceMessageContext(context.Telemetry)
-            {
-                NamespaceUris = context.NamespaceUris,
-                ServerUris = context.ServerUris,
-                Factory = context.EncodeableFactory
-            };
+            IServiceMessageContext messageContext = context.AsMessageContext();
 
             var encoder = new XmlEncoder(messageContext);
 
@@ -526,12 +583,7 @@ namespace Opc.Ua.Export
         /// </summary>
         private XmlDecoder CreateDecoder(ISystemContext context, XmlElement source)
         {
-            IServiceMessageContext messageContext = new ServiceMessageContext(context.Telemetry)
-            {
-                NamespaceUris = context.NamespaceUris,
-                ServerUris = context.ServerUris,
-                Factory = context.EncodeableFactory
-            };
+            IServiceMessageContext messageContext = context.AsMessageContext();
 
             var decoder = new XmlDecoder(source, messageContext);
 
@@ -619,7 +671,7 @@ namespace Opc.Ua.Export
                 {
                     var o = (UAVariable)node;
 
-                    NodeId typeDefinitionId = null;
+                    NodeId typeDefinitionId = default;
 
                     if (node.References != null)
                     {
@@ -757,8 +809,11 @@ namespace Opc.Ua.Export
 
             importedNode.NodeId = ImportNodeId(node.NodeId, context.NamespaceUris, false);
             importedNode.BrowseName = ImportQualifiedName(node.BrowseName, context.NamespaceUris);
-            importedNode.DisplayName = Import(node.DisplayName) ??
-                new Ua.LocalizedText(importedNode.BrowseName.Name);
+            importedNode.DisplayName = Import(node.DisplayName);
+            if (importedNode.DisplayName.IsNullOrEmpty)
+            {
+                importedNode.DisplayName = new Ua.LocalizedText(importedNode.BrowseName.Name);
+            }
 
             importedNode.Description = Import(node.Description);
             importedNode.NodeSetDocumentation = node.Documentation;
@@ -880,7 +935,7 @@ namespace Opc.Ua.Export
         /// </summary>
         private string Export(NodeId source, NamespaceTable namespaceUris)
         {
-            if (NodeId.IsNull(source))
+            if (source.IsNullNodeId)
             {
                 return string.Empty;
             }
@@ -888,7 +943,7 @@ namespace Opc.Ua.Export
             if (source.NamespaceIndex > 0)
             {
                 ushort namespaceIndex = ExportNamespaceIndex(source.NamespaceIndex, namespaceUris);
-                source = new NodeId(source.Identifier, namespaceIndex);
+                source = source.WithNamespaceIndex(namespaceIndex);
             }
 
             return source.ToString();
@@ -923,7 +978,7 @@ namespace Opc.Ua.Export
             if (nodeId.NamespaceIndex > 0)
             {
                 ushort namespaceIndex = ImportNamespaceIndex(nodeId.NamespaceIndex, namespaceUris);
-                nodeId = new NodeId(nodeId.Identifier, namespaceIndex);
+                nodeId = nodeId.WithNamespaceIndex(namespaceIndex);
             }
 
             return nodeId;
@@ -937,7 +992,7 @@ namespace Opc.Ua.Export
             NamespaceTable namespaceUris,
             StringTable serverUris)
         {
-            if (NodeId.IsNull(source))
+            if (source.IsNull)
             {
                 return string.Empty;
             }
@@ -960,7 +1015,7 @@ namespace Opc.Ua.Export
             }
 
             uint serverIndex = ExportServerIndex(source.ServerIndex, serverUris);
-            source = new ExpandedNodeId(source.Identifier, namespaceIndex, null, serverIndex);
+            source = source.WithNamespaceIndex(namespaceIndex).WithServerIndex(serverIndex);
             return source.ToString();
         }
 
@@ -1011,10 +1066,10 @@ namespace Opc.Ua.Export
                     namespaceUri = namespaceUris.GetString(namespaceIndex);
                 }
 
-                return new ExpandedNodeId(nodeId.Identifier, 0, namespaceUri, serverIndex);
+                return nodeId.WithNamespaceUri(namespaceUri).WithServerIndex(serverIndex);
             }
 
-            return new ExpandedNodeId(nodeId.Identifier, namespaceIndex, null, 0);
+            return nodeId.WithNamespaceIndex(namespaceIndex).WithServerIndex(0);
         }
 
         /// <summary>
@@ -1022,7 +1077,7 @@ namespace Opc.Ua.Export
         /// </summary>
         private string Export(QualifiedName source, NamespaceTable namespaceUris)
         {
-            if (QualifiedName.IsNull(source))
+            if (source.IsNullQn)
             {
                 return string.Empty;
             }
@@ -1045,14 +1100,14 @@ namespace Opc.Ua.Export
             NamespaceTable namespaceUris,
             bool outputRedundantNames)
         {
-            if (source == null || source.Body == null)
+            if (source.IsNull)
             {
                 return null;
             }
 
             var definition = new DataTypeDefinition();
 
-            if (outputRedundantNames || dataType.BrowseName != null)
+            if (outputRedundantNames || !dataType.BrowseName.IsNullQn)
             {
                 definition.Name = Export(dataType.BrowseName, namespaceUris);
             }
@@ -1102,7 +1157,7 @@ namespace Opc.Ua.Export
                             output.AllowSubTypes = false;
                         }
 
-                        if (NodeId.IsNull(field.DataType))
+                        if (field.DataType.IsNullNodeId)
                         {
                             output.DataType = Export(DataTypeIds.BaseDataType, namespaceUris);
                         }
@@ -1143,7 +1198,7 @@ namespace Opc.Ua.Export
                     {
                         var output = new DataTypeField { Name = field.Name };
 
-                        if (field.DisplayName != null && output.Name != field.DisplayName.Text)
+                        if (!field.DisplayName.IsNullOrEmpty && output.Name != field.DisplayName.Text)
                         {
                             output.DisplayName = Export([field.DisplayName]);
                         }
@@ -1388,7 +1443,7 @@ namespace Opc.Ua.Export
 
             for (int ii = 0; ii < input.Length; ii++)
             {
-                if (input[ii] != null)
+                if (!input[ii].IsNullOrEmpty)
                 {
                     var text = new LocalizedText
                     {

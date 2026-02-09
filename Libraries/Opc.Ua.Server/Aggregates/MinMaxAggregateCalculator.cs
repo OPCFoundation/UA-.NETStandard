@@ -65,13 +65,11 @@ namespace Opc.Ua.Server
         /// </summary>
         protected override DataValue ComputeValue(TimeSlice slice)
         {
-            uint? id = AggregateId.Identifier as uint?;
-
-            if (id == null)
+            if (!AggregateId.TryGetIdentifier(out uint numericId))
             {
                 return base.ComputeValue(slice);
             }
-            switch (id.Value)
+            switch (numericId)
             {
                 case Objects.AggregateFunction_Minimum:
                     return ComputeMinMax(slice, 1, false);
@@ -120,8 +118,8 @@ namespace Opc.Ua.Server
             DateTime minimumGoodTimestamp = DateTime.MinValue;
             DateTime maximumGoodTimestamp = DateTime.MinValue;
 
-            TypeInfo minimumOriginalType = null;
-            TypeInfo maximumOriginalType = null;
+            TypeInfo minimumOriginalType = default;
+            TypeInfo maximumOriginalType = default;
 
             bool badValuesExist = false;
             bool duplicatesMinimumsExist = false;
@@ -258,7 +256,7 @@ namespace Opc.Ua.Server
             }
 
             // convert back to original datatype.
-            if (processedType != null && processedType.BuiltInType != BuiltInType.Double)
+            if (!processedType.IsUnknown && processedType.BuiltInType != BuiltInType.Double)
             {
                 processedValue = TypeInfo.Cast(
                     processedValue,
@@ -389,8 +387,8 @@ namespace Opc.Ua.Server
                 // check if interval is partial and set the flag accordingly
                 if (slice.Partial)
                 {
-                    noDataValue.StatusCode = noDataValue.StatusCode
-                        .SetAggregateBits(AggregateBits.Partial);
+                    noDataValue.StatusCode =
+                        noDataValue.StatusCode.SetAggregateBits(AggregateBits.Partial);
                 }
                 return noDataValue;
             }
@@ -444,7 +442,7 @@ namespace Opc.Ua.Server
             }
 
             // convert back to original datatype.
-            if (processedType != null && processedType.BuiltInType != BuiltInType.Double)
+            if (!processedType.IsUnknown && processedType.BuiltInType != BuiltInType.Double)
             {
                 processedValue = TypeInfo.Cast(
                     processedValue,

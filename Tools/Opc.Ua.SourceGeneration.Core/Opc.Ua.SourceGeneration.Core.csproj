@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(LibTypesTargetFrameworks)</TargetFrameworks>
+    <AssemblyName>$(AssemblyPrefix).SourceGeneration.Core</AssemblyName>
+    <PackageId>$(PackagePrefix).Opc.Ua.SourceGeneration.Core</PackageId>
+    <RootNamespace>Opc.Ua.SourceGeneration</RootNamespace>
+    <Description>OPC UA source generation common Library</Description>
+    <IsPackable>true</IsPackable>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageLicenseFile></PackageLicenseFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Design\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="Generators\NodesetGenerator.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.SourceGeneration.Core.Tests" />
+  </ItemGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="CsvHelper" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Types\Opc.Ua.Types.csproj" />
+  </ItemGroup>
+</Project>

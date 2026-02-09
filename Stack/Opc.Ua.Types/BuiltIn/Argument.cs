@@ -214,8 +214,8 @@ namespace Opc.Ua
             var clone = (Argument)base.MemberwiseClone();
 
             clone.Name = CoreUtils.Clone(Name);
-            clone.DataType = CoreUtils.Clone(DataType);
-            clone.ValueRank = CoreUtils.Clone(ValueRank);
+            clone.DataType = DataType;
+            clone.ValueRank = ValueRank;
             clone.m_arrayDimensions = CoreUtils.Clone(m_arrayDimensions);
             clone.Description = CoreUtils.Clone(Description);
 

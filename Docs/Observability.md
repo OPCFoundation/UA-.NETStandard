@@ -135,7 +135,7 @@ When deriving from `NodeState` and the derived class requires an `ITelemetryCont
 so that it also receives the telemetry context. The Initialize method is called after creation of the NodeState
 instance and before any other method is called.
 
-To create a telemetry context you can use the `public ITelemetryContext DefaultTelemetryContext.Create()` static
+To create a telemetry context you can use the `public ITelemetryContext DefaultTelemetry.Create()` static
 method.  Do not create new telemetry contexts in cases where you have no access to one but try to wire it from
 an area in code where you have to the place you need it.  Best to initialize the telemetry context at the root
 of your application, e.g. at time you create a `new ApplicationInstance(...)`.  See [migrating](#migrating)

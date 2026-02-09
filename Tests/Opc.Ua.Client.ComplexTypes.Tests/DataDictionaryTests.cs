@@ -93,6 +93,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         {
             // start Ref server
             ServerFixture = new ServerFixture<ReferenceServer>(
+                t => new ReferenceServer(t),
                 enableTracing,
                 disableActivityLogging)
             {

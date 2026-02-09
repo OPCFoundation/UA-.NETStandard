@@ -544,14 +544,6 @@ namespace Opc.Ua
         /// </summary>
         public void WriteGuid(string fieldName, Uuid value)
         {
-            m_writer.Write(((Guid)value).ToByteArray());
-        }
-
-        /// <summary>
-        /// Writes a GUID to the stream.
-        /// </summary>
-        public void WriteGuid(string fieldName, Guid value)
-        {
             m_writer.Write(value.ToByteArray());
         }
 
@@ -669,7 +661,7 @@ namespace Opc.Ua
         public void WriteNodeId(string fieldName, NodeId value)
         {
             // write a null node id.
-            if (value == null)
+            if (value.IsNullNodeId)
             {
                 WriteUInt16(null, 0);
                 return;
@@ -683,13 +675,13 @@ namespace Opc.Ua
             }
 
             // get the node encoding.
-            byte encoding = GetNodeIdEncoding(value.IdType, value.Identifier, namespaceIndex);
+            byte encoding = GetNodeIdEncoding(value, namespaceIndex);
 
             // write the encoding.
             WriteByte(null, encoding);
 
             // write the node.
-            WriteNodeIdBody(encoding, value.Identifier, namespaceIndex);
+            WriteNodeIdBody(encoding, value, namespaceIndex);
         }
 
         /// <summary>
@@ -698,7 +690,7 @@ namespace Opc.Ua
         public void WriteExpandedNodeId(string fieldName, ExpandedNodeId value)
         {
             // write a null node id.
-            if (value == null)
+            if (value.IsNull)
             {
                 WriteUInt16(null, 0);
                 return;
@@ -719,7 +711,7 @@ namespace Opc.Ua
             }
 
             // get the node encoding.
-            byte encoding = GetNodeIdEncoding(value.IdType, value.Identifier, namespaceIndex);
+            byte encoding = GetNodeIdEncoding(value.InnerNodeId, namespaceIndex);
 
             // add the bit indicating a uri string is encoded as well.
             if (!string.IsNullOrEmpty(value.NamespaceUri))
@@ -737,7 +729,7 @@ namespace Opc.Ua
             WriteByte(null, encoding);
 
             // write the node id.
-            WriteNodeIdBody(encoding, value.Identifier, namespaceIndex);
+            WriteNodeIdBody(encoding, value.InnerNodeId, namespaceIndex);
 
             // write the namespace uri.
             if ((encoding & 0x80) != 0)
@@ -773,12 +765,6 @@ namespace Opc.Ua
         /// </summary>
         public void WriteQualifiedName(string fieldName, QualifiedName value)
         {
-            // check for null.
-            if (value == null)
-            {
-                value = new QualifiedName();
-            }
-
             ushort namespaceIndex = value.NamespaceIndex;
 
             if (m_namespaceMappings != null && m_namespaceMappings.Length > namespaceIndex)
@@ -796,7 +782,7 @@ namespace Opc.Ua
         public void WriteLocalizedText(string fieldName, LocalizedText value)
         {
             // check for null.
-            if (value == null)
+            if (value.IsNullOrEmpty)
             {
                 WriteByte(null, 0);
                 return;
@@ -934,7 +920,7 @@ namespace Opc.Ua
         public void WriteExtensionObject(string fieldName, ExtensionObject value)
         {
             // check for null.
-            if (value == null)
+            if (value.IsNull)
             {
                 WriteNodeId(null, NodeId.Null);
                 WriteByte(null, (byte)ExtensionObjectEncoding.None);
@@ -960,7 +946,7 @@ namespace Opc.Ua
 
             var localTypeId = ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris);
 
-            if (NodeId.IsNull(localTypeId) && !NodeId.IsNull(typeId))
+            if (localTypeId.IsNullNodeId && !typeId.IsNull)
             {
                 if (encodeable != null)
                 {
@@ -1330,24 +1316,6 @@ namespace Opc.Ua
         /// Writes a GUID array to the stream.
         /// </summary>
         public void WriteGuidArray(string fieldName, IList<Uuid> values)
-        {
-            // write length.
-            if (WriteArrayLength(values))
-            {
-                return;
-            }
-
-            // write contents.
-            for (int ii = 0; ii < values.Count; ii++)
-            {
-                WriteGuid(null, values[ii]);
-            }
-        }
-
-        /// <summary>
-        /// Writes a GUID array to the stream.
-        /// </summary>
-        public void WriteGuidArray(string fieldName, IList<Guid> values)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -2274,13 +2242,13 @@ namespace Opc.Ua
         /// Returns the node id encoding byte for a node id value.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private static byte GetNodeIdEncoding(IdType idType, object identifier, uint namespaceIndex)
+        private static byte GetNodeIdEncoding(NodeId nodeId, int namespaceIndex)
         {
             NodeIdEncodingBits encoding;
-            switch (idType)
+            switch (nodeId.IdType)
             {
                 case IdType.Numeric:
-                    uint id = Convert.ToUInt32(identifier, CultureInfo.InvariantCulture);
+                    uint id = Convert.ToUInt32(nodeId.NumericIdentifier, CultureInfo.InvariantCulture);
 
                     if (id <= byte.MaxValue && namespaceIndex == 0)
                     {
@@ -2308,7 +2276,7 @@ namespace Opc.Ua
                 default:
                     throw new ServiceResultException(
                         StatusCodes.BadEncodingError,
-                        CoreUtils.Format("NodeId identifier type '{0}' not supported.", idType));
+                        CoreUtils.Format("NodeId identifier type '{0}' not supported.", nodeId.IdType));
             }
 
             return Convert.ToByte(encoding, CultureInfo.InvariantCulture);
@@ -2318,33 +2286,33 @@ namespace Opc.Ua
         /// Writes the body of a node id to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void WriteNodeIdBody(byte encoding, object identifier, ushort namespaceIndex)
+        private void WriteNodeIdBody(byte encoding, NodeId nodeId, ushort namespaceIndex)
         {
             // write the node id.
             switch ((NodeIdEncodingBits)(0x3F & encoding))
             {
                 case NodeIdEncodingBits.TwoByte:
-                    WriteByte(null, Convert.ToByte(identifier, CultureInfo.InvariantCulture));
+                    WriteByte(null, Convert.ToByte(nodeId.NumericIdentifier, CultureInfo.InvariantCulture));
                     break;
                 case NodeIdEncodingBits.FourByte:
                     WriteByte(null, Convert.ToByte(namespaceIndex));
-                    WriteUInt16(null, Convert.ToUInt16(identifier, CultureInfo.InvariantCulture));
+                    WriteUInt16(null, Convert.ToUInt16(nodeId.NumericIdentifier, CultureInfo.InvariantCulture));
                     break;
                 case NodeIdEncodingBits.Numeric:
                     WriteUInt16(null, namespaceIndex);
-                    WriteUInt32(null, Convert.ToUInt32(identifier, CultureInfo.InvariantCulture));
+                    WriteUInt32(null, Convert.ToUInt32(nodeId.NumericIdentifier, CultureInfo.InvariantCulture));
                     break;
                 case NodeIdEncodingBits.String:
                     WriteUInt16(null, namespaceIndex);
-                    WriteString(null, (string)identifier);
+                    WriteString(null, nodeId.StringIdentifier);
                     break;
                 case NodeIdEncodingBits.Guid:
                     WriteUInt16(null, namespaceIndex);
-                    WriteGuid(null, new Uuid((Guid)identifier));
+                    WriteGuid(null, nodeId.GuidIdentifier);
                     break;
                 case NodeIdEncodingBits.ByteString:
                     WriteUInt16(null, namespaceIndex);
-                    WriteByteString(null, (byte[])identifier);
+                    WriteByteString(null, nodeId.OpaqueIdentifer);
                     break;
                 default:
                     throw ServiceResultException.Unexpected(
@@ -2360,7 +2328,7 @@ namespace Opc.Ua
         {
             // check for null.
             if (value.IsNull ||
-                value.TypeInfo == null ||
+                value.TypeInfo.IsUnknown ||
                 value.TypeInfo.BuiltInType == BuiltInType.Null)
             {
                 WriteByte(null, 0);

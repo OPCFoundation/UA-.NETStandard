@@ -222,7 +222,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Forces the channel into a faulted state as a result of a fatal error.
         /// </summary>
-        protected void ForceChannelFault(uint statusCode, string format, params object[] args)
+        protected void ForceChannelFault(StatusCode statusCode, string format, params object[] args)
         {
             ForceChannelFault(ServiceResult.Create(statusCode, format, args));
 
@@ -237,7 +237,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void ForceChannelFault(
             Exception exception,
-            uint defaultCode,
+            StatusCode defaultCode,
             string format,
             params object[] args)
         {

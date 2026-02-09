@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 
@@ -333,7 +332,7 @@ namespace Opc.Ua.Server
         {
             var systemContext = context as ServerSystemContext;
 
-            if (m_serverLockHolder != null && m_serverLockHolder != systemContext.SessionId)
+            if (!m_serverLockHolder.IsNullNodeId && m_serverLockHolder != systemContext.SessionId)
             {
                 return StatusCodes.BadSessionIdInvalid;
             }
@@ -354,7 +353,7 @@ namespace Opc.Ua.Server
         {
             var systemContext = context as ServerSystemContext;
 
-            if (m_serverLockHolder != null && m_serverLockHolder != systemContext.SessionId)
+            if (!m_serverLockHolder.IsNullNodeId && m_serverLockHolder != systemContext.SessionId)
             {
                 return StatusCodes.BadSessionIdInvalid;
             }
@@ -369,14 +368,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
-            var predefinedNodes = new NodeStateCollection();
-            Assembly assembly = typeof(ReadRequest).GetTypeInfo().Assembly;
-            predefinedNodes.LoadFromBinaryResource(
-                context,
-                "Opc.Ua.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes",
-                assembly,
-                true);
-            return predefinedNodes;
+            return new NodeStateCollection().AddOpcUa(context);
         }
 
         /// <summary>
@@ -443,12 +435,12 @@ namespace Opc.Ua.Server
 
             NodeId typeId = passiveNode.TypeDefinitionId;
 
-            if (!IsNodeIdInNamespace(typeId) || typeId.IdType != IdType.Numeric)
+            if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetIdentifier(out uint numericId))
             {
                 return predefinedNode;
             }
 
-            switch ((uint)typeId.Identifier)
+            switch (numericId)
             {
                 case ObjectTypes.ServerType:
                 {
@@ -559,12 +551,14 @@ namespace Opc.Ua.Server
 
             NodeId typeId = instance.TypeDefinitionId;
 
-            if (typeId == null || typeId.IdType != IdType.Numeric || typeId.NamespaceIndex != 0)
+            if (typeId.IsNullNodeId ||
+                typeId.NamespaceIndex != 0 ||
+                typeId.TryGetIdentifier(out uint numericId))
             {
                 return false;
             }
 
-            switch ((uint)typeId.Identifier)
+            switch (numericId)
             {
                 case VariableTypes.ServerDiagnosticsSummaryType:
                 case ObjectTypes.SessionDiagnosticsObjectType:
@@ -954,7 +948,7 @@ namespace Opc.Ua.Server
 
                 array?.AddReference(ReferenceTypeIds.HasComponent, false, diagnosticsNode.NodeId);
 
-                if (diagnostics.SessionId != null)
+                if (!diagnostics.SessionId.IsNullNodeId)
                 {
                     // add reference to session subscription array.
                     diagnosticsNode.AddReference(

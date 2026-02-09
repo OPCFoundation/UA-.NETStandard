@@ -157,7 +157,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeStatusCodeGoodResultsInNullValueInDataValueModeReversible()
         {
-            Field field = CreateStatusCodeField("StatusField", StatusCodes.Good);
+            Field field = CreateStatusCodeField("StatusField", StatusCodes.Good.Code);
             PubSubEncoding.JsonDataSetMessage message = CreateDataValueMessage(field);
 
             string json = EncodeMessage(message, JsonEncodingType.Reversible);
@@ -179,7 +179,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeStatusCodeGoodResultsInNullValueInDataValueModeNonReversible()
         {
-            Field field = CreateStatusCodeField("StatusField", StatusCodes.Good);
+            Field field = CreateStatusCodeField("StatusField", StatusCodes.Good.Code);
             PubSubEncoding.JsonDataSetMessage message = CreateDataValueMessage(field);
 
             string json = EncodeMessage(message, JsonEncodingType.NonReversible);
@@ -200,7 +200,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeStatusCodeBadPreservesValueReversible()
         {
-            Field field = CreateStatusCodeField("StatusField", StatusCodes.BadInvalidArgument);
+            Field field = CreateStatusCodeField("StatusField", StatusCodes.BadInvalidArgument.Code);
             PubSubEncoding.JsonDataSetMessage message = CreateDataValueMessage(field);
 
             string json = EncodeMessage(message, JsonEncodingType.Reversible);
@@ -221,7 +221,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void EncodeStatusCodeBadPreservesValueNonReversible()
         {
-            Field field = CreateStatusCodeField("StatusField", StatusCodes.BadInvalidArgument);
+            Field field = CreateStatusCodeField("StatusField", StatusCodes.BadInvalidArgument.Code);
             PubSubEncoding.JsonDataSetMessage message = CreateDataValueMessage(field);
 
             string json = EncodeMessage(message, JsonEncodingType.NonReversible);

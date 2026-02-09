@@ -15,16 +15,38 @@
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Boiler\Generated\Boiler.PredefinedNodes.uanodes" />
-    <EmbeddedResource Include="TestData\Generated\TestData.PredefinedNodes.uanodes" />
-    <EmbeddedResource Include="MemoryBuffer\Generated\MemoryBuffer.PredefinedNodes.uanodes" />
-  </ItemGroup>
-  <ItemGroup>
     <Compile Remove="Alarms\Alarms.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="..\..\Tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+    <ModelSourceGeneratorEmbedNodeSet2Xml>true</ModelSourceGeneratorEmbedNodeSet2Xml>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="Boiler\Generated\Boiler.NodeIds.csv" />
+    <None Remove="Boiler\Generated\Boiler.NodeSet.xml" />
+    <None Remove="MemoryBuffer\Generated\MemoryBufferDesign.csv" />
+    <None Remove="MemoryBuffer\Generated\MemoryBufferDesign.xml" />
+    <None Remove="TestData\Generated\TestDataDesign.csv" />
+    <None Remove="TestData\Generated\TestDataDesign.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <AdditionalFiles Include="Boiler\Generated\BoilerDesign.csv" />
+    <AdditionalFiles Include="Boiler\Generated\BoilerDesign.xml" />
+    <AdditionalFiles Include="MemoryBuffer\Generated\MemoryBufferDesign.csv" />
+    <AdditionalFiles Include="MemoryBuffer\Generated\MemoryBufferDesign.xml" />
+    <AdditionalFiles Include="TestData\Generated\TestDataDesign.csv" />
+    <AdditionalFiles Include="TestData\Generated\TestDataDesign.xml" />
   </ItemGroup>
   <Target Name="GetPackagingOutputs" />
 </Project>

@@ -223,7 +223,7 @@ namespace Opc.Ua
             var clone = (VariableTypeNode)base.MemberwiseClone();
 
             clone.Value = CoreUtils.Clone(Value);
-            clone.DataType = CoreUtils.Clone(DataType);
+            clone.DataType = DataType;
             clone.ValueRank = CoreUtils.Clone(ValueRank);
             clone.m_arrayDimensions = CoreUtils.Clone(m_arrayDimensions);
             clone.IsAbstract = CoreUtils.Clone(IsAbstract);
@@ -237,7 +237,7 @@ namespace Opc.Ua
         /// <value>The value.</value>
         object IVariableBase.Value
         {
-            get => Value.Value;
+            get => Value.AsBoxedObject();
             set => Value = new Variant(value);
         }
 
@@ -271,7 +271,7 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.Value:
-                    return Value.Value != null;
+                    return !Value.IsNull;
                 case Attributes.ValueRank:
                 case Attributes.DataType:
                 case Attributes.IsAbstract:
@@ -298,7 +298,7 @@ namespace Opc.Ua
                     return ValueRank;
                 // values are copied when the are written so then can be safely returned.
                 case Attributes.Value:
-                    return Value.Value;
+                    return Value.AsBoxedObject();
                 case Attributes.ArrayDimensions:
                     if (m_arrayDimensions == null || m_arrayDimensions.Count == 0)
                     {

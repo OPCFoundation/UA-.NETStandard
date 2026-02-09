@@ -66,7 +66,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override Task<BrowseResponse> BrowseAsync(
+        public override ValueTask<BrowseResponse> BrowseAsync(
             RequestHeader? requestHeader,
             ViewDescription? view,
             uint requestedMaxReferencesPerNode,
@@ -91,7 +91,7 @@ namespace Opc.Ua
                 operationLimit,
                 ct);
 
-            async Task<BrowseResponse> BrowseBatchedAsync(
+            async ValueTask<BrowseResponse> BrowseBatchedAsync(
                 RequestHeader? requestHeader,
                 ViewDescription? view,
                 uint requestedMaxReferencesPerNode,
@@ -143,7 +143,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override Task<BrowseNextResponse> BrowseNextAsync(
+        public override ValueTask<BrowseNextResponse> BrowseNextAsync(
             RequestHeader? requestHeader,
             bool releaseContinuationPoints,
             ByteStringCollection continuationPoints,
@@ -166,7 +166,7 @@ namespace Opc.Ua
                 operationLimit,
                 ct);
 
-            async Task<BrowseNextResponse> BrowseNextBatchedAsync(
+            async ValueTask<BrowseNextResponse> BrowseNextBatchedAsync(
                 RequestHeader? requestHeader,
                 bool releaseContinuationPoints,
                 ByteStringCollection continuationPoints,
@@ -216,7 +216,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override Task<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
+        public override ValueTask<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
             RequestHeader? requestHeader,
             BrowsePathCollection browsePaths,
             CancellationToken ct)
@@ -231,7 +231,7 @@ namespace Opc.Ua
             }
             return TranslateBrowsePathsToNodeIdsBatchedAsync(requestHeader, browsePaths, operationLimit, ct);
 
-            async Task<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsBatchedAsync(
+            async ValueTask<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsBatchedAsync(
                 RequestHeader? requestHeader,
                 BrowsePathCollection browsePaths,
                 uint operationLimit,
@@ -278,7 +278,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override Task<RegisterNodesResponse> RegisterNodesAsync(
+        public override ValueTask<RegisterNodesResponse> RegisterNodesAsync(
             RequestHeader? requestHeader,
             NodeIdCollection nodesToRegister,
             CancellationToken ct)
@@ -293,7 +293,7 @@ namespace Opc.Ua
             }
             return RegisterNodesBatchedAsync(requestHeader, nodesToRegister, operationLimit, ct);
 
-            async Task<RegisterNodesResponse> RegisterNodesBatchedAsync(
+            async ValueTask<RegisterNodesResponse> RegisterNodesBatchedAsync(
                 RequestHeader? requestHeader,
                 NodeIdCollection nodesToRegister,
                 uint operationLimit,
@@ -324,7 +324,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override Task<UnregisterNodesResponse> UnregisterNodesAsync(
+        public override ValueTask<UnregisterNodesResponse> UnregisterNodesAsync(
             RequestHeader? requestHeader,
             NodeIdCollection nodesToUnregister,
             CancellationToken ct)
@@ -339,7 +339,7 @@ namespace Opc.Ua
             }
             return UnregisterNodesBatchedAsync(requestHeader, nodesToUnregister, operationLimit, ct);
 
-            async Task<UnregisterNodesResponse> UnregisterNodesBatchedAsync(
+            async ValueTask<UnregisterNodesResponse> UnregisterNodesBatchedAsync(
                 RequestHeader? requestHeader,
                 NodeIdCollection nodesToUnregister,
                 uint operationLimit,
@@ -363,7 +363,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override Task<ReadResponse> ReadAsync(
+        public override ValueTask<ReadResponse> ReadAsync(
             RequestHeader? requestHeader,
             double maxAge,
             TimestampsToReturn timestampsToReturn,
@@ -388,7 +388,7 @@ namespace Opc.Ua
                 operationLimit,
                 ct);
 
-            async Task<ReadResponse> ReadBatchedAsync(
+            async ValueTask<ReadResponse> ReadBatchedAsync(
                 RequestHeader? requestHeader,
                 double maxAge,
                 TimestampsToReturn timestampsToReturn,
@@ -440,7 +440,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override Task<HistoryReadResponse> HistoryReadAsync(
+        public override ValueTask<HistoryReadResponse> HistoryReadAsync(
             RequestHeader? requestHeader,
             ExtensionObject historyReadDetails,
             TimestampsToReturn timestampsToReturn,
@@ -449,8 +449,8 @@ namespace Opc.Ua
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxNodesPerHistoryReadData;
-            if (historyReadDetails?.TypeId == DataTypeIds.ReadEventDetails ||
-                historyReadDetails?.Body is ReadEventDetails)
+            if (historyReadDetails.TypeId == DataTypeIds.ReadEventDetails ||
+                historyReadDetails.Body is ReadEventDetails)
             {
                 operationLimit = OperationLimits.MaxNodesPerHistoryReadEvents;
             }
@@ -474,9 +474,9 @@ namespace Opc.Ua
                 operationLimit,
                 ct);
 
-            async Task<HistoryReadResponse> HistoryReadBatchedAsync(
+            async ValueTask<HistoryReadResponse> HistoryReadBatchedAsync(
                 RequestHeader? requestHeader,
-                ExtensionObject? historyReadDetails,
+                ExtensionObject historyReadDetails,
                 TimestampsToReturn timestampsToReturn,
                 bool releaseContinuationPoints,
                 HistoryReadValueIdCollection nodesToRead,
@@ -528,7 +528,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override Task<WriteResponse> WriteAsync(
+        public override ValueTask<WriteResponse> WriteAsync(
             RequestHeader? requestHeader,
             WriteValueCollection nodesToWrite,
             CancellationToken ct)
@@ -543,7 +543,7 @@ namespace Opc.Ua
             }
             return WriteBatchedAsync(requestHeader, nodesToWrite, operationLimit, ct);
 
-            async Task<WriteResponse> WriteBatchedAsync(
+            async ValueTask<WriteResponse> WriteBatchedAsync(
                 RequestHeader? requestHeader,
                 WriteValueCollection nodesToWrite,
                 uint operationLimit,
@@ -591,7 +591,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override Task<HistoryUpdateResponse> HistoryUpdateAsync(
+        public override ValueTask<HistoryUpdateResponse> HistoryUpdateAsync(
             RequestHeader? requestHeader,
             ExtensionObjectCollection historyUpdateDetails,
             CancellationToken ct)
@@ -599,7 +599,7 @@ namespace Opc.Ua
             uint operationLimit = OperationLimits.MaxNodesPerHistoryUpdateData;
             if (historyUpdateDetails.Count > 0 &&
                 (historyUpdateDetails[0].TypeId == DataTypeIds.UpdateEventDetails ||
-                    historyUpdateDetails[0]?.Body is UpdateEventDetails))
+                    historyUpdateDetails[0].Body is UpdateEventDetails))
             {
                 operationLimit = OperationLimits.MaxNodesPerHistoryUpdateEvents;
             }
@@ -612,7 +612,7 @@ namespace Opc.Ua
             }
             return HistoryUpdateBatchedAsync(requestHeader, historyUpdateDetails, operationLimit, ct);
 
-            async Task<HistoryUpdateResponse> HistoryUpdateBatchedAsync(
+            async ValueTask<HistoryUpdateResponse> HistoryUpdateBatchedAsync(
                 RequestHeader? requestHeader,
                 ExtensionObjectCollection historyUpdateDetails,
                 uint operationLimit,
@@ -660,7 +660,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override Task<CallResponse> CallAsync(
+        public override ValueTask<CallResponse> CallAsync(
             RequestHeader? requestHeader,
             CallMethodRequestCollection methodsToCall,
             CancellationToken ct)
@@ -675,7 +675,7 @@ namespace Opc.Ua
             }
             return CallBatchedAsync(requestHeader, methodsToCall, operationLimit, ct);
 
-            async Task<CallResponse> CallBatchedAsync(
+            async ValueTask<CallResponse> CallBatchedAsync(
                 RequestHeader? requestHeader,
                 CallMethodRequestCollection methodsToCall,
                 uint operationLimit,
@@ -723,7 +723,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override Task<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
+        public override ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
             RequestHeader? requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
@@ -749,7 +749,7 @@ namespace Opc.Ua
                 operationLimit,
                 ct);
 
-            async Task<CreateMonitoredItemsResponse> CreateMonitoredItemsBatchedAsync(
+            async ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsBatchedAsync(
                 RequestHeader? requestHeader,
                 uint subscriptionId,
                 TimestampsToReturn timestampsToReturn,
@@ -800,7 +800,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override Task<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
+        public override ValueTask<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
             RequestHeader? requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
@@ -825,7 +825,7 @@ namespace Opc.Ua
                 operationLimit,
                 ct);
 
-            async Task<ModifyMonitoredItemsResponse> ModifyMonitoredItemsBatchedAsync(
+            async ValueTask<ModifyMonitoredItemsResponse> ModifyMonitoredItemsBatchedAsync(
                 RequestHeader? requestHeader,
                 uint subscriptionId,
                 TimestampsToReturn timestampsToReturn,
@@ -876,7 +876,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override Task<SetMonitoringModeResponse> SetMonitoringModeAsync(
+        public override ValueTask<SetMonitoringModeResponse> SetMonitoringModeAsync(
             RequestHeader? requestHeader,
             uint subscriptionId,
             MonitoringMode monitoringMode,
@@ -902,7 +902,7 @@ namespace Opc.Ua
                 operationLimit,
                 ct);
 
-            async Task<SetMonitoringModeResponse> SetMonitoringModeBatchedAsync(
+            async ValueTask<SetMonitoringModeResponse> SetMonitoringModeBatchedAsync(
                 RequestHeader? requestHeader,
                 uint subscriptionId,
                 MonitoringMode monitoringMode,
@@ -954,7 +954,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override Task<SetTriggeringResponse> SetTriggeringAsync(
+        public override ValueTask<SetTriggeringResponse> SetTriggeringAsync(
             RequestHeader? requestHeader,
             uint subscriptionId,
             uint triggeringItemId,
@@ -983,7 +983,7 @@ namespace Opc.Ua
                 operationLimit,
                 ct);
 
-            async Task<SetTriggeringResponse> SetTriggeringBatchedAsync(
+            async ValueTask<SetTriggeringResponse> SetTriggeringBatchedAsync(
                 RequestHeader? requestHeader,
                 uint subscriptionId,
                 uint triggeringItemId,
@@ -1116,7 +1116,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override Task<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
+        public override ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
             RequestHeader? requestHeader,
             uint subscriptionId,
             UInt32Collection monitoredItemIds,
@@ -1138,7 +1138,7 @@ namespace Opc.Ua
                 operationLimit,
                 ct);
 
-            async Task<DeleteMonitoredItemsResponse> DeleteMonitoredItemsBatchedAsync(
+            async ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsBatchedAsync(
                 RequestHeader? requestHeader,
                 uint subscriptionId,
                 UInt32Collection monitoredItemIds,
@@ -1187,7 +1187,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override Task<AddNodesResponse> AddNodesAsync(
+        public override ValueTask<AddNodesResponse> AddNodesAsync(
             RequestHeader? requestHeader,
             AddNodesItemCollection nodesToAdd,
             CancellationToken ct)
@@ -1203,7 +1203,7 @@ namespace Opc.Ua
 
             return AddNodesBatchedAsync(requestHeader, nodesToAdd, operationLimit, ct);
 
-            async Task<AddNodesResponse> AddNodesBatchedAsync(
+            async ValueTask<AddNodesResponse> AddNodesBatchedAsync(
                 RequestHeader? requestHeader,
                 AddNodesItemCollection nodesToAdd,
                 uint operationLimit,
@@ -1247,7 +1247,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override Task<AddReferencesResponse> AddReferencesAsync(
+        public override ValueTask<AddReferencesResponse> AddReferencesAsync(
             RequestHeader? requestHeader,
             AddReferencesItemCollection referencesToAdd,
             CancellationToken ct)
@@ -1263,7 +1263,7 @@ namespace Opc.Ua
 
             return AddReferencesBatchedAsync(requestHeader, referencesToAdd, operationLimit, ct);
 
-            async Task<AddReferencesResponse> AddReferencesBatchedAsync(
+            async ValueTask<AddReferencesResponse> AddReferencesBatchedAsync(
                 RequestHeader? requestHeader,
                 AddReferencesItemCollection referencesToAdd,
                 uint operationLimit,
@@ -1310,7 +1310,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override Task<DeleteNodesResponse> DeleteNodesAsync(
+        public override ValueTask<DeleteNodesResponse> DeleteNodesAsync(
             RequestHeader? requestHeader,
             DeleteNodesItemCollection nodesToDelete,
             CancellationToken ct)
@@ -1326,7 +1326,7 @@ namespace Opc.Ua
 
             return DeleteNodesBatchedAsync(requestHeader, nodesToDelete, operationLimit, ct);
 
-            async Task<DeleteNodesResponse> DeleteNodesBatchedAsync(
+            async ValueTask<DeleteNodesResponse> DeleteNodesBatchedAsync(
                 RequestHeader? requestHeader,
                 DeleteNodesItemCollection nodesToDelete,
                 uint operationLimit,
@@ -1373,7 +1373,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override Task<DeleteReferencesResponse> DeleteReferencesAsync(
+        public override ValueTask<DeleteReferencesResponse> DeleteReferencesAsync(
             RequestHeader? requestHeader,
             DeleteReferencesItemCollection referencesToDelete,
             CancellationToken ct)
@@ -1389,7 +1389,7 @@ namespace Opc.Ua
 
             return DeleteReferencesBatchedAsync(requestHeader, referencesToDelete, operationLimit, ct);
 
-            async Task<DeleteReferencesResponse> DeleteReferencesBatchedAsync(
+            async ValueTask<DeleteReferencesResponse> DeleteReferencesBatchedAsync(
                 RequestHeader? requestHeader,
                 DeleteReferencesItemCollection referencesToDelete,
                 uint operationLimit,
@@ -1444,7 +1444,7 @@ namespace Opc.Ua
         {
             if (response is null)
             {
-                throw new ServiceResultException(StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "Empty ops should have been covered in fast path");
             }
         }

@@ -210,7 +210,7 @@ namespace Opc.Ua
 
             if (operand is LiteralOperand literal)
             {
-                return literal.Value.Value;
+                return literal.Value.AsBoxedObject();
             }
 
             // must query the filter target for simple attribute operands.
@@ -392,14 +392,14 @@ namespace Opc.Ua
         /// </summary>
         private static BuiltInType GetBuiltInType(NodeId datatypeId)
         {
-            if (datatypeId == null ||
+            if (datatypeId.IsNullNodeId ||
                 datatypeId.NamespaceIndex != 0 ||
-                datatypeId.IdType != IdType.Numeric)
+                !datatypeId.TryGetIdentifier(out uint numericId))
             {
                 return BuiltInType.Null;
             }
 
-            return (BuiltInType)Enum.ToObject(typeof(BuiltInType), datatypeId.Identifier);
+            return (BuiltInType)Enum.ToObject(typeof(BuiltInType), numericId);
         }
 
         /// <summary>
@@ -1233,7 +1233,7 @@ namespace Opc.Ua
                         (DateTime)value,
                         XmlDateTimeSerializationMode.Unspecified);
                 case BuiltInType.Guid:
-                    return ((Guid)value).ToString();
+                    return ((Uuid)value).ToString();
                 case BuiltInType.NodeId:
                     return ((NodeId)value).ToString();
                 case BuiltInType.ExpandedNodeId:
@@ -1297,11 +1297,11 @@ namespace Opc.Ua
 
             if (value is Array array)
             {
-                var output = new Guid[array.Length];
+                var output = new Uuid[array.Length];
 
                 for (int ii = 0; ii < array.Length; ii++)
                 {
-                    output[ii] = (Guid)Cast(array.GetValue(ii), BuiltInType.Guid);
+                    output[ii] = (Uuid)Cast(array.GetValue(ii), BuiltInType.Guid);
                 }
 
                 return output;
@@ -1311,11 +1311,11 @@ namespace Opc.Ua
             switch (sourceType)
             {
                 case BuiltInType.Guid:
-                    return (Guid)value;
+                    return (Uuid)value;
                 case BuiltInType.String:
-                    return new Guid((string)value);
+                    return new Uuid((string)value);
                 case BuiltInType.ByteString:
-                    return new Guid((byte[])value);
+                    return new Uuid((byte[])value);
                 case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                     // conversion not supported.
                     return null;
@@ -1351,7 +1351,7 @@ namespace Opc.Ua
                 case BuiltInType.ByteString:
                     return (byte[])value;
                 case BuiltInType.Guid:
-                    return ((Guid)value).ToByteArray();
+                    return ((Uuid)value).ToByteArray();
                 case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                     // conversion not supported.
                     return null;
@@ -1587,7 +1587,7 @@ namespace Opc.Ua
             // extract the value from a Variant if specified.
             if (source is Variant variant)
             {
-                return Cast(variant.Value, targetType);
+                return Cast(variant.AsBoxedObject(), targetType);
             }
 
             // call the appropriate function if a conversion is supported for the m_target type.
@@ -2127,7 +2127,7 @@ namespace Opc.Ua
                     (bool?)true;
             }
 
-            NodeId targetTypeId = null;
+            NodeId targetTypeId;
 
             // check if elements are chained.
 
@@ -2148,8 +2148,7 @@ namespace Opc.Ua
                         chainedElement.FilterOperands[0]) as FilterOperand;
 
                     targetTypeId = GetValue(nestedType) is NodeId n ? n : default;
-
-                    if (targetTypeId == null)
+                    if (targetTypeId.IsNullNodeId)
                     {
                         return false;
                     }
@@ -2187,8 +2186,7 @@ namespace Opc.Ua
 
             // get the type of the m_target.
             targetTypeId = GetValue(operands[1]) is NodeId n2 ? n2 : default;
-
-            if (targetTypeId == null)
+            if (targetTypeId.IsNullNodeId)
             {
                 return false;
             }

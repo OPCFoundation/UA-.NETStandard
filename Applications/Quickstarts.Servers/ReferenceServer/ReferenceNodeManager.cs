@@ -88,7 +88,7 @@ namespace Quickstarts.ReferenceServer
         {
             if (node is BaseInstanceState instance &&
                 instance.Parent != null &&
-                instance.Parent.NodeId.Identifier is string id)
+                instance.Parent.NodeId.TryGetIdentifier(out string id))
             {
                 return new NodeId(
                     id + "_" + instance.SymbolicName,
@@ -3838,7 +3838,7 @@ namespace Quickstarts.ReferenceServer
         /// Creates a new variable.
         /// </summary>
         private DataItemState CreateDataItemVariable(
-            NodeState parent,
+            FolderState parent,
             string path,
             string name,
             BuiltInType dataType,
@@ -4030,7 +4030,7 @@ namespace Quickstarts.ReferenceServer
         /// Creates a new variable.
         /// </summary>
         private TwoStateDiscreteState CreateTwoStateDiscreteItemVariable(
-            NodeState parent,
+            FolderState parent,
             string path,
             string name,
             string trueState,
@@ -4074,7 +4074,7 @@ namespace Quickstarts.ReferenceServer
         /// Creates a new variable.
         /// </summary>
         private MultiStateDiscreteState CreateMultiStateDiscreteItemVariable(
-            NodeState parent,
+            FolderState parent,
             string path,
             string name,
             params string[] values)
@@ -4126,7 +4126,7 @@ namespace Quickstarts.ReferenceServer
             string name,
             params string[] enumNames)
         {
-            return CreateMultiStateValueDiscreteItemVariable(parent, path, name, null, enumNames);
+            return CreateMultiStateValueDiscreteItemVariable(parent, path, name, default, enumNames);
         }
 
         /// <summary>
@@ -4152,7 +4152,7 @@ namespace Quickstarts.ReferenceServer
 
             variable.SymbolicName = name;
             variable.ReferenceTypeId = ReferenceTypes.Organizes;
-            variable.DataType = nodeId ?? DataTypeIds.UInt32;
+            variable.DataType = nodeId.IsNullNodeId ? DataTypeIds.UInt32 : nodeId;
             variable.ValueRank = ValueRanks.Scalar;
             variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
             variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
@@ -4212,7 +4212,7 @@ namespace Quickstarts.ReferenceServer
                 context.NamespaceUris,
                 context.TypeTable);
 
-            if (typeInfo == null || typeInfo == TypeInfo.Unknown)
+            if (typeInfo.IsUnknown)
             {
                 return StatusCodes.BadTypeMismatch;
             }
@@ -4244,8 +4244,7 @@ namespace Quickstarts.ReferenceServer
             var typeInfo = TypeInfo.Construct(value);
 
             if (node is not MultiStateValueDiscreteState variable ||
-                typeInfo == null ||
-                typeInfo == TypeInfo.Unknown ||
+                typeInfo.IsUnknown ||
                 !TypeInfo.IsNumericType(typeInfo.BuiltInType))
             {
                 return StatusCodes.BadTypeMismatch;
@@ -4296,7 +4295,7 @@ namespace Quickstarts.ReferenceServer
                 context.NamespaceUris,
                 context.TypeTable);
 
-            if (typeInfo == null || typeInfo == TypeInfo.Unknown)
+            if (typeInfo.IsUnknown)
             {
                 return StatusCodes.BadTypeMismatch;
             }
@@ -4351,8 +4350,7 @@ namespace Quickstarts.ReferenceServer
 
             if (node is not PropertyState<Range> variable ||
                 value is not ExtensionObject extensionObject ||
-                typeInfo == null ||
-                typeInfo == TypeInfo.Unknown)
+                typeInfo.IsUnknown)
             {
                 return StatusCodes.BadTypeMismatch;
             }
@@ -4602,7 +4600,7 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Creates a new method.
         /// </summary>
-        private MethodState CreateMethod(NodeState parent, string path, string name)
+        private MethodState CreateMethod(FolderState parent, string path, string name)
         {
             var method = new MethodState(parent)
             {
@@ -4821,7 +4819,7 @@ namespace Quickstarts.ReferenceServer
                     [10],
                     Server.TypeTree);
                 // skip Variant Null
-                if (value is Variant variant && variant.Value == null)
+                if (value is Variant variant && variant.IsNull)
                 {
                     value = null;
                 }

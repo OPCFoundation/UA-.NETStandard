@@ -162,7 +162,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             Assert.AreEqual(BuiltInType.Byte, wrappedValue.TypeInfo.BuiltInType, "BuiltInType should be Byte");
             Assert.AreEqual(ValueRanks.OneDimension, wrappedValue.TypeInfo.ValueRank, "ValueRank should be OneDimension");
-            Assert.AreEqual(testValue, wrappedValue.Value, "Value should match the original byte array");
+            Assert.AreEqual(testValue, wrappedValue.GetByteString(), "Value should match the original byte array");
         }
 
         /// <summary>
@@ -201,7 +201,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             Assert.AreEqual(BuiltInType.ByteString, wrappedValue.TypeInfo.BuiltInType, "BuiltInType should be ByteString");
             Assert.AreEqual(ValueRanks.Scalar, wrappedValue.TypeInfo.ValueRank, "ValueRank should be Scalar");
-            Assert.AreEqual(testValue, wrappedValue.Value, "Value should match the original byte array");
+            Assert.AreEqual(testValue, wrappedValue.GetByteString(), "Value should match the original byte array");
         }
     }
 }

@@ -49,8 +49,12 @@ namespace Opc.Ua
         /// Intializes the object with a channel and a message context.
         /// </summary>
         /// <param name="channel">The channel.</param>
-        public ClientBase(ITransportChannel channel)
+        /// <param name="telemetry"></param>
+        public ClientBase(ITransportChannel channel, ITelemetryContext telemetry)
         {
+            m_logger = telemetry.CreateLogger<ClientBase>();
+            m_meter = telemetry.CreateMeter();
+
             if (channel == null)
             {
                 throw new ArgumentNullException(nameof(channel));
@@ -173,6 +177,7 @@ namespace Opc.Ua
         /// Note: deprecated, only to fulfill a few references
         /// in the generated code.
         /// </summary>
+        [Obsolete("Use ITransportChannel instead.")]
         internal IChannelBase? InnerChannel
         {
             get
@@ -327,7 +332,7 @@ namespace Opc.Ua
                     ref m_nextRequestHandle);
             }
 
-            if (NodeId.IsNull(request.RequestHeader.AuthenticationToken))
+            if (request.RequestHeader.AuthenticationToken.IsNullNodeId)
             {
                 request.RequestHeader.AuthenticationToken = AuthenticationToken;
             }
@@ -409,14 +414,14 @@ namespace Opc.Ua
                     {
 #if NET8_0_OR_GREATER
                         SpanId = BitConverter.ToUInt64(spanId),
-                        TraceId = (Uuid)new Guid(traceId)
+                        TraceId = new Guid(traceId)
 #else
                         SpanId = BitConverter.ToUInt64(spanId.ToArray(), 0),
-                        TraceId = (Uuid)new Guid(traceId.ToArray())
+                        TraceId = new Guid(traceId.ToArray())
 #endif
                     })
                 };
-                if (request.RequestHeader.AdditionalHeader?.Body == null)
+                if (request.RequestHeader.AdditionalHeader.IsNull)
                 {
                     var additionalHeader = new AdditionalParametersType();
                     additionalHeader.Parameters.Add(spanContextParameter);
@@ -755,14 +760,9 @@ namespace Opc.Ua
         /// Logger for client inheritence chain
         /// </summary>
 #pragma warning disable IDE1006 // Naming Styles
-        protected ILogger m_logger { get; set; } = LoggerUtils.Null.Logger;
-
-        /// <summary>
-        /// Meter to be used by the client inheritance chain
-        /// </summary>
-        protected Meter? m_meter { get; set; }
+        protected readonly ILogger m_logger;
 #pragma warning restore IDE1006 // Naming Styles
-
+        private readonly Meter m_meter;
         private ITransportChannel? m_channel;
         private readonly ConcurrentDictionary<string, Instrument<double>> m_instruments = [];
         private int m_nextRequestHandle;

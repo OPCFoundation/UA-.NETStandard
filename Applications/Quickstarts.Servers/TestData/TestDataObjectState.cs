@@ -136,7 +136,7 @@ namespace TestData
 
                         if (typeof(Variant).IsInstanceOfType(element))
                         {
-                            element = ((Variant)element).Value;
+                            element = ((Variant)element).AsBoxedObject();
                         }
 
                         double elementNumber = Convert.ToDouble(

@@ -66,13 +66,11 @@ namespace Opc.Ua.Server
         /// </summary>
         protected override DataValue ComputeValue(TimeSlice slice)
         {
-            uint? id = AggregateId.Identifier as uint?;
-
-            if (id == null)
+            if (!AggregateId.TryGetIdentifier(out uint numericId))
             {
                 return base.ComputeValue(slice);
             }
-            switch (id.Value)
+            switch (numericId)
             {
                 // valueType == 1: StandardDeviation, valueType == 2: Variance
 

@@ -399,57 +399,6 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// Compare reference equality
-    /// </summary>
-    public sealed class ReferenceEqualityComparer : IEqualityComparer<IReference>
-    {
-        /// <summary>
-        /// Get an instance of the reference equality comparer.
-        /// </summary>
-        public static ReferenceEqualityComparer Instance { get; } = new ReferenceEqualityComparer();
-
-        /// <inheritdoc/>
-        public bool Equals(IReference x, IReference y)
-        {
-            if (ReferenceEquals(x, y))
-            {
-                return true;
-            }
-
-            if (x == null || y == null)
-            {
-                return false;
-            }
-
-            if (!CoreUtils.IsEqual(x.TargetId, y.TargetId))
-            {
-                return false;
-            }
-
-            if (!CoreUtils.IsEqual(x.ReferenceTypeId, y.ReferenceTypeId))
-            {
-                return false;
-            }
-
-            if (!CoreUtils.IsEqual(x.IsInverse, y.IsInverse))
-            {
-                return false;
-            }
-
-            return true;
-        }
-
-        /// <inheritdoc/>
-        public int GetHashCode(IReference obj)
-        {
-            return HashCode.Combine(
-                obj.TargetId,
-                obj.ReferenceTypeId,
-                obj.IsInverse);
-        }
-    }
-
-    /// <summary>
     /// A dictionary designed to provide efficient lookups for references.
     /// </summary>
     /// <typeparam name="T"></typeparam>
@@ -514,7 +463,7 @@ namespace Opc.Ua
             var hits = new List<IReference>();
 
             // check for null.
-            if (NodeId.IsNull(referenceTypeId))
+            if (referenceTypeId.IsNullNodeId)
             {
                 return hits;
             }
@@ -549,7 +498,7 @@ namespace Opc.Ua
             var hits = new List<IReference>();
 
             // check for null.
-            if (NodeId.IsNull(referenceTypeId))
+            if (referenceTypeId.IsNullNodeId)
             {
                 return hits;
             }
@@ -575,7 +524,7 @@ namespace Opc.Ua
             var hits = new List<IReference>();
 
             // check for null.
-            if (NodeId.IsNull(targetId))
+            if (targetId.IsNull)
             {
                 return hits;
             }
@@ -603,7 +552,7 @@ namespace Opc.Ua
         public bool RemoveAll(NodeId referenceTypeId, bool isInverse)
         {
             // check for null.
-            if (NodeId.IsNull(referenceTypeId))
+            if (referenceTypeId.IsNullNodeId)
             {
                 return false;
             }
@@ -974,7 +923,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (NodeId.IsNull(key.ReferenceTypeId))
+            if (key.ReferenceTypeId.IsNullNodeId)
             {
                 if (throwOnError)
                 {
@@ -986,7 +935,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (NodeId.IsNull(key.TargetId))
+            if (key.TargetId.IsNull)
             {
                 if (throwOnError)
                 {

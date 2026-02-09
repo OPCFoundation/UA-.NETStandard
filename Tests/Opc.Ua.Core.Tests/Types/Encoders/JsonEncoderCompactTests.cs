@@ -126,25 +126,25 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             NodeId n0 = decoder.ReadNodeId("D0");
             Assert.AreEqual((int)n0.NamespaceIndex, 0);
-            Assert.AreEqual(2263U, (uint)n0.Identifier);
+            Assert.AreEqual(2263U, n0.TryGetIdentifier(out uint id0) ? id0 : 0);
 
             NodeId n1 = decoder.ReadNodeId("D1");
             Assert.AreEqual(
                 (int)n1.NamespaceIndex,
                 context.NamespaceUris.GetIndex(Get(NamespaceUris, index)));
-            Assert.AreEqual(Get(NumericIds, index), (uint)n1.Identifier);
+            Assert.AreEqual(Get(NumericIds, index), n1.TryGetIdentifier(out uint id1) ? id1 : 0);
 
             NodeId n2 = decoder.ReadNodeId("D2");
             Assert.AreEqual(
                 (int)n2.NamespaceIndex,
                 context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1)));
-            Assert.AreEqual(Get(StringIds, index), (string)n2.Identifier);
+            Assert.AreEqual(Get(StringIds, index), n2.TryGetIdentifier(out string id3) ? id3 : string.Empty);
 
             NodeId n3 = decoder.ReadNodeId("D3");
             Assert.AreEqual(
                 (int)n3.NamespaceIndex,
                 context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2)));
-            Assert.AreEqual(Get(GuidIds, index), (Guid)n3.Identifier);
+            Assert.AreEqual(Get(GuidIds, index), n3.TryGetIdentifier(out Guid id4) ? id4 : Guid.Empty);
 
             NodeId n4 = decoder.ReadNodeId("D4");
             Assert.AreEqual(
@@ -152,7 +152,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3)));
             Assert.AreEqual(
                 Utils.ToHexString(Get(OpaqueIds, index)),
-                Utils.ToHexString((byte[])n4.Identifier));
+                Utils.ToHexString(n4.TryGetIdentifier(out byte[] id5) ? id5 : []));
         }
 
         private static void CheckDecodedExpandedNodeIds(
@@ -163,7 +163,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             ExpandedNodeId n0 = decoder.ReadExpandedNodeId("D0");
             Assert.AreEqual((int)n0.ServerIndex, 0);
             Assert.AreEqual((int)n0.NamespaceIndex, 0);
-            Assert.AreEqual(2263U, (uint)n0.Identifier);
+            Assert.AreEqual(2263U, n0.TryGetIdentifier(out uint id0) ? id0 : 0);
 
             ExpandedNodeId n1 = decoder.ReadExpandedNodeId("D1");
             Assert.AreEqual((int)n1.ServerIndex, 0);
@@ -179,7 +179,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Assert.AreEqual(n1.NamespaceIndex, ns);
             }
 
-            Assert.AreEqual(Get(NumericIds, index), (uint)n1.Identifier);
+            Assert.AreEqual(Get(NumericIds, index), n1.TryGetIdentifier(out uint id1) ? id1 : 0);
 
             ExpandedNodeId n2 = decoder.ReadExpandedNodeId("D2");
             Assert.AreEqual((int)n2.ServerIndex, 0);
@@ -195,7 +195,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Assert.AreEqual(n2.NamespaceIndex, ns);
             }
 
-            Assert.AreEqual(Get(StringIds, index), (string)n2.Identifier);
+            Assert.AreEqual(
+                Get(StringIds, index),
+                n2.TryGetIdentifier(out string guid3) ? guid3 : null);
 
             ExpandedNodeId n3 = decoder.ReadExpandedNodeId("D3");
             Assert.AreEqual((int)n3.ServerIndex, 0);
@@ -211,7 +213,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Assert.AreEqual(n3.NamespaceIndex, ns);
             }
 
-            Assert.AreEqual(Get(GuidIds, index), (Guid)n3.Identifier);
+            Assert.AreEqual(
+                Get(GuidIds, index),
+                n3.TryGetIdentifier(out Guid id3) ? id3 : Guid.Empty);
 
             ExpandedNodeId n4 = decoder.ReadExpandedNodeId("D4");
             Assert.AreEqual((int)n4.ServerIndex, 0);
@@ -229,7 +233,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             Assert.AreEqual(
                 Utils.ToHexString(Get(OpaqueIds, index)),
-                Utils.ToHexString((byte[])n4.Identifier));
+                Utils.ToHexString(n4.TryGetIdentifier(out byte[] id4) ? id4 : null));
 
             ExpandedNodeId n5 = decoder.ReadExpandedNodeId("D5");
             Assert.AreEqual(
@@ -247,7 +251,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Assert.AreEqual(n5.NamespaceIndex, ns);
             }
 
-            Assert.AreEqual(Get(NumericIds, index), (uint)n5.Identifier);
+            Assert.AreEqual(
+                Get(NumericIds, index),
+                n5.TryGetIdentifier(out uint id5) ? id5 : 0);
 
             ExpandedNodeId n6 = decoder.ReadExpandedNodeId("D6");
             Assert.AreEqual(
@@ -265,7 +271,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Assert.AreEqual(n6.NamespaceIndex, ns);
             }
 
-            Assert.AreEqual(Get(StringIds, index), (string)n6.Identifier);
+            Assert.AreEqual(
+                Get(StringIds, index),
+                n6.TryGetIdentifier(out string id6) ? id6 : null);
 
             ExpandedNodeId n7 = decoder.ReadExpandedNodeId("D7");
             Assert.AreEqual(
@@ -283,7 +291,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Assert.AreEqual(n7.NamespaceIndex, ns);
             }
 
-            Assert.AreEqual(Get(GuidIds, index), (Guid)n7.Identifier);
+            Assert.AreEqual(
+                Get(GuidIds, index),
+                n7.TryGetIdentifier(out Guid id7) ? id7 : Guid.Empty);
 
             ExpandedNodeId n8 = decoder.ReadExpandedNodeId("D8");
             Assert.AreEqual(
@@ -303,7 +313,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             Assert.AreEqual(
                 Utils.ToHexString(Get(OpaqueIds, index)),
-                Utils.ToHexString((byte[])n8.Identifier));
+                Utils.ToHexString(n8.TryGetIdentifier(out byte[] id8) ? id8 : null));
         }
 
         private static void CheckDecodedQualfiiedNames(
@@ -1614,6 +1624,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 """;
 
             var context = new ServiceMessageContext(telemetry);
+            context.Factory.AddEncodeableTypes(typeof(Gds.ApplicationRecordDataType).Assembly);
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
@@ -1628,7 +1639,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Variant v1 = decoder.ReadVariant("D1");
             Assert.AreEqual(v1.TypeInfo.BuiltInType, BuiltInType.ExtensionObject);
 
-            eo = v1.Value as ExtensionObject;
+            eo = v1.GetExtensionObject();
             Assert.IsNotNull(eo);
             Assert.AreEqual(
                 Gds.DataTypeIds.ApplicationRecordDataType.ToString(),
@@ -1735,6 +1746,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 """;
 
             var context = new ServiceMessageContext(telemetry);
+            context.Factory.AddEncodeableTypes(typeof(Gds.ApplicationRecordDataType).Assembly);
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
@@ -1749,7 +1761,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Variant v1 = decoder.ReadVariant("D1");
             Assert.AreEqual(v1.TypeInfo.BuiltInType, BuiltInType.ExtensionObject);
 
-            eo = v1.Value as ExtensionObject;
+            eo = v1.GetExtensionObject();
             Assert.IsNotNull(eo);
             Assert.AreEqual(
                 Gds.DataTypeIds.ApplicationRecordDataType.ToString(),
@@ -1857,6 +1869,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 """;
 
             var context = new ServiceMessageContext(telemetry);
+            context.Factory.AddEncodeableTypes(typeof(Gds.ApplicationRecordDataType).Assembly);
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
@@ -1871,7 +1884,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Variant v1 = decoder.ReadVariant("D1");
             Assert.AreEqual(v1.TypeInfo.BuiltInType, BuiltInType.ExtensionObject);
 
-            eo = v1.Value as ExtensionObject;
+            eo = v1.GetExtensionObject();
             Assert.IsNotNull(eo);
             Assert.AreEqual(
                 Gds.DataTypeIds.ApplicationRecordDataType.ToString(),

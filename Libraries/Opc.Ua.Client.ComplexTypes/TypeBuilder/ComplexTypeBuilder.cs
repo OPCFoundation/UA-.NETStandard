@@ -77,7 +77,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 throw new ArgumentNullException(nameof(enumDefinition));
             }
-            if (typeName == null)
+            if (typeName.IsNullQn)
             {
                 throw new ArgumentNullException(nameof(typeName));
             }

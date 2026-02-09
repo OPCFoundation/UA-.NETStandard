@@ -163,9 +163,9 @@ namespace Opc.Ua.Server
             if (predefinedNode is BaseObjectState passiveNode)
             {
                 NodeId typeId = passiveNode.TypeDefinitionId;
-                if (IsNodeIdInNamespace(typeId) && typeId.IdType == IdType.Numeric)
+                if (IsNodeIdInNamespace(typeId) && typeId.TryGetIdentifier(out uint numericId))
                 {
-                    switch ((uint)typeId.Identifier)
+                    switch (numericId)
                     {
                         case ObjectTypes.ServerConfigurationType:
                         {
@@ -938,7 +938,7 @@ namespace Opc.Ua.Server
                 .SetNotBefore(DateTime.Today.AddDays(-1))
                 .SetNotAfter(DateTime.Today.AddDays(14));
 
-            if (certificateTypeId == null ||
+            if (certificateTypeId.IsNullNodeId ||
                 certificateTypeId == ObjectTypeIds.ApplicationCertificateType ||
                 certificateTypeId == ObjectTypeIds.RsaMinApplicationCertificateType ||
                 certificateTypeId == ObjectTypeIds.RsaSha256ApplicationCertificateType)
@@ -1114,7 +1114,7 @@ namespace Opc.Ua.Server
             NodeId certificateTypeId)
         {
             // verify typeid must be set
-            if (NodeId.IsNull(certificateTypeId))
+            if (certificateTypeId.IsNullNodeId)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadInvalidArgument,
@@ -1122,7 +1122,7 @@ namespace Opc.Ua.Server
             }
 
             // verify requested certificate group
-            if (NodeId.IsNull(certificateGroupId))
+            if (certificateGroupId.IsNullNodeId)
             {
                 certificateGroupId = ObjectIds
                     .ServerConfiguration_CertificateGroups_DefaultApplicationGroup;

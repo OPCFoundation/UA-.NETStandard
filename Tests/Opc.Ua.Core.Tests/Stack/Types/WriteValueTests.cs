@@ -97,7 +97,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             Assert.True(
                 ServiceResult.IsBad(validateResult),
                 "WriteValue.Validate result was not Bad");
-            Assert.AreEqual(new StatusCode(StatusCodes.BadTypeMismatch), validateResult.StatusCode);
+            Assert.AreEqual(StatusCodes.BadTypeMismatch, validateResult.StatusCode);
 
             // Test that Matrix value is allowed when IndexRange is not specified
             writeValue.IndexRange = null;
@@ -112,7 +112,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             Assert.True(
                 ServiceResult.IsBad(validateResult),
                 "WriteValue.Validate result was not Bad");
-            Assert.AreEqual(new StatusCode(StatusCodes.BadTypeMismatch), validateResult.StatusCode);
+            Assert.AreEqual(StatusCodes.BadTypeMismatch, validateResult.StatusCode);
         }
 
         /// <summary>
@@ -142,7 +142,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 ServiceResult.IsBad(validateResult),
                 "WriteValue.Validate result was not Bad");
             Assert.AreEqual(
-                new StatusCode(StatusCodes.BadIndexRangeNoData),
+                StatusCodes.BadIndexRangeNoData,
                 validateResult.StatusCode);
         }
 
@@ -175,7 +175,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 ServiceResult.IsBad(validateResult),
                 "WriteValue.Validate result was not Bad");
             Assert.AreEqual(
-                new StatusCode(StatusCodes.BadIndexRangeNoData),
+                StatusCodes.BadIndexRangeNoData,
                 validateResult.StatusCode);
         }
 
@@ -223,7 +223,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             Assert.True(
                 ServiceResult.IsBad(validateResult),
                 "WriteValue.Validate result was not Good");
-            Assert.AreEqual(new StatusCode(StatusCodes.BadTypeMismatch), validateResult.StatusCode);
+            Assert.AreEqual(StatusCodes.BadTypeMismatch, validateResult.StatusCode);
         }
     }
 }

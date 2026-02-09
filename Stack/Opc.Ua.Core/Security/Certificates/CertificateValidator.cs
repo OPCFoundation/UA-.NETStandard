@@ -1251,8 +1251,7 @@ namespace Opc.Ua
                                         {
                                             if (X509Utils.IsCertificateAuthority(certificate))
                                             {
-                                                status.Code = StatusCodes
-                                                    .BadCertificateIssuerRevocationUnknown;
+                                                status = StatusCodes.BadCertificateIssuerRevocationUnknown;
                                             }
 
                                             if (m_rejectUnknownRevocationStatus &&
@@ -1268,8 +1267,7 @@ namespace Opc.Ua
                                             if (status == StatusCodes.BadCertificateRevoked &&
                                                 X509Utils.IsCertificateAuthority(certificate))
                                             {
-                                                status.Code = StatusCodes
-                                                    .BadCertificateIssuerRevoked;
+                                                status = StatusCodes.BadCertificateIssuerRevoked;
                                             }
                                             serviceResult = new ServiceResultException(status);
                                         }

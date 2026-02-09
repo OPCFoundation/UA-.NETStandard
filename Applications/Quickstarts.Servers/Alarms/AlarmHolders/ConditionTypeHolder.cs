@@ -162,7 +162,7 @@ namespace Alarms
 
             if (alarm.EnabledState.Id.Value)
             {
-                alarm.EventId.Value = Guid.NewGuid().ToByteArray();
+                alarm.EventId.Value = Uuid.NewUuid().ToByteArray();
                 alarm.Time.Value = DateTime.UtcNow;
                 alarm.ReceiveTime.Value = alarm.Time.Value;
 
@@ -338,7 +338,7 @@ namespace Alarms
         {
             bool canSetComment = false;
 
-            if (comment != null)
+            if (!comment.IsNullOrEmpty)
             {
                 canSetComment = true;
 

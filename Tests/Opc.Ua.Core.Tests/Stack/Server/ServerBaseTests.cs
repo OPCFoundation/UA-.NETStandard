@@ -81,11 +81,12 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         ];
 
         public ServerBaseTests()
+            : this(TestConfigurations.SingleBaseAdresses)
         {
-            m_testConfiguration = TestConfigurations.SingleBaseAdresses;
         }
 
         public ServerBaseTests(TestConfigurations configType)
+            : base(NUnitTelemetryContext.Create(true))
         {
             m_testConfiguration = configType;
         }

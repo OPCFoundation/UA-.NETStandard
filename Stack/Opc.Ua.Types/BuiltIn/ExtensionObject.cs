@@ -32,294 +32,44 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Xml;
-using System.Diagnostics.CodeAnalysis;
 using Opc.Ua.Types;
 
 namespace Opc.Ua
 {
     /// <summary>
-    /// An object used to wrap data types that the receiver may not understand.
+    /// An object used to wrap data types that the receiver may not
+    /// understand.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// This class is a wrapper/helper class for storing data types that a receiver might not
-    /// understand, or be prepared to handle. This class may use <see cref="System.Reflection"/> to
-    /// analyze an object and retrieve the values of its public properties directly, and then
-    /// encode those into a string representation that can then be easily encoded as a single string.
-    /// <br/>
+    /// This class is a wrapper/helper class for storing data types that
+    /// a receiver might not understand, or be prepared to handle.
     /// </para>
     /// <para>
-    /// An instance of the <see cref="ExtensionObject"/> is a container for any complex data types which cannot be encoded as one of the
-    /// other built-in data types. The ExtensionObject contains a complex value serialized as a sequence of
-    /// bytes or as an XML element. It also contains an identifier which indicates what data it contains and
+    /// An instance of the <see cref="ExtensionObject"/> is a container for
+    /// any complex data types which cannot be encoded as one of the other
+    /// built-in data types. The ExtensionObject contains a complex value
+    /// serialized as a sequence of bytes or as an XML element. It also
+    /// contains an identifier which indicates what data it contains and
     /// how it is encoded.
     /// </para>
     /// </remarks>
-    /// <example>
-    /// <para>
-    /// The following example demonstrates a simple class containing 3 public properties of
-    /// type int, DateTime and string. This class implements the <see cref="IEncodeable"/>
-    /// interface, and is then encoded using the <b>WriteExtensionObject</b> method.
-    /// <br/></para>
-    /// <code lang="C#">
-    /// //First, we will define a very simple class object that will represent
-    /// //some real-world process.
-    /// class simpleClass : IEncodeable
-    /// {
-    ///
-    ///     //fields
-    ///     public string PublicFieldNotVisible = "I should not be encoded";
-    ///
-    ///     //properties
-    ///     private string stringField;
-    ///     public string StringProperty
-    ///     {
-    ///         get
-    ///         {
-    ///             return (stringField);
-    ///         }
-    ///         set
-    ///         {
-    ///             stringField = value;
-    ///         }
-    ///     }
-    ///
-    ///     private int intField;
-    ///     public int IntProperty
-    ///     {
-    ///         get
-    ///         {
-    ///             return (intField);
-    ///         }
-    ///         set
-    ///         {
-    ///             intField = value;
-    ///         }
-    ///     }
-    ///
-    ///     private DateTime datetimeField;
-    ///     public DateTime DatetimeProperty
-    ///     {
-    ///         get
-    ///         {
-    ///             return (datetimeField);
-    ///         }
-    ///         set
-    ///         {
-    ///             datetimeField = value;
-    ///         }
-    ///     }
-    ///
-    ///     //class constructor
-    ///     public simpleClass(string StringValue, int IntValue, DateTime DateTimeValue)
-    ///     {
-    ///         StringProperty = StringValue;
-    ///         IntProperty = IntValue;
-    ///         DatetimeProperty = DateTimeValue;
-    ///     }
-    ///     public simpleClass(simpleClass SimpleClassInstance)
-    ///     {
-    ///         StringProperty = SimpleClassInstance.StringProperty;
-    ///         IntProperty = SimpleClassInstance.IntProperty;
-    ///         DatetimeProperty = SimpleClassInstance.DatetimeProperty;
-    ///     }
-    ///
-    ///     #region IEncodeable Members
-    ///
-    ///     public ExpandedNodeId TypeId
-    ///     {
-    ///         get
-    ///         {
-    ///             return (new ExpandedNodeId(Guid.NewGuid()));
-    ///         }
-    ///     }
-    ///
-    ///     public void Encode(IEncoder encoder)
-    ///     {
-    ///         if (encoder != null)
-    ///         {
-    ///             //our simple object has 3 properies: string, int and datetime
-    ///             encoder.WriteString("StringProperty", this.StringProperty);
-    ///             encoder.WriteInt32("IntProperty", this.IntProperty);
-    ///             encoder.WriteDateTime("DateTimeProperty", this.DatetimeProperty);
-    ///         }
-    ///     }
-    ///
-    ///     public void Decode(IDecoder decoder)
-    ///     {
-    ///         if (decoder != null)
-    ///         {
-    ///             this.StringProperty = decoder.ReadString("StringProperty");
-    ///             this.IntProperty = decoder.ReadInt16("IntProperty");
-    ///             this.DatetimeProperty = decoder.ReadDateTime("DateTimeProperty");
-    ///         }
-    ///     }
-    ///
-    ///     public bool IsEqual(IEncodeable encodeable)
-    ///     {
-    ///         return (encodeable.Equals(this));
-    ///     }
-    ///
-    ///     #endregion
-    ///
-    ///     #region ICloneable Members
-    ///
-    ///     public new object MemberwiseClone()
-    ///     {
-    ///         return (new simpleClass(this));
-    ///     }
-    ///
-    ///     #endregion
-    ///
-    /// }
-    ///
-    /// public void EncodeExample()
-    /// {
-    ///     //define an instance of our class object, defined above.
-    ///     simpleClass mySimpleClassInstance1 = new simpleClass("String", int.MaxValue, DateTime.Now);
-    ///
-    ///     //define an object that will encapsulate/extend our simple instance above
-    ///     ExtensionObject extendedSimpleClassInstance = new ExtensionObject(mySimpleClassInstance1);
-    ///
-    ///     ///
-    ///     //encode our class object into the stream
-    ///     uaEncoderInstance.WriteExtensionObject( "Extended1", extendedSimpleClassInstance);
-    /// }
-    /// </code>
-    /// <code lang="Visual Basic">
-    ///
-    /// 'First, we will define a very simple class object that will represent
-    /// 'some real-world process.
-    ///
-    /// Class simpleClass
-    ///    Inherits IEncodeable
-    ///
-    ///    'fields
-    ///    Public PublicFieldNotVisible As String = "I should not be encoded"
-    ///
-    ///    'properties
-    ///    Private stringField As String
-    ///    Private intField As Integer
-    ///    Private datetimeField As DateTime
-    ///
-    ///    'class constructor
-    ///    Public Sub New(ByVal StringValue As String, ByVal IntValue As Integer, ByVal DateTimeValue As DateTime)
-    ///        StringProperty = StringValue
-    ///        IntProperty = IntValue
-    ///        DatetimeProperty = DateTimeValue
-    ///    End Sub
-    ///
-    ///    Public Sub New(ByVal SimpleClassInstance As simpleClass)
-    ///        StringProperty = SimpleClassInstance.StringProperty
-    ///        IntProperty = SimpleClassInstance.IntProperty
-    ///        DatetimeProperty = SimpleClassInstance.DatetimeProperty
-    ///    End Sub
-    ///
-    ///    Public Property StringProperty As String
-    ///        Get
-    ///            Return stringField
-    ///        End Get
-    ///        Set
-    ///            stringField = value
-    ///        End Set
-    ///    End Property
-    ///
-    ///    Public Property IntProperty As Integer
-    ///        Get
-    ///            Return intField
-    ///        End Get
-    ///        Set
-    ///            intField = value
-    ///        End Set
-    ///    End Property
-    ///
-    ///    Public Property DatetimeProperty As DateTime
-    ///        Get
-    ///            Return datetimeField
-    ///        End Get
-    ///        Set
-    ///            datetimeField = value
-    ///        End Set
-    ///    End Property
-    ///
-    ///    Public ReadOnly Property TypeId As ExpandedNodeId
-    ///        Get
-    ///            Return New ExpandedNodeId(Guid.NewGuid)
-    ///        End Get
-    ///    End Property
-    ///
-    ///    Public Sub Encode(ByVal encoder As IEncoder)
-    ///        If encoder Isnot Nothing Then
-    ///            'our simple object has 3 properies: string, int and datetime
-    ///            encoder.WriteString("StringProperty", Me.StringProperty)
-    ///            encoder.WriteInt32("IntProperty", Me.IntProperty)
-    ///            encoder.WriteDateTime("DateTimeProperty", Me.DatetimeProperty)
-    ///        End If
-    ///    End Sub
-    ///
-    ///    Public Sub Decode(ByVal decoder As IDecoder)
-    ///        If decoder Isnot Nothing Then
-    ///            Me.StringProperty = decoder.ReadString("StringProperty")
-    ///            Me.IntProperty = decoder.ReadInt16("IntProperty")
-    ///            Me.DatetimeProperty = decoder.ReadDateTime("DateTimeProperty")
-    ///        End If
-    ///    End Sub
-    ///
-    ///    Public Function IsEqual(ByVal encodeable As IEncodeable) As Boolean
-    ///        Return encodeable.Equals(Me)
-    ///    End Function
-    ///
-    ///    Public Function Clone() As Object
-    ///        Return New simpleClass(Me)
-    ///    End Function
-    ///End Class
-    ///
-    ///   Public Sub nodeid()
-    ///    'define an instance of our class object, defined above.
-    ///    Dim mySimpleClassInstance1 As simpleClass = New simpleClass("String", int.MaxValue, DateTime.Now)
-    ///
-    ///    'define an object that will encapsulate/extend our simple instance above
-    ///    Dim extendedSimpleClassInstance As ExtensionObject = New ExtensionObject(mySimpleClassInstance1)
-    ///
-    ///    'encode our class object into the stream
-    ///    uaEncoderInstance.WriteExtensionObject("Extended1", extendedSimpleClassInstance)
-    ///End Sub
-    /// </code>
-    /// </example>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class ExtensionObject : IFormattable, ICloneable
+    public readonly struct ExtensionObject :
+        IFormattable,
+        IEquatable<ExtensionObject>
     {
         /// <summary>
-        /// Initializes the object with default values.
+        /// Returns an instance of a null ExtensionObject.
         /// </summary>
-        public ExtensionObject()
-        {
-            TypeId = ExpandedNodeId.Null;
-            Encoding = ExtensionObjectEncoding.None;
-            m_body = null;
-        }
-
-        /// <summary>
-        /// Creates a deep copy of the value.
-        /// </summary>
-        /// <param name="value">The value to be copied.</param>
-        /// <exception cref="ArgumentNullException">Thrown when the value is null</exception>
-        public ExtensionObject(ExtensionObject value)
-        {
-            if (value == null)
-            {
-                throw new ArgumentNullException(nameof(value));
-            }
-
-            TypeId = value.TypeId;
-            Body = CoreUtils.Clone(value.Body);
-        }
+        public static readonly ExtensionObject Null;
 
         /// <summary>
         /// Initializes the object with a <paramref name="typeId"/>.
         /// </summary>
-        /// <param name="typeId">The type to copy and create an instance from</param>
+        /// <param name="typeId">The type to copy and create an
+        /// instance from</param>
         public ExtensionObject(ExpandedNodeId typeId)
         {
             TypeId = typeId;
@@ -327,12 +77,49 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Initializes the object with a body.
+        /// Create extension object from encodeable object
         /// </summary>
-        /// <param name="body">The body of the object: IEncodeable, XmlElement or Byte-array</param>
-        public ExtensionObject(object body)
-            : this(ExpandedNodeId.Null, body)
+        /// <param name="body"></param>
+        public ExtensionObject(IEncodeable body)
         {
+            if (body != null)
+            {
+                TypeId = body.TypeId;
+                Body = body;
+            }
+        }
+
+        /// <summary>
+        /// Create extension object from byte buffer
+        /// </summary>
+        /// <param name="typeId"></param>
+        /// <param name="body"></param>
+        public ExtensionObject(ExpandedNodeId typeId, byte[] body)
+        {
+            TypeId = typeId;
+            Body = body;
+        }
+
+        /// <summary>
+        /// Create extension object from xml element
+        /// </summary>
+        /// <param name="typeId"></param>
+        /// <param name="body"></param>
+        public ExtensionObject(ExpandedNodeId typeId, XmlElement body)
+        {
+            TypeId = typeId;
+            Body = body;
+        }
+
+        /// <summary>
+        /// Create extension object from json string
+        /// </summary>
+        /// <param name="typeId"></param>
+        /// <param name="body"></param>
+        public ExtensionObject(ExpandedNodeId typeId, string body)
+        {
+            TypeId = typeId;
+            Body = body;
         }
 
         /// <summary>
@@ -340,180 +127,162 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="typeId">The type describing the body</param>
         /// <param name="body">The underlying data/body to wrap</param>
-        public ExtensionObject(ExpandedNodeId typeId, object body)
+       // [Obsolete("Use concrete constructor with typed body values instead.")]
+        [JsonConstructor]
+        public ExtensionObject(ExpandedNodeId typeId, object body = null)
         {
             TypeId = typeId;
             Body = body;
+
+            if (body is
+                not null and
+                not IEncodeable and
+                not byte[] and
+                not string and
+                not XmlElement)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported,
+                    CoreUtils.Format(
+                        "Cannot add an object with type '{0}' to an extension object.",
+                        Body.GetType().FullName));
+            }
         }
 
         /// <summary>
-        /// Initializes the object during deserialization.
+        /// The encoding to use when the deserializing/serializing
+        /// the body.
         /// </summary>
-        [OnDeserializing]
-        private void Initialize(StreamingContext context)
+        /// <value>The encoding for the embedded object.</value>
+        public ExtensionObjectEncoding Encoding => Body switch
         {
-            TypeId = ExpandedNodeId.Null;
-            Encoding = ExtensionObjectEncoding.None;
-            m_body = null;
-        }
+            string => ExtensionObjectEncoding.Json,
+            XmlElement => ExtensionObjectEncoding.Xml,
+            byte[] => ExtensionObjectEncoding.Binary,
+            IEncodeable => ExtensionObjectEncoding.EncodeableObject,
+            _ => ExtensionObjectEncoding.None
+        };
+
+        /// <summary>
+        /// The body of the extension object.
+        /// </summary>
+        public object Body { get; }
 
         /// <summary>
         /// The data type node id for the extension object.
         /// </summary>
-        /// <value>The type id.</value>
-        public ExpandedNodeId TypeId { get; set; }
+        public ExpandedNodeId TypeId { get; }
 
-        /// <summary>
-        /// The encoding to use when the deserializing/serializing the body.
-        /// </summary>
-        /// <value>The encoding for the embedded object.</value>
-        public ExtensionObjectEncoding Encoding { get; private set; }
-
-        /// <summary>
-        /// The body (embedded object) of the extension object.
-        /// </summary>
-        /// <value>The object to be embedded.</value>
-        /// <remarks>
-        /// The body of the extension object. This property will work with objects of the
-        /// following types:
-        /// <list type="bullet">
-        /// 		<item><see cref="IEncodeable"/></item>
-        /// 		<item>byte-array ( C# = byte[]    or VB.NET Byte() )</item>
-        /// 		<item><see cref="XmlElement"/></item>
-        /// 	</list>
-        /// </remarks>
-        /// <exception cref="ServiceResultException">Thrown when the body is not one of the types listed above</exception>
-        public object Body
-        {
-            get => m_body;
-            set
-            {
-                m_body = value;
-
-                if (m_body == null)
-                {
-                    Encoding = ExtensionObjectEncoding.None;
-                }
-                else if (m_body is IEncodeable)
-                {
-                    Encoding = ExtensionObjectEncoding.EncodeableObject;
-                }
-                else if (m_body is byte[])
-                {
-                    Encoding = ExtensionObjectEncoding.Binary;
-                }
-                else if (m_body is XmlElement)
-                {
-                    Encoding = ExtensionObjectEncoding.Xml;
-                }
-                else if (m_body is string)
-                {
-                    Encoding = ExtensionObjectEncoding.Json;
-                }
-                else
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadNotSupported,
-                        CoreUtils.Format(
-                            "Cannot add an object with type '{0}' to an extension object.",
-                            m_body.GetType().FullName));
-                }
-            }
-        }
-
-        /// <summary>
-        /// Determines if the specified object is equal to the <paramref name="obj"/>.
-        /// </summary>
-        /// <param name="obj">The object to compare to this instance of object</param>
-        /// <returns>
-        /// true if the specified <see cref="System.Object"/> is equal to the current embedded object; otherwise, false.
-        /// </returns>
-        public override bool Equals(object obj)
-        {
-            if (obj is null)
-            {
-                return IsNull(this);
-            }
-
-            if (ReferenceEquals(this, obj))
-            {
-                return true;
-            }
-
-            if (obj is ExtensionObject value)
-            {
-                if (TypeId != value.TypeId)
-                {
-                    return false;
-                }
-
-                return CoreUtils.IsEqual(m_body, value.m_body);
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Returns a unique hashcode for the embedded object.
-        /// </summary>
-        /// <returns>
-        /// A hash code for the current embedded object.
-        /// </returns>
+        /// <inheritdoc/>
         public override int GetHashCode()
         {
-            if (m_body != null)
+            if (IsNull)
             {
-                return m_body.GetHashCode();
+                return 0;
             }
-
-            if (TypeId != null)
+            return HashCode.Combine(TypeId.GetHashCode(), Body switch
             {
-                return TypeId.GetHashCode();
-            }
-
-            return 0;
+                byte[] b => ByteStringEqualityComparer.Default.GetHashCode(b),
+                string s => StringComparer.Ordinal.GetHashCode(s),
+                XmlElement x => XmlElementStringEqualityComparer.Default.GetHashCode(x),
+                IEncodeable e => e.GetHashCode(),
+                _ => 0
+            });
         }
 
-        /// <summary>
-        /// Converts the value to a human readable string.
-        /// </summary>
-        /// <returns>
-        /// A <see cref="string"/> that represents the current <see cref="object"/>.
-        /// </returns>
+        /// <inheritdoc/>
+        public override bool Equals(object obj)
+        {
+            return obj switch
+            {
+                null => IsNull,
+                ExtensionObject v => Equals(v),
+                _ => base.Equals(obj)
+            };
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(ExtensionObject value)
+        {
+            bool isNull1 = IsNull;
+            bool isNull2 = value.IsNull;
+            if (isNull1 || isNull2)
+            {
+                return isNull1 == isNull2;
+            }
+            if (TypeId != value.TypeId)
+            {
+                return false;
+            }
+            if (Encoding == value.Encoding)
+            {
+                return Body switch
+                {
+                    byte[] b => ByteStringEqualityComparer.Default.Equals(
+                        b,
+                        value.TryGetAsBinary(out byte[] b2) ? b2 : default),
+                    string s => StringComparer.Ordinal.Equals(
+                        s,
+                        value.TryGetAsJson(out string s2) ? s2 : default),
+                    XmlElement x => XmlElementStringEqualityComparer.Default.Equals(
+                        x,
+                        value.TryGetAsXml(out XmlElement x2) ? x2 : default),
+                    IEncodeable e => e.IsEqual(
+                        value.TryGetEncodeable(out IEncodeable e2) ? e2 : default),
+                    _ => false
+                };
+            }
+            return CoreUtils.IsEqual(Body, value.Body);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(ExtensionObject left, ExtensionObject right)
+        {
+            return left.Equals(right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(ExtensionObject left, ExtensionObject right)
+        {
+            return !left.Equals(right);
+        }
+
+        /// <inheritdoc/>
         public override string ToString()
         {
             return ToString(null, null);
         }
 
-        /// <summary>
-        /// Returns the string representation of the embeddedobject.
-        /// </summary>
-        /// <param name="format">(Unused). Leave this as null</param>
-        /// <param name="formatProvider">The provider of a mechanism for retrieving an object to control formatting.</param>
-        /// <returns>
-        /// A <see cref="string"/> containing the value of the current embedded instance in the specified format.
-        /// </returns>
-        /// <exception cref="FormatException">Thrown if the <i>format</i> parameter is not null</exception>
+        /// <inheritdoc/>
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
             {
-                if (m_body is byte[] byteString)
+                if (Body is byte[] byteString)
                 {
-                    return string.Format(formatProvider, "Byte[{0}]", byteString.Length);
+                    return string.Format(
+                        formatProvider,
+                        "Byte[{0}]",
+                        byteString.Length);
                 }
 
-                if (m_body is XmlElement element)
+                if (Body is XmlElement element)
                 {
-                    return string.Format(formatProvider, "<{0}>", element.Name);
+                    return string.Format(
+                        formatProvider,
+                        "<{0}>",
+                        element.Name);
                 }
 
-                if (m_body is string json)
+                if (Body is string json)
                 {
-                    return string.Format(formatProvider, "{0}", json);
+                    return string.Format(
+                        formatProvider,
+                        "{0}",
+                        json);
                 }
 
-                if (m_body is IFormattable formattable)
+                if (Body is IFormattable formattable)
                 {
                     return string.Format(
                         formatProvider,
@@ -521,12 +290,12 @@ namespace Opc.Ua
                         formattable.ToString(null, formatProvider));
                 }
 
-                if (m_body is IEncodeable)
+                if (Body is IEncodeable)
                 {
                     var body = new StringBuilder();
 
                     foreach (
-                        PropertyInfo property in m_body
+                        PropertyInfo property in Body
                             .GetType()
                             .GetProperties(BindingFlags.Public |
                                 BindingFlags.FlattenHierarchy |
@@ -552,7 +321,7 @@ namespace Opc.Ua
                                 body.AppendFormat(
                                     formatProvider,
                                     "{0}",
-                                    property.GetGetMethod().Invoke(m_body, null));
+                                    property.GetGetMethod().Invoke(Body, null));
                             }
                         }
                     }
@@ -565,7 +334,7 @@ namespace Opc.Ua
                     return string.Format(formatProvider, "{0}", body);
                 }
 
-                if (!NodeId.IsNull(TypeId))
+                if (!TypeId.IsNull)
                 {
                     return string.Format(formatProvider, "{{{0}}}", TypeId);
                 }
@@ -576,34 +345,124 @@ namespace Opc.Ua
             throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
         }
 
-        /// <inheritdoc/>
-        public virtual object Clone()
+        /// <summary>
+        /// Tests if the extension object is null.
+        /// </summary>
+        public bool IsNull => TypeId.IsNull && Body == null;
+
+        /// <summary>
+        /// Try get encodeable from the extension object
+        /// </summary>
+        public bool TryGetEncodeable(
+            out IEncodeable encodeable,
+            IServiceMessageContext messageContext = null)
         {
-            return MemberwiseClone();
+            if (Body is IEncodeable e)
+            {
+                encodeable = e;
+                return true;
+            }
+
+            if (messageContext == null)
+            {
+                encodeable = default;
+                return false;
+            }
+
+            // TODO: Decode if possible
+            encodeable = default;
+            return false;
         }
 
         /// <summary>
-        /// Makes a deep copy of the object.
+        /// Get encoded value
         /// </summary>
-        /// <returns>
-        /// A new object that is a copy of this instance.
-        /// </returns>
-        public new object MemberwiseClone()
+        /// <typeparam name="T"></typeparam>
+        public bool TryGetEncodeable<T>(
+            out T encodeable,
+            IServiceMessageContext messageContext = null)
+            where T : IEncodeable
         {
-            return new ExtensionObject(this);
+            if (TryGetEncodeable(out IEncodeable e, messageContext) &&
+                e is T typedEncodeable)
+            {
+                encodeable = typedEncodeable;
+                return true;
+            }
+            encodeable = default;
+            return false;
         }
 
         /// <summary>
-        /// Tests if the extension or embed objects are null value.
+        /// Try get as json
         /// </summary>
-        /// <param name="extension">The object to check if null</param>
-        /// <returns>
-        /// <c>true</c> if the specified <paramref name="extension"/> is null
-        /// of the embedded object is null; otherwise, <c>false</c>.
-        /// </returns>
-        public static bool IsNull([NotNullWhen(false)] ExtensionObject extension)
+        public bool TryGetAsJson(
+            out string json,
+            IServiceMessageContext messageContext = null)
         {
-            return extension == null || extension.m_body == null;
+            if (Body is string s)
+            {
+                json = s;
+                return true;
+            }
+
+            if (messageContext == null)
+            {
+                json = default;
+                return false;
+            }
+
+            // TODO: Reencode if possible
+            json = default;
+            return false;
+        }
+
+        /// <summary>
+        /// Try get as xml
+        /// </summary>
+        public bool TryGetAsXml(
+            out XmlElement xml,
+            IServiceMessageContext messageContext = null)
+        {
+            if (Body is XmlElement x)
+            {
+                xml = x;
+                return true;
+            }
+
+            if (messageContext == null)
+            {
+                xml = default;
+                return false;
+            }
+
+            // TODO: Reencode if possible
+            xml = default;
+            return false;
+        }
+
+        /// <summary>
+        /// Try get as binary
+        /// </summary>
+        public bool TryGetAsBinary(
+            out byte[] binary,
+            IServiceMessageContext messageContext = null)
+        {
+            if (Body is byte[] b)
+            {
+                binary = b;
+                return true;
+            }
+
+            if (messageContext == null)
+            {
+                binary = default;
+                return false;
+            }
+
+            // TODO: Reencode if possible
+            binary = default;
+            return false;
         }
 
         /// <summary>
@@ -613,16 +472,12 @@ namespace Opc.Ua
         /// <returns>Instance of <see cref="IEncodeable"/> for the embedded object.</returns>
         public static IEncodeable ToEncodeable(ExtensionObject extension)
         {
-            if (extension == null)
-            {
-                return null;
-            }
-
             return extension.Body as IEncodeable;
         }
 
         /// <summary>
-        /// Converts an array of extension objects to an array of the specified type.
+        /// Converts an array of extension objects to an array of
+        /// the specified type.
         /// </summary>
         /// <param name="source">The array to convert.</param>
         /// <param name="elementType">The type of each element.</param>
@@ -641,9 +496,9 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < output.Length; ii++)
             {
-                IEncodeable element = ToEncodeable(extensions.GetValue(ii) as ExtensionObject);
-
-                if (elementType.IsInstanceOfType(element))
+                if (extensions.GetValue(ii) is ExtensionObject e &&
+                    e.TryGetEncodeable(out IEncodeable element) &&
+                    elementType.IsInstanceOfType(element))
                 {
                     output.SetValue(element, ii);
                 }
@@ -653,7 +508,8 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Converts an array of extension objects to a List of the specified type.
+        /// Converts an array of extension objects to a List of the specified
+        /// type.
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="source">The array to convert.</param>
@@ -673,11 +529,11 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < extensions.Length; ii++)
             {
-                IEncodeable element = ToEncodeable(extensions.GetValue(ii) as ExtensionObject);
-
-                if (typeof(T).IsInstanceOfType(element))
+                if (extensions.GetValue(ii) is ExtensionObject e &&
+                    e.TryGetEncodeable(out IEncodeable element) &&
+                    element is T typedElement)
                 {
-                    list.Add((T)element);
+                    list.Add(typedElement);
                 }
                 else
                 {
@@ -689,101 +545,19 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns an instance of a null ExtensionObject.
+        /// Update the type id
         /// </summary>
-        public static ExtensionObject Null { get; } = new ExtensionObject();
-
-        [DataMember(Name = "TypeId", Order = 1, IsRequired = false, EmitDefaultValue = true)]
-        internal NodeId XmlEncodedTypeId
+        public ExtensionObject WithTypeId(ExpandedNodeId typeId)
         {
-            get
+            return Body switch
             {
-                IServiceMessageContext context = AmbientMessageContext.CurrentContext;
-                // must use the XML encoding id if encoding in an XML stream.
-                if (m_body is IEncodeable encodeable)
-                {
-                    return ExpandedNodeId.ToNodeId(
-                        encodeable.XmlEncodingId,
-                        context.NamespaceUris);
-                }
-
-                // check for null Id.
-                if (TypeId.IsNull)
-                {
-                    // note: this NodeId is modified when the ExtensionObject is deserialized.
-                    return new NodeId();
-                }
-
-                return ExpandedNodeId.ToNodeId(TypeId, context.NamespaceUris);
-            }
-            set
-            {
-                IServiceMessageContext context = AmbientMessageContext.CurrentContext;
-                TypeId = NodeId.ToExpandedNodeId(value, context.NamespaceUris);
-            }
+                byte[] v => new ExtensionObject(typeId, v),
+                string v => new ExtensionObject(typeId, v),
+                XmlElement v => new ExtensionObject(typeId, v),
+                IEncodeable v => new ExtensionObject(typeId, v),
+                _ => new ExtensionObject(typeId)
+            };
         }
-
-        [DataMember(Name = "Body", Order = 2, IsRequired = false, EmitDefaultValue = true)]
-        internal XmlElement XmlEncodedBody
-        {
-            get
-            {
-                // check for null.
-                if (m_body == null)
-                {
-                    return null;
-                }
-
-                // create encoder.
-                IServiceMessageContext context = AmbientMessageContext.CurrentContext;
-                using var encoder = new XmlEncoder(context);
-                // write body.
-                encoder.WriteExtensionObjectBody(m_body);
-
-                // create document from encoder.
-                var document = new XmlDocument();
-                document.LoadInnerXml(encoder.CloseAndReturnText());
-
-                // return root element.
-                return document.DocumentElement;
-            }
-            set
-            {
-                // check null bodies.
-                if (value == null)
-                {
-                    Body = null;
-                    return;
-                }
-
-                // create decoder.
-                IServiceMessageContext context = AmbientMessageContext.CurrentContext;
-                using var decoder = new XmlDecoder(value, context);
-                // read body.
-                Body = decoder.ReadExtensionObjectBody(TypeId);
-
-                // clear the type id for encodeables.
-                if (m_body is IEncodeable)
-                {
-                    TypeId = ExpandedNodeId.Null;
-                }
-
-                // close decoder.
-                try
-                {
-                    decoder.Close(true);
-                }
-                catch (Exception e)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadDecodingError,
-                        CoreUtils.Format("Did not read all of a extension object body: '{0}'", TypeId),
-                        e);
-                }
-            }
-        }
-
-        private object m_body;
     }
 
     /// <summary>
@@ -818,38 +592,173 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// A collection of ExtensionObjects.
+    /// Helper to allow data contract serialization of ExtensionObject
     /// </summary>
-    /// <remarks>
+    [DataContract(
+        Name = "ExtensionObject",
+        Namespace = Namespaces.OpcUaXsd)]
+    public class SerializableExtensionObject : ISurrogateFor<ExtensionObject>
+    {
+        /// <inheritdoc/>
+        public SerializableExtensionObject()
+        {
+            Value = default;
+        }
+
+        /// <inheritdoc/>
+        public SerializableExtensionObject(ExtensionObject value)
+        {
+            Value = value;
+        }
+
+        /// <inheritdoc/>
+        public ExtensionObject Value { get; private set; }
+
+        /// <inheritdoc/>
+        public object GetValue()
+        {
+            return Value;
+        }
+
+        /// <summary>
+        /// Serialized type id
+        /// </summary>
+        [DataMember(
+            Name = "TypeId",
+            Order = 1,
+            IsRequired = false,
+            EmitDefaultValue = true)]
+        internal NodeId XmlEncodedTypeId
+        {
+            get
+            {
+                IServiceMessageContext context = AmbientMessageContext.CurrentContext;
+                // must use the XML encoding id if encoding in an XML stream.
+                if (Value.TryGetEncodeable(out IEncodeable encodeable))
+                {
+                    return ExpandedNodeId.ToNodeId(
+                        encodeable.XmlEncodingId,
+                        context.NamespaceUris);
+                }
+                // check for null Id.
+                if (Value.TypeId.IsNull)
+                {
+                    // note: this NodeId is modified when the ExtensionObject is
+                    // deserialized.
+                    return default;
+                }
+                return
+                    ExpandedNodeId.ToNodeId(Value.TypeId, context.NamespaceUris);
+            }
+            set
+            {
+                IServiceMessageContext context = AmbientMessageContext.CurrentContext;
+
+                Value = Value.WithTypeId(
+                    NodeId.ToExpandedNodeId(value, context.NamespaceUris));
+            }
+        }
+
+        /// <summary>
+        /// Serialized extension object body
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        [DataMember(
+            Name = "Body",
+            Order = 2,
+            IsRequired = false,
+            EmitDefaultValue = true)]
+        internal XmlElement XmlEncodedBody
+        {
+            get
+            {
+                // check for null.
+                if (Value.IsNull)
+                {
+                    return null;
+                }
+
+                // create encoder.
+                IServiceMessageContext context = AmbientMessageContext.CurrentContext;
+                using var encoder = new XmlEncoder(context);
+
+                // write body.
+                encoder.WriteExtensionObjectBody(Value.Body);
+
+                // create document from encoder.
+                var document = new XmlDocument();
+                document.LoadInnerXml(encoder.CloseAndReturnText());
+
+                // return root element.
+                return document.DocumentElement;
+            }
+            set
+            {
+                // check null bodies.
+                if (value == null)
+                {
+                    Value = new ExtensionObject(Value.TypeId);
+                    return;
+                }
+
+                // create decoder.
+                IServiceMessageContext context = AmbientMessageContext.CurrentContext;
+                using var decoder = new XmlDecoder(value, context);
+                switch (decoder.ReadExtensionObjectBody(Value.TypeId))
+                {
+                    case IEncodeable encodeable:
+                        Value = new ExtensionObject(encodeable);
+                        break;
+                    case byte[] bytes:
+                        Value = new ExtensionObject(Value.TypeId, bytes);
+                        break;
+                    case XmlElement xml:
+                        Value = new ExtensionObject(Value.TypeId, xml);
+                        break;
+                    case string json:
+                        Value = new ExtensionObject(Value.TypeId, json);
+                        break;
+                }
+                // close decoder.
+                try
+                {
+                    decoder.Close(true);
+                }
+                catch (Exception e)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError,
+                        CoreUtils.Format(
+                            "Did not read all of a extension object body: '{0}'",
+                            Value.TypeId),
+                        e);
+                }
+            }
+        }
+    }
+
+    /// <summary>
     /// A strongly-typed collection of ExtensionObjects.
-    /// </remarks>
+    /// </summary>
     [CollectionDataContract(
         Name = "ListOfExtensionObject",
         Namespace = Namespaces.OpcUaXsd,
-        ItemName = "ExtensionObject"
-    )]
+        ItemName = "ExtensionObject")]
     public class ExtensionObjectCollection : List<ExtensionObject>, ICloneable
     {
-        /// <summary>
-        /// Initializes an empty collection.
-        /// </summary>
+        /// <inheritdoc/>
         public ExtensionObjectCollection()
         {
         }
 
-        /// <summary>
-        /// Initializes the collection from another collection.
-        /// </summary>
-        /// <param name="collection">The collection containing the objects to copy into this new instance</param>
-        public ExtensionObjectCollection(IEnumerable<ExtensionObject> collection)
+        /// <inheritdoc/>
+        public ExtensionObjectCollection(
+            IEnumerable<ExtensionObject> collection)
             : base(collection)
         {
         }
 
-        /// <summary>
-        /// Initializes the collection with the specified capacity.
-        /// </summary>
-        /// <param name="capacity">Max capacity of the collection</param>
+        /// <inheritdoc/>
         public ExtensionObjectCollection(int capacity)
             : base(capacity)
         {
@@ -858,21 +767,19 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an array of ExtensionObjects to a collection.
         /// </summary>
-        /// <param name="values">An array of ExtensionObjects to convert to a collection</param>
-        public static implicit operator ExtensionObjectCollection(ExtensionObject[] values)
+        /// <param name="values">An array of ExtensionObjects to
+        /// convert to a collection</param>
+        public static implicit operator ExtensionObjectCollection(
+            ExtensionObject[] values)
         {
-            if (values != null)
-            {
-                return [.. values];
-            }
-
-            return [];
+            return values != null ? [.. values] : [];
         }
 
         /// <summary>
         /// Converts an encodeable object to an extension object.
         /// </summary>
-        /// <param name="encodeables">An enumerable array of ExtensionObjects to convert to a collection</param>
+        /// <param name="encodeables">An enumerable array of
+        /// ExtensionObjects to convert to a collection</param>
         public static ExtensionObjectCollection ToExtensionObjects(
             IEnumerable<IEncodeable> encodeables)
         {
@@ -884,20 +791,9 @@ namespace Opc.Ua
 
             // convert each encodeable to an extension object.
             var extensibles = new ExtensionObjectCollection();
-
             foreach (IEncodeable encodeable in encodeables)
             {
-                // check if already an extension object.
-
-                if (encodeable is ExtensionObject extensible)
-                {
-                    extensibles.Add(extensible);
-                }
-                // wrap the encodeable with an extension object and let the serializer choose the encoding.
-                else
-                {
-                    extensibles.Add(new ExtensionObject(encodeable));
-                }
+                extensibles.Add(new ExtensionObject(encodeable));
             }
 
             return extensibles;
@@ -909,16 +805,14 @@ namespace Opc.Ua
             return MemberwiseClone();
         }
 
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             var clone = new ExtensionObjectCollection(Count);
 
             foreach (ExtensionObject element in this)
             {
-                clone.Add(CoreUtils.Clone(element));
+                clone.Add(element);
             }
 
             return clone;

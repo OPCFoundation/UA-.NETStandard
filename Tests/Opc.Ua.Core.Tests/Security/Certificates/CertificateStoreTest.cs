@@ -156,7 +156,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(appCertificate);
             Assert.True(appCertificate.HasPrivateKey);
 
-            char[] password = Guid.NewGuid().ToString().ToCharArray();
+            char[] password = Uuid.NewUuid().ToString().ToCharArray();
 
             // pki directory root for app cert
             string pkiRoot = Path.GetTempPath() +
@@ -460,7 +460,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             //TestRevocation
             StatusCode statusCode = await x509Store.IsRevokedAsync(GetTestCert(), GetTestCert())
                 .ConfigureAwait(false);
-            Assert.AreEqual((StatusCode)StatusCodes.BadCertificateRevoked, statusCode);
+            Assert.AreEqual(StatusCodes.BadCertificateRevoked, statusCode);
         }
 
         /// <summary>
@@ -483,7 +483,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             //Test Revocation before adding cert
             StatusCode statusCode = await x509Store.IsRevokedAsync(GetTestCert(), GetTestCert2())
                 .ConfigureAwait(false);
-            Assert.AreEqual((StatusCode)StatusCodes.Good, statusCode);
+            Assert.AreEqual(StatusCodes.Good, statusCode);
 
             var crlBuilder = CrlBuilder.Create(crl);
 
@@ -500,7 +500,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             StatusCode statusCode2 = await x509Store
                 .IsRevokedAsync(GetTestCert(), GetTestCert2())
                 .ConfigureAwait(false);
-            Assert.AreEqual((StatusCode)StatusCodes.BadCertificateRevoked, statusCode2);
+            Assert.AreEqual(StatusCodes.BadCertificateRevoked, statusCode2);
         }
 
         /// <summary>
@@ -562,7 +562,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             //make shure IsRevoked can't find crl anymore
             StatusCode statusCode = await x509Store.IsRevokedAsync(GetTestCert(), GetTestCert())
                 .ConfigureAwait(false);
-            Assert.AreEqual((StatusCode)StatusCodes.BadCertificateRevocationUnknown, statusCode);
+            Assert.AreEqual(StatusCodes.BadCertificateRevocationUnknown, statusCode);
 
             //Delete second (empty) crl from store
             await x509Store.DeleteCRLAsync(crlsAfterFirstDelete[0]).ConfigureAwait(false);

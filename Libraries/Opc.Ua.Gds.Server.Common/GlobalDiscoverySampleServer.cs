@@ -62,8 +62,9 @@ namespace Opc.Ua.Gds.Server
             ICertificateRequest request,
             ICertificateGroup certificateGroup,
             IUserDatabase userDatabase,
-            bool autoApprove = true
-            )
+            ITelemetryContext telemetry,
+            bool autoApprove = true)
+            : base(telemetry)
         {
             m_database = database;
             m_request = request;
@@ -158,14 +159,12 @@ namespace Opc.Ua.Gds.Server
                     throw new ServiceResultException(
                         new ServiceResult(
                             Namespaces.OpcUaGds,
-                            new StatusCode(StatusCodes.BadUserAccessDenied, "NoWriteAllowed"),
+                            new StatusCode(StatusCodes.BadUserAccessDenied.Code, "NoWriteAllowed"),
                             new LocalizedText(info)));
                 }
 
-                UserIdentityToken securityToken = context.UserIdentity.GetIdentityToken();
-
                 // check for a user name token.
-                if (securityToken is UserNameIdentityToken)
+                if (context.UserIdentity.TokenType == UserTokenType.UserName)
                 {
                     lock (m_contextLock)
                     {
@@ -200,7 +199,7 @@ namespace Opc.Ua.Gds.Server
         private void SessionManager_ImpersonateUser(ISession session, ImpersonateEventArgs args)
         {
             // check for a user name token
-            if (args.NewIdentity is UserNameIdentityToken userNameToken &&
+            if (args.UserIdentityTokenHandler is UserNameIdentityTokenHandler userNameToken &&
                 VerifyPassword(userNameToken))
             {
                 IEnumerable<Role> roles = m_userDatabase.GetUserRoles(userNameToken.UserName);
@@ -212,7 +211,7 @@ namespace Opc.Ua.Gds.Server
             }
 
             // check for x509 user token.
-            if (args.NewIdentity is X509IdentityToken x509Token)
+            if (args.UserIdentityTokenHandler is X509IdentityToken x509Token)
             {
                 VerifyX509IdentityToken(x509Token);
 
@@ -294,10 +293,12 @@ namespace Opc.Ua.Gds.Server
         /// <exception cref="ServiceResultException"></exception>
         private void VerifyX509IdentityToken(X509IdentityToken token)
         {
-            X509Certificate2 certificate = token.GetOrCreateCertificate(MessageContext.Telemetry);
+            using var x509TokenHandler = new X509IdentityTokenHandler(token);
             try
             {
-                CertificateValidator.ValidateAsync(certificate, default).GetAwaiter().GetResult();
+                CertificateValidator.ValidateAsync(
+                    x509TokenHandler.Certificate,
+                    default).GetAwaiter().GetResult();
             }
             catch (Exception e)
             {
@@ -310,7 +311,7 @@ namespace Opc.Ua.Gds.Server
                         "InvalidCertificate",
                         "en-US",
                         "'{0}' is an invalid user certificate.",
-                        certificate.Subject);
+                        x509TokenHandler.Certificate.Subject);
 
                     result = StatusCodes.BadIdentityTokenInvalid;
                 }
@@ -321,7 +322,7 @@ namespace Opc.Ua.Gds.Server
                         "UntrustedCertificate",
                         "en-US",
                         "'{0}' is not a trusted user certificate.",
-                        certificate.Subject);
+                        x509TokenHandler.Certificate.Subject);
                 }
 
                 // create an exception with a vendor defined sub-code.
@@ -333,11 +334,11 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        private bool VerifyPassword(UserNameIdentityToken userNameToken)
+        private bool VerifyPassword(UserNameIdentityTokenHandler userTokenHandler)
         {
             return m_userDatabase.CheckCredentials(
-                userNameToken.UserName,
-                userNameToken.DecryptedPassword);
+                userTokenHandler.UserName,
+                userTokenHandler.DecryptedPassword);
         }
 
         /// <summary>

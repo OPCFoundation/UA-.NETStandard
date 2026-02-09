@@ -198,7 +198,7 @@ namespace Opc.Ua.Server
             Roles = roles;
             foreach (Role role in roles)
             {
-                if (!(role.RoleId?.IsNullNodeId ?? true))
+                if (role != null && !role.RoleId.IsNullNodeId)
                 {
                     GrantedRoleIds.Add(role.RoleId);
                 }
@@ -229,9 +229,6 @@ namespace Opc.Ua.Server
         public bool SupportsSignatures => m_identity.SupportsSignatures;
 
         /// <inheritdoc/>
-        public UserIdentityToken GetIdentityToken()
-        {
-            return m_identity.GetIdentityToken();
-        }
+        public IUserIdentityTokenHandler TokenHandler => m_identity.TokenHandler;
     }
 }

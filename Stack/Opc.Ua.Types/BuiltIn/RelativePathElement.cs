@@ -169,10 +169,10 @@ namespace Opc.Ua
         {
             var clone = (RelativePathElement)base.MemberwiseClone();
 
-            clone.ReferenceTypeId = CoreUtils.Clone(ReferenceTypeId);
+            clone.ReferenceTypeId = ReferenceTypeId;
             clone.IsInverse = CoreUtils.Clone(IsInverse);
             clone.IncludeSubtypes = CoreUtils.Clone(IncludeSubtypes);
-            clone.TargetName = CoreUtils.Clone(TargetName);
+            clone.TargetName = TargetName;
 
             return clone;
         }

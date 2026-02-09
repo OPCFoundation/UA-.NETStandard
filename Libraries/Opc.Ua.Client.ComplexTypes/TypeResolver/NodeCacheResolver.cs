@@ -129,7 +129,7 @@ namespace Opc.Ua.Client.ComplexTypes
             NodeId dataTypeSystem = default,
             CancellationToken ct = default)
         {
-            if (dataTypeSystem == null)
+            if (dataTypeSystem.IsNullNodeId)
             {
                 dataTypeSystem = ObjectIds.OPCBinarySchema_TypeSystem;
             }
@@ -649,7 +649,7 @@ namespace Opc.Ua.Client.ComplexTypes
             Dictionary<string, byte[]> imports = null,
             CancellationToken ct = default)
         {
-            if (dictionaryId == null)
+            if (dictionaryId.IsNullNodeId)
             {
                 throw new ArgumentNullException(nameof(dictionaryId));
             }
@@ -740,7 +740,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 DataValue value = values[ii++];
                 var datatypeId = ExpandedNodeId.ToNodeId(reference.NodeId, NamespaceUris);
-                if (datatypeId != null &&
+                if (!datatypeId.IsNullNodeId &&
                     StatusCode.IsGood(value.StatusCode) &&
                     value.Value is string dictName)
                 {

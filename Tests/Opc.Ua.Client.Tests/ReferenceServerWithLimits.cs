@@ -56,11 +56,16 @@ namespace Opc.Ua.Client.Tests
     /// </summary>
     public class ReferenceServerWithLimits : ReferenceServer
     {
+        public ReferenceServerWithLimits(ITelemetryContext telemetry)
+            : base(telemetry)
+        {
+        }
+
         public uint TestMaxBrowseReferencesPerNode { get; set; } = 10u;
         private MasterNodeManager MasterNodeManagerReference { get; set; }
         private SessionManagerWithLimits SessionManagerForTest { get; set; }
 
-        public override Task<BrowseResponse> BrowseAsync(
+        public override ValueTask<BrowseResponse> BrowseAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             ViewDescription view,
@@ -284,7 +289,7 @@ namespace Opc.Ua.Client.Tests
                 throw new ArgumentNullException(nameof(nodesToBrowse));
             }
 
-            if (view != null && !NodeId.IsNull(view.ViewId))
+            if (view != null && !view.ViewId.IsNullNodeId)
             {
                 (object viewHandle, IAsyncNodeManager viewManager) =
                     await GetManagerHandleAsync(view.ViewId, cancellationToken)

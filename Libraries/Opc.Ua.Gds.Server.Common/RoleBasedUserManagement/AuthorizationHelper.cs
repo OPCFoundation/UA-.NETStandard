@@ -151,7 +151,7 @@ namespace Opc.Ua.Gds.Server
             {
                 foreach (Role role in roles)
                 {
-                    if (!NodeId.IsNull(role.RoleId) &&
+                    if (!role.RoleId.IsNullNodeId &&
                         userIdentity.GrantedRoleIds.Contains(role.RoleId))
                     {
                         return true;
@@ -165,7 +165,7 @@ namespace Opc.Ua.Gds.Server
             IUserIdentity userIdentity,
             NodeId applicationId)
         {
-            if (applicationId is null || applicationId.IsNullNodeId)
+            if (applicationId.IsNullNodeId)
             {
                 return false;
             }

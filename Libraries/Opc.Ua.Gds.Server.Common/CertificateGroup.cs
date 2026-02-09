@@ -109,9 +109,7 @@ namespace Opc.Ua.Gds.Server
 
             foreach (string certificateTypeString in Configuration.CertificateTypes)
             {
-                var certificateType = typeof(Ua.ObjectTypeIds).GetField(certificateTypeString)
-                    .GetValue(null) as NodeId;
-                if (certificateType != null)
+                if (Ua.ObjectTypeIds.TryGetIdentifier(certificateTypeString, out NodeId certificateType))
                 {
                     if (!Utils.IsSupportedCertificateType(certificateType))
                     {
@@ -473,7 +471,7 @@ namespace Opc.Ua.Gds.Server
                     subjectName);
             }
 
-            if (certificateType is null)
+            if (certificateType.IsNullNodeId)
             {
                 throw new ArgumentNullException(nameof(certificateType));
             }
@@ -683,7 +681,7 @@ namespace Opc.Ua.Gds.Server
             //  Checks if the Certificate Group is for RSA Certificates
             static bool IsRSACertificateType(NodeId certificateType)
             {
-                return certificateType == null ||
+                return certificateType.IsNullNodeId ||
                     certificateType == Ua.ObjectTypeIds.ApplicationCertificateType ||
                     certificateType == Ua.ObjectTypeIds.HttpsCertificateType ||
                     certificateType == Ua.ObjectTypeIds.UserCertificateType ||

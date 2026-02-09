@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.Serialization;
 using System.Text;
+using System.Text.Json.Serialization;
 using Opc.Ua.Types;
 
 namespace Opc.Ua
@@ -39,62 +40,220 @@ namespace Opc.Ua
     /// <summary>
     /// Extends a node id by adding a complete namespace URI.
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public sealed class ExpandedNodeId :
-        ICloneable,
+    public readonly struct ExpandedNodeId :
         IComparable,
         IEquatable<ExpandedNodeId>,
+        IEquatable<NodeId>,
         IFormattable
     {
         /// <summary>
-        /// Initializes the object with default values.
+        /// Returns an instance of a null ExpandedNodeId.
         /// </summary>
-        /// <remarks>
-        /// Creates a new instance of the object, accepting the default values.
-        /// </remarks>
-        internal ExpandedNodeId()
+        public static readonly ExpandedNodeId Null;
+
+        /// <summary>
+        /// Creates a new instance of the object while allowing you to
+        /// specify both the <see cref="NodeId"/> and the Namespace URI
+        /// that applies to the NodeID.
+        /// </summary>
+        /// <param name="nodeId">The <see cref="NodeId"/> to wrap.</param>
+        /// <param name="namespaceUri">The actual namespace URI that this
+        /// node belongs to</param>
+        /// <param name="serverIndex">The server index</param>
+        public ExpandedNodeId(
+            NodeId nodeId,
+            string namespaceUri = null,
+            uint serverIndex = 0u)
         {
-            Initialize();
+            m_data.NamespaceUri = namespaceUri;
+            m_data.ServerIndex = serverIndex;
+            if (!string.IsNullOrEmpty(namespaceUri))
+            {
+                m_nodeId = nodeId.WithNamespaceIndex(0);
+            }
+            else
+            {
+                m_nodeId = nodeId;
+            }
         }
 
         /// <summary>
-        /// Creates a deep copy of the value.
+        /// Creates a new instance of the object while accepting the numeric
+        /// id value of the NodeID.
         /// </summary>
-        /// <remarks>
-        /// Creates a new instance of the object, while copying the properties of the specified object.
-        /// </remarks>
-        /// <param name="value">The ExpandedNodeId to copy</param>
-        /// <exception cref="ArgumentNullException">Thrown when the parameter is null</exception>
-        public ExpandedNodeId(ExpandedNodeId value)
+        /// <param name="value">The numeric id of a node to wrap</param>
+        /// <param name="namespaceUri">The actual namespace URI that this
+        /// node belongs to</param>
+        /// <param name="serverIndex">The server index</param>
+        public ExpandedNodeId(
+            uint value,
+            string namespaceUri = null,
+            uint serverIndex = 0u)
         {
-            if (value == null)
-            {
-                throw new ArgumentNullException(nameof(value));
-            }
-
-            NamespaceUri = value.NamespaceUri;
-
-            if (value.InnerNodeId != null)
-            {
-                InnerNodeId = new NodeId(value.InnerNodeId);
-            }
+            m_data.NamespaceUri = namespaceUri;
+            m_data.ServerIndex = serverIndex;
+            m_nodeId = new NodeId(value);
         }
 
         /// <summary>
-        /// Initializes an expanded node identifier with a node id.
+        /// Creates a new instance of the class while accepting both the id and namespace
+        /// of the node.
         /// </summary>
-        /// <remarks>
-        /// Creates a new instance of the object, while wrapping the specified <see cref="NodeId"/>.
-        /// </remarks>
-        /// <param name="nodeId">The <see cref="NodeId"/> to wrap</param>
-        public ExpandedNodeId(NodeId nodeId)
+        /// <param name="value">The numeric id of the node</param>
+        /// <param name="namespaceIndex">The namespace index that this node
+        /// belongs to</param>
+        /// <param name="namespaceUri">The actual namespace URI that this
+        /// node belongs to</param>
+        /// <param name="serverIndex">The server index</param>
+        public ExpandedNodeId(
+            uint value,
+            ushort namespaceIndex,
+            string namespaceUri = null,
+            uint serverIndex = 0u)
         {
-            Initialize();
+            m_data.NamespaceUri = namespaceUri;
+            m_data.ServerIndex = serverIndex;
+            m_nodeId = new NodeId(
+                value,
+                string.IsNullOrEmpty(namespaceUri) ? namespaceIndex : (ushort)0);
+        }
 
-            if (nodeId != null)
-            {
-                InnerNodeId = new NodeId(nodeId);
-            }
+        /// <summary>
+        /// Creates a new instance of the class while allowing you to specify
+        /// both the node and namespace
+        /// </summary>
+        /// <param name="value">The string value/id of the node we are
+        /// wrapping</param>
+        /// <param name="namespaceUri">The actual namespace URI that this
+        /// node belongs to</param>
+        /// <param name="serverIndex">The server index</param>
+        public ExpandedNodeId(
+            string value,
+            string namespaceUri,
+            uint serverIndex = 0u)
+        {
+            m_data.NamespaceUri = namespaceUri;
+            m_data.ServerIndex = serverIndex;
+            m_nodeId = new NodeId(value, 0); // Must use 0 or else it parses
+        }
+
+        /// <summary>
+        /// Initializes a string node identifier with a namespace index.
+        /// Creates a new instance of the class while allowing you to
+        /// specify both the node and the namespace.
+        /// </summary>
+        /// <param name="value">The string id/value of the node we are
+        /// wrapping</param>
+        /// <param name="namespaceIndex">The numeric index of the namespace
+        /// within the table, that this node belongs to</param>
+        /// <param name="namespaceUri">The actual namespace URI that this
+        /// node belongs to</param>
+        /// <param name="serverIndex">The server index</param>
+        public ExpandedNodeId(
+            string value,
+            ushort namespaceIndex,
+            string namespaceUri = null,
+            uint serverIndex = 0u)
+        {
+            m_data.NamespaceUri = namespaceUri;
+            m_data.ServerIndex = serverIndex;
+            m_nodeId = new NodeId(
+                value,
+                string.IsNullOrEmpty(namespaceUri) ? namespaceIndex : (ushort)0);
+        }
+
+        /// <summary>
+        /// Creates a new instance of the class while specifying the
+        /// <see cref="Guid"/> value
+        /// of the node.
+        /// </summary>
+        /// <param name="value">The Guid value of the node </param>
+        /// <param name="namespaceUri">The actual namespace URI that this
+        /// node belongs to</param>
+        /// <param name="serverIndex">The server index</param>
+        public ExpandedNodeId(
+            Guid value,
+            string namespaceUri = null,
+            uint serverIndex = 0u)
+        {
+            m_data.NamespaceUri = namespaceUri;
+            m_data.ServerIndex = serverIndex;
+            m_nodeId = new NodeId(value);
+        }
+
+        /// <summary>
+        /// Creates a new instance of the class while specifying the
+        /// <see cref="Guid"/> value of the node and the namespaceIndex.
+        /// </summary>
+        /// <param name="value">The Guid value of the node</param>
+        /// <param name="namespaceIndex">The index of the namespace that
+        /// this node should belong to</param>
+        /// <param name="namespaceUri">The actual namespace URI that this
+        /// node belongs to</param>
+        /// <param name="serverIndex">The server index</param>
+        public ExpandedNodeId(
+            Guid value,
+            ushort namespaceIndex,
+            string namespaceUri = null,
+            uint serverIndex = 0u)
+        {
+            m_data.NamespaceUri = namespaceUri;
+            m_data.ServerIndex = serverIndex;
+            m_nodeId = new NodeId(
+                value,
+                string.IsNullOrEmpty(namespaceUri) ? namespaceIndex : (ushort)0);
+        }
+
+        /// <summary>
+        /// Creates a new instance of the class while allowing you to
+        /// specify the byte[] id of the node.
+        /// </summary>
+        /// <param name="value">The id of the node</param>
+        /// <param name="namespaceUri">The actual namespace URI that this
+        /// node belongs to</param>
+        /// <param name="serverIndex">The server index</param>
+        public ExpandedNodeId(
+            byte[] value,
+            string namespaceUri = null,
+            uint serverIndex = 0u)
+        {
+            m_data.NamespaceUri = namespaceUri;
+            m_data.ServerIndex = serverIndex;
+            m_nodeId = new NodeId(value);
+        }
+
+        /// <summary>
+        /// Creates a new instance of the class while allowing you to
+        /// specify the node and namespace index.
+        /// </summary>
+        /// <param name="value">The id of the node</param>
+        /// <param name="namespaceIndex">The index of the namespace that
+        /// this node should belong to</param>
+        /// <param name="namespaceUri">The actual namespace URI that this
+        /// node belongs to</param>
+        /// <param name="serverIndex">The server index</param>
+        public ExpandedNodeId(
+            byte[] value,
+            ushort namespaceIndex,
+            string namespaceUri = null,
+            uint serverIndex = 0u)
+        {
+            m_data.NamespaceUri = namespaceUri;
+            m_data.ServerIndex = serverIndex;
+            m_nodeId = new NodeId(
+                value,
+                string.IsNullOrEmpty(namespaceUri) ? namespaceIndex : (ushort)0);
+        }
+
+        /// <summary>
+        /// Creates a new instance of the class while allowing you to
+        /// specify the id of the node.
+        /// </summary>
+        /// <param name="text">The textual id of the node</param>
+        [Obsolete("Use ExpandedNodeId.Parse instead. This will be removed soon.")]
+        public ExpandedNodeId(string text)
+        {
+            this = Parse(text);
         }
 
         /// <summary>
@@ -102,288 +261,57 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="identifier">The identifier.</param>
         /// <param name="namespaceIndex">The namespace index.</param>
-        /// <param name="namespaceUri">The namespace URI.</param>
-        /// <param name="serverIndex">The server index.</param>
+        /// <param name="namespaceUri">The actual namespace URI that this
+        /// node belongs to</param>
+        /// <param name="serverIndex">The server index</param>
+        [Obsolete("Use concrete constructor with typed identifier values instead.")]
+        [JsonConstructor]
         public ExpandedNodeId(
             object identifier,
             ushort namespaceIndex,
             string namespaceUri,
             uint serverIndex)
         {
-            InnerNodeId = new NodeId(identifier, namespaceIndex);
-            NamespaceUri = namespaceUri;
-            ServerIndex = serverIndex;
+            m_data.NamespaceUri = namespaceUri;
+            m_data.ServerIndex = serverIndex;
+            m_nodeId = new NodeId(
+                identifier,
+                string.IsNullOrEmpty(namespaceUri) ? namespaceIndex : (ushort)0);
         }
 
         /// <summary>
-        /// Initializes an expanded node identifier with a node id and a namespace URI.
+        /// The namespace that qualifies the node identifier.
         /// </summary>
-        /// <remarks>
-        /// Creates a new instance of the object while allowing you to specify both the
-        /// <see cref="NodeId"/> and the Namespace URI that applies to the NodeID.
-        /// </remarks>
-        /// <param name="nodeId">The <see cref="NodeId"/> to wrap.</param>
-        /// <param name="namespaceUri">The namespace that this node belongs to</param>
-        public ExpandedNodeId(NodeId nodeId, string namespaceUri)
-        {
-            Initialize();
-
-            if (nodeId != null)
-            {
-                InnerNodeId = new NodeId(nodeId);
-            }
-
-            if (!string.IsNullOrEmpty(namespaceUri))
-            {
-                SetNamespaceUri(namespaceUri);
-            }
-        }
+        public string NamespaceUri => m_data.NamespaceUri as string;
 
         /// <summary>
-        /// Initializes an expanded node identifier with a node id and a namespace URI.
+        /// The index of the server where the node exists.
         /// </summary>
-        /// <remarks>
-        /// Creates a new instance of the object while allowing you to specify both the
-        /// <see cref="NodeId"/> and the Namespace URI that applies to the NodeID.
-        /// </remarks>
-        /// <param name="nodeId">The <see cref="NodeId"/> to wrap.</param>
-        /// <param name="namespaceUri">The namespace that this node belongs to</param>
-        /// <param name="serverIndex">The server that the node belongs to</param>
-        public ExpandedNodeId(NodeId nodeId, string namespaceUri, uint serverIndex)
-        {
-            Initialize();
-
-            if (nodeId != null)
-            {
-                InnerNodeId = new NodeId(nodeId);
-            }
-
-            if (!string.IsNullOrEmpty(namespaceUri))
-            {
-                SetNamespaceUri(namespaceUri);
-            }
-
-            ServerIndex = serverIndex;
-        }
+        public uint ServerIndex => m_data.ServerIndex;
 
         /// <summary>
-        /// Initializes a numeric node identifier.
+        /// Returns whether or not the <see cref="NodeId"/> is null
         /// </summary>
-        /// <remarks>
-        /// Creates a new instance of the object while accepting the numeric id/value of
-        /// the NodeID we are wrapping.
-        /// </remarks>
-        /// <param name="value">The numeric id of a node to wrap</param>
-        public ExpandedNodeId(uint value)
-        {
-            Initialize();
-            InnerNodeId = new NodeId(value);
-        }
+        public bool IsNull => !IsAbsolute && m_nodeId.IsNullNodeId;
 
         /// <summary>
-        /// Initializes a numeric node identifier with a namespace index.
+        /// Returns true if the expanded node id is an absolute identifier
+        /// that contains a namespace URI instead of a server dependent index.
         /// </summary>
-        /// <remarks>
-        /// Creates a new instance of the class while accepting both the id and namespace
-        /// of the node we are wrapping.
-        /// </remarks>
-        /// <param name="value">The numeric id of the node we are wrapping</param>
-        /// <param name="namespaceIndex">The namespace index that this node belongs to</param>
-        public ExpandedNodeId(uint value, ushort namespaceIndex)
-        {
-            Initialize();
-            InnerNodeId = new NodeId(value, namespaceIndex);
-        }
-
-        /// <summary>
-        /// Initializes a numeric node identifier with a namespace URI.
-        /// </summary>
-        /// <remarks>
-        /// Creates a new instance of the class while accepting both the numeric id of the
-        /// node, along with the actual namespace that this node belongs to.
-        /// </remarks>
-        /// <param name="value">The numeric id of the node we are wrapping</param>
-        /// <param name="namespaceUri">The namespace that this node belongs to</param>
-        public ExpandedNodeId(uint value, string namespaceUri)
-        {
-            Initialize();
-            InnerNodeId = new NodeId(value);
-            SetNamespaceUri(namespaceUri);
-        }
-
-        /// <summary>
-        /// Initializes a string node identifier with a namespace index.
-        /// </summary>
-        /// <remarks>
-        /// Creates a new instance of the class while allowing you to specify both the
-        /// node and the namespace.
-        /// </remarks>
-        /// <param name="value">The string id/value of the node we are wrapping</param>
-        /// <param name="namespaceIndex">The numeric index of the namespace within the table, that this node belongs to</param>
-        public ExpandedNodeId(string value, ushort namespaceIndex)
-        {
-            Initialize();
-            InnerNodeId = new NodeId(value, namespaceIndex);
-        }
-
-        /// <summary>
-        /// Initializes a string node identifier with a namespace URI.
-        /// </summary>
-        /// <remarks>
-        /// Creates a new instance of the class while allowing you to specify both the node and namespace
-        /// </remarks>
-        /// <param name="value">The string value/id of the node we are wrapping</param>
-        /// <param name="namespaceUri">The actual namespace URI that this node belongs to</param>
-        public ExpandedNodeId(string value, string namespaceUri)
-        {
-            Initialize();
-            InnerNodeId = new NodeId(value, 0);
-            SetNamespaceUri(namespaceUri);
-        }
-
-        /// <summary>
-        /// Initializes a guid node identifier.
-        /// </summary>
-        /// <remarks>
-        /// Creates a new instance of the class while specifying the <see cref="Guid"/> value
-        /// of the node we are wrapping.
-        /// </remarks>
-        /// <param name="value">The Guid value of the node we are wrapping</param>
-        public ExpandedNodeId(Guid value)
-        {
-            Initialize();
-            InnerNodeId = new NodeId(value);
-        }
-
-        /// <summary>
-        /// Initializes a guid node identifier.
-        /// </summary>
-        /// <remarks>
-        /// Creates a new instance of the class while specifying the <see cref="Guid"/> value
-        /// of the node and the namespaceIndex we are wrapping.
-        /// </remarks>
-        /// <param name="value">The Guid value of the node we are wrapping</param>
-        /// <param name="namespaceIndex">The index of the namespace that this node should belong to</param>
-        public ExpandedNodeId(Guid value, ushort namespaceIndex)
-        {
-            Initialize();
-            InnerNodeId = new NodeId(value, namespaceIndex);
-        }
-
-        /// <summary>
-        /// Initializes a guid node identifier.
-        /// </summary>
-        /// <remarks>
-        /// Creates a new instance of the class while specifying the <see cref="Guid"/> value
-        /// of the node and the namespaceUri we are wrapping.
-        /// </remarks>
-        /// <param name="value">The Guid value of the node we are wrapping</param>
-        /// <param name="namespaceUri">The namespace that this node belongs to</param>
-        public ExpandedNodeId(Guid value, string namespaceUri)
-        {
-            Initialize();
-            InnerNodeId = new NodeId(value);
-            SetNamespaceUri(namespaceUri);
-        }
-
-        /// <summary>
-        /// Initializes a opaque node identifier.
-        /// </summary>
-        /// <remarks>
-        /// Creates a new instance of the class while allowing you to specify the byte[] id
-        /// of the node.
-        /// </remarks>
-        /// <param name="value">The id of the node we are wrapping</param>
-        public ExpandedNodeId(byte[] value)
-        {
-            Initialize();
-            InnerNodeId = new NodeId(value);
-        }
-
-        /// <summary>
-        /// Initializes an opaque node identifier with a namespace index.
-        /// </summary>
-        /// <remarks>
-        /// Creates a new instance of the class while allowing you to specify the node
-        /// and namespace index.
-        /// </remarks>
-        /// <param name="value">The id of the node we are wrapping</param>
-        /// <param name="namespaceIndex">The index of the namespace that this node should belong to</param>
-        public ExpandedNodeId(byte[] value, ushort namespaceIndex)
-        {
-            Initialize();
-            InnerNodeId = new NodeId(value, namespaceIndex);
-        }
-
-        /// <summary>
-        /// Initializes an opaque node identifier with a namespace index.
-        /// </summary>
-        /// <remarks>
-        /// Creates a new instance of the class while allowing you to specify the node and namespace.
-        /// </remarks>
-        /// <param name="value">The node we are wrapping</param>
-        /// <param name="namespaceUri">The namespace that this node belongs to</param>
-        public ExpandedNodeId(byte[] value, string namespaceUri)
-        {
-            Initialize();
-            InnerNodeId = new NodeId(value);
-            SetNamespaceUri(namespaceUri);
-        }
-
-        /// <summary>
-        /// Initializes a node id by parsing a node id string.
-        /// </summary>
-        /// <remarks>
-        /// Creates a new instance of the class while allowing you to specify the id of the node.
-        /// </remarks>
-        /// <param name="text">The textual id of the node being wrapped</param>
-        public ExpandedNodeId(string text)
-        {
-            Initialize();
-            InternalParse(text);
-        }
-
-        /// <summary>
-        /// Sets the private members to default values.
-        /// </summary>
-        private void Initialize()
-        {
-            InnerNodeId = null;
-            NamespaceUri = null;
-            ServerIndex = 0;
-        }
+        public bool IsAbsolute
+            => !string.IsNullOrEmpty(NamespaceUri) || ServerIndex > 0;
 
         /// <summary>
         /// The index of the namespace URI in the server's namespace array.
         /// </summary>
-        public ushort NamespaceIndex
-        {
-            get
-            {
-                if (InnerNodeId != null)
-                {
-                    return InnerNodeId.NamespaceIndex;
-                }
-
-                return 0;
-            }
-        }
+        public ushort NamespaceIndex =>
+            m_nodeId.IsNullNodeId ? (ushort)0 : m_nodeId.NamespaceIndex;
 
         /// <summary>
         /// The type of node identifier used.
         /// </summary>
-        public IdType IdType
-        {
-            get
-            {
-                if (InnerNodeId != null)
-                {
-                    return InnerNodeId.IdType;
-                }
-
-                return IdType.Numeric;
-            }
-        }
+        public IdType IdType =>
+            m_nodeId.IsNullNodeId ? IdType.Numeric : m_nodeId.IdType;
 
         /// <summary>
         /// The node identifier.
@@ -392,84 +320,494 @@ namespace Opc.Ua
         /// Returns the node id in whatever form, i.e.
         /// string, Guid, byte[] or uint.
         /// </remarks>
-        public object Identifier
-        {
-            get
-            {
-                if (InnerNodeId != null)
-                {
-                    return InnerNodeId.Identifier;
-                }
+        [Obsolete("Use TryGetIdentifier<T> to get strongly typed identifier values or " +
+            "consider using IdentifierAsString if you want to stringify the identifier.")]
+        public object Identifier =>
+            m_nodeId.IsNullNodeId ? null : m_nodeId.Identifier;
 
-                return null;
-            }
+        /// <summary>
+        /// Try get the numeric node identifier.
+        /// </summary>
+        public bool TryGetIdentifier(out uint identifier)
+        {
+            return m_nodeId.TryGetIdentifier(out identifier);
         }
 
         /// <summary>
-        /// The namespace that qualifies the node identifier.
+        /// Try get the opque node identifier.
         /// </summary>
-        /// <remarks>
-        /// Returns the namespace that the node belongs to
-        /// </remarks>
-        public string NamespaceUri { get; private set; }
-
-        /// <summary>
-        /// The index of the server where the node exists.
-        /// </summary>
-        /// <remarks>
-        /// Returns the index of the server where the node resides
-        /// </remarks>
-        public uint ServerIndex { get; private set; }
-
-        /// <summary>
-        /// Whether the object represents a Null NodeId.
-        /// </summary>
-        /// <remarks>
-        /// Returns whether or not the <see cref="NodeId"/> is null
-        /// </remarks>
-        public bool IsNull
+        public bool TryGetIdentifier(out byte[] identifier)
         {
-            get
-            {
-                if (!string.IsNullOrEmpty(NamespaceUri))
-                {
-                    return false;
-                }
-
-                if (ServerIndex > 0)
-                {
-                    return false;
-                }
-
-                return NodeId.IsNull(InnerNodeId);
-            }
+            return m_nodeId.TryGetIdentifier(out identifier);
         }
 
         /// <summary>
-        /// Returns true if the expanded node id is an absolute identifier that contains a namespace URI instead of a server dependent index.
+        /// Try get the string node identifier.
         /// </summary>
-        public bool IsAbsolute => !string.IsNullOrEmpty(NamespaceUri) || ServerIndex > 0;
+        public bool TryGetIdentifier(out string identifier)
+        {
+            return m_nodeId.TryGetIdentifier(out identifier);
+        }
+
+        /// <summary>
+        /// Try get the Guid node identifier.
+        /// </summary>
+        public bool TryGetIdentifier(out Guid identifier)
+        {
+            return m_nodeId.TryGetIdentifier(out identifier);
+        }
+
+        /// <summary>
+        /// Get identifier as string
+        /// </summary>
+        public string IdentifierAsString => m_nodeId.IdentifierAsString;
 
         /// <summary>
         /// Returns the inner node id.
         /// </summary>
-        public NodeId InnerNodeId { get; set; }
+#pragma warning disable RCS1085 // Use auto-implemented property
+        public NodeId InnerNodeId => m_nodeId;
+#pragma warning restore RCS1085 // Use auto-implemented property
 
         /// <summary>
-        /// The node identifier formatted as a URI.
+        /// Updates the namespace index.
         /// </summary>
-        [DataMember(Name = "Identifier", Order = 1, IsRequired = true)]
-        internal string IdentifierText
+        public ExpandedNodeId WithNamespaceIndex(ushort namespaceIndex)
         {
-            get => Format(CultureInfo.InvariantCulture);
-            set
-            {
-                ExpandedNodeId nodeId = Parse(value);
+            return new ExpandedNodeId(
+                m_nodeId.WithNamespaceIndex(namespaceIndex),
+                null,
+                ServerIndex);
+        }
 
-                InnerNodeId = nodeId.InnerNodeId;
-                NamespaceUri = nodeId.NamespaceUri;
-                ServerIndex = nodeId.ServerIndex;
+        /// <summary>
+        /// Updates the namespace uri.
+        /// </summary>
+        public ExpandedNodeId WithNamespaceUri(string uri)
+        {
+            return new ExpandedNodeId(
+                m_nodeId.WithNamespaceIndex(0),
+                uri,
+                ServerIndex);
+        }
+
+        /// <summary>
+        /// Updates the server index.
+        /// </summary>
+        public ExpandedNodeId WithServerIndex(uint serverIndex)
+        {
+            return new ExpandedNodeId(
+                m_nodeId,
+                NamespaceUri,
+                serverIndex);
+        }
+
+        /// <summary>
+        /// Updates the server index.
+        /// </summary>
+        public ExpandedNodeId WithInnerNode(NodeId innerNodeId)
+        {
+            return new ExpandedNodeId(
+                innerNodeId,
+                NamespaceUri,
+                ServerIndex);
+        }
+
+        /// <inheritdoc/>
+        public int CompareTo(object obj)
+        {
+            // check for null.
+            if (obj is null)
+            {
+                return IsNull ? 0 : -1;
             }
+
+            // just compare node ids.
+            if (!IsAbsolute && !m_nodeId.IsNullNodeId)
+            {
+                return m_nodeId.CompareTo(obj);
+            }
+
+            if (obj is NodeId nodeId)
+            {
+                if (IsNull && nodeId.IsNullNodeId)
+                {
+                    return 0;
+                }
+            }
+            else if (obj is ExpandedNodeId expandedId)
+            {
+                if (IsNull && expandedId.IsNull)
+                {
+                    return 0;
+                }
+
+                if (ServerIndex != expandedId.ServerIndex)
+                {
+                    return ServerIndex.CompareTo(expandedId.ServerIndex);
+                }
+
+                if (NamespaceUri != expandedId.NamespaceUri)
+                {
+                    if (NamespaceUri != null)
+                    {
+                        return string.CompareOrdinal(NamespaceUri, expandedId.NamespaceUri);
+                    }
+
+                    return -1;
+                }
+
+                nodeId = expandedId.m_nodeId;
+            }
+            else
+            {
+                nodeId = NodeId.Null;
+            }
+
+            // check for null.
+            if (!m_nodeId.IsNullNodeId)
+            {
+                return m_nodeId.CompareTo(nodeId);
+            }
+
+            // compare node ids.
+            return nodeId.IsNullNodeId ? 0 : -1;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator >(ExpandedNodeId value1, object value2)
+        {
+            return value1.CompareTo(value2) > 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator <(ExpandedNodeId value1, object value2)
+        {
+            return value1.CompareTo(value2) < 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator >=(ExpandedNodeId left, ExpandedNodeId right)
+        {
+            return right.CompareTo(left) <= 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator <=(ExpandedNodeId left, ExpandedNodeId right)
+        {
+            return left.CompareTo(right) <= 0;
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object obj)
+        {
+            return obj switch
+            {
+                null => IsNull,
+                ExpandedNodeId e => Equals(e),
+                _ => false
+            };
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(ExpandedNodeId other)
+        {
+            if (IsNull && other.IsNull)
+            {
+                return true;
+            }
+            if (ServerIndex != other.ServerIndex)
+            {
+                return false;
+            }
+            if (NamespaceUri != other.NamespaceUri)
+            {
+                return false;
+            }
+            if (m_nodeId != other.m_nodeId)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(NodeId other)
+        {
+            if (IsAbsolute)
+            {
+                return false;
+            }
+            return m_nodeId.Equals(other);
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            if (m_nodeId.IsNullNodeId)
+            {
+                return 0;
+            }
+
+            // just compare node ids.
+            if (!IsAbsolute)
+            {
+                return m_nodeId.GetHashCode();
+            }
+
+            var hash = new HashCode();
+
+            if (ServerIndex != 0)
+            {
+                hash.Add(ServerIndex);
+            }
+
+            if (NamespaceUri != null)
+            {
+                hash.Add(NamespaceUri);
+            }
+
+            hash.Add(m_nodeId);
+
+            return hash.ToHashCode();
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(ExpandedNodeId value1, object value2)
+        {
+            return value1.Equals(value2);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(ExpandedNodeId value1, object value2)
+        {
+            return !value1.Equals(value2);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(ExpandedNodeId value1, ExpandedNodeId value2)
+        {
+            return value1.Equals(value2);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(ExpandedNodeId value1, ExpandedNodeId value2)
+        {
+            return !value1.Equals(value2);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(ExpandedNodeId value1, NodeId value2)
+        {
+            return value1.Equals(value2);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(ExpandedNodeId value1, NodeId value2)
+        {
+            return !value1.Equals(value2);
+        }
+
+        /// <summary>
+        /// Converts an ExpandedNodeId to a NodeId.
+        /// </summary>
+        /// <exception cref="InvalidCastException">Thrown if the ExpandedNodeId is an absolute node identifier.</exception>
+        public static explicit operator NodeId(ExpandedNodeId value)
+        {
+            if (value.IsNull)
+            {
+                return NodeId.Null;
+            }
+            if (value.IsAbsolute)
+            {
+                throw new InvalidCastException(
+                    "Cannot cast an absolute ExpandedNodeId to a NodeId. Use ExpandedNodeId.ToNodeId instead.");
+            }
+            return value.m_nodeId;
+        }
+
+        /// <summary>
+        /// Converts a NodeId to an ExpandedNodeId
+        /// </summary>
+        public static implicit operator ExpandedNodeId(NodeId nodeId)
+        {
+            return new ExpandedNodeId(nodeId);
+        }
+
+        /// <summary>
+        /// Converts an integer to a numeric node identifier.
+        /// </summary>
+        public static implicit operator ExpandedNodeId(uint value)
+        {
+            return new ExpandedNodeId(value);
+        }
+
+        /// <summary>
+        /// Converts a guid to a guid node identifier.
+        /// </summary>
+        public static implicit operator ExpandedNodeId(Guid value)
+        {
+            return new ExpandedNodeId(value);
+        }
+
+        /// <summary>
+        /// Converts a byte array to an opaque node identifier.
+        /// </summary>
+        public static implicit operator ExpandedNodeId(byte[] value)
+        {
+            return new ExpandedNodeId(value);
+        }
+
+        /// <summary>
+        /// Parses a node id string and initializes a node id.
+        /// </summary>
+        public static explicit operator ExpandedNodeId(string text)
+        {
+            return Parse(text);
+        }
+
+        /// <inheritdoc/>
+        public string ToString(string format, IFormatProvider formatProvider)
+        {
+            if (format == null)
+            {
+                return Format(formatProvider);
+            }
+
+            throw new FormatException(
+                CoreUtils.Format("Invalid format string: '{0}'.", format));
+        }
+
+        /// <inheritdoc/>
+        public override string ToString()
+        {
+            return ToString(null, null);
+        }
+
+        /// <summary>
+        /// Converts an <see cref="ExpandedNodeId"/> to a <see cref="NodeId"/>
+        /// using a namespace table.
+        /// </summary>
+        /// <param name="nodeId">The ExpandedNodeId to convert to a NodeId</param>
+        /// <param name="namespaceTable">The namespace table that contains all
+        /// the namespaces needed to resolve the namespace index as encoded within
+        /// this object. </param>
+        public static NodeId ToNodeId(
+            ExpandedNodeId nodeId,
+            NamespaceTable namespaceTable)
+        {
+            // check for null.
+            if (nodeId.IsNull)
+            {
+                return NodeId.Null;
+            }
+
+            // return a reference to the internal node id object.
+            if (string.IsNullOrEmpty(nodeId.NamespaceUri) &&
+                nodeId.ServerIndex == 0)
+            {
+                return nodeId.m_nodeId;
+            }
+
+            // create copy.
+            NodeId localId = nodeId.m_nodeId;
+
+            int index = -1;
+
+            if (namespaceTable != null)
+            {
+                index = namespaceTable.GetIndex(nodeId.NamespaceUri);
+            }
+
+            if (index < 0)
+            {
+                // TODO: Should throw because the value will likely not be tested for null
+                return NodeId.Null;
+            }
+
+            return localId.WithNamespaceIndex((ushort)index);
+        }
+
+        /// <summary>
+        /// Formats a NodeId as a string.
+        /// </summary>
+        /// <param name="context">The current context.</param>
+        /// <param name="useUris">The NamespaceUri and/or ServerUri is used instead of the indexes.</param>
+        /// <returns>The formatted identifier.</returns>
+        public string Format(IServiceMessageContext context, bool useUris = false)
+        {
+            if (m_nodeId.IsNullNodeId)
+            {
+                return null;
+            }
+
+            var buffer = new StringBuilder();
+
+            if (ServerIndex > 0)
+            {
+                if (useUris)
+                {
+                    string serverUri = context.ServerUris.GetString(ServerIndex);
+
+                    if (!string.IsNullOrEmpty(serverUri))
+                    {
+                        buffer.Append("svu=")
+                            .Append(CoreUtils.EscapeUri(serverUri))
+                            .Append(';');
+                    }
+                    else
+                    {
+                        buffer.Append("svr=")
+                            .Append(ServerIndex)
+                            .Append(';');
+                    }
+                }
+                else
+                {
+                    buffer.Append("svr=")
+                        .Append(ServerIndex)
+                        .Append(';');
+                }
+            }
+
+            if (!string.IsNullOrEmpty(NamespaceUri))
+            {
+                buffer.Append("nsu=")
+                    .Append(CoreUtils.EscapeUri(NamespaceUri))
+                    .Append(';');
+            }
+
+            string id = m_nodeId.Format(context, useUris);
+            buffer.Append(id);
+
+            return buffer.ToString();
+        }
+
+        /// <summary>
+        /// Parses an absolute NodeId formatted as a string and converts it a local NodeId.
+        /// </summary>
+        /// <param name="text">The text to parse.</param>
+        /// <param name="namespaceUris">The current namespace table.</param>
+        /// <returns>The local identifier.</returns>
+        /// <exception cref="ServiceResultException">Thrown if the namespace URI is not in the namespace table.</exception>
+        public static NodeId Parse(string text, NamespaceTable namespaceUris)
+        {
+            ExpandedNodeId expandedNodeId = Parse(text);
+
+            if (!expandedNodeId.IsAbsolute)
+            {
+                return expandedNodeId.m_nodeId;
+            }
+
+            NodeId nodeId = ToNodeId(expandedNodeId, namespaceUris);
+            if (nodeId.IsNullNodeId)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNodeIdInvalid,
+                    "NamespaceUri ({0}) is not in the namespace table.",
+                    expandedNodeId.NamespaceUri);
+            }
+            return nodeId;
         }
 
         /// <summary>
@@ -508,14 +846,14 @@ namespace Opc.Ua
         /// </summary>
         public void Format(IFormatProvider formatProvider, StringBuilder buffer)
         {
-            if (InnerNodeId != null)
+            if (!m_nodeId.IsNullNodeId)
             {
                 Format(
                     formatProvider,
                     buffer,
-                    InnerNodeId.Identifier,
-                    InnerNodeId.IdType,
-                    InnerNodeId.NamespaceIndex,
+                    m_nodeId.IdentifierAsString,
+                    m_nodeId.IdType,
+                    m_nodeId.NamespaceIndex,
                     NamespaceUri,
                     ServerIndex);
             }
@@ -537,7 +875,7 @@ namespace Opc.Ua
         /// </summary>
         public static void Format(
             StringBuilder buffer,
-            object identifier,
+            string identifierAsString,
             IdType identifierType,
             ushort namespaceIndex,
             string namespaceUri,
@@ -546,7 +884,7 @@ namespace Opc.Ua
             Format(
                 CultureInfo.InvariantCulture,
                 buffer,
-                identifier,
+                identifierAsString,
                 identifierType,
                 namespaceIndex,
                 namespaceUri,
@@ -559,7 +897,7 @@ namespace Opc.Ua
         public static void Format(
             IFormatProvider formatProvider,
             StringBuilder buffer,
-            object identifier,
+            string identifierAsString,
             IdType identifierType,
             ushort namespaceIndex,
             string namespaceUri,
@@ -577,7 +915,12 @@ namespace Opc.Ua
                     .Append(';');
             }
 
-            NodeId.Format(formatProvider, buffer, identifier, identifierType, namespaceIndex);
+            NodeId.Format(
+                formatProvider,
+                buffer,
+                identifierAsString,
+                identifierType,
+                namespaceIndex);
         }
 
         /// <summary>
@@ -590,14 +933,15 @@ namespace Opc.Ua
             NamespaceTable targetNamespaces)
         {
             // parse the string.
-            ExpandedNodeId nodeId = Parse(text);
+            ExpandedNodeId expandedNodeId = Parse(text);
 
             // lookup the namespace uri.
-            string uri = nodeId.NamespaceUri;
+            string uri = expandedNodeId.NamespaceUri;
 
-            if (nodeId.InnerNodeId.NamespaceIndex != 0)
+            if (expandedNodeId.m_nodeId.NamespaceIndex != 0)
             {
-                uri = currentNamespaces.GetString(nodeId.InnerNodeId.NamespaceIndex);
+                uri = currentNamespaces.GetString(
+                    expandedNodeId.m_nodeId.NamespaceIndex);
             }
 
             // translate the namespace uri.
@@ -619,18 +963,13 @@ namespace Opc.Ua
             }
 
             // check for absolute node id.
-            if (nodeId.ServerIndex != 0)
+            if (expandedNodeId.ServerIndex != 0)
             {
-                nodeId.InnerNodeId = new NodeId(nodeId.InnerNodeId.Identifier, 0);
-                nodeId.NamespaceUri = uri;
-                return nodeId;
+                return expandedNodeId.WithNamespaceUri(uri);
             }
 
             // local node id.
-            nodeId.InnerNodeId = new NodeId(nodeId.InnerNodeId.Identifier, namespaceIndex);
-            nodeId.NamespaceUri = null;
-
-            return nodeId;
+            return expandedNodeId.WithNamespaceIndex(namespaceIndex);
         }
 
         /// <summary>
@@ -683,6 +1022,155 @@ namespace Opc.Ua
             out NodeIdParseError error)
         {
             return InternalTryParse(text, out value, out error);
+        }
+
+        /// <summary>
+        /// Tries to parse an ExpandedNodeId formatted as a string and converts it to an ExpandedNodeId.
+        /// </summary>
+        /// <param name="context">The current context.</param>
+        /// <param name="text">The text to parse.</param>
+        /// <param name="value">The parsed ExpandedNodeId if successful, otherwise ExpandedNodeId.Null.</param>
+        /// <returns>True if the parsing was successful, false otherwise.</returns>
+        public static bool TryParse(
+            IServiceMessageContext context,
+            string text,
+            out ExpandedNodeId value)
+        {
+            return InternalTryParseWithContext(context, text, null, out value, out _);
+        }
+
+        /// <summary>
+        /// Tries to parse an ExpandedNodeId formatted as a string and converts
+        /// it to an ExpandedNodeId.
+        /// </summary>
+        /// <param name="context">The current context.</param>
+        /// <param name="text">The text to parse.</param>
+        /// <param name="options">The options to use when parsing the ExpandedNodeId.</param>
+        /// <param name="value">The parsed ExpandedNodeId if successful,
+        /// otherwise ExpandedNodeId.Null.</param>
+        /// <returns>True if the parsing was successful, false otherwise.</returns>
+        public static bool TryParse(
+            IServiceMessageContext context,
+            string text,
+            NodeIdParsingOptions options,
+            out ExpandedNodeId value)
+        {
+            return InternalTryParseWithContext(context, text, options, out value, out _);
+        }
+
+        /// <summary>
+        /// Tries to parse an ExpandedNodeId formatted as a string and converts
+        /// it to an ExpandedNodeId.
+        /// </summary>
+        /// <param name="context">The current context.</param>
+        /// <param name="text">The text to parse.</param>
+        /// <param name="options">The options to use when parsing the ExpandedNodeId.</param>
+        /// <param name="value">The parsed ExpandedNodeId if successful,
+        /// otherwise ExpandedNodeId.Null.</param>
+        /// <param name="error">Parse error</param>
+        /// <returns>True if the parsing was successful, false otherwise.</returns>
+        public static bool TryParse(
+            IServiceMessageContext context,
+            string text,
+            NodeIdParsingOptions options,
+            out ExpandedNodeId value,
+            out NodeIdParseError error)
+        {
+            return InternalTryParseWithContext(context, text, options, out value, out error);
+        }
+
+        /// <summary>
+        /// Parses an ExpandedNodeId formatted as a string and converts it a local NodeId.
+        /// </summary>
+        /// <param name="context">The current context,</param>
+        /// <param name="text">The text to parse.</param>
+        /// <param name="options">The options to use when parsing the ExpandedNodeId.</param>
+        /// <returns>The local identifier.</returns>
+        /// <exception cref="ServiceResultException">Thrown if the namespace URI
+        /// is not in the namespace table.</exception>
+        public static ExpandedNodeId Parse(
+            IServiceMessageContext context,
+            string text,
+            NodeIdParsingOptions options = null)
+        {
+            if (!InternalTryParseWithContext(
+                context,
+                text,
+                options,
+                out ExpandedNodeId value,
+                out NodeIdParseError error))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNodeIdInvalid,
+                    "Cannot parse expanded node id text: '{0}' Error: {1}",
+                    text,
+                    error);
+            }
+            return value;
+        }
+
+        /// <summary>
+        /// Unescapes any reserved characters in the uri.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        internal static void UnescapeUri(
+            string text,
+            int start,
+            int index,
+            StringBuilder buffer)
+        {
+            for (int ii = start; ii < index; ii++)
+            {
+                char ch = text[ii];
+
+                switch (ch)
+                {
+                    case '%':
+                        if (ii + 2 >= index)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadNodeIdInvalid,
+                                "Invalid escaped character in namespace uri.");
+                        }
+
+                        ushort value = 0;
+
+                        int digit = kHexDigits.IndexOf(
+                            char.ToUpperInvariant(text[++ii]),
+                            StringComparison.Ordinal);
+
+                        if (digit == -1)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadNodeIdInvalid,
+                                "Invalid escaped character in namespace uri.");
+                        }
+
+                        value += (ushort)digit;
+                        value <<= 4;
+
+                        digit = kHexDigits.IndexOf(
+                            char.ToUpperInvariant(text[++ii]),
+                            StringComparison.Ordinal);
+
+                        if (digit == -1)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadNodeIdInvalid,
+                                "Invalid escaped character in namespace uri.");
+                        }
+
+                        value += (ushort)digit;
+
+                        char unencodedChar = Convert.ToChar(value);
+
+                        buffer.Append(unencodedChar);
+                        break;
+                    default:
+                        buffer.Append(ch);
+                        break;
+                }
+            }
         }
 
         /// <summary>
@@ -773,91 +1261,6 @@ namespace Opc.Ua
             value = new ExpandedNodeId(innerNodeId, namespaceUri, serverIndex);
 
             return true;
-        }
-
-        /// <summary>
-        /// Tries to parse an ExpandedNodeId formatted as a string and converts it to an ExpandedNodeId.
-        /// </summary>
-        /// <param name="context">The current context.</param>
-        /// <param name="text">The text to parse.</param>
-        /// <param name="value">The parsed ExpandedNodeId if successful, otherwise ExpandedNodeId.Null.</param>
-        /// <returns>True if the parsing was successful, false otherwise.</returns>
-        public static bool TryParse(
-            IServiceMessageContext context,
-            string text,
-            out ExpandedNodeId value)
-        {
-            return InternalTryParseWithContext(context, text, null, out value, out _);
-        }
-
-        /// <summary>
-        /// Tries to parse an ExpandedNodeId formatted as a string and converts
-        /// it to an ExpandedNodeId.
-        /// </summary>
-        /// <param name="context">The current context.</param>
-        /// <param name="text">The text to parse.</param>
-        /// <param name="options">The options to use when parsing the ExpandedNodeId.</param>
-        /// <param name="value">The parsed ExpandedNodeId if successful,
-        /// otherwise ExpandedNodeId.Null.</param>
-        /// <returns>True if the parsing was successful, false otherwise.</returns>
-        public static bool TryParse(
-            IServiceMessageContext context,
-            string text,
-            NodeIdParsingOptions options,
-            out ExpandedNodeId value)
-        {
-            return InternalTryParseWithContext(context, text, options, out value, out _);
-        }
-
-        /// <summary>
-        /// Tries to parse an ExpandedNodeId formatted as a string and converts
-        /// it to an ExpandedNodeId.
-        /// </summary>
-        /// <param name="context">The current context.</param>
-        /// <param name="text">The text to parse.</param>
-        /// <param name="options">The options to use when parsing the ExpandedNodeId.</param>
-        /// <param name="value">The parsed ExpandedNodeId if successful,
-        /// otherwise ExpandedNodeId.Null.</param>
-        /// <param name="error">Parse error</param>
-        /// <returns>True if the parsing was successful, false otherwise.</returns>
-        public static bool TryParse(
-            IServiceMessageContext context,
-            string text,
-            NodeIdParsingOptions options,
-            out ExpandedNodeId value,
-            out NodeIdParseError error)
-        {
-            return InternalTryParseWithContext(context, text, options, out value, out error);
-        }
-
-        /// <summary>
-        /// Parses an ExpandedNodeId formatted as a string and converts it a local NodeId.
-        /// </summary>
-        /// <param name="context">The current context,</param>
-        /// <param name="text">The text to parse.</param>
-        /// <param name="options">The options to use when parsing the ExpandedNodeId.</param>
-        /// <returns>The local identifier.</returns>
-        /// <exception cref="ServiceResultException">Thrown if the namespace URI
-        /// is not in the namespace table.</exception>
-        public static ExpandedNodeId Parse(
-            IServiceMessageContext context,
-            string text,
-            NodeIdParsingOptions options = null)
-        {
-            if (!InternalTryParseWithContext(
-                context,
-                text,
-                options,
-                out ExpandedNodeId value,
-                out NodeIdParseError error))
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadNodeIdInvalid,
-                    "Cannot parse expanded node id text: '{0}' Error: {1}",
-                    text,
-                    error);
-            }
-            return value;
         }
 
         /// <summary>
@@ -965,11 +1368,13 @@ namespace Opc.Ua
 
             if (namespaceIndex > 0)
             {
+#pragma warning disable CS0618 // Type or member is obsolete
                 value = new ExpandedNodeId(
                     nodeId.Identifier,
                     (ushort)namespaceIndex,
                     null,
                     (uint)serverIndex);
+#pragma warning restore CS0618 // Type or member is obsolete
             }
             else
             {
@@ -980,579 +1385,36 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Unescapes any reserved characters in the uri.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        internal static void UnescapeUri(string text, int start, int index, StringBuilder buffer)
-        {
-            for (int ii = start; ii < index; ii++)
-            {
-                char ch = text[ii];
-
-                switch (ch)
-                {
-                    case '%':
-                        if (ii + 2 >= index)
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadNodeIdInvalid,
-                                "Invalid escaped character in namespace uri.");
-                        }
-
-                        ushort value = 0;
-
-                        int digit = kHexDigits.IndexOf(
-                            char.ToUpperInvariant(text[++ii]),
-                            StringComparison.Ordinal);
-
-                        if (digit == -1)
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadNodeIdInvalid,
-                                "Invalid escaped character in namespace uri.");
-                        }
-
-                        value += (ushort)digit;
-                        value <<= 4;
-
-                        digit = kHexDigits.IndexOf(
-                            char.ToUpperInvariant(text[++ii]),
-                            StringComparison.Ordinal);
-
-                        if (digit == -1)
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadNodeIdInvalid,
-                                "Invalid escaped character in namespace uri.");
-                        }
-
-                        value += (ushort)digit;
-
-                        char unencodedChar = Convert.ToChar(value);
-
-                        buffer.Append(unencodedChar);
-                        break;
-                    default:
-                        buffer.Append(ch);
-                        break;
-                }
-            }
-        }
-
-        /// <summary>
         /// The set of hexadecimal digits used for decoding escaped URIs.
         /// </summary>
         private const string kHexDigits = "0123456789ABCDEF";
 
-        /// <inheritdoc/>
-        public int CompareTo(object obj)
-        {
-            // check for null.
-            if (obj is null)
-            {
-                return -1;
-            }
-
-            // check for reference comparisons.
-            if (ReferenceEquals(this, obj))
-            {
-                return 0;
-            }
-
-            // just compare node ids.
-            if (!IsAbsolute && InnerNodeId != null)
-            {
-                return InnerNodeId.CompareTo(obj);
-            }
-
-            var nodeId = obj as NodeId;
-
-            // check for expanded node ids.
-            var expandedId = obj as ExpandedNodeId;
-
-            if (expandedId != null)
-            {
-                if (IsNull && expandedId.IsNull)
-                {
-                    return 0;
-                }
-
-                if (ServerIndex != expandedId.ServerIndex)
-                {
-                    return ServerIndex.CompareTo(expandedId.ServerIndex);
-                }
-
-                if (NamespaceUri != expandedId.NamespaceUri)
-                {
-                    if (NamespaceUri != null)
-                    {
-                        return string.CompareOrdinal(NamespaceUri, expandedId.NamespaceUri);
-                    }
-
-                    return -1;
-                }
-
-                nodeId = expandedId.InnerNodeId;
-            }
-
-            // check for null.
-            if (InnerNodeId != null)
-            {
-                return InnerNodeId.CompareTo(nodeId);
-            }
-
-            // compare node ids.
-            return nodeId == null ? 0 : -1;
-        }
-
-        /// <inheritdoc/>
-        public static bool operator >(ExpandedNodeId value1, object value2)
-        {
-            if (value1 is not null)
-            {
-                return value1.CompareTo(value2) > 0;
-            }
-
-            return false;
-        }
-
-        /// <inheritdoc/>
-        public static bool operator <(ExpandedNodeId value1, object value2)
-        {
-            if (value1 is not null)
-            {
-                return value1.CompareTo(value2) < 0;
-            }
-            return true;
-        }
-
-        /// <inheritdoc/>
-        public static bool operator >=(ExpandedNodeId left, ExpandedNodeId right)
-        {
-            return right is null || right.CompareTo(left) <= 0;
-        }
-
-        /// <inheritdoc/>
-        public static bool operator <=(ExpandedNodeId left, ExpandedNodeId right)
-        {
-            return left is null || left.CompareTo(right) <= 0;
-        }
-
-        /// <inheritdoc/>
-        public override bool Equals(object obj)
-        {
-            return CompareTo(obj) == 0;
-        }
-        /// <inheritdoc/>
-        public override int GetHashCode()
-        {
-            if (InnerNodeId == null || InnerNodeId.IsNullNodeId)
-            {
-                return 0;
-            }
-
-            // just compare node ids.
-            if (!IsAbsolute)
-            {
-                return InnerNodeId.GetHashCode();
-            }
-
-            var hash = new HashCode();
-
-            if (ServerIndex != 0)
-            {
-                hash.Add(ServerIndex);
-            }
-
-            if (NamespaceUri != null)
-            {
-                hash.Add(NamespaceUri);
-            }
-
-            hash.Add(InnerNodeId);
-
-            return hash.ToHashCode();
-        }
-
-        /// <inheritdoc/>
-        public static bool operator ==(ExpandedNodeId value1, object value2)
-        {
-            if (value1 is null)
-            {
-                return value2 is null;
-            }
-
-            return value1.CompareTo(value2) == 0;
-        }
-
-        /// <inheritdoc/>
-        public static bool operator !=(ExpandedNodeId value1, object value2)
-        {
-            if (value1 is null)
-            {
-                return value2 is not null;
-            }
-
-            return value1.CompareTo(value2) != 0;
-        }
-
-        /// <inheritdoc/>
-        public bool Equals(ExpandedNodeId other)
-        {
-            return CompareTo(other) == 0;
-        }
-
-        /// <inheritdoc/>
-        public string ToString(string format, IFormatProvider formatProvider)
-        {
-            if (format == null)
-            {
-                return Format(formatProvider);
-            }
-
-            throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
-        }
-
-        /// <inheritdoc/>
-        public object Clone()
-        {
-            return MemberwiseClone();
-        }
-
         /// <summary>
-        /// Makes a deep copy of the object.
+        /// Inner data structure to hold the additional data
+        /// for an expanded node id.
         /// </summary>
-        /// <remarks>
-        /// Returns a reference to *this* object. This means that no copy is being made of this object.
-        /// </remarks>
-        public new object MemberwiseClone()
+        internal struct Inner
         {
-            // this object cannot be altered after it is created so no new allocation is necessary.
-            return this;
+            public object NamespaceUri;
+
+            /// <summary> Padding </summary>
+            public uint Reserved;
+
+            public uint ServerIndex;
         }
-
-        /// <inheritdoc/>
-        public override string ToString()
-        {
-            return ToString(null, null);
-        }
-
-        /// <summary>
-        /// Converts an expanded node id to a node id using a namespace table.
-        /// </summary>
-        /// <remarks>
-        /// Converts an <see cref="ExpandedNodeId"/> to a <see cref="NodeId"/> using a namespace table.
-        /// </remarks>
-        /// <param name="nodeId">The ExpandedNodeId to convert to a NodeId</param>
-        /// <param name="namespaceTable">The namespace table that contains all the namespaces needed to resolve the namespace index as encoded within this object.</param>
-        public static NodeId ToNodeId(ExpandedNodeId nodeId, NamespaceTable namespaceTable)
-        {
-            // check for null.
-            if (nodeId == null)
-            {
-                return null;
-            }
-
-            // return a reference to the internal node id object.
-            if (string.IsNullOrEmpty(nodeId.NamespaceUri) && nodeId.ServerIndex == 0)
-            {
-                return nodeId.InnerNodeId;
-            }
-
-            // create copy.
-            var localId = new NodeId(nodeId.InnerNodeId);
-
-            int index = -1;
-
-            if (namespaceTable != null)
-            {
-                index = namespaceTable.GetIndex(nodeId.NamespaceUri);
-            }
-
-            if (index < 0)
-            {
-                return null;
-            }
-
-            localId.SetNamespaceIndex((ushort)index);
-
-            return localId;
-        }
-
-        /// <summary>
-        /// Updates the namespace index.
-        /// </summary>
-        internal void SetNamespaceIndex(ushort namespaceIndex)
-        {
-            InnerNodeId.SetNamespaceIndex(namespaceIndex);
-            NamespaceUri = null;
-        }
-
-        /// <summary>
-        /// Updates the namespace uri.
-        /// </summary>
-        internal void SetNamespaceUri(string uri)
-        {
-            InnerNodeId.SetNamespaceIndex(0);
-            NamespaceUri = uri;
-        }
-
-        /// <summary>
-        /// Updates the server index.
-        /// </summary>
-        internal void SetServerIndex(uint serverIndex)
-        {
-            ServerIndex = serverIndex;
-        }
-
-        /// <summary>
-        /// Formats a NodeId as a string.
-        /// </summary>
-        /// <param name="context">The current context.</param>
-        /// <param name="useUris">The NamespaceUri and/or ServerUri is used instead of the indexes.</param>
-        /// <returns>The formatted identifier.</returns>
-        public string Format(IServiceMessageContext context, bool useUris = false)
-        {
-            if (NodeId.IsNull(InnerNodeId))
-            {
-                return null;
-            }
-
-            var buffer = new StringBuilder();
-
-            if (ServerIndex > 0)
-            {
-                if (useUris)
-                {
-                    string serverUri = context.ServerUris.GetString(ServerIndex);
-
-                    if (!string.IsNullOrEmpty(serverUri))
-                    {
-                        buffer.Append("svu=")
-                            .Append(CoreUtils.EscapeUri(serverUri))
-                            .Append(';');
-                    }
-                    else
-                    {
-                        buffer.Append("svr=")
-                            .Append(ServerIndex)
-                            .Append(';');
-                    }
-                }
-                else
-                {
-                    buffer.Append("svr=")
-                        .Append(ServerIndex)
-                        .Append(';');
-                }
-            }
-
-            if (!string.IsNullOrEmpty(NamespaceUri))
-            {
-                buffer.Append("nsu=")
-                    .Append(CoreUtils.EscapeUri(NamespaceUri))
-                    .Append(';');
-            }
-
-            string id = InnerNodeId.Format(context, useUris);
-            buffer.Append(id);
-
-            return buffer.ToString();
-        }
-
-        /// <summary>
-        /// Parses an absolute NodeId formatted as a string and converts it a local NodeId.
-        /// </summary>
-        /// <param name="text">The text to parse.</param>
-        /// <param name="namespaceUris">The current namespace table.</param>
-        /// <returns>The local identifier.</returns>
-        /// <exception cref="ServiceResultException">Thrown if the namespace URI is not in the namespace table.</exception>
-        public static NodeId Parse(string text, NamespaceTable namespaceUris)
-        {
-            ExpandedNodeId nodeId = Parse(text);
-
-            if (!nodeId.IsAbsolute)
-            {
-                return nodeId.InnerNodeId;
-            }
-
-            return ToNodeId(nodeId, namespaceUris)
-                ?? throw ServiceResultException.Create(
-                    StatusCodes.BadNodeIdInvalid,
-                    "NamespaceUri ({0}) is not in the namespace table.",
-                    nodeId.NamespaceUri);
-        }
-
-        /// <summary>
-        /// Converts an ExpandedNodeId to a NodeId.
-        /// </summary>
-        /// <exception cref="InvalidCastException">Thrown if the ExpandedNodeId is an absolute node identifier.</exception>
-        public static explicit operator NodeId(ExpandedNodeId value)
-        {
-            if (value == null)
-            {
-                return null;
-            }
-
-            if (value.IsAbsolute)
-            {
-                throw new InvalidCastException(
-                    "Cannot cast an absolute ExpandedNodeId to a NodeId. Use ExpandedNodeId.ToNodeId instead.");
-            }
-
-            return value.InnerNodeId;
-        }
-
-        /// <summary>
-        /// Converts an integer to a numeric node identifier.
-        /// </summary>
-        public static implicit operator ExpandedNodeId(uint value)
-        {
-            return new ExpandedNodeId(value);
-        }
-
-        /// <summary>
-        /// Converts a guid to a guid node identifier.
-        /// </summary>
-        public static implicit operator ExpandedNodeId(Guid value)
-        {
-            return new ExpandedNodeId(value);
-        }
-
-        /// <summary>
-        /// Converts a byte array to an opaque node identifier.
-        /// </summary>
-        public static implicit operator ExpandedNodeId(byte[] value)
-        {
-            return new ExpandedNodeId(value);
-        }
-
-        /// <summary>
-        /// Parses a node id string and initializes a node id.
-        /// </summary>
-        public static implicit operator ExpandedNodeId(string text)
-        {
-            return new ExpandedNodeId(text);
-        }
-
-        /// <summary>
-        /// Converts a NodeId to an ExpandedNodeId
-        /// </summary>
-        public static implicit operator ExpandedNodeId(NodeId nodeId)
-        {
-            return new ExpandedNodeId(nodeId);
-        }
-
-        /// <summary>
-        /// Returns an instance of a null ExpandedNodeId.
-        /// </summary>
-        public static ExpandedNodeId Null { get; } = new ExpandedNodeId();
-
-        /// <summary>
-        /// Parses a expanded node id string and sets the properties.
-        /// </summary>
-        /// <param name="text">The ExpandedNodeId value as a string.</param>
-        /// <exception cref="ServiceResultException"></exception>
-        /// <exception cref="ArgumentException"></exception>
-        private void InternalParse(string text)
-        {
-            if (!InternalTryParseAndSet(text, out NodeIdParseError error))
-            {
-                // Check if this should be an ArgumentException based on the error message
-                if (error is NodeIdParseError.InvalidNamespaceUri or NodeIdParseError.IdentifierMissing)
-                {
-                    throw new ArgumentException(error.ToString());
-                }
-
-                throw ServiceResultException.Create(
-                    StatusCodes.BadNodeIdInvalid,
-                    "Cannot parse expanded node id text: '{0}' Error: {1}", text, error);
-            }
-        }
-
-        /// <summary>
-        /// Tries to parse a expanded node id string and sets the properties on this instance.
-        /// </summary>
-        /// <param name="text">The ExpandedNodeId value as a string.</param>
-        /// <param name="error">Error message if parsing fails.</param>
-        /// <returns>True if parsing was successful, false otherwise.</returns>
-        private bool InternalTryParseAndSet(string text, out NodeIdParseError error)
-        {
-            uint serverIndex = 0;
-            string namespaceUri = null;
-
-            try
-            {
-                // parse the server index if present.
-                if (text.StartsWith("svr=", StringComparison.Ordinal))
-                {
-                    int index = text.IndexOf(';', StringComparison.Ordinal);
-
-                    if (index == -1)
-                    {
-                        error = NodeIdParseError.InvalidServerIndex;
-                        return false;
-                    }
-
-                    if (!uint.TryParse(text[4..index], NumberStyles.None, CultureInfo.InvariantCulture, out serverIndex))
-                    {
-                        error = NodeIdParseError.InvalidServerIndex;
-                        return false;
-                    }
-
-                    text = text[(index + 1)..];
-                }
-
-                // parse the namespace uri if present.
-                if (text.StartsWith("nsu=", StringComparison.Ordinal))
-                {
-                    int index = text.IndexOf(';', StringComparison.Ordinal);
-
-                    if (index == -1)
-                    {
-                        error = NodeIdParseError.InvalidNamespaceUri;
-                        return false;
-                    }
-
-                    var buffer = new StringBuilder();
-                    UnescapeUri(text, 4, index, buffer);
-                    namespaceUri = buffer.ToString();
-                    text = text[(index + 1)..];
-                }
-            }
-            catch
-            {
-                error = NodeIdParseError.Unexpected;
-                return false;
-            }
-
-            // parse the node id.
-            if (!NodeId.InternalTryParse(
-                text,
-                serverIndex != 0 || !string.IsNullOrEmpty(namespaceUri),
-                out NodeId innerNodeId,
-                out error))
-            {
-                return false;
-            }
-
-            // set the properties.
-            InnerNodeId = innerNodeId;
-            NamespaceUri = namespaceUri;
-            SetServerIndex(serverIndex);
-
-            return true;
-        }
+#pragma warning disable IDE0032 // Use auto property
+        private readonly NodeId m_nodeId;
+        private readonly Inner m_data;
+#pragma warning restore IDE0032 // Use auto property
     }
 
     /// <summary>
-    /// A collection of ExpandedNodeId objects.
+    /// List of expanded node ids
     /// </summary>
     [CollectionDataContract(
         Name = "ListOfExpandedNodeId",
         Namespace = Namespaces.OpcUaXsd,
-        ItemName = "ExpandedNodeId"
-    )]
+        ItemName = "ExpandedNodeId")]
     public class ExpandedNodeIdCollection : List<ExpandedNodeId>, ICloneable
     {
         /// <summary>
@@ -1590,28 +1452,12 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// This static method converts an array of <see cref="ExpandedNodeId"/> objects to
-        /// an <see cref="ExpandedNodeIdCollection"/>.
-        /// </remarks>
-        /// <param name="values">An array of <see cref="ExpandedNodeId"/> values to return as a collection</param>
-        public static ExpandedNodeIdCollection ToExpandedNodeIdCollection(ExpandedNodeId[] values)
+        /// <param name="values">An array of <see cref="ExpandedNodeId"/>
+        /// values to return as a collection</param>
+        public static implicit operator ExpandedNodeIdCollection(
+            ExpandedNodeId[] values)
         {
-            if (values != null)
-            {
-                return [.. values];
-            }
-
-            return [];
-        }
-
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
-        /// <param name="values">An array of <see cref="ExpandedNodeId"/> values to return as a collection</param>
-        public static implicit operator ExpandedNodeIdCollection(ExpandedNodeId[] values)
-        {
-            return ToExpandedNodeIdCollection(values);
+            return values == null ? [] : [.. values];
         }
 
         /// <inheritdoc/>
@@ -1629,10 +1475,145 @@ namespace Opc.Ua
 
             foreach (ExpandedNodeId element in this)
             {
-                clone.Add(CoreUtils.Clone(element));
+                clone.Add(element);
             }
 
             return clone;
+        }
+    }
+
+    /// <summary>
+    /// Helper to allow data contract serialization of ExpadedNodeId
+    /// </summary>
+    [DataContract(
+        Name = "ExpandedNodeId",
+        Namespace = Namespaces.OpcUaXsd)]
+    public class SerializableExpandedNodeId :
+        ISurrogateFor<ExpandedNodeId>,
+        IEquatable<ExpandedNodeId>,
+        IEquatable<SerializableExpandedNodeId>
+    {
+        /// <inheritdoc/>
+        public SerializableExpandedNodeId()
+        {
+            Value = default;
+        }
+
+        /// <inheritdoc/>
+        public SerializableExpandedNodeId(ExpandedNodeId value)
+        {
+            Value = value;
+        }
+
+        /// <inheritdoc/>
+        public ExpandedNodeId Value { get; private set; }
+
+        /// <inheritdoc/>
+        public object GetValue()
+        {
+            return Value;
+        }
+
+        /// <summary>
+        /// The node identifier formatted as a URI.
+        /// </summary>
+        [DataMember(Name = "Identifier", Order = 1, IsRequired = true)]
+        internal string IdentifierText
+        {
+            get => Value.Format(CultureInfo.InvariantCulture);
+            set => Value = ExpandedNodeId.Parse(value);
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object obj)
+        {
+            return obj switch
+            {
+                SerializableExpandedNodeId s => Equals(s),
+                ExpandedNodeId n => Equals(n),
+                _ => Value.Equals(obj)
+            };
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(ExpandedNodeId obj)
+        {
+            return Value.Equals(obj);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(SerializableExpandedNodeId obj)
+        {
+            return Value.Equals(obj?.Value ?? default);
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return Value.GetHashCode();
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(
+            SerializableExpandedNodeId left,
+            SerializableExpandedNodeId right)
+        {
+            return left is null ? right is null : left.Equals(right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(
+            SerializableExpandedNodeId left,
+            SerializableExpandedNodeId right)
+        {
+            return !(left == right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(
+            SerializableExpandedNodeId left,
+            ExpandedNodeId right)
+        {
+            return left is null ? right.IsNull : left.Equals(right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(
+            SerializableExpandedNodeId left,
+            ExpandedNodeId right)
+        {
+            return !(left == right);
+        }
+
+        /// <inheritdoc/>
+        public static implicit operator SerializableExpandedNodeId(
+            ExpandedNodeId expandedNodeId)
+        {
+            return new SerializableExpandedNodeId(expandedNodeId);
+        }
+
+        /// <inheritdoc/>
+        public static implicit operator ExpandedNodeId(
+            SerializableExpandedNodeId expandedNodeId)
+        {
+            return expandedNodeId.Value;
+        }
+
+        /// <inheritdoc/>
+        public static explicit operator string(
+            SerializableExpandedNodeId expandedNodeId)
+        {
+            return expandedNodeId.IdentifierText;
+        }
+
+        /// <inheritdoc/>
+        public static explicit operator SerializableExpandedNodeId(
+            string expandedNodeId)
+        {
+            return new SerializableExpandedNodeId
+            {
+                IdentifierText = expandedNodeId
+            };
         }
     }
 }

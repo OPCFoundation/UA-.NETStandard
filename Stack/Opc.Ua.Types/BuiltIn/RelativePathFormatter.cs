@@ -113,7 +113,7 @@ namespace Opc.Ua
                 // check reference type name.
                 QualifiedName qname = element.ReferenceTypeName;
 
-                if (qname != null &&
+                if (!qname.IsNullQn &&
                     qname.NamespaceIndex > 1 &&
                     qname.NamespaceIndex < mappings.Length &&
                     mappings[qname.NamespaceIndex] == -1)
@@ -125,7 +125,7 @@ namespace Opc.Ua
                 // check target name.
                 qname = element.TargetName;
 
-                if (qname != null &&
+                if (!qname.IsNullQn &&
                     qname.NamespaceIndex > 1 &&
                     qname.NamespaceIndex < mappings.Length &&
                     mappings[qname.NamespaceIndex] == -1)
@@ -168,7 +168,7 @@ namespace Opc.Ua
             {
                 QualifiedName qname = element.ReferenceTypeName;
 
-                if (qname != null && qname.NamespaceIndex > 0)
+                if (!qname.IsNullQn && qname.NamespaceIndex > 0)
                 {
                     if (qname.NamespaceIndex < mappings.Length &&
                         mappings[qname.NamespaceIndex] > 0)
@@ -189,7 +189,7 @@ namespace Opc.Ua
 
                 qname = element.TargetName;
 
-                if (qname != null && qname.NamespaceIndex > 0)
+                if (!qname.IsNullQn && qname.NamespaceIndex > 0)
                 {
                     if (qname.NamespaceIndex < mappings.Length &&
                         mappings[qname.NamespaceIndex] > 0)
@@ -430,7 +430,7 @@ namespace Opc.Ua
                             break;
                         case ElementType.ForwardReference:
                         case ElementType.InverseReference:
-                            if (ReferenceTypeName != null &&
+                            if (!ReferenceTypeName.IsNullQn &&
                                 !string.IsNullOrEmpty(ReferenceTypeName.Name))
                             {
                                 path.Append('<');
@@ -464,7 +464,7 @@ namespace Opc.Ua
                     }
 
                     // write the target browse name component.
-                    if (TargetName != null && !string.IsNullOrEmpty(TargetName.Name))
+                    if (!TargetName.IsNullQn && !string.IsNullOrEmpty(TargetName.Name))
                     {
                         if (TargetName.NamespaceIndex != 0)
                         {

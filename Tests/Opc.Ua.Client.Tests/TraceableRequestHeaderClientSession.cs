@@ -85,10 +85,10 @@ namespace Opc.Ua.Client
                 {
 #if NET8_0_OR_GREATER
                     SpanId = BitConverter.ToUInt64(spanId),
-                    TraceId = (Uuid)new Guid(traceId)
+                    TraceId = new Guid(traceId)
 #else
                     SpanId = BitConverter.ToUInt64(spanId.ToArray(), 0),
-                    TraceId = (Uuid)new Guid(traceId.ToArray())
+                    TraceId = new Uuid(traceId.ToArray())
 #endif
                 })
             };
@@ -107,12 +107,12 @@ namespace Opc.Ua.Client
                     Activity.Current.Context,
                     out AdditionalParametersType traceData);
 
-                if (request.RequestHeader.AdditionalHeader == null)
+                if (request.RequestHeader.AdditionalHeader.IsNull)
                 {
                     request.RequestHeader.AdditionalHeader = new ExtensionObject(traceData);
                 }
-                else if (request.RequestHeader.AdditionalHeader
-                    .Body is AdditionalParametersType existingParameters)
+                else if (request.RequestHeader.AdditionalHeader.TryGetEncodeable(
+                    out AdditionalParametersType existingParameters))
                 {
                     // Merge the trace data into the existing parameters.
                     existingParameters.Parameters.AddRange(traceData.Parameters);

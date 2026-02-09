@@ -40,8 +40,7 @@ using Opc.Ua.Server;
 
 namespace Quickstarts
 {
-    public class UAServer<T>
-        where T : StandardServer, new()
+    public class UAServer<T> where T : StandardServer
     {
         public IApplicationInstance Application { get; private set; }
 
@@ -59,8 +58,9 @@ namespace Quickstarts
         /// Ctor of the server.
         /// </summary>
         /// <param name="telemetry">The telemetry context.</param>
-        public UAServer(ITelemetryContext telemetry)
+        public UAServer(ITelemetryContext telemetry, Func<ITelemetryContext, T> factory)
         {
+            m_factory = factory;
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<UAServer<T>>();
         }
@@ -139,7 +139,7 @@ namespace Quickstarts
             try
             {
                 // create the server.
-                Server = new T();
+                Server = m_factory(m_telemetry);
                 if (nodeManagerFactories != null)
                 {
                     foreach (INodeManagerFactory factory in nodeManagerFactories)
@@ -163,7 +163,7 @@ namespace Quickstarts
             try
             {
                 // create the server.
-                Server ??= new T();
+                Server ??= m_factory(m_telemetry);
 
                 // start the server
                 await Application.StartAsync(Server).ConfigureAwait(false);
@@ -358,6 +358,7 @@ namespace Quickstarts
             }
         }
 
+        private readonly Func<ITelemetryContext, T> m_factory;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
         private Task m_status;

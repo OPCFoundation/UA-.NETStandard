@@ -174,9 +174,9 @@ namespace Opc.Ua
         {
             var clone = (ReferenceNode)base.MemberwiseClone();
 
-            clone.ReferenceTypeId = CoreUtils.Clone(ReferenceTypeId);
+            clone.ReferenceTypeId = ReferenceTypeId;
             clone.IsInverse = CoreUtils.Clone(IsInverse);
-            clone.TargetId = CoreUtils.Clone(TargetId);
+            clone.TargetId = TargetId;
 
             return clone;
         }
@@ -275,9 +275,9 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public int CompareTo(ReferenceNode obj)
         {
-            if (ReferenceTypeId is null)
+            if (ReferenceTypeId.IsNullNodeId)
             {
-                return obj?.ReferenceTypeId is null ? 0 : -1;
+                return obj?.ReferenceTypeId.IsNullNodeId == true ? 0 : -1;
             }
 
             int result = ReferenceTypeId.CompareTo(obj.ReferenceTypeId);
@@ -292,9 +292,9 @@ namespace Opc.Ua
                 return IsInverse ? +1 : -1;
             }
 
-            if (TargetId is null)
+            if (TargetId.IsNull)
             {
-                return obj.TargetId is null ? 0 : -1;
+                return obj.TargetId.IsNull ? 0 : -1;
             }
 
             return TargetId.CompareTo(obj.TargetId);

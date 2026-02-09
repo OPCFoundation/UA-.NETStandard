@@ -9,7 +9,7 @@
   <Folder Name="/Fuzzing/">
     <File Path="Fuzzing/Fuzzing.md" />
   </Folder>
-  <Folder Name="/Fuzzing/common/" />
+  <Folder Name="/Fuzzing/Common/" />
   <Folder Name="/Fuzzing/common/Fuzz.Tools/">
     <File Path="Fuzzing/common/Fuzz.Tools/Playback.cs" />
     <File Path="Fuzzing/common/Fuzz.Tools/Program.cs" />
@@ -19,7 +19,7 @@
     <File Path="Fuzzing/common/Fuzz/FuzzMethods.cs" />
     <File Path="Fuzzing/common/Fuzz/Program.cs" />
   </Folder>
-  <Folder Name="/Fuzzing/dictionaries/">
+  <Folder Name="/Fuzzing/Dictionaries/">
     <File Path="Fuzzing/dictionaries/json.dict" />
     <File Path="Fuzzing/dictionaries/xml.dict" />
   </Folder>
@@ -28,7 +28,7 @@
     <Project Path="Fuzzing/Encoders/Fuzz.Tools/Encoders.Fuzz.Tools.csproj" />
     <Project Path="Fuzzing/Encoders/Fuzz/Encoders.Fuzz.csproj" />
   </Folder>
-  <Folder Name="/Fuzzing/scripts/">
+  <Folder Name="/Fuzzing/Scripts/">
     <File Path="Fuzzing/scripts/fuzz-afl.ps1" />
     <File Path="Fuzzing/scripts/fuzz-libfuzzer.ps1" />
     <File Path="Fuzzing/scripts/install.sh" />
@@ -39,6 +39,7 @@
     <Project Path="Libraries/Opc.Ua.Client/Opc.Ua.Client.csproj" />
     <Project Path="Libraries/Opc.Ua.Configuration/Opc.Ua.Configuration.csproj" />
     <Project Path="Libraries/Opc.Ua.Gds.Client.Common/Opc.Ua.Gds.Client.Common.csproj" />
+    <Project Path="Libraries/Opc.Ua.Gds.Common/Opc.Ua.Gds.Common.csproj" />
     <Project Path="Libraries/Opc.Ua.Gds.Server.Common/Opc.Ua.Gds.Server.Common.csproj" />
     <Project Path="Libraries/Opc.Ua.PubSub/Opc.Ua.PubSub.csproj" />
     <Project Path="Libraries/Opc.Ua.Security.Certificates/Opc.Ua.Security.Certificates.csproj" />
@@ -65,13 +66,13 @@
     <File Path="version.json" />
     <File Path="version.props" />
   </Folder>
-  <Folder Name="/Solution Items/actions/">
+  <Folder Name="/Solution Items/Actions/">
     <File Path=".github/workflows/buildandtest.yml" />
     <File Path=".github/workflows/codeql-analysis.yml" />
     <File Path=".github/workflows/docker-image.yml" />
     <File Path=".github/workflows/stability-test.yml" />
   </Folder>
-  <Folder Name="/Solution Items/azurepipelines/">
+  <Folder Name="/Solution Items/Azurepipelines/">
     <File Path=".azurepipelines/ci.yml" />
     <File Path=".azurepipelines/get-matrix.ps1" />
     <File Path=".azurepipelines/get-root.ps1" />
@@ -83,7 +84,7 @@
     <File Path=".azurepipelines/test.yml" />
     <File Path=".azurepipelines/testcc.yml" />
   </Folder>
-  <Folder Name="/Solution Items/nuget/">
+  <Folder Name="/Solution Items/Nuget/">
     <File Path="nuget/Opc.Ua.nuspec" />
     <File Path="nuget/Opc.Ua.Symbols.nuspec" />
   </Folder>
@@ -100,10 +101,16 @@
     <File Path="Docs/NugetREADME.md" />
     <File Path="Docs/README.md" />
   </Folder>
+  <Folder Name="/SourceGeneration/">
+    <Project Path="Tools/Opc.Ua.SourceGeneration.Core/Opc.Ua.SourceGeneration.Core.csproj" />
+    <Project Path="Tools/Opc.Ua.SourceGeneration.Stack/Opc.Ua.SourceGeneration.Stack.csproj" />
+    <Project Path="Tools/Opc.Ua.SourceGeneration/Opc.Ua.SourceGeneration.csproj" />
+  </Folder>
   <Folder Name="/Stack/">
     <Project Path="Stack/Opc.Ua.Bindings.Https/Opc.Ua.Bindings.Https.csproj" />
     <Project Path="Stack/Opc.Ua.Core/Opc.Ua.Core.csproj" />
     <Project Path="Stack/Opc.Ua.Types/Opc.Ua.Types.csproj" />
+    <Project Path="Stack/Opc.Ua/Opc.Ua.csproj" />
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="Tests/Opc.Ua.Client.ComplexTypes.Tests/Opc.Ua.Client.ComplexTypes.Tests.csproj" />
@@ -114,6 +121,9 @@
     <Project Path="Tests/Opc.Ua.PubSub.Tests/Opc.Ua.PubSub.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Security.Certificates.Tests/Opc.Ua.Security.Certificates.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Server.Tests/Opc.Ua.Server.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.SourceGeneration.Core.Tests/Opc.Ua.SourceGeneration.Core.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.SourceGeneration.Stack.Tests/Opc.Ua.SourceGeneration.Stack.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.SourceGeneration.Tests/Opc.Ua.SourceGeneration.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Types.Tests/Opc.Ua.Types.Tests.csproj" />
   </Folder>
 </Solution>

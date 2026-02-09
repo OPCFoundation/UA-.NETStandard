@@ -101,7 +101,7 @@ namespace Alarms
             base.Initialize(alarmTypeIdentifier, name);
 
             alarm.SetActiveState(SystemContext, active: false);
-            alarm.InputNode.Value = new NodeId(m_trigger.NodeId);
+            alarm.InputNode.Value = m_trigger.NodeId;
 
             if (Optional)
             {

@@ -244,7 +244,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             WriteFieldData(
                 "Guid",
                 NamespaceIndexAllTypes,
-                new DataValue(new Variant(Guid.NewGuid()), StatusCodes.Good, DateTime.UtcNow)
+                new DataValue(new Variant(Uuid.NewUuid()), StatusCodes.Good, DateTime.UtcNow)
             );
             WriteFieldData(
                 "DateTime",
@@ -502,7 +502,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                 case BuiltInType.Guid:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        dataValue.Value = Guid.NewGuid();
+                        dataValue.Value = Uuid.NewUuid();
                         valueUpdated = true;
                     }
                     break;

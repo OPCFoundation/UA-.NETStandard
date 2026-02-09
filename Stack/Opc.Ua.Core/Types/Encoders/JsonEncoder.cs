@@ -1114,22 +1114,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Writes a GUID to the stream.
-        /// </summary>
-        public void WriteGuid(string fieldName, Guid value)
-        {
-            if (fieldName != null && !IncludeDefaultValues && value == Guid.Empty)
-            {
-                return;
-            }
-
-            WriteSimpleField(
-                fieldName,
-                value.ToString(),
-                EscapeOptions.Quotes | EscapeOptions.NoValueEscape);
-        }
-
-        /// <summary>
         /// Writes a byte string to the stream.
         /// </summary>
         public void WriteByteString(string fieldName, byte[] value)
@@ -1307,39 +1291,27 @@ namespace Opc.Ua
             {
                 WriteInt32("IdType", (int)value.IdType);
             }
-
-            switch (value.IdType)
+            if (value.TryGetIdentifier(out uint numericId))
             {
-                case IdType.Numeric:
-                    WriteUInt32("Id", (uint)value.Identifier);
-                    break;
-                case IdType.String:
-                    WriteString("Id", (string)value.Identifier);
-                    break;
-                case IdType.Guid:
-                    if (value.Identifier is Guid guidIdentifier)
-                    {
-                        WriteGuid("Id", guidIdentifier);
-                    }
-                    else if (value.Identifier is Uuid uuidIdentifier)
-                    {
-                        WriteGuid("Id", uuidIdentifier);
-                    }
-                    else
-                    {
-                        throw new ServiceResultException(
-                            StatusCodes.BadEncodingError,
-                            "Invalid Identifier type to encode as Guid NodeId.");
-                    }
-                    break;
-                case IdType.Opaque:
-                    WriteByteString("Id", (byte[])value.Identifier);
-                    break;
-                default:
-                    throw ServiceResultException.Unexpected(
-                        $"Unexpected Node IdType {value.IdType}");
+                WriteUInt32("Id", numericId);
             }
-
+            else if (value.TryGetIdentifier(out string stringId))
+            {
+                WriteString("Id", stringId);
+            }
+            else if (value.TryGetIdentifier(out Guid guidIdentifier))
+            {
+                WriteGuid("Id", guidIdentifier);
+            }
+            else if (value.TryGetIdentifier(out byte[] opaqueId))
+            {
+                WriteByteString("Id", opaqueId);
+            }
+            else
+            {
+                throw ServiceResultException.Unexpected(
+                    $"Unexpected Node IdType {value.IdType}");
+            }
             if (namespaceUri != null)
             {
                 WriteString("Namespace", namespaceUri);
@@ -1355,7 +1327,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteNodeId(string fieldName, NodeId value)
         {
-            bool isNull = value == null || NodeId.IsNull(value);
+            bool isNull = value.IsNullNodeId;
 
             if (fieldName != null && isNull && !IncludeDefaultValues)
             {
@@ -1395,7 +1367,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteExpandedNodeId(string fieldName, ExpandedNodeId value)
         {
-            bool isNull = NodeId.IsNull(value);
+            bool isNull = value.IsNull;
 
             if (fieldName != null && isNull && !IncludeDefaultValues)
             {
@@ -1481,7 +1453,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteQualifiedName(string fieldName, QualifiedName value)
         {
-            bool isNull = QualifiedName.IsNull(value);
+            bool isNull = value.IsNullQn;
 
             if (fieldName != null && isNull && !IncludeDefaultValues)
             {
@@ -1513,7 +1485,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteLocalizedText(string fieldName, LocalizedText value)
         {
-            bool isNull = LocalizedText.IsNullOrEmpty(value);
+            bool isNull = value.IsNullOrEmpty;
 
             if (fieldName != null && isNull && !IncludeDefaultValues)
             {
@@ -1556,9 +1528,9 @@ namespace Opc.Ua
         public void WriteVariant(string fieldName, Variant value)
         {
             bool isNull =
-                value.TypeInfo == null ||
+                value.TypeInfo.IsUnknown ||
                 value.TypeInfo.BuiltInType == BuiltInType.Null ||
-                value.Value == null;
+                value.IsNull;
 
             if (EncodingToUse is JsonEncodingType.Compact or JsonEncodingType.Verbose)
             {
@@ -1648,9 +1620,9 @@ namespace Opc.Ua
                 CheckAndIncrementNestingLevel();
 
                 bool isNull =
-                    value.TypeInfo == null ||
+                    value.TypeInfo.IsUnknown ||
                     value.TypeInfo.BuiltInType == BuiltInType.Null ||
-                    value.Value == null;
+                    value.IsNull;
 
                 if (!isNull)
                 {
@@ -1710,7 +1682,7 @@ namespace Opc.Ua
 
             if (!isNull)
             {
-                if (value.WrappedValue.TypeInfo != null &&
+                if (!value.WrappedValue.TypeInfo.IsUnknown &&
                     value.WrappedValue.TypeInfo.BuiltInType != BuiltInType.Null)
                 {
                     if (EncodingToUse is not JsonEncodingType.Compact and not JsonEncodingType.Verbose)
@@ -1766,7 +1738,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteExtensionObject(string fieldName, ExtensionObject value)
         {
-            bool isNull = value == null || value.Encoding == ExtensionObjectEncoding.None;
+            bool isNull = value.IsNull || value.Encoding == ExtensionObjectEncoding.None;
 
             if (fieldName != null && isNull && !IncludeDefaultValues)
             {
@@ -1805,7 +1777,7 @@ namespace Opc.Ua
 
             PushStructure(fieldName);
 
-            ExpandedNodeId typeId = !NodeId.IsNull(value.TypeId)
+            ExpandedNodeId typeId = !value.TypeId.IsNull
                 ? value.TypeId
                 : encodeable?.TypeId ?? NodeId.Null;
             var localTypeId = ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris);
@@ -1814,7 +1786,7 @@ namespace Opc.Ua
             {
                 if (encodeable != null)
                 {
-                    if (!SuppressArtifacts && !NodeId.IsNull(localTypeId))
+                    if (!SuppressArtifacts && !localTypeId.IsNullNodeId)
                     {
                         WriteNodeId("UaTypeId", localTypeId);
                     }
@@ -1823,7 +1795,7 @@ namespace Opc.Ua
                 }
                 else if (value.Body is JObject json)
                 {
-                    if (!SuppressArtifacts && !NodeId.IsNull(localTypeId))
+                    if (!SuppressArtifacts && !localTypeId.IsNullNodeId)
                     {
                         WriteNodeId("UaTypeId", localTypeId);
                         m_writer.Write(kComma);
@@ -1834,7 +1806,7 @@ namespace Opc.Ua
                 }
                 else if (value.Encoding == ExtensionObjectEncoding.Binary)
                 {
-                    if (!SuppressArtifacts && !NodeId.IsNull(localTypeId))
+                    if (!SuppressArtifacts && !localTypeId.IsNullNodeId)
                     {
                         WriteNodeId("UaTypeId", localTypeId);
                     }
@@ -1844,7 +1816,7 @@ namespace Opc.Ua
                 }
                 else if (value.Encoding == ExtensionObjectEncoding.Xml)
                 {
-                    if (!SuppressArtifacts && !NodeId.IsNull(localTypeId))
+                    if (!SuppressArtifacts && !localTypeId.IsNullNodeId)
                     {
                         WriteNodeId("UaTypeId", localTypeId);
                     }
@@ -2347,33 +2319,6 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         public void WriteGuidArray(string fieldName, IList<Uuid> values)
-        {
-            if (CheckForSimpleFieldNull(fieldName, values))
-            {
-                return;
-            }
-
-            PushArray(fieldName);
-
-            // check the length.
-            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-            {
-                throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-            }
-
-            for (int ii = 0; ii < values.Count; ii++)
-            {
-                WriteGuid(null, values[ii]);
-            }
-
-            PopArray();
-        }
-
-        /// <summary>
-        /// Writes a GUID array to the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public void WriteGuidArray(string fieldName, IList<Guid> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -3499,8 +3444,7 @@ namespace Opc.Ua
 
                 if (EncodingToUse is JsonEncodingType.NonReversible or JsonEncodingType.Verbose)
                 {
-                    string symbolicId = value.GetSymbolicId();
-
+                    string symbolicId = value.SymbolicId;
                     if (!string.IsNullOrEmpty(symbolicId))
                     {
                         WriteSimpleField(

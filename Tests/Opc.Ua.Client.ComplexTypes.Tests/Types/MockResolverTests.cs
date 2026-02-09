@@ -915,7 +915,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             ExpandedNodeId typeId,
             Type enumType)
         {
-            if (NodeId.IsNull(typeId) || enumType == null)
+            if (typeId.IsNull || enumType == null)
             {
                 return;
             }

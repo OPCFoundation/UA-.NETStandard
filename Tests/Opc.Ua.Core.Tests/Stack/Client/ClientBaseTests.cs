@@ -38,7 +38,6 @@ using System.Threading;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Stack.Client
 {
@@ -61,8 +60,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [SetUp]
         public void SetUp()
         {
-            m_telemetry = NUnitTelemetryContext.Create();
             m_loggerProvider = new TestLoggerProvider();
+            m_telemetry = DefaultTelemetry.Create(
+                configure => configure.AddProvider(m_loggerProvider));
             m_messageContextMock = new Mock<IServiceMessageContext>();
             m_messageContextMock
                 .Setup(m => m.Telemetry)
@@ -147,7 +147,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 }
             };
 
-            m_meterListener!.StartListening(sut.TestMeter!);
+            m_meterListener!.StartListening(sut.ClientBaseMeter!);
 
             // Act
             sut.TestUpdateRequestHeader(request, true, "Read");
@@ -175,7 +175,6 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             // Arrange
             using var sut = new TestableClientBase(m_transportChannelMock!.Object, m_telemetry!);
             sut.ActivityTraceFlags = ClientTraceFlags.Log;
-            sut.TestLogger = m_loggerProvider!.CreateLogger("ClientBase");
 
             var request = new ReadRequest { RequestHeader = new RequestHeader() };
             var response = new ReadResponse
@@ -277,7 +276,6 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             // Arrange
             using var sut = new TestableClientBase(m_transportChannelMock!.Object, m_telemetry!);
             sut.ActivityTraceFlags = ClientTraceFlags.Metrics | ClientTraceFlags.Log;
-            sut.TestLogger = m_loggerProvider!.CreateLogger("ClientBase");
 
             var request = new ReadRequest { RequestHeader = new RequestHeader() };
             var response = new ReadResponse
@@ -289,7 +287,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 }
             };
 
-            m_meterListener!.StartListening(sut.TestMeter!);
+            m_meterListener!.StartListening(sut.ClientBaseMeter!);
 
             // Act
             sut.TestUpdateRequestHeader(request, true, "Read");
@@ -319,7 +317,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             };
 
             var activityListener = new TestActivityListener();
-            m_meterListener!.StartListening(sut.TestMeter!);
+            m_meterListener!.StartListening(sut.ClientBaseMeter!);
 
             // Act
             using (Activity activity = new Activity("TestActivity").Start())
@@ -345,7 +343,6 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 ClientTraceFlags.Traces |
                 ClientTraceFlags.Log |
                 ClientTraceFlags.EventLog;
-            sut.TestLogger = m_loggerProvider!.CreateLogger("ClientBase");
 
             var request = new ReadRequest { RequestHeader = new RequestHeader() };
             var response = new ReadResponse
@@ -358,7 +355,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             };
 
             var activityListener = new TestActivityListener();
-            m_meterListener!.StartListening(sut.TestMeter!);
+            m_meterListener!.StartListening(sut.ClientBaseMeter!);
 
             // Act
             using (Activity activity = new Activity("TestActivity").Start())
@@ -369,7 +366,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
             // Assert - all should be recorded
             Assert.That(m_meterListener.RecordedMeasurements.Count, Is.GreaterThan(0));
-            Assert.That(m_loggerProvider.LogEntries.Count, Is.GreaterThan(0));
+            Assert.That(m_loggerProvider!.LogEntries.Count, Is.GreaterThan(0));
             Assert.That(activityListener.RecordedEvents.Count, Is.GreaterThan(0));
 
             activityListener.Dispose();
@@ -381,7 +378,6 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             // Arrange
             using var sut = new TestableClientBase(m_transportChannelMock!.Object, m_telemetry!);
             sut.ActivityTraceFlags = ClientTraceFlags.Log;
-            sut.TestLogger = m_loggerProvider!.CreateLogger("ClientBase");
 
             var request = new ReadRequest { RequestHeader = new RequestHeader() };
             var response = new ReadResponse
@@ -441,10 +437,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         private sealed class TestableClientBase : ClientBase
         {
             public TestableClientBase(ITransportChannel channel, ITelemetryContext telemetry)
-                : base(channel)
+                : base(channel, telemetry)
             {
-                m_logger = telemetry.CreateLogger<TestableClientBase>();
-                m_meter = new Meter("Opc.Ua.Client.Test", "1.0.0");
             }
 
             public void TestUpdateRequestHeader(IServiceRequest request, bool useDefaults)
@@ -462,13 +456,13 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 RequestCompleted(request, response, serviceName);
             }
 
-            public ILogger TestLogger
-            {
-                get => m_logger;
-                set => m_logger = value;
-            }
-
-            public Meter? TestMeter => m_meter;
+            public Meter? ClientBaseMeter =>
+                (Meter?)typeof(ClientBase)
+                    .GetField(
+                        "m_meter",
+                        System.Reflection.BindingFlags.NonPublic |
+                        System.Reflection.BindingFlags.Instance)?
+                    .GetValue(this);
         }
 
         /// <summary>

@@ -133,7 +133,7 @@ namespace Opc.Ua.Sample
         /// <returns>True if the namespace is one of the nodes.</returns>
         protected virtual bool IsNodeIdInNamespace(NodeId nodeId)
         {
-            if (NodeId.IsNull(nodeId))
+            if (nodeId.IsNullNodeId)
             {
                 return false;
             }
@@ -211,7 +211,7 @@ namespace Opc.Ua.Sample
 
                 NodeState parent = null;
 
-                if (parentId != null)
+                if (!parentId.IsNullNodeId)
                 {
                     if (!PredefinedNodes.TryGetValue(parentId, out parent))
                     {
@@ -567,7 +567,7 @@ namespace Opc.Ua.Sample
                     IReference reference = references[ii];
 
                     // nothing to do with external nodes.
-                    if (reference.TargetId == null || reference.TargetId.IsAbsolute)
+                    if (reference.TargetId.IsNull || reference.TargetId.IsAbsolute)
                     {
                         continue;
                     }
@@ -647,7 +647,7 @@ namespace Opc.Ua.Sample
         /// </summary>
         protected void AddTypesToTypeTree(BaseTypeState type)
         {
-            if (!NodeId.IsNull(type.SuperTypeId) && !Server.TypeTree.IsKnown(type.SuperTypeId))
+            if (!type.SuperTypeId.IsNullNodeId && !Server.TypeTree.IsKnown(type.SuperTypeId))
             {
                 AddTypesToTypeTree(type.SuperTypeId);
             }
@@ -679,9 +679,10 @@ namespace Opc.Ua.Sample
         /// Finds the specified node and checks if it is of the expected type.
         /// </summary>
         /// <returns>Returns null if not found or not of the correct type.</returns>
+        [Obsolete("Use FindPredefinedNode<T> instead.")]
         public NodeState FindPredefinedNode(NodeId nodeId, Type expectedType)
         {
-            if (nodeId == null)
+            if (nodeId.IsNullNodeId)
             {
                 return null;
             }
@@ -706,7 +707,7 @@ namespace Opc.Ua.Sample
         /// <returns>Returns null if not found or not of the correct type.</returns>
         public T FindPredefinedNode<T>(NodeId nodeId) where T : NodeState
         {
-            if (nodeId == null)
+            if (nodeId.IsNullNodeId)
             {
                 return null;
             }

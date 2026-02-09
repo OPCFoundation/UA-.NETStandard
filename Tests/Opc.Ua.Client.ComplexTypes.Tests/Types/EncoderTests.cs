@@ -98,7 +98,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             (nodeId, complexType) = TypeDictionary[structureType];
             object emittedType = Activator.CreateInstance(complexType);
             var baseType = emittedType as BaseComplexType;
-            FillStructWithValues(baseType, true);
+            FillStructWithValues(baseType, true, NameSpaceUris);
             EncodeDecodeComplexType(
                 EncoderContext,
                 memoryStreamType,
@@ -153,7 +153,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 emittedType);
             TestContext.Out.WriteLine(
                 $"Optional Field: {structureFieldParameter.BuiltInType} is null, all other fields have random values.");
-            FillStructWithValues(baseType, true);
+            FillStructWithValues(baseType, true, NameSpaceUris);
             baseType[structureFieldParameter.Name] = null;
             EncodeDecodeComplexType(
                 EncoderContext,
@@ -229,12 +229,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             MemoryStreamType memoryStreamType,
             StructureType structureType)
         {
-            ExpandedNodeId nodeId;
-            Type complexType;
-            (nodeId, complexType) = TypeDictionary[structureType];
-            object emittedType = Activator.CreateInstance(complexType);
+            (_, Type complexType) = TypeDictionary[structureType];
+            var emittedType = Activator.CreateInstance(complexType) as IEncodeable;
             var baseType = emittedType as BaseComplexType;
-            FillStructWithValues(baseType, true);
+            FillStructWithValues(baseType, true, NameSpaceUris);
 
             var extensionObject = new ExtensionObject(emittedType);
 
@@ -242,25 +240,19 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             var localCtxt = (ServiceMessageContext)EncoderContext;
 
-            // Serialize/Encode a Variant fails without a context available
-            Assert.Throws<Newtonsoft.Json.JsonSerializationException>(() =>
-                Newtonsoft.Json.JsonConvert.SerializeObject(keyValuePair));
-
-            // Serialize/Encode an ExtensionObject fails without a context available
-            var extObjToEncode = new ExtensionObject(keyValuePair);
-            Assert.Throws<Newtonsoft.Json.JsonSerializationException>(() =>
-                Newtonsoft.Json.JsonConvert.SerializeObject(extObjToEncode));
-
-            // Serialize/Encode a Variant succeeds with a context available
-            using (AmbientMessageContext.SetScopedContext(localCtxt))
-            {
-                _ = Newtonsoft.Json.JsonConvert.SerializeObject(keyValuePair);
-            }
-
             // Serialize/Encode an ExtensionObject succeeds with a context available
             using (AmbientMessageContext.SetScopedContext(localCtxt))
             {
                 _ = Newtonsoft.Json.JsonConvert.SerializeObject(extensionObject);
+            }
+
+            // Serialize/Encode a Variant succeeds with a context available
+            using (AmbientMessageContext.SetScopedContext(localCtxt))
+            {
+                _ = Newtonsoft.Json.JsonConvert.SerializeObject(keyValuePair, new Newtonsoft.Json.JsonSerializerSettings
+                {
+                    ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore // Uses equality which does not work with Variant.
+                });
             }
         }
     }

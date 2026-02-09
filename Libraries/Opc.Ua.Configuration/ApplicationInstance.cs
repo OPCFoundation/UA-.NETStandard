@@ -849,7 +849,7 @@ namespace Opc.Ua.Configuration
                     serverDomainNames)
                 .SetLifeTime(lifeTimeInMonths);
 
-            if (id.CertificateType == null ||
+            if (id.CertificateType.IsNullNodeId ||
                 id.CertificateType == ObjectTypeIds.ApplicationCertificateType ||
                 id.CertificateType == ObjectTypeIds.RsaMinApplicationCertificateType ||
                 id.CertificateType == ObjectTypeIds.RsaSha256ApplicationCertificateType)

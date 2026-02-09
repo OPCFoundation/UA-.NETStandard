@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 using System.Xml;
 using System.Xml.Schema;
@@ -47,27 +46,19 @@ namespace Opc.Ua.Schema.Xml
         /// <summary>
         /// Intializes the object with default values.
         /// </summary>
-        public XmlSchemaValidator()
+        public XmlSchemaValidator(
+            IFileSystem fileSystem = null,
+            IDictionary<string, string> knownFiles = null)
+            : base(fileSystem, knownFiles, null)
         {
-            SetResourcePaths(WellKnownDictionaries);
-        }
-
-        /// <summary>
-        /// Intializes the object with a file table.
-        /// </summary>
-        public XmlSchemaValidator(IDictionary<string, string> fileTable)
-            : base(fileTable)
-        {
-            SetResourcePaths(WellKnownDictionaries);
         }
 
         /// <summary>
         /// Intializes the object with a import table.
         /// </summary>
-        public XmlSchemaValidator(IDictionary<string, byte[]> importTable)
-            : base(importTable)
+        public XmlSchemaValidator(IReadOnlyDictionary<string, byte[]> importTable)
+            : base(null, null, importTable)
         {
-            SetResourcePaths(WellKnownDictionaries);
         }
 
         /// <summary>
@@ -85,7 +76,7 @@ namespace Opc.Ua.Schema.Xml
         /// </summary>
         public void Validate(string inputPath, ILogger logger)
         {
-            using Stream istrm = File.OpenRead(inputPath);
+            using Stream istrm = FileSystem.OpenRead(inputPath);
             Validate(istrm, logger);
         }
 
@@ -94,32 +85,12 @@ namespace Opc.Ua.Schema.Xml
         /// </summary>
         public void Validate(Stream stream, ILogger logger)
         {
-            var handler = new ValidationEventHandler((sender, e) => OnValidate(sender, e, logger));
-            using var xmlReader = XmlReader.Create(stream, CoreUtils.DefaultXmlReaderSettings());
-            TargetSchema = XmlSchema.Read(xmlReader, handler);
+            var handler = new ValidationEventHandler((_, e) => OnValidate(e, logger));
+            TargetSchema = Load(stream, handler);
 
-            Assembly assembly = typeof(XmlSchemaValidator).GetTypeInfo().Assembly;
             foreach (XmlSchemaImport import in TargetSchema.Includes.OfType<XmlSchemaImport>())
             {
-                if (!KnownFiles.TryGetValue(import.Namespace, out string location))
-                {
-                    location = import.SchemaLocation;
-                }
-
-                var fileInfo = new FileInfo(location);
-                XmlReaderSettings settings = CoreUtils.DefaultXmlReaderSettings();
-                if (!fileInfo.Exists)
-                {
-                    using var strm = new StreamReader(assembly.GetManifestResourceStream(location));
-                    using var schemaReader = XmlReader.Create(strm, settings);
-                    import.Schema = XmlSchema.Read(schemaReader, handler);
-                }
-                else
-                {
-                    using Stream strm = File.OpenRead(location);
-                    using var schemaReader = XmlReader.Create(strm, settings);
-                    import.Schema = XmlSchema.Read(schemaReader, handler);
-                }
+                import.Schema = Load(import.SchemaLocation, import.Namespace, handler);
             }
 
             SchemaSet = new XmlSchemaSet();
@@ -171,18 +142,10 @@ namespace Opc.Ua.Schema.Xml
         /// Handles a validation error.
         /// </summary>
         /// <exception cref="InvalidOperationException"></exception>
-        private static void OnValidate(object sender, ValidationEventArgs args, ILogger logger)
+        private static void OnValidate(ValidationEventArgs args, ILogger logger)
         {
             logger.LogError("Error in XML schema validation: {Message}", args.Message);
             throw new InvalidOperationException(args.Message, args.Exception);
         }
-
-        /// <summary>
-        /// The well known schemas embedded in the assembly.
-        /// </summary>
-        protected static readonly string[][] WellKnownDictionaries =
-        [
-            [Namespaces.OpcUaXsd, "Opc.Ua.Schema.Opc.Ua.Types.xsd"]
-        ];
     }
 }

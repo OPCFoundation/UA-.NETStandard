@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using Opc.Ua;
 using Opc.Ua.Sample;
 using Opc.Ua.Server;
@@ -120,7 +119,7 @@ namespace Boiler
 
             string name = Utils.Format("Boiler #{0}", unitNumber);
 
-            boiler.Create(context, null, new QualifiedName(name, m_namespaceIndex), null, true);
+            boiler.Create(context, default, new QualifiedName(name, m_namespaceIndex), null, true);
 
             NodeState folder = FindPredefinedNode<NodeState>(
                 ExpandedNodeId.ToNodeId(ObjectIds.Boilers, Server.NamespaceUris));
@@ -159,7 +158,7 @@ namespace Boiler
         {
             LocalizedText displayName = instance.DisplayName;
 
-            if (displayName != null)
+            if (!displayName.IsNullOrEmpty)
             {
                 string text = displayName.Text;
 
@@ -179,13 +178,7 @@ namespace Boiler
         /// </summary>
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
-            var predefinedNodes = new NodeStateCollection();
-            predefinedNodes.LoadFromBinaryResource(
-                context,
-                "Quickstarts.Servers.Boiler.Generated.Boiler.PredefinedNodes.uanodes",
-                GetType().GetTypeInfo().Assembly,
-                true);
-            return predefinedNodes;
+            return new NodeStateCollection().AddBoiler(context);
         }
 
         /// <summary>
@@ -202,24 +195,22 @@ namespace Boiler
 
             NodeId typeId = passiveNode.TypeDefinitionId;
 
-            if (!IsNodeIdInNamespace(typeId) || typeId.IdType != IdType.Numeric)
+            if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetIdentifier(out uint typeIdNumeric))
             {
                 return predefinedNode;
             }
 
-            switch ((uint)typeId.Identifier)
+            switch (typeIdNumeric)
             {
                 case ObjectTypes.BoilerType:
-                    if (passiveNode is BoilerState)
+                    if (passiveNode is not BoilerState activeNode)
                     {
-                        break;
+                        activeNode = new BoilerState(passiveNode.Parent);
+                        activeNode.Create(context, passiveNode);
+
+                        // replace the node in the parent.
+                        passiveNode.Parent?.ReplaceChild(context, activeNode);
                     }
-
-                    var activeNode = new BoilerState(passiveNode.Parent);
-                    activeNode.Create(context, passiveNode);
-
-                    // replace the node in the parent.
-                    passiveNode.Parent?.ReplaceChild(context, activeNode);
 
                     // Autostart boiler simulation state machine
                     MethodState start = activeNode.Simulation.Start;

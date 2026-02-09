@@ -110,7 +110,8 @@ namespace Opc.Ua
             {
                 encoder.SetMappingTables(NamespaceUris, ServerUris);
 
-                if (Message.TypeId == null || Message.TypeId.IdType != IdType.Numeric)
+                if (Message.TypeId.IsNull ||
+                    !Message.TypeId.TryGetIdentifier(out uint numericId))
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadEncodingError,
@@ -118,7 +119,7 @@ namespace Opc.Ua
                         Message.TypeId);
                 }
 
-                encoder.WriteUInt32("ServiceId", (uint)Message.TypeId.Identifier);
+                encoder.WriteUInt32("ServiceId", numericId);
                 encoder.WriteEncodeable("Body", Message, null);
             }
             else

@@ -13,11 +13,11 @@
         <EnumDataTypes />
         <SimpleDataTypes />
         <Name>Simple</Name>
-        <Description i:nil="true" />
+        <Description />
         <Fields>
           <FieldMetaData>
             <Name>BoolToggle</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>1</BuiltInType>
             <DataType>
@@ -33,7 +33,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Int32</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>6</BuiltInType>
             <DataType>
@@ -49,7 +49,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Int32Fast</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>6</BuiltInType>
             <DataType>
@@ -65,7 +65,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>DateTime</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>13</BuiltInType>
             <DataType>
@@ -221,11 +221,11 @@
         <EnumDataTypes />
         <SimpleDataTypes />
         <Name>AllTypes</Name>
-        <Description i:nil="true" />
+        <Description />
         <Fields>
           <FieldMetaData>
             <Name>BoolToggle</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>1</BuiltInType>
             <DataType>
@@ -241,7 +241,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Byte</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>3</BuiltInType>
             <DataType>
@@ -257,7 +257,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Int16</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>4</BuiltInType>
             <DataType>
@@ -273,7 +273,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Int32</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>6</BuiltInType>
             <DataType>
@@ -289,7 +289,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>SByte</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>2</BuiltInType>
             <DataType>
@@ -305,7 +305,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>UInt16</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>5</BuiltInType>
             <DataType>
@@ -321,7 +321,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>UInt32</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -337,7 +337,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Float</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>10</BuiltInType>
             <DataType>
@@ -353,7 +353,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Double</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>11</BuiltInType>
             <DataType>
@@ -542,11 +542,11 @@
         <EnumDataTypes />
         <SimpleDataTypes />
         <Name>MassTest</Name>
-        <Description i:nil="true" />
+        <Description />
         <Fields>
           <FieldMetaData>
             <Name>Mass_0</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -562,7 +562,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_1</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -578,7 +578,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_2</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -594,7 +594,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_3</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -610,7 +610,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_4</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -626,7 +626,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_5</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -642,7 +642,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_6</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -658,7 +658,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_7</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -674,7 +674,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_8</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -690,7 +690,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_9</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -706,7 +706,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_10</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -722,7 +722,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_11</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -738,7 +738,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_12</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -754,7 +754,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_13</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -770,7 +770,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_14</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -786,7 +786,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_15</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -802,7 +802,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_16</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -818,7 +818,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_17</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -834,7 +834,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_18</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -850,7 +850,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_19</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -866,7 +866,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_20</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -882,7 +882,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_21</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -898,7 +898,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_22</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -914,7 +914,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_23</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -930,7 +930,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_24</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -946,7 +946,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_25</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -962,7 +962,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_26</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -978,7 +978,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_27</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -994,7 +994,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_28</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1010,7 +1010,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_29</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1026,7 +1026,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_30</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1042,7 +1042,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_31</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1058,7 +1058,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_32</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1074,7 +1074,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_33</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1090,7 +1090,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_34</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1106,7 +1106,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_35</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1122,7 +1122,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_36</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1138,7 +1138,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_37</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1154,7 +1154,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_38</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1170,7 +1170,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_39</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1186,7 +1186,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_40</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1202,7 +1202,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_41</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1218,7 +1218,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_42</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1234,7 +1234,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_43</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1250,7 +1250,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_44</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1266,7 +1266,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_45</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1282,7 +1282,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_46</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1298,7 +1298,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_47</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1314,7 +1314,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_48</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1330,7 +1330,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_49</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1346,7 +1346,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_50</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1362,7 +1362,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_51</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1378,7 +1378,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_52</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1394,7 +1394,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_53</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1410,7 +1410,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_54</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1426,7 +1426,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_55</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1442,7 +1442,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_56</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1458,7 +1458,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_57</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1474,7 +1474,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_58</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1490,7 +1490,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_59</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1506,7 +1506,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_60</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1522,7 +1522,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_61</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1538,7 +1538,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_62</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1554,7 +1554,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_63</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1570,7 +1570,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_64</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1586,7 +1586,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_65</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1602,7 +1602,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_66</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1618,7 +1618,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_67</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1634,7 +1634,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_68</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1650,7 +1650,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_69</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1666,7 +1666,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_70</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1682,7 +1682,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_71</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1698,7 +1698,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_72</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1714,7 +1714,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_73</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1730,7 +1730,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_74</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1746,7 +1746,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_75</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1762,7 +1762,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_76</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1778,7 +1778,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_77</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1794,7 +1794,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_78</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1810,7 +1810,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_79</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1826,7 +1826,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_80</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1842,7 +1842,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_81</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1858,7 +1858,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_82</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1874,7 +1874,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_83</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1890,7 +1890,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_84</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1906,7 +1906,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_85</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1922,7 +1922,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_86</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1938,7 +1938,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_87</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1954,7 +1954,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_88</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1970,7 +1970,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_89</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -1986,7 +1986,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_90</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -2002,7 +2002,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_91</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -2018,7 +2018,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_92</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -2034,7 +2034,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_93</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -2050,7 +2050,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_94</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -2066,7 +2066,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_95</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -2082,7 +2082,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_96</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -2098,7 +2098,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_97</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -2114,7 +2114,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_98</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -2130,7 +2130,7 @@
           </FieldMetaData>
           <FieldMetaData>
             <Name>Mass_99</Name>
-            <Description i:nil="true" />
+            <Description />
             <FieldFlags>0</FieldFlags>
             <BuiltInType>7</BuiltInType>
             <DataType>
@@ -3789,7 +3789,7 @@
         </Body>
       </Address>
       <ConnectionProperties />
-      <TransportSettings i:nil="true" />
+      <TransportSettings/>
       <WriterGroups>
         <WriterGroupDataType>
           <Name>WriterGroup 1</Name>
@@ -3839,7 +3839,7 @@
               <KeyFrameCount>1</KeyFrameCount>
               <DataSetName>Simple</DataSetName>
               <DataSetWriterProperties />
-              <TransportSettings i:nil="true" />
+              <TransportSettings/>
               <MessageSettings>
                 <TypeId>
                   <Identifier>i=16015</Identifier>
@@ -3862,7 +3862,7 @@
               <KeyFrameCount>1</KeyFrameCount>
               <DataSetName>AllTypes</DataSetName>
               <DataSetWriterProperties />
-              <TransportSettings i:nil="true" />
+              <TransportSettings/>
               <MessageSettings>
                 <TypeId>
                   <Identifier>i=16015</Identifier>
@@ -3885,7 +3885,7 @@
               <KeyFrameCount>1</KeyFrameCount>
               <DataSetName>MassTest</DataSetName>
               <DataSetWriterProperties />
-              <TransportSettings i:nil="true" />
+              <TransportSettings/>
               <MessageSettings>
                 <TypeId>
                   <Identifier>i=16015</Identifier>
@@ -3926,7 +3926,7 @@
         </Body>
       </Address>
       <ConnectionProperties />
-      <TransportSettings i:nil="true" />
+      <TransportSettings/>
       <WriterGroups>
         <WriterGroupDataType>
           <Name>WriterGroup 2</Name>
@@ -3976,7 +3976,7 @@
               <KeyFrameCount>1</KeyFrameCount>
               <DataSetName>Simple</DataSetName>
               <DataSetWriterProperties />
-              <TransportSettings i:nil="true" />
+              <TransportSettings/>
               <MessageSettings>
                 <TypeId>
                   <Identifier>i=16015</Identifier>
@@ -3999,7 +3999,7 @@
               <KeyFrameCount>1</KeyFrameCount>
               <DataSetName>AllTypes</DataSetName>
               <DataSetWriterProperties />
-              <TransportSettings i:nil="true" />
+              <TransportSettings/>
               <MessageSettings>
                 <TypeId>
                   <Identifier>i=16015</Identifier>
@@ -4022,7 +4022,7 @@
               <KeyFrameCount>1</KeyFrameCount>
               <DataSetName>MassTest</DataSetName>
               <DataSetWriterProperties />
-              <TransportSettings i:nil="true" />
+              <TransportSettings/>
               <MessageSettings>
                 <TypeId>
                   <Identifier>i=16015</Identifier>
@@ -4063,7 +4063,7 @@
         </Body>
       </Address>
       <ConnectionProperties />
-      <TransportSettings i:nil="true" />
+      <TransportSettings/>
       <WriterGroups>
         <WriterGroupDataType>
           <Name>WriterGroup 1</Name>
@@ -4109,7 +4109,7 @@
               <KeyFrameCount>1</KeyFrameCount>
               <DataSetName>Simple</DataSetName>
               <DataSetWriterProperties />
-              <TransportSettings i:nil="true" />
+              <TransportSettings/>
               <MessageSettings>
                 <TypeId>
                   <Identifier>i=16015</Identifier>
@@ -4129,7 +4129,7 @@
               <KeyFrameCount>1</KeyFrameCount>
               <DataSetName>AllTypes</DataSetName>
               <DataSetWriterProperties />
-              <TransportSettings i:nil="true" />
+              <TransportSettings/>
               <MessageSettings>
                 <TypeId>
                   <Identifier>i=16015</Identifier>
@@ -4149,7 +4149,7 @@
               <KeyFrameCount>1</KeyFrameCount>
               <DataSetName>MassTest</DataSetName>
               <DataSetWriterProperties />
-              <TransportSettings i:nil="true" />
+              <TransportSettings/>
               <MessageSettings>
                 <TypeId>
                   <Identifier>i=16015</Identifier>

@@ -135,7 +135,7 @@ namespace Opc.Ua
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>A name qualified with a namespace for the reference
         /// <paramref name="referenceTypeId"/>. </returns>
-        ValueTask<QualifiedName?> FindReferenceTypeNameAsync(
+        ValueTask<QualifiedName> FindReferenceTypeNameAsync(
             NodeId referenceTypeId,
             CancellationToken ct = default);
 
@@ -267,7 +267,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public NodeId? FindSuperType(ExpandedNodeId typeId)
+        public NodeId FindSuperType(ExpandedNodeId typeId)
         {
             return m_table.FindSuperTypeAsync(typeId)
                 .AsTask()
@@ -276,7 +276,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public NodeId? FindSuperType(NodeId typeId)
+        public NodeId FindSuperType(NodeId typeId)
         {
             return m_table.FindSuperTypeAsync(typeId)
                 .AsTask()
@@ -330,7 +330,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public QualifiedName? FindReferenceTypeName(NodeId referenceTypeId)
+        public QualifiedName FindReferenceTypeName(NodeId referenceTypeId)
         {
             return m_table.FindReferenceTypeNameAsync(referenceTypeId)
                 .AsTask()

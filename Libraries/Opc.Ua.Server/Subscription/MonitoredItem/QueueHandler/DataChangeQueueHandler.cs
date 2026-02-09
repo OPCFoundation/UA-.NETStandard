@@ -376,22 +376,14 @@ namespace Opc.Ua.Server
         /// <param name="error">The error to update.</param>
         private static void SetOverflowBit(ref DataValue value, ref ServiceResult error)
         {
-            if (value != null)
-            {
-                StatusCode status = value.StatusCode;
-                status.Overflow = true;
-                value.StatusCode = status;
-            }
+            value?.StatusCode = value.StatusCode.SetOverflow(true);
 
             if (error != null)
             {
-                StatusCode status = error.StatusCode;
-                status.Overflow = true;
-
                 // have to copy before updating because the ServiceResult is invariant.
                 error = new ServiceResult(
                     error.NamespaceUri,
-                    status,
+                    error.StatusCode.SetOverflow(true),
                     error.LocalizedText,
                     error.AdditionalInfo,
                     error.InnerResult);

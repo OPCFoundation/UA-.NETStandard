@@ -221,7 +221,7 @@ namespace Opc.Ua.Client
                     {
                         byte userAccessLevel = variableNode.UserAccessLevel;
                         byte accessLevel = variableNode.AccessLevel;
-                        
+
                         if (userAccessLevel != accessLevel)
                         {
                             state.UserAccessLevel = userAccessLevel;
@@ -266,7 +266,7 @@ namespace Opc.Ua.Client
                     }
 
                     // Always export MethodDeclarationId (important type system metadata)
-                    if (node.TypeDefinitionId != null && !NodeId.IsNull(node.TypeDefinitionId))
+                    if (!node.TypeDefinitionId.IsNull)
                     {
                         state.MethodDeclarationId = ExpandedNodeId.ToNodeId(node.TypeDefinitionId, context.NamespaceUris);
                     }

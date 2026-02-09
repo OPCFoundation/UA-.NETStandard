@@ -27,8 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Threading;
+using Opc.Ua;
 
 namespace Quickstarts.Servers
 {
@@ -40,7 +40,7 @@ namespace Quickstarts.Servers
         protected BatchBase(uint batchSize, uint monitoredItemId)
         {
             BatchSize = batchSize;
-            Id = Guid.NewGuid();
+            Id = Uuid.NewUuid();
             IsPersisted = false;
             MonitoredItemId = monitoredItemId;
         }
@@ -48,7 +48,7 @@ namespace Quickstarts.Servers
         /// <summary>
         /// The unique Id of the batch
         /// </summary>
-        public Guid Id { get; }
+        public Uuid Id { get; }
 
         /// <summary>
         /// The number of values in the batch

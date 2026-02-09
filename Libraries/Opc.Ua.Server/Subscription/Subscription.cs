@@ -393,7 +393,7 @@ namespace Opc.Ua.Server
         public async ValueTask DeleteAsync(OperationContext context, CancellationToken cancellationToken = default)
         {
             // delete the diagnostics.
-            if (m_diagnosticsId != null && !m_diagnosticsId.IsNullNodeId)
+            if (!m_diagnosticsId.IsNullNodeId)
             {
                 ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(Session);
                 m_server.DiagnosticsNodeManager
@@ -2572,7 +2572,7 @@ namespace Opc.Ua.Server
                 MaxNotificationsPerPublish = m_maxNotificationsPerPublish,
                 Priority = Priority,
                 PublishingInterval = PublishingInterval,
-                UserIdentityToken = EffectiveIdentity?.GetIdentityToken(),
+                UserIdentityToken = EffectiveIdentity?.TokenHandler.Token,
                 MonitoredItems = monitoredItemsToStore,
                 IsDurable = IsDurable
             };

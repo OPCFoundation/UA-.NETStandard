@@ -13,6 +13,7 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Types.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.SourceGeneration.Core.Tests" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="System.Collections.Immutable" />
@@ -38,8 +39,6 @@
     <EmbeddedResource Include="Schema\UANodeSet.xsd" />
     <EmbeddedResource Include="Schema\BuiltInTypes.bsd" />
     <EmbeddedResource Include="Schema\StandardTypes.bsd" />
-    <EmbeddedResource Include="Schema\Opc.Ua.Types.bsd" />
-    <EmbeddedResource Include="Schema\Opc.Ua.Types.xsd" />
   </ItemGroup>
   <Target Name="GetPackagingOutputs" />
 </Project>

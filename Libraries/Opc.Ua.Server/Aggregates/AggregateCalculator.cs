@@ -1435,20 +1435,18 @@ namespace Opc.Ua.Server
             if (totalCount == 0 || goodCount / totalCount * 100 >= Configuration.PercentDataGood)
             {
                 // good if the good count is greater than or equal to the configured threshold.
-                statusCode = statusCode.SetCodeBits(StatusCodes.Good);
+                return statusCode.SetCodeBits(StatusCodes.Good);
             }
             else if (badCount / totalCount * 100 >= Configuration.PercentDataBad)
             {
                 // bad if the bad count is greater than or equal to the configured threshold.
-                statusCode = StatusCodes.Bad;
+                return StatusCodes.Bad;
             }
             else
             {
                 // uncertain if did not meet the Good or Bad requirements
-                statusCode = statusCode.SetCodeBits(StatusCodes.UncertainDataSubNormal);
+                return statusCode.SetCodeBits(StatusCodes.UncertainDataSubNormal);
             }
-
-            return statusCode;
         }
 
         /// <summary>
@@ -1509,21 +1507,18 @@ namespace Opc.Ua.Server
                 goodDuration / totalDuration * 100 >= Configuration.PercentDataGood)
             {
                 // good if the good duration is greater than or equal to the configured threshold.
-                statusCode = statusCode.SetCodeBits(StatusCodes.Good);
+                return statusCode.SetCodeBits(StatusCodes.Good);
             }
             else if (badDuration / totalDuration * 100 >= Configuration.PercentDataBad)
             {
                 // bad if the bad duration is greater than or equal to the configured threshold.
-                statusCode = StatusCodes.Bad;
+                return StatusCodes.Bad;
             }
             else
             {
                 // uncertain if did not meet the Good or Bad requirements
-                statusCode = statusCode.SetCodeBits(StatusCodes.UncertainDataSubNormal);
+                return statusCode.SetCodeBits(StatusCodes.UncertainDataSubNormal);
             }
-
-            // always calculated.
-            return statusCode;
         }
 
         private readonly ILogger m_logger;

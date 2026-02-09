@@ -301,8 +301,7 @@ namespace Opc.Ua.PubSub.Encoding
                                     if (dataSetMetaData?.Fields[index]
                                         .BuiltInType == (byte)BuiltInType.StatusCode)
                                     {
-                                        dataValue = new DataValue(
-                                            new Variant(new StatusCode(StatusCodes.Good)));
+                                        dataValue = new DataValue(new Variant(StatusCodes.Good));
                                     }
                                 }
 
@@ -372,7 +371,7 @@ namespace Opc.Ua.PubSub.Encoding
                                 .BuiltInType == (byte)BuiltInType.StatusCode)
                             {
                                 dataValues.Add(
-                                    new DataValue(new Variant(new StatusCode(StatusCodes.Good))));
+                                    new DataValue(new Variant(StatusCodes.Good)));
                             }
                             else
                             {
@@ -501,7 +500,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             // Only treat an actual StatusCode value equal to Good as null to avoid misencoding
             bool isStatusCodeValue =
-                valueToEncode.TypeInfo?.BuiltInType == BuiltInType.StatusCode ||
+                valueToEncode.TypeInfo.BuiltInType == BuiltInType.StatusCode ||
                 valueToEncode.Value is StatusCode;
             if (isStatusCodeValue &&
                 valueToEncode == StatusCodes.Good &&

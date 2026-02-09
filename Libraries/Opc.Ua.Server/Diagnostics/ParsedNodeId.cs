@@ -71,14 +71,13 @@ namespace Opc.Ua.Server
         public static ParsedNodeId Parse(NodeId nodeId)
         {
             // can only parse non-null string node identifiers.
-            if (NodeId.IsNull(nodeId))
+            if (nodeId.IsNullNodeId)
             {
                 return null;
             }
 
-            string identifier = nodeId.Identifier as string;
-
-            if (string.IsNullOrEmpty(identifier))
+            if (!nodeId.TryGetIdentifier(out string identifier) ||
+                string.IsNullOrEmpty(identifier))
             {
                 return null;
             }
@@ -269,7 +268,7 @@ namespace Opc.Ua.Server
             }
 
             // parent must have a string identifier.
-            if (instance.Parent.NodeId.Identifier is not string parentId)
+            if (!instance.Parent.NodeId.TryGetIdentifier(out string parentId))
             {
                 return default;
             }

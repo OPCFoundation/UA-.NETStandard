@@ -72,6 +72,7 @@ namespace Opc.Ua.Client.Tests
             {
                 // start Ref server
                 ServerFixture = new ServerFixture<ReferenceServer>(
+                    t => new ReferenceServer(t),
                     enableTracing,
                     disableActivityLogging)
                 {
@@ -711,8 +712,7 @@ namespace Opc.Ua.Client.Tests
                         }
                         else
                         {
-                            recreated = new NodeId(
-                                referenceDescription.NodeId.Identifier,
+                            recreated = referenceDescription.NodeId.InnerNodeId.WithNamespaceIndex(
                                 referenceDescription.NodeId.NamespaceIndex);
 
                             if (recreated.IsNullNodeId)

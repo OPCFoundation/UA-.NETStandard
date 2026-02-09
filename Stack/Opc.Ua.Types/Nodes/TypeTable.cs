@@ -54,14 +54,14 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public bool IsKnown(ExpandedNodeId typeId)
         {
-            if (NodeId.IsNull(typeId) || typeId.ServerIndex != 0)
+            if (typeId.IsNull || typeId.ServerIndex != 0)
             {
                 return false;
             }
 
             var localId = ExpandedNodeId.ToNodeId(typeId, m_namespaceUris);
 
-            if (localId == null)
+            if (localId.IsNullNodeId)
             {
                 return false;
             }
@@ -75,7 +75,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public bool IsKnown(NodeId typeId)
         {
-            if (NodeId.IsNull(typeId))
+            if (typeId.IsNullNodeId)
             {
                 return false;
             }
@@ -89,14 +89,14 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public NodeId FindSuperType(ExpandedNodeId typeId)
         {
-            if (NodeId.IsNull(typeId) || typeId.ServerIndex != 0)
+            if (typeId.IsNull || typeId.ServerIndex != 0)
             {
                 return NodeId.Null;
             }
 
             var localId = ExpandedNodeId.ToNodeId(typeId, m_namespaceUris);
 
-            if (localId == null)
+            if (localId.IsNullNodeId)
             {
                 return NodeId.Null;
             }
@@ -120,7 +120,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public NodeId FindSuperType(NodeId typeId)
         {
-            if (typeId == null)
+            if (typeId.IsNullNodeId)
             {
                 return NodeId.Null;
             }
@@ -158,14 +158,14 @@ namespace Opc.Ua
         {
             var subtypes = new List<NodeId>();
 
-            if (typeId == null)
+            if (typeId.IsNull)
             {
                 return subtypes;
             }
 
             var localId = ExpandedNodeId.ToNodeId(typeId, m_namespaceUris);
 
-            if (localId == null)
+            if (localId.IsNullNodeId)
             {
                 return subtypes;
             }
@@ -184,12 +184,12 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public bool IsTypeOf(ExpandedNodeId subTypeId, ExpandedNodeId superTypeId)
         {
-            if (NodeId.IsNull(subTypeId) || subTypeId.ServerIndex != 0)
+            if (subTypeId.IsNull || subTypeId.ServerIndex != 0)
             {
                 return false;
             }
 
-            if (NodeId.IsNull(superTypeId) || superTypeId.ServerIndex != 0)
+            if (superTypeId.IsNull || superTypeId.ServerIndex != 0)
             {
                 return false;
             }
@@ -202,14 +202,14 @@ namespace Opc.Ua
 
             var startId = ExpandedNodeId.ToNodeId(subTypeId, m_namespaceUris);
 
-            if (startId == null)
+            if (startId.IsNullNodeId)
             {
                 return false;
             }
 
             var targetId = ExpandedNodeId.ToNodeId(superTypeId, m_namespaceUris);
 
-            if (targetId == null)
+            if (targetId.IsNullNodeId)
             {
                 return false;
             }
@@ -229,7 +229,7 @@ namespace Opc.Ua
         public bool IsTypeOf(NodeId subTypeId, NodeId superTypeId)
         {
             // check for null.
-            if (subTypeId == null || superTypeId == null)
+            if (subTypeId.IsNullNodeId || superTypeId.IsNullNodeId)
             {
                 return false;
             }
@@ -269,16 +269,16 @@ namespace Opc.Ua
         public NodeId FindReferenceType(QualifiedName browseName)
         {
             // check for empty name.
-            if (QualifiedName.IsNull(browseName))
+            if (browseName.IsNullQn)
             {
-                return null;
+                return default;
             }
 
             lock (m_lock)
             {
                 if (!m_referenceTypes.TryGetValue(browseName, out TypeInfo typeInfo))
                 {
-                    return null;
+                    return default;
                 }
 
                 return typeInfo.NodeId;
@@ -289,21 +289,21 @@ namespace Opc.Ua
         public bool IsEncodingOf(ExpandedNodeId encodingId, ExpandedNodeId datatypeId)
         {
             // check for invalid ids.
-            if (NodeId.IsNull(encodingId) || NodeId.IsNull(datatypeId))
+            if (encodingId.IsNull || datatypeId.IsNull)
             {
                 return false;
             }
 
             var localId = ExpandedNodeId.ToNodeId(encodingId, m_namespaceUris);
 
-            if (localId == null)
+            if (localId.IsNullNodeId)
             {
                 return false;
             }
 
             var localTypeId = ExpandedNodeId.ToNodeId(datatypeId, m_namespaceUris);
 
-            if (localTypeId == null)
+            if (localTypeId.IsNullNodeId)
             {
                 return false;
             }
@@ -345,7 +345,7 @@ namespace Opc.Ua
         public bool IsEncodingFor(NodeId expectedTypeId, ExtensionObject value)
         {
             // no match on null values.
-            if (value == null)
+            if (value.IsNull)
             {
                 return false;
             }
@@ -370,13 +370,13 @@ namespace Opc.Ua
             }
 
             // null expected datatype matches everything.
-            if (NodeId.IsNull(expectedTypeId))
+            if (expectedTypeId.IsNullNodeId)
             {
                 return true;
             }
 
             // get the actual datatype.
-            NodeId actualTypeId = Ua.TypeInfo.GetDataTypeId(value);
+            NodeId actualTypeId = Ua.TypeInfo.GetDataTypeId(value, m_namespaceUris);
 
             // value is valid if the expected datatype is same as or a supertype of the actual datatype
             // for example: expected datatype of 'Integer' matches an actual datatype of 'UInt32'.
@@ -423,7 +423,7 @@ namespace Opc.Ua
         {
             var localId = ExpandedNodeId.ToNodeId(encodingId, m_namespaceUris);
 
-            if (localId == null)
+            if (localId.IsNullNodeId)
             {
                 return NodeId.Null;
             }
@@ -474,7 +474,7 @@ namespace Opc.Ua
         public void Add(ILocalNode node)
         {
             // ignore null.
-            if (node == null || NodeId.IsNull(node.NodeId))
+            if (node == null || node.NodeId.IsNullNodeId)
             {
                 return;
             }
@@ -492,17 +492,17 @@ namespace Opc.Ua
                 return;
             }
 
-            NodeId localsuperTypeId = null;
+            NodeId localsuperTypeId = default;
 
             // find the supertype.
             ExpandedNodeId superTypeId = node.References
                 .FindTarget(ReferenceTypeIds.HasSubtype, true, false, null, 0);
 
-            if (superTypeId != null)
+            if (!superTypeId.IsNull)
             {
                 localsuperTypeId = ExpandedNodeId.ToNodeId(superTypeId, m_namespaceUris);
 
-                if (localsuperTypeId == null)
+                if (localsuperTypeId.IsNullNodeId)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadNodeIdInvalid,
@@ -515,7 +515,7 @@ namespace Opc.Ua
                 // lookup the supertype.
                 TypeInfo superTypeInfo = null;
 
-                if (localsuperTypeId != null &&
+                if (!localsuperTypeId.IsNullNodeId &&
                     !m_nodes.TryGetValue(localsuperTypeId, out superTypeInfo))
                 {
                     throw ServiceResultException.Create(
@@ -567,7 +567,7 @@ namespace Opc.Ua
                 // add reference type.
                 if (((int)node.NodeClass & (int)NodeClass.ReferenceType) != 0)
                 {
-                    if (!QualifiedName.IsNull(typeInfo.BrowseName))
+                    if (!typeInfo.BrowseName.IsNullQn)
                     {
                         m_referenceTypes.Remove(typeInfo.BrowseName);
                     }
@@ -616,7 +616,7 @@ namespace Opc.Ua
         {
             var localId = ExpandedNodeId.ToNodeId(encodingId, m_namespaceUris);
 
-            if (localId == null)
+            if (localId.IsNullNodeId)
             {
                 return false;
             }
@@ -662,7 +662,7 @@ namespace Opc.Ua
                 // lookup the supertype.
                 TypeInfo superTypeInfo = null;
 
-                if (!NodeId.IsNull(superTypeId) &&
+                if (!superTypeId.IsNullNodeId &&
                     !m_nodes.TryGetValue(superTypeId, out superTypeInfo))
                 {
                     throw ServiceResultException.Create(
@@ -695,7 +695,7 @@ namespace Opc.Ua
                 }
 
                 // add reference type.
-                if (!QualifiedName.IsNull(browseName))
+                if (!browseName.IsNullQn)
                 {
                     typeInfo.BrowseName = browseName;
                     m_referenceTypes[browseName] = typeInfo;
@@ -709,14 +709,14 @@ namespace Opc.Ua
         /// <param name="typeId">The type identifier.</param>
         public void Remove(ExpandedNodeId typeId)
         {
-            if (NodeId.IsNull(typeId) || typeId.ServerIndex != 0)
+            if (typeId.IsNull || typeId.ServerIndex != 0)
             {
                 return;
             }
 
             var localId = ExpandedNodeId.ToNodeId(typeId, m_namespaceUris);
 
-            if (localId == null)
+            if (localId.IsNullNodeId)
             {
                 return;
             }
@@ -748,7 +748,7 @@ namespace Opc.Ua
                 }
 
                 // remove reference type.
-                if (!QualifiedName.IsNull(typeInfo.BrowseName))
+                if (!typeInfo.BrowseName.IsNullQn)
                 {
                     m_referenceTypes.Remove(typeInfo.BrowseName);
                 }
@@ -811,7 +811,7 @@ namespace Opc.Ua
             /// <param name="subtypeId">The subtype identifier.</param>
             public void RemoveSubType(NodeId subtypeId)
             {
-                if (subtypeId != null && SubTypes != null)
+                if (!subtypeId.IsNullNodeId && SubTypes != null)
                 {
                     SubTypes.Remove(subtypeId);
 

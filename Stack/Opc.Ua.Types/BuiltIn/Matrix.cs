@@ -182,7 +182,7 @@ namespace Opc.Ua
             {
                 hash.Add(Elements);
             }
-            if (TypeInfo != null)
+            if (!TypeInfo.IsUnknown)
             {
                 hash.Add(TypeInfo);
             }

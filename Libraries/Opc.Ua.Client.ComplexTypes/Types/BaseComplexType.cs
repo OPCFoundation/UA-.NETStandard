@@ -209,7 +209,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     return body.Append('}').ToString();
                 }
 
-                if (!NodeId.IsNull(TypeId))
+                if (!TypeId.IsNull)
                 {
                     return string.Format(formatProvider, "{{{0}}}", TypeId);
                 }
