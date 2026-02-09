@@ -1825,55 +1825,11 @@ namespace Quickstarts.ReferenceServer
 
                     CreateAnalogItemVariable(
                         analogArrayFolder,
-                        daAnalogArray + "Boolean",
-                        "Boolean",
-                        BuiltInType.Boolean,
-                        ValueRanks.OneDimension,
-                        s_booleanArray);
-                    CreateAnalogItemVariable(
-                        analogArrayFolder,
                         daAnalogArray + "Byte",
                         "Byte",
                         BuiltInType.Byte,
                         ValueRanks.OneDimension,
                         new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 });
-                    CreateAnalogItemVariable(
-                        analogArrayFolder,
-                        daAnalogArray + "ByteString",
-                        "ByteString",
-                        BuiltInType.ByteString,
-                        ValueRanks.OneDimension,
-                        new byte[][]
-                        {
-                            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-                            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-                            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-                            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-                            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-                            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-                            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-                            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-                            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-                            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-                        });
-                    CreateAnalogItemVariable(
-                        analogArrayFolder,
-                        daAnalogArray + "DateTime",
-                        "DateTime",
-                        BuiltInType.DateTime,
-                        ValueRanks.OneDimension,
-                        new DateTime[]
-                        {
-                            DateTime.MinValue,
-                            DateTime.MaxValue,
-                            DateTime.MinValue,
-                            DateTime.MaxValue,
-                            DateTime.MinValue,
-                            DateTime.MaxValue,
-                            DateTime.MinValue,
-                            DateTime.MaxValue,
-                            DateTime.MinValue
-                        });
                     CreateAnalogItemVariable(
                         analogArrayFolder,
                         daAnalogArray + "Double",
@@ -1896,24 +1852,6 @@ namespace Quickstarts.ReferenceServer
                         BuiltInType.Float,
                         ValueRanks.OneDimension,
                         s_singleArray);
-                    CreateAnalogItemVariable(
-                        analogArrayFolder,
-                        daAnalogArray + "Guid",
-                        "Guid",
-                        BuiltInType.Guid,
-                        ValueRanks.OneDimension,
-                        new Guid[]
-                        {
-                            Guid.NewGuid(),
-                            Guid.NewGuid(),
-                            Guid.NewGuid(),
-                            Guid.NewGuid(),
-                            Guid.NewGuid(),
-                            Guid.NewGuid(),
-                            Guid.NewGuid(),
-                            Guid.NewGuid(),
-                            Guid.NewGuid()
-                        });
                     CreateAnalogItemVariable(
                         analogArrayFolder,
                         daAnalogArray + "Int16",
@@ -1944,52 +1882,6 @@ namespace Quickstarts.ReferenceServer
                         new long[] { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 });
                     CreateAnalogItemVariable(
                         analogArrayFolder,
-                        daAnalogArray + "LocaleId",
-                        "LocaleId",
-                        DataTypeIds.LocaleId,
-                        ValueRanks.OneDimension,
-                        s_stringArray,
-                        null);
-                    CreateAnalogItemVariable(
-                        analogArrayFolder,
-                        daAnalogArray + "LocalizedText",
-                        "LocalizedText",
-                        BuiltInType.LocalizedText,
-                        ValueRanks.OneDimension,
-                        new LocalizedText[]
-                        {
-                            new("en", "Hello World1"),
-                            new("en", "Hello World2"),
-                            new("en", "Hello World3"),
-                            new("en", "Hello World4"),
-                            new("en", "Hello World5"),
-                            new("en", "Hello World6"),
-                            new("en", "Hello World7"),
-                            new("en", "Hello World8"),
-                            new("en", "Hello World9"),
-                            new("en", "Hello World10")
-                        });
-                    CreateAnalogItemVariable(
-                        analogArrayFolder,
-                        daAnalogArray + "NodeId",
-                        "NodeId",
-                        BuiltInType.NodeId,
-                        ValueRanks.OneDimension,
-                        new NodeId[]
-                        {
-                            new(Guid.NewGuid()),
-                            new(Guid.NewGuid()),
-                            new(Guid.NewGuid()),
-                            new(Guid.NewGuid()),
-                            new(Guid.NewGuid()),
-                            new(Guid.NewGuid()),
-                            new(Guid.NewGuid()),
-                            new(Guid.NewGuid()),
-                            new(Guid.NewGuid()),
-                            new(Guid.NewGuid())
-                        });
-                    CreateAnalogItemVariable(
-                        analogArrayFolder,
                         daAnalogArray + "Number",
                         "Number",
                         BuiltInType.Number,
@@ -1997,35 +1889,11 @@ namespace Quickstarts.ReferenceServer
                         new short[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
                     CreateAnalogItemVariable(
                         analogArrayFolder,
-                        daAnalogArray + "QualifiedName",
-                        "QualifiedName",
-                        BuiltInType.QualifiedName,
-                        ValueRanks.OneDimension,
-                        new QualifiedName[] {
-                            "q0",
-                            "q1",
-                            "q2",
-                            "q3",
-                            "q4",
-                            "q5",
-                            "q6",
-                            "q7",
-                            "q8",
-                            "q9" });
-                    CreateAnalogItemVariable(
-                        analogArrayFolder,
                         daAnalogArray + "SByte",
                         "SByte",
                         BuiltInType.SByte,
                         ValueRanks.OneDimension,
                         new sbyte[] { 10, 20, 30, 40, 50, 60, 70, 80, 90 });
-                    CreateAnalogItemVariable(
-                        analogArrayFolder,
-                        daAnalogArray + "String",
-                        "String",
-                        BuiltInType.String,
-                        ValueRanks.OneDimension,
-                        s_stringArray0);
                     CreateAnalogItemVariable(
                         analogArrayFolder,
                         daAnalogArray + "UInt16",
@@ -2054,52 +1922,7 @@ namespace Quickstarts.ReferenceServer
                         BuiltInType.UInteger,
                         ValueRanks.OneDimension,
                         new ulong[] { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 });
-                    CreateAnalogItemVariable(
-                        analogArrayFolder,
-                        daAnalogArray + "UtcTime",
-                        "UtcTime",
-                        DataTypeIds.UtcTime,
-                        ValueRanks.OneDimension,
-                        new DateTime[]
-                        {
-                            DateTime.MinValue.ToUniversalTime(),
-                            DateTime.MaxValue.ToUniversalTime(),
-                            DateTime.MinValue.ToUniversalTime(),
-                            DateTime.MaxValue.ToUniversalTime(),
-                            DateTime.MinValue.ToUniversalTime(),
-                            DateTime.MaxValue.ToUniversalTime(),
-                            DateTime.MinValue.ToUniversalTime(),
-                            DateTime.MaxValue.ToUniversalTime(),
-                            DateTime.MinValue.ToUniversalTime()
-                        },
-                        null);
-                    CreateAnalogItemVariable(
-                        analogArrayFolder,
-                        daAnalogArray + "Variant",
-                        "Variant",
-                        BuiltInType.Variant,
-                        ValueRanks.OneDimension,
-                        new Variant[] { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 });
                     var doc1 = new XmlDocument();
-                    CreateAnalogItemVariable(
-                        analogArrayFolder,
-                        daAnalogArray + "XmlElement",
-                        "XmlElement",
-                        BuiltInType.XmlElement,
-                        ValueRanks.OneDimension,
-                        new XmlElement[]
-                        {
-                            doc1.CreateElement("tag1"),
-                            doc1.CreateElement("tag2"),
-                            doc1.CreateElement("tag3"),
-                            doc1.CreateElement("tag4"),
-                            doc1.CreateElement("tag5"),
-                            doc1.CreateElement("tag6"),
-                            doc1.CreateElement("tag7"),
-                            doc1.CreateElement("tag8"),
-                            doc1.CreateElement("tag9"),
-                            doc1.CreateElement("tag10")
-                        });
 
                     ResetRandomGenerator(12);
                     FolderState discreteTypeFolder = CreateFolder(
@@ -4159,6 +3982,11 @@ namespace Quickstarts.ReferenceServer
 
             BuiltInType builtInType = TypeInfo.GetBuiltInType(dataType, Server.TypeTree);
 
+            if (!TypeInfo.IsNumericType(builtInType))
+            {
+                throw new ArgumentException("AnalogItem must have a numeric DataType.", nameof(dataType));
+            }
+
             // Simulate a mV Voltmeter
             Range newRange = GetAnalogRange(builtInType);
             // Using anything but 120,-10 fails a few tests
@@ -4592,6 +4420,7 @@ namespace Quickstarts.ReferenceServer
             };
             variable.Value = GetNewValue(variable);
             variable.StatusCode = StatusCodes.Good;
+            variable.Description = "Default Description";
 
             if (valueRank == ValueRanks.OneDimension)
             {
