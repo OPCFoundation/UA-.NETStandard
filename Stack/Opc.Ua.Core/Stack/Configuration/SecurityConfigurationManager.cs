@@ -99,7 +99,7 @@ namespace Opc.Ua.Security
 
                     configFilePath =
                         ApplicationConfiguration.GetFilePathFromAppConfig(sectionName, m_logger) ??
-                        filePath + ".config";
+                        $"{filePath}.config";
                 }
                 catch (Exception e)
                 {

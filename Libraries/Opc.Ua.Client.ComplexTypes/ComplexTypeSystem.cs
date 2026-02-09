@@ -672,7 +672,9 @@ namespace Opc.Ua.Client.ComplexTypes
                                     m_logger.LogTrace(
                                         "Skipped the type definition of {DataType}, missing {MissingTypeIds}. Retry in next round.",
                                         item.Name,
-                                        missingTypeIds?.ToString() ?? string.Empty);
+                                        missingTypeIds == null ?
+                                            string.Empty :
+                                            string.Join(",", [.. missingTypeIds.Select(id => id.ToString())]));
                                 }
                             }
                         }
@@ -1430,7 +1432,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     .ConfigureAwait(false);
                 if (superType?.IsNullNodeId != false)
                 {
-                    return null;
+                    return default;
                 }
                 if (superType.NamespaceIndex == 0)
                 {
@@ -1442,7 +1444,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                     if (superType == DataTypeIds.Enumeration)
                     {
-                        return null;
+                        return default;
                     }
                     else if (superType == DataTypeIds.Structure)
                     {
@@ -1460,7 +1462,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         {
                             return superType;
                         }
-                        return null;
+                        return default;
                     }
                     // end search if a valid BuiltInType is found. Treat type as opaque.
                     else if (superType.IdType == IdType.Numeric &&
@@ -1476,7 +1478,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                 }
             }
-            return null;
+            return default;
         }
 
         /// <summary>

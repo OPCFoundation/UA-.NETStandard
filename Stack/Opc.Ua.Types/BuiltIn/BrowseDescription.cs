@@ -54,9 +54,9 @@ namespace Opc.Ua
 
         private void Initialize()
         {
-            NodeId = null;
+            NodeId = default;
             BrowseDirection = BrowseDirection.Forward;
-            ReferenceTypeId = null;
+            ReferenceTypeId = default;
             IncludeSubtypes = true;
             NodeClassMask = 0;
             ResultMask = 0;
@@ -204,11 +204,11 @@ namespace Opc.Ua
             var clone = (BrowseDescription)base.MemberwiseClone();
 
             clone.NodeId = CoreUtils.Clone(NodeId);
-            clone.BrowseDirection = (BrowseDirection)CoreUtils.Clone(BrowseDirection);
+            clone.BrowseDirection = CoreUtils.Clone(BrowseDirection);
             clone.ReferenceTypeId = CoreUtils.Clone(ReferenceTypeId);
-            clone.IncludeSubtypes = (bool)CoreUtils.Clone(IncludeSubtypes);
-            clone.NodeClassMask = (uint)CoreUtils.Clone(NodeClassMask);
-            clone.ResultMask = (uint)CoreUtils.Clone(ResultMask);
+            clone.IncludeSubtypes = CoreUtils.Clone(IncludeSubtypes);
+            clone.NodeClassMask = CoreUtils.Clone(NodeClassMask);
+            clone.ResultMask = CoreUtils.Clone(ResultMask);
 
             return clone;
         }

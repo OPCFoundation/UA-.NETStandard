@@ -323,8 +323,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // This addresses the Windows behavior where S= is used instead of ST=
 
             // Test 1: Direct comparison with different state abbreviations
-            string dnWithST = "CN=OPCUA Client, O=MyOrg, ST=California, C=US";
-            string dnWithS = "CN=OPCUA Client, O=MyOrg, S=California, C=US";
+            const string dnWithST = "CN=OPCUA Client, O=MyOrg, ST=California, C=US";
+            const string dnWithS = "CN=OPCUA Client, O=MyOrg, S=California, C=US";
 
             Assert.True(X509Utils.CompareDistinguishedName(dnWithST, dnWithS),
                 "Distinguished names with ST= and S= should be considered equivalent");
@@ -341,22 +341,22 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(parsedDnWithS);
 
             // Test 4: Case sensitivity for DC fields should still work
-            string dnWithDC1 = "CN=Test, DC=example, DC=com";
-            string dnWithDC2 = "CN=Test, DC=EXAMPLE, DC=COM";
+            const string dnWithDC1 = "CN=Test, DC=example, DC=com";
+            const string dnWithDC2 = "CN=Test, DC=EXAMPLE, DC=COM";
 
             Assert.True(X509Utils.CompareDistinguishedName(dnWithDC1, dnWithDC2),
                 "DC fields should be case-insensitive");
 
             // Test 5: Different values should still fail
-            string dnDifferentState1 = "CN=OPCUA Client, O=MyOrg, ST=California, C=US";
-            string dnDifferentState2 = "CN=OPCUA Client, O=MyOrg, ST=NewYork, C=US";
+            const string dnDifferentState1 = "CN=OPCUA Client, O=MyOrg, ST=California, C=US";
+            const string dnDifferentState2 = "CN=OPCUA Client, O=MyOrg, ST=NewYork, C=US";
 
             Assert.False(X509Utils.CompareDistinguishedName(dnDifferentState1, dnDifferentState2),
                 "Distinguished names with different state values should not match");
 
             // Test 6: Case with other fields
-            string dnComplex1 = "CN=Server, OU=Engineering, O=Company, ST=Texas, L=Austin, C=US";
-            string dnComplex2 = "CN=Server, OU=Engineering, O=Company, S=Texas, L=Austin, C=US";
+            const string dnComplex1 = "CN=Server, OU=Engineering, O=Company, ST=Texas, L=Austin, C=US";
+            const string dnComplex2 = "CN=Server, OU=Engineering, O=Company, S=Texas, L=Austin, C=US";
 
             Assert.True(X509Utils.CompareDistinguishedName(dnComplex1, dnComplex2),
                 "Complex DN with ST= and S= should match");
@@ -583,7 +583,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(authority.Issuer);
             Assert.AreEqual(cert.IssuerName.RawData, authority.Issuer.RawData);
             Assert.AreEqual(cert.IssuerName.Name, authority.Issuer.Name);
-            Assert.NotNull(authority.ToString());
             Assert.AreEqual(
                 authority.SerialNumber,
                 Utils.ToHexString(authority.GetSerialNumber(), true));

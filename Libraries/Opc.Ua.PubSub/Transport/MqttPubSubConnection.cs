@@ -250,19 +250,13 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         public override async Task<bool> PublishNetworkMessageAsync(UaNetworkMessage networkMessage)
         {
-            if (networkMessage == null || m_publisherMqttClient == null)
+            MqttClient publisherClient = m_publisherMqttClient;
+            if (networkMessage == null || publisherClient == null)
             {
                 return false;
             }
-
             try
             {
-                MqttClient publisherClient;
-                lock (Lock)
-                {
-                    publisherClient = m_publisherMqttClient;
-                }
-
                 if (publisherClient.IsConnected)
                 {
                     // get the encoded bytes
@@ -1191,8 +1185,7 @@ namespace Opc.Ua.PubSub.Transport
                 // return UADP metadata network message
                 return new Encoding.JsonNetworkMessage(writerGroup, dataSetMetaData, Logger)
                 {
-                    PublisherId = MqttConnection.PubSubConnectionConfiguration.PublisherId.Value
-                        .ToString(),
+                    PublisherId = MqttConnection.PubSubConnectionConfiguration.PublisherId.Value.ToString(),
                     DataSetWriterId = dataSetWriterId
                 };
             }

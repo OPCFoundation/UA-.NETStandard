@@ -33,7 +33,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
-using System.Xml.Linq;
 using Opc.Ua.Types;
 
 namespace Opc.Ua

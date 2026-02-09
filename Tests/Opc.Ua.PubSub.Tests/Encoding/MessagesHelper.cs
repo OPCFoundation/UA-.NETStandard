@@ -778,7 +778,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 // Define publishedDataSet.DataSetMetaData
                 DataSetMetaData = CreateDataSetMetaData(dataSetName, namespaceIndex, fieldMetaDatas)
             };
-            //publishedDataSet.DataSetMetaData.DataSetClassId = new Uuid(Guid.NewGuid());
+            //publishedDataSet.DataSetMetaData.DataSetClassId = Uuid.NewUuid();
 
             var publishedDataSetSimpleSource = new PublishedDataItemsDataType
             {
@@ -1455,15 +1455,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         DataType = DataTypeIds.LocalizedText,
                         ValueRank = ValueRanks.TwoDimensions,
                         Description = LocalizedText.Null
-                    },
-                    new FieldMetaData
-                    {
-                        Name = "DiagnosticInfoMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.DiagnosticInfo,
-                        DataType = DataTypeIds.DiagnosticInfo,
-                        ValueRank = ValueRanks.TwoDimensions,
-                        Description = LocalizedText.Null
                     }
                 ],
                 ConfigurationVersion = new ConfigurationVersionDataType
@@ -1673,15 +1664,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         DataSetFieldId = new Uuid(Guid.NewGuid()),
                         BuiltInType = (byte)BuiltInType.LocalizedText,
                         DataType = DataTypeIds.LocalizedText,
-                        ValueRank = ValueRanks.OneDimension,
-                        Description = LocalizedText.Null
-                    },
-                    new FieldMetaData
-                    {
-                        Name = "DiagnosticInfoArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.DiagnosticInfo,
-                        DataType = DataTypeIds.DiagnosticInfo,
                         ValueRank = ValueRanks.OneDimension,
                         Description = LocalizedText.Null
                     }
@@ -2142,15 +2124,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     //    ValueRank = ValueRanks.Scalar,
                     //     //    Description = LocalizedText.Null
                     //},
-                    new FieldMetaData
-                    {
-                        Name = "DiagnosticInfo",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.DiagnosticInfo,
-                        DataType = DataTypeIds.DiagnosticInfo,
-                        ValueRank = ValueRanks.Scalar,
-                        Description = LocalizedText.Null
-                    },
                     // Number,Integer,UInteger, Enumeration internal use
                     // Array type
                     new FieldMetaData
@@ -2369,15 +2342,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     //    ValueRank = ValueRanks.OneDimension,
                     //    Description = LocalizedText.Null
                     //},
-                    new FieldMetaData
-                    {
-                        Name = "DiagnosticInfoArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.DiagnosticInfo,
-                        DataType = DataTypeIds.DiagnosticInfo,
-                        ValueRank = ValueRanks.OneDimension,
-                        Description = LocalizedText.Null
-                    },
                     // Matrix type
                     new FieldMetaData
                     {
@@ -2594,16 +2558,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     //    DataType = DataTypeIds.DataValue,
                     //    ValueRank = ValueRanks.TwoDimensions,
                     //    Description = LocalizedText.Null
-                    //},
-                    new FieldMetaData
-                    {
-                        Name = "DiagnosticInfoMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.DiagnosticInfo,
-                        DataType = DataTypeIds.DiagnosticInfo,
-                        ValueRank = ValueRanks.TwoDimensions,
-                        Description = LocalizedText.Null
-                    }
+                    //}
                 ],
                 ConfigurationVersion = new ConfigurationVersionDataType
                 {
@@ -2804,12 +2759,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 new NodeId("DataValue", namespaceIndexAllTypes),
                 Attributes.Value,
                 dataValue);
-            var diagnosticInfoValue = new DataValue(
-                new Variant(new DiagnosticInfo(1, 1, 1, 1, "Diagnostic_info")));
-            pubSubApplication.DataStore.WritePublishedDataItem(
-                new NodeId("DiagnosticInfo", namespaceIndexAllTypes),
-                Attributes.Value,
-                diagnosticInfoValue);
 
             // DataSet 'AllTypes' fill with data array
             var boolToggleArray = new DataValue(
@@ -2968,17 +2917,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 new NodeId("DataValueArray", namespaceIndexAllTypes),
                 Attributes.Value,
                 dataValueArray);
-            var diagnosticInfoValueArray = new DataValue(
-                new Variant(
-                    new DiagnosticInfoCollection
-                    {
-                        new DiagnosticInfo(1, 1, 1, 1, "Diagnostic_info1"),
-                        new DiagnosticInfo(2, 2, 2, 2, "Diagnostic_info2")
-                    }));
-            pubSubApplication.DataStore.WritePublishedDataItem(
-                new NodeId("DiagnosticInfoArray", namespaceIndexAllTypes),
-                Attributes.Value,
-                diagnosticInfoValueArray);
 
             // DataSet 'AllTypes' fill with matrix data
             var boolToggleMatrix = new DataValue(
@@ -3093,10 +3031,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 new Variant(
                     new Matrix(
                         new Uuid[] {
-                            new(new Guid()),
-                            new(new Guid()),
-                            new(new Guid()),
-                            new(new Guid()) },
+                            new(),
+                            new(),
+                            new(),
+                            new()
+                        },
                         BuiltInType.Guid,
                         2,
                         2)));
@@ -3217,23 +3156,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 new NodeId("DataValueMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
                 dataValueMatrix);
-            var diagnosticInfoValueMatrix = new DataValue(
-                new Variant(
-                    new Matrix(
-                        new DiagnosticInfo[]
-                        {
-                            new(1, 1, 1, 1, "Diagnostic_info1"),
-                            new(2, 2, 2, 2, "Diagnostic_info2"),
-                            new(3, 3, 3, 3, "Diagnostic_info3"),
-                            new(4, 4, 4, 4, "Diagnostic_info4")
-                        },
-                        BuiltInType.DiagnosticInfo,
-                        2,
-                        2)));
-            pubSubApplication.DataStore.WritePublishedDataItem(
-                new NodeId("DiagnosticInfoMatrix", namespaceIndexAllTypes),
-                Attributes.Value,
-                diagnosticInfoValueMatrix);
         }
 
         /// <summary>

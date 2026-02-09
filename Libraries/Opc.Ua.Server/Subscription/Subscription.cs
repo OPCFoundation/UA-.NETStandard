@@ -315,7 +315,7 @@ namespace Opc.Ua.Server
                 {
                     if (Session == null)
                     {
-                        return null;
+                        return default;
                     }
 
                     return Session.Id;
@@ -645,7 +645,7 @@ namespace Opc.Ua.Server
 
             lock (DiagnosticsWriteLock)
             {
-                Diagnostics.SessionId = null;
+                Diagnostics.SessionId = default;
             }
         }
 

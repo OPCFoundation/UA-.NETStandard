@@ -55,9 +55,9 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             DataTypes = [];
             m_validator = null;
-            TypeSystemId = null;
+            TypeSystemId = default;
             TypeSystemName = null;
-            DictionaryId = null;
+            DictionaryId = default;
             Name = null;
         }
 
@@ -138,7 +138,7 @@ namespace Opc.Ua.Client.ComplexTypes
         internal void Validate(
             byte[] dictionary,
             ILogger logger,
-            IDictionary<string, byte[]> imports = null,
+            Dictionary<string, byte[]> imports = null,
             bool throwOnError = false)
         {
             var istrm = new MemoryStream(dictionary);

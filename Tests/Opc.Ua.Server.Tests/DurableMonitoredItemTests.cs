@@ -1409,10 +1409,8 @@ namespace Opc.Ua.Server.Tests
             {
                 Assert.That(
                     queue.Dequeue(out DataValue value, out ServiceResult _),
-                    string.Format(
-                        CultureInfo.InvariantCulture,
-                        "Dequeue operation failed for the {0}st item",
-                        i));
+                    $"Dequeue operation failed for the {i}st item");
+
                 Assert.That(i, Is.EqualTo((uint)value.Value));
 
                 //simulate publishing operation

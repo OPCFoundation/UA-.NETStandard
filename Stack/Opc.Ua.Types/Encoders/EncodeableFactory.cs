@@ -70,7 +70,9 @@ namespace Opc.Ua
         /// </summary>
         private EncodeableFactory()
         {
+#pragma warning disable IDE0301 // Simplify collection initialization
             m_encodeableTypes = FrozenDictionary<ExpandedNodeId, IEncodeableType>.Empty;
+#pragma warning restore IDE0301 // Simplify collection initialization
         }
 
         /// <summary>

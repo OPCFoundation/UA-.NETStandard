@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Text;
@@ -177,7 +176,7 @@ namespace Opc.Ua
         [Obsolete("Use CreateMessageContext() without parameters or CreateMessageContext(IEncodeableFactory) instead.")]
         public ServiceMessageContext CreateMessageContext(bool clonedFactory)
         {
-            return CreateMessageContext((IEncodeableFactory)null);
+            return CreateMessageContext(null);
         }
 
         /// <summary>
@@ -186,7 +185,7 @@ namespace Opc.Ua
         /// <returns>A new instance of a ServiceMessageContext object with a new encodeable factory.</returns>
         public ServiceMessageContext CreateMessageContext()
         {
-            return CreateMessageContext((IEncodeableFactory)null);
+            return CreateMessageContext(null);
         }
 
         /// <summary>
@@ -295,19 +294,10 @@ namespace Opc.Ua
 
             if (!file.Exists)
             {
-                var message = new StringBuilder();
-                message.AppendFormat(
-                    CultureInfo.InvariantCulture,
-                    "Configuration file does not exist: {0}",
-                    filePath)
-                    .AppendLine()
-                    .AppendFormat(
-                    CultureInfo.InvariantCulture,
-                    "Current directory is: {0}",
+                throw ServiceResultException.ConfigurationError(
+                    "Configuration file does not exist: {0}\nCurrent directory is: {1}",
+                    filePath,
                     Directory.GetCurrentDirectory());
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
-                    message.ToString());
             }
 
             return LoadAsync(file, applicationType, systemType, telemetry, ct);
@@ -336,26 +326,17 @@ namespace Opc.Ua
                 var configuration = serializer.ReadObject(stream) as ApplicationConfiguration;
                 configuration.Initialize(telemetry);
 
-                if (configuration != null)
-                {
-                    configuration.SourceFilePath = file.FullName;
-                }
+                configuration?.SourceFilePath = file.FullName;
 
                 return configuration;
             }
             catch (Exception e)
             {
-                var message = new StringBuilder();
-                message.AppendFormat(
-                    CultureInfo.InvariantCulture,
-                    "Configuration file could not be loaded: {0}",
-                    file.FullName)
-                    .AppendLine()
-                    .AppendFormat(CultureInfo.InvariantCulture, "Error is: {0}", e.Message);
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
+                throw ServiceResultException.ConfigurationError(
                     e,
-                    message.ToString());
+                    "Configuration file could not be loaded: {0}\nError: {1}",
+                    file.FullName,
+                    e.Message);
             }
         }
 
@@ -457,23 +438,14 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                var message = new StringBuilder();
-                message.AppendFormat(
-                    CultureInfo.InvariantCulture,
-                    "Configuration file could not be loaded: {0}",
-                    file.FullName)
-                    .AppendLine()
-                    .Append(e.Message);
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
+                throw ServiceResultException.ConfigurationError(
                     e,
-                    message.ToString());
+                    "Configuration file could not be loaded: {0}\nError is: {1}",
+                    file.FullName,
+                    e.Message);
             }
 
-            if (configuration != null)
-            {
-                configuration.SourceFilePath = file.FullName;
-            }
+            configuration?.SourceFilePath = file.FullName;
 
             return configuration;
         }
@@ -537,16 +509,10 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                var message = new StringBuilder();
-                message.AppendFormat(
-                    CultureInfo.InvariantCulture,
-                    "Configuration could not be loaded.")
-                    .AppendLine()
-                    .AppendFormat(CultureInfo.InvariantCulture, "Error is: {0}", e.Message);
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
+                throw ServiceResultException.ConfigurationError(
                     e,
-                    message.ToString());
+                    "Configuration could not be loaded.\nError is: {0}",
+                    e.Message);
             }
 
             if (configuration != null)
@@ -584,12 +550,12 @@ namespace Opc.Ua
                     sectionName + ".Config.xml",
                     checkCurrentDirectory: true,
                     createAlways: false);
-                return absolutePath ?? sectionName + ".Config.xml";
+                return absolutePath ?? $"{sectionName}.Config.xml";
             }
             catch (Exception e)
             {
                 logger.LogError(e, "Could not get file path from app config - returning: {SectionName}.Config.xml", sectionName);
-                return sectionName + ".Config.xml";
+                return $"{sectionName}.Config.xml";
             }
         }
 
@@ -632,15 +598,13 @@ namespace Opc.Ua
         {
             if (string.IsNullOrEmpty(ApplicationName))
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
+                throw ServiceResultException.ConfigurationError(
                     "ApplicationName must be specified.");
             }
 
             if (SecurityConfiguration == null)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
+                throw ServiceResultException.ConfigurationError(
                     "SecurityConfiguration must be specified.");
             }
 
@@ -678,8 +642,7 @@ namespace Opc.Ua
             {
                 if (ClientConfiguration == null)
                 {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadConfigurationError,
+                    throw ServiceResultException.ConfigurationError(
                         "ClientConfiguration must be specified.");
                 }
 
@@ -690,8 +653,7 @@ namespace Opc.Ua
             {
                 if (ServerConfiguration == null)
                 {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadConfigurationError,
+                    throw ServiceResultException.ConfigurationError(
                         "ServerConfiguration must be specified.");
                 }
 
@@ -702,8 +664,7 @@ namespace Opc.Ua
             {
                 if (DiscoveryServerConfiguration == null)
                 {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadConfigurationError,
+                    throw ServiceResultException.ConfigurationError(
                         "DiscoveryServerConfiguration must be specified.");
                 }
 

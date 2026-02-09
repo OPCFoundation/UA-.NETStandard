@@ -296,8 +296,7 @@ namespace Opc.Ua
 
             if (hosts == null || hosts.Count == 0)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
+                throw ServiceResultException.ConfigurationError(
                     "The UA server does not have a default host.");
             }
 
@@ -431,8 +430,8 @@ namespace Opc.Ua
                         address.DiscoveryUrl = address.Url;
                         break;
                     default:
-                        throw new ServiceResultException(StatusCodes.BadConfigurationError,
-                            $"Unsupported scheme for base address: {address.Url}");
+                        throw ServiceResultException.ConfigurationError(
+                            "Unsupported scheme for base address: {0}", address.Url);
                 }
 
                 BaseAddresses.Add(address);
@@ -818,6 +817,7 @@ namespace Opc.Ua
         /// <param name="endpointConfiguration">The configuration of the endpoints.</param>
         /// <param name="listener">The transport listener.</param>
         /// <param name="certificateValidator">The certificate validator for the transport.</param>
+        /// <exception cref="ServiceResultException"></exception>
         public virtual void CreateServiceHostEndpoint(
             Uri endpointUri,
             EndpointDescriptionCollection endpoints,
@@ -1428,14 +1428,12 @@ namespace Opc.Ua
                 X509Certificate2 instanceCertificate =
                     InstanceCertificateTypesProvider.GetInstanceCertificate(
                         securityPolicy.SecurityPolicyUri)
-                    ?? throw new ServiceResultException(
-                        StatusCodes.BadConfigurationError,
+                    ?? throw ServiceResultException.ConfigurationError(
                         "Server does not have an instance certificate assigned.");
 
                 if (!instanceCertificate.HasPrivateKey)
                 {
-                    throw new ServiceResultException(
-                        StatusCodes.BadConfigurationError,
+                    throw ServiceResultException.ConfigurationError(
                         "Server does not have access to the private key for the instance certificate.");
                 }
 
@@ -1489,10 +1487,14 @@ namespace Opc.Ua
         /// <summary>
         /// Creates the endpoints and creates the hosts.
         /// </summary>
-        /// <param name="configuration">The object that stores the configurable configuration information for a UA application.</param>
-        /// <param name="bindingFactory">The object of a class that manages a mapping between a URL scheme and a listener.</param>
-        /// <param name="serverDescription">The object of the class that contains a description for the ApplicationDescription DataType.</param>
-        /// <param name="endpoints">The collection of <see cref="EndpointDescription"/> objects.</param>
+        /// <param name="configuration">The object that stores the configurable
+        /// configuration information for a UA application.</param>
+        /// <param name="bindingFactory">The object of a class that manages a
+        /// mapping between a URL scheme and a listener.</param>
+        /// <param name="serverDescription">The object of the class that contains
+        /// a description for the ApplicationDescription DataType.</param>
+        /// <param name="endpoints">The collection of <see cref="EndpointDescription"/>
+        /// objects.</param>
         /// <returns>Returns list of hosts for a UA service.</returns>
         protected virtual IList<ServiceHost> InitializeServiceHosts(
             ApplicationConfiguration configuration,

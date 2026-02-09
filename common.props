@@ -33,7 +33,7 @@
     <AnalysisMode>all</AnalysisMode>
     <AnalysisModeStyle>default</AnalysisModeStyle>
   </PropertyGroup>
-  <ItemGroup Condition="$(NO_RCS) == ''">
+  <ItemGroup Condition="'$(NoRoslynatorAnalzers)' == ''">
     <PackageReference Include="Roslynator.Analyzers" PrivateAssets="All" />
     <PackageReference Include="Roslynator.Formatting.Analyzers" PrivateAssets="All" />
   </ItemGroup>
@@ -45,7 +45,7 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReleaseNotes>$(RepositoryUrl)/releases</PackageReleaseNotes>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
-    <PackageTags>OPCFoundation OPC UA netstandard ios linux dotnet net netcore uwp</PackageTags>
+    <PackageTags>OPCFoundation OPC UA ios linux dotnet net netcore</PackageTags>
   </PropertyGroup>
   <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
     <!-- OPC Foundation public key -->

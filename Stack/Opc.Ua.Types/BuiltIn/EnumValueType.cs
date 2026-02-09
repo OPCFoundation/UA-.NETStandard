@@ -157,7 +157,7 @@ namespace Opc.Ua
         {
             var clone = (EnumValueType)base.MemberwiseClone();
 
-            clone.Value = (long)CoreUtils.Clone(Value);
+            clone.Value = CoreUtils.Clone(Value);
             clone.DisplayName = CoreUtils.Clone(DisplayName);
             clone.Description = CoreUtils.Clone(Description);
 

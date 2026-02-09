@@ -292,11 +292,13 @@ namespace Opc.Ua.Gds.Client
                     await ConnectInternalAsync(endpoint, false, ct).ConfigureAwait(false);
                     return;
                 }
-                catch (ServiceResultException e) when ((e.StatusCode is
-                    StatusCodes.BadServerHalted or
-                    StatusCodes.BadSecureChannelClosed or
-                    StatusCodes.BadNoCommunication) &&
-                    attempt < maxAttempts)
+                catch (ServiceResultException e) when (
+                (
+                    e.StatusCode == StatusCodes.BadServerHalted ||
+                    e.StatusCode == StatusCodes.BadSecureChannelClosed ||
+                    e.StatusCode == StatusCodes.BadNoCommunication
+                ) &&
+                attempt < maxAttempts)
                 {
                     m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt + 1);
                     await Task.Delay(1000, ct).ConfigureAwait(false);
@@ -347,11 +349,13 @@ namespace Opc.Ua.Gds.Client
                     await ConnectInternalAsync(endpoint, true, ct).ConfigureAwait(false);
                     return;
                 }
-                catch (ServiceResultException e) when ((e.StatusCode is
-                    StatusCodes.BadServerHalted or
-                    StatusCodes.BadSecureChannelClosed or
-                    StatusCodes.BadNoCommunication) &&
-                    attempt < maxAttempts)
+                catch (ServiceResultException e) when (
+                (
+                    e.StatusCode == StatusCodes.BadServerHalted ||
+                    e.StatusCode == StatusCodes.BadSecureChannelClosed ||
+                    e.StatusCode == StatusCodes.BadNoCommunication
+                ) &&
+                attempt < maxAttempts)
                 {
                     m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt + 1);
                     await Task.Delay(1000, ct).ConfigureAwait(false);
@@ -1219,11 +1223,8 @@ namespace Opc.Ua.Gds.Client
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                if (Session != null)
-                {
-                    Session.Dispose();
-                    Session = null;
-                }
+                Session?.Dispose();
+                Session = null;
 
                 Session = await m_sessionFactory.CreateAsync(
                     Configuration,

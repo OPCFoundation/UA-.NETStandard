@@ -30,9 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -1259,7 +1257,8 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
             }
 
-            if (subscription.SessionId != (context as ISessionSystemContext)?.SessionId)
+            NodeId curSession = (context as ISessionSystemContext)?.SessionId ?? default;
+            if (subscription.SessionId != curSession)
             {
                 // user tries to access subscription of different session
                 return StatusCodes.BadUserAccessDenied;
@@ -2256,7 +2255,7 @@ namespace Opc.Ua.Server
                     "Server - {Count} Subscriptions scheduled for delete.",
                     subscriptionsToDelete.Count);
 
-                Task.Run(
+                _ = Task.Run(
                     () => CleanupSubscriptionsCoreAsync(server, subscriptionsToDelete, logger));
             }
         }

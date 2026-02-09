@@ -150,7 +150,7 @@ namespace Opc.Ua
                     return session.SessionId;
                 }
 
-                return null;
+                return default;
             }
         }
 

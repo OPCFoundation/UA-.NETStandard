@@ -167,10 +167,10 @@ namespace Opc.Ua.Gds.Server
                 certificateGroupId,
                 out ICertificateGroup certificateGroup))
             {
-                return certificateGroup.DefaultTrustList?.NodeId;
+                return certificateGroup.DefaultTrustList?.NodeId ?? default;
             }
 
-            return null;
+            return default;
         }
 
         private bool? GetCertificateStatus(NodeId certificateGroupId, NodeId certificateTypeId)
@@ -298,7 +298,8 @@ namespace Opc.Ua.Gds.Server
                     // list of supported cert type mappings (V1.04)
                     {
                         Ua.ObjectTypeIds.HttpsCertificateType,
-                        nameof(Ua.ObjectTypeIds.HttpsCertificateType) },
+                        nameof(Ua.ObjectTypeIds.HttpsCertificateType)
+                    },
                     {
                         Ua.ObjectTypeIds.UserCertificateType,
                         nameof(Ua.ObjectTypeIds.UserCertificateType)
@@ -1492,14 +1493,9 @@ namespace Opc.Ua.Gds.Server
                     }
                     catch (Exception e)
                     {
-                        var error = new StringBuilder();
-                        error.AppendLine("Error Generating Certificate={0}")
-                            .AppendLine("ApplicationId={1}")
-                            .AppendLine("ApplicationUri={2}")
-                            .AppendLine("ApplicationName={3}");
                         result.ServiceResult = ServiceResult.Create(
                             StatusCodes.BadConfigurationError,
-                            error.ToString(),
+                            "Error Generating Certificate={0}\nApplicationId={1}\nApplicationUri={2}\nApplicationName={3}",
                             e.Message,
                             applicationId.ToString(),
                             application.ApplicationUri,
@@ -1525,13 +1521,9 @@ namespace Opc.Ua.Gds.Server
                     }
                     catch (Exception e)
                     {
-                        var error = new StringBuilder();
-                        error.AppendLine("Error Generating New Key Pair Certificate={0}")
-                            .AppendLine("ApplicationId={1}")
-                            .AppendLine("ApplicationUri={2}");
                         result.ServiceResult = ServiceResult.Create(
                             StatusCodes.BadConfigurationError,
-                            error.ToString(),
+                            "Error Generating New Key Pair Certificate={0}\nApplicationId={1}\nApplicationUri={2}",
                             e.Message,
                             applicationId.ToString(),
                             application.ApplicationUri);
@@ -1777,10 +1769,7 @@ namespace Opc.Ua.Gds.Server
             }
 
             // put root into operation cache.
-            if (cache != null)
-            {
-                cache[handle.NodeId] = target;
-            }
+            cache?[handle.NodeId] = target;
 
             handle.Node = target;
             handle.Validated = true;
@@ -1801,23 +1790,21 @@ namespace Opc.Ua.Gds.Server
             if (certificateGroup.CertificateTypes.Contains(Ua.ObjectTypeIds.HttpsCertificateType))
             {
                 certificateGroup.Id = m_defaultHttpsGroupId;
-                certificateGroup.DefaultTrustList = (TrustListState)FindPredefinedNode(
+                certificateGroup.DefaultTrustList = FindPredefinedNode<TrustListState>(
                     ExpandedNodeId.ToNodeId(
                         ObjectIds.Directory_CertificateGroups_DefaultHttpsGroup_TrustList,
                         Server.NamespaceUris
-                    ),
-                    typeof(TrustListState));
+                    ));
             }
             else if (certificateGroup.CertificateTypes
                 .Contains(Ua.ObjectTypeIds.UserCertificateType))
             {
                 certificateGroup.Id = m_defaultUserTokenGroupId;
-                certificateGroup.DefaultTrustList = (TrustListState)FindPredefinedNode(
+                certificateGroup.DefaultTrustList = FindPredefinedNode<TrustListState>(
                     ExpandedNodeId.ToNodeId(
                         ObjectIds.Directory_CertificateGroups_DefaultUserTokenGroup_TrustList,
                         Server.NamespaceUris
-                    ),
-                    typeof(TrustListState));
+                    ));
             }
             else if (certificateGroup.CertificateTypes.Any(certificateType =>
                 Utils.IsEqual(
@@ -1855,30 +1842,26 @@ namespace Opc.Ua.Gds.Server
                     false))
             {
                 certificateGroup.Id = m_defaultApplicationGroupId;
-                certificateGroup.DefaultTrustList = (TrustListState)FindPredefinedNode(
+                certificateGroup.DefaultTrustList = FindPredefinedNode<TrustListState>(
                     ExpandedNodeId.ToNodeId(
                         ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup_TrustList,
                         Server.NamespaceUris
-                    ),
-                    typeof(TrustListState));
+                    ));
             }
             else
             {
                 throw new NotImplementedException(
-                    $"Unknown certificate type {certificateGroup.CertificateTypes}. " +
+                    $"Unknown certificate type {string.Join(",", certificateGroup.CertificateTypes.Select(n => n.ToString()))}. " +
                     "Use ApplicationCertificateType, HttpsCertificateType or UserCredentialCertificateType");
             }
 
-            if (certificateGroup.DefaultTrustList != null)
-            {
-                certificateGroup.DefaultTrustList.Handle = new TrustList(
+            certificateGroup.DefaultTrustList?.Handle = new TrustList(
                     certificateGroup.DefaultTrustList,
                     new CertificateStoreIdentifier(certificateGroup.Configuration.TrustedListPath),
                     new CertificateStoreIdentifier(certificateGroup.Configuration.IssuerListPath),
                     new TrustList.SecureAccess(HasTrustListAccess),
                     new TrustList.SecureAccess(HasTrustListAccess),
                     Server.Telemetry);
-            }
         }
 
         private void HasTrustListAccess(

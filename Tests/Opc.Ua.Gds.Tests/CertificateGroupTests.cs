@@ -54,7 +54,7 @@ namespace Opc.Ua.Gds.Tests
                     certificateGroup.CertificateTypes[0]),
                 Throws.TypeOf<ArgumentException>());
             NUnit.Framework.Assert.That(
-                () => certificateGroup.CreateCACertificateAsync(configuration.SubjectName, null),
+                () => certificateGroup.CreateCACertificateAsync(configuration.SubjectName, default),
                 Throws.TypeOf<ArgumentNullException>());
         }
 

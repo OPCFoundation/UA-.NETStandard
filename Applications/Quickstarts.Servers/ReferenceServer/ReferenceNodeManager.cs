@@ -1812,10 +1812,7 @@ namespace Quickstarts.ReferenceServer
                             }
 
                             //set default value for Definition property
-                            if (item.Definition != null)
-                            {
-                                item.Definition.Value = string.Empty;
-                            }
+                            item.Definition?.Value = string.Empty;
                         }
                     }
 
@@ -4028,7 +4025,7 @@ namespace Quickstarts.ReferenceServer
             variable.ValuePrecision = new PropertyState<double>(variable);
             variable.Definition = new PropertyState<string>(variable);
 
-            variable.Create(SystemContext, null, variable.BrowseName, null, true);
+            variable.Create(SystemContext, default, variable.BrowseName, null, true);
 
             variable.SymbolicName = name;
             variable.ReferenceTypeId = ReferenceTypes.Organizes;
@@ -4220,7 +4217,7 @@ namespace Quickstarts.ReferenceServer
                 UserWriteMask = AttributeWriteMask.None
             };
 
-            variable.Create(SystemContext, null, variable.BrowseName, null, true);
+            variable.Create(SystemContext, default, variable.BrowseName, null, true);
 
             variable.SymbolicName = name;
             variable.ReferenceTypeId = ReferenceTypes.Organizes;
@@ -4263,7 +4260,7 @@ namespace Quickstarts.ReferenceServer
                 UserWriteMask = AttributeWriteMask.None
             };
 
-            variable.Create(SystemContext, null, variable.BrowseName, null, true);
+            variable.Create(SystemContext, default, variable.BrowseName, null, true);
 
             variable.SymbolicName = name;
             variable.ReferenceTypeId = ReferenceTypes.Organizes;
@@ -4323,7 +4320,7 @@ namespace Quickstarts.ReferenceServer
                 UserWriteMask = AttributeWriteMask.None
             };
 
-            variable.Create(SystemContext, null, variable.BrowseName, null, true);
+            variable.Create(SystemContext, default, variable.BrowseName, null, true);
 
             variable.SymbolicName = name;
             variable.ReferenceTypeId = ReferenceTypes.Organizes;

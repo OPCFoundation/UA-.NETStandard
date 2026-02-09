@@ -84,7 +84,7 @@ namespace Opc.Ua
         private void Initialize()
         {
             Value = Variant.Null;
-            DataType = null;
+            DataType = default;
             ValueRank = 0;
             m_arrayDimensions = [];
             AccessLevel = 0;
@@ -285,15 +285,15 @@ namespace Opc.Ua
         {
             var clone = (VariableNode)base.MemberwiseClone();
 
-            clone.Value = (Variant)CoreUtils.Clone(Value);
+            clone.Value = CoreUtils.Clone(Value);
             clone.DataType = CoreUtils.Clone(DataType);
-            clone.ValueRank = (int)CoreUtils.Clone(ValueRank);
+            clone.ValueRank = CoreUtils.Clone(ValueRank);
             clone.m_arrayDimensions = CoreUtils.Clone(m_arrayDimensions);
-            clone.AccessLevel = (byte)CoreUtils.Clone(AccessLevel);
-            clone.UserAccessLevel = (byte)CoreUtils.Clone(UserAccessLevel);
+            clone.AccessLevel = CoreUtils.Clone(AccessLevel);
+            clone.UserAccessLevel = CoreUtils.Clone(UserAccessLevel);
             clone.MinimumSamplingInterval = (double)CoreUtils.Clone(MinimumSamplingInterval);
-            clone.Historizing = (bool)CoreUtils.Clone(Historizing);
-            clone.AccessLevelEx = (uint)CoreUtils.Clone(AccessLevelEx);
+            clone.Historizing = CoreUtils.Clone(Historizing);
+            clone.AccessLevelEx = CoreUtils.Clone(AccessLevelEx);
 
             return clone;
         }

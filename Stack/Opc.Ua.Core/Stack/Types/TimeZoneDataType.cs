@@ -27,33 +27,20 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NETSTANDARD2_0
+using System;
 
-using System.Security.Cryptography.X509Certificates;
-using Org.BouncyCastle.Asn1;
-using Org.BouncyCastle.Asn1.X509;
-
-namespace Opc.Ua.Security.Certificates.BouncyCastle
+namespace Opc.Ua
 {
-    /// <summary>
-    /// A converter class to create a X509Name object
-    /// from a X509Certificate subject.
-    /// </summary>
-    /// <remarks>
-    /// Handles subtle differences in the string representation
-    /// of the .NET and the Bouncy Castle implementation.
-    /// </remarks>
-    public class CertificateFactoryX509Name : X509Name
+    public partial class TimeZoneDataType
     {
         /// <summary>
-        /// Create the X509Name from a X500DistinguishedName
-        /// ASN.1 encoded distinguished name.
+        /// Returns the TimeZone information for the current local time.
         /// </summary>
-        /// <param name="distinguishedName">The distinguished name.</param>
-        public CertificateFactoryX509Name(X500DistinguishedName distinguishedName)
-            : base((Asn1Sequence)Asn1Object.FromByteArray(distinguishedName.RawData))
+        /// <returns>The TimeZone information for the current local time.</returns>
+        public static TimeZoneDataType Local => new()
         {
-        }
+            Offset = (short)TimeZoneInfo.Local.GetUtcOffset(DateTime.Now).TotalMinutes,
+            DaylightSavingInOffset = true
+        };
     }
 }
-#endif

@@ -216,7 +216,7 @@ namespace Opc.Ua.Server
 
             // determine the calculated value to return.
             object processedValue = null;
-            TypeInfo processedType = null;
+            TypeInfo processedType = default;
             DateTime processedTimestamp = DateTime.MinValue;
             bool duplicatesExist = false;
 
@@ -314,8 +314,8 @@ namespace Opc.Ua.Server
             StatusCode minimumGoodStatusCode = StatusCodes.Good;
             StatusCode maximumGoodStatusCode = StatusCodes.Good;
 
-            TypeInfo minimumOriginalType = null;
-            TypeInfo maximumOriginalType = null;
+            TypeInfo minimumOriginalType = default;
+            TypeInfo maximumOriginalType = default;
 
             bool duplicatesMinimumsExist = false;
             bool duplicatesMaximumsExist = false;
@@ -397,7 +397,7 @@ namespace Opc.Ua.Server
 
             // determine the calculated value to return.
             object processedValue = null;
-            TypeInfo processedType = null;
+            TypeInfo processedType = default;
             DateTime processedTimestamp = DateTime.MinValue;
             StatusCode processedStatusCode = StatusCodes.Good;
             bool duplicatesExist = false;

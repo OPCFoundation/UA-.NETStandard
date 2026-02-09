@@ -353,7 +353,7 @@ namespace Opc.Ua.Gds.Server
                         "CSR signature invalid.");
                 }
 
-                X509SubjectAltNameExtension altNameExtension = 
+                X509SubjectAltNameExtension altNameExtension =
                     Pkcs10Utils.GetSubjectAltNameExtension(pkcs10CertificationRequest.Attributes);
                 if (altNameExtension != null &&
                     altNameExtension.Uris.Count > 0 &&
@@ -389,7 +389,7 @@ namespace Opc.Ua.Gds.Server
                         "CSR signature invalid.");
                 }
 
-                X509SubjectAltNameExtension altNameExtension = 
+                X509SubjectAltNameExtension altNameExtension =
                     Pkcs10Utils.GetSubjectAltNameExtension(pkcs10CertificationRequest.Attributes);
                 if (altNameExtension != null)
                 {
@@ -427,7 +427,7 @@ namespace Opc.Ua.Gds.Server
                     m_telemetry,
                     ct)
                     .ConfigureAwait(false);
-                var subjectName = pkcs10CertificationRequest.Subject;
+                X500DistinguishedName subjectName = pkcs10CertificationRequest.Subject;
 
                 ICertificateBuilder builder = CertificateBuilder
                     .Create(subjectName)
@@ -759,7 +759,6 @@ namespace Opc.Ua.Gds.Server
                 trustedOrIssuerStore.Close();
             }
         }
-
 
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;

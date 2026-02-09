@@ -27,15 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if !NETSTANDARD2_1 && !NET5_0_OR_GREATER
+#if NETFRAMEWORK
 using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
-#if NET472_OR_GREATER
 using Opc.Ua.Security.Certificates.BouncyCastle;
-#endif
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.OpenSsl;
 using Org.BouncyCastle.Security;
@@ -72,13 +70,11 @@ namespace Opc.Ua.Security.Certificates
                     {
                         return true;
                     }
-#if NET472_OR_GREATER
 
                     if (pemObject is ECPrivateKeyParameters)
                     {
                         return true;
                     }
-#endif
                     pemObject = pemReader.ReadObject();
                 }
             }
@@ -201,14 +197,12 @@ namespace Opc.Ua.Security.Certificates
                         key = rsa;
                         break;
                     }
-#if NET472_OR_GREATER
                     // Check for an EC private key
                     if (pemObject is ECPrivateKeyParameters ecParams)
                     {
                         key = CreateECDsaFromECPrivateKey(ecParams);
                         break;
                     }
-#endif
 
                     // read next object
                     pemObject = pemReader.ReadObject();
@@ -225,7 +219,6 @@ namespace Opc.Ua.Security.Certificates
             return key;
         }
 
-#if NET472_OR_GREATER
         private static ECDsa CreateECDsaFromECPrivateKey(
             ECPrivateKeyParameters eCPrivateKeyParameters)
         {
@@ -260,7 +253,6 @@ namespace Opc.Ua.Security.Certificates
 
             return ecdsa;
         }
-#endif
 
         /// <summary>
         /// Wrapper for a password string.

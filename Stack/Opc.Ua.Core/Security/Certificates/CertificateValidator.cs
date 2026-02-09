@@ -509,7 +509,7 @@ namespace Opc.Ua
                 if (updateStore)
                 {
                     // update the rejected store
-                    Task.Run(async () => await SaveCertificatesAsync([]).ConfigureAwait(false));
+                    _ = Task.Run(async () => await SaveCertificatesAsync([]).ConfigureAwait(false));
                 }
             }
         }
@@ -857,7 +857,7 @@ namespace Opc.Ua
                     se.Result);
 
                 // save the chain in rejected store to allow to add certs to a trusted or issuer store
-                Task.Run(async () => await SaveCertificatesAsync(chain).ConfigureAwait(false));
+                _ = Task.Run(async () => await SaveCertificatesAsync(chain).ConfigureAwait(false));
 
                 LogInnerServiceResults(LogLevel.Information, se.Result.InnerResult);
                 throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
@@ -921,7 +921,7 @@ namespace Opc.Ua
                 LogInnerServiceResults(LogLevel.Error, se.Result.InnerResult);
 
                 // save the chain in rejected store to allow to add cert to a trusted or issuer store
-                Task.Run(async () => await SaveCertificatesAsync(chain).ConfigureAwait(false));
+                _ = Task.Run(async () => await SaveCertificatesAsync(chain).ConfigureAwait(false));
 
                 throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
             }
@@ -1257,8 +1257,7 @@ namespace Opc.Ua
 
                                             if (m_rejectUnknownRevocationStatus &&
                                                 (
-                                                    options &
-                                                    CertificateValidationOptions.SuppressRevocationStatusUnknown
+                                                    options & CertificateValidationOptions.SuppressRevocationStatusUnknown
                                                 ) == 0)
                                             {
                                                 serviceResult = new ServiceResultException(status);
@@ -1851,7 +1850,7 @@ namespace Opc.Ua
                             "Certificate {Certificate} rejected. Reason={ServiceResult}.",
                             serverCertificate.AsLogSafeString(),
                             Redact.Create(serviceResult));
-                        Task.Run(async () => await SaveCertificateAsync(serverCertificate)
+                        _ = Task.Run(async () => await SaveCertificateAsync(serverCertificate)
                             .ConfigureAwait(false));
                     }
 
@@ -1893,7 +1892,7 @@ namespace Opc.Ua
                         "Certificate {Certificate} rejected. Reason={ServiceResult}.",
                         serverCertificate.AsLogSafeString(),
                         Redact.Create(serviceResult));
-                    Task.Run(async () => await SaveCertificateAsync(serverCertificate).ConfigureAwait(false));
+                    _ = Task.Run(async () => await SaveCertificateAsync(serverCertificate).ConfigureAwait(false));
 
                     throw new ServiceResultException(serviceResult);
                 }

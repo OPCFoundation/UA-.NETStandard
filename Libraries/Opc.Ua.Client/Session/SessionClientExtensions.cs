@@ -225,7 +225,7 @@ namespace Opc.Ua.Client
                     [nodeId],
                     0,
                     BrowseDirection.Both,
-                    null,
+                    default,
                     true,
                     0,
                     ct)
@@ -255,7 +255,7 @@ namespace Opc.Ua.Client
                 nodeIds,
                 0,
                 BrowseDirection.Both,
-                null,
+                default,
                 true,
                 0,
                 ct);
@@ -384,7 +384,7 @@ namespace Opc.Ua.Client
                     NodeId = nodeIds[ii],
                     AttributeId = Attributes.DisplayName,
                     IndexRange = null,
-                    DataEncoding = null
+                    DataEncoding = QualifiedName.Null
                 };
 
                 valuesToRead.Add(valueToRead);
@@ -729,7 +729,7 @@ namespace Opc.Ua.Client
                             // Range is inclusive and starts at 0. Therefore
                             // to read 5 bytes you need to specify 0-4.
                             offset + maxByteStringLength - 1).ToString(),
-                        DataEncoding = null
+                        DataEncoding = QualifiedName.Null
                     };
                     var readValueIds = new ReadValueIdCollection { valueToRead };
 

@@ -27,21 +27,19 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
-
 using System;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-#if NET472_OR_GREATER
+using System.Collections.Generic;
+using ECCurve = System.Security.Cryptography.ECCurve;
+using X509Extension = System.Security.Cryptography.X509Certificates.X509Extension;
+#if NETFRAMEWORK
 using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Asn1.X509;
 using Org.BouncyCastle.Asn1.X9;
 using Opc.Ua.Security.Certificates.BouncyCastle;
 #endif
-using ECCurve = System.Security.Cryptography.ECCurve;
-using X509Extension = System.Security.Cryptography.X509Certificates.X509Extension;
-using System.Collections.Generic;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -286,7 +284,7 @@ namespace Opc.Ua.Security.Certificates
             try
             {
                 m_ecdsaPublicKey = ECDsa.Create();
-#if NET472_OR_GREATER
+#if NETFRAMEWORK
                 if (Org.BouncyCastle.Security.PublicKeyFactory.CreateKey(publicKey)
                     is not Org.BouncyCastle.Crypto.Parameters.ECPublicKeyParameters asymmetricPubKeyParameters)
                 {
@@ -365,7 +363,7 @@ namespace Opc.Ua.Security.Certificates
             int bytes = 0;
             try
             {
-#if NET472_OR_GREATER
+#if NETFRAMEWORK
                 m_rsaPublicKey = X509Utils.SetRSAPublicKey(publicKey);
                 bytes = publicKey.Length;
 #else
@@ -517,4 +515,3 @@ namespace Opc.Ua.Security.Certificates
         }
     }
 }
-#endif

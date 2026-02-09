@@ -215,7 +215,7 @@ namespace Alarms
 
             Log(
                 "OnConfirm",
-                "Called with eventId " + eventIdString + " Comment " + comment?.Text ?? "(empty)");
+                $"Called with eventId {eventIdString} Comment {comment.Text ?? "(empty)"}");
 
             if (m_confirmed.Contains(eventIdString))
             {

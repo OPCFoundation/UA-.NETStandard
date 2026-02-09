@@ -54,26 +54,6 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
                 Ua.Tests.TestUtils.EnumerateTestAssets("*.NodeSet2.xml"))
         ];
 
-        [OneTimeSetUp]
-        protected void OneTimeSetUp()
-        {
-        }
-
-        [OneTimeTearDown]
-        protected void OneTimeTearDown()
-        {
-        }
-
-        [SetUp]
-        protected void SetUp()
-        {
-        }
-
-        [TearDown]
-        protected void TearDown()
-        {
-        }
-
         /// <summary>
         /// Test Structure Field ArrayDimensions attribute is correctly imported respectively exported
         /// </summary>
@@ -272,9 +252,9 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
 
             const string importBuffer =
                 @"<?xml version='1.0' encoding='utf-8'?>
-                <UANodeSet xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' 
-                           xmlns:xsd='http://www.w3.org/2001/XMLSchema' 
-                           LastModified='2024-01-01T00:00:00.000Z' 
+                <UANodeSet xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'
+                           xmlns:xsd='http://www.w3.org/2001/XMLSchema'
+                           LastModified='2024-01-01T00:00:00.000Z'
                            xmlns='http://opcfoundation.org/UA/2011/03/UANodeSet.xsd'>
                   <NamespaceUris>
                     <Uri>http://opcfoundation.org/UA/Test</Uri>

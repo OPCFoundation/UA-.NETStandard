@@ -946,7 +946,7 @@ namespace Opc.Ua
         {
             if (certificateType == null)
             {
-                return null;
+                return default;
             }
 
             foreach (KeyValuePair<uint, string> supportedCertificateType in s_supportedCertificateTypes)
@@ -957,7 +957,7 @@ namespace Opc.Ua
                 }
             }
 
-            return null;
+            return default;
         }
     }
 

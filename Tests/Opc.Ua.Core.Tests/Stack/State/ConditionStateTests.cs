@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -75,9 +75,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
             condition.Create(m_context, new NodeId(1), "Condition", null, true);
 
             // Set initial state
-            var beforeTime = DateTime.UtcNow;
+            DateTime beforeTime = DateTime.UtcNow;
             condition.SetEnableState(m_context, true);
-            var afterTime = DateTime.UtcNow;
+            DateTime afterTime = DateTime.UtcNow;
 
             // Verify timestamp is updated
             Assert.That(condition.EnabledState.Timestamp, Is.GreaterThanOrEqualTo(beforeTime));
@@ -97,9 +97,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
             var condition = new ConditionState(null);
             condition.Create(m_context, new NodeId(1), "Condition", null, true);
 
-            var beforeTime = DateTime.UtcNow;
+            DateTime beforeTime = DateTime.UtcNow;
             condition.SetSeverity(m_context, EventSeverity.High);
-            var afterTime = DateTime.UtcNow;
+            DateTime afterTime = DateTime.UtcNow;
 
             // Verify timestamps are updated
             Assert.That(condition.Severity.Timestamp, Is.GreaterThanOrEqualTo(beforeTime));
@@ -120,9 +120,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
             var alarm = new AlarmConditionState(m_telemetry, null);
             alarm.Create(m_context, new NodeId(1), "Alarm", null, true);
 
-            var beforeTime = DateTime.UtcNow;
+            DateTime beforeTime = DateTime.UtcNow;
             alarm.SetActiveState(m_context, true);
-            var afterTime = DateTime.UtcNow;
+            DateTime afterTime = DateTime.UtcNow;
 
             // Verify timestamp is updated
             Assert.That(alarm.ActiveState.Timestamp, Is.GreaterThanOrEqualTo(beforeTime));
@@ -142,11 +142,11 @@ namespace Opc.Ua.Core.Tests.Stack.State
             var alarm = new AlarmConditionState(m_telemetry, null);
             alarm.Create(m_context, new NodeId(1), "Alarm", null, true);
             alarm.SuppressedState = new TwoStateVariableState(alarm);
-            alarm.SuppressedState.Create(m_context, null, BrowseNames.SuppressedState, null, false);
+            alarm.SuppressedState.Create(m_context, default, BrowseNames.SuppressedState, null, false);
 
-            var beforeTime = DateTime.UtcNow;
+            DateTime beforeTime = DateTime.UtcNow;
             alarm.SetSuppressedState(m_context, true);
-            var afterTime = DateTime.UtcNow;
+            DateTime afterTime = DateTime.UtcNow;
 
             // Verify timestamp is updated
             Assert.That(alarm.SuppressedState.Timestamp, Is.GreaterThanOrEqualTo(beforeTime));
@@ -166,9 +166,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
             var condition = new AcknowledgeableConditionState(null);
             condition.Create(m_context, new NodeId(1), "AckCondition", null, true);
 
-            var beforeTime = DateTime.UtcNow;
+            DateTime beforeTime = DateTime.UtcNow;
             condition.SetAcknowledgedState(m_context, true);
-            var afterTime = DateTime.UtcNow;
+            DateTime afterTime = DateTime.UtcNow;
 
             // Verify timestamp is updated
             Assert.That(condition.AckedState.Timestamp, Is.GreaterThanOrEqualTo(beforeTime));
@@ -188,11 +188,11 @@ namespace Opc.Ua.Core.Tests.Stack.State
             var condition = new AcknowledgeableConditionState(null);
             condition.Create(m_context, new NodeId(1), "AckCondition", null, true);
             condition.ConfirmedState = new TwoStateVariableState(condition);
-            condition.ConfirmedState.Create(m_context, null, BrowseNames.ConfirmedState, null, false);
+            condition.ConfirmedState.Create(m_context, default, BrowseNames.ConfirmedState, null, false);
 
-            var beforeTime = DateTime.UtcNow;
+            DateTime beforeTime = DateTime.UtcNow;
             condition.SetConfirmedState(m_context, true);
-            var afterTime = DateTime.UtcNow;
+            DateTime afterTime = DateTime.UtcNow;
 
             // Verify timestamp is updated
             Assert.That(condition.ConfirmedState.Timestamp, Is.GreaterThanOrEqualTo(beforeTime));
@@ -212,12 +212,12 @@ namespace Opc.Ua.Core.Tests.Stack.State
             var alarm = new AlarmConditionState(m_telemetry, null);
             alarm.Create(m_context, new NodeId(1), "Alarm", null, true);
             alarm.ShelvingState = new ShelvedStateMachineState(alarm);
-            alarm.ShelvingState.Create(m_context, null, BrowseNames.ShelvingState, null, false);
+            alarm.ShelvingState.Create(m_context, default, BrowseNames.ShelvingState, null, false);
             alarm.ShelvingState.UnshelveTime = new PropertyState<double>(alarm.ShelvingState);
 
-            var beforeTime = DateTime.UtcNow;
+            DateTime beforeTime = DateTime.UtcNow;
             alarm.SetShelvingState(m_context, true, false, 1000);
-            var afterTime = DateTime.UtcNow;
+            DateTime afterTime = DateTime.UtcNow;
 
             // Verify timestamp is updated on UnshelveTime
             Assert.That(alarm.ShelvingState.UnshelveTime.Timestamp, Is.GreaterThanOrEqualTo(beforeTime));
@@ -239,13 +239,12 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             // Initially inactive
             alarm.SetActiveState(m_context, false);
-            var initialTimestamp = alarm.ActiveState.Timestamp;
 
             // Now activate the alarm - timestamp should be greater than or equal to the initial timestamp
             // since both could be set to DateTime.UtcNow which has limited precision
-            var beforeActivation = DateTime.UtcNow;
+            DateTime beforeActivation = DateTime.UtcNow;
             alarm.SetActiveState(m_context, true);
-            var afterActivation = DateTime.UtcNow;
+            DateTime afterActivation = DateTime.UtcNow;
 
             // Verify that the timestamp is within the expected range
             Assert.That(alarm.ActiveState.Timestamp, Is.GreaterThanOrEqualTo(beforeActivation));
@@ -264,7 +263,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             // Arrange
             var condition = new ConditionState(null);
-            condition.Create(m_context, null, new QualifiedName("TestCondition"), null, true);
+            condition.Create(m_context, default, new QualifiedName("TestCondition"), null, true);
 
             // Initially disabled
             condition.SetEnableState(m_context, false);
@@ -276,7 +275,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             // Assert - Enabled state should be true
             Assert.That(condition.EnabledState.Id.Value, Is.True);
-            
+
             // The default implementation should call UpdateRetainState which uses GetRetainState
             // For base ConditionState with no branches, GetRetainState returns false when enabled
             Assert.That(condition.Retain.Value, Is.False);
@@ -290,7 +289,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             // Arrange
             var condition = new TestConditionStateWithRetain(null);
-            condition.Create(m_context, null, new QualifiedName("TestCondition"), null, true);
+            condition.Create(m_context, default, new QualifiedName("TestCondition"), null, true);
 
             // Enable the condition and set retain to true
             condition.SetEnableState(m_context, true);
@@ -314,7 +313,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             // Arrange
             var condition = new TestConditionStateWithCustomRetain(null);
-            condition.Create(m_context, null, new QualifiedName("TestCondition"), null, true);
+            condition.Create(m_context, default, new QualifiedName("TestCondition"), null, true);
 
             // Initially disabled
             condition.SetEnableState(m_context, false);
@@ -334,7 +333,10 @@ namespace Opc.Ua.Core.Tests.Stack.State
         /// </summary>
         private sealed class TestConditionStateWithRetain : ConditionState
         {
-            public TestConditionStateWithRetain(NodeState parent) : base(parent) { }
+            public TestConditionStateWithRetain(NodeState parent)
+                : base(parent)
+            {
+            }
 
             public void ForceRetain(bool value)
             {
@@ -349,7 +351,10 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             public bool EvaluateCalled { get; private set; }
 
-            public TestConditionStateWithCustomRetain(NodeState parent) : base(parent) { }
+            public TestConditionStateWithCustomRetain(NodeState parent)
+                : base(parent)
+            {
+            }
 
             protected override void EvaluateRetainStateOnEnable(ISystemContext context)
             {

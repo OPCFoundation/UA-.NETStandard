@@ -38,7 +38,7 @@ namespace Opc.Ua
     /// Structure definition
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public partial class StructureDefinition : DataTypeDefinition
+    public class StructureDefinition : DataTypeDefinition
     {
         /// <inheritdoc/>
         public StructureDefinition()
@@ -54,8 +54,8 @@ namespace Opc.Ua
 
         private void Initialize()
         {
-            DefaultEncodingId = null;
-            BaseDataType = null;
+            DefaultEncodingId = default;
+            BaseDataType = default;
             StructureType = StructureType.Structure;
             m_fields = [];
         }
@@ -96,6 +96,11 @@ namespace Opc.Ua
                 }
             }
         }
+
+        /// <summary>
+        /// The first non-inherited field in the structure definition.
+        /// </summary>
+        public int FirstExplicitFieldIndex { get; set; }
 
         /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.StructureDefinition;
@@ -184,7 +189,7 @@ namespace Opc.Ua
 
             clone.DefaultEncodingId = CoreUtils.Clone(DefaultEncodingId);
             clone.BaseDataType = CoreUtils.Clone(BaseDataType);
-            clone.StructureType = (StructureType)CoreUtils.Clone(StructureType);
+            clone.StructureType = CoreUtils.Clone(StructureType);
             clone.m_fields = CoreUtils.Clone(m_fields);
 
             return clone;

@@ -743,7 +743,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         encoder.WriteDateTime(fieldName, (DateTime)value);
                         return;
                     case BuiltInType.Guid:
-                        encoder.WriteGuid(fieldName, (Uuid)value);
+                        encoder.WriteGuid(fieldName, value is Guid g ? (Uuid)g : (Uuid)value);
                         return;
                     case BuiltInType.ByteString:
                         encoder.WriteByteString(fieldName, (byte[])value);
@@ -1283,10 +1283,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         ? df.GetDynamicEncodeableForEncoding(TypeId)
                         : null;
                     // Read the type information
-                    TypeId = encodeable?.TypeId;
-                    XmlEncodingId = encodeable?.XmlEncodingId;
-                    JsonEncodingId = encodeable?.JsonEncodingId;
-                    BinaryEncodingId = encodeable?.BinaryEncodingId;
+                    TypeId = encodeable?.TypeId ?? default;
+                    XmlEncodingId = encodeable?.XmlEncodingId ?? default;
+                    JsonEncodingId = encodeable?.JsonEncodingId ?? default;
+                    BinaryEncodingId = encodeable?.BinaryEncodingId ?? default;
                     Count = encodeable?.Count ?? 0;
                     m_fields = encodeable?.m_fields.ToDictionary(
                         kv => kv.Key,

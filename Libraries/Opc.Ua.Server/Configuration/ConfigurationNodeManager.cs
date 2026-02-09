@@ -308,7 +308,7 @@ namespace Opc.Ua.Server
 
             // find ServerNamespaces node and subscribe to StateChanged
 
-            if (FindPredefinedNode(ObjectIds.Server_Namespaces, typeof(NamespacesState))
+            if (FindPredefinedNode<NamespacesState>(ObjectIds.Server_Namespaces)
                 is NamespacesState serverNamespacesNode)
             {
                 serverNamespacesNode.StateChanged += ServerNamespacesChanged;
@@ -351,7 +351,7 @@ namespace Opc.Ua.Server
             if (namespaceMetadataState == null)
             {
                 // find ServerNamespaces node
-                if (FindPredefinedNode(ObjectIds.Server_Namespaces, typeof(NamespacesState))
+                if (FindPredefinedNode<NamespacesState>(ObjectIds.Server_Namespaces)
                     is not NamespacesState serverNamespacesNode)
                 {
                     m_logger.LogError(
@@ -367,7 +367,7 @@ namespace Opc.Ua.Server
                 };
                 namespaceMetadataState.Create(
                     SystemContext,
-                    null,
+                    default,
                     namespaceMetadataState.BrowseName,
                     null,
                     true);
@@ -567,7 +567,7 @@ namespace Opc.Ua.Server
                 var updateCertificate = new UpdateCertificateData
                 {
                     IssuerCollection = newIssuerCollection,
-                    SessionId = (context as ISessionSystemContext)?.SessionId
+                    SessionId = (context as ISessionSystemContext)?.SessionId ?? default
                 };
                 try
                 {
@@ -758,8 +758,7 @@ namespace Opc.Ua.Server
                     {
                         if (appStore == null)
                         {
-                            throw new ServiceResultException(
-                                StatusCodes.BadConfigurationError,
+                            throw ServiceResultException.ConfigurationError(
                                 "Failed to open application certificate store.");
                         }
 
@@ -802,8 +801,7 @@ namespace Opc.Ua.Server
                     {
                         if (issuerStore == null)
                         {
-                            throw new ServiceResultException(
-                                StatusCodes.BadConfigurationError,
+                            throw ServiceResultException.ConfigurationError(
                                 "Failed to open issuer certificate store.");
                         }
 
@@ -1008,7 +1006,7 @@ namespace Opc.Ua.Server
                 // all channels and reevaluate sessions, this needs to be implemented in
                 // Transport side presumably.
 
-                Task.Run(async () =>
+                _ = Task.Run(async () =>
                 {
                     m_logger.LogInformation(
                         Utils.TraceMasks.Security,
@@ -1158,7 +1156,7 @@ namespace Opc.Ua.Server
             try
             {
                 // find ServerNamespaces node
-                if (FindPredefinedNode(ObjectIds.Server_Namespaces, typeof(NamespacesState))
+                if (FindPredefinedNode<NamespacesState>(ObjectIds.Server_Namespaces)
                     is not NamespacesState serverNamespacesNode)
                 {
                     m_logger.LogError("Cannot find ObjectIds.Server_Namespaces node.");

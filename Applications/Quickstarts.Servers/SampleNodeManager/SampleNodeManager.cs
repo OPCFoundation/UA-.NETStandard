@@ -224,7 +224,7 @@ namespace Opc.Ua.Sample
                     parent.AddChild(instance);
                 }
 
-                instance.Create(contextToUse, null, browseName, null, true);
+                instance.Create(contextToUse, default, browseName, null, true);
                 AddPredefinedNode(contextToUse, instance);
 
                 return instance.NodeId;
@@ -380,11 +380,6 @@ namespace Opc.Ua.Sample
             ISystemContext context,
             NodeState predefinedNode)
         {
-            if (predefinedNode is not BaseObjectState)
-            {
-                return predefinedNode;
-            }
-
             return predefinedNode;
         }
 
@@ -705,6 +700,26 @@ namespace Opc.Ua.Sample
         }
 
         /// <summary>
+        /// Finds the specified node and checks if it is of the expected type.
+        /// </summary>
+        /// <typeparam name="T">Node state type</typeparam>
+        /// <returns>Returns null if not found or not of the correct type.</returns>
+        public T FindPredefinedNode<T>(NodeId nodeId) where T : NodeState
+        {
+            if (nodeId == null)
+            {
+                return null;
+            }
+
+            if (!PredefinedNodes.TryGetValue(nodeId, out NodeState node))
+            {
+                return null;
+            }
+
+            return node is T typedNode ? typedNode : null;
+        }
+
+        /// <summary>
         /// Frees any resources allocated for the address space.
         /// </summary>
         public virtual void DeleteAddressSpace()
@@ -891,7 +906,7 @@ namespace Opc.Ua.Sample
                         ((uint)values[1]));
                 }
 
-                metadata.DataType = (NodeId)values[2];
+                metadata.DataType = values[2] is NodeId nodeId ? nodeId : default;
 
                 if (values[3] != null)
                 {
@@ -1084,7 +1099,7 @@ namespace Opc.Ua.Sample
                 return null;
             }
 
-            NodeId typeDefinition = null;
+            NodeId typeDefinition = default;
 
             if (target is BaseInstanceState instance)
             {
@@ -1765,9 +1780,7 @@ namespace Opc.Ua.Sample
                             false,
                             methodToCall.MethodId))
                         {
-                            method = (MethodState)FindPredefinedNode(
-                                methodToCall.MethodId,
-                                typeof(MethodState));
+                            method = FindPredefinedNode<MethodState>(methodToCall.MethodId);
                         }
 
                         if (method == null)
@@ -2590,10 +2603,9 @@ namespace Opc.Ua.Sample
 
             if (ServiceResult.IsBad(error))
             {
-                if (error.StatusCode.Code
-                    is StatusCodes.BadAttributeIdInvalid
-                    or StatusCodes.BadDataEncodingInvalid
-                    or StatusCodes.BadDataEncodingUnsupported)
+                if (error.StatusCode == StatusCodes.BadAttributeIdInvalid ||
+                    error.StatusCode == StatusCodes.BadDataEncodingInvalid ||
+                    error.StatusCode == StatusCodes.BadDataEncodingUnsupported)
                 {
                     return error;
                 }
