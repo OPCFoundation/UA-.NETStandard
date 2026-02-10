@@ -7,7 +7,6 @@ using NUnit.Framework;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
-using Org.BouncyCastle.Asn1.X9;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Gds.Tests
