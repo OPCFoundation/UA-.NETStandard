@@ -929,7 +929,7 @@ namespace Opc.Ua.Client
             m_userTokenSecurityPolicyUri = sessionConfiguration.UserIdentityTokenPolicy;
             if (sessionConfiguration.ServerEccEphemeralKey?.Length > 0)
             {
-                string ephemeralKeyPolicyUri = !string.IsNullOrEmpty(m_userTokenSecurityPolicyUri)
+                string? ephemeralKeyPolicyUri = !string.IsNullOrEmpty(m_userTokenSecurityPolicyUri)
                     ? m_userTokenSecurityPolicyUri
                     : m_endpoint.Description?.SecurityPolicyUri ?? SecurityPolicies.None;
                 SecurityPolicyInfo ephemeralKeyPolicy = SecurityPolicies.GetInfo(ephemeralKeyPolicyUri);
