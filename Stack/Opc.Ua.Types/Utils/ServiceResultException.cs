@@ -115,7 +115,7 @@ namespace Opc.Ua
         /// Initializes the exception with a Result object.
         /// </summary>
         public ServiceResultException(ServiceResult status)
-            : base(GetMessage(status))
+            : base(GetMessage(status), status.InnerResult != null ? status.InnerResult.GetServiceResultException() : null)
         {
             Result = status ?? ServiceResult.Bad;
         }
