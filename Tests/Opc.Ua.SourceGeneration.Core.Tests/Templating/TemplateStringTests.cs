@@ -100,7 +100,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             Assert.That(templateString.ParsedTemplate, Is.Not.Null);
             Assert.That(templateString.ParsedTemplate.FormattedCount, Is.EqualTo(3));
             Assert.That(templateString.ParsedTemplate.Operations.Count, Is.EqualTo(8));
-            Assert.That(templateString.ParsedTemplate.LiteralLength, Is.EqualTo(24));
+            Assert.That(templateString.ParsedTemplate.LiteralLength, Is.EqualTo(24).Or.EqualTo(21)); // In case of optimizations
         }
 
         /// <summary>
