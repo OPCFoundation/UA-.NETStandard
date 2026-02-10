@@ -51,9 +51,9 @@ namespace Opc.Ua.Gds.Server
     /// </para>
     /// <para>
     /// This sub-class specifies non-configurable metadata such as Product Name and initializes
-    /// the ApplicationNodeManager which provides access to the data exposed by the Global Discovery Server.
+    /// the ApplicationNodeManager which provides access to the data exposed by the
+    /// Global Discovery Server.
     /// </para>
-    ///
     /// </remarks>
     public class GlobalDiscoverySampleServer : StandardServer
     {
@@ -80,7 +80,8 @@ namespace Opc.Ua.Gds.Server
         {
             base.OnServerStarted(server);
 
-            // request notifications when the user identity is changed. all valid users are accepted by default.
+            // request notifications when the user identity is changed. all valid users
+            // are accepted by default.
             server.SessionManager.ImpersonateUser += SessionManager_ImpersonateUser;
         }
 
@@ -88,8 +89,9 @@ namespace Opc.Ua.Gds.Server
         /// Creates the node managers for the server.
         /// </summary>
         /// <remarks>
-        /// This method allows the sub-class create any additional node managers which it uses. The SDK
-        /// always creates a CoreNodeManager which handles the built-in nodes defined by the specification.
+        /// This method allows the sub-class create any additional node managers which it uses.
+        /// The SDK always creates a CoreNodeManager which handles the built-in nodes defined
+        /// by the specification.
         /// Any additional NodeManagers are expected to handle application specific nodes.
         /// </remarks>
         protected override MasterNodeManager CreateMasterNodeManager(
@@ -177,7 +179,8 @@ namespace Opc.Ua.Gds.Server
         }
 
         /// <summary>
-        /// This method is called in a finally block at the end of request processing (i.e. called even on exception).
+        /// This method is called in a finally block at the end of request processing
+        /// (i.e. called even on exception).
         /// </summary>
         protected override void OnRequestComplete(OperationContext context)
         {
@@ -206,7 +209,8 @@ namespace Opc.Ua.Gds.Server
 
                 args.Identity = new GdsRoleBasedIdentity(
                     new UserIdentity(userNameToken),
-                    roles);
+                    roles,
+                    ServerInternal.MessageContext.NamespaceUris);
                 return;
             }
 
@@ -224,11 +228,12 @@ namespace Opc.Ua.Gds.Server
                     Role.AuthenticatedUser);
                 args.Identity = new GdsRoleBasedIdentity(
                     new UserIdentity(x509Token),
-                    [Role.AuthenticatedUser]);
+                    [Role.AuthenticatedUser],
+                    ServerInternal.MessageContext.NamespaceUris);
                 return;
             }
 
-            //check if applicable for application self admin privilege
+            // check if applicable for application self admin privilege
             if (session.ClientCertificate != null && VerifiyApplicationRegistered(session))
             {
                 ImpersonateAsApplicationSelfAdmin(session, args);
@@ -248,11 +253,11 @@ namespace Opc.Ua.Gds.Server
                 session.SessionDiagnostics.ClientDescription.ApplicationUri);
             X509Utils.DoesUrlMatchCertificate(applicationInstanceCertificate, applicationUri);
 
-            //get access to GDS configuration section to find out ApplicationCertificatesStorePath
+            // get access to GDS configuration section to find out ApplicationCertificatesStorePath
             GlobalDiscoveryServerConfiguration configuration =
                 Configuration.ParseExtension<GlobalDiscoveryServerConfiguration>()
                 ?? new GlobalDiscoveryServerConfiguration();
-            //check if application certificate is in the Store of the GDS
+            // check if application certificate is in the Store of the GDS
             var certificateStoreIdentifier = new CertificateStoreIdentifier(
                 configuration.ApplicationCertificatesStorePath);
             using (ICertificateStore applicationsStore = certificateStoreIdentifier.OpenStore(MessageContext.Telemetry))
@@ -266,12 +271,12 @@ namespace Opc.Ua.Gds.Server
                     applicationRegistered = true;
                 }
             }
-            //skip revocation check if application is not registered
+            // skip revocation check if application is not registered
             if (!applicationRegistered)
             {
                 return false;
             }
-            //check if application certificate is revoked
+            // check if application certificate is revoked
             certificateStoreIdentifier = new CertificateStoreIdentifier(
                 configuration.AuthoritiesStorePath);
             using (ICertificateStore authoritiesStore = certificateStoreIdentifier.OpenStore(MessageContext.Telemetry))
@@ -364,7 +369,8 @@ namespace Opc.Ua.Gds.Server
             args.Identity = new GdsRoleBasedIdentity(
                 new UserIdentity(),
                 [GdsRole.ApplicationSelfAdmin],
-                applicationId);
+                applicationId,
+                ServerInternal.MessageContext.NamespaceUris);
         }
 
         private readonly Dictionary<uint, ImpersonationContext> m_contexts = [];

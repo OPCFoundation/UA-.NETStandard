@@ -407,7 +407,6 @@ namespace Opc.Ua.Gds.Server
             switch (numericId)
             {
                 case ObjectTypes.CertificateDirectoryType:
-                    // TODO: Document new behavior as breaking change
                     if (passiveNode is not CertificateDirectoryState activeNode)
                     {
                         activeNode = new CertificateDirectoryState(passiveNode.Parent)
@@ -422,75 +421,66 @@ namespace Opc.Ua.Gds.Server
                         passiveNode.Parent?.ReplaceChild(context, activeNode);
                     }
 
-                    activeNode.QueryServers.OnCall
-                        = new QueryServersMethodStateMethodCallHandler(OnQueryServers);
-                    activeNode.QueryApplications.OnCall
-                        = new QueryApplicationsMethodStateMethodCallHandler(
-                        OnQueryApplications);
-                    activeNode.RegisterApplication.OnCall
-                        = new RegisterApplicationMethodStateMethodCallHandler(
-                        OnRegisterApplication);
-                    activeNode.UpdateApplication.OnCall
-                        = new UpdateApplicationMethodStateMethodCallHandler(
-                        OnUpdateApplication);
-                    activeNode.UnregisterApplication.OnCallAsync
-                        = new UnregisterApplicationMethodStateMethodAsyncCallHandler(
-                        OnUnregisterApplicationAsync);
-                    activeNode.FindApplications.OnCall
-                        = new FindApplicationsMethodStateMethodCallHandler(
-                        OnFindApplications);
-                    activeNode.GetApplication.OnCall
-                        = new GetApplicationMethodStateMethodCallHandler(OnGetApplication);
-                    activeNode.StartNewKeyPairRequest.OnCall
-                        = new StartNewKeyPairRequestMethodStateMethodCallHandler(
-                        OnStartNewKeyPairRequest);
-                    activeNode.FinishRequest.OnCallAsync
-                        = new FinishRequestMethodStateMethodAsyncCallHandler(OnFinishRequestAsync);
-                    activeNode.GetCertificateGroups.OnCall
-                        = new GetCertificateGroupsMethodStateMethodCallHandler(
-                        OnGetCertificateGroups);
-                    activeNode.GetTrustList.OnCall
-                        = new GetTrustListMethodStateMethodCallHandler(OnGetTrustList);
-                    activeNode.GetCertificateStatus.OnCall
-                        = new GetCertificateStatusMethodStateMethodCallHandler(
-                        OnGetCertificateStatus);
-                    activeNode.StartSigningRequest.OnCallAsync
-                        = new StartSigningRequestMethodStateMethodAsyncCallHandler(
-                        OnStartSigningRequestAsync);
-                    activeNode.RevokeCertificate.OnCall
-                        = new RevokeCertificateMethodStateMethodCallHandler(
-                        OnRevokeCertificate);
-                    activeNode.CheckRevocationStatus.OnCallAsync
-                        = new CheckRevocationStatusMethodStateMethodAsyncCallHandler(
-                        OnCheckRevocationStatusAsync);
-                    activeNode.GetCertificates.OnCall
-                        = new GetCertificatesMethodStateMethodCallHandler(
-                        OnGetCertificates);
+                    activeNode.QueryServers.OnCall = OnQueryServers;
+                    activeNode.QueryApplications.OnCall = OnQueryApplications;
+                    activeNode.RegisterApplication.OnCall = OnRegisterApplication;
+                    activeNode.UpdateApplication.OnCall = OnUpdateApplication;
+                    activeNode.GetApplication.OnCall = OnGetApplication;
+
+                    // These also add self admin role permissions (call)
+                    activeNode.UnregisterApplication.OnCallAsync = OnUnregisterApplicationAsync;
+                    activeNode.UnregisterApplication.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
+                    activeNode.UnregisterApplication.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
+                    activeNode.FindApplications.OnCall = OnFindApplications;
+                    activeNode.FindApplications.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
+                    activeNode.FindApplications.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
+                    activeNode.StartNewKeyPairRequest.OnCall = OnStartNewKeyPairRequest;
+                    activeNode.StartNewKeyPairRequest.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
+                    activeNode.StartNewKeyPairRequest.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
+                    activeNode.FinishRequest.OnCallAsync = OnFinishRequestAsync;
+                    activeNode.FinishRequest.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
+                    activeNode.FinishRequest.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
+                    activeNode.GetCertificateGroups.OnCall = OnGetCertificateGroups;
+                    activeNode.GetCertificateGroups.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
+                    activeNode.GetCertificateGroups.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
+                    activeNode.GetTrustList.OnCall = OnGetTrustList;
+                    activeNode.GetTrustList.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
+                    activeNode.GetTrustList.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
+                    activeNode.GetCertificateStatus.OnCall = OnGetCertificateStatus;
+                    activeNode.GetCertificateStatus.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
+                    activeNode.GetCertificateStatus.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
+                    activeNode.StartSigningRequest.OnCallAsync = OnStartSigningRequestAsync;
+                    activeNode.StartSigningRequest.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
+                    activeNode.StartSigningRequest.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
+                    activeNode.GetCertificates.OnCall = OnGetCertificates;
+                    activeNode.GetCertificates.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
+                    activeNode.GetCertificates.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
+
+                    activeNode.RevokeCertificate.OnCall = OnRevokeCertificate;
+                    activeNode.CheckRevocationStatus.OnCallAsync = OnCheckRevocationStatusAsync;
+
                     if (m_certificateGroups.TryGetValue(
                             m_defaultApplicationGroupId,
                             out ICertificateGroup applicationCertificateGroup))
                     {
-                        activeNode.CertificateGroups.DefaultApplicationGroup.CertificateTypes.Value
-                            =
+                        activeNode.CertificateGroups.DefaultApplicationGroup.CertificateTypes.Value =
                         [
                             .. applicationCertificateGroup.CertificateTypes
                         ];
                     }
                     else
                     {
-                        activeNode.CertificateGroups.DefaultApplicationGroup.CertificateTypes.Value
-                            =
+                        activeNode.CertificateGroups.DefaultApplicationGroup.CertificateTypes.Value =
                         [
                             Ua.ObjectTypeIds.ApplicationCertificateType
                         ];
                     }
-                    activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.LastUpdateTime
-                        .Value =
+                    activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.LastUpdateTime.Value =
                         DateTime.UtcNow;
-                    activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.Writable.Value
-                        = false;
-                    activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.UserWritable
-                        .Value = false;
+                    activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.Writable.Value =
+                        false;
+                    activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.UserWritable.Value =
+                        false;
 
                     if (m_certificateGroups.TryGetValue(
                             m_defaultHttpsGroupId,
@@ -508,11 +498,13 @@ namespace Opc.Ua.Gds.Server
                             Ua.ObjectTypeIds.HttpsCertificateType
                         ];
                     }
-                    activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.LastUpdateTime.Value
-                        = DateTime.UtcNow;
-                    activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.Writable.Value = false;
-                    activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.UserWritable.Value
-                        = false;
+                    activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.LastUpdateTime.Value =
+                        DateTime.UtcNow;
+                    activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.Writable.Value =
+                        false;
+                    activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.UserWritable.Value =
+                        false;
+
                     if (m_certificateGroups.TryGetValue(
                             m_defaultUserTokenGroupId,
                             out ICertificateGroup userTokenCertificateGroup))
@@ -529,17 +521,59 @@ namespace Opc.Ua.Gds.Server
                             Ua.ObjectTypeIds.UserCertificateType
                         ];
                     }
-                    activeNode.CertificateGroups.DefaultUserTokenGroup.TrustList.LastUpdateTime
-                        .Value = DateTime.UtcNow;
-                    activeNode.CertificateGroups.DefaultUserTokenGroup.TrustList.Writable.Value
-                        = false;
-                    activeNode.CertificateGroups.DefaultUserTokenGroup.TrustList.UserWritable.Value
-                        = false;
+                    activeNode.CertificateGroups.DefaultUserTokenGroup.TrustList.LastUpdateTime.Value =
+                        DateTime.UtcNow;
+                    activeNode.CertificateGroups.DefaultUserTokenGroup.TrustList.Writable.Value =
+                        false;
+                    activeNode.CertificateGroups.DefaultUserTokenGroup.TrustList.UserWritable.Value =
+                        false;
 
                     return activeNode;
             }
 
             return predefinedNode;
+        }
+
+        private ServiceResult OnAddSelfAdminRolePermissions(
+            ISystemContext context,
+            NodeState node,
+            ref RolePermissionTypeCollection value)
+        {
+            if (value == null || value.Count == 0)
+            {
+                return ServiceResult.Good;
+            }
+
+            var selfAdminRole = ExpandedNodeId.ToNodeId(GdsRole.ApplicationSelfAdmin.RoleId, context.NamespaceUris);
+            var selfAdminPermission = new RolePermissionType
+            {
+                RoleId = selfAdminRole,
+                Permissions = (uint)PermissionType.Call
+            };
+            value.Add(selfAdminPermission);
+            return ServiceResult.Good;
+        }
+
+        private ServiceResult OnAddSelfAdminUserRolePermissions(
+            ISystemContext context,
+            NodeState node,
+            ref RolePermissionTypeCollection value)
+        {
+            if (node.RolePermissions == null)
+            {
+                return ServiceResult.Good;
+            }
+
+            var selfAdminRole = ExpandedNodeId.ToNodeId(GdsRole.ApplicationSelfAdmin.RoleId, context.NamespaceUris);
+            IUserIdentity userIdentity = (context as ISessionSystemContext)?.UserIdentity;
+            if (!userIdentity.GrantedRoleIds.Contains(selfAdminRole))
+            {
+                return ServiceResult.Good;
+            }
+
+            // This contains the self admin role and other permissions
+            value = [.. node.RolePermissions];
+            return ServiceResult.Good;
         }
 
         private ServiceResult OnQueryServers(
@@ -666,9 +700,7 @@ namespace Opc.Ua.Gds.Server
             NodeId applicationId,
             CancellationToken cancellationToken)
         {
-            AuthorizationHelper.HasAuthorization(
-                context,
-                AuthorizationHelper.DiscoveryAdminOrSelfAdmin);
+            AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.DiscoveryAdminOrSelfAdmin);
 
             m_logger.LogInformation("OnUnregisterApplication: {ApplicationId}", applicationId.ToString());
 
@@ -714,9 +746,7 @@ namespace Opc.Ua.Gds.Server
             NodeId applicationId,
             byte[] certificate)
         {
-            AuthorizationHelper.HasAuthorization(
-                context,
-                AuthorizationHelper.CertificateAuthorityAdmin);
+            AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.CertificateAuthorityAdmin);
 
             if (m_database.GetApplication(applicationId) == null)
             {

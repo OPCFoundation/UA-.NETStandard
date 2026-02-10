@@ -2770,7 +2770,11 @@ namespace Opc.Ua.Client
             try
             {
                 keepAliveCancellation!.Cancel();
-                await keepAliveWorker.ConfigureAwait(false);
+                if (!m_inKeepAliveCallback)
+                {
+                    // Make sure no circular loops
+                    await keepAliveWorker.ConfigureAwait(false);
+                }
             }
             catch (OperationCanceledException)
             {
@@ -3206,8 +3210,10 @@ namespace Opc.Ua.Client
             {
                 try
                 {
+                    m_inKeepAliveCallback = true;
                     var args = new KeepAliveEventArgs(result, ServerState.Unknown, DateTime.UtcNow);
                     callback(this, args);
+                    m_inKeepAliveCallback = false;
                     return !args.CancelKeepAlive;
                 }
                 catch (Exception e)
@@ -4929,6 +4935,7 @@ namespace Opc.Ua.Client
         private readonly AsyncAutoResetEvent m_keepAliveEvent = new();
         private uint m_keepAliveCounter;
         private Task? m_keepAliveWorker;
+        private bool m_inKeepAliveCallback;
         private CancellationTokenSource? m_keepAliveCancellation;
         private readonly SemaphoreSlim m_reconnectLock = new(1, 1);
         private int m_minPublishRequestCount;

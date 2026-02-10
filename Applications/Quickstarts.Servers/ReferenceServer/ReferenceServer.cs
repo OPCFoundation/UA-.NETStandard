@@ -331,7 +331,8 @@ namespace Quickstarts.ReferenceServer
                 // set AuthenticatedUser role for accepted certificate authentication
                 args.Identity = new RoleBasedIdentity(
                     new UserIdentity(x509Token),
-                    [Role.AuthenticatedUser]);
+                    [Role.AuthenticatedUser],
+                    ServerInternal.MessageContext.NamespaceUris);
                 m_logger.LogInformation(
                     Utils.TraceMasks.Security,
                     "X509 Token Accepted: {Identity}",
@@ -355,7 +356,10 @@ namespace Quickstarts.ReferenceServer
             if (args.UserIdentityTokenHandler is AnonymousIdentityTokenHandler or null)
             {
                 // allow anonymous authentication and set Anonymous role for this authentication
-                args.Identity = new RoleBasedIdentity(new UserIdentity(), [Role.Anonymous]);
+                args.Identity = new RoleBasedIdentity(
+                    new UserIdentity(),
+                    [Role.Anonymous],
+                    ServerInternal.MessageContext.NamespaceUris);
                 return;
             }
 
@@ -417,7 +421,8 @@ namespace Quickstarts.ReferenceServer
             }
             return new RoleBasedIdentity(
                 new UserIdentity(userTokenHandler),
-                [Role.AuthenticatedUser]);
+                [Role.AuthenticatedUser],
+                ServerInternal.MessageContext.NamespaceUris);
         }
 
         /// <summary>

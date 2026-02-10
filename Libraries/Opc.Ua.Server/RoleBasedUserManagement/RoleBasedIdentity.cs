@@ -51,9 +51,7 @@ namespace Opc.Ua.Server
         /// The Role is allowed to browse and read non-security related Nodes.
         /// </summary>
         public static Role AuthenticatedUser { get; } =
-            new Role(
-                ObjectIds.WellKnownRole_AuthenticatedUser,
-                BrowseNames.WellKnownRole_AuthenticatedUser);
+            new Role(ObjectIds.WellKnownRole_AuthenticatedUser, BrowseNames.WellKnownRole_AuthenticatedUser);
 
         /// <summary>
         /// The Role is allowed to browse, read live data, read historical data/events or subscribe to data/events.
@@ -84,24 +82,20 @@ namespace Opc.Ua.Server
         /// The Role is allowed to change the non-security related configuration settings.
         /// </summary>
         public static Role ConfigureAdmin { get; } =
-            new Role(
-                ObjectIds.WellKnownRole_ConfigureAdmin,
-                BrowseNames.WellKnownRole_ConfigureAdmin);
+            new Role(ObjectIds.WellKnownRole_ConfigureAdmin, BrowseNames.WellKnownRole_ConfigureAdmin);
 
         /// <summary>
         /// The Role is allowed to change security related settings.
         /// </summary>
         public static Role SecurityAdmin { get; } =
-            new Role(
-                ObjectIds.WellKnownRole_SecurityAdmin,
-                BrowseNames.WellKnownRole_SecurityAdmin);
+            new Role(ObjectIds.WellKnownRole_SecurityAdmin, BrowseNames.WellKnownRole_SecurityAdmin);
 
         /// <summary>
         /// Constructor for new Role
         /// </summary>
         /// <param name="roleId">NodeId of the Role, used for WellKnownRoles</param>
         /// <param name="name">Name of the Role</param>
-        public Role(NodeId roleId, string name)
+        public Role(ExpandedNodeId roleId, string name)
         {
             RoleId = roleId;
             Name = name;
@@ -117,7 +111,7 @@ namespace Opc.Ua.Server
         /// The NodeId of the role.
         /// </summary>
         [DataMember(Name = "RoleId", IsRequired = true, Order = 20)]
-        public NodeId RoleId { get; set; }
+        public ExpandedNodeId RoleId { get; set; }
 
         /// <inheritdoc/>
         public bool Equals(Role other)
@@ -192,15 +186,15 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Initialize the role based identity.
         /// </summary>
-        public RoleBasedIdentity(IUserIdentity identity, IEnumerable<Role> roles)
+        public RoleBasedIdentity(IUserIdentity identity, IEnumerable<Role> roles, NamespaceTable namespaces)
         {
             m_identity = identity;
             Roles = roles;
             foreach (Role role in roles)
             {
-                if (role != null && !role.RoleId.IsNullNodeId)
+                if (role != null)
                 {
-                    GrantedRoleIds.Add(role.RoleId);
+                    GrantedRoleIds.Add(ExpandedNodeId.ToNodeId(role.RoleId, namespaces));
                 }
             }
         }
