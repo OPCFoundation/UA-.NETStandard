@@ -44,6 +44,15 @@ namespace Opc.Ua
     public class ServiceResult
     {
         /// <summary>
+        /// Get according ServiceResultException for ServiceResult
+        /// </summary>
+        /// <returns>ServiceResultException</returns>
+        public ServiceResultException GetServiceResultException()
+        {
+            return new ServiceResultException(this);
+        }
+
+        /// <summary>
         /// Constructs an object by specifying each property.
         /// </summary>
         [Obsolete("Use StatusCode constructor with symbolic id")]
