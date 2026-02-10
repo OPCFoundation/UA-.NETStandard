@@ -86,10 +86,11 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         public void CreateFromInterpolatedStringCreatesValidTemplateString()
         {
             // Act
+            const uint value = 555555;
             var templateString = TemplateString.Parse(
                 $$"""
-                Hello {World} {{DateTime.UtcNow.ToString(null, CultureInfo.InvariantCulture)}}
-                {{DateTime.UtcNow.ToString(null, CultureInfo.InvariantCulture)}}
+                Hello {World} {{value}}
+                {{value}}
 
                     {{typeof(TemplateStringTests).FullName}}
                 """);
@@ -97,9 +98,9 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Assert
             Assert.That(templateString, Is.Not.Null);
             Assert.That(templateString.ParsedTemplate, Is.Not.Null);
-            Assert.That(templateString.ParsedTemplate.LiteralLength, Is.EqualTo(24));
             Assert.That(templateString.ParsedTemplate.FormattedCount, Is.EqualTo(3));
             Assert.That(templateString.ParsedTemplate.Operations.Count, Is.EqualTo(8));
+            Assert.That(templateString.ParsedTemplate.LiteralLength, Is.EqualTo(24));
         }
 
         /// <summary>
