@@ -88,6 +88,27 @@ namespace Opc.Ua.Core.Tests.Stack.State
             testObject.Dispose();
         }
 
+        [Test]
+        public void OrderedListStateCreate_DoesNotInstantiateOrderedObjectPlaceholder()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var context = new SystemContext(telemetry) { NamespaceUris = Context.NamespaceUris };
+
+            var orderedList = new OrderedListState(null);
+            orderedList.Create(
+                context,
+                new NodeId(50000u),
+                "OrderedListInstance",
+                "OrderedListInstance",
+                true);
+
+            BaseInstanceState orderedObjectPlaceholder = orderedList.FindChild(
+                context,
+                new QualifiedName(BrowseNames.OrderedObject_Placeholder, 0));
+
+            Assert.IsNull(orderedObjectPlaceholder);
+        }
+
         /// <summary>
         /// Create an instance of a NodeState type with default values.
         /// </summary>
