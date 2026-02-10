@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
 using NUnit.Framework;
 
 namespace Opc.Ua.SourceGeneration.Templating.Tests
@@ -87,8 +88,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Act
             var templateString = TemplateString.Parse(
                 $$"""
-                Hello {World} {{DateTime.UtcNow}}
-                {{DateTime.UtcNow}}
+                Hello {World} {{DateTime.UtcNow.ToString(null, CultureInfo.InvariantCulture)}}
+                {{DateTime.UtcNow.ToString(null, CultureInfo.InvariantCulture)}}
 
                     {{typeof(TemplateStringTests).FullName}}
                 """);

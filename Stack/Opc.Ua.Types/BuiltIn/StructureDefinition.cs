@@ -219,10 +219,9 @@ namespace Opc.Ua
             }
 
             // note: custom types must be added to the encodeable factory by the node manager to be found
-            Type systemType = context.EncodeableFactory?.GetSystemType(
-                NodeId.ToExpandedNodeId(typeId, context.NamespaceUris));
-            if (systemType != null &&
-                Activator.CreateInstance(systemType) is IEncodeable encodeable)
+            var expandedTypeId = NodeId.ToExpandedNodeId(typeId, context.NamespaceUris);
+            if (context.EncodeableFactory.TryGetEncodeableType(expandedTypeId, out IEncodeableType type) &&
+                type.CreateInstance() is IEncodeable encodeable)
             {
                 if (dataEncoding.IsNull || dataEncoding.Name == BrowseNames.DefaultBinary)
                 {
