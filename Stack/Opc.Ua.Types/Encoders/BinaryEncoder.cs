@@ -661,7 +661,7 @@ namespace Opc.Ua
         public void WriteNodeId(string fieldName, NodeId value)
         {
             // write a null node id.
-            if (value.IsNullNodeId)
+            if (value.IsNull)
             {
                 WriteUInt16(null, 0);
                 return;
@@ -946,7 +946,7 @@ namespace Opc.Ua
 
             var localTypeId = ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris);
 
-            if (localTypeId.IsNullNodeId && !typeId.IsNull)
+            if (localTypeId.IsNull && !typeId.IsNull)
             {
                 if (encodeable != null)
                 {

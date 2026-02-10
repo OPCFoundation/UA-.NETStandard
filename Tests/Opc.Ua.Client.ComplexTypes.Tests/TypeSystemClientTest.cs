@@ -294,7 +294,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                         NodeId superType =
                             await Session.NodeCache.FindSuperTypeAsync(fullTypeId).ConfigureAwait(false);
                         NodeId lastGoodType = variableNode.DataType;
-                        while (!superType.IsNullNodeId && superType != DataTypes.BaseDataType)
+                        while (!superType.IsNull && superType != DataTypes.BaseDataType)
                         {
                             if (superType == DataTypeIds.Structure)
                             {

@@ -290,7 +290,7 @@ namespace Opc.Ua
                 encoder.WriteVariant("Value", WrappedValue);
             }
 
-            if (!DataType.IsNullNodeId)
+            if (!DataType.IsNull)
             {
                 encoder.WriteNodeId("DataType", DataType);
             }
@@ -359,7 +359,7 @@ namespace Opc.Ua
                 attributesToSave |= AttributesToSave.Value;
             }
 
-            if (!m_dataType.IsNullNodeId)
+            if (!m_dataType.IsNull)
             {
                 attributesToSave |= AttributesToSave.DataType;
             }

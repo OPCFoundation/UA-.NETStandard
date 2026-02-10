@@ -292,7 +292,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns whether or not the <see cref="NodeId"/> is null
         /// </summary>
-        public bool IsNull => !IsAbsolute && m_nodeId.IsNullNodeId;
+        public bool IsNull => !IsAbsolute && m_nodeId.IsNull;
 
         /// <summary>
         /// Returns true if the expanded node id is an absolute identifier
@@ -305,13 +305,13 @@ namespace Opc.Ua
         /// The index of the namespace URI in the server's namespace array.
         /// </summary>
         public ushort NamespaceIndex =>
-            m_nodeId.IsNullNodeId ? (ushort)0 : m_nodeId.NamespaceIndex;
+            m_nodeId.IsNull ? (ushort)0 : m_nodeId.NamespaceIndex;
 
         /// <summary>
         /// The type of node identifier used.
         /// </summary>
         public IdType IdType =>
-            m_nodeId.IsNullNodeId ? IdType.Numeric : m_nodeId.IdType;
+            m_nodeId.IsNull ? IdType.Numeric : m_nodeId.IdType;
 
         /// <summary>
         /// The node identifier.
@@ -323,7 +323,7 @@ namespace Opc.Ua
         [Obsolete("Use TryGetIdentifier<T> to get strongly typed identifier values or " +
             "consider using IdentifierAsString if you want to stringify the identifier.")]
         public object Identifier =>
-            m_nodeId.IsNullNodeId ? null : m_nodeId.Identifier;
+            m_nodeId.IsNull ? null : m_nodeId.Identifier;
 
         /// <summary>
         /// Try get the numeric node identifier.
@@ -423,14 +423,14 @@ namespace Opc.Ua
             }
 
             // just compare node ids.
-            if (!IsAbsolute && !m_nodeId.IsNullNodeId)
+            if (!IsAbsolute && !m_nodeId.IsNull)
             {
                 return m_nodeId.CompareTo(obj);
             }
 
             if (obj is NodeId nodeId)
             {
-                if (IsNull && nodeId.IsNullNodeId)
+                if (IsNull && nodeId.IsNull)
                 {
                     return 0;
                 }
@@ -465,13 +465,13 @@ namespace Opc.Ua
             }
 
             // check for null.
-            if (!m_nodeId.IsNullNodeId)
+            if (!m_nodeId.IsNull)
             {
                 return m_nodeId.CompareTo(nodeId);
             }
 
             // compare node ids.
-            return nodeId.IsNullNodeId ? 0 : -1;
+            return nodeId.IsNull ? 0 : -1;
         }
 
         /// <inheritdoc/>
@@ -544,7 +544,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override int GetHashCode()
         {
-            if (m_nodeId.IsNullNodeId)
+            if (m_nodeId.IsNull)
             {
                 return 0;
             }
@@ -736,7 +736,7 @@ namespace Opc.Ua
         /// <returns>The formatted identifier.</returns>
         public string Format(IServiceMessageContext context, bool useUris = false)
         {
-            if (m_nodeId.IsNullNodeId)
+            if (m_nodeId.IsNull)
             {
                 return null;
             }
@@ -800,7 +800,7 @@ namespace Opc.Ua
             }
 
             NodeId nodeId = ToNodeId(expandedNodeId, namespaceUris);
-            if (nodeId.IsNullNodeId)
+            if (nodeId.IsNull)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadNodeIdInvalid,
@@ -846,7 +846,7 @@ namespace Opc.Ua
         /// </summary>
         public void Format(IFormatProvider formatProvider, StringBuilder buffer)
         {
-            if (!m_nodeId.IsNullNodeId)
+            if (!m_nodeId.IsNull)
             {
                 Format(
                     formatProvider,

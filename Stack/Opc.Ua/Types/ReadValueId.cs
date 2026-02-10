@@ -67,7 +67,7 @@ namespace Opc.Ua
             }
 
             // null node ids are always invalid.
-            if (valueId.NodeId.IsNullNodeId)
+            if (valueId.NodeId.IsNull)
             {
                 return StatusCodes.BadNodeIdInvalid;
             }
@@ -86,7 +86,7 @@ namespace Opc.Ua
                     return StatusCodes.BadIndexRangeNoData;
                 }
 
-                if (!valueId.DataEncoding.IsNullQn)
+                if (!valueId.DataEncoding.IsNull)
                 {
                     return StatusCodes.BadDataEncodingInvalid;
                 }

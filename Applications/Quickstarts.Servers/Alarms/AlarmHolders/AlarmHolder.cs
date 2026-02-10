@@ -145,7 +145,7 @@ namespace Alarms
         private static bool IsBranch(NodeId branchId)
         {
             bool isBranch = false;
-            if (!branchId.IsNullNodeId)
+            if (!branchId.IsNull)
             {
                 isBranch = true;
             }

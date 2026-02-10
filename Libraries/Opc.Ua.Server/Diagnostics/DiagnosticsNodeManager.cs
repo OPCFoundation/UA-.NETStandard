@@ -332,7 +332,7 @@ namespace Opc.Ua.Server
         {
             var systemContext = context as ServerSystemContext;
 
-            if (!m_serverLockHolder.IsNullNodeId && m_serverLockHolder != systemContext.SessionId)
+            if (!m_serverLockHolder.IsNull && m_serverLockHolder != systemContext.SessionId)
             {
                 return StatusCodes.BadSessionIdInvalid;
             }
@@ -353,7 +353,7 @@ namespace Opc.Ua.Server
         {
             var systemContext = context as ServerSystemContext;
 
-            if (!m_serverLockHolder.IsNullNodeId && m_serverLockHolder != systemContext.SessionId)
+            if (!m_serverLockHolder.IsNull && m_serverLockHolder != systemContext.SessionId)
             {
                 return StatusCodes.BadSessionIdInvalid;
             }
@@ -551,7 +551,7 @@ namespace Opc.Ua.Server
 
             NodeId typeId = instance.TypeDefinitionId;
 
-            if (typeId.IsNullNodeId ||
+            if (typeId.IsNull ||
                 typeId.NamespaceIndex != 0 ||
                 typeId.TryGetIdentifier(out uint numericId))
             {
@@ -948,7 +948,7 @@ namespace Opc.Ua.Server
 
                 array?.AddReference(ReferenceTypeIds.HasComponent, false, diagnosticsNode.NodeId);
 
-                if (!diagnostics.SessionId.IsNullNodeId)
+                if (!diagnostics.SessionId.IsNull)
                 {
                     // add reference to session subscription array.
                     diagnosticsNode.AddReference(

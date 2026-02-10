@@ -275,9 +275,9 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public int CompareTo(ReferenceNode obj)
         {
-            if (ReferenceTypeId.IsNullNodeId)
+            if (ReferenceTypeId.IsNull)
             {
-                return obj?.ReferenceTypeId.IsNullNodeId == true ? 0 : -1;
+                return obj?.ReferenceTypeId.IsNull == true ? 0 : -1;
             }
 
             int result = ReferenceTypeId.CompareTo(obj.ReferenceTypeId);

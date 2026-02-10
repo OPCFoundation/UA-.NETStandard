@@ -390,7 +390,7 @@ namespace Opc.Ua.Server.Tests
             DateTime notAfter = DateTime.Today.AddYears(1);
 
             // Default to RSA if not specified
-            if (certificateType.IsNullNodeId)
+            if (certificateType.IsNull)
             {
                 certificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType;
             }

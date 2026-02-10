@@ -588,13 +588,13 @@ namespace Opc.Ua
 
         private void WriteNodeId(string fieldName, NodeId value, bool isArrayElement)
         {
-            if (BeginField(fieldName, value.IsNullNodeId, true, isArrayElement))
+            if (BeginField(fieldName, value.IsNull, true, isArrayElement))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
                 ushort namespaceIndex = value.NamespaceIndex;
 
-                if (!value.IsNullNodeId && m_namespaceMappings != null && m_namespaceMappings.Length > namespaceIndex)
+                if (!value.IsNull && m_namespaceMappings != null && m_namespaceMappings.Length > namespaceIndex)
                 {
                     namespaceIndex = m_namespaceMappings[namespaceIndex];
                 }
@@ -740,18 +740,18 @@ namespace Opc.Ua
         /// </summary>
         private void WriteQualifiedName(string fieldName, QualifiedName value, bool isArrayElement)
         {
-            if (BeginField(fieldName, value.IsNullQn, true, isArrayElement))
+            if (BeginField(fieldName, value.IsNull, true, isArrayElement))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
                 ushort namespaceIndex = value.NamespaceIndex;
 
-                if (!value.IsNullQn && m_namespaceMappings != null && m_namespaceMappings.Length > namespaceIndex)
+                if (!value.IsNull && m_namespaceMappings != null && m_namespaceMappings.Length > namespaceIndex)
                 {
                     namespaceIndex = m_namespaceMappings[namespaceIndex];
                 }
 
-                if (!value.IsNullQn)
+                if (!value.IsNull)
                 {
                     WriteUInt16("NamespaceIndex", namespaceIndex);
                     WriteString("Name", value.Name);
@@ -897,7 +897,7 @@ namespace Opc.Ua
 
                 var localTypeId = ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris);
 
-                if (localTypeId.IsNullNodeId && !typeId.IsNull)
+                if (localTypeId.IsNull && !typeId.IsNull)
                 {
                     if (encodeable != null)
                     {

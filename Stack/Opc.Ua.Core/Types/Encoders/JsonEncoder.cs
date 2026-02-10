@@ -1327,7 +1327,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteNodeId(string fieldName, NodeId value)
         {
-            bool isNull = value.IsNullNodeId;
+            bool isNull = value.IsNull;
 
             if (fieldName != null && isNull && !IncludeDefaultValues)
             {
@@ -1453,7 +1453,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteQualifiedName(string fieldName, QualifiedName value)
         {
-            bool isNull = value.IsNullQn;
+            bool isNull = value.IsNull;
 
             if (fieldName != null && isNull && !IncludeDefaultValues)
             {
@@ -1786,7 +1786,7 @@ namespace Opc.Ua
             {
                 if (encodeable != null)
                 {
-                    if (!SuppressArtifacts && !localTypeId.IsNullNodeId)
+                    if (!SuppressArtifacts && !localTypeId.IsNull)
                     {
                         WriteNodeId("UaTypeId", localTypeId);
                     }
@@ -1795,7 +1795,7 @@ namespace Opc.Ua
                 }
                 else if (value.Body is JObject json)
                 {
-                    if (!SuppressArtifacts && !localTypeId.IsNullNodeId)
+                    if (!SuppressArtifacts && !localTypeId.IsNull)
                     {
                         WriteNodeId("UaTypeId", localTypeId);
                         m_writer.Write(kComma);
@@ -1806,7 +1806,7 @@ namespace Opc.Ua
                 }
                 else if (value.Encoding == ExtensionObjectEncoding.Binary)
                 {
-                    if (!SuppressArtifacts && !localTypeId.IsNullNodeId)
+                    if (!SuppressArtifacts && !localTypeId.IsNull)
                     {
                         WriteNodeId("UaTypeId", localTypeId);
                     }
@@ -1816,7 +1816,7 @@ namespace Opc.Ua
                 }
                 else if (value.Encoding == ExtensionObjectEncoding.Xml)
                 {
-                    if (!SuppressArtifacts && !localTypeId.IsNullNodeId)
+                    if (!SuppressArtifacts && !localTypeId.IsNull)
                     {
                         WriteNodeId("UaTypeId", localTypeId);
                     }

@@ -29,6 +29,7 @@
 
 using NUnit.Framework;
 using System;
+using System.Runtime.InteropServices;
 
 namespace Opc.Ua.SourceGeneration.Generator.Tests
 {
@@ -148,7 +149,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void AsTextFileResource_FileNameWithPath_ExtractsFileNameOnly()
         {
             // Arrange
-            const string fileName = @"C:\folder\subfolder\data.csv";
+            string fileName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ?
+                @"C:\folder\subfolder\data.csv" :
+                "/folder/subfolder/data.csv";
+
             // Act
             TextFileResource result = fileName.AsTextFileResource();
             // Assert
@@ -489,7 +493,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void ToBinaryFileResource_FileNameWithPath_ExtractsFileNameOnly()
         {
             // Arrange
-            const string fileName = @"C:\Temp\TestFile.xml";
+            string fileName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ?
+                @"C:\Temp\TestFile.xml" :
+                "/temp/TestFile.xml";
+
             // Act
             var result = fileName.ToBinaryFileResource();
             // Assert

@@ -599,7 +599,7 @@ namespace Opc.Ua
             {
                 QualifiedName browseName = browsePath[ii];
 
-                if (browseName.IsNullQn)
+                if (browseName.IsNull)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadBrowseNameInvalid,

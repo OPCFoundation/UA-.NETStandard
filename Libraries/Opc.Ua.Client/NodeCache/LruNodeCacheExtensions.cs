@@ -197,7 +197,7 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             NodeId typeId = datatypeId;
-            while (!typeId.IsNullNodeId)
+            while (!typeId.IsNull)
             {
                 if (typeId.NamespaceIndex == 0 && typeId.TryGetIdentifier(out uint numericId))
                 {

@@ -944,7 +944,7 @@ namespace Opc.Ua.SourceGeneration
                 bool createOrReplace,
                 global::Opc.Ua.BaseInstanceState replacement)
             {
-                if (browseName.IsNullQn)
+                if (browseName.IsNull)
                 {
                     return null;
                 }
@@ -1429,7 +1429,7 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
-                if (!browseName.IsNullQn)
+                if (!browseName.IsNull)
                 {
                     state.SymbolicName = browseName.Name;
                     state.BrowseName = browseName;
@@ -1477,7 +1477,7 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
-                if (!browseName.IsNullQn)
+                if (!browseName.IsNull)
                 {
                     state.SymbolicName = browseName.Name;
                     state.BrowseName = browseName;
@@ -1534,7 +1534,7 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
-                if (!browseName.IsNullQn)
+                if (!browseName.IsNull)
                 {
                     state.SymbolicName = browseName.Name;
                     state.BrowseName = browseName;
@@ -1727,7 +1727,7 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
-                if (!browseName.IsNullQn)
+                if (!browseName.IsNull)
                 {
                     state.SymbolicName = browseName.Name;
                     state.BrowseName = browseName;
@@ -1787,7 +1787,7 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
-                if (!browseName.IsNullQn)
+                if (!browseName.IsNull)
                 {
                     state.SymbolicName = browseName.Name;
                     state.BrowseName = browseName;
@@ -1840,7 +1840,7 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
-                if (!browseName.IsNullQn)
+                if (!browseName.IsNull)
                 {
                     state.SymbolicName = browseName.Name;
                     state.BrowseName = browseName;

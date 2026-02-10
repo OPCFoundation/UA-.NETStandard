@@ -214,7 +214,7 @@ namespace MemoryBuffer
                 return StatusCodes.BadIndexRangeInvalid;
             }
 
-            if (!dataEncoding.IsNullQn)
+            if (!dataEncoding.IsNull)
             {
                 return StatusCodes.BadDataEncodingUnsupported;
             }
@@ -265,7 +265,7 @@ namespace MemoryBuffer
                 return StatusCodes.BadIndexRangeInvalid;
             }
 
-            if (!dataEncoding.IsNullQn)
+            if (!dataEncoding.IsNull)
             {
                 return StatusCodes.BadDataEncodingUnsupported;
             }

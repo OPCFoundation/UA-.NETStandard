@@ -1255,7 +1255,7 @@ namespace Opc.Ua
                 }
             }
 
-            if (!nodeId.IsNullNodeId)
+            if (!nodeId.IsNull)
             {
                 INode node = nodeTable.Find(nodeId);
 

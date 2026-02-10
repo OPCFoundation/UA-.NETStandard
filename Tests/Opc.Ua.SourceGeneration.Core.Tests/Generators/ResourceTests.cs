@@ -27,8 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using NUnit.Framework;
 using System;
+using System.Runtime.InteropServices;
+using NUnit.Framework;
 
 namespace Opc.Ua.SourceGeneration.Generator.Tests
 {
@@ -78,26 +79,38 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
         /// <summary>
         /// Tests GetNameForFile with a full file path.
-        /// Input: "C:\\path\\to\\file.xml" with null namespace prefix.
-        /// Expected: Returns "FileXml", extracting only the filename.
         /// </summary>
-        [TestCase("C:\\path\\to\\file.xml", "FileXml")]
-        [TestCase("/usr/local/bin/file.xml", "FileXml")]
-        [TestCase("..\\..\\file.xml", "FileXml")]
-        public void GetNameForFile_FullFilePath_ExtractsFilenameOnly(string inputFile, string expected)
+        public void GetNameForFile_FullFilePath_ExtractsFilenameOnly()
         {
+            string inputFile = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ?
+                "C:\\test\\test\\file.xml" :
+                "test/test/file.xml";
             // Arrange
             const string namespacePrefix = null;
             // Act
             string result = Resource.GetNameForFile(inputFile, namespacePrefix);
             // Assert
-            Assert.That(result, Is.EqualTo(expected));
+            Assert.That(result, Is.EqualTo("FileXml"));
+        }
+
+        /// <summary>
+        /// Tests GetNameForFile with a full file path.
+        /// </summary>
+        public void GetNameForFile_RelativeFilePath_ExtractsFilenameOnly()
+        {
+            string inputFile = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ?
+                "..\\..\\file.xml" :
+                "../../file.xml";
+            // Arrange
+            const string namespacePrefix = null;
+            // Act
+            string result = Resource.GetNameForFile(inputFile, namespacePrefix);
+            // Assert
+            Assert.That(result, Is.EqualTo("FileXml"));
         }
 
         /// <summary>
         /// Tests GetNameForFile with a matching namespace prefix.
-        /// Input: "Opc.Ua.Test.xml" with namespace prefix "Opc.Ua.".
-        /// Expected: Returns "TestXml" with the prefix stripped.
         /// </summary>
         [Test]
         public void GetNameForFile_MatchingNamespacePrefix_StripsPrefixAndReturnsName()
@@ -366,14 +379,14 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
         /// <summary>
         /// Tests GetNameForFile with full path and matching namespace prefix.
-        /// Input: "C:\\path\\to\\Opc.Ua.test.xml" with namespace prefix "Opc.Ua.".
-        /// Expected: Returns "TestXml" extracting filename and stripping prefix.
         /// </summary>
         [Test]
         public void GetNameForFile_FullPathWithMatchingPrefix_ExtractsAndStripsPrefix()
         {
             // Arrange
-            const string inputFile = "C:\\path\\to\\Opc.Ua.test.xml";
+            string inputFile = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ?
+                "C:\\path\\to\\Opc.Ua.test.xml" :
+                "/path/to/Opc.Ua.test.xml";
             const string namespacePrefix = "Opc.Ua.";
             // Act
             string result = Resource.GetNameForFile(inputFile, namespacePrefix);

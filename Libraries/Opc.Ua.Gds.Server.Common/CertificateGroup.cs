@@ -471,7 +471,7 @@ namespace Opc.Ua.Gds.Server
                     subjectName);
             }
 
-            if (certificateType.IsNullNodeId)
+            if (certificateType.IsNull)
             {
                 throw new ArgumentNullException(nameof(certificateType));
             }
@@ -681,7 +681,7 @@ namespace Opc.Ua.Gds.Server
             //  Checks if the Certificate Group is for RSA Certificates
             static bool IsRSACertificateType(NodeId certificateType)
             {
-                return certificateType.IsNullNodeId ||
+                return certificateType.IsNull ||
                     certificateType == Ua.ObjectTypeIds.ApplicationCertificateType ||
                     certificateType == Ua.ObjectTypeIds.HttpsCertificateType ||
                     certificateType == Ua.ObjectTypeIds.UserCertificateType ||

@@ -94,9 +94,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.True(id.TryGetIdentifier(out byte[] o1));
             Assert.AreEqual(id2, o1);
             id = new NodeId((string)null, 0);
-            Assert.True(id.IsNullNodeId);
+            Assert.True(id.IsNull);
             id = new NodeId(string.Empty, 0);
-            Assert.True(id.IsNullNodeId);
+            Assert.True(id.IsNull);
             id = new NodeId(id1, 123);
             Assert.AreEqual(123, id.NamespaceIndex);
             Assert.True(id.TryGetIdentifier(out Guid g4));
@@ -120,7 +120,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var expandedId1 = ExpandedNodeId.Parse("nsu=urn:xyz;Test");
             Assert.NotNull(expandedId1);
             var nullId = ExpandedNodeId.ToNodeId(null, new NamespaceTable());
-            Assert.IsTrue(nullId.IsNullNodeId);
+            Assert.IsTrue(nullId.IsNull);
 
             // create a nodeId from a guid
             var guid1 = Guid.NewGuid();
@@ -201,7 +201,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             foreach (NodeId nodeId in nodeIds)
             {
-                Assert.IsTrue(nodeId.IsNullNodeId);
+                Assert.IsTrue(nodeId.IsNull);
             }
 
             // validate the hash code of null node id compares as equal
@@ -275,7 +275,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                     break;
             }
 
-            Assert.IsTrue(nodeId.IsNullNodeId);
+            Assert.IsTrue(nodeId.IsNull);
 
             Assert.AreEqual(nodeId, NodeId.Null);
             Assert.AreEqual(nodeId, new NodeId(0, 0));

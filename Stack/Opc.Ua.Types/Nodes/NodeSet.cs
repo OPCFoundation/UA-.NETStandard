@@ -129,7 +129,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(node));
             }
 
-            if (node.NodeId.IsNullNodeId)
+            if (node.NodeId.IsNull)
             {
                 throw new ArgumentException("A non-null NodeId must be specified.");
             }
@@ -423,7 +423,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException"><paramref name="nodeId"/> is <c>null</c>.</exception>
         public Node Find(NodeId nodeId, NamespaceTable namespaceUris)
         {
-            if (nodeId.IsNullNodeId)
+            if (nodeId.IsNull)
             {
                 throw new ArgumentNullException(nameof(nodeId));
             }
@@ -569,7 +569,7 @@ namespace Opc.Ua
             switch (value)
             {
                 case NodeId nodeId:
-                    if (!nodeId.IsNullNodeId)
+                    if (!nodeId.IsNull)
                     {
                         return Import(nodeId, namespaceUris);
                     }
@@ -719,7 +719,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(sourceNamespaceUris));
             }
 
-            if (nodeId.IsNullNodeId)
+            if (nodeId.IsNull)
             {
                 return nodeId;
             }
@@ -766,7 +766,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(sourceNamespaceUris));
             }
 
-            if (qname.IsNullQn)
+            if (qname.IsNull)
             {
                 return qname;
             }

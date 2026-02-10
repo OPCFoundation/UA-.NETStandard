@@ -461,7 +461,7 @@ namespace Opc.Ua
                     return DisplayName.Text;
                 }
 
-                if (!BrowseName.IsNullQn)
+                if (!BrowseName.IsNull)
                 {
                     return BrowseName.Name;
                 }

@@ -103,13 +103,14 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public int GetHashCode(T[] obj)
         {
-            var hash = new HashCode();
-            if (obj != null)
+            if (obj is null)
             {
-                foreach (T item in obj)
-                {
-                    hash.Add(item);
-                }
+                return 0;
+            }
+            var hash = new HashCode();
+            foreach (T item in obj)
+            {
+                hash.Add(item);
             }
             return hash.ToHashCode();
         }
@@ -147,13 +148,14 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public int GetHashCode(DateTime[] obj)
         {
-            var hash = new HashCode();
-            if (obj != null)
+            if (obj is null)
             {
-                foreach (DateTime item in obj)
-                {
-                    hash.Add(DateTimeComparer.Default.GetHashCode(item));
-                }
+                return 0;
+            }
+            var hash = new HashCode();
+            foreach (DateTime item in obj)
+            {
+                hash.Add(DateTimeComparer.Default.GetHashCode(item));
             }
             return hash.ToHashCode();
         }
@@ -222,13 +224,14 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public int GetHashCode(T[] obj)
         {
-            var hash = new HashCode();
-            if (obj != null)
+            if (obj is null)
             {
-                foreach (T item in obj)
-                {
-                    hash.Add(item);
-                }
+                return 0;
+            }
+            var hash = new HashCode();
+            foreach (T item in obj)
+            {
+                hash.Add(item);
             }
             return hash.ToHashCode();
         }
@@ -308,13 +311,14 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public int GetHashCode(byte[][] obj)
         {
-            var hash = new HashCode();
-            if (obj != null)
+            if (obj is null)
             {
-                foreach (byte[] item in obj)
-                {
-                    hash.Add(ByteStringEqualityComparer.Default.GetHashCode(item));
-                }
+                return 0;
+            }
+            var hash = new HashCode();
+            foreach (byte[] item in obj)
+            {
+                hash.Add(ByteStringEqualityComparer.Default.GetHashCode(item));
             }
             return hash.ToHashCode();
         }
@@ -352,13 +356,14 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public int GetHashCode(XmlElement[] obj)
         {
-            var hash = new HashCode();
-            if (obj != null)
+            if (obj is null)
             {
-                foreach (XmlElement item in obj)
-                {
-                    hash.Add(XmlElementStringEqualityComparer.Default.GetHashCode(item));
-                }
+                return 0;
+            }
+            var hash = new HashCode();
+            foreach (XmlElement item in obj)
+            {
+                hash.Add(XmlElementStringEqualityComparer.Default.GetHashCode(item));
             }
             return hash.ToHashCode();
         }

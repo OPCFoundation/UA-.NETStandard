@@ -71,7 +71,7 @@ namespace Opc.Ua.Server
         public static ParsedNodeId Parse(NodeId nodeId)
         {
             // can only parse non-null string node identifiers.
-            if (nodeId.IsNullNodeId)
+            if (nodeId.IsNull)
             {
                 return null;
             }

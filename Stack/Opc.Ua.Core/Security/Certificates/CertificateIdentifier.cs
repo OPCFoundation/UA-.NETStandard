@@ -729,7 +729,7 @@ namespace Opc.Ua
             X509Certificate2 certificate,
             NodeId certificateType)
         {
-            if (certificateType.IsNullNodeId)
+            if (certificateType.IsNull)
             {
                 return true;
             }
@@ -740,7 +740,7 @@ namespace Opc.Ua
                 case Oids.ECDsaWithSha256:
                 case Oids.ECDsaWithSha512:
                     NodeId certType = EccUtils.GetEccCertificateTypeId(certificate);
-                    if (certType.IsNullNodeId)
+                    if (certType.IsNull)
                     {
                         return false;
                     }
@@ -922,7 +922,7 @@ namespace Opc.Ua
         // TODO: remove if not used
         private static string EncodeCertificateType(NodeId certificateType)
         {
-            if (certificateType.IsNullNodeId)
+            if (certificateType.IsNull)
             {
                 return null;
             }

@@ -161,7 +161,7 @@ namespace Opc.Ua.PubSub.PublishedData
                                 // retrieve value from DataStore
                                 DataValue dataValue = null;
 
-                                if (!publishedVariable.PublishedVariable.IsNullNodeId)
+                                if (!publishedVariable.PublishedVariable.IsNull)
                                 {
                                     dataValue = m_dataStore.ReadPublishedDataItem(
                                         publishedVariable.PublishedVariable,

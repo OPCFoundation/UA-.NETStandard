@@ -165,7 +165,7 @@ namespace Opc.Ua
                     {
                         // undefined certificate type as RsaSha256
                         id = ApplicationCertificates.FirstOrDefault(
-                            certId => certId.CertificateType.IsNullNodeId);
+                            certId => certId.CertificateType.IsNull);
                     }
                     else if (certType == ObjectTypeIds.ApplicationCertificateType)
                     {
@@ -202,7 +202,7 @@ namespace Opc.Ua
             var securityPolicies = new StringCollection { SecurityPolicies.None };
             foreach (CertificateIdentifier applicationCertificate in m_applicationCertificates)
             {
-                if (applicationCertificate.CertificateType.IsNullNodeId)
+                if (applicationCertificate.CertificateType.IsNull)
                 {
                     securityPolicies.Add(SecurityPolicies.Basic256Sha256);
                     securityPolicies.Add(SecurityPolicies.Aes128_Sha256_RsaOaep);

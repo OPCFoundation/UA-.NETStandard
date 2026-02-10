@@ -393,7 +393,7 @@ namespace Opc.Ua.Client.ComplexTypes
             var dataTypeNodeId = ExpandedNodeId.ToNodeId(
                 dataTypeId,
                 m_complexTypeResolver.NamespaceUris);
-            if (!dataTypeNodeId.IsNullNodeId)
+            if (!dataTypeNodeId.IsNull)
             {
                 CollectAllDataTypeDefinitions(dataTypeNodeId, dataTypeDefinitions);
             }
@@ -404,7 +404,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 NodeId nodeId,
                 NodeIdDictionary<DataTypeDefinition> collect)
             {
-                if (nodeId.IsNullNodeId)
+                if (nodeId.IsNull)
                 {
                     return;
                 }
@@ -538,7 +538,7 @@ namespace Opc.Ua.Client.ComplexTypes
                                 NodeId nodeId = dictionary.DataTypes
                                     .FirstOrDefault(d => d.Value.Name == item.Name)
                                     .Key;
-                                if (nodeId.IsNullNodeId)
+                                if (nodeId.IsNull)
                                 {
                                     m_logger.LogError(
                                         Utils.TraceMasks.Error,
@@ -1007,7 +1007,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 // Validate the DataTypeDefinition structure,
                 // but not if the type is supported
                 if (structureDefinition.Fields == null ||
-                    structureDefinition.BaseDataType.IsNullNodeId ||
+                    structureDefinition.BaseDataType.IsNull ||
                     structureDefinition.BinaryEncodingId.IsNull)
                 {
                     return null;
@@ -1018,7 +1018,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     // validate if the DataTypeDefinition is correctly
                     // filled out, some servers don't do it yet...
                     if (field.BinaryEncodingId.IsNull ||
-                        field.DataType.IsNullNodeId ||
+                        field.DataType.IsNull ||
                         field.TypeId.IsNull ||
                         field.Name == null)
                     {
@@ -1064,7 +1064,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 superType = await m_complexTypeResolver.FindSuperTypeAsync(superType, ct)
                     .ConfigureAwait(false);
-                if (superType.IsNullNodeId)
+                if (superType.IsNull)
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadNodeIdInvalid,
@@ -1394,7 +1394,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     field.IsOptional,
                     ct)
                     .ConfigureAwait(false);
-                if (!superType.IsNullNodeId)
+                if (!superType.IsNull)
                 {
                     field.DataType = superType;
 #pragma warning disable EPC30 // Method calls itself recursively
@@ -1434,7 +1434,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 superType = await m_complexTypeResolver.FindSuperTypeAsync(superType, ct)
                     .ConfigureAwait(false);
-                if (superType.IsNullNodeId)
+                if (superType.IsNull)
                 {
                     return default;
                 }

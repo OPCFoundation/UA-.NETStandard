@@ -748,7 +748,7 @@ namespace Quickstarts
                 }
             }
 
-            var nodesToBrowse = new List<NodeId> { startingNode.IsNullNodeId ? ObjectIds.RootFolder : startingNode };
+            var nodesToBrowse = new List<NodeId> { startingNode.IsNull ? ObjectIds.RootFolder : startingNode };
 
             const int kMaxReferencesPerNode = 1000;
 
@@ -904,7 +904,7 @@ namespace Quickstarts
                 browseDescription
                 ?? new BrowseDescription
                 {
-                    NodeId = startingNode.IsNullNodeId ? ObjectIds.RootFolder : startingNode,
+                    NodeId = startingNode.IsNull ? ObjectIds.RootFolder : startingNode,
                     BrowseDirection = BrowseDirection.Forward,
                     ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
                     IncludeSubtypes = true,
@@ -913,7 +913,7 @@ namespace Quickstarts
                 };
             BrowseDescriptionCollection browseDescriptionCollection
                 = CreateBrowseDescriptionCollectionFromNodeId(
-                [.. new NodeId[] { startingNode.IsNullNodeId ? ObjectIds.RootFolder : startingNode }],
+                [.. new NodeId[] { startingNode.IsNull ? ObjectIds.RootFolder : startingNode }],
                 browseTemplate);
 
             // Browse

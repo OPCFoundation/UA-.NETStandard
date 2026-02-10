@@ -186,7 +186,7 @@ namespace Opc.Ua
                     continue;
                 }
 
-                if (browseName.IsNullQn)
+                if (browseName.IsNull)
                 {
                     return target;
                 }
@@ -301,7 +301,7 @@ namespace Opc.Ua
             foreach (Node nodeToImport in nodeSet.Nodes)
             {
                 // ignore empty nodes.
-                if (nodeToImport == null || nodeToImport.NodeId.IsNullNodeId)
+                if (nodeToImport == null || nodeToImport.NodeId.IsNull)
                 {
                     continue;
                 }
@@ -309,7 +309,7 @@ namespace Opc.Ua
                 Node node = nodeSet.Copy(nodeToImport, NamespaceUris, ServerUris);
 
                 // assign a browse name.
-                if (node.BrowseName.IsNullQn)
+                if (node.BrowseName.IsNull)
                 {
                     node.BrowseName = new QualifiedName(node.NodeId.ToString(), 1);
                 }
@@ -324,7 +324,7 @@ namespace Opc.Ua
                 foreach (ReferenceNode reference in node.References)
                 {
                     // ignore invalid references.
-                    if (reference.ReferenceTypeId.IsNullNodeId ||
+                    if (reference.ReferenceTypeId.IsNull ||
                         reference.TargetId.IsNull)
                     {
                         continue;
@@ -367,7 +367,7 @@ namespace Opc.Ua
             foreach (Node node in importedNodes)
             {
                 // ignore invalid nodes.
-                if (node == null || node.NodeId.IsNullNodeId)
+                if (node == null || node.NodeId.IsNull)
                 {
                     continue;
                 }
@@ -389,7 +389,7 @@ namespace Opc.Ua
                                 reference.TargetId,
                                 NamespaceUris);
 
-                            if (targetId.IsNullNodeId)
+                            if (targetId.IsNull)
                             {
                                 continue;
                             }
@@ -519,7 +519,7 @@ namespace Opc.Ua
                 foreach (ReferenceNode reference in node.References.OfType<ReferenceNode>())
                 {
                     // ignore invalid references.
-                    if (reference.ReferenceTypeId.IsNullNodeId ||
+                    if (reference.ReferenceTypeId.IsNull ||
                         reference.TargetId.IsNull)
                     {
                         continue;
@@ -641,7 +641,7 @@ namespace Opc.Ua
         /// <param name="node">The node.</param>
         private void InternalAdd(ILocalNode node)
         {
-            if (node == null || node.NodeId.IsNullNodeId)
+            if (node == null || node.NodeId.IsNull)
             {
                 return;
             }
@@ -655,7 +655,7 @@ namespace Opc.Ua
         /// <param name="node">The node.</param>
         private void InternalRemove(ILocalNode node)
         {
-            if (node == null || node.NodeId.IsNullNodeId)
+            if (node == null || node.NodeId.IsNull)
             {
                 return;
             }
@@ -716,7 +716,7 @@ namespace Opc.Ua
             // convert to locale node id.
             var localId = ExpandedNodeId.ToNodeId(nodeId, NamespaceUris);
 
-            if (localId.IsNullNodeId)
+            if (localId.IsNull)
             {
                 return null;
             }

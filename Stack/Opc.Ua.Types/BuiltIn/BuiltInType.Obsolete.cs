@@ -33,9 +33,9 @@ using System.Diagnostics.CodeAnalysis;
 namespace Opc.Ua
 {
     /// <summary>
-    /// Node id extensions
+    /// NodeId Obsoleted static methods
     /// </summary>
-    public static class NodeIdExtensions
+    public static class NodeIdStaticExtensions
     {
         extension(NodeId)
         {
@@ -46,10 +46,10 @@ namespace Opc.Ua
             /// Returns a true/false value to indicate if the specified NodeId is null.
             /// </remarks>
             /// <param name="nodeId">The NodeId to validate</param>
-            [Obsolete("Use NodeId.IsNullNodeId property instead.")]
+            [Obsolete("Use NodeId.IsNull property instead.")]
             public static bool IsNull([NotNullWhen(false)] NodeId nodeId)
             {
-                return nodeId.IsNullNodeId;
+                return nodeId.IsNull;
             }
 
             /// <summary>
@@ -68,20 +68,50 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// QualifiedName extensions
+    /// Obsoleted members
     /// </summary>
-    public static class QualifiedNameExtensions
+    public static class NodeIdExtensions
+    {
+        extension(NodeId nodeId)
+        {
+            /// <summary>
+            /// Returns true if the node id is null
+            /// </summary>
+            [Obsolete("Use NodeId.IsNull property instead.")]
+            public bool IsNullNodeId => nodeId.IsNull;
+        }
+    }
+
+    /// <summary>
+    /// QualifiedName obsolete static methods
+    /// </summary>
+    public static class QualifiedNameStaticExtensions
     {
         extension(QualifiedName)
         {
             /// <summary>
             /// Returns true if the text is a null or empty string.
             /// </summary>
-            [Obsolete("Use QualifiedName.IsNullQn property instead.")]
+            [Obsolete("Use QualifiedName.IsNull property instead.")]
             public static bool IsNull([NotNullWhen(false)] QualifiedName value)
             {
-                return value.IsNullQn;
+                return value.IsNull;
             }
+        }
+    }
+
+    /// <summary>
+    /// QualifiedName obsolete members
+    /// </summary>
+    public static class QualifiedNameExtensions
+    {
+        extension(QualifiedName qualifiedName)
+        {
+            /// <summary>
+            /// Returns true if the node id is null
+            /// </summary>
+            [Obsolete("Use QualifiedName.IsNull property instead.")]
+            public bool IsNullQn => qualifiedName.IsNull;
         }
     }
 

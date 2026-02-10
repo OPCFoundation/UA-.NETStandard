@@ -135,7 +135,7 @@ namespace Opc.Ua.Schema.Model
                 foreach (NodeIdAlias ii in m_nodeset.Aliases)
                 {
                     m_aliases[ii.Alias] = ImportNodeId(ii.Value, false);
-                    if (m_aliases[ii.Alias].IsNullNodeId)
+                    if (m_aliases[ii.Alias].IsNull)
                     {
                         throw new InvalidDataException(
                             $"Alias ({ii.Alias}) is not valid.");
@@ -148,7 +148,7 @@ namespace Opc.Ua.Schema.Model
                 foreach (UANode node in m_nodeset.Items)
                 {
                     NodeId nodeId = ImportNodeId(node.NodeId, false);
-                    if (nodeId.IsNullNodeId)
+                    if (nodeId.IsNull)
                     {
                         throw new InvalidDataException(
                             $"NodeId ({node.BrowseName}) is not valid.");
@@ -484,14 +484,14 @@ namespace Opc.Ua.Schema.Model
                 {
                     NodeId rtid = ImportNodeId(reference.ReferenceType);
 
-                    if (rtid.IsNullNodeId || ReferenceTypeIds.HasSubtype != rtid || reference.IsForward)
+                    if (rtid.IsNull || ReferenceTypeIds.HasSubtype != rtid || reference.IsForward)
                     {
                         continue;
                     }
 
                     NodeId targetId = ImportNodeId(reference.Value);
 
-                    if (targetId.IsNullNodeId)
+                    if (targetId.IsNull)
                     {
                         return default;
                     }
@@ -508,7 +508,7 @@ namespace Opc.Ua.Schema.Model
             NodeId nodeId = ImportNodeId(input.NodeId);
             NodeDesign existing = null;
 
-            if (nodeId.IsNullNodeId || m_settings.NodesById.TryGetValue(nodeId, out existing))
+            if (nodeId.IsNull || m_settings.NodesById.TryGetValue(nodeId, out existing))
             {
                 if (existing is ReferenceTypeDesign rt)
                 {
@@ -720,7 +720,7 @@ namespace Opc.Ua.Schema.Model
         {
             NodeId nodeId = ImportNodeId(subtype.NodeId);
 
-            if (nodeId.IsNullNodeId)
+            if (nodeId.IsNull)
             {
                 return false;
             }
@@ -1251,7 +1251,7 @@ namespace Opc.Ua.Schema.Model
                 output.StringId = stringId;
                 output.NumericIdSpecified = false;
             }
-            else if (nodeId.IsNullNodeId)
+            else if (nodeId.IsNull)
             {
                 m_logger.LogInformation("NodeId is not specified.");
             }
@@ -1361,7 +1361,7 @@ namespace Opc.Ua.Schema.Model
 
                 NodeId dataTypeId = FindTarget(input, ReferenceTypes.HasEncoding, true);
 
-                if (dataTypeId.IsNullNodeId)
+                if (dataTypeId.IsNull)
                 {
                     NodeId encodingId = ImportNodeId(input.NodeId);
 
@@ -1369,7 +1369,7 @@ namespace Opc.Ua.Schema.Model
                     {
                         NodeId result = FindTarget(dataType, ReferenceTypes.HasEncoding, false, encodingId);
 
-                        if (!result.IsNullNodeId)
+                        if (!result.IsNull)
                         {
                             dataTypeId = ImportNodeId(dataType.NodeId);
 
@@ -1705,7 +1705,7 @@ namespace Opc.Ua.Schema.Model
                     m_settings.NamespaceUris.GetString(nodeId.NamespaceIndex));
             }
 
-            if (parentId.IsNullNodeId || !m_index.TryGetValue(parentId, out UANode parent))
+            if (parentId.IsNull || !m_index.TryGetValue(parentId, out UANode parent))
             {
                 throw new InvalidDataException(
                     $"Parent node ({instance.ParentNodeId}) for {node.NodeId} not found.");
@@ -1714,7 +1714,7 @@ namespace Opc.Ua.Schema.Model
             XmlQualifiedName symbolicId = BuildSymbolicId(parent);
             XmlQualifiedName symbolicName = ImportSymbolicName(node);
 
-            if (nodeId.IsNullNodeId)
+            if (nodeId.IsNull)
             {
                 throw new InvalidDataException(
                     $"Node ({symbolicId.Name}) does not have a valid NodeId.");
@@ -1873,7 +1873,7 @@ namespace Opc.Ua.Schema.Model
 
                 NodeId nodeId = ImportNodeId(node.NodeId);
 
-                if (!nodeId.IsNullNodeId &&
+                if (!nodeId.IsNull &&
                     m_settings.NodesById.TryGetValue(nodeId, out NodeDesign design))
                 {
                     items.Add(design);
@@ -2144,7 +2144,7 @@ namespace Opc.Ua.Schema.Model
             }
 
             NodeId referenceTypeId = ImportNodeId(source.ReferenceType, true);
-            if (referenceTypeId.IsNullNodeId)
+            if (referenceTypeId.IsNull)
             {
                 throw new InvalidDataException($"ReferenceType ({source.ReferenceType}) is not valid.");
             }

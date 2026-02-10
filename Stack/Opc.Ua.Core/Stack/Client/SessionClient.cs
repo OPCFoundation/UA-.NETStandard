@@ -59,7 +59,7 @@ namespace Opc.Ua
         /// Whether a session has beed created with the server.
         /// </summary>
         /// <value><c>true</c> if connected; otherwise, <c>false</c>.</value>
-        public bool Connected => !SessionId.IsNullNodeId;
+        public bool Connected => !SessionId.IsNull;
 
         /// <summary>
         /// Called when a new session is created.

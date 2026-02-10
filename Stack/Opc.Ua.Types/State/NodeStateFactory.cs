@@ -48,7 +48,7 @@ namespace Opc.Ua
             NodeId typeDefinitionId)
         {
             INodeStateFactory factory;
-            if (typeDefinitionId.IsNullNodeId)
+            if (typeDefinitionId.IsNull)
             {
                 factory = DefaultNodeStateActivator.Instance;
             }

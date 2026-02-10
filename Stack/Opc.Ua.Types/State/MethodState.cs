@@ -536,7 +536,7 @@ namespace Opc.Ua
             bool createOrReplace,
             BaseInstanceState replacement)
         {
-            if (browseName.IsNullQn)
+            if (browseName.IsNull)
             {
                 return null;
             }

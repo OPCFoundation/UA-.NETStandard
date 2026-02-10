@@ -166,7 +166,7 @@ namespace Opc.Ua.Gds.Server
             IUserIdentity userIdentity,
             NodeId applicationId)
         {
-            if (applicationId.IsNullNodeId)
+            if (applicationId.IsNull)
             {
                 return false;
             }

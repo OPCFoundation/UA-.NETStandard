@@ -62,7 +62,7 @@ namespace Opc.Ua
 
                 if (child is BaseObjectState objectInstance &&
                     values.EventFields[ii].TryGet(out NodeId nodeId) &&
-                    !nodeId.IsNullNodeId)
+                    !nodeId.IsNull)
                 {
                     objectInstance.NodeId = nodeId;
                 }
@@ -139,7 +139,7 @@ namespace Opc.Ua
                     }
 
                     // ensure the browse name is set.
-                    if (child.BrowseName.IsNullQn)
+                    if (child.BrowseName.IsNull)
                     {
                         child.BrowseName = field.BrowsePath[jj];
                     }

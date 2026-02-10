@@ -104,7 +104,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public string GetSchema(NodeId descriptionId)
         {
-            if (!descriptionId.IsNullNodeId)
+            if (!descriptionId.IsNull)
             {
                 if (!DataTypes.TryGetValue(descriptionId, out QualifiedName browseName))
                 {

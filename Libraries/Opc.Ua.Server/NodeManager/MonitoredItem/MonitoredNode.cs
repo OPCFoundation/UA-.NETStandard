@@ -237,9 +237,9 @@ namespace Opc.Ua.Server
                 {
                     // enqueue event
                     if (context is ISessionSystemContext session &&
-                        !session.SessionId.IsNullNodeId &&
+                        !session.SessionId.IsNull &&
                         monitoredItem?.Session != null &&
-                        !monitoredItem.Session.Id.IsNullNodeId)
+                        !monitoredItem.Session.Id.IsNull)
                     {
                         if (monitoredItem.Session.Id.Equals(session.SessionId))
                         {

@@ -78,7 +78,7 @@ namespace Opc.Ua
             ref object value)
         {
             // check if nothing to do.
-            if (dataEncoding.IsNullQn || value == null)
+            if (dataEncoding.IsNull || value == null)
             {
                 return ServiceResult.Good;
             }

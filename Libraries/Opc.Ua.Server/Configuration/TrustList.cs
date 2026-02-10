@@ -290,7 +290,7 @@ namespace Opc.Ua.Server
 
                 lock (m_lock)
                 {
-                    if (!m_sessionId.IsNullNodeId)
+                    if (!m_sessionId.IsNull)
                     {
                         // to avoid deadlocks, last open always wins
                         m_sessionId = default;
@@ -739,7 +739,7 @@ namespace Opc.Ua.Server
             bool isSessionOpen;
             lock (m_lock)
             {
-                isSessionOpen = !m_sessionId.IsNullNodeId;
+                isSessionOpen = !m_sessionId.IsNull;
             }
 
             if (isSessionOpen)
@@ -846,7 +846,7 @@ namespace Opc.Ua.Server
             bool isSessionOpen;
             lock (m_lock)
             {
-                isSessionOpen = !m_sessionId.IsNullNodeId;
+                isSessionOpen = !m_sessionId.IsNull;
             }
 
             if (isSessionOpen)

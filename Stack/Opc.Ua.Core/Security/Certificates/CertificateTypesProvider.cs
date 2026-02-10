@@ -103,7 +103,7 @@ namespace Opc.Ua.Security.Certificates
                     certType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
                 {
                     instanceCertificate = m_securityConfiguration.ApplicationCertificates
-                        .FirstOrDefault(id => id.CertificateType.IsNullNodeId);
+                        .FirstOrDefault(id => id.CertificateType.IsNull);
                 }
                 if (instanceCertificate == null &&
                     certType == ObjectTypeIds.ApplicationCertificateType)

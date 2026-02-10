@@ -195,7 +195,7 @@ namespace Opc.Ua
 
             NodeId dataTypeId = GetDataTypeId(value.GetType(), namespaceTable);
 
-            if (dataTypeId.IsNullNodeId && value is Matrix matrix)
+            if (dataTypeId.IsNull && value is Matrix matrix)
             {
                 return GetDataTypeId(matrix.TypeInfo);
             }
@@ -215,7 +215,7 @@ namespace Opc.Ua
 
             NodeId dataTypeId = GetDataTypeId(typeInfo);
 
-            if (dataTypeId.IsNullNodeId)
+            if (dataTypeId.IsNull)
             {
                 if (type.GetTypeInfo().IsEnum ||
                     (type.IsArray && type.GetElementType().GetTypeInfo().IsEnum))
@@ -391,7 +391,7 @@ namespace Opc.Ua
         /// <returns>An <see cref="BuiltInType"/> for  <paramref name="datatypeId"/></returns>
         public static BuiltInType GetBuiltInType(NodeId datatypeId)
         {
-            if (datatypeId.IsNullNodeId ||
+            if (datatypeId.IsNull ||
                 datatypeId.NamespaceIndex != 0 ||
                 !datatypeId.TryGetIdentifier(out uint id))
             {
@@ -525,7 +525,7 @@ namespace Opc.Ua
         {
             NodeId typeId = datatypeId;
 
-            while (!typeId.IsNullNodeId)
+            while (!typeId.IsNull)
             {
                 if (typeId.NamespaceIndex == 0 && typeId.TryGetIdentifier(out uint numericId))
                 {
@@ -564,7 +564,7 @@ namespace Opc.Ua
         {
             NodeId typeId = datatypeId;
 
-            while (!typeId.IsNullNodeId)
+            while (!typeId.IsNull)
             {
                 if (typeId.NamespaceIndex == 0 && typeId.TryGetIdentifier(out uint numericId))
                 {
@@ -1647,7 +1647,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            if (dataType.IsNullNodeId ||
+            if (dataType.IsNull ||
                 dataType.NamespaceIndex != 0 ||
                 !dataType.TryGetIdentifier(out uint id))
             {

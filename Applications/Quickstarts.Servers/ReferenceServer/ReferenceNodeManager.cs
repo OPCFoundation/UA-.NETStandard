@@ -4152,7 +4152,7 @@ namespace Quickstarts.ReferenceServer
 
             variable.SymbolicName = name;
             variable.ReferenceTypeId = ReferenceTypes.Organizes;
-            variable.DataType = nodeId.IsNullNodeId ? DataTypeIds.UInt32 : nodeId;
+            variable.DataType = nodeId.IsNull ? DataTypeIds.UInt32 : nodeId;
             variable.ValueRank = ValueRanks.Scalar;
             variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
             variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;

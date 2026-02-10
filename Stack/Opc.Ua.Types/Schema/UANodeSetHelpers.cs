@@ -215,7 +215,7 @@ namespace Opc.Ua.Export
             var nodeTable = new Dictionary<NodeId, NodeState>();
             foreach (NodeState node in nodes)
             {
-                if (!node.NodeId.IsNullNodeId)
+                if (!node.NodeId.IsNull)
                 {
                     nodeTable[node.NodeId] = node;
                 }
@@ -255,7 +255,7 @@ namespace Opc.Ua.Export
                 throw new ArgumentNullException(nameof(node));
             }
 
-            if (node.NodeId.IsNullNodeId)
+            if (node.NodeId.IsNull)
             {
                 throw new ArgumentException("A non-null NodeId must be specified.");
             }
@@ -323,7 +323,7 @@ namespace Opc.Ua.Export
                         DesignToolOnly = node.DesignToolOnly
                     };
 
-                    if (!o.MethodDeclarationId.IsNullNodeId &&
+                    if (!o.MethodDeclarationId.IsNull &&
                         o.MethodDeclarationId != o.NodeId)
                     {
                         value.MethodDeclarationId = Export(
@@ -935,7 +935,7 @@ namespace Opc.Ua.Export
         /// </summary>
         private string Export(NodeId source, NamespaceTable namespaceUris)
         {
-            if (source.IsNullNodeId)
+            if (source.IsNull)
             {
                 return string.Empty;
             }
@@ -1077,7 +1077,7 @@ namespace Opc.Ua.Export
         /// </summary>
         private string Export(QualifiedName source, NamespaceTable namespaceUris)
         {
-            if (source.IsNullQn)
+            if (source.IsNull)
             {
                 return string.Empty;
             }
@@ -1107,7 +1107,7 @@ namespace Opc.Ua.Export
 
             var definition = new DataTypeDefinition();
 
-            if (outputRedundantNames || !dataType.BrowseName.IsNullQn)
+            if (outputRedundantNames || !dataType.BrowseName.IsNull)
             {
                 definition.Name = Export(dataType.BrowseName, namespaceUris);
             }
@@ -1157,7 +1157,7 @@ namespace Opc.Ua.Export
                             output.AllowSubTypes = false;
                         }
 
-                        if (field.DataType.IsNullNodeId)
+                        if (field.DataType.IsNull)
                         {
                             output.DataType = Export(DataTypeIds.BaseDataType, namespaceUris);
                         }

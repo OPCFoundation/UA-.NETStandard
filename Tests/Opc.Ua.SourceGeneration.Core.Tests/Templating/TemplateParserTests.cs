@@ -560,8 +560,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         [TestCase(double.MaxValue, "1.7976931348623", TestName = "AppendFormatted_DoubleMaxValue_AddsValueOperation")]
         [TestCase(double.MinValue, "-1.7976931348623", TestName = "AppendFormatted_DoubleMinValue_AddsValueOperation")]
         [TestCase(double.NaN, "NaN", TestName = "AppendFormatted_DoubleNaN_AddsValueOperation")]
-        [TestCase(double.PositiveInfinity, "∞", TestName = "AppendFormatted_DoublePositiveInfinity_AddsValueOperation")]
-        [TestCase(double.NegativeInfinity, "-∞", TestName = "AppendFormatted_DoubleNegativeInfinity_AddsValueOperation")]
+        [TestCase(double.PositiveInfinity, "Infinity", TestName = "AppendFormatted_DoublePositiveInfinity_AddsValueOperation")]
+        [TestCase(double.NegativeInfinity, "-Infinity", TestName = "AppendFormatted_DoubleNegativeInfinity_AddsValueOperation")]
         public void AppendFormatted_Double_AddsValueOperation(double value, string expectedString)
         {
             // Arrange
@@ -586,8 +586,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         [TestCase(float.MaxValue, "3.402823", TestName = "AppendFormatted_FloatMaxValue_AddsValueOperation")]
         [TestCase(float.MinValue, "-3.402823", TestName = "AppendFormatted_FloatMinValue_AddsValueOperation")]
         [TestCase(float.NaN, "NaN", TestName = "AppendFormatted_FloatNaN_AddsValueOperation")]
-        [TestCase(float.PositiveInfinity, "∞", TestName = "AppendFormatted_FloatPositiveInfinity_AddsValueOperation")]
-        [TestCase(float.NegativeInfinity, "-∞", TestName = "AppendFormatted_FloatNegativeInfinity_AddsValueOperation")]
+        [TestCase(float.PositiveInfinity, "Infinity", TestName = "AppendFormatted_FloatPositiveInfinity_AddsValueOperation")]
+        [TestCase(float.NegativeInfinity, "-Infinity", TestName = "AppendFormatted_FloatNegativeInfinity_AddsValueOperation")]
         public void AppendFormatted_Float_AddsValueOperation(float value, string expectedString)
         {
             // Arrange
@@ -856,7 +856,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             var operations = parser.Parsed.Operations.ToList();
             Assert.That(operations, Has.Count.EqualTo(1));
             Assert.That(operations[0].Type, Is.EqualTo(ParsedTemplateString.OpType.Value));
-            Assert.That(operations[0].Item, Is.EqualTo(value.ToString(CultureInfo.CurrentCulture)));
+            Assert.That(operations[0].Item, Is.EqualTo(value.ToString(CultureInfo.InvariantCulture)));
         }
 
         /// <summary>
@@ -1210,7 +1210,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             string result = parser.GetFormattedText();
 
             // Assert
-            Assert.That(result, Is.EqualTo($"Infinity: {double.PositiveInfinity}"));
+            Assert.That(result, Is.EqualTo($"Infinity: Infinity"));
         }
 
         /// <summary>
@@ -1228,7 +1228,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             string result = parser.GetFormattedText();
 
             // Assert
-            Assert.That(result, Is.EqualTo($"NegInf: {double.NegativeInfinity}"));
+            Assert.That(result, Is.EqualTo($"NegInf: -Infinity"));
         }
 
         /// <summary>

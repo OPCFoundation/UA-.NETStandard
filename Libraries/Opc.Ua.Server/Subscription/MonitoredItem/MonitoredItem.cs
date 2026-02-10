@@ -1139,7 +1139,7 @@ namespace Opc.Ua.Server
             bool canSend = passedFilter;
 
             // ConditionId is valid only if FilteredRetain is set for the alarm condition
-            if (!conditionId.IsNullNodeId && alarmCondition != null)
+            if (!conditionId.IsNull && alarmCondition != null)
             {
                 HashSet<string> conditionIds = GetFilteredRetainConditionIds();
 

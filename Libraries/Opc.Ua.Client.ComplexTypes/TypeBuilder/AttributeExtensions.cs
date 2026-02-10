@@ -248,7 +248,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <returns>An <see cref="BuiltInType"/> for  <paramref name="datatypeId"/></returns>
         private static BuiltInType GetBuiltInType(NodeId datatypeId)
         {
-            if (datatypeId.IsNullNodeId ||
+            if (datatypeId.IsNull ||
                 datatypeId.NamespaceIndex != 0 ||
                 !datatypeId.TryGetIdentifier(out uint numericId))
             {

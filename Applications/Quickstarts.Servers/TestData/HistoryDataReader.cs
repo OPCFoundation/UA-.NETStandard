@@ -217,7 +217,7 @@ namespace TestData
                 }
 
                 // apply the data encoding.
-                if (!dataEncoding.IsNullQn)
+                if (!dataEncoding.IsNull)
                 {
                     value.Value = null;
                     value.StatusCode = StatusCodes.BadDataEncodingUnsupported;

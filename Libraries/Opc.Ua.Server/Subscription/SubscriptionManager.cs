@@ -682,7 +682,7 @@ namespace Opc.Ua.Server
                 {
                     NodeId sessionId = subscription.SessionId;
 
-                    if (!sessionId.IsNullNodeId)
+                    if (!sessionId.IsNull)
                     {
                         // check that the subscription is the owner.
                         if (context != null &&
@@ -1010,7 +1010,7 @@ namespace Opc.Ua.Server
                     Message = subscription.PublishTimeout()
                 };
 
-                if (!subscription.SessionId.IsNullNodeId &&
+                if (!subscription.SessionId.IsNull &&
                     m_statusMessages.TryGetValue(
                         subscription.SessionId,
                         out Queue<StatusMessage> queue))
@@ -1399,7 +1399,7 @@ namespace Opc.Ua.Server
                     // check if new and old sessions are different
                     ISession ownerSession = subscription.Session;
                     if (ownerSession != null &&
-                        !ownerSession.Id.IsNullNodeId &&
+                        !ownerSession.Id.IsNull &&
                         ownerSession.Id == context.Session.Id)
                     {
                         result.StatusCode = StatusCodes.BadNothingToDo;
@@ -1526,7 +1526,7 @@ namespace Opc.Ua.Server
                         bool statusQueued = false;
                         lock (m_statusMessagesLock)
                         {
-                            if (!ownerSession.Id.IsNullNodeId &&
+                            if (!ownerSession.Id.IsNull &&
                                 m_statusMessages.TryGetValue(
                                     ownerSession.Id,
                                     out Queue<StatusMessage> queue))

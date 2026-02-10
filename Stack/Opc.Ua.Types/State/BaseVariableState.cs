@@ -617,7 +617,7 @@ namespace Opc.Ua
             {
                 // If we have a valid DataType and ValueRank, use them to construct the TypeInfo
                 // This is necessary to distinguish between byte[] (Byte array) and ByteString
-                if (m_value != null && !m_dataType.IsNullNodeId)
+                if (m_value != null && !m_dataType.IsNull)
                 {
                     BuiltInType builtInType = TypeInfo.GetBuiltInType(m_dataType);
                     if (builtInType != BuiltInType.Null)
@@ -1006,7 +1006,7 @@ namespace Opc.Ua
                 encoder.WriteStatusCode("StatusCode", StatusCode);
             }
 
-            if (!DataType.IsNullNodeId)
+            if (!DataType.IsNull)
             {
                 encoder.WriteNodeId("DataType", DataType);
             }
@@ -1156,7 +1156,7 @@ namespace Opc.Ua
                 attributesToSave |= AttributesToSave.StatusCode;
             }
 
-            if (!m_dataType.IsNullNodeId)
+            if (!m_dataType.IsNull)
             {
                 attributesToSave |= AttributesToSave.DataType;
             }
@@ -1704,7 +1704,7 @@ namespace Opc.Ua
             }
 
             // apply data encoding.
-            if (!dataEncoding.IsNullQn)
+            if (!dataEncoding.IsNull)
             {
                 IServiceMessageContext messageContext = context.AsMessageContext();
 
@@ -2045,7 +2045,7 @@ namespace Opc.Ua
                     }
                 }
                 // test for special case Null type
-                if (!(m_dataType.IsNullNodeId && value == null))
+                if (!(m_dataType.IsNull && value == null))
                 {
                     return StatusCodes.BadTypeMismatch;
                 }
@@ -2371,7 +2371,7 @@ namespace Opc.Ua
             bool createOrReplace,
             BaseInstanceState replacement)
         {
-            if (browseName.IsNullQn)
+            if (browseName.IsNull)
             {
                 return null;
             }

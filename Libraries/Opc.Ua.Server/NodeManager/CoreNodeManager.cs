@@ -200,7 +200,7 @@ namespace Opc.Ua.Server
         {
             lock (DataLock)
             {
-                if (nodeId.IsNullNodeId)
+                if (nodeId.IsNull)
                 {
                     return null;
                 }
@@ -345,7 +345,7 @@ namespace Opc.Ua.Server
 
                     // silently ignore bad values.
                     if (reference == null ||
-                        reference.ReferenceTypeId.IsNullNodeId ||
+                        reference.ReferenceTypeId.IsNull ||
                         reference.TargetId.IsNull)
                     {
                         continue;
@@ -443,7 +443,7 @@ namespace Opc.Ua.Server
             }
 
             // check reference type filter.
-            if (!referenceTypeId.IsNullNodeId && reference.ReferenceTypeId != referenceTypeId)
+            if (!referenceTypeId.IsNull && reference.ReferenceTypeId != referenceTypeId)
             {
                 return includeSubtypes &&
                     Server.TypeTree.IsTypeOf(reference.ReferenceTypeId, referenceTypeId);
@@ -759,7 +759,7 @@ namespace Opc.Ua.Server
                         }
 
                         // apply data encoding.
-                        if (!nodeToRead.DataEncoding.IsNullQn)
+                        if (!nodeToRead.DataEncoding.IsNull)
                         {
                             error = EncodeableObject.ApplyDataEncoding(
                                 Server.MessageContext,
@@ -1949,12 +1949,12 @@ namespace Opc.Ua.Server
             NodeId referenceTypeId,
             bool isInverse)
         {
-            if (sourceId.IsNullNodeId)
+            if (sourceId.IsNull)
             {
                 throw new ArgumentNullException(nameof(sourceId));
             }
 
-            if (referenceTypeId.IsNullNodeId)
+            if (referenceTypeId.IsNull)
             {
                 throw new ArgumentNullException(nameof(referenceTypeId));
             }
@@ -2000,12 +2000,12 @@ namespace Opc.Ua.Server
             bool isInverse,
             QualifiedName browseName)
         {
-            if (sourceId.IsNullNodeId)
+            if (sourceId.IsNull)
             {
                 throw new ArgumentNullException(nameof(sourceId));
             }
 
-            if (referenceTypeId.IsNullNodeId)
+            if (referenceTypeId.IsNull)
             {
                 throw new ArgumentNullException(nameof(referenceTypeId));
             }
@@ -2037,7 +2037,7 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    if (browseName.IsNullQn || target.BrowseName == browseName)
+                    if (browseName.IsNull || target.BrowseName == browseName)
                     {
                         return (NodeId)targetId;
                     }
@@ -2134,7 +2134,7 @@ namespace Opc.Ua.Server
         /// <exception cref="ArgumentNullException"><paramref name="nodeId"/> is <c>null</c>.</exception>
         public void RegisterSource(NodeId nodeId, object source, object handle, bool isEventSource)
         {
-            if (nodeId.IsNullNodeId)
+            if (nodeId.IsNull)
             {
                 throw new ArgumentNullException(nameof(nodeId));
             }
@@ -2844,7 +2844,7 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         public void DeleteNode(NodeId nodeId, bool deleteChildren, bool silent)
         {
-            if (nodeId.IsNullNodeId)
+            if (nodeId.IsNull)
             {
                 throw new ArgumentNullException(nameof(nodeId));
             }
@@ -3264,7 +3264,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(sourceHandle));
             }
 
-            if (referenceTypeId.IsNullNodeId)
+            if (referenceTypeId.IsNull)
             {
                 throw new ArgumentNullException(nameof(referenceTypeId));
             }
@@ -3477,7 +3477,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (browseName.IsNullQn || browseName == target.BrowseName)
+                if (browseName.IsNull || browseName == target.BrowseName)
                 {
                     return target;
                 }

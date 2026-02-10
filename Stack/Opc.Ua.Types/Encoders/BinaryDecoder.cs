@@ -1990,7 +1990,7 @@ namespace Opc.Ua
             var extension = new ExtensionObject(
                 NodeId.ToExpandedNodeId(typeId, Context.NamespaceUris));
 
-            if (!typeId.IsNullNodeId && extension.TypeId.IsNull)
+            if (!typeId.IsNull && extension.TypeId.IsNull)
             {
                 m_logger.LogWarning(
                     "Cannot deserialize extension objects if the NamespaceUri is not in the NamespaceTable: Type = {Type}",

@@ -130,7 +130,7 @@ namespace Opc.Ua.Gds.Server.Database
                     nameof(application));
             }
 
-            if (application.ApplicationId.IsNullNodeId)
+            if (application.ApplicationId.IsNull)
             {
                 return default;
             }
@@ -332,7 +332,7 @@ namespace Opc.Ua.Gds.Server.Database
 
         protected Guid GetNodeIdGuid(NodeId nodeId)
         {
-            if (nodeId.IsNullNodeId)
+            if (nodeId.IsNull)
             {
                 throw new ArgumentNullException(nameof(nodeId));
             }
@@ -348,7 +348,7 @@ namespace Opc.Ua.Gds.Server.Database
 
         protected string GetNodeIdString(NodeId nodeId)
         {
-            if (nodeId.IsNullNodeId)
+            if (nodeId.IsNull)
             {
                 return null;
             }
@@ -367,7 +367,7 @@ namespace Opc.Ua.Gds.Server.Database
 
         protected void ValidateApplicationNodeId(NodeId nodeId)
         {
-            if (nodeId.IsNullNodeId)
+            if (nodeId.IsNull)
             {
                 throw new ArgumentNullException(nameof(nodeId));
             }

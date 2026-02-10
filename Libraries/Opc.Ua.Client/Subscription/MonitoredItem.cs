@@ -897,7 +897,7 @@ namespace Opc.Ua.Client
                 return null;
             }
 
-            if (!eventTypeId.IsNullNodeId &&
+            if (!eventTypeId.IsNull &&
                 Subscription != null &&
                 Subscription.Session != null)
             {

@@ -1209,7 +1209,7 @@ namespace Opc.Ua.Client
                     maxMessageSize,
                     ct).ConfigureAwait(false);
             }
-            if (response is null || response.SessionId.IsNullNodeId)
+            if (response is null || response.SessionId.IsNull)
             {
                 throw ServiceResultException.Unexpected(
                     "Create response returned null session id");
@@ -3523,7 +3523,7 @@ namespace Opc.Ua.Client
                 }
 
                 // nothing more to do if we were never connected
-                if (sessionId.IsNullNodeId)
+                if (sessionId.IsNull)
                 {
                     return;
                 }

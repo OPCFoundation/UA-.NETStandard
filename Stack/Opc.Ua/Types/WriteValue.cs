@@ -67,7 +67,7 @@ namespace Opc.Ua
             }
 
             // null node ids are always invalid.
-            if (value.NodeId.IsNullNodeId)
+            if (value.NodeId.IsNull)
             {
                 return StatusCodes.BadNodeIdInvalid;
             }

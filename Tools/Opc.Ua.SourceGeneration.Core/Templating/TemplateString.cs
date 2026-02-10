@@ -104,7 +104,9 @@ namespace Opc.Ua.SourceGeneration
         /// <inheritdoc/>
         public readonly void AppendFormatted<T>(T t)
         {
-            Parsed.AddFormatted(t.ToString(), typeof(T));
+            Parsed.AddFormatted(
+                t is IFormattable f ?
+                f.ToString(null, CultureInfo.InvariantCulture) : t.ToString(), typeof(T));
         }
 
         /// <inheritdoc/>

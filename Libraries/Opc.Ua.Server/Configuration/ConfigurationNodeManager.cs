@@ -938,7 +938,7 @@ namespace Opc.Ua.Server
                 .SetNotBefore(DateTime.Today.AddDays(-1))
                 .SetNotAfter(DateTime.Today.AddDays(14));
 
-            if (certificateTypeId.IsNullNodeId ||
+            if (certificateTypeId.IsNull ||
                 certificateTypeId == ObjectTypeIds.ApplicationCertificateType ||
                 certificateTypeId == ObjectTypeIds.RsaMinApplicationCertificateType ||
                 certificateTypeId == ObjectTypeIds.RsaSha256ApplicationCertificateType)
@@ -1114,7 +1114,7 @@ namespace Opc.Ua.Server
             NodeId certificateTypeId)
         {
             // verify typeid must be set
-            if (certificateTypeId.IsNullNodeId)
+            if (certificateTypeId.IsNull)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadInvalidArgument,
@@ -1122,7 +1122,7 @@ namespace Opc.Ua.Server
             }
 
             // verify requested certificate group
-            if (certificateGroupId.IsNullNodeId)
+            if (certificateGroupId.IsNull)
             {
                 certificateGroupId = ObjectIds
                     .ServerConfiguration_CertificateGroups_DefaultApplicationGroup;

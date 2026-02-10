@@ -332,7 +332,7 @@ namespace Opc.Ua
                     ref m_nextRequestHandle);
             }
 
-            if (request.RequestHeader.AuthenticationToken.IsNullNodeId)
+            if (request.RequestHeader.AuthenticationToken.IsNull)
             {
                 request.RequestHeader.AuthenticationToken = AuthenticationToken;
             }

@@ -254,7 +254,7 @@ namespace Opc.Ua
                     if (ServiceResult.IsGood(result))
                     {
                         if (dataTypeDefinition.Body is StructureDefinition structureType &&
-                            structureType.DefaultEncodingId.IsNullNodeId)
+                            structureType.DefaultEncodingId.IsNull)
                         {
                             // one time set the id for binary encoding, currently the only supported encoding
                             structureType.SetDefaultEncodingId(context, NodeId, null);

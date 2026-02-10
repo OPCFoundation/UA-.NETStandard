@@ -224,7 +224,7 @@ namespace Opc.Ua
             if (systemType != null &&
                 Activator.CreateInstance(systemType) is IEncodeable encodeable)
             {
-                if (dataEncoding.IsNullQn || dataEncoding.Name == BrowseNames.DefaultBinary)
+                if (dataEncoding.IsNull || dataEncoding.Name == BrowseNames.DefaultBinary)
                 {
                     DefaultEncodingId = ExpandedNodeId.ToNodeId(
                         encodeable.BinaryEncodingId,

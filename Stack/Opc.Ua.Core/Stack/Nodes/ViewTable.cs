@@ -136,7 +136,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(view));
             }
 
-            if (view.NodeId.IsNullNodeId)
+            if (view.NodeId.IsNull)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadNodeIdInvalid,
@@ -166,7 +166,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public void Remove(NodeId viewId)
         {
-            if (viewId.IsNullNodeId)
+            if (viewId.IsNull)
             {
                 throw new ArgumentNullException(nameof(viewId));
             }

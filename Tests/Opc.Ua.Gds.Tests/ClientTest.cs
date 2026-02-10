@@ -130,7 +130,7 @@ namespace Opc.Ua.Gds.Tests
                     .CertificateGroups.Where(cg => cg.Id == "Default")
                     .SelectMany(cg => cg.CertificateTypes)
                     .Select(Ua.ObjectTypeIds.GetIdentifier)
-                    .Where(n => !n.IsNullNodeId && Utils.IsSupportedCertificateType(n))
+                    .Where(n => !n.IsNull && Utils.IsSupportedCertificateType(n))
 #if NETFRAMEWORK || SKIP_ECC_CERTIFICATE_REQUEST_SIGNING
                     // Only rsa gds issuance supported in net framework
                     .Where(n =>
@@ -200,7 +200,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 NodeId id = await m_gdsClient.GDSClient
                     .RegisterApplicationAsync(application.ApplicationRecord).ConfigureAwait(false);
-                Assert.IsFalse(id.IsNullNodeId);
+                Assert.IsFalse(id.IsNull);
                 NUnit.Framework.Assert.That(id.IdType is IdType.Guid or IdType.String);
                 application.ApplicationRecord.ApplicationId = id;
             }
@@ -219,7 +219,7 @@ namespace Opc.Ua.Gds.Tests
                     .MemberwiseClone();
                 newRecord.ApplicationId = default;
                 NodeId id = await m_gdsClient.GDSClient.RegisterApplicationAsync(newRecord).ConfigureAwait(false);
-                Assert.IsFalse(id.IsNullNodeId);
+                Assert.IsFalse(id.IsNull);
                 NUnit.Framework.Assert.That(id.IdType is IdType.Guid or IdType.String);
                 newRecord.ApplicationId = id;
                 ApplicationRecordDataType[] applicationDataRecords = await m_gdsClient.GDSClient
@@ -820,7 +820,7 @@ namespace Opc.Ua.Gds.Tests
                 certificateTypeIndex = (certificateTypeIndex + 1) %
                     m_supportedCertificateTypes.Count;
 
-                Assert.True(application.CertificateRequestId.IsNullNodeId);
+                Assert.True(application.CertificateRequestId.IsNull);
                 NodeId requestId = await m_gdsClient.GDSClient.StartNewKeyPairRequestAsync(
                     application.ApplicationRecord.ApplicationId,
                     application.CertificateGroupId,
@@ -829,7 +829,7 @@ namespace Opc.Ua.Gds.Tests
                     application.DomainNames,
                     application.PrivateKeyFormat,
                     application.PrivateKeyPassword).ConfigureAwait(false);
-                Assert.False(requestId.IsNullNodeId);
+                Assert.False(requestId.IsNull);
                 application.CertificateRequestId = requestId;
             }
             m_goodNewKeyPairRequestOk = true;
@@ -843,7 +843,7 @@ namespace Opc.Ua.Gds.Tests
             await ConnectGDSAsync(true).ConfigureAwait(false);
             foreach (ApplicationTestData application in m_invalidApplicationTestSet)
             {
-                Assert.True(application.CertificateRequestId.IsNullNodeId);
+                Assert.True(application.CertificateRequestId.IsNull);
                 await NUnit.Framework.Assert.ThatAsync(
                     () => m_gdsClient.GDSClient.StartNewKeyPairRequestAsync(
                             application.ApplicationRecord.ApplicationId,
@@ -874,7 +874,7 @@ namespace Opc.Ua.Gds.Tests
                 requestBusy = false;
                 foreach (ApplicationTestData application in m_goodApplicationTestSet)
                 {
-                    if (!application.CertificateRequestId.IsNullNodeId)
+                    if (!application.CertificateRequestId.IsNull)
                     {
                         try
                         {
@@ -943,7 +943,7 @@ namespace Opc.Ua.Gds.Tests
             await ConnectGDSAsync(true).ConfigureAwait(false);
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                Assert.True(application.CertificateRequestId.IsNullNodeId);
+                Assert.True(application.CertificateRequestId.IsNull);
                 X509Certificate2 csrCertificate;
                 if (application.PrivateKeyFormat == "PFX")
                 {
@@ -967,7 +967,7 @@ namespace Opc.Ua.Gds.Tests
                     application.CertificateGroupId,
                     application.CertificateTypeId,
                     certificateRequest).ConfigureAwait(false);
-                Assert.False(requestId.IsNullNodeId);
+                Assert.False(requestId.IsNull);
                 application.CertificateRequestId = requestId;
             }
         }
@@ -989,7 +989,7 @@ namespace Opc.Ua.Gds.Tests
 
                 foreach (ApplicationTestData application in m_goodApplicationTestSet)
                 {
-                    if (!application.CertificateRequestId.IsNullNodeId)
+                    if (!application.CertificateRequestId.IsNull)
                     {
                         try
                         {
@@ -1085,7 +1085,7 @@ namespace Opc.Ua.Gds.Tests
             AssertIgnoreTestWithoutGoodNewKeyPairRequest();
             await ConnectGDSAsync(true).ConfigureAwait(false);
             ApplicationTestData application = m_goodApplicationTestSet[0];
-            Assert.True(application.CertificateRequestId.IsNullNodeId);
+            Assert.True(application.CertificateRequestId.IsNull);
             // load csr with invalid app URI
             string testCSR = Utils.GetAbsoluteFilePath(
                 "test.csr",
@@ -1179,7 +1179,7 @@ namespace Opc.Ua.Gds.Tests
                         application.ApplicationRecord.ApplicationId,
                         certificateGroup).ConfigureAwait(false);
 
-                    Assert.False(trustListId.IsNullNodeId);
+                    Assert.False(trustListId.IsNull);
 
                     // Opc.Ua.TrustListDataType -> not possible, this needs ApplicationUserAccess
                     await m_gdsClient.GDSClient.ReadTrustListAsync(trustListId).ConfigureAwait(false);
@@ -1267,7 +1267,7 @@ namespace Opc.Ua.Gds.Tests
                     certificateGroup).ConfigureAwait(false);
                 // Opc.Ua.TrustListDataType
                 TrustListDataType trustList = await m_gdsClient.GDSClient.ReadTrustListAsync(trustListId).ConfigureAwait(false); //ToDo make it possible to read the trust List with SelfAdminPrivilege
-                Assert.False(trustListId.IsNullNodeId);
+                Assert.False(trustListId.IsNull);
             }
             await DisconnectGDSAsync().ConfigureAwait(false);
         }
@@ -1288,7 +1288,7 @@ namespace Opc.Ua.Gds.Tests
             ApplicationTestData application = m_gdsClient.OwnApplicationTestData;
 
             await ConnectGDSAsync(false, true).ConfigureAwait(false);
-            Assert.True(application.CertificateRequestId.IsNullNodeId);
+            Assert.True(application.CertificateRequestId.IsNull);
             X509Certificate2 csrCertificate;
             if (application.PrivateKeyFormat == "PFX")
             {
@@ -1311,7 +1311,7 @@ namespace Opc.Ua.Gds.Tests
             // ensure access to other applications is denied
             foreach (ApplicationTestData testApplication in m_goodApplicationTestSet)
             {
-                if (testApplication.CertificateRequestId.IsNullNodeId)
+                if (testApplication.CertificateRequestId.IsNull)
                 {
                     ServiceResultException sre = NUnit.Framework.Assert
                         .ThrowsAsync<ServiceResultException>(() =>
@@ -1334,7 +1334,7 @@ namespace Opc.Ua.Gds.Tests
                 application.CertificateGroupId,
                 application.CertificateTypeId,
                 certificateRequest).ConfigureAwait(false);
-            Assert.False(requestId.IsNullNodeId);
+            Assert.False(requestId.IsNull);
             application.CertificateRequestId = requestId;
             bool requestBusy;
             DateTime now = DateTime.UtcNow;
@@ -1342,7 +1342,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 requestBusy = false;
 
-                if (!application.CertificateRequestId.IsNullNodeId)
+                if (!application.CertificateRequestId.IsNull)
                 {
                     try
                     {
@@ -1421,7 +1421,7 @@ namespace Opc.Ua.Gds.Tests
             // ensure access to other applications is denied
             foreach (ApplicationTestData testApplication in m_goodApplicationTestSet)
             {
-                if (testApplication.CertificateRequestId.IsNullNodeId)
+                if (testApplication.CertificateRequestId.IsNull)
                 {
                     ServiceResultException sre = NUnit.Framework.Assert
                         .ThrowsAsync<ServiceResultException>(() =>
@@ -1441,7 +1441,7 @@ namespace Opc.Ua.Gds.Tests
                 }
             }
 
-            Assert.True(application.CertificateRequestId.IsNullNodeId);
+            Assert.True(application.CertificateRequestId.IsNull);
             //Start KeyPairRequest
             NodeId requestId = await m_gdsClient.GDSClient.StartNewKeyPairRequestAsync(
                 application.ApplicationRecord.ApplicationId,
@@ -1452,7 +1452,7 @@ namespace Opc.Ua.Gds.Tests
                 application.PrivateKeyFormat,
                 application.PrivateKeyPassword).ConfigureAwait(false);
 
-            Assert.False(requestId.IsNullNodeId);
+            Assert.False(requestId.IsNull);
             application.CertificateRequestId = requestId;
 
             //Finish KeyPairRequest
@@ -1461,7 +1461,7 @@ namespace Opc.Ua.Gds.Tests
             do
             {
                 requestBusy = false;
-                if (!application.CertificateRequestId.IsNullNodeId)
+                if (!application.CertificateRequestId.IsNull)
                 {
                     try
                     {

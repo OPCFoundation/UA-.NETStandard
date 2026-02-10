@@ -57,7 +57,7 @@ namespace Opc.Ua
 
             if (source != null)
             {
-                if (!source.NodeId.IsNullNodeId)
+                if (!source.NodeId.IsNull)
                 {
                     m_sourceNode = new PropertyState<NodeId>(this)
                     {
@@ -68,7 +68,7 @@ namespace Opc.Ua
                     };
                 }
 
-                if (!source.BrowseName.IsNullQn)
+                if (!source.BrowseName.IsNull)
                 {
                     m_sourceName = new PropertyState<string>(this)
                     {

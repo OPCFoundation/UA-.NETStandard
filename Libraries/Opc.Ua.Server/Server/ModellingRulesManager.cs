@@ -73,7 +73,7 @@ namespace Opc.Ua.Server
         /// <returns>True if the modelling rule is supported.</returns>
         public bool IsSupported(NodeId modellingRuleId)
         {
-            if (modellingRuleId.IsNullNodeId)
+            if (modellingRuleId.IsNull)
             {
                 return false;
             }

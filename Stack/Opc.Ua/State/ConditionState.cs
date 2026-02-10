@@ -760,7 +760,7 @@ namespace Opc.Ua
         /// <returns>true if branch</returns>
         protected bool IsBranch()
         {
-            return !BranchId.Value.IsNullNodeId;
+            return !BranchId.Value.IsNull;
         }
 
         /// <summary>

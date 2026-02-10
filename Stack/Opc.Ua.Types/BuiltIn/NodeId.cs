@@ -456,7 +456,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public string Format(IServiceMessageContext context, bool useNamespaceUri = false)
         {
-            if (IsNullNodeId)
+            if (IsNull)
             {
                 return null;
             }
@@ -1214,7 +1214,7 @@ namespace Opc.Ua
         /// to retrieve the namespace from that the specified NodeId belongs to</param>
         public static ExpandedNodeId ToExpandedNodeId(NodeId nodeId, NamespaceTable namespaceTable)
         {
-            if (nodeId.IsNullNodeId)
+            if (nodeId.IsNull)
             {
                 return null;
             }
@@ -1239,7 +1239,7 @@ namespace Opc.Ua
         /// </summary>
         public NodeId WithNamespaceIndex(ushort value)
         {
-            if (IsNullNodeId)
+            if (IsNull)
             {
                 // Makes no sense to update a null node with namespace index
                 return this;
@@ -1319,9 +1319,9 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public int CompareTo(NodeId nodeId)
         {
-            if (IsNullNodeId)
+            if (IsNull)
             {
-                return nodeId.IsNullNodeId ? 0 : 1; // nodeId is greater than null
+                return nodeId.IsNull ? 0 : 1; // nodeId is greater than null
             }
 
             // check for different namespace.
@@ -1363,7 +1363,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public int CompareTo(string obj)
         {
-            if (IsNullNodeId)
+            if (IsNull)
             {
                 return string.IsNullOrEmpty(obj) ? 0 : 1;
             }
@@ -1377,7 +1377,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public int CompareTo(uint obj)
         {
-            if (IsNullNodeId)
+            if (IsNull)
             {
                 return obj == 0 ? 0 : 1;
             }
@@ -1391,7 +1391,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public int CompareTo(Guid obj)
         {
-            if (IsNullNodeId)
+            if (IsNull)
             {
                 return obj == Guid.Empty ? 0 : 1;
             }
@@ -1405,7 +1405,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public int CompareTo(byte[] obj)
         {
-            if (IsNullNodeId)
+            if (IsNull)
             {
                 return obj == null || obj.Length == 0 ? 0 : 1;
             }
@@ -1422,7 +1422,7 @@ namespace Opc.Ua
             // Needed for filter operators - do not remove
             return obj switch
             {
-                null => IsNullNodeId ? 0 : -1,
+                null => IsNull ? 0 : -1,
                 int n => n < 0 ? -1 : CompareTo((uint)n),
                 uint n => CompareTo(n),
                 Guid g => CompareTo(g),
@@ -1477,7 +1477,7 @@ namespace Opc.Ua
         {
             return obj switch
             {
-                null => IsNullNodeId,
+                null => IsNull,
                 int n => n >= 0 && Equals((uint)n),
                 uint n => Equals(n),
                 Guid g => Equals(g),
@@ -1498,8 +1498,8 @@ namespace Opc.Ua
             {
                 return false;
             }
-            bool isNull1 = IsNullNodeId;
-            bool isNull2 = other.IsNullNodeId;
+            bool isNull1 = IsNull;
+            bool isNull2 = other.IsNull;
             if (isNull1 || isNull2)
             {
                 return isNull1 == isNull2;
@@ -1566,7 +1566,7 @@ namespace Opc.Ua
             }
             if (other == null || other.Length == 0)
             {
-                return IsNullNodeId;
+                return IsNull;
             }
             return ByteStringEqualityComparer.Default.Equals(
                 OpaqueIdentifer,
@@ -1582,7 +1582,7 @@ namespace Opc.Ua
             }
             if (string.IsNullOrEmpty(other))
             {
-                return IsNullNodeId;
+                return IsNull;
             }
             return string.Equals(
                 StringIdentifier,
@@ -1594,7 +1594,7 @@ namespace Opc.Ua
         public override int GetHashCode()
         {
 #if NO_HASH_CACHE
-            if (IsNullNodeId)
+            if (IsNull)
             {
                 return 0;
             }
@@ -1832,7 +1832,7 @@ namespace Opc.Ua
         /// see https://reference.opcfoundation.org/Core/Part3/v105/docs/8.2.4
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public bool IsNullNodeId => IdType switch
+        public bool IsNull => IdType switch
         {
             _ when NamespaceIndex != 0 => false, // null identifiers allowed in ns != 0
             IdType.Numeric => NumericIdentifier == 0,

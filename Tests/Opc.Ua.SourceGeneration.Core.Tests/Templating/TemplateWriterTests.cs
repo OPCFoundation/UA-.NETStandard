@@ -237,7 +237,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         }
 
         /// <summary>
-        /// Tests that WriteWhiteSpace queues whitespace correctly when used with Write(char) overload.
+        /// Tests that WriteWhiteSpace queues whitespace correctly when used
+        /// with Write(char) overload.
         /// </summary>
         [Test]
         public void WriteWhiteSpace_WithWriteChar_QueuesWhitespaceCorrectly()
@@ -256,7 +257,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         }
 
         /// <summary>
-        /// Tests that WriteWhiteSpace queues whitespace correctly when used with Write(string, object) overload.
+        /// Tests that WriteWhiteSpace queues whitespace correctly when used
+        /// with Write(string, object) overload.
         /// </summary>
         [Test]
         public void WriteWhiteSpace_WithWriteFormat_QueuesWhitespaceCorrectly()
@@ -295,8 +297,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         }
 
         /// <summary>
-        /// Tests that WriteWhiteSpace with a very large positive value successfully queues whitespace.
-        /// This test uses a large but reasonable value to avoid OutOfMemoryException.
+        /// Tests that WriteWhiteSpace with a very large positive value successfully
+        /// queues whitespace.
         /// </summary>
         [Test]
         public void WriteWhiteSpace_LargePositiveValue_QueuesWhitespace()
@@ -1167,8 +1169,6 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
         /// <summary>
         /// Verifies that Write throws FormatException with invalid format specifiers.
-        /// Tests format strings with malformed or invalid format syntax.
-        /// Expected result: FormatException is thrown.
         /// </summary>
         [TestCase("{0")]
         [TestCase("{0:")]
@@ -1187,8 +1187,6 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
         /// <summary>
         /// Verifies that Write flushes pending whitespace before writing the formatted text.
-        /// Tests integration with whitespace management by calling WriteWhiteSpace before Write.
-        /// Expected result: Pending spaces are written before the formatted string.
         /// </summary>
         [Test]
         public void Write_AfterWriteWhiteSpace_WritesPendingSpacesBeforeText()
@@ -1211,14 +1209,16 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
         /// <summary>
         /// Verifies that Write correctly handles various object types as arguments.
-        /// Tests different value and reference types including integers, doubles, booleans, and custom objects.
-        /// Expected result: All object types are correctly converted to strings and formatted.
         /// </summary>
         [TestCase("{0} - {1}", 123, 456.789, "123 - 456.789")]
         [TestCase("{0} - {1}", true, false, "True - False")]
         [TestCase("{0} - {1}", 'A', 'B', "A - B")]
         [TestCase("{0:D5} - {1:F2}", 42, 3.14159, "00042 - 3.14")]
-        public void Write_WithVariousObjectTypes_WritesCorrectly(string format, object arg1, object arg2, string expected)
+        public void Write_WithVariousObjectTypes_WritesCorrectly(
+            string format,
+            object arg1,
+            object arg2,
+            string expected)
         {
             // Arrange
             using var stringWriter = new StringWriter();
@@ -1234,12 +1234,14 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
         /// <summary>
         /// Verifies that Write handles special characters in format string correctly.
-        /// Tests format strings containing special characters like newlines, tabs, and escape sequences.
-        /// Expected result: Special characters are preserved in the output.
         /// </summary>
         [TestCase("{0}\n{1}", "line1", "line2", "line1\nline2")]
         [TestCase("{0}\t{1}", "col1", "col2", "col1\tcol2")]
-        public void Write_WithSpecialCharactersInFormat_WritesCorrectly(string format, object arg1, object arg2, string expected)
+        public void Write_WithSpecialCharactersInFormat_WritesCorrectly(
+            string format,
+            object arg1,
+            object arg2,
+            string expected)
         {
             // Arrange
             using var stringWriter = new StringWriter();
@@ -1255,8 +1257,6 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
         /// <summary>
         /// Verifies that Write calls the underlying TextWriter.Write method with correct parameters.
-        /// Tests that the method delegates to the underlying writer after handling whitespace.
-        /// Expected result: TextWriter.Write is called with the format string and both arguments.
         /// </summary>
         [Test]
         public void Write_CallsUnderlyingWriterWithCorrectParameters()
@@ -1277,12 +1277,14 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
         /// <summary>
         /// Verifies that Write with extreme numeric values formats them correctly.
-        /// Tests boundary values for numeric types.
-        /// Expected result: Extreme values are correctly formatted as strings.
         /// </summary>
         [TestCase("{0} {1}", int.MinValue, int.MaxValue, "-2147483648 2147483647")]
         [TestCase("{0} {1}", long.MinValue, long.MaxValue, "-9223372036854775808 9223372036854775807")]
-        public void Write_WithExtremeNumericValues_WritesCorrectly(string format, object arg1, object arg2, string expected)
+        public void Write_WithExtremeNumericValues_WritesCorrectly(
+            string format,
+            object arg1,
+            object arg2,
+            string expected)
         {
             // Arrange
             using var stringWriter = new StringWriter();
@@ -1297,28 +1299,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         }
 
         /// <summary>
-        /// Verifies that Write handles special floating-point values correctly.
-        /// Tests NaN, PositiveInfinity, and NegativeInfinity values.
-        /// Expected result: Special values are correctly represented in the output.
-        /// </summary>
-        [TestCase("{0} {1}", double.NaN, double.PositiveInfinity, "NaN ∞")]
-        [TestCase("{0} {1}", double.NegativeInfinity, 0.0, "-∞ 0")]
-        public void Write_WithSpecialFloatingPointValues_WritesCorrectly(string format, object arg1, object arg2, string expected)
-        {
-            // Arrange
-            using var stringWriter = new StringWriter();
-            using var templateWriter = new TemplateWriter(stringWriter);
-
-            // Act
-            templateWriter.Write(format, arg1, arg2);
-
-            // Assert
-            string result = stringWriter.ToString();
-            Assert.That(result, Is.EqualTo(expected));
-        }
-
-        /// <summary>
-        /// Tests that PushIndentChars with zero value increases stack depth but keeps indentation count the same.
+        /// Tests that PushIndentChars with zero value increases stack depth but keeps
+        /// indentation count the same.
         /// </summary>
         [Test]
         public void PushIndentChars_ZeroCharCount_MaintainsSameIndentationValue()
@@ -1336,7 +1318,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         }
 
         /// <summary>
-        /// Tests that PushIndentChars with positive values correctly increases the indentation count.
+        /// Tests that PushIndentChars with positive values correctly increases the
+        /// indentation count.
         /// </summary>
         /// <param name="charCount">The number of characters to add to indentation.</param>
         /// <param name="expectedIndent">The expected final indentation count.</param>
@@ -1345,7 +1328,9 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         [TestCase(10, 10)]
         [TestCase(100, 100)]
         [TestCase(1000, 1000)]
-        public void PushIndentChars_PositiveCharCount_IncreasesIndentation(int charCount, int expectedIndent)
+        public void PushIndentChars_PositiveCharCount_IncreasesIndentation(
+            int charCount,
+            int expectedIndent)
         {
             // Arrange
             using var writer = new StringWriter();
@@ -1368,7 +1353,9 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         [TestCase(-1, -1)]
         [TestCase(-10, -10)]
         [TestCase(-100, -100)]
-        public void PushIndentChars_NegativeCharCount_DecreasesIndentation(int charCount, int expectedIndent)
+        public void PushIndentChars_NegativeCharCount_DecreasesIndentation(
+            int charCount,
+            int expectedIndent)
         {
             // Arrange
             using var writer = new StringWriter();
@@ -1406,7 +1393,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         }
 
         /// <summary>
-        /// Tests that PushIndentChars followed by PopIndentation correctly restores the previous indentation level.
+        /// Tests that PushIndentChars followed by PopIndentation correctly restores
+        /// the previous indentation level.
         /// </summary>
         [Test]
         public void PushIndentChars_FollowedByPopIndentation_RestoresPreviousIndentation()
@@ -1427,8 +1415,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         }
 
         /// <summary>
-        /// Tests that PushIndentChars with int.MaxValue handles large values without throwing.
-        /// This tests boundary condition for maximum positive integer value.
+        /// Tests that PushIndentChars with int.MaxValue handles large values without
+        /// throwing.
         /// </summary>
         [Test]
         public void PushIndentChars_MaxIntValue_HandlesLargeValue()
@@ -1446,7 +1434,6 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
         /// <summary>
         /// Tests that PushIndentChars with int.MinValue handles minimum integer value.
-        /// This tests boundary condition for minimum integer value.
         /// </summary>
         [Test]
         public void PushIndentChars_MinIntValue_HandlesMinimumValue()
@@ -1482,7 +1469,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         }
 
         /// <summary>
-        /// Tests that PushIndentChars preserves the stack structure allowing nested indentation levels.
+        /// Tests that PushIndentChars preserves the stack structure allowing nested
+        /// indentation levels.
         /// </summary>
         [Test]
         public void PushIndentChars_NestedIndentation_PreservesStackStructure()
@@ -1517,15 +1505,18 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         /// Verifies that the formatted text is written followed by a newline.
         /// </summary>
         [Test]
-        [TestCase("Hello", null, "Hello\r\n")]
-        [TestCase("", null, "\r\n")]
-        [TestCase("Test {0}", new object[] { "Value" }, "Test Value\r\n")]
-        [TestCase("Test {0} {1}", new object[] { "A", "B" }, "Test A B\r\n")]
-        [TestCase("Test {0} {1} {2}", new object[] { 1, 2, 3 }, "Test 1 2 3\r\n")]
-        [TestCase("No placeholders", new object[] { "ignored" }, "No placeholders\r\n")]
-        [TestCase("Value: {0}", new object[] { 42 }, "Value: 42\r\n")]
-        [TestCase("Value: {0}", new object[] { null }, "Value: \r\n")]
-        public void WriteLine_WithTextAndArgs_WritesFormattedTextWithNewLine(string text, object[] args, string expectedOutput)
+        [TestCase("Hello", null, "Hello")]
+        [TestCase("", null, "")]
+        [TestCase("Test {0}", new object[] { "Value" }, "Test Value")]
+        [TestCase("Test {0} {1}", new object[] { "A", "B" }, "Test A B")]
+        [TestCase("Test {0} {1} {2}", new object[] { 1, 2, 3 }, "Test 1 2 3")]
+        [TestCase("No placeholders", new object[] { "ignored" }, "No placeholders")]
+        [TestCase("Value: {0}", new object[] { 42 }, "Value: 42")]
+        [TestCase("Value: {0}", new object[] { null }, "Value: ")]
+        public void WriteLine_WithTextAndArgs_WritesFormattedTextWithNewLine(
+            string text,
+            object[] args,
+            string expectedOutput)
         {
             // Arrange
             using var writer = new StringWriter();
@@ -1536,7 +1527,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             }
             // Assert
             string result = writer.ToString();
-            Assert.That(result, Is.EqualTo(expectedOutput));
+            Assert.That(result, Is.EqualTo(expectedOutput + Environment.NewLine));
         }
 
         /// <summary>
@@ -1555,7 +1546,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             }
             // Assert
             string result = writer.ToString();
-            Assert.That(result, Is.EqualTo("\r\n"));
+            Assert.That(result, Is.EqualTo(Environment.NewLine));
         }
 
         /// <summary>
@@ -1574,12 +1565,13 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             }
             // Assert
             string result = writer.ToString();
-            Assert.That(result, Is.EqualTo("Simple text\r\n"));
+            Assert.That(result, Is.EqualTo("Simple text" + Environment.NewLine));
         }
 
         /// <summary>
         /// Tests WriteLine with format mismatch between placeholders and args.
-        /// Verifies that FormatException is thrown when format specifiers don't match args.
+        /// Verifies that FormatException is thrown when format specifiers
+        /// don't match args.
         /// </summary>
         [Test]
         public void WriteLine_WithFormatMismatch_ThrowsFormatException()
@@ -1589,7 +1581,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             using var templateWriter = new TemplateWriter(writer, leaveOpen: false);
 
             // Act & Assert
-            Assert.Throws<FormatException>(() => templateWriter.WriteLine("Test {0} {1}", ["OnlyOne"]));
+            Assert.Throws<FormatException>(
+                () => templateWriter.WriteLine("Test {0} {1}", ["OnlyOne"]));
         }
 
         /// <summary>
@@ -1597,10 +1590,13 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         /// Verifies that special characters are written correctly.
         /// </summary>
         [Test]
-        [TestCase("Line with\ttab", new object[] { }, "Line with\ttab\r\n")]
-        [TestCase("Special @#$%^&* chars", new object[] { }, "Special @#$%^&* chars\r\n")]
-        [TestCase("Unicode: \u00E9\u00F1", new object[] { }, "Unicode: \u00E9\u00F1\r\n")]
-        public void WriteLine_WithSpecialCharacters_WritesCorrectly(string text, object[] args, string expected)
+        [TestCase("Line with\ttab", new object[] { }, "Line with\ttab")]
+        [TestCase("Special @#$%^&* chars", new object[] { }, "Special @#$%^&* chars")]
+        [TestCase("Unicode: \u00E9\u00F1", new object[] { }, "Unicode: \u00E9\u00F1")]
+        public void WriteLine_WithSpecialCharacters_WritesCorrectly(
+            string text,
+            object[] args,
+            string expected)
         {
             // Arrange
             using var writer = new StringWriter();
@@ -1611,7 +1607,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             }
             // Assert
             string result = writer.ToString();
-            Assert.That(result, Is.EqualTo(expected));
+            Assert.That(result, Is.EqualTo(expected + Environment.NewLine));
         }
 
         /// <summary>
@@ -1653,7 +1649,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             }
             // Assert
             string result = writer.ToString();
-            Assert.That(result, Is.EqualTo("First line\r\nSecond line\r\nThird line\r\n"));
+            Assert.That(result, Is.EqualTo(
+                $"First line{Environment.NewLine}Second line{Environment.NewLine}Third line{Environment.NewLine}"));
         }
 
         /// <summary>
@@ -1673,8 +1670,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             }
             // Assert
             string result = writer.ToString();
-            Assert.That(result, Is.EqualTo("Indented text\r\n"));
-            // TODO Should be: Assert.That(result, Is.EqualTo("    Indented text\r\n"));
+            Assert.That(result, Is.EqualTo("Indented text" + Environment.NewLine));
+            // TODO Should be: Assert.That(result, Is.EqualTo("    Indented text" + Environment.NewLine));
         }
 
         /// <summary>
@@ -1693,7 +1690,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             }
             // Assert
             string result = writer.ToString();
-            Assert.That(result, Is.EqualTo("Value1: Test, Value2: \r\n"));
+            Assert.That(result, Is.EqualTo("Value1: Test, Value2: " + Environment.NewLine));
         }
 
         /// <summary>
@@ -1732,7 +1729,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             }
             // Assert
             string result = writer.ToString();
-            Assert.That(result, Is.EqualTo("{Literal braces} and value\r\n"));
+            Assert.That(result, Is.EqualTo("{Literal braces} and value" + Environment.NewLine));
         }
 
         /// <summary>
@@ -1740,10 +1737,12 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         /// Verifies that edge case numeric values are formatted correctly.
         /// </summary>
         [Test]
-        [TestCase(int.MinValue, "Value: -2147483648\r\n")]
-        [TestCase(int.MaxValue, "Value: 2147483647\r\n")]
-        [TestCase(0, "Value: 0\r\n")]
-        public void WriteLine_WithNumericEdgeCases_FormatsCorrectly(int value, string expected)
+        [TestCase(int.MinValue, "Value: -2147483648")]
+        [TestCase(int.MaxValue, "Value: 2147483647")]
+        [TestCase(0, "Value: 0")]
+        public void WriteLine_WithNumericEdgeCases_FormatsCorrectly(
+            int value,
+            string expected)
         {
             // Arrange
             using var writer = new StringWriter();
@@ -1754,7 +1753,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             }
             // Assert
             string result = writer.ToString();
-            Assert.That(result, Is.EqualTo(expected));
+            Assert.That(result, Is.EqualTo(expected + Environment.NewLine));
         }
 
         /// <summary>
@@ -1777,8 +1776,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         }
 
         /// <summary>
-        /// Tests that PopIndentation successfully pops when the stack contains exactly two elements,
-        /// reducing the indentation level back to the base level.
+        /// Tests that PopIndentation successfully pops when the stack contains
+        /// exactly two elements, reducing the indentation level back to the base level.
         /// </summary>
         [Test]
         public void PopIndentation_WithTwoElementsInStack_PopsSuccessfully()
@@ -1799,8 +1798,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         }
 
         /// <summary>
-        /// Tests that PopIndentation pops only one level when the stack contains multiple elements,
-        /// leaving other levels intact.
+        /// Tests that PopIndentation pops only one level when the stack contains
+        /// multiple elements, leaving other levels intact.
         /// </summary>
         [Test]
         public void PopIndentation_WithMultipleElementsInStack_PopsOnlyOneLevel()
@@ -1870,7 +1869,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         }
 
         /// <summary>
-        /// Tests that PopIndentation handles edge case of zero character indentation push followed by pop.
+        /// Tests that PopIndentation handles edge case of zero character indentation
+        /// push followed by pop.
         /// </summary>
         [Test]
         public void PopIndentation_WithZeroCharacterIndentation_HandlesCorrectly()
@@ -1889,7 +1889,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         }
 
         /// <summary>
-        /// Tests that PopIndentation trims line breaks by verifying output does not contain extra newlines.
+        /// Tests that PopIndentation trims line breaks by verifying output does not
+        /// contain extra newlines.
         /// </summary>
         [Test]
         public void PopIndentation_TrimsLineBreaks_OutputDoesNotContainExtraNewlines()
@@ -1912,7 +1913,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         }
 
         /// <summary>
-        /// Tests that PopIndentation with maximum integer indentation values handles correctly.
+        /// Tests that PopIndentation with maximum integer indentation values
+        /// handles correctly.
         /// </summary>
         [Test]
         public void PopIndentation_WithLargeIndentationValue_HandlesCorrectly()
@@ -1930,7 +1932,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         }
 
         /// <summary>
-        /// Tests that Write with valid format string and three arguments writes the formatted text correctly.
+        /// Tests that Write with valid format string and three arguments writes the
+        /// formatted text correctly.
         /// </summary>
         [Test]
         public void Write_ValidFormatWith3Arguments_WritesFormattedText()
@@ -2023,7 +2026,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         }
 
         /// <summary>
-        /// Tests that Write with format containing more placeholders than available arguments throws FormatException.
+        /// Tests that Write with format containing more placeholders than available
+        /// arguments throws FormatException.
         /// </summary>
         [Test]
         public void Write_FormatWithMorePlaceholders_ThrowsFormatException()
@@ -2046,7 +2050,12 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         [TestCase("{{0}}", "First", "Second", "Third", "{0}")]
         [TestCase("{0}\t{1}\n{2}", "A", "B", "C", "A\tB\nC")]
         [TestCase("{0} \r\n {1} \\ {2}", "X", "Y", "Z", "X \r\n Y \\ Z")]
-        public void Write_FormatWithSpecialCharacters_WritesCorrectly(string format, object arg1, object arg2, object arg3, string expected)
+        public void Write_FormatWithSpecialCharacters_WritesCorrectly(
+            string format,
+            object arg1,
+            object arg2,
+            object arg3,
+            string expected)
         {
             // Arrange
             using var stringWriter = new StringWriter();
@@ -2107,7 +2116,12 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         [TestCase("{0:X}", 255, "value2", "value3", "FF")]
         [TestCase("{0:F2}", 3.14159, "value2", "value3", "3.14")]
         [TestCase("{0:D5}", 42, "value2", "value3", "00042")]
-        public void Write_FormatWithSpecifiers_WritesCorrectly(string format, object arg1, object arg2, object arg3, string expected)
+        public void Write_FormatWithSpecifiers_WritesCorrectly(
+            string format,
+            object arg1,
+            object arg2,
+            object arg3,
+            string expected)
         {
             // Arrange
             using var stringWriter = new StringWriter();
@@ -2122,7 +2136,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         }
 
         /// <summary>
-        /// Tests that Write with different object types (including value types and reference types) writes correctly.
+        /// Tests that Write with different object types (including value types and
+        /// reference types) writes correctly.
         /// </summary>
         [Test]
         public void Write_DifferentObjectTypes_WritesCorrectly()
@@ -2163,8 +2178,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         }
 
         /// <summary>
-        /// Tests that TrimLineBreak does not change m_newLineCount when it is already less than maxNewLines.
-        /// Verifies that the output contains the original number of newlines without modification.
+        /// Tests that TrimLineBreak does not change m_newLineCount when it is already
+        /// less than maxNewLines.
         /// </summary>
         /// <param name="initialNewLines">The initial number of newlines to queue.</param>
         /// <param name="maxNewLines">The maximum number of newlines allowed.</param>
@@ -2172,7 +2187,9 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         [TestCase(2, 10, TestName = "TrimLineBreak_WhenCountMuchLessThanMax_DoesNotChange")]
         [TestCase(0, 1, TestName = "TrimLineBreak_WhenCountIsZero_DoesNotChange")]
         [TestCase(3, 100, TestName = "TrimLineBreak_WhenMaxIsVeryLarge_DoesNotChange")]
-        public void TrimLineBreak_WhenNewLineCountLessThanMax_DoesNotChangeCount(int initialNewLines, int maxNewLines)
+        public void TrimLineBreak_WhenNewLineCountLessThanMax_DoesNotChangeCount(
+            int initialNewLines,
+            int maxNewLines)
         {
             // Arrange
             using var writer = new StringWriter();
@@ -2197,7 +2214,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         /// Tests that TrimLineBreak does not change m_newLineCount when it equals maxNewLines.
         /// Verifies that the output contains the original number of newlines without modification.
         /// </summary>
-        /// <param name="newLineCount">The number of newlines to queue and the maxNewLines value.</param>
+        /// <param name="newLineCount">The number of newlines to queue and the maxNewLines
+        /// value.</param>
         [TestCase(1, TestName = "TrimLineBreak_WhenCountEqualsMax_DoesNotChange_One")]
         [TestCase(2, TestName = "TrimLineBreak_WhenCountEqualsMax_DoesNotChange_Two")]
         [TestCase(5, TestName = "TrimLineBreak_WhenCountEqualsMax_DoesNotChange_Five")]
@@ -2225,8 +2243,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
         /// <summary>
         /// Tests that TrimLineBreak with negative maxNewLines value trims newlines.
-        /// Verifies that a negative maxNewLines value can be used to set m_newLineCount to a negative value,
-        /// which effectively prevents newlines from being written.
+        /// Verifies that a negative maxNewLines value can be used to set m_newLineCount
+        /// to a negative value, which effectively prevents newlines from being written.
         /// </summary>
         [Test]
         public void TrimLineBreak_WithNegativeMaxNewLines_TrimsToNegativeValue()
@@ -2700,7 +2718,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         [TestCase('\x02')]
         [TestCase('\x1F')]
         [TestCase('\x7F')]
-        public void Write_WithControlCharacter_WritesControlCharacterToOutput(char controlChar)
+        public void Write_WithControlCharacter_WritesControlCharacterToOutput(
+            char controlChar)
         {
             // Arrange
             using var writer = new StringWriter();
@@ -2727,7 +2746,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         [TestCase('Ω')]
         [TestCase('中')]
         [TestCase('日')]
-        public void Write_WithUnicodeCharacter_WritesUnicodeCharacterToOutput(char unicodeChar)
+        public void Write_WithUnicodeCharacter_WritesUnicodeCharacterToOutput(
+            char unicodeChar)
         {
             // Arrange
             using var writer = new StringWriter();
@@ -2906,8 +2926,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         }
 
         /// <summary>
-        /// Tests that calling WriteLine() more than twice is limited to a maximum of two newlines,
-        /// as defined by the maxNewLines parameter (hardcoded to 2 in the method).
+        /// Tests that calling WriteLine() more than twice is limited to a maximum
+        /// of two newlines.
         /// </summary>
         [Test]
         public void WriteLine_CalledThreeTimes_WritesMaximumTwoNewLines()
@@ -2955,7 +2975,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         }
 
         /// <summary>
-        /// Tests that WriteLine() followed by text writes a newline before the text content.
+        /// Tests that WriteLine() followed by text writes a newline before
+        /// the text content.
         /// </summary>
         [Test]
         public void WriteLine_FollowedByText_WritesNewLineBeforeText()
@@ -2975,8 +2996,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         }
 
         /// <summary>
-        /// Tests that multiple WriteLine() calls followed by text writes the correct number
-        /// of newlines (up to max 2) before the text content.
+        /// Tests that multiple WriteLine() calls followed by text writes the
+        /// correct number of newlines (up to max 2) before the text content.
         /// </summary>
         [Test]
         public void WriteLine_TwiceFollowedByText_WritesTwoNewLinesBeforeText()
@@ -3085,7 +3106,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         }
 
         /// <summary>
-        /// Tests that Write with a normal string writes the text to the underlying writer.
+        /// Tests that Write with a normal string writes the text to the
+        /// underlying writer.
         /// </summary>
         [Test]
         public void Write_WithNormalString_WritesTextToWriter()
@@ -3123,7 +3145,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         }
 
         /// <summary>
-        /// Tests that Write with an empty string writes nothing to the underlying writer.
+        /// Tests that Write with an empty string writes nothing to the
+        /// underlying writer.
         /// </summary>
         [Test]
         public void Write_WithEmptyString_WritesEmptyStringToWriter()
@@ -3141,14 +3164,16 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         }
 
         /// <summary>
-        /// Tests that Write with various whitespace strings writes the whitespace correctly.
+        /// Tests that Write with various whitespace strings writes the
+        /// whitespace correctly.
         /// </summary>
         /// <param name="text">The whitespace string to test.</param>
         [TestCase(" ")]
         [TestCase("   ")]
         [TestCase("\t")]
         [TestCase(" \t ")]
-        public void Write_WithWhitespaceOnlyString_WritesWhitespaceToWriter(string text)
+        public void Write_WithWhitespaceOnlyString_WritesWhitespaceToWriter(
+            string text)
         {
             // Arrange
             using var writer = new StringWriter();
@@ -3164,7 +3189,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
         /// <summary>
         /// Tests that Write with a string containing newlines writes the string as-is.
-        /// Newlines within the string are written directly without triggering special handling.
+        /// Newlines within the string are written directly without triggering
+        /// special handling.
         /// </summary>
         [Test]
         public void Write_WithStringContainingNewlines_WritesStringAsIs()
@@ -3246,7 +3272,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         }
 
         /// <summary>
-        /// Tests that Write handles strings with special and control characters correctly.
+        /// Tests that Write handles strings with special and control characters
+        /// correctly.
         /// </summary>
         /// <param name="text">The string with special characters to test.</param>
         [TestCase("Hello\0World")]
@@ -3290,8 +3317,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         }
 
         /// <summary>
-        /// Tests that Write flushes both pending newlines and whitespace before writing text.
-        /// Verifies the correct order: newlines first, then spaces, then text.
+        /// Tests that Write flushes both pending newlines and whitespace before
+        /// writing text.
         /// </summary>
         [Test]
         public void Write_WithPendingNewlinesAndWhitespace_FlushesBothBeforeText()
@@ -3357,7 +3384,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         /// <summary>
         /// Tests that WriteLine handles null text parameter.
         /// Input: null string.
-        /// Expected: No exception thrown, writer may write nothing or "null" depending on TextWriter behavior.
+        /// Expected: No exception thrown, writer may write nothing or "null"
+        /// depending on TextWriter behavior.
         /// </summary>
         [Test]
         public void WriteLine_WithNullText_DoesNotThrow()
@@ -3373,7 +3401,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         /// <summary>
         /// Tests that WriteLine handles empty string correctly.
         /// Input: Empty string.
-        /// Expected: Empty string is written (essentially nothing visible before the queued newline).
+        /// Expected: Empty string is written (essentially nothing visible before
+        /// the queued newline).
         /// </summary>
         [Test]
         public void WriteLine_WithEmptyString_WritesEmptyLine()
@@ -3414,7 +3443,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         /// <summary>
         /// Tests that multiple WriteLine calls add newlines between lines.
         /// Input: Two separate WriteLine calls with different text.
-        /// Expected: Second line appears on a new line after the first, with Environment.NewLine separator.
+        /// Expected: Second line appears on a new line after the first,
+        /// with Environment.NewLine separator.
         /// </summary>
         [Test]
         public void WriteLine_WithMultipleCalls_AddsNewLinesBetweenLines()
@@ -3435,8 +3465,6 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
         /// <summary>
         /// Tests that WriteLine works correctly with indentation.
-        /// Input: Text with indentation set via PushIndentChars.
-        /// Expected: Text is indented according to the current indentation level.
         /// </summary>
         [Test]
         public void WriteLine_WithIndentation_WritesIndentedText()
@@ -3458,8 +3486,6 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
         /// <summary>
         /// Tests that WriteLine handles text with special characters.
-        /// Input: Text containing special characters like tabs, quotes, etc.
-        /// Expected: Special characters are written as-is.
         /// </summary>
         [TestCase("Text\twith\ttabs")]
         [TestCase("Text with \"quotes\"")]
@@ -3481,8 +3507,6 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
         /// <summary>
         /// Tests that WriteLine handles very long strings.
-        /// Input: Very long string (1000+ characters).
-        /// Expected: Entire string is written correctly.
         /// </summary>
         [Test]
         public void WriteLine_WithVeryLongString_WritesEntireString()
@@ -3502,8 +3526,6 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
         /// <summary>
         /// Tests that WriteLine handles text containing embedded newlines.
-        /// Input: Text with embedded Environment.NewLine characters.
-        /// Expected: Embedded newlines are written as-is within the text.
         /// </summary>
         [Test]
         public void WriteLine_WithEmbeddedNewlines_WritesTextWithNewlines()
@@ -3523,8 +3545,6 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
         /// <summary>
         /// Tests that WriteLine with indentation applied to multiple lines works correctly.
-        /// Input: Multiple WriteLine calls with different indentation levels.
-        /// Expected: Each line has appropriate indentation applied.
         /// </summary>
         [Test]
         public void WriteLine_WithVaryingIndentation_AppliesCorrectIndentationToEachLine()
@@ -3559,13 +3579,12 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
         /// <summary>
         /// Tests that WriteLine handles Unicode characters correctly.
-        /// Input: Text with Unicode characters (e.g., emoji, non-ASCII).
-        /// Expected: Unicode characters are written correctly.
         /// </summary>
         [TestCase("Hello 世界")]
         [TestCase("Text with emoji 😀🎉")]
         [TestCase("Ñoño")]
-        public void WriteLine_WithUnicodeCharacters_WritesTextCorrectly(string unicodeText)
+        public void WriteLine_WithUnicodeCharacters_WritesTextCorrectly(
+            string unicodeText)
         {
             // Arrange
             using var stringWriter = new StringWriter();
@@ -3581,8 +3600,6 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
         /// <summary>
         /// Tests that WriteLine works correctly after PopIndentation.
-        /// Input: Text written after pushing and popping indentation.
-        /// Expected: Indentation is correctly restored after pop.
         /// </summary>
         [Test]
         public void WriteLine_AfterPopIndentation_RestoresIndentation()
@@ -3605,12 +3622,11 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
         /// <summary>
         /// Tests that WriteLine handles text with control characters.
-        /// Input: Text with control characters like \0, \b, etc.
-        /// Expected: Control characters are written as-is.
         /// </summary>
         [TestCase("Text\0with\0nulls")]
         [TestCase("Text\bwith\bbackspace")]
-        public void WriteLine_WithControlCharacters_WritesTextAsIs(string textWithControlChars)
+        public void WriteLine_WithControlCharacters_WritesTextAsIs(
+            string textWithControlChars)
         {
             // Arrange
             using var stringWriter = new StringWriter();

@@ -178,7 +178,7 @@ namespace Opc.Ua
             NodeId typeDefinitionId,
             Type type)
         {
-            if (typeDefinitionId.IsNullNodeId)
+            if (typeDefinitionId.IsNull)
             {
                 throw new ArgumentNullException(nameof(typeDefinitionId));
             }

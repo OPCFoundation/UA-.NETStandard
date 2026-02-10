@@ -715,7 +715,7 @@ namespace Opc.Ua.Client.Tests
                             recreated = referenceDescription.NodeId.InnerNodeId.WithNamespaceIndex(
                                 referenceDescription.NodeId.NamespaceIndex);
 
-                            if (recreated.IsNullNodeId)
+                            if (recreated.IsNull)
                             {
                                 TestContext.Out.WriteLine(
                                     "Subscription Reference {0} Recreated Node is Null",

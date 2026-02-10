@@ -156,11 +156,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 // as they test for unsupported objects
                 if (randomData is NodeId nodeId)
                 {
-                    getRandom = nodeId.IsNullNodeId;
+                    getRandom = nodeId.IsNull;
                 }
                 else if (randomData is ExpandedNodeId expandedNodeId)
                 {
-                    getRandom = expandedNodeId.InnerNodeId.IsNullNodeId;
+                    getRandom = expandedNodeId.InnerNodeId.IsNull;
                 }
             }
             EncodeDecode(
@@ -1230,7 +1230,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             JsonConvert.DeserializeObject<ExtensionObject[]>(text1);
 
             Assert.NotNull(NodeId.Null);
-            Assert.True(NodeId.Null.IsNullNodeId);
+            Assert.True(NodeId.Null.IsNull);
         }
     }
 }

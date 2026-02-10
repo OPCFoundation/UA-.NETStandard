@@ -392,7 +392,7 @@ namespace Opc.Ua
         /// </summary>
         private static BuiltInType GetBuiltInType(NodeId datatypeId)
         {
-            if (datatypeId.IsNullNodeId ||
+            if (datatypeId.IsNull ||
                 datatypeId.NamespaceIndex != 0 ||
                 !datatypeId.TryGetIdentifier(out uint numericId))
             {
@@ -2148,7 +2148,7 @@ namespace Opc.Ua
                         chainedElement.FilterOperands[0]) as FilterOperand;
 
                     targetTypeId = GetValue(nestedType) is NodeId n ? n : default;
-                    if (targetTypeId.IsNullNodeId)
+                    if (targetTypeId.IsNull)
                     {
                         return false;
                     }
@@ -2186,7 +2186,7 @@ namespace Opc.Ua
 
             // get the type of the m_target.
             targetTypeId = GetValue(operands[1]) is NodeId n2 ? n2 : default;
-            if (targetTypeId.IsNullNodeId)
+            if (targetTypeId.IsNull)
             {
                 return false;
             }

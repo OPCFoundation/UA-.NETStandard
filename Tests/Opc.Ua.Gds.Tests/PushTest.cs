@@ -687,7 +687,7 @@ namespace Opc.Ua.Gds.Tests
                 default,
                 m_certificateType,
                 csr).ConfigureAwait(false);
-            Assert.False(requestId.IsNullNodeId);
+            Assert.False(requestId.IsNull);
             byte[] privateKey = null;
             byte[] certificate = null;
             byte[][] issuerCertificates = null;
@@ -853,7 +853,7 @@ namespace Opc.Ua.Gds.Tests
                 keyFormat,
                 null).ConfigureAwait(false);
 
-            Assert.False(requestId.IsNullNodeId);
+            Assert.False(requestId.IsNull);
             byte[] privateKey = null;
             byte[] certificate = null;
             byte[][] issuerCertificates = null;
@@ -1044,9 +1044,9 @@ namespace Opc.Ua.Gds.Tests
                 };
             }
             Assert.IsNotNull(m_applicationRecord);
-            Assert.True(m_applicationRecord.ApplicationId.IsNullNodeId);
+            Assert.True(m_applicationRecord.ApplicationId.IsNull);
             NodeId id = await m_gdsClient.GDSClient.RegisterApplicationAsync(m_applicationRecord, ct).ConfigureAwait(false);
-            Assert.False(id.IsNullNodeId);
+            Assert.False(id.IsNull);
             m_applicationRecord.ApplicationId = id;
 
             // add issuer and trusted certs to client stores

@@ -397,7 +397,7 @@ namespace Opc.Ua
                 throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
             }
 
-            if (!m_browseName.IsNullQn)
+            if (!m_browseName.IsNull)
             {
                 return string.Format(formatProvider, "[{0}]{1}", NodeClass, m_displayName);
             }
@@ -995,19 +995,19 @@ namespace Opc.Ua
 
             attributesToSave |= AttributesToSave.NodeClass;
 
-            if (!m_nodeId.IsNullNodeId)
+            if (!m_nodeId.IsNull)
             {
                 attributesToSave |= AttributesToSave.NodeId;
             }
 
-            if (!m_browseName.IsNullQn)
+            if (!m_browseName.IsNull)
             {
                 attributesToSave |= AttributesToSave.BrowseName;
             }
 
             if (!m_displayName.IsNullOrEmpty)
             {
-                if (m_browseName.IsNullQn ||
+                if (m_browseName.IsNull ||
                     !string.IsNullOrEmpty(m_displayName.Locale) ||
                     m_displayName.Text != m_browseName.Name)
                 {
@@ -1108,7 +1108,7 @@ namespace Opc.Ua
                 m_browseName = decoder.ReadQualifiedName(null);
             }
 
-            if (string.IsNullOrEmpty(SymbolicName) && !m_browseName.IsNullQn)
+            if (string.IsNullOrEmpty(SymbolicName) && !m_browseName.IsNull)
             {
                 SymbolicName = m_browseName.Name;
             }
@@ -1123,7 +1123,7 @@ namespace Opc.Ua
                 m_displayName = decoder.ReadLocalizedText(null);
             }
 
-            if (m_displayName.IsNullOrEmpty && !m_browseName.IsNullQn)
+            if (m_displayName.IsNullOrEmpty && !m_browseName.IsNull)
             {
                 m_displayName = m_browseName.Name;
             }
@@ -1226,7 +1226,7 @@ namespace Opc.Ua
                 attributesToLoad &= ~AttributesToSave.BrowseName;
             }
 
-            if (string.IsNullOrEmpty(symbolicName) && !browseName.IsNullQn)
+            if (string.IsNullOrEmpty(symbolicName) && !browseName.IsNull)
             {
                 symbolicName = browseName.Name;
             }
@@ -1299,7 +1299,7 @@ namespace Opc.Ua
                 attributesToLoad &= ~AttributesToSave.BrowseName;
             }
 
-            if (string.IsNullOrEmpty(symbolicName) && !browseName.IsNullQn)
+            if (string.IsNullOrEmpty(symbolicName) && !browseName.IsNull)
             {
                 symbolicName = browseName.Name;
             }
@@ -1514,19 +1514,19 @@ namespace Opc.Ua
 
             encoder.WriteEnumerated("NodeClass", NodeClass);
 
-            if (!m_nodeId.IsNullNodeId)
+            if (!m_nodeId.IsNull)
             {
                 encoder.WriteNodeId("NodeId", m_nodeId);
             }
 
-            if (!m_browseName.IsNullQn)
+            if (!m_browseName.IsNull)
             {
                 encoder.WriteQualifiedName("BrowseName", m_browseName);
             }
 
             if (!m_displayName.IsNullOrEmpty)
             {
-                if (m_browseName.IsNullQn ||
+                if (m_browseName.IsNull ||
                     !string.IsNullOrEmpty(m_displayName.Locale) ||
                     m_browseName.Name != m_displayName.Text)
                 {
@@ -1580,7 +1580,7 @@ namespace Opc.Ua
             {
                 NodeId nodeId = decoder.ReadNodeId("NodeId");
 
-                if (!nodeId.IsNullNodeId)
+                if (!nodeId.IsNull)
                 {
                     NodeId = nodeId;
                 }
@@ -1590,7 +1590,7 @@ namespace Opc.Ua
             {
                 QualifiedName browseName = decoder.ReadQualifiedName("BrowseName");
 
-                if (!browseName.IsNullQn)
+                if (!browseName.IsNull)
                 {
                     BrowseName = browseName;
                 }
@@ -1601,7 +1601,7 @@ namespace Opc.Ua
                 DisplayName = decoder.ReadLocalizedText("DisplayName");
             }
 
-            if (m_displayName.IsNullOrEmpty && !m_browseName.IsNullQn)
+            if (m_displayName.IsNullOrEmpty && !m_browseName.IsNull)
             {
                 DisplayName = m_browseName.Name;
             }
@@ -1676,7 +1676,7 @@ namespace Opc.Ua
                 {
                     encoder.Push("Reference", Namespaces.OpcUaXsd);
 
-                    if (!reference.ReferenceTypeId.IsNullNodeId)
+                    if (!reference.ReferenceTypeId.IsNull)
                     {
                         encoder.WriteNodeId("ReferenceTypeId", reference.ReferenceTypeId);
                     }
@@ -1946,7 +1946,7 @@ namespace Opc.Ua
                 attributesToLoad &= ~AttributesToSave.DisplayName;
             }
 
-            if (displayName.IsNullOrEmpty && !browseName.IsNullQn)
+            if (displayName.IsNullOrEmpty && !browseName.IsNull)
             {
                 displayName = browseName.Name;
             }
@@ -2194,7 +2194,7 @@ namespace Opc.Ua
                 displayName = decoder.ReadLocalizedText("DisplayName");
             }
 
-            if (displayName.IsNullOrEmpty && !browseName.IsNullQn)
+            if (displayName.IsNullOrEmpty && !browseName.IsNull)
             {
                 displayName = browseName.Name;
             }
@@ -2553,13 +2553,13 @@ namespace Opc.Ua
             bool isInverse,
             NodeState target)
         {
-            if (referenceTypeId.IsNullNodeId)
+            if (referenceTypeId.IsNull)
             {
                 referenceTypeId = ReferenceTypeIds.HasEventSource;
             }
 
             // ensure duplicate references are not left over from the model design.
-            if (!target.NodeId.IsNullNodeId)
+            if (!target.NodeId.IsNull)
             {
                 RemoveReference(referenceTypeId, isInverse, target.NodeId);
             }
@@ -2861,13 +2861,13 @@ namespace Opc.Ua
             CallOnBeforeCreate(context);
 
             // override node id.
-            if (!nodeId.IsNullNodeId)
+            if (!nodeId.IsNull)
             {
                 NodeId = nodeId;
             }
 
             // set defaults for names.
-            if (!browseName.IsNullQn)
+            if (!browseName.IsNull)
             {
                 SymbolicName = browseName.Name;
                 BrowseName = browseName;
@@ -3038,7 +3038,7 @@ namespace Opc.Ua
             NodeId oldId = NodeId;
             NodeId newId = context.NodeIdFactory.New(context, this);
 
-            if (!oldId.IsNullNodeId)
+            if (!oldId.IsNull)
             {
                 mappingTable[oldId] = newId;
             }
@@ -3176,7 +3176,7 @@ namespace Opc.Ua
                             reference.TargetId,
                             context.NamespaceUris);
 
-                        if (targetId.IsNullNodeId)
+                        if (targetId.IsNull)
                         {
                             references.Add(new NodeStateHierarchyReference(browsePath, reference));
                             continue;
@@ -3242,7 +3242,7 @@ namespace Opc.Ua
                             reference.TargetId,
                             context.NamespaceUris);
 
-                        if (oldId.IsNullNodeId)
+                        if (oldId.IsNull)
                         {
                             continue;
                         }
@@ -3294,7 +3294,7 @@ namespace Opc.Ua
             // get the reference type being browsed.
             NodeId referenceTypeId = browser.ReferenceType;
 
-            if (referenceTypeId.IsNullNodeId ||
+            if (referenceTypeId.IsNull ||
                 browser.ReferenceType == ReferenceTypeIds.References)
             {
                 referenceTypeId = default;
@@ -3302,7 +3302,7 @@ namespace Opc.Ua
 
             var children = new List<BaseInstanceState>();
 
-            bool childrenRequired = referenceTypeId.IsNullNodeId;
+            bool childrenRequired = referenceTypeId.IsNull;
 
             // check if any hierarchial reference is being requested.
             if (!childrenRequired &&
@@ -3368,7 +3368,7 @@ namespace Opc.Ua
                 // add any arbitrary references.
                 if (m_references != null)
                 {
-                    if (referenceTypeId.IsNullNodeId)
+                    if (referenceTypeId.IsNull)
                     {
                         foreach (IReference reference in m_references.Keys)
                         {
@@ -4345,7 +4345,7 @@ namespace Opc.Ua
             ISystemContext context,
             QualifiedName browseName)
         {
-            if (browseName.IsNullQn)
+            if (browseName.IsNull)
             {
                 return null;
             }
@@ -4361,7 +4361,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentException"></exception>
         public virtual void ReplaceChild(ISystemContext context, BaseInstanceState child)
         {
-            if (child == null || child.BrowseName.IsNullQn)
+            if (child == null || child.BrowseName.IsNull)
             {
                 throw new ArgumentException("Cannot replace child without a browse name.");
             }
@@ -4378,7 +4378,7 @@ namespace Opc.Ua
             {
                 child.Parent = this;
 
-                if (child.ReferenceTypeId.IsNullNodeId)
+                if (child.ReferenceTypeId.IsNull)
                 {
                     child.ReferenceTypeId = ReferenceTypeIds.HasComponent;
                 }
@@ -4647,7 +4647,7 @@ namespace Opc.Ua
         {
             lock (m_referencesLock)
             {
-                if (m_references == null || referenceTypeId.IsNullNodeId || targetId.IsNull)
+                if (m_references == null || referenceTypeId.IsNull || targetId.IsNull)
                 {
                     return false;
                 }
@@ -4666,7 +4666,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException"></exception>
         public void AddReference(NodeId referenceTypeId, bool isInverse, ExpandedNodeId targetId)
         {
-            if (referenceTypeId.IsNullNodeId)
+            if (referenceTypeId.IsNull)
             {
                 throw new ArgumentNullException(nameof(referenceTypeId));
             }
@@ -4697,7 +4697,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException"></exception>
         public bool RemoveReference(NodeId referenceTypeId, bool isInverse, ExpandedNodeId targetId)
         {
-            if (referenceTypeId.IsNullNodeId)
+            if (referenceTypeId.IsNull)
             {
                 throw new ArgumentNullException(nameof(referenceTypeId));
             }
@@ -4770,7 +4770,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException"></exception>
         public bool RemoveReferences(NodeId referenceTypeId, bool isInverse)
         {
-            if (referenceTypeId.IsNullNodeId)
+            if (referenceTypeId.IsNull)
             {
                 throw new ArgumentNullException(nameof(referenceTypeId));
             }
@@ -4894,7 +4894,7 @@ namespace Opc.Ua
             bool createOrReplace,
             BaseInstanceState replacement)
         {
-            if (browseName.IsNullQn)
+            if (browseName.IsNull)
             {
                 return null;
             }

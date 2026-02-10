@@ -91,7 +91,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the item is null
         /// </summary>
-        public bool IsNullQn => NamespaceIndex == 0 && string.IsNullOrEmpty(Name);
+        public bool IsNull => NamespaceIndex == 0 && string.IsNullOrEmpty(Name);
 
         /// <summary>
         /// The unqualified name.

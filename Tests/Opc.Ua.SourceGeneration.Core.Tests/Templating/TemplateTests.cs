@@ -673,7 +673,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
                 public const string MyNamespace = "http://mynamespace.org/UA/";
 
                 """;
-            Assert.That(result, Is.EqualTo(expected));
+            Assert.That(result, Is.EqualTo(expected.ReplaceLineEndings()));
         }
 
         [Test]
@@ -696,7 +696,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
                 public const string MyBrowseName = "MyBrowseName";
 
                 """;
-            Assert.That(result, Is.EqualTo(expected));
+            Assert.That(result, Is.EqualTo(expected.ReplaceLineEndings()));
         }
 
         [Test]
@@ -720,7 +720,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
                 public const uint MyId = 12345;
 
                 """;
-            Assert.That(result, Is.EqualTo(expected));
+            Assert.That(result, Is.EqualTo(expected.ReplaceLineEndings()));
         }
 
         [Test]
@@ -813,7 +813,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
                 Item: One Item: Two Item: Three
                 """;
-            Assert.That(result, Is.EqualTo(expected));
+            Assert.That(result, Is.EqualTo(expected.ReplaceLineEndings()));
         }
 
         [Test]
@@ -879,7 +879,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
                     Item: Single
                 }
                 """;
-            Assert.That(result, Is.EqualTo(expected));
+            Assert.That(result, Is.EqualTo(expected.ReplaceLineEndings()));
         }
 
         [Test]
@@ -948,7 +948,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
                 Template2: Two
                 """;
-            Assert.That(result, Is.EqualTo(expected));
+            Assert.That(result, Is.EqualTo(expected.ReplaceLineEndings()));
         }
 
         [Test]
@@ -984,7 +984,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
                 """ +
                 "\t";
-            Assert.That(result, Is.EqualTo(expected));
+            Assert.That(result, Is.EqualTo(expected.ReplaceLineEndings()));
         }
 
         [Test]
@@ -1059,7 +1059,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
                     }
                 }
                 """;
-            Assert.That(result, Is.EqualTo(expected));
+            Assert.That(result, Is.EqualTo(expected.ReplaceLineEndings()));
         }
 
         [Test]
@@ -1122,7 +1122,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
                         2. This is my value: 123
                         3. This is my value: 123
                 """;
-            Assert.That(result, Is.EqualTo(expected));
+            Assert.That(result, Is.EqualTo(expected.ReplaceLineEndings()));
         }
     }
 }

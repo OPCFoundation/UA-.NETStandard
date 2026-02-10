@@ -218,7 +218,7 @@ namespace Opc.Ua
 
             if (node.DisplayName.IsNullOrEmpty)
             {
-                if (!node.BrowseName.IsNullQn)
+                if (!node.BrowseName.IsNull)
                 {
                     return node.BrowseName.Name;
                 }
@@ -328,7 +328,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public virtual bool IsTypeOf(IFilterContext context, NodeId typeDefinitionId)
         {
-            return typeDefinitionId.IsNullNodeId ||
+            return typeDefinitionId.IsNull ||
                 context.TypeTree.IsTypeOf(TypeDefinitionId, typeDefinitionId);
         }
 
@@ -341,7 +341,7 @@ namespace Opc.Ua
             NumericRange indexRange)
         {
             // check the type definition.
-            if (!typeDefinitionId.IsNullNodeId &&
+            if (!typeDefinitionId.IsNull &&
                 typeDefinitionId != ObjectTypeIds.BaseEventType &&
                 !context.TypeTree.IsTypeOf(TypeDefinitionId, typeDefinitionId))
             {
@@ -393,7 +393,7 @@ namespace Opc.Ua
             {
                 NodeId referenceTypeId = ReferenceTypeId;
 
-                if (referenceTypeId.IsNullNodeId)
+                if (referenceTypeId.IsNull)
                 {
                     referenceTypeId = ReferenceTypeIds.HasComponent;
                 }
@@ -401,13 +401,13 @@ namespace Opc.Ua
                 node.ReferenceTable.Add(referenceTypeId, true, Parent.NodeId);
             }
 
-            if (!m_typeDefinitionId.IsNullNodeId && IsObjectOrVariable)
+            if (!m_typeDefinitionId.IsNull && IsObjectOrVariable)
             {
                 node.ReferenceTable
                     .Add(ReferenceTypeIds.HasTypeDefinition, false, TypeDefinitionId);
             }
 
-            if (!ModellingRuleId.IsNullNodeId)
+            if (!ModellingRuleId.IsNull)
             {
                 node.ReferenceTable.Add(ReferenceTypeIds.HasModellingRule, false, ModellingRuleId);
             }
@@ -424,17 +424,17 @@ namespace Opc.Ua
 
             encoder.PushNamespace(Namespaces.OpcUaXsd);
 
-            if (!m_referenceTypeId.IsNullNodeId)
+            if (!m_referenceTypeId.IsNull)
             {
                 encoder.WriteNodeId("ReferenceTypeId", m_referenceTypeId);
             }
 
-            if (!m_typeDefinitionId.IsNullNodeId)
+            if (!m_typeDefinitionId.IsNull)
             {
                 encoder.WriteNodeId("TypeDefinitionId", m_typeDefinitionId);
             }
 
-            if (!m_modellingRuleId.IsNullNodeId)
+            if (!m_modellingRuleId.IsNull)
             {
                 encoder.WriteNodeId("ModellingRuleId", m_modellingRuleId);
             }
@@ -456,17 +456,17 @@ namespace Opc.Ua
         {
             AttributesToSave attributesToSave = base.GetAttributesToSave(context);
 
-            if (!m_referenceTypeId.IsNullNodeId)
+            if (!m_referenceTypeId.IsNull)
             {
                 attributesToSave |= AttributesToSave.ReferenceTypeId;
             }
 
-            if (!m_typeDefinitionId.IsNullNodeId)
+            if (!m_typeDefinitionId.IsNull)
             {
                 attributesToSave |= AttributesToSave.TypeDefinitionId;
             }
 
-            if (!m_modellingRuleId.IsNullNodeId)
+            if (!m_modellingRuleId.IsNull)
             {
                 attributesToSave |= AttributesToSave.ModellingRuleId;
             }
@@ -592,7 +592,7 @@ namespace Opc.Ua
 
             NodeId typeDefinitionId = m_typeDefinitionId;
 
-            if (!typeDefinitionId.IsNullNodeId &&
+            if (!typeDefinitionId.IsNull &&
                 IsObjectOrVariable &&
                 browser.IsRequired(ReferenceTypeIds.HasTypeDefinition, false))
             {
@@ -601,7 +601,7 @@ namespace Opc.Ua
 
             NodeId modellingRuleId = m_modellingRuleId;
 
-            if (!modellingRuleId.IsNullNodeId &&
+            if (!modellingRuleId.IsNull &&
                 browser.IsRequired(ReferenceTypeIds.HasModellingRule, false))
             {
                 browser.Add(ReferenceTypeIds.HasModellingRule, false, modellingRuleId);
@@ -613,7 +613,7 @@ namespace Opc.Ua
             {
                 NodeId referenceTypeId = m_referenceTypeId;
 
-                if (!referenceTypeId.IsNullNodeId && browser.IsRequired(referenceTypeId, true))
+                if (!referenceTypeId.IsNull && browser.IsRequired(referenceTypeId, true))
                 {
                     browser.Add(referenceTypeId, true, parent);
                 }

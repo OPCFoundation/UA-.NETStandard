@@ -156,7 +156,7 @@ namespace Opc.Ua
         {
             base.Export(context, node);
 
-            if (!SuperTypeId.IsNullNodeId)
+            if (!SuperTypeId.IsNull)
             {
                 node.ReferenceTable.Add(ReferenceTypeIds.HasSubtype, true, SuperTypeId);
             }
@@ -189,7 +189,7 @@ namespace Opc.Ua
 
             encoder.PushNamespace(Namespaces.OpcUaXsd);
 
-            if (!m_superTypeId.IsNullNodeId)
+            if (!m_superTypeId.IsNull)
             {
                 encoder.WriteNodeId("SuperTypeId", m_superTypeId);
             }
@@ -235,7 +235,7 @@ namespace Opc.Ua
         {
             AttributesToSave attributesToSave = base.GetAttributesToSave(context);
 
-            if (!m_superTypeId.IsNullNodeId)
+            if (!m_superTypeId.IsNull)
             {
                 attributesToSave |= AttributesToSave.SuperTypeId;
             }
@@ -385,7 +385,7 @@ namespace Opc.Ua
 
             NodeId superTypeId = m_superTypeId;
 
-            if (!superTypeId.IsNullNodeId &&
+            if (!superTypeId.IsNull &&
                 browser.IsRequired(ReferenceTypeIds.HasSubtype, true))
             {
                 browser.Add(ReferenceTypeIds.HasSubtype, true, superTypeId);
@@ -395,7 +395,7 @@ namespace Opc.Ua
 
             // use the type table to find the subtypes.
             if (context.TypeTable != null &&
-                !nodeId.IsNullNodeId &&
+                !nodeId.IsNull &&
                 browser.IsRequired(ReferenceTypeIds.HasSubtype, false))
             {
                 IList<NodeId> subtypeIds = context.TypeTable.FindSubTypes(nodeId);

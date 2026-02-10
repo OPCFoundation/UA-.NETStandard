@@ -1392,7 +1392,7 @@ namespace Opc.Ua
             // convert to absolute type id.
             var absoluteId = NodeId.ToExpandedNodeId(typeId, Context.NamespaceUris);
 
-            if (!typeId.IsNullNodeId && absoluteId.IsNull)
+            if (!typeId.IsNull && absoluteId.IsNull)
             {
                 m_logger.LogWarning(
                     "Cannot de-serialize extension objects if the NamespaceUri is not in the NamespaceTable: Type = {Type}",

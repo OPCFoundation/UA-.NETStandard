@@ -177,7 +177,7 @@ namespace Opc.Ua
                 return true;
             }
 
-            if (view.ViewId.IsNullNodeId &&
+            if (view.ViewId.IsNull &&
                 view.ViewVersion == 0 &&
                 view.Timestamp == DateTime.MinValue)
             {

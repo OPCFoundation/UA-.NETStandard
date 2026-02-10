@@ -74,7 +74,7 @@ namespace Opc.Ua.Server
         /// <returns>True if the aggregate is supported.</returns>
         public bool IsSupported(NodeId aggregateId)
         {
-            if (aggregateId.IsNullNodeId)
+            if (aggregateId.IsNull)
             {
                 return false;
             }
@@ -157,7 +157,7 @@ namespace Opc.Ua.Server
             bool stepped,
             AggregateConfiguration configuration)
         {
-            if (aggregateId.IsNullNodeId)
+            if (aggregateId.IsNull)
             {
                 return null;
             }

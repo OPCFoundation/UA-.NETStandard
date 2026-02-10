@@ -863,7 +863,7 @@ namespace Opc.Ua.Schema.Model
                         CoreUtils.ToHexString(byteStringValue));
                 case BasicDataType.NodeId:
                     if (decodedValue is not NodeId nodeId ||
-                        nodeId.IsNullNodeId)
+                        nodeId.IsNull)
                     {
                         return "global::Opc.Ua.NodeId.Null";
                     }
@@ -891,7 +891,7 @@ namespace Opc.Ua.Schema.Model
                         expandedNodeId);
                 case BasicDataType.QualifiedName:
                     if (decodedValue is not QualifiedName qualifiedName ||
-                        qualifiedName.IsNullQn)
+                        qualifiedName.IsNull)
                     {
                         return "global::Opc.Ua.QualifiedName.Null";
                     }
