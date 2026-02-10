@@ -569,13 +569,14 @@ namespace Opc.Ua.Gds.Server
             bool isCACert = X509Utils.IsCertificateAuthority(certificate);
 
             // find the authority key identifier.
-
             X509AuthorityKeyIdentifierExtension authority =
                 certificate.FindExtension<X509AuthorityKeyIdentifierExtension>();
             string serialNumber;
+            string keyIdentifier;
             if (authority != null)
             {
                 serialNumber = authority.SerialNumber;
+                keyIdentifier = authority.KeyIdentifier;
             }
             else
             {
@@ -605,6 +606,12 @@ namespace Opc.Ua.Gds.Server
                             store,
                             certificate.IssuerName,
                             serialNumber)
+                        .ConfigureAwait(false)
+                    ?? await X509Utils
+                        .FindIssuerCAByKeyIdentifierAsync(
+                            store,
+                            certificate.IssuerName,
+                            keyIdentifier)
                         .ConfigureAwait(false)
                     ?? throw new ServiceResultException(
                         StatusCodes.BadCertificateInvalid,
