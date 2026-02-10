@@ -791,6 +791,31 @@ namespace Opc.Ua
             return null;
         }
 
+
+        /// <summary>
+        /// Get the certificate issuer by its key identifier.
+        /// </summary>
+        public static async Task<X509Certificate2> FindIssuerCAByKeyIdentifierAsync(
+            ICertificateStore store,
+            X500DistinguishedName issuer,
+            string keyIdentifier)
+        {
+            X509Certificate2Collection certificates = await store.EnumerateAsync()
+                .ConfigureAwait(false);
+            foreach (X509Certificate2 certificate in certificates)
+            {
+                if (CompareDistinguishedName(certificate.SubjectName, issuer))
+                {
+                    X509SubjectKeyIdentifierExtension subject = certificate.FindExtension<X509SubjectKeyIdentifierExtension>();
+                    if (subject != null && Utils.IsEqual(subject.SubjectKeyIdentifier, keyIdentifier))
+                    {
+                        return certificate;
+                    }
+                }
+            }
+            return null;
+        }
+
         /// <summary>
         /// Extension to add a certificate to a <see cref="ICertificateStore"/>.
         /// </summary>
