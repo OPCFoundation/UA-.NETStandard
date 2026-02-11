@@ -730,10 +730,7 @@ namespace Opc.Ua.Gds.Server
                     .ConfigureAwait(false);
 
                 var certificateCollection = new X509Certificate2Collection();
-                if (!isCACert)
-                {
-                    certificateCollection.Add(certificate);
-                }
+                certificateCollection.Add(certificate);
                 updatedCRL = CertificateFactory.RevokeCertificate(
                     certCAWithPrivateKey,
                     certCACrl,
