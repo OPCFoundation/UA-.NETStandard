@@ -98,6 +98,11 @@ namespace Opc.Ua
                     ServiceHosts.Clear();
                 }
 
+                if (UserTokenPolicys != null)
+                {
+                    UserTokenPolicys.Clear();
+                }
+
                 Utils.SilentDispose(m_requestQueue);
             }
         }
@@ -576,6 +581,12 @@ namespace Opc.Ua
                 }
             }
 
+            // clear policies
+            if (UserTokenPolicys != null)
+            {
+                UserTokenPolicys.Clear();
+            }
+
             m_messageContext = null;
         }
 
@@ -743,6 +754,11 @@ namespace Opc.Ua
         protected List<ITransportListener> TransportListeners { get; } = [];
 
         /// <summary>
+        /// List of all server wide supported token policies
+        /// </summary>
+        protected IList<UserTokenPolicy> UserTokenPolicys { get; } = [];
+
+        /// <summary>
         /// Returns the service contract to use.
         /// </summary>
         [Obsolete("WCF not supported in this version.")]
@@ -896,10 +912,17 @@ namespace Opc.Ua
                     }
                 }
 
-                // ensure each policy has a unique id within the context of the Server
-                clone.PolicyId = Utils.Format("{0}", ++m_userTokenPolicyId);
+                var existingPolicy = UserTokenPolicys.FirstOrDefault(o => o.Equals(clone));
 
-                policies.Add(clone);
+                // Ensure each policy has a unique ID within the context of the Server
+                if (existingPolicy == null)
+                {
+                    clone.PolicyId = Utils.Format("{0}", UserTokenPolicys.Count + 1);
+                    UserTokenPolicys.Add(clone);
+                    existingPolicy = clone;
+                }
+
+                policies.Add(existingPolicy);
             }
 
             return policies;
@@ -1763,10 +1786,6 @@ namespace Opc.Ua
         private RequestQueue m_requestQueue;
         private readonly ITelemetryContext m_telemetry;
 
-        /// <summary>
-        /// identifier for the UserTokenPolicy should be unique within the context of a single Server
-        /// </summary>
-        private int m_userTokenPolicyId;
         private bool m_disposed;
     }
 }
