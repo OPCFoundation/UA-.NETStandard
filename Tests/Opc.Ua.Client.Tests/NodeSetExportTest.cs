@@ -390,8 +390,8 @@ namespace Opc.Ua.Client.Tests
                     // (Equal if nodes don't have values to export)
                     if (completeSize < defaultSize)
                     {
-                        TestContext.AddTestAttachment(tempFileComplete, "Complete export file");
-                        TestContext.AddTestAttachment(tempFile, "Default export file");
+                        TestContext.Out.WriteLine($"Complete:\r\n|{File.ReadAllText(tempFileComplete)}|");
+                        TestContext.Out.WriteLine($"Default:\r\n|{File.ReadAllText(tempFile)}|");
                         Assert.LessOrEqual(defaultSize, completeSize, "Default export should not be larger than Complete");
                     }
                 }

@@ -147,7 +147,7 @@ namespace Opc.Ua
                     // ensure the display name is set.
                     if (child.DisplayName.IsNullOrEmpty)
                     {
-                        child.DisplayName = child.BrowseName.Name;
+                        child.DisplayName = new LocalizedText(child.BrowseName.Name);
                     }
 
                     // process next element in path.

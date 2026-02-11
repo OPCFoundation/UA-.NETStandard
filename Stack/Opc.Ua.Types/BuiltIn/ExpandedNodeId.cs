@@ -653,7 +653,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a byte array to an opaque node identifier.
         /// </summary>
-        public static implicit operator ExpandedNodeId(byte[] value)
+        public static explicit operator ExpandedNodeId(byte[] value)
         {
             return new ExpandedNodeId(value);
         }

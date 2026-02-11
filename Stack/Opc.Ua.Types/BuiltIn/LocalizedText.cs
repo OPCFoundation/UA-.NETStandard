@@ -350,8 +350,12 @@ namespace Opc.Ua
         /// Converts a string to a localized text.
         /// </summary>
         /// <param name="value">The string to store as localized text</param>
-        public static LocalizedText ToLocalizedText(string value)
+        public static LocalizedText From(string value)
         {
+            if (string.IsNullOrEmpty(value))
+            {
+                return Null;
+            }
             return new LocalizedText(value);
         }
 
@@ -359,9 +363,9 @@ namespace Opc.Ua
         /// Converts a string to a localized text.
         /// </summary>
         /// <param name="value">The string to store as localized text</param>
-        public static implicit operator LocalizedText(string value)
+        public static explicit operator LocalizedText(string value)
         {
-            return new LocalizedText(value);
+            return From(value);
         }
 
         /// <summary>

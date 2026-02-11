@@ -1145,7 +1145,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         m_dataTypeDefinitionCache[enumType.NodeId] = enumDefinition;
 
                         newType = complexTypeBuilder.AddEnumType(
-                            enumeratedObject.Name,
+                            QualifiedName.From(enumeratedObject.Name),
                             enumDefinition);
                     }
                     if (newType == null)

@@ -88,7 +88,7 @@ namespace Opc.Ua
             }
             else
             {
-                referenceDescription.BrowseName = null;
+                referenceDescription.BrowseName = default;
             }
 
             if (((int)resultMask & (int)BrowseResultMask.DisplayName) != 0)
@@ -97,7 +97,7 @@ namespace Opc.Ua
             }
             else
             {
-                referenceDescription.DisplayName = null;
+                referenceDescription.DisplayName = default;
             }
 
             if (((int)resultMask & (int)BrowseResultMask.TypeDefinition) != 0)
@@ -106,7 +106,7 @@ namespace Opc.Ua
             }
             else
             {
-                referenceDescription.TypeDefinition = null;
+                referenceDescription.TypeDefinition = default;
             }
         }
     }

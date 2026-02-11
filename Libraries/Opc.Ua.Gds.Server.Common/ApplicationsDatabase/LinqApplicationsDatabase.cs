@@ -356,7 +356,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
                     if (names.Count == 0 && result.ApplicationName != null)
                     {
-                        names = [result.ApplicationName];
+                        names = [LocalizedText.From(result.ApplicationName)];
                     }
 
                     StringCollection discoveryUrls = null;

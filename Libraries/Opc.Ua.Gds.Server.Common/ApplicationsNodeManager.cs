@@ -676,7 +676,7 @@ namespace Opc.Ua.Gds.Server
             {
                 return new ServiceResult(
                     StatusCodes.BadNotFound,
-                    "The application id does not exist.");
+                    LocalizedText.From("The application id does not exist."));
             }
 
             m_database.RegisterApplication(application);
@@ -752,7 +752,7 @@ namespace Opc.Ua.Gds.Server
             {
                 return new ServiceResult(
                     StatusCodes.BadNotFound,
-                    "The ApplicationId does not refer to a registered application.");
+                    LocalizedText.From("The ApplicationId does not refer to a registered application."));
             }
             if (certificate == null || certificate.Length == 0)
             {
@@ -938,10 +938,11 @@ namespace Opc.Ua.Gds.Server
             {
                 return new ServiceResult(
                     StatusCodes.BadNotFound,
-                    "The ApplicationId does not refer to a registered application.");
+                    LocalizedText.From("The ApplicationId does not refer to a registered application."));
             }
 
-            //If CertificateGroupId is null, the CertificateManager shall return the Certificates for all CertificateGroups assigned to the Application.
+            // If CertificateGroupId is null, the CertificateManager shall return the Certificates
+            // for all CertificateGroups assigned to the Application.
             if (certificateGroupId.IsNull)
             {
                 foreach (KeyValuePair<NodeId, string> certType in m_certTypeMap)
@@ -957,7 +958,7 @@ namespace Opc.Ua.Gds.Server
                     }
                 }
             }
-            //get only Certificate of the provided CertificateGroup
+            // get only Certificate of the provided CertificateGroup
             else
             {
                 if (!m_certificateGroups.TryGetValue(
@@ -966,7 +967,8 @@ namespace Opc.Ua.Gds.Server
                 {
                     return new ServiceResult(
                         StatusCodes.BadInvalidArgument,
-                        "The CertificateGroupId is not recognized or not valid for the Application.");
+                        LocalizedText.From(
+                            "The CertificateGroupId is not recognized or not valid for the Application."));
                 }
                 foreach (NodeId certificateType in certificateGroup.CertificateTypes)
                 {
@@ -998,7 +1000,7 @@ namespace Opc.Ua.Gds.Server
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,
-                    "Cannot issue HTTPS certificates to client applications.");
+                    LocalizedText.From("Cannot issue HTTPS certificates to client applications."));
             }
 
             bool found = false;
@@ -1025,7 +1027,7 @@ namespace Opc.Ua.Gds.Server
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,
-                    "Cannot issue HTTPS certificates to server applications without a matching HTTPS discovery URL.");
+                    LocalizedText.From("Cannot issue HTTPS certificates to server applications without a matching HTTPS discovery URL."));
             }
 
             return ServiceResult.Good;
@@ -1051,7 +1053,7 @@ namespace Opc.Ua.Gds.Server
 
             throw new ServiceResultException(
                 StatusCodes.BadInvalidArgument,
-                "Cannot issue HTTPS certificates to server applications without a HTTPS discovery URL.");
+                LocalizedText.From("Cannot issue HTTPS certificates to server applications without a HTTPS discovery URL."));
         }
 
         private static string GetDefaultUserToken()
@@ -1182,7 +1184,7 @@ namespace Opc.Ua.Gds.Server
             {
                 return new ServiceResult(
                     StatusCodes.BadNotFound,
-                    "The ApplicationId does not refer to a valid application.");
+                    LocalizedText.From("The ApplicationId does not refer to a valid application."));
             }
 
             if (certificateGroupId.IsNull)
@@ -1198,7 +1200,7 @@ namespace Opc.Ua.Gds.Server
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,
-                    "The certificateGroup is not supported.");
+                    LocalizedText.From("The certificateGroup is not supported."));
             }
 
             if (!certificateTypeId.IsNull)
@@ -1208,7 +1210,7 @@ namespace Opc.Ua.Gds.Server
                 {
                     return new ServiceResult(
                         StatusCodes.BadInvalidArgument,
-                        "The CertificateType is not supported by the certificateGroup.");
+                        LocalizedText.From("The CertificateType is not supported by the certificateGroup."));
                 }
             }
             else
@@ -1220,7 +1222,7 @@ namespace Opc.Ua.Gds.Server
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,
-                    "The CertificateType is invalid.");
+                    LocalizedText.From("The CertificateType is invalid."));
             }
 
             if (!string.IsNullOrEmpty(subjectName))
@@ -1324,7 +1326,7 @@ namespace Opc.Ua.Gds.Server
             {
                 result.ServiceResult = new ServiceResult(
                     StatusCodes.BadNotFound,
-                    "The ApplicationId does not refer to a valid application.");
+                    LocalizedText.From("The ApplicationId does not refer to a valid application."));
                 return result;
             }
 
@@ -1341,7 +1343,7 @@ namespace Opc.Ua.Gds.Server
             {
                 result.ServiceResult = new ServiceResult(
                     StatusCodes.BadInvalidArgument,
-                    "The CertificateGroupId does not refer to a supported certificateGroup.");
+                    LocalizedText.From("The CertificateGroupId does not refer to a supported certificateGroup."));
                 return result;
             }
 
@@ -1352,7 +1354,7 @@ namespace Opc.Ua.Gds.Server
                 {
                     result.ServiceResult = new ServiceResult(
                         StatusCodes.BadInvalidArgument,
-                        "The CertificateTypeId is not supported by the certificateGroup.");
+                        LocalizedText.From("The CertificateTypeId is not supported by the certificateGroup."));
                     return result;
                 }
             }
@@ -1365,7 +1367,7 @@ namespace Opc.Ua.Gds.Server
             {
                 result.ServiceResult = new ServiceResult(
                     StatusCodes.BadInvalidArgument,
-                    "The CertificateType is invalid.");
+                    LocalizedText.From("The CertificateType is invalid."));
                 return result;
             }
 
@@ -1417,7 +1419,7 @@ namespace Opc.Ua.Gds.Server
             {
                 result.ServiceResult = new ServiceResult(
                     StatusCodes.BadNotFound,
-                    "The ApplicationId does not refer to a valid application.");
+                    LocalizedText.From("The ApplicationId does not refer to a valid application."));
                 return result;
             }
 
@@ -1458,7 +1460,7 @@ namespace Opc.Ua.Gds.Server
             {
                 result.ServiceResult = new ServiceResult(
                     StatusCodes.BadInvalidArgument,
-                    "The CertificateGroupId does not refer to a supported certificate group.");
+                    LocalizedText.From("The CertificateGroupId does not refer to a supported certificate group."));
                 return result;
             }
 
@@ -1475,7 +1477,7 @@ namespace Opc.Ua.Gds.Server
             {
                 result.ServiceResult = new ServiceResult(
                     StatusCodes.BadInvalidArgument,
-                    "The CertificateTypeId is not supported by the certificateGroup.");
+                    LocalizedText.From("The CertificateTypeId is not supported by the certificateGroup."));
                 return result;
             }
 
@@ -1617,7 +1619,7 @@ namespace Opc.Ua.Gds.Server
             {
                 return new ServiceResult(
                     StatusCodes.BadNotFound,
-                    "The ApplicationId does not refer to a valid application.");
+                    LocalizedText.From("The ApplicationId does not refer to a valid application."));
             }
 
             var certificateGroupIdList = new List<NodeId>();
@@ -1650,7 +1652,7 @@ namespace Opc.Ua.Gds.Server
             {
                 return new ServiceResult(
                     StatusCodes.BadNotFound,
-                    "The ApplicationId does not refer to a valid application.");
+                    LocalizedText.From("The ApplicationId does not refer to a valid application."));
             }
 
             if (certificateGroupId.IsNull)
@@ -1664,7 +1666,7 @@ namespace Opc.Ua.Gds.Server
             {
                 return new ServiceResult(
                     StatusCodes.BadNotFound,
-                    "The CertificateGroupId does not refer to a group that is valid for the application.");
+                    LocalizedText.From("The CertificateGroupId does not refer to a group that is valid for the application."));
             }
 
             return ServiceResult.Good;
@@ -1690,7 +1692,7 @@ namespace Opc.Ua.Gds.Server
             {
                 return new ServiceResult(
                     StatusCodes.BadNotFound,
-                    "The ApplicationId does not refer to a valid application.");
+                    LocalizedText.From("The ApplicationId does not refer to a valid application."));
             }
 
             if (certificateGroupId.IsNull)
@@ -1705,7 +1707,8 @@ namespace Opc.Ua.Gds.Server
             {
                 return new ServiceResult(
                     StatusCodes.BadNotFound,
-                    "The CertificateGroupId and CertificateTypeId do not refer to a group and type that is valid for the application.");
+                    LocalizedText.From(
+                        "The CertificateGroupId and CertificateTypeId do not refer to a group and type that is valid for the application."));
             }
 
             updateRequired = (bool)updateRequiredResult;
@@ -1905,15 +1908,15 @@ namespace Opc.Ua.Gds.Server
                 case CertificateRequestState.New:
                     return new ServiceResult(
                         StatusCodes.BadNothingToDo,
-                        "The request has not been approved by the administrator.");
+                        LocalizedText.From("The request has not been approved by the administrator."));
                 case CertificateRequestState.Rejected:
                     return new ServiceResult(
                         StatusCodes.BadRequestNotAllowed,
-                        "The request has been rejected by the administrator.");
+                        LocalizedText.From("The request has been rejected by the administrator."));
                 case CertificateRequestState.Accepted:
                     return new ServiceResult(
                         StatusCodes.BadInvalidArgument,
-                        "The request has already been accepted by the application.");
+                        LocalizedText.From("The request has already been accepted by the application."));
                 case CertificateRequestState.Approved:
                     return null;
                 default:

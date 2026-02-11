@@ -458,7 +458,7 @@ namespace Opc.Ua
         {
             if (IsNull)
             {
-                return null;
+                return string.Empty;
             }
 
             var buffer = new StringBuilder();
@@ -605,57 +605,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an integer to a numeric node identifier.
         /// </summary>
-        /// <remarks>
-        /// Converts an integer to a numeric node identifier for comparisons.
-        /// </remarks>
-        /// <example>
-        /// <code lang="C#">
-        ///
-        /// //create some variables
-        /// uint id1 = 100, id2=101;
-        /// NodeId node1;
-        ///
-        /// //create our node
-        /// node1 = new NodeId(id1);
-        ///
-        /// //now to compare the node to the ids using a simple comparison and Equals:
-        /// Console.WriteLine("Comparing NodeId to uint");
-        /// Console.WriteLine("\tComparing 100 to 100 = [equals] {0}", node1.Equals(id1));
-        /// Console.WriteLine("\tComparing 100 to 100 = [ ==   ] {0}", node1 == id1);
-        /// Console.WriteLine("\tComparing 100 to 101 = [equals] {0}", node1.Equals(id2));
-        /// Console.WriteLine("\tComparing 100 to 101 = [ ==   ] {0}", node1 == id2);
-        ///
-        /// </code>
-        /// <code lang="Visual Basic">
-        ///
-        /// 'create some variables
-        /// Dim id1 As UInt = 100
-        /// Dim id2 As UInt = 102
-        /// Dim node1 As NodeId
-        ///
-        /// 'create our node
-        /// node1 = new NodeId(id1)
-        ///
-        /// 'now to compare the node to the ids using a simple comparison and Equals:
-        /// Console.WriteLine("Comparing NodeId to uint")
-        /// Console.WriteLine("   Comparing 100 to 100 = [equals] {0}", node1.Equals(id1))
-        /// Console.WriteLine("   Comparing 100 to 100 = [  =   ] {0}", node1 = id1)
-        /// Console.WriteLine("   Comparing 100 to 101 = [equals] {0}", node1.Equals(id2))
-        /// Console.WriteLine("   Comparing 100 to 101 = [  =   ] {0}", node1 = id2)
-        ///
-        /// </code>
-        /// <para>
-        /// This produces the following output (taken from C# example):
-        /// <br/></para>
-        /// <para>
-        /// Comparing NodeId to uint<br/>
-        ///     Comparing 100 to 100 = [equals] True<br/>
-        ///     Comparing 100 to 100 = [ ==   ] True<br/>
-        ///     Comparing 100 to 101 = [equals] False<br/>
-        ///     Comparing 100 to 101 = [ ==   ] False<br/>
-        /// <br/></para>
-        /// </example>
-        /// <param name="value">The <see cref="uint"/> to compare this node to.</param>
         public static implicit operator NodeId(uint value)
         {
             return new NodeId(value);
@@ -664,51 +613,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a guid to a guid node identifier.
         /// </summary>
-        /// <remarks>
-        /// Converts a NodeId into a Guid allowing you to compare a Node against a Guid.
-        /// </remarks>
-        /// <example>
-        /// <code lang="C#">
-        ///
-        /// //define our 2 GUID ids, and then define our node to use the first id.
-        /// Guid id1 = Guid.NewGuid(), id2 = Guid.NewGuid();
-        /// NodeId node1 = new NodeId(id1);
-        ///
-        /// //now to compare the node to the guids
-        /// Console.WriteLine("\n\nComparing NodeId to GUID");
-        /// Console.WriteLine("\tComparing {0} to {0} = [equals] {2}", id1, id1, node1.Equals(id1));
-        /// Console.WriteLine("\tComparing {0} to {0} = [ ==   ] {2}", id1, id1, node1 == id1);
-        /// Console.WriteLine("\tComparing {0} to {1} = [equals] {2}", id1, id2, node1.Equals(id2));
-        /// Console.WriteLine("\tComparing {0} to {1} = [ ==   ] {2}", id1, id2, node1 == id2);
-        ///
-        /// </code>
-        /// <code lang="Visual Basic">
-        ///
-        /// 'define our 2 GUID ids, and then define our node to use the first id.
-        /// Dim id1 As Guid = Guid.NewGuid()
-        /// Dim id2 As Guid = Guid.NewGuid()
-        /// Dim node1 As NodeId = new NodeId(id1)
-        ///
-        /// 'now to compare the node to the guids
-        /// Console.WriteLine("Comparing NodeId to GUID")
-        /// Console.WriteLine("  Comparing {0} to {0} = [equals] {2}", id1, id1, node1.Equals(id1));
-        /// Console.WriteLine("  Comparing {0} to {0} = [  =   ] {2}", id1, id1, node1 = id1);
-        /// Console.WriteLine("  Comparing {0} to {0} = [equals] {2}", id1, id2, node1.Equals(id2));
-        /// Console.WriteLine("  Comparing {0} to {0} = [  =   ] {2}", id1, id2, node1 = id2);
-        ///
-        /// </code>
-        /// <para>
-        /// This produces the following output (taken from C# example):
-        /// <br/></para>
-        /// <para>
-        /// Comparing NodeId to GUID<br/>
-        ///     Comparing bbe8b5f2-0f50-4302-877f-346afb07704c to bbe8b5f2-0f50-4302-877f-346afb07704c = [equals] True<br/>
-        ///     Comparing bbe8b5f2-0f50-4302-877f-346afb07704c to bbe8b5f2-0f50-4302-877f-346afb07704c = [  =   ] True<br/>
-        ///     Comparing bbe8b5f2-0f50-4302-877f-346afb07704c to e707de86-4c11-4fe6-94b2-83638a9427e6 = [equals] False<br/>
-        ///     Comparing bbe8b5f2-0f50-4302-877f-346afb07704c to e707de86-4c11-4fe6-94b2-83638a9427e6 = [  =   ] False<br/>
-        /// <br/></para>
-        /// </example>
-        /// <param name="value">The <see cref="Guid"/> to compare this node to.</param>
         public static implicit operator NodeId(Guid value)
         {
             return new NodeId(value);
@@ -717,107 +621,9 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a byte array to an opaque node identifier.
         /// </summary>
-        /// <remarks>
-        /// This operator allows you to compare a NodeId to an array of Bytes.
-        /// </remarks>
-        /// <example>
-        /// <code lang="C#">
-        ///
-        /// //define our 2 Byte[] ids, and then define our node to use the first id.
-        /// byte[] id1 = new byte[] { 65, 66, 67, 68, 69 };
-        /// byte[] id2 = new byte[] { 97, 98, 99, 100, 101 };
-        /// NodeId node1 = new NodeId(id1);
-        ///
-        /// //convert our bytes to string so we can display them
-        /// string id1String = System.Text.ASCIIEncoding.ASCII.GetString(id1);
-        /// string id2String = System.Text.ASCIIEncoding.ASCII.GetString(id2);
-        ///
-        /// //now to compare the node to the guids
-        /// Console.WriteLine("\n\nComparing NodeId to Byte[]");
-        /// Console.WriteLine("\tComparing {0} to {0} = [equals] {2}", id1String, id1String, node1.Equals(id1));
-        /// Console.WriteLine("\tComparing {0} to {0} = [  =   ] {2}", id1String, id1String, node1 == id1);
-        /// Console.WriteLine("\tComparing {0} to {1} = [equals] {2}", id1String, id2String, node1.Equals(id2));
-        /// Console.WriteLine("\tComparing {0} to {1} = [  =   ] {2}", id1String, id2String, node1 == id2);
-        ///
-        /// </code>
-        /// <code lang="Visual Basic">
-        ///
-        /// 'define our 2 Byte[] ids, and then define our node to use the first id.
-        /// Dim id1 As Byte() = New Byte() { 65, 66, 67, 68, 69 }
-        /// Dim id2 As Byte() = New Byte() { 97, 98, 99, 100, 101 }
-        /// Dim node1 As NodeId = New NodeId(id1)
-        ///
-        /// 'convert our bytes to string so we can display them
-        /// Dim id1String As String = System.Text.ASCIIEncoding.ASCII.GetString(id1)
-        /// Dim id2String As String = System.Text.ASCIIEncoding.ASCII.GetString(id2)
-        ///
-        /// 'now to compare the node to the guids
-        /// Console.WriteLine("Comparing NodeId to Byte()")
-        /// Console.WriteLine("Comparing {0} to {0} = [equals] {2}", id1String, id1String, node1.Equals(id1))
-        /// Console.WriteLine("Comparing {0} to {0} = [  =   ] {2}", id1String, id1String, node1 = id1)
-        /// Console.WriteLine("Comparing {0} to {1} = [equals] {2}", id1String, id2String, node1.Equals(id2))
-        /// Console.WriteLine("Comparing {0} to {1} = [  =   ] {2}", id1String, id2String, node1 = id2)
-        ///
-        /// </code>
-        /// <para>
-        /// This produces the following output (taken from C# example):
-        /// <br/></para>
-        /// <para>
-        /// Comparing NodeId to Byte[]
-        ///     Comparing ABCDE to ABCDE = [equals] True
-        ///     Comparing ABCDE to ABCDE = [ ==   ] True
-        ///     Comparing ABCDE to abcde = [equals] False
-        ///     Comparing ABCDE to abcde = [ ==   ] False
-        /// <br/></para>
-        /// </example>
-        /// <param name="value">The <see cref="byte"/>[] array to compare this node to</param>
-        public static implicit operator NodeId(byte[] value)
+        public static explicit operator NodeId(byte[] value)
         {
             return new NodeId(value);
-        }
-
-        /// <summary>
-        /// Parses a node id string and initializes a node id.
-        /// </summary>
-        /// <remarks>
-        /// Compares a Node to a String
-        /// </remarks>
-        /// <example>
-        /// <code lang="C#">
-        ///
-        /// //define our 2 String ids, and then define our node to use the first id.
-        /// String id1 = "Hello", id2 = "World";
-        /// NodeId node1 = new NodeId(id1);
-        ///
-        /// //now to compare the node to the guids
-        /// Console.WriteLine("\n\nComparing NodeId to String");
-        /// Console.WriteLine("\tComparing {0} to {1} = [equals] {2}", id1, id1, node1.Equals(id1));
-        /// Console.WriteLine("\tComparing {0} to {1} = [ ==   ] {2}", id1, id1, node1 == id1);
-        /// Console.WriteLine("\tComparing {0} to {1} = [equals] {2}", id1, id2, node1.Equals(id2));
-        /// Console.WriteLine("\tComparing {0} to {1} = [ ==   ] {2}", id1, id2, node1 == id2);
-        ///
-        ///
-        /// </code>
-        /// <code lang="Visual Basic">
-        ///
-        /// 'define our 2 String ids, and then define our node to use the first id.
-        /// Dim id1 As String = "Hello"
-        /// Dim id2 As String = "World"
-        /// Dim node1 As NodeId = New NodeId(id1)
-        ///
-        /// 'now to compare the node to the guids
-        /// Console.WriteLine("Comparing NodeId to String");
-        /// Console.WriteLine("Comparing {0} to {1} = [equals] {2}", id1, id1, node1.Equals(id1));
-        /// Console.WriteLine("Comparing {0} to {1} = [  =   ] {2}", id1, id1, node1 = id1);
-        /// Console.WriteLine("Comparing {0} to {1} = [equals] {2}", id1, id2, node1.Equals(id2));
-        /// Console.WriteLine("Comparing {0} to {1} = [  =   ] {2}", id1, id2, node1 = id2);
-        ///
-        /// </code>
-        /// </example>
-        /// <param name="text">The <see cref="string"/> to compare this node to.</param>
-        public static implicit operator NodeId(string text)
-        {
-            return Parse(text);
         }
 
         /// <summary>
@@ -1216,7 +1022,7 @@ namespace Opc.Ua
         {
             if (nodeId.IsNull)
             {
-                return null;
+                return default;
             }
 
             var expandedId = new ExpandedNodeId(nodeId);

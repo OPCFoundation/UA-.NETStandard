@@ -236,7 +236,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             var extensionObject = new ExtensionObject(emittedType);
 
-            var keyValuePair = new KeyValuePair { Key = "AKEY", Value = extensionObject };
+            var keyValuePair = new KeyValuePair
+            {
+                Key = QualifiedName.From("AKEY"),
+                Value = extensionObject
+            };
 
             var localCtxt = (ServiceMessageContext)EncoderContext;
 

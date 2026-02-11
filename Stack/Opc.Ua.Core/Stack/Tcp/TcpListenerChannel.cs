@@ -185,7 +185,7 @@ namespace Opc.Ua.Bindings
             {
                 OnCleanup(new ServiceResult(
                     StatusCodes.BadNoCommunication,
-                    "Channel closed due to inactivity."));
+                    LocalizedText.From("Channel closed due to inactivity.")));
             }
         }
 

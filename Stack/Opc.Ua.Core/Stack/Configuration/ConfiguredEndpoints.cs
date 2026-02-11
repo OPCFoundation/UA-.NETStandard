@@ -691,7 +691,7 @@ namespace Opc.Ua
                 SecurityPolicyUri = securityPolicyUri
             };
             description.Server.ApplicationUri = Utils.UpdateInstanceUri(uri.ToString());
-            description.Server.ApplicationName = uri.AbsolutePath;
+            description.Server.ApplicationName = new LocalizedText(uri.AbsolutePath);
 
             if (description.EndpointUrl.StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
             {

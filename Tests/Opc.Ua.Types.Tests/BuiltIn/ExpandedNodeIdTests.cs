@@ -76,7 +76,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var nodeId2 = new ExpandedNodeId(byteid2);
 
             // implicit conversion;
-            ExpandedNodeId inodeId2 = byteid2;
+            ExpandedNodeId inodeId2 = (ExpandedNodeId)byteid2;
             Assert.AreEqual(nodeId2, inodeId2);
 
             Assert.AreEqual(nodeId1.GetHashCode(), inodeId1.GetHashCode());

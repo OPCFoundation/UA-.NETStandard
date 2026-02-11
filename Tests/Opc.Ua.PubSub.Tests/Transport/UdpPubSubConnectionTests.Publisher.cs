@@ -617,7 +617,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#None",
                     Server = new ApplicationDescription
                     {
-                        ApplicationName = "Test security mode None",
+                        ApplicationName = LocalizedText.From("Test security mode None"),
                         ApplicationUri = "urn:localhost:Server"
                     }
                 },
@@ -628,7 +628,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256",
                     Server = new ApplicationDescription
                     {
-                        ApplicationName = "Test security mode Sign",
+                        ApplicationName = LocalizedText.From("Test security mode Sign"),
                         ApplicationUri = "urn:localhost:Server"
                     }
                 },
@@ -639,7 +639,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256",
                     Server = new ApplicationDescription
                     {
-                        ApplicationName = "Test security mode SignAndEncrypt",
+                        ApplicationName = LocalizedText.From("Test security mode SignAndEncrypt"),
                         ApplicationUri = "urn:localhost:Server"
                     }
                 }

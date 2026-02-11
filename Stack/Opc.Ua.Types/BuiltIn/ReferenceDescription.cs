@@ -57,11 +57,11 @@ namespace Opc.Ua
         {
             ReferenceTypeId = default;
             IsForward = true;
-            NodeId = null;
-            BrowseName = null;
-            DisplayName = null;
+            NodeId = default;
+            BrowseName = default;
+            DisplayName = default;
             NodeClass = NodeClass.Unspecified;
-            TypeDefinition = null;
+            TypeDefinition = default;
         }
 
         /// <summary>

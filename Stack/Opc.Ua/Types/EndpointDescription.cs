@@ -57,7 +57,7 @@ namespace Opc.Ua
 
             EndpointUrl = url;
             Server.ApplicationUri = url;
-            Server.ApplicationName = url;
+            Server.ApplicationName = new LocalizedText(url);
             SecurityMode = MessageSecurityMode.None;
             SecurityPolicyUri = null; // SecurityPolicies.None;
         }

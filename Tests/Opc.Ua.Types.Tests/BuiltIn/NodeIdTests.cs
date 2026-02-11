@@ -58,7 +58,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             byte[] id2 = [65, 66, 67, 68, 69];
             var nodeId2 = new NodeId(id2);
             // implicit conversion;
-            NodeId inodeId2 = id2;
+            NodeId inodeId2 = (NodeId)id2;
             Assert.AreEqual(nodeId2, inodeId2);
 
             Assert.False(nodeId2 < inodeId2);
@@ -69,8 +69,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var nodeIdText = NodeId.Parse(text);
             Assert.True(nodeIdText.TryGetIdentifier(out uint t1));
             Assert.AreEqual(123, t1);
-            // implicit conversion;
-            NodeId inodeIdText = text;
+            NodeId inodeIdText = NodeId.Parse(text);
             Assert.AreEqual(nodeIdText, inodeIdText);
 
             Assert.False(nodeIdText < inodeIdText);
@@ -111,15 +110,15 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 _ = NodeId.Create(123, "urn:xyz", new NamespaceTable()));
             Assert.AreEqual(StatusCodes.BadNodeIdInvalid, sre.StatusCode);
 
-            NodeId opaqueId = "!,7B"u8.ToArray();
-            NodeId stringId1 = "ns=1;s=Test";
+            NodeId opaqueId = (NodeId)"!,7B"u8.ToArray();
+            NodeId stringId1 = NodeId.Parse("ns=1;s=Test");
             var stringId2 = NodeId.Parse("ns=1;s=Test");
             Assert.AreEqual(stringId1, stringId2);
             NUnit.Framework.Assert.Throws<ArgumentException>(() => NodeId.Parse("Test"));
             NUnit.Framework.Assert.Throws<ArgumentException>(() => NodeId.Parse("nsu=urn:xyz;Test"));
             var expandedId1 = ExpandedNodeId.Parse("nsu=urn:xyz;Test");
             Assert.NotNull(expandedId1);
-            var nullId = ExpandedNodeId.ToNodeId(null, new NamespaceTable());
+            var nullId = ExpandedNodeId.ToNodeId(default, new NamespaceTable());
             Assert.IsTrue(nullId.IsNull);
 
             // create a nodeId from a guid
@@ -142,15 +141,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             NUnit.Framework.Assert.Throws<ArgumentException>(() => _ = NodeId.Parse("nsu="));
             NUnit.Framework.Assert.Throws<ArgumentException>(() => _ = NodeId.Parse("Test"));
             NUnit.Framework.Assert.Throws<ArgumentException>(() =>
-            {
-                NodeId _ = "Test";
-            });
-            NUnit.Framework.Assert.Throws<ArgumentException>(() =>
                 _ = NodeId.Parse("nsu=http://opcfoundation.org/Tests;s=Test"));
-            NUnit.Framework.Assert.Throws<ArgumentException>(() =>
-            {
-                NodeId _ = "nsu=http://opcfoundation.org/Tests;s=Test";
-            });
             Assert.IsTrue(NodeId.ToExpandedNodeId(default, null).IsNull);
 
             // IsNull
@@ -178,8 +169,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             {
                 var nodeId = NodeId.Parse(testString);
                 Assert.AreEqual(testString, nodeId.ToString());
-                nodeId = testString;
-                Assert.AreEqual(testString, nodeId.ToString());
             }
         }
 
@@ -191,7 +180,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             {
                 // Null NodeIds
                 0,
-                string.Empty,
                 NodeId.Null,
                 new(0),
                 new(Guid.Empty),
@@ -336,11 +324,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             {
                 NUnit.Framework.Assert.Throws<ArgumentException>(() => _ = NodeId.Parse(invalidNodeId),
                     $"Expected ArgumentException for invalid NodeId: {invalidNodeId}");
-                NUnit.Framework.Assert.Throws<ArgumentException>(() =>
-                {
-                    NodeId _ = invalidNodeId;
-                },
-                    $"Expected ArgumentException for invalid NodeId (implicit): {invalidNodeId}");
             }
         }
 

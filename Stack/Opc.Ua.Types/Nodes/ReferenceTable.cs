@@ -316,7 +316,7 @@ namespace Opc.Ua
             }
 
             // not found.
-            return null;
+            return default;
         }
 
         /// <summary>

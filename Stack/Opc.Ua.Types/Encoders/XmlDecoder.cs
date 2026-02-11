@@ -1260,7 +1260,7 @@ namespace Opc.Ua
                 return new QualifiedName(name, namespaceIndex);
             }
 
-            return new QualifiedName();
+            return default;
         }
 
         /// <summary>

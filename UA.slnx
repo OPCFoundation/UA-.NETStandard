@@ -98,6 +98,7 @@
     <File Path="Docs/ReverseConnect.md" />
     <File Path="Docs/RoleBasedUserManagement.md" />
     <File Path="Docs/TransferSubscription.md" />
+    <File Path="Docs/MigrationGuide.md" />
     <File Path="Docs/NugetREADME.md" />
     <File Path="Docs/README.md" />
   </Folder>

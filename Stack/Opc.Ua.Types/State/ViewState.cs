@@ -64,8 +64,8 @@ namespace Opc.Ua
             SymbolicName = "View1";
             NodeId = default;
             BrowseName = new QualifiedName(SymbolicName, 1);
-            DisplayName = SymbolicName;
-            Description = null;
+            DisplayName = new LocalizedText(SymbolicName);
+            Description = default;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
             EventNotifier = EventNotifiers.None;

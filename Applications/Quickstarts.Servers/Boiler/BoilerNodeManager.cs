@@ -119,7 +119,7 @@ namespace Boiler
 
             string name = Utils.Format("Boiler #{0}", unitNumber);
 
-            boiler.Create(context, default, new QualifiedName(name, m_namespaceIndex), null, true);
+            boiler.Create(context, default, new QualifiedName(name, m_namespaceIndex), default, true);
 
             NodeState folder = FindPredefinedNode<NodeState>(
                 ExpandedNodeId.ToNodeId(ObjectIds.Boilers, Server.NamespaceUris));

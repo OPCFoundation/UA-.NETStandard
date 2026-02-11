@@ -55,7 +55,7 @@ namespace Opc.Ua
         private void Initialize()
         {
             Name = null;
-            Description = null;
+            Description = default;
             DataType = default;
             ValueRank = 0;
             m_arrayDimensions = [];

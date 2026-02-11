@@ -75,7 +75,7 @@ namespace Opc.Ua
         {
             ReferenceTypeId = default;
             IsInverse = true;
-            TargetId = null;
+            TargetId = default;
         }
 
         /// <summary>

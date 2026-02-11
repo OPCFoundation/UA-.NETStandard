@@ -1212,7 +1212,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var encoder = new JsonEncoder(context2, jsonEncoding);
             encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
 
-            encoder.WriteQualifiedName("D0", new QualifiedName("ServerStatus"));
+            encoder.WriteQualifiedName("D0", QualifiedName.From("ServerStatus"));
             encoder.WriteQualifiedName(
                 "D1",
                 new QualifiedName(
@@ -1306,7 +1306,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var encoder = new JsonEncoder(context2, JsonEncodingType.Reversible);
             encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
 
-            encoder.WriteQualifiedName("D0", new QualifiedName("ServerStatus"));
+            encoder.WriteQualifiedName("D0", QualifiedName.From("ServerStatus"));
             encoder.WriteQualifiedName(
                 "D1",
                 new QualifiedName(
@@ -1403,7 +1403,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
 
-            encoder.WriteQualifiedName("D0", new QualifiedName("ServerStatus"));
+            encoder.WriteQualifiedName("D0", QualifiedName.From("ServerStatus"));
             encoder.WriteQualifiedName(
                 "D1",
                 new QualifiedName(

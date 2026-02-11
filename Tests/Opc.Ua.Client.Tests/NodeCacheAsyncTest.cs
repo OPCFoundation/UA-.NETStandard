@@ -266,7 +266,7 @@ namespace Opc.Ua.Client.Tests
                 Assert.NotNull(qn);
                 Assert.AreEqual(property.Key, qn.Name);
                 // find the node by name
-                NodeId refId = await nodeCache.FindReferenceTypeAsync(new QualifiedName(property.Key))
+                NodeId refId = await nodeCache.FindReferenceTypeAsync(QualifiedName.From(property.Key))
                     .ConfigureAwait(false);
                 Assert.NotNull(refId);
                 Assert.AreEqual(property.Value, refId);

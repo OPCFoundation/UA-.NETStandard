@@ -71,18 +71,18 @@ namespace Opc.Ua.PubSub.Transport
 
             KeyValuePairs = [];
 
-            QualifiedName qCaCertificatePath = nameof(
-                EnumMqttClientConfigurationParameters.TlsCertificateCaCertificatePath);
+            var qCaCertificatePath = QualifiedName.From(
+                nameof(EnumMqttClientConfigurationParameters.TlsCertificateCaCertificatePath));
             KeyValuePairs.Add(
                 new KeyValuePair { Key = qCaCertificatePath, Value = CaCertificatePath });
 
-            QualifiedName qClientCertificatePath = nameof(
-                EnumMqttClientConfigurationParameters.TlsCertificateClientCertificatePath);
+            var qClientCertificatePath = QualifiedName.From(
+                nameof(EnumMqttClientConfigurationParameters.TlsCertificateClientCertificatePath));
             KeyValuePairs.Add(
                 new KeyValuePair { Key = qClientCertificatePath, Value = ClientCertificatePath });
 
-            QualifiedName qClientCertificatePassword = nameof(
-                EnumMqttClientConfigurationParameters.TlsCertificateClientCertificatePassword);
+            var qClientCertificatePassword = QualifiedName.From(
+                nameof(EnumMqttClientConfigurationParameters.TlsCertificateClientCertificatePassword));
             KeyValuePairs.Add(new KeyValuePair
             {
                 Key = qClientCertificatePassword,
@@ -98,8 +98,8 @@ namespace Opc.Ua.PubSub.Transport
         public MqttTlsCertificates(KeyValuePairCollection keyValuePairs)
         {
             CaCertificatePath = string.Empty;
-            QualifiedName qCaCertificatePath = nameof(
-                EnumMqttClientConfigurationParameters.TlsCertificateCaCertificatePath);
+            var qCaCertificatePath = QualifiedName.From(
+                nameof(EnumMqttClientConfigurationParameters.TlsCertificateCaCertificatePath));
             CaCertificatePath =
                 keyValuePairs
                     .Find(kvp => kvp.Key.Name
@@ -107,8 +107,8 @@ namespace Opc.Ua.PubSub.Transport
                     .Value.GetString();
 
             ClientCertificatePath = string.Empty;
-            QualifiedName qClientCertificatePath = nameof(
-                EnumMqttClientConfigurationParameters.TlsCertificateClientCertificatePath);
+            var qClientCertificatePath = QualifiedName.From(
+                nameof(EnumMqttClientConfigurationParameters.TlsCertificateClientCertificatePath));
             ClientCertificatePath =
                 keyValuePairs
                     .Find(kvp => kvp.Key.Name
@@ -116,8 +116,8 @@ namespace Opc.Ua.PubSub.Transport
                     .Value.GetString();
 
             ClientCertificatePassword = null;
-            QualifiedName qClientCertificatePassword = nameof(
-                EnumMqttClientConfigurationParameters.TlsCertificateClientCertificatePassword);
+            var qClientCertificatePassword = QualifiedName.From(
+                nameof(EnumMqttClientConfigurationParameters.TlsCertificateClientCertificatePassword));
             ClientCertificatePassword =
                 ((keyValuePairs
                     .Find(kvp => kvp.Key.Name
@@ -192,8 +192,8 @@ namespace Opc.Ua.PubSub.Transport
         {
             Certificates = new MqttTlsCertificates(kvpMqttOptions);
 
-            QualifiedName qSslProtocolVersion
-                = nameof(EnumMqttClientConfigurationParameters.TlsProtocolVersion);
+            var qSslProtocolVersion = QualifiedName.From(
+                nameof(EnumMqttClientConfigurationParameters.TlsProtocolVersion));
 #pragma warning disable CA5397 // TODO: Use None as default fallback
             SslProtocolVersion = (SslProtocols)
                 Convert.ToInt32(
@@ -204,8 +204,8 @@ namespace Opc.Ua.PubSub.Transport
                     CultureInfo.InvariantCulture);
 #pragma warning restore CA5397
 
-            QualifiedName qAllowUntrustedCertificates = nameof(
-                EnumMqttClientConfigurationParameters.TlsAllowUntrustedCertificates);
+            var qAllowUntrustedCertificates = QualifiedName.From(
+                nameof(EnumMqttClientConfigurationParameters.TlsAllowUntrustedCertificates));
             AllowUntrustedCertificates = Convert.ToBoolean(
                 kvpMqttOptions
                     .Find(kvp => kvp.Key.Name
@@ -213,8 +213,8 @@ namespace Opc.Ua.PubSub.Transport
                     .Value.Value,
                 CultureInfo.InvariantCulture);
 
-            QualifiedName qIgnoreCertificateChainErrors = nameof(
-                EnumMqttClientConfigurationParameters.TlsIgnoreCertificateChainErrors);
+            var qIgnoreCertificateChainErrors = QualifiedName.From(
+                nameof(EnumMqttClientConfigurationParameters.TlsIgnoreCertificateChainErrors));
             IgnoreCertificateChainErrors = Convert.ToBoolean(
                 kvpMqttOptions
                     .Find(kvp => kvp.Key.Name
@@ -222,8 +222,8 @@ namespace Opc.Ua.PubSub.Transport
                     .Value.Value,
                 CultureInfo.InvariantCulture);
 
-            QualifiedName qIgnoreRevocationListErrors = nameof(
-                EnumMqttClientConfigurationParameters.TlsIgnoreRevocationListErrors);
+            var qIgnoreRevocationListErrors = QualifiedName.From(
+                nameof(EnumMqttClientConfigurationParameters.TlsIgnoreRevocationListErrors));
             IgnoreRevocationListErrors = Convert.ToBoolean(
                 kvpMqttOptions
                     .Find(kvp => kvp.Key.Name
@@ -231,8 +231,8 @@ namespace Opc.Ua.PubSub.Transport
                     .Value.Value,
                 CultureInfo.InvariantCulture);
 
-            QualifiedName qTrustedIssuerCertificatesStoreType = nameof(
-                EnumMqttClientConfigurationParameters.TrustedIssuerCertificatesStoreType);
+            var qTrustedIssuerCertificatesStoreType = QualifiedName.From(
+                nameof(EnumMqttClientConfigurationParameters.TrustedIssuerCertificatesStoreType));
             string issuerCertificatesStoreType =
                 kvpMqttOptions
                     .Find(kvp =>
@@ -241,8 +241,8 @@ namespace Opc.Ua.PubSub.Transport
                             StringComparison.Ordinal)
                     )?
                     .Value.GetString();
-            QualifiedName qTrustedIssuerCertificatesStorePath = nameof(
-                EnumMqttClientConfigurationParameters.TrustedIssuerCertificatesStorePath);
+            var qTrustedIssuerCertificatesStorePath = QualifiedName.From(
+                nameof(EnumMqttClientConfigurationParameters.TrustedIssuerCertificatesStorePath));
             string issuerCertificatesStorePath =
                 kvpMqttOptions
                     .Find(kvp =>
@@ -258,15 +258,15 @@ namespace Opc.Ua.PubSub.Transport
                 StorePath = issuerCertificatesStorePath
             };
 
-            QualifiedName qTrustedPeerCertificatesStoreType = nameof(
-                EnumMqttClientConfigurationParameters.TrustedPeerCertificatesStoreType);
+            var qTrustedPeerCertificatesStoreType = QualifiedName.From(nameof(
+                EnumMqttClientConfigurationParameters.TrustedPeerCertificatesStoreType));
             string peerCertificatesStoreType =
                 kvpMqttOptions
                     .Find(kvp => kvp.Key.Name
                         .Equals(qTrustedPeerCertificatesStoreType.Name, StringComparison.Ordinal))?
                     .Value.GetString();
-            QualifiedName qTrustedPeerCertificatesStorePath = nameof(
-                EnumMqttClientConfigurationParameters.TrustedPeerCertificatesStorePath);
+            var qTrustedPeerCertificatesStorePath = QualifiedName.From(nameof(
+                EnumMqttClientConfigurationParameters.TrustedPeerCertificatesStorePath));
             string peerCertificatesStorePath =
                 kvpMqttOptions
                     .Find(kvp => kvp.Key.Name
@@ -279,8 +279,8 @@ namespace Opc.Ua.PubSub.Transport
                 StorePath = peerCertificatesStorePath
             };
 
-            QualifiedName qRejectedCertificateStoreStoreType = nameof(
-                EnumMqttClientConfigurationParameters.RejectedCertificateStoreStoreType);
+            var qRejectedCertificateStoreStoreType = QualifiedName.From(nameof(
+                EnumMqttClientConfigurationParameters.RejectedCertificateStoreStoreType));
             string rejectedCertificateStoreStoreType =
                 kvpMqttOptions
                     .Find(
@@ -288,8 +288,8 @@ namespace Opc.Ua.PubSub.Transport
                             qRejectedCertificateStoreStoreType.Name,
                             StringComparison.Ordinal))?
                     .Value.GetString();
-            QualifiedName qRejectedCertificateStoreStorePath = nameof(
-                EnumMqttClientConfigurationParameters.RejectedCertificateStoreStorePath);
+            var qRejectedCertificateStoreStorePath = QualifiedName.From(nameof(
+                EnumMqttClientConfigurationParameters.RejectedCertificateStoreStorePath));
             string rejectedCertificateStoreStorePath =
                 kvpMqttOptions
                     .Find(
@@ -347,64 +347,64 @@ namespace Opc.Ua.PubSub.Transport
 
             var kvpTlsProtocolVersion = new KeyValuePair
             {
-                Key = nameof(EnumMqttClientConfigurationParameters.TlsProtocolVersion),
+                Key = QualifiedName.From(nameof(EnumMqttClientConfigurationParameters.TlsProtocolVersion)),
                 Value = (int)SslProtocolVersion
             };
             KeyValuePairs.Add(kvpTlsProtocolVersion);
             var kvpAllowUntrustedCertificates = new KeyValuePair
             {
-                Key = nameof(EnumMqttClientConfigurationParameters.TlsAllowUntrustedCertificates),
+                Key = QualifiedName.From(nameof(EnumMqttClientConfigurationParameters.TlsAllowUntrustedCertificates)),
                 Value = AllowUntrustedCertificates
             };
             KeyValuePairs.Add(kvpAllowUntrustedCertificates);
             var kvpIgnoreCertificateChainErrors = new KeyValuePair
             {
-                Key = nameof(EnumMqttClientConfigurationParameters.TlsIgnoreCertificateChainErrors),
+                Key = QualifiedName.From(nameof(EnumMqttClientConfigurationParameters.TlsIgnoreCertificateChainErrors)),
                 Value = IgnoreCertificateChainErrors
             };
             KeyValuePairs.Add(kvpIgnoreCertificateChainErrors);
             var kvpIgnoreRevocationListErrors = new KeyValuePair
             {
-                Key = nameof(EnumMqttClientConfigurationParameters.TlsIgnoreRevocationListErrors),
+                Key = QualifiedName.From(nameof(EnumMqttClientConfigurationParameters.TlsIgnoreRevocationListErrors)),
                 Value = IgnoreRevocationListErrors
             };
             KeyValuePairs.Add(kvpIgnoreRevocationListErrors);
 
             var kvpTrustedIssuerCertificatesStoreType = new KeyValuePair
             {
-                Key = nameof(EnumMqttClientConfigurationParameters.TrustedIssuerCertificatesStoreType),
+                Key = QualifiedName.From(nameof(EnumMqttClientConfigurationParameters.TrustedIssuerCertificatesStoreType)),
                 Value = TrustedIssuerCertificates?.StoreType
             };
             KeyValuePairs.Add(kvpTrustedIssuerCertificatesStoreType);
             var kvpTrustedIssuerCertificatesStorePath = new KeyValuePair
             {
-                Key = nameof(EnumMqttClientConfigurationParameters.TrustedIssuerCertificatesStorePath),
+                Key = QualifiedName.From(nameof(EnumMqttClientConfigurationParameters.TrustedIssuerCertificatesStorePath)),
                 Value = TrustedIssuerCertificates?.StorePath
             };
             KeyValuePairs.Add(kvpTrustedIssuerCertificatesStorePath);
 
             var kvpTrustedPeerCertificatesStoreType = new KeyValuePair
             {
-                Key = nameof(EnumMqttClientConfigurationParameters.TrustedPeerCertificatesStoreType),
+                Key = QualifiedName.From(nameof(EnumMqttClientConfigurationParameters.TrustedPeerCertificatesStoreType)),
                 Value = TrustedPeerCertificates?.StoreType
             };
             KeyValuePairs.Add(kvpTrustedPeerCertificatesStoreType);
             var kvpTrustedPeerCertificatesStorePath = new KeyValuePair
             {
-                Key = nameof(EnumMqttClientConfigurationParameters.TrustedPeerCertificatesStorePath),
+                Key = QualifiedName.From(nameof(EnumMqttClientConfigurationParameters.TrustedPeerCertificatesStorePath)),
                 Value = TrustedPeerCertificates?.StorePath
             };
             KeyValuePairs.Add(kvpTrustedPeerCertificatesStorePath);
 
             var kvpRejectedCertificateStoreStoreType = new KeyValuePair
             {
-                Key = nameof(EnumMqttClientConfigurationParameters.RejectedCertificateStoreStoreType),
+                Key = QualifiedName.From(nameof(EnumMqttClientConfigurationParameters.RejectedCertificateStoreStoreType)),
                 Value = RejectedCertificateStore?.StoreType
             };
             KeyValuePairs.Add(kvpRejectedCertificateStoreStoreType);
             var kvpRejectedCertificateStoreStorePath = new KeyValuePair
             {
-                Key = nameof(EnumMqttClientConfigurationParameters.RejectedCertificateStoreStorePath),
+                Key = QualifiedName.From(nameof(EnumMqttClientConfigurationParameters.RejectedCertificateStoreStorePath)),
                 Value = RejectedCertificateStore?.StorePath
             };
             KeyValuePairs.Add(kvpRejectedCertificateStoreStorePath);
@@ -469,31 +469,31 @@ namespace Opc.Ua.PubSub.Transport
 
             var kvpUserName = new KeyValuePair
             {
-                Key = nameof(EnumMqttClientConfigurationParameters.UserName),
+                Key = QualifiedName.From(nameof(EnumMqttClientConfigurationParameters.UserName)),
                 Value = new System.Net.NetworkCredential(string.Empty, UserName).Password
             };
             ConnectionProperties.Add(kvpUserName);
             var kvpPassword = new KeyValuePair
             {
-                Key = nameof(EnumMqttClientConfigurationParameters.Password),
+                Key = QualifiedName.From(nameof(EnumMqttClientConfigurationParameters.Password)),
                 Value = new System.Net.NetworkCredential(string.Empty, Password).Password
             };
             ConnectionProperties.Add(kvpPassword);
             var kvpAzureClientId = new KeyValuePair
             {
-                Key = nameof(EnumMqttClientConfigurationParameters.AzureClientId),
+                Key = QualifiedName.From(nameof(EnumMqttClientConfigurationParameters.AzureClientId)),
                 Value = AzureClientId
             };
             ConnectionProperties.Add(kvpAzureClientId);
             var kvpCleanSession = new KeyValuePair
             {
-                Key = nameof(EnumMqttClientConfigurationParameters.CleanSession),
+                Key = QualifiedName.From(nameof(EnumMqttClientConfigurationParameters.CleanSession)),
                 Value = CleanSession
             };
             ConnectionProperties.Add(kvpCleanSession);
             var kvpProtocolVersion = new KeyValuePair
             {
-                Key = nameof(EnumMqttClientConfigurationParameters.ProtocolVersion),
+                Key = QualifiedName.From(nameof(EnumMqttClientConfigurationParameters.ProtocolVersion)),
                 Value = (int)ProtocolVersion
             };
             ConnectionProperties.Add(kvpProtocolVersion);
@@ -512,7 +512,8 @@ namespace Opc.Ua.PubSub.Transport
             ILogger logger)
         {
             UserName = new SecureString();
-            QualifiedName qUserName = nameof(EnumMqttClientConfigurationParameters.UserName);
+            var qUserName =
+                QualifiedName.From(nameof(EnumMqttClientConfigurationParameters.UserName));
             if ((connectionProperties
                     .Find(kvp => kvp.Key.Name.Equals(qUserName.Name, StringComparison.Ordinal))?
                     .Value ??
@@ -525,7 +526,8 @@ namespace Opc.Ua.PubSub.Transport
             }
 
             Password = new SecureString();
-            QualifiedName qPassword = nameof(EnumMqttClientConfigurationParameters.Password);
+            var qPassword =
+                QualifiedName.From(nameof(EnumMqttClientConfigurationParameters.Password));
             if ((connectionProperties
                     .Find(kvp => kvp.Key.Name.Equals(qPassword.Name, StringComparison.Ordinal))?
                     .Value ??
@@ -537,8 +539,8 @@ namespace Opc.Ua.PubSub.Transport
                 }
             }
 
-            QualifiedName qAzureClientId
-                = nameof(EnumMqttClientConfigurationParameters.AzureClientId);
+            var qAzureClientId =
+                QualifiedName.From(nameof(EnumMqttClientConfigurationParameters.AzureClientId));
             AzureClientId = Convert.ToString(
                 connectionProperties
                     .Find(
@@ -546,16 +548,16 @@ namespace Opc.Ua.PubSub.Transport
                     .Value.Value,
                 CultureInfo.InvariantCulture);
 
-            QualifiedName qCleanSession
-                = nameof(EnumMqttClientConfigurationParameters.CleanSession);
+            var qCleanSession =
+                QualifiedName.From(nameof(EnumMqttClientConfigurationParameters.CleanSession));
             CleanSession = Convert.ToBoolean(
                 connectionProperties
                     .Find(kvp => kvp.Key.Name.Equals(qCleanSession.Name, StringComparison.Ordinal))?
                     .Value.Value,
                 CultureInfo.InvariantCulture);
 
-            QualifiedName qProtocolVersion
-                = nameof(EnumMqttClientConfigurationParameters.ProtocolVersion);
+            var qProtocolVersion =
+                QualifiedName.From(nameof(EnumMqttClientConfigurationParameters.ProtocolVersion));
             ProtocolVersion = (EnumMqttProtocolVersion)
                 Convert.ToInt32(
                     connectionProperties

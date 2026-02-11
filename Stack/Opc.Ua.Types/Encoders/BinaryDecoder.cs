@@ -592,7 +592,7 @@ namespace Opc.Ua
                 m_serverMappings.Length > expandedNodeId.ServerIndex)
             {
                 expandedNodeId = expandedNodeId.WithServerIndex(
-                    m_serverMappings[expandedNodeId.NamespaceIndex]);
+                    m_serverMappings[expandedNodeId.ServerIndex]);
             }
 
             return expandedNodeId;

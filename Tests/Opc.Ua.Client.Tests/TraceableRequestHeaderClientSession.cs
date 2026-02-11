@@ -80,7 +80,7 @@ namespace Opc.Ua.Client
             context.TraceId.CopyTo(traceId);
             var spanContextParameter = new KeyValuePair
             {
-                Key = "SpanContext",
+                Key = QualifiedName.From("SpanContext"),
                 Value = new Variant(new SpanContextDataType
                 {
 #if NET8_0_OR_GREATER

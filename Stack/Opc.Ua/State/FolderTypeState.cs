@@ -59,7 +59,7 @@ namespace Opc.Ua
                 BrowseNames.FolderType,
                 string.Empty,
                 BrowseNames.FolderType);
-            Description = null;
+            Description = default;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
             IsAbstract = false;

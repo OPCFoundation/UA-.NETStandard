@@ -85,7 +85,7 @@ namespace Opc.Ua.Server
         {
             return Translate(
                 preferredLocales,
-                null,
+                default,
                 new TranslationInfo(key, string.Empty, text, args));
         }
 
@@ -545,11 +545,11 @@ namespace Opc.Ua.Server
                         info = new TranslationInfo(info.Key, info.Locale, info.Text, args);
                     }
 
-                    return Translate(preferredLocales, null, info);
+                    return Translate(preferredLocales, default, info);
                 }
             }
 
-            return Utils.Format("{0:X8}", statusCode.Code);
+            return LocalizedText.From(Utils.Format("{0:X8}", statusCode.Code));
         }
 
         /// <summary>
@@ -574,11 +574,11 @@ namespace Opc.Ua.Server
                         info = new TranslationInfo(info.Key, info.Locale, info.Text, args);
                     }
 
-                    return Translate(preferredLocales, null, info);
+                    return Translate(preferredLocales, default, info);
                 }
             }
 
-            return symbolicId;
+            return LocalizedText.From(symbolicId);
         }
 
         private readonly Lock m_lock = new();

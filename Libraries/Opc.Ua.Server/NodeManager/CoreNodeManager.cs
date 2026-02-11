@@ -3165,7 +3165,7 @@ namespace Opc.Ua.Server
                             referenceTypeId,
                             true,
                             isInverse ? BrowseDirection.Inverse : BrowseDirection.Forward,
-                            null,
+                            default,
                             null,
                             true);
 
@@ -3578,8 +3578,12 @@ namespace Opc.Ua.Server
         {
             range = null;
 
-            if (GetTargetNode(node, ReferenceTypes.HasProperty, false, true, BrowseNames.EURange)
-                is not IVariable target)
+            if (GetTargetNode(
+                node,
+                ReferenceTypes.HasProperty,
+                false,
+                true,
+                QualifiedName.From(BrowseNames.EURange)) is not IVariable target)
             {
                 return StatusCodes.BadNodeIdUnknown;
             }

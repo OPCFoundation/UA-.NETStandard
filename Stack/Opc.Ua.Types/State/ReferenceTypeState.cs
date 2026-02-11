@@ -43,7 +43,7 @@ namespace Opc.Ua
         public ReferenceTypeState()
             : base(NodeClass.ReferenceType)
         {
-            m_inverseName = null;
+            m_inverseName = default;
             m_symmetric = false;
         }
 
@@ -64,7 +64,7 @@ namespace Opc.Ua
         {
             base.Initialize(context);
 
-            InverseName = null;
+            InverseName = default;
             Symmetric = false;
         }
 

@@ -82,19 +82,19 @@ namespace Quickstarts
 
             m_desiredEventFields.Add(
                 eventIndexCounter++,
-                [.. new QualifiedName[] { BrowseNames.Time }]);
+                [.. new QualifiedName[] { QualifiedName.From(BrowseNames.Time) }]);
             m_desiredEventFields.Add(
                 eventIndexCounter++,
-                [.. new QualifiedName[] { BrowseNames.ActiveState }]);
+                [.. new QualifiedName[] { QualifiedName.From(BrowseNames.ActiveState) }]);
             m_desiredEventFields.Add(
                 eventIndexCounter++,
-                [.. new QualifiedName[] { BrowseNames.Message }]);
+                [.. new QualifiedName[] { QualifiedName.From(BrowseNames.Message) }]);
             m_desiredEventFields.Add(
                 eventIndexCounter++,
-                [.. new QualifiedName[] { BrowseNames.LimitState, BrowseNames.CurrentState }]);
+                [.. new QualifiedName[] { QualifiedName.From(BrowseNames.LimitState), QualifiedName.From(BrowseNames.CurrentState) }]);
             m_desiredEventFields.Add(
                 eventIndexCounter++,
-                [.. new QualifiedName[] { BrowseNames.LimitState, BrowseNames.LastTransition }]);
+                [.. new QualifiedName[] { QualifiedName.From(BrowseNames.LimitState), QualifiedName.From(BrowseNames.LastTransition) }]);
         }
 
         /// <summary>
@@ -525,7 +525,7 @@ namespace Quickstarts
                 {
                     AttributeId = Attributes.Value,
                     TypeDefinitionId = ObjectTypeIds.ExclusiveLevelAlarmType,
-                    BrowsePath = new QualifiedNameCollection(["EventType"])
+                    BrowsePath = [QualifiedName.From("EventType")]
                 };
                 var desiredEventType = new LiteralOperand
                 {

@@ -336,7 +336,7 @@ namespace Opc.Ua
                     throw new ArgumentNullException(nameof(typeTree));
                 }
 
-                ReferenceTypeName = null;
+                ReferenceTypeName = default;
                 TargetName = element.TargetName;
                 ElementType = ElementType.ForwardReference;
                 IncludeSubtypes = element.IncludeSubtypes;
@@ -373,9 +373,9 @@ namespace Opc.Ua
             public Element()
             {
                 ElementType = ElementType.AnyHierarchical;
-                ReferenceTypeName = null;
+                ReferenceTypeName = default;
                 IncludeSubtypes = true;
-                TargetName = null;
+                TargetName = default;
             }
 
             /// <summary>
@@ -637,7 +637,7 @@ namespace Opc.Ua
 
                     if (namespaceIndex == 0)
                     {
-                        return null;
+                        return default;
                     }
                 }
 

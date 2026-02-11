@@ -144,7 +144,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             CancellationToken ct = default)
         {
             return Task.FromResult<(ExpandedNodeId typeId, ExpandedNodeId encodingId, DataTypeNode dataTypeNode)>(
-                (null, null, null));
+                (default, default, null));
         }
 
         /// <inheritdoc/>

@@ -193,7 +193,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var field = new StructureField
             {
                 Name = "Make",
-                Description = new LocalizedText("The make"),
+                Description = LocalizedText.From("The make"),
                 DataType = DataTypeIds.String,
                 ValueRank = ValueRanks.Scalar,
                 ArrayDimensions = Array.Empty<uint>(),
@@ -204,7 +204,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             field = new StructureField
             {
                 Name = "Model",
-                Description = new LocalizedText("The model"),
+                Description = LocalizedText.From("The model"),
                 DataType = DataTypeIds.String,
                 ValueRank = ValueRanks.Scalar,
                 ArrayDimensions = Array.Empty<uint>(),
@@ -215,7 +215,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             field = new StructureField
             {
                 Name = "Engine",
-                Description = new LocalizedText("The engine"),
+                Description = LocalizedText.From("The engine"),
                 DataType = DataTypeIds.String,
                 ValueRank = ValueRanks.Scalar,
                 ArrayDimensions = Array.Empty<uint>(),
@@ -226,7 +226,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             field = new StructureField
             {
                 Name = "NoOfPassengers",
-                Description = new LocalizedText("The number of passengers"),
+                Description = LocalizedText.From("The number of passengers"),
                 DataType = DataTypeIds.UInt32,
                 ValueRank = ValueRanks.Scalar,
                 ArrayDimensions = Array.Empty<uint>(),
@@ -240,7 +240,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 NodeId = new NodeId(nodeId++, nameSpaceIndex),
                 NodeClass = NodeClass.DataType,
                 BrowseName = new QualifiedName("CarType", nameSpaceIndex),
-                DisplayName = new LocalizedText("CarType"),
+                DisplayName = LocalizedText.From("CarType"),
                 IsAbstract = false,
                 DataTypeDefinition = new ExtensionObject(structure)
             };
@@ -252,8 +252,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 {
                     NodeId = new NodeId(nodeId++, nameSpaceIndex),
                     ReferenceTypeId = new NodeId(nodeId++, nameSpaceIndex),
-                    BrowseName = encodingName,
-                    DisplayName = new LocalizedText("MockType_" + encodingName),
+                    BrowseName = QualifiedName.From(encodingName),
+                    DisplayName = LocalizedText.From("MockType_" + encodingName),
                     IsForward = true,
                     NodeClass = NodeClass.Object
                 };
@@ -361,7 +361,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var field = new StructureField
             {
                 Name = "ArrayOfInteger",
-                Description = new LocalizedText("Array of Integer"),
+                Description = LocalizedText.From("Array of Integer"),
                 DataType = DataTypeIds.Int32,
                 ValueRank = ValueRanks.OneDimension,
                 ArrayDimensions = Array.Empty<uint>(),
@@ -373,7 +373,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             field = new StructureField
             {
                 Name = "Array2DOfInteger",
-                Description = new LocalizedText("2D Array of Integer"),
+                Description = LocalizedText.From("2D Array of Integer"),
                 DataType = DataTypeIds.Int32,
                 ValueRank = ValueRanks.TwoDimensions,
                 ArrayDimensions = Array.Empty<uint>(),
@@ -385,7 +385,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             field = new StructureField
             {
                 Name = "Array3DOfInteger",
-                Description = new LocalizedText("3D Array of Integer"),
+                Description = LocalizedText.From("3D Array of Integer"),
                 DataType = DataTypeIds.Int32,
                 ValueRank = 3,
                 ArrayDimensions = Array.Empty<uint>(),
@@ -397,7 +397,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             field = new StructureField
             {
                 Name = "ArrayOfNamingRuleType",
-                Description = new LocalizedText("Array of NamingRuleType"),
+                Description = LocalizedText.From("Array of NamingRuleType"),
                 DataType = DataTypeIds.NamingRuleType,
                 ValueRank = ValueRanks.OneDimension,
                 ArrayDimensions = Array.Empty<uint>(),
@@ -409,7 +409,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             field = new StructureField
             {
                 Name = "Array2DOfNamingRuleType",
-                Description = new LocalizedText("Array 2D of NamingRuleType"),
+                Description = LocalizedText.From("Array 2D of NamingRuleType"),
                 DataType = DataTypeIds.NamingRuleType,
                 ValueRank = ValueRanks.TwoDimensions,
                 ArrayDimensions = Array.Empty<uint>(),
@@ -421,7 +421,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             field = new StructureField
             {
                 Name = "Array3DOfNamingRuleType",
-                Description = new LocalizedText("Array 3D of NamingRuleType"),
+                Description = LocalizedText.From("Array 3D of NamingRuleType"),
                 DataType = DataTypeIds.NamingRuleType,
                 ValueRank = 3,
                 ArrayDimensions = Array.Empty<uint>(),
@@ -435,7 +435,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 NodeId = new NodeId(nodeId++, nameSpaceIndex),
                 NodeClass = NodeClass.DataType,
                 BrowseName = new QualifiedName("ArrayTypes", nameSpaceIndex),
-                DisplayName = new LocalizedText("ArrayTypes"),
+                DisplayName = LocalizedText.From("ArrayTypes"),
                 IsAbstract = false,
                 DataTypeDefinition = new ExtensionObject(structure)
             };
@@ -447,8 +447,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 {
                     NodeId = new NodeId(nodeId++, nameSpaceIndex),
                     ReferenceTypeId = new NodeId(nodeId++, nameSpaceIndex),
-                    BrowseName = encodingName,
-                    DisplayName = new LocalizedText("MockType_" + encodingName),
+                    BrowseName = QualifiedName.From(encodingName),
+                    DisplayName = LocalizedText.From("MockType_" + encodingName),
                     IsForward = true,
                     NodeClass = NodeClass.Object
                 };
@@ -610,7 +610,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var field = new StructureField
             {
                 Name = arrayPrefix + seperator + typeName,
-                Description = new LocalizedText(arrayPrefix + " " + seperator + " " + typeName),
+                Description = LocalizedText.From(arrayPrefix + " " + seperator + " " + typeName),
                 DataType = typeDescription.TypeId,
                 ValueRank = valueRank,
                 ArrayDimensions = Array.Empty<uint>(),
@@ -624,7 +624,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 NodeId = new NodeId(nodeId++, nameSpaceIndex),
                 NodeClass = NodeClass.DataType,
                 BrowseName = new QualifiedName(field.Name + "TestType", nameSpaceIndex),
-                DisplayName = new LocalizedText(field.Description + " Test Type"),
+                DisplayName = LocalizedText.From(field.Description + " Test Type"),
                 IsAbstract = false,
                 DataTypeDefinition = new ExtensionObject(structure)
             };
@@ -636,8 +636,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 {
                     NodeId = new NodeId(nodeId++, nameSpaceIndex),
                     ReferenceTypeId = new NodeId(nodeId++, nameSpaceIndex),
-                    BrowseName = encodingName,
-                    DisplayName = new LocalizedText("MockType_" + encodingName),
+                    BrowseName = QualifiedName.From(encodingName),
+                    DisplayName = LocalizedText.From("MockType_" + encodingName),
                     IsForward = true,
                     NodeClass = NodeClass.Object
                 };

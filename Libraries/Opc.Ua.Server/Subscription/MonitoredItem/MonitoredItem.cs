@@ -243,7 +243,7 @@ namespace Opc.Ua.Server
             AttributeId = 0;
             m_indexRange = null;
             m_parsedIndexRange = NumericRange.Empty;
-            DataEncoding = null;
+            DataEncoding = default;
             ClientHandle = 0;
             MonitoringMode = MonitoringMode.Disabled;
             m_samplingInterval = 0;

@@ -88,7 +88,15 @@ namespace Opc.Ua
         /// Initializes the exception with a status code and a message.
         /// </summary>
         public ServiceResultException(StatusCode statusCode, string message)
-            : base(message)
+            : this(statusCode, LocalizedText.From(message))
+        {
+        }
+
+        /// <summary>
+        /// Initializes the exception with a status code and a message.
+        /// </summary>
+        public ServiceResultException(StatusCode statusCode, LocalizedText message)
+            : base(message.Text)
         {
             Result = new ServiceResult(statusCode, message);
         }
@@ -106,16 +114,24 @@ namespace Opc.Ua
         /// Initializes the exception with a status code, a message and an inner exception.
         /// </summary>
         public ServiceResultException(StatusCode statusCode, string message, Exception e)
-            : base(message, e)
+            : this(statusCode, LocalizedText.From(message), e)
         {
-            Result = new ServiceResult(message, statusCode, e);
+        }
+
+        /// <summary>
+        /// Initializes the exception with a status code, a message and an inner exception.
+        /// </summary>
+        public ServiceResultException(StatusCode statusCode, LocalizedText message, Exception e)
+            : base(message.Text, e)
+        {
+            Result = new ServiceResult(statusCode, message, e);
         }
 
         /// <summary>
         /// Initializes the exception with a Result object.
         /// </summary>
         public ServiceResultException(ServiceResult status)
-            : base(GetMessage(status), status.InnerResult != null ? status.InnerResult.GetServiceResultException() : null)
+            : base(GetMessage(status), status.InnerResult?.GetServiceResultException())
         {
             Result = status ?? ServiceResult.Bad;
         }
