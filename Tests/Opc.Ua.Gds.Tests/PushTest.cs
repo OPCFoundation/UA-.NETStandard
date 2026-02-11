@@ -1312,7 +1312,7 @@ namespace Opc.Ua.Gds.Tests
 
             // initialize cert revocation list (CRL)
             X509CRL caCrl = await CertificateGroup
-                .RevokeCertificateAsync(certificateStoreIdentifier, m_caCert, null, m_telemetry)
+                .LoadCrlCreateEmptyIfNonExistantAsync(m_caCert, certificateStoreIdentifier, telemetry)
                 .ConfigureAwait(false);
             Assert.That(caCrl, Is.Not.Null);
         }

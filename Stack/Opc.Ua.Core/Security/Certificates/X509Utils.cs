@@ -907,6 +907,40 @@ namespace Opc.Ua
         }
 
         /// <summary>e
+        /// Extension to add a crl to a <see cref="ICertificateStore"/>.
+        /// </summary>
+        /// <param name="crl">The crl to store.</param>
+        /// <param name="storeIdentifier">Type of certificate store (Directory) <see cref="CertificateStoreType"/>.</param>
+        /// <param name="telemetry">Telemetry context to use</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <exception cref="ArgumentException">e.g. Invalid store type</exception>
+        public static async Task<X509CRL> AddToStoreAsync(
+            this X509CRL crl,
+            CertificateStoreIdentifier storeIdentifier,
+            ITelemetryContext telemetry = null,
+            CancellationToken ct = default)
+        {
+            // add cert to the store.
+            if (storeIdentifier != null)
+            {
+                ICertificateStore store = storeIdentifier.OpenStore(telemetry);
+                try
+                {
+                    if (store == null)
+                    {
+                        throw new ArgumentException("Invalid store type");
+                    }
+                    await store.AddCRLAsync(crl, ct).ConfigureAwait(false);
+                }
+                finally
+                {
+                    store?.Close();
+                }
+            }
+            return crl;
+        }
+
+        /// <summary>e
         /// Extension to add a certificate to a <see cref="ICertificateStore"/>.
         /// </summary>
         /// <remarks>
@@ -918,7 +952,7 @@ namespace Opc.Ua
         /// <param name="password">The password to use to protect the certificate.</param>
         /// <param name="telemetry">Telemetry context to use</param>
         /// <param name="ct">The cancellation token.</param>
-        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ArgumentException">e.g. invalid store type</exception>
         public static async Task<X509Certificate2> AddToStoreAsync(
             this X509Certificate2 certificate,
             CertificateStoreIdentifier storeIdentifier,
