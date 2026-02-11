@@ -109,7 +109,7 @@ namespace Opc.Ua.SourceGeneration
         /// <returns></returns>
         private bool CheckCompilationOptions(out StackGenerationType type)
         {
-            if (m_compilationOptions.LanguageVersion < (LanguageVersion)1400)
+            if (m_compilationOptions.LanguageVersion < LanguageVersion.CSharp13) // TODO: Change to latest CA when available
             {
                 type = StackGenerationType.None;
                 m_context.ReportDiagnostic(
