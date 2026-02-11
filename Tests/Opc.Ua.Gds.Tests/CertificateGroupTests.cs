@@ -142,6 +142,82 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
+        public async Task Test_Ca_Empty_Crl_Can_Be_Created_And_Is_Loaded()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var configuration = new CertificateGroupConfiguration
+            {
+                SubjectName = "CN=GDS Test CA, O=OPC Foundation",
+                BaseStorePath = m_path,
+                CertificateTypes = [nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)]
+            };
+            var certificateGroup = new CertificateGroup(telemetry).Create(
+                m_path + "/authorities",
+                configuration);
+            var certificateStoreIdentifier = new CertificateStoreIdentifier(
+                configuration.TrustedListPath);
+            var store = certificateStoreIdentifier.OpenStore(telemetry);
+            var authStore = certificateGroup.AuthoritiesStore.OpenStore(telemetry);
+            try
+            {
+                var crls = await store.EnumerateCRLsAsync().ConfigureAwait(false);
+                if(crls != null)
+                {
+                    foreach (var crl in crls)
+                    {
+                        await store.DeleteCRLAsync(crl).ConfigureAwait(false);
+                    }
+                }
+                X509Certificate2 certificate = await certificateGroup
+                    .CreateCACertificateAsync(
+                        configuration.SubjectName,
+                        certificateGroup.CertificateTypes[0])
+                    .ConfigureAwait(false);
+                Assert.NotNull(certificate);
+                crls = await store.EnumerateCRLsAsync().ConfigureAwait(false);
+                Assert.IsNotNull(crls);
+                Assert.That(crls.Count, Is.EqualTo(1));
+                var crl2 = await CertificateGroup
+                    .LoadCrlCreateEmptyIfNonExistantAsync(certificate, certificateStoreIdentifier, telemetry)
+                    .ConfigureAwait(false);
+                Assert.IsNotNull(crl2);
+                Assert.That(crls.First().RawData.SequenceEqual(crl2.RawData));
+                var id = new CertificateIdentifier
+                {
+                    Thumbprint = certificate.Thumbprint,
+                    StorePath = authStore.StorePath,
+                    StoreType = authStore.StoreType
+                };
+                var authCert = id.LoadPrivateKeyAsync(null).GetAwaiter().GetResult();
+                var signedCert = CertificateBuilder.Create("CN=signedCert")
+               .SetIssuer(authCert)
+               .CreateForRSA();
+                await store.AddAsync(signedCert).ConfigureAwait(false);
+                var crlWithRevokedCert = await certificateGroup.RevokeCertificateAsync(signedCert).ConfigureAwait(false);
+                Assert.NotNull(crlWithRevokedCert);
+                Assert.That(crlWithRevokedCert.RevokedCertificates.Any(el => el.SerialNumber == signedCert.SerialNumber));
+                var crlWithRevokedCert2 = await CertificateGroup
+                    .LoadCrlCreateEmptyIfNonExistantAsync(certificate, certificateStoreIdentifier, telemetry)
+                    .ConfigureAwait(false);
+                Assert.That(crlWithRevokedCert.RawData.SequenceEqual(crlWithRevokedCert2.RawData));
+            }
+            finally
+            {
+                authStore.Close();
+                store.Close();
+            }
+        }
+
+        [Test]
+        public async Task Test_Ca_Empty_Crl_Can_Be_Created()
+        {
+            var ca = CertificateBuilder.Create("CN=TestCA").SetCAConstraint().CreateForRSA();
+            var crl = await CertificateGroup.CreateEmptyCrlAsync(ca).ConfigureAwait(false);
+            Assert.That(crl, Is.Not.Null);
+            Assert.That(crl.RevokedCertificates.Count, Is.EqualTo(0));
+        }
+
+        [Test]
         public async Task Test_Issuer_CA_Can_Be_Revoked()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
