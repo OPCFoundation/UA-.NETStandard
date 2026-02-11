@@ -128,7 +128,7 @@ namespace Opc.Ua.SourceGeneration
                 "{0}.NodeStates.ex.g.cs",
                 nsPrefix));
             using TextWriter writer = m_context.FileSystem.CreateTextWriter(fileName);
-            var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer);
             var template = new Template(
                 templateWriter,
                 NodeStateTemplates.Extensions_File);
@@ -1698,9 +1698,7 @@ namespace Opc.Ua.SourceGeneration
                 variableType.ValueRank.GetArrayDimensionsAsCode(
                     variableType.ArrayDimensions) ??
                 "default");
-            context.Template.AddReplacement(
-                Tokens.IsAbstract,
-                variableType.IsAbstract);
+            context.Template.AddReplacement(Tokens.IsAbstract, variableType.IsAbstract);
             context.Template.AddReplacement(
                 Tokens.AccessLevelValue,
                 variableType.AccessLevel.GetAccessLevelAsCode());
@@ -1742,8 +1740,7 @@ namespace Opc.Ua.SourceGeneration
         {
             AddNodeStateClassTypeReplacements(context, objectType);
             context.Template.AddReplacement(Tokens.BaseT, string.Empty);
-            context.Template.AddReplacement(Tokens.IsAbstract,
-                objectType.IsAbstract);
+            context.Template.AddReplacement(Tokens.IsAbstract, objectType.IsAbstract);
             context.Template.AddReplacement(Tokens.EventNotifier,
                 objectType.GetEventNotifierAsCode());
         }

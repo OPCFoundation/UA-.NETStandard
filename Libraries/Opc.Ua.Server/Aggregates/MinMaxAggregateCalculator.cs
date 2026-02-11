@@ -245,13 +245,13 @@ namespace Opc.Ua.Server
             // set calculated if not returning actual time and value is not at the start time.
             if (!returnActualTime && processedTimestamp != slice.StartTime)
             {
-                statusCode = statusCode.SetAggregateBits(AggregateBits.Calculated);
+                statusCode = statusCode.WithAggregateBits(AggregateBits.Calculated);
             }
 
             // set the multiple values flags.
             if (duplicatesExist)
             {
-                statusCode = statusCode.SetAggregateBits(
+                statusCode = statusCode.WithAggregateBits(
                     statusCode.AggregateBits | AggregateBits.MultipleValues);
             }
 
@@ -388,7 +388,7 @@ namespace Opc.Ua.Server
                 if (slice.Partial)
                 {
                     noDataValue.StatusCode =
-                        noDataValue.StatusCode.SetAggregateBits(AggregateBits.Partial);
+                        noDataValue.StatusCode.WithAggregateBits(AggregateBits.Partial);
                 }
                 return noDataValue;
             }
@@ -430,14 +430,14 @@ namespace Opc.Ua.Server
                 processedTimestamp != slice.StartTime &&
                 (statusCode.AggregateBits & AggregateBits.Interpolated) == 0)
             {
-                statusCode = statusCode.SetAggregateBits(
+                statusCode = statusCode.WithAggregateBits(
                     statusCode.AggregateBits | AggregateBits.Calculated);
             }
 
             // set the multiple values flags.
             if (duplicatesExist)
             {
-                statusCode = statusCode.SetAggregateBits(
+                statusCode = statusCode.WithAggregateBits(
                     statusCode.AggregateBits | AggregateBits.MultipleValues);
             }
 
@@ -475,14 +475,14 @@ namespace Opc.Ua.Server
                     if (processedTimestamp == slice.StartTime)
                     {
                         processedTimestamp = processedTimestamp.AddMilliseconds(+1);
-                        value.StatusCode = value.StatusCode.SetAggregateBits(
+                        value.StatusCode = value.StatusCode.WithAggregateBits(
                             value.StatusCode.AggregateBits | AggregateBits.Interpolated);
                     }
                 }
                 else if (processedTimestamp == slice.EndTime)
                 {
                     processedTimestamp = processedTimestamp.AddMilliseconds(-1);
-                    value.StatusCode = value.StatusCode.SetAggregateBits(
+                    value.StatusCode = value.StatusCode.WithAggregateBits(
                         value.StatusCode.AggregateBits | AggregateBits.Interpolated);
                 }
 

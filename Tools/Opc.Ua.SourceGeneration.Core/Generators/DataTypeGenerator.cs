@@ -514,9 +514,9 @@ namespace Opc.Ua.SourceGeneration
                 }
             }
 
-            context.Template.AddReplacement(
-                Tokens.IsAbstract,
-                dataType.IsAbstract ? string.Empty : string.Empty);
+            // TODO: context.Template.AddReplacement(
+            // TODO:     Tokens.IsAbstract,
+            // TODO:     dataType.IsAbstract ? "abstract " : string.Empty);
 
             if (!dataType.IsOptionSet)
             {
@@ -1431,7 +1431,9 @@ namespace Opc.Ua.SourceGeneration
                 }
                 uniqueName = resourceName + i;
             }
-            throw new InvalidOperationException("Unexpected duplicate resource names");
+            throw new InvalidOperationException(
+                $"Unexpected duplicate resource name {resourceName}. " +
+                "This happens if more than 1000 resources have the same base name.");
         }
 
         /// <summary>

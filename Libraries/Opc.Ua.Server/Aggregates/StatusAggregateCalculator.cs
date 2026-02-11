@@ -137,7 +137,7 @@ namespace Opc.Ua.Server
                 SourceTimestamp = GetTimestamp(slice),
                 ServerTimestamp = GetTimestamp(slice)
             };
-            value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
+            value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
 
             // return result.
             return value;
@@ -206,12 +206,12 @@ namespace Opc.Ua.Server
                 SourceTimestamp = GetTimestamp(slice),
                 ServerTimestamp = GetTimestamp(slice)
             };
-            value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
+            value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
 
             if ((StatusCode.IsBad(worstQuality) && badQualityCount > 1) ||
                 (StatusCode.IsUncertain(worstQuality) && uncertainQualityCount > 1))
             {
-                value.StatusCode = value.StatusCode.SetAggregateBits(
+                value.StatusCode = value.StatusCode.WithAggregateBits(
                     value.StatusCode.AggregateBits | AggregateBits.MultipleValues);
             }
 

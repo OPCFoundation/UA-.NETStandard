@@ -154,4 +154,67 @@ namespace Opc.Ua
             }
         }
     }
+
+    /// <summary>
+    /// Status code extensions
+    /// </summary>
+    public static class StatusCodeExtensions
+    {
+        extension(StatusCode statusCode)
+        {
+            /// <summary>
+            /// Set code bits
+            /// </summary>
+            [Obsolete("Use StatusCode.WithCodeBits instead.")]
+            public StatusCode SetCodeBits(uint bits)
+            {
+                return statusCode.WithCodeBits(bits);
+            }
+
+            /// <summary>
+            /// Set code bits
+            /// </summary>
+            [Obsolete("Use StatusCode.WithCodeBits instead.")]
+            public StatusCode SetCodeBits(StatusCode code)
+            {
+                return statusCode.WithCodeBits(code);
+            }
+
+            /// <summary>
+            /// Set flag bits
+            /// </summary>
+            [Obsolete("Use StatusCode.WithFlagBits instead.")]
+            public StatusCode SetFlagBits(uint bits)
+            {
+                return statusCode.WithFlagBits(bits);
+            }
+
+            /// <summary>
+            /// Set Limit bits
+            /// </summary>
+            [Obsolete("Use StatusCode.WithLimitBits instead.")]
+            public StatusCode SetLimitBits(LimitBits bits)
+            {
+                return statusCode.WithLimitBits(bits);
+            }
+
+            /// <summary>
+            /// Set Limit bits
+            /// </summary>
+            [Obsolete("Use StatusCode.WithAggregateBits instead.")]
+            public StatusCode SetAggregateBits(AggregateBits bits)
+            {
+                return statusCode.WithAggregateBits(bits);
+            }
+
+            /// <summary>
+            /// Set sub code
+            /// </summary>
+            [Obsolete("Use StatusCode.WithSubCode instead.")]
+            public StatusCode SetSubCode(uint subCode)
+            {
+                return statusCode.WithSubCode(subCode);
+            }
+        }
+    }
 }

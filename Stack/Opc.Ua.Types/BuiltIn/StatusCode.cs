@@ -35,6 +35,7 @@ using System.Runtime.Serialization;
 using System.Text;
 using Opc.Ua.Types;
 using System.Text.Json.Serialization;
+using System.Diagnostics.Contracts;
 
 #if NET8_0_OR_GREATER
 using System.Collections.Frozen;
@@ -248,6 +249,7 @@ namespace Opc.Ua
         /// Returns a copy of the status code with the Code but
         /// current symbolic id.
         /// </summary>
+        [Pure]
         public StatusCode SetCode(uint code)
         {
             return new StatusCode(code, SymbolicId);
@@ -270,7 +272,8 @@ namespace Opc.Ua
         /// <param name="bits">The value for the Code bits.</param>
         /// <returns>The status code with the Code bits set to the
         /// specified values.</returns>
-        public StatusCode SetCodeBits(uint bits)
+        [Pure]
+        public StatusCode WithCodeBits(uint bits)
         {
             uint code = Code;
             code &= 0x0000FFFF;
@@ -286,7 +289,8 @@ namespace Opc.Ua
         /// </param>
         /// <returns>The status code with the Code bits set to the
         /// specified values.</returns>
-        public StatusCode SetCodeBits(StatusCode statusCode)
+        [Pure]
+        public StatusCode WithCodeBits(StatusCode statusCode)
         {
             uint code = Code;
             code &= 0x0000FFFF;
@@ -308,7 +312,8 @@ namespace Opc.Ua
         /// <param name="bits">The value for the Flag bits.</param>
         /// <returns>The status code with the Flag bits set to the
         /// specified values.</returns>
-        public StatusCode SetFlagBits(uint bits)
+        [Pure]
+        public StatusCode WithFlagBits(uint bits)
         {
             uint code = Code;
             code &= 0xFFFF0000;
@@ -327,7 +332,8 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a copy of the status code with the sub code set.
         /// </summary>
-        public StatusCode SetSubCode(uint subCode)
+        [Pure]
+        public StatusCode WithSubCode(uint subCode)
         {
             return new StatusCode(0x0FFF0000 & subCode, SymbolicId);
         }
@@ -345,6 +351,7 @@ namespace Opc.Ua
         /// bit.</param>
         /// <returns>The status code with the StructureChanged bit set to
         /// the specified value.</returns>
+        [Pure]
         public StatusCode SetStructureChanged(bool structureChanged)
         {
             uint code = Code;
@@ -373,6 +380,7 @@ namespace Opc.Ua
         /// bit.</param>
         /// <returns>The status code with the SemanticsChanged bit set to
         /// the specified value.</returns>
+        [Pure]
         public StatusCode SetSemanticsChanged(bool semanticsChanged)
         {
             uint code = Code;
@@ -397,6 +405,7 @@ namespace Opc.Ua
         /// </summary>
         /// <returns>The status code with the bits set to specify
         /// data value</returns>
+        [Pure]
         public StatusCode SetHasDataValueInfo(bool value)
         {
             uint code = Code;
@@ -430,7 +439,8 @@ namespace Opc.Ua
         /// <param name="bits">The value for the limits bits</param>
         /// <returns>The status code with the limit bits set to the
         /// specified values.</returns>
-        public StatusCode SetLimitBits(LimitBits bits)
+        [Pure]
+        public StatusCode WithLimitBits(LimitBits bits)
         {
             uint code = Code;
             code |= kDataValueInfoType;
@@ -459,6 +469,7 @@ namespace Opc.Ua
         /// <param name="overflow">The value for the overflow bit.</param>
         /// <returns>The status code with the overflow bit set to the
         /// specified value.</returns>
+        [Pure]
         public StatusCode SetOverflow(bool overflow)
         {
             uint code = Code;
@@ -488,7 +499,8 @@ namespace Opc.Ua
         /// <param name="bits">The bits to set.</param>
         /// <returns>The status code with the aggregate bits set to the
         /// specified values.</returns>
-        public StatusCode SetAggregateBits(AggregateBits bits)
+        [Pure]
+        public StatusCode WithAggregateBits(AggregateBits bits)
         {
             uint code = Code;
             code |= kDataValueInfoType;

@@ -81,11 +81,11 @@ In some cases it is desirable to gain access to what was returned from the now o
 - `ExpandedNodeId(string text)` -> `ExpandedNodeId.Parse(string)`
 - `ExpandedNodeId(object identifier, ushort namespaceIndex, string namespaceUri, uint serverIndex)` -> typed constructors: `new ExpandedNodeId(uint|Guid|string|byte[], ushort, string, uint)`
 - `ExpandedNodeId.Identifier` -> `TryGetIdentifier(out uint|string|Guid|byte[])` or `IdentifierAsString`
-- `NodeIdExtensions.IsNull(NodeId)` -> `NodeId.IsNullNodeId`
+- `NodeIdExtensions.IsNull(NodeId)` -> `NodeId.IsNull`
 - `NodeIdExtensions.IsNull(ExpandedNodeId)` -> `ExpandedNodeId.IsNull`
-- `QualifiedNameExtensions.IsNull(QualifiedName)` -> `QualifiedName.IsNullQn`
+- `QualifiedNameExtensions.IsNull(QualifiedName)` -> `QualifiedName.IsNull`
 - `LocalizedTextExtensions.IsNullOrEmpty(LocalizedText)` -> `LocalizedText.IsNullOrEmpty`
-- `QualifiedName.IsNull(QualifiedName)` -> use `QualifiedName.IsNullQn`
+- `QualifiedName.IsNull(QualifiedName)` -> use `QualifiedName.IsNull`
 - `ExtensionObject.IsNull(ExtensionObject)` -> use `ExtensionObject.IsNull`
 - Implicit cast from `string` or `byte[]` to `NodeId`/`ExpandedNodeId` -> use explicit cast or `From()` API
 - Implicit cast from `string` to `LocalizedText`/`QualifiedName` -> use explicit cast or `From()` API
@@ -100,6 +100,9 @@ In some cases it is desirable to gain access to what was returned from the now o
   - `ExtensionObject.Body`/`ExtensionObject.TypeId` -> constructors and `WithTypeId(...)`
   - `NodeId.NamespaceIndex`/`NodeId.IdType`/`NodeId.Identifier` setters -> use constructors or `WithIdentifier(...)`
 - Implicit cast operator of type string to NodeId/ExpandedNodeId -> use Parse/TryParse
+- `WriteGuid(string, Guid)` -> use `WriteGuid(string, Uuid)`
+- `WriteGuidArray(string, IList<Guid>)` -> use `WriteGuidArray(string, IList<Uuid>)`
+- new `Variant(Guid)` -> use `Variant.From(Uuid)` or `new Variant(Uuid)`
 
 ### Node State handling
 

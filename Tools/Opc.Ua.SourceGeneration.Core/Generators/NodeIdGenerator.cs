@@ -56,7 +56,7 @@ namespace Opc.Ua.SourceGeneration
             if (identifiers.Count == 0)
             {
                 // Nothing to do
-                return null;
+                return [];
             }
             string fileName = Path.Combine(m_context.OutputFolder, CoreUtils.Format(
                 "{0}.Identifiers.g.cs",

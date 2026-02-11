@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Globalization;
 using System.Runtime.Serialization;
 using System.Text;
@@ -1043,6 +1044,7 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the namespace index.
         /// </summary>
+        [Pure]
         public NodeId WithNamespaceIndex(ushort value)
         {
             if (IsNull)
@@ -1073,6 +1075,7 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the identifier.
         /// </summary>
+        [Pure]
         public NodeId WithIdentifier(uint value)
         {
             return new NodeId(value, NamespaceIndex);
@@ -1081,6 +1084,7 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the identifier.
         /// </summary>
+        [Pure]
         public NodeId WithIdentifier(string value)
         {
             return new NodeId(value, NamespaceIndex);
@@ -1089,6 +1093,7 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the identifier.
         /// </summary>
+        [Pure]
         public NodeId WithIdentifier(byte[] value)
         {
             return new NodeId(value, NamespaceIndex);
@@ -1097,6 +1102,7 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the identifier.
         /// </summary>
+        [Pure]
         public NodeId WithIdentifier(Guid value)
         {
             return new NodeId(value, NamespaceIndex);

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Runtime.Serialization;
 using System.Text;
 using Opc.Ua.Types;
@@ -107,6 +108,7 @@ namespace Opc.Ua
         /// <summary>
         /// Create a new QualifiedName with the specified NamespaceIndex
         /// </summary>
+        [Pure]
         public QualifiedName WithNamespaceIndex(ushort namespaceIndex)
         {
             return new QualifiedName(Name, namespaceIndex);
@@ -115,6 +117,7 @@ namespace Opc.Ua
         /// <summary>
         /// Create a new QualifiedName with the specified Name
         /// </summary>
+        [Pure]
         public QualifiedName WithName(string name)
         {
             return new QualifiedName(name, NamespaceIndex);
