@@ -908,7 +908,18 @@ namespace Opc.Ua
                     else
                     {
                         // ensure a security policy is specified for user tokens.
-                        clone.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+                        if (configuration.SecurityConfiguration.SupportedSecurityPolicies.Contains(SecurityPolicies.Basic256Sha256))
+                        {
+                            clone.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+                        }
+                        else if (configuration.SecurityConfiguration.SupportedSecurityPolicies.Contains(SecurityPolicies.ECC_nistP256))
+                        {
+                            clone.SecurityPolicyUri = SecurityPolicies.ECC_nistP256;
+                        }
+                        else
+                        {
+                            clone.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+                        }
                     }
                 }
 
