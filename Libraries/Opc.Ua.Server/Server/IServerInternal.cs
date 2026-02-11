@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server
 {
@@ -171,6 +172,11 @@ namespace Opc.Ua.Server
         /// The server's telemetry context
         /// </summary>
         ITelemetryContext Telemetry { get; }
+
+        /// <summary>
+        /// Provides access to the certificate types supported by the server.
+        /// </summary>
+        CertificateTypesProvider InstanceCertificateProvider { get; }
 
         /// <summary>
         /// Whether the server is currently running.

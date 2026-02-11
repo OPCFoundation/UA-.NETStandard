@@ -885,6 +885,16 @@ namespace Opc.Ua
 
             foreach (UserTokenPolicy policy in configuration.ServerConfiguration.UserTokenPolicies)
             {
+                if (policy.SecurityPolicyUri != null &&
+                    !configuration.SecurityConfiguration.SupportedSecurityPolicies.Contains(policy.SecurityPolicyUri))
+                {
+                    m_logger.LogWarning(
+                        "The UserTokenPolicy {Policy} specifies a security policy {SecurityPolicyUri} that is not supported by the server. " +
+                        "Please check if all necessary application certificates are configured",
+                        policy.ToString(),
+                        policy.SecurityPolicyUri);
+                }
+
                 var clone = (UserTokenPolicy)policy.Clone();
 
                 if (string.IsNullOrEmpty(policy.SecurityPolicyUri) &&

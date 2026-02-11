@@ -78,7 +78,7 @@ namespace Opc.Ua.Server
             m_serverDescription = serverDescription;
             m_configuration = configuration;
             MessageContext = messageContext;
-
+            InstanceCertificateProvider = instanceCertificateProvider;
             m_endpointAddresses = [];
 
             foreach (string baseAddresses in m_configuration.ServerConfiguration.BaseAddresses)
@@ -245,6 +245,11 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <value>The message context.</value>
         public IServiceMessageContext MessageContext { get; }
+
+        /// <summary>
+        /// Provides access to the certificate types supported by the server.
+        /// </summary>
+        public CertificateTypesProvider InstanceCertificateProvider { get; }
 
         /// <summary>
         /// The default system context for the server.

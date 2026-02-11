@@ -1288,7 +1288,7 @@ namespace Opc.Ua.Client
                 identityToken.Encrypt(
                     serverCertificate,
                     serverNonce,
-                    m_userTokenSecurityPolicyUri,
+                    m_endpoint.Description.SecurityPolicyUri,
                     MessageContext,
                     m_eccServerEphemeralKey,
                     m_instanceCertificate,
@@ -1440,7 +1440,8 @@ namespace Opc.Ua.Client
                 m_endpoint.Description.FindUserTokenPolicy(
                     identity.TokenType,
                     identity.IssuedTokenType,
-                    securityPolicyUri)
+                    securityPolicyUri,
+                    [.. m_configuration.SecurityConfiguration.SupportedSecurityPolicies])
                 ?? throw ServiceResultException.Create(
                     StatusCodes.BadIdentityTokenRejected,
                     "Endpoint does not support the user identity type provided.");
@@ -2321,7 +2322,8 @@ namespace Opc.Ua.Client
                 UserTokenPolicy identityPolicy = endpoint.FindUserTokenPolicy(
                     m_identity.TokenType,
                     m_identity.IssuedTokenType,
-                    endpoint.SecurityPolicyUri);
+                    endpoint.SecurityPolicyUri,
+                    [.. m_configuration.SecurityConfiguration.SupportedSecurityPolicies]);
 
                 if (identityPolicy == null)
                 {
@@ -3779,7 +3781,7 @@ namespace Opc.Ua.Client
 
             // check that the user identity is supported by the endpoint.
             identityPolicy = m_endpoint.Description
-                .FindUserTokenPolicy(identityToken.PolicyId, securityPolicyUri);
+                .FindUserTokenPolicy(identityToken.PolicyId);
 
             if (identityPolicy == null)
             {
@@ -3787,7 +3789,8 @@ namespace Opc.Ua.Client
                 identityPolicy = m_endpoint.Description.FindUserTokenPolicy(
                     identity.TokenType,
                     identity.IssuedTokenType,
-                    securityPolicyUri);
+                    securityPolicyUri,
+                    [.. m_configuration.SecurityConfiguration.SupportedSecurityPolicies]);
 
                 if (identityPolicy == null)
                 {
@@ -4767,10 +4770,17 @@ namespace Opc.Ua.Client
             string? endpointSecurityPolicyUri)
         {
             var requestHeader = new RequestHeader();
+
+            if (!EccUtils.IsEccPolicy(endpointSecurityPolicyUri))
+            {
+                // No need to add additional parameters if not using an ECC policy
+                return requestHeader;
+            }
+
             string? userTokenSecurityPolicyUri = identityTokenSecurityPolicyUri;
             if (string.IsNullOrEmpty(userTokenSecurityPolicyUri))
             {
-                userTokenSecurityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
+                userTokenSecurityPolicyUri = endpointSecurityPolicyUri;
             }
             m_userTokenSecurityPolicyUri = userTokenSecurityPolicyUri;
 

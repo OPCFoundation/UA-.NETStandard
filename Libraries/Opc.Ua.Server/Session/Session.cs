@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server
 {
@@ -90,6 +91,7 @@ namespace Opc.Ua.Server
             m_serverNonce = serverNonce;
             m_sessionName = sessionName;
             m_serverCertificate = serverCertificate;
+            m_certificateTypesProvider = server.InstanceCertificateProvider;
             ClientCertificate = clientCertificate;
 
             m_clientIssuerCertificates = clientCertificateChain;
@@ -314,7 +316,7 @@ namespace Opc.Ua.Server
 
                 key.Signature = EccUtils.Sign(
                     new ArraySegment<byte>(key.PublicKey),
-                    m_serverCertificate,
+                    m_certificateTypesProvider.GetInstanceCertificate(m_eccUserTokenSecurityPolicyUri),
                     m_eccUserTokenSecurityPolicyUri);
 
                 return key;
@@ -883,8 +885,7 @@ namespace Opc.Ua.Server
                     }
 
                     policy = EndpointDescription.FindUserTokenPolicy(
-                        newToken.PolicyId,
-                        EndpointDescription.SecurityPolicyUri);
+                        newToken.PolicyId);
                     if (policy == null)
                     {
                         throw ServiceResultException.Create(
@@ -951,8 +952,7 @@ namespace Opc.Ua.Server
 
             // find the user token policy.
             policy = EndpointDescription.FindUserTokenPolicy(
-                token.PolicyId,
-                EndpointDescription.SecurityPolicyUri);
+                token.PolicyId);
 
             if (policy == null)
             {
@@ -977,27 +977,21 @@ namespace Opc.Ua.Server
 
             if (ServerBase.RequireEncryption(EndpointDescription))
             {
+                X509Certificate2 certificate = m_certificateTypesProvider.GetInstanceCertificate(EndpointDescription.SecurityPolicyUri);
                 // decrypt the token.
-                if (m_serverCertificate == null)
+                if (certificate == null)
                 {
-                    m_serverCertificate = X509CertificateLoader.LoadCertificate(
-                        EndpointDescription.ServerCertificate);
-
-                    // check for valid certificate.
-                    if (m_serverCertificate == null)
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadConfigurationError,
-                            "ApplicationCertificate cannot be found.");
-                    }
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "ApplicationCertificate cannot be found.");
                 }
 
                 try
                 {
                     token.Decrypt(
-                        m_serverCertificate,
+                        certificate,
                         m_serverNonce,
-                        securityPolicyUri,
+                        EndpointDescription.SecurityPolicyUri,
                         m_server.MessageContext,
                         m_eccUserTokenNonce,
                         ClientCertificate,
@@ -1257,6 +1251,7 @@ namespace Opc.Ua.Server
         private readonly IServerInternal m_server;
         private readonly string m_sessionName;
         private X509Certificate2 m_serverCertificate;
+        private CertificateTypesProvider m_certificateTypesProvider;
         private Nonce m_serverNonce;
         private string m_eccUserTokenSecurityPolicyUri;
         private Nonce m_eccUserTokenNonce;
