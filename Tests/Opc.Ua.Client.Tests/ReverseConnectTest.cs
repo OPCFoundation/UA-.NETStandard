@@ -76,7 +76,7 @@ namespace Opc.Ua.Client.Tests
             PkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
 
             // start ref server with reverse connect
-            ServerFixture = new ServerFixture<ReferenceServer>
+            ServerFixture = new ServerFixture<ReferenceServer>(t => new ReferenceServer(t))
             {
                 AutoAccept = true,
                 SecurityNone = true,

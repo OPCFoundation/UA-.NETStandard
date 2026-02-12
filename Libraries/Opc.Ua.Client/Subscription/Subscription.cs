@@ -1165,7 +1165,7 @@ namespace Opc.Ua.Client
             lock (m_cache)
             {
                 // Group monitored items by their triggering item
-                triggeringGroups = new Dictionary<uint, List<uint>>();
+                triggeringGroups = [];
                 foreach (MonitoredItem item in m_monitoredItems.Values)
                 {
                     if (item.TriggeredItems != null && item.TriggeredItems.Count > 0)
@@ -1196,7 +1196,7 @@ namespace Opc.Ua.Client
             }
 
             // Call SetTriggering for each triggering item
-            foreach (var kvp in triggeringGroups)
+            foreach (KeyValuePair<uint, List<uint>> kvp in triggeringGroups)
             {
                 uint triggeringItemId = kvp.Key;
                 var linksToAdd = new UInt32Collection(kvp.Value);
@@ -1208,7 +1208,7 @@ namespace Opc.Ua.Client
                         Id,
                         triggeringItemId,
                         linksToAdd,
-                        null,
+                        [],
                         ct).ConfigureAwait(false);
 
                     m_logger.LogInformation(
@@ -1369,7 +1369,7 @@ namespace Opc.Ua.Client
             lock (m_cache)
             {
                 // Initialize the triggered items collection if needed
-                triggeringItem.TriggeredItems ??= new UInt32Collection();
+                triggeringItem.TriggeredItems ??= [];
 
                 // Add new links
                 if (clientHandlesToAdd.Count > 0)
@@ -2936,7 +2936,7 @@ namespace Opc.Ua.Client
                 foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
                 {
                     if (!string.IsNullOrEmpty(monitoredItem.RelativePath) &&
-                        NodeId.IsNull(monitoredItem.ResolvedNodeId))
+                        monitoredItem.ResolvedNodeId.IsNull)
                     {
                         // cannot change the relative path after an item is created.
                         if (monitoredItem.Created)
@@ -2992,7 +2992,7 @@ namespace Opc.Ua.Client
             {
                 MonitoredItemNotification notification = notifications.MonitoredItems[ii];
 
-                if (!m_monitoredItems.TryGetValue(notification.ClientHandle, out var monitoredItem))
+                if (!m_monitoredItems.TryGetValue(notification.ClientHandle, out MonitoredItem? monitoredItem))
                 {
                     m_logger.LogWarning(
                         "Publish response contains invalid MonitoredItem. " +

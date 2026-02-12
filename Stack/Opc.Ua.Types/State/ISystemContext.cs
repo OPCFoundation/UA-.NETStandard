@@ -45,6 +45,13 @@ namespace Opc.Ua
         object SystemHandle { get; }
 
         /// <summary>
+        /// Returns the display name of the user associated
+        /// with the context.
+        /// </summary>
+        /// <value>The id of the current user.</value>
+        string UserId { get; }
+
+        /// <summary>
         /// The locales to use if available.
         /// </summary>
         /// <value>The preferred locales.</value>
@@ -146,6 +153,13 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The system handle.</value>
         public object SystemHandle { get; set; }
+
+        /// <summary>
+        /// Returns the display name of the user associated
+        /// with the context.
+        /// </summary>
+        /// <value>The id of the current user.</value>
+        public string UserId { get; set; }
 
         /// <summary>
         /// The locales to use if available.
@@ -314,5 +328,30 @@ namespace Opc.Ua
 
         private IList<string> m_preferredLocales;
         private string m_auditEntryId;
+    }
+
+    /// <summary>
+    /// System context extensions
+    /// </summary>
+    /// <remarks>
+    /// When changing the name of the extension class or method names also update
+    /// source generators.
+    /// </remarks>
+    public static class SystemContextExtensions
+    {
+        /// <summary>
+        /// Convert an ISystemContext to an IServiceMessageContext
+        /// </summary>
+        /// <param name="context"></param>
+        /// <returns></returns>
+        public static IServiceMessageContext AsMessageContext(this ISystemContext context)
+        {
+            return new ServiceMessageContext(context.Telemetry)
+            {
+                NamespaceUris = context.NamespaceUris,
+                ServerUris = context.ServerUris,
+                Factory = context.EncodeableFactory
+            };
+        }
     }
 }

@@ -77,7 +77,7 @@ namespace Opc.Ua
             m_references = [];
             m_seenReferences = allowDuplicateReferences ?
                 null :
-                new(ReferenceEqualityComparer.Instance);
+                new(ReferenceEqualityComparer.Default);
 
             // add any additional references if they meet the criteria.
             if (additionalReferences != null)
@@ -159,7 +159,7 @@ namespace Opc.Ua
         /// </summary>
         public virtual bool IsRequired(NodeId referenceType, bool isInverse)
         {
-            if (NodeId.IsNull(referenceType))
+            if (referenceType.IsNull)
             {
                 return false;
             }
@@ -178,7 +178,7 @@ namespace Opc.Ua
             }
 
             // check for no filter or exact match.
-            if (NodeId.IsNull(ReferenceType) || referenceType == ReferenceType)
+            if (ReferenceType.IsNull || referenceType == ReferenceType)
             {
                 return true;
             }
@@ -216,7 +216,7 @@ namespace Opc.Ua
             lock (DataLock)
             {
                 // do not return add target unless the browse name matches.
-                if (!QualifiedName.IsNull(BrowseName) && target.BrowseName != BrowseName)
+                if (!BrowseName.IsNull && target.BrowseName != BrowseName)
                 {
                     return;
                 }

@@ -86,6 +86,20 @@ namespace Opc.Ua
     }
 
     /// <summary>
+    /// Encodeable activator
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    public abstract class EncodeableType<T> : IEncodeableType
+        where T : IEncodeable
+    {
+        /// <inheritdoc/>
+        public Type Type => typeof(T);
+
+        /// <inheritdoc/>
+        public abstract IEncodeable CreateInstance();
+    }
+
+    /// <summary>
     /// Lookup encodeable types by type or encoding id.
     /// </summary>
     public interface IEncodeableTypeLookup

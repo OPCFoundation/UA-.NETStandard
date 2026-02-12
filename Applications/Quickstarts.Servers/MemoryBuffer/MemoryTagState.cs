@@ -49,15 +49,15 @@ namespace MemoryBuffer
             BrowseName = new QualifiedName(
                 Utils.Format("{1:X8}", parent.SymbolicName, offet),
                 parent.TypeDefinitionId.NamespaceIndex);
-            DisplayName = BrowseName.Name;
-            Description = null;
+            DisplayName = LocalizedText.From(BrowseName.Name);
+            Description = default;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
             ReferenceTypeId = ReferenceTypeIds.HasComponent;
             TypeDefinitionId = new NodeId(
                 VariableTypes.MemoryTagType,
                 parent.TypeDefinitionId.NamespaceIndex);
-            ModellingRuleId = null;
+            ModellingRuleId = default;
             NumericId = offet;
             DataType = new NodeId((uint)parent.ElementType);
             ValueRank = ValueRanks.Scalar;

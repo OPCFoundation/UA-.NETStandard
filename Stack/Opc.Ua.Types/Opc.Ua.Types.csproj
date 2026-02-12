@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>$(LibTypesTargetFrameworks)</TargetFrameworks>
+    <TargetFrameworks>$(LibCoreTargetFrameworks);netstandard2.0</TargetFrameworks>
     <PackageId>$(PackagePrefix).Opc.Ua.Types</PackageId>
     <AssemblyName>$(AssemblyPrefix).Types</AssemblyName>
     <RootNamespace>Opc.Ua</RootNamespace>
@@ -8,21 +8,12 @@
     <IsPackable>true</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Types.Tests" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Remove="Schema\Opc.Ua.Types.bsd" />
-    <None Remove="Schema\Opc.Ua.Types.xsd" />
-    <None Remove="Schema\BuiltInTypes.bsd" />
-    <None Remove="Schema\StandardTypes.bsd" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Schema\UANodeSet.xsd" />
-    <EmbeddedResource Include="Schema\Opc.Ua.Types.bsd" />
-    <EmbeddedResource Include="Schema\Opc.Ua.Types.xsd" />
-    <EmbeddedResource Include="Schema\BuiltInTypes.bsd" />
-    <EmbeddedResource Include="Schema\StandardTypes.bsd" />
+    <InternalsVisibleTo Include="Opc.Ua.SourceGeneration.Core.Tests" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="System.Collections.Immutable" />
@@ -30,8 +21,10 @@
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0' OR '$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48'">
     <PackageReference Include="Microsoft.Bcl.HashCode" />
+    <PackageReference Include="System.Threading.Tasks.Extensions" />
+    <PackageReference Include="System.Diagnostics.DiagnosticSource" />
   </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48' OR '$(TargetFramework)' == 'netstandard2.1'">
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0' OR '$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48' OR '$(TargetFramework)' == 'netstandard2.1'">
     <PackageReference Include="System.Text.Json" />
   </ItemGroup>
   <!-- Polyfills for .NET Standard 2.0 and .net 4.8 -->
@@ -41,8 +34,11 @@
   <PropertyGroup>
     <PolySharpUsePublicAccessibilityForGeneratedTypes>true</PolySharpUsePublicAccessibilityForGeneratedTypes>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
-    <PackageId>$(PackageId).Debug</PackageId>
-  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Schema\BuiltInTypes.xml" />
+    <EmbeddedResource Include="Schema\UANodeSet.xsd" />
+    <EmbeddedResource Include="Schema\BuiltInTypes.bsd" />
+    <EmbeddedResource Include="Schema\StandardTypes.bsd" />
+  </ItemGroup>
   <Target Name="GetPackagingOutputs" />
 </Project>

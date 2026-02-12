@@ -75,7 +75,7 @@ namespace Opc.Ua.Server.Tests
         {
             m_telemetry = NUnitTelemetryContext.Create();
             // start Ref server
-            m_fixture = new ServerFixture<ReferenceServer>
+            m_fixture = new ServerFixture<ReferenceServer>(t => new ReferenceServer(t))
             {
                 AllNodeManagers = true,
                 OperationLimits = true,
@@ -130,7 +130,10 @@ namespace Opc.Ua.Server.Tests
         public async Task GlobalSetupAsync()
         {
             // start Ref server
-            m_fixture = new ServerFixture<ReferenceServer> { AllNodeManagers = true };
+            m_fixture = new ServerFixture<ReferenceServer>(t => new ReferenceServer(t))
+            {
+                AllNodeManagers = true
+            };
             m_server = await m_fixture.StartAsync(null).ConfigureAwait(false);
             (m_requestHeader, m_secureChannelContext) = await m_server.CreateAndActivateSessionAsync("Bench").ConfigureAwait(false);
         }
@@ -314,9 +317,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ReadAllNodesAsync()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-
-            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext, telemetry);
+            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext);
             if (m_operationLimits == null)
             {
                 await GetOperationLimitsAsync().ConfigureAwait(false);
@@ -568,9 +569,7 @@ namespace Opc.Ua.Server.Tests
         [Benchmark]
         public async Task BrowseFullAddressSpaceAsync()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-
-            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext, telemetry);
+            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext);
             if (m_operationLimits == null)
             {
                 await GetOperationLimitsAsync().ConfigureAwait(false);
@@ -589,9 +588,7 @@ namespace Opc.Ua.Server.Tests
         [Benchmark]
         public async Task TranslateBrowsePathAsync()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-
-            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext, telemetry);
+            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext);
             if (m_operationLimits == null)
             {
                 await GetOperationLimitsAsync().ConfigureAwait(false);
@@ -615,9 +612,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task SubscriptionAsync()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-
-            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext, telemetry);
+            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext);
             await CommonTestWorkers.SubscriptionTestAsync(serverTestServices, m_requestHeader).ConfigureAwait(false);
         }
 
@@ -632,7 +627,7 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext, telemetry);
+            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext);
             (RequestHeader transferRequestHeader, SecureChannelContext transferContext) = await m_server.CreateAndActivateSessionAsync(
                 "ClosedSession",
                 useSecurity).ConfigureAwait(false);
@@ -676,8 +671,8 @@ namespace Opc.Ua.Server.Tests
                         true).ConfigureAwait(false);
                 });
                 Assert.AreEqual(
-                    (StatusCode)StatusCodes.BadNoSubscription,
-                    (StatusCode)sre.StatusCode);
+                    StatusCodes.BadNoSubscription,
+                    sre.StatusCode);
             }
         }
 
@@ -691,7 +686,7 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext, telemetry);
+            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext);
 
             NamespaceTable namespaceUris = m_server.CurrentInstance.NamespaceUris;
             NodeId[] testSet =
@@ -747,7 +742,7 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext, telemetry);
+            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext);
 
             NamespaceTable namespaceUris = m_server.CurrentInstance.NamespaceUris;
             NodeIdCollection testSetCollection = CommonTestWorkers
@@ -787,7 +782,7 @@ namespace Opc.Ua.Server.Tests
                 m_requestHeader,
                 acknowledgements).ConfigureAwait(false);
 
-            Assert.AreEqual((StatusCode)StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
+            Assert.AreEqual(StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
             ServerFixtureUtils.ValidateResponse(publishResponse.ResponseHeader);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 publishResponse.DiagnosticInfos,
@@ -806,7 +801,7 @@ namespace Opc.Ua.Server.Tests
                     m_requestHeader,
                     acknowledgements).ConfigureAwait(false);
 
-                Assert.AreEqual((StatusCode)StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
+                Assert.AreEqual(StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
                 ServerFixtureUtils.ValidateResponse(publishResponse.ResponseHeader);
                 ServerFixtureUtils.ValidateDiagnosticInfos(
                     publishResponse.DiagnosticInfos,
@@ -828,7 +823,7 @@ namespace Opc.Ua.Server.Tests
 
             serverTestServices.SecureChannelContext = m_secureChannelContext;
 
-            Assert.AreEqual((StatusCode)StatusCodes.BadUserAccessDenied, callResponse.Results[0].StatusCode);
+            Assert.AreEqual(StatusCodes.BadUserAccessDenied, callResponse.Results[0].StatusCode);
             ServerFixtureUtils.ValidateResponse(callResponse.ResponseHeader, callResponse.Results, nodesToCall);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 callResponse.DiagnosticInfos,
@@ -842,7 +837,7 @@ namespace Opc.Ua.Server.Tests
                 m_requestHeader,
                 acknowledgements).ConfigureAwait(false);
 
-            Assert.AreEqual((StatusCode)StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
+            Assert.AreEqual(StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
             ServerFixtureUtils.ValidateResponse(publishResponse.ResponseHeader);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 publishResponse.DiagnosticInfos,
@@ -880,7 +875,7 @@ namespace Opc.Ua.Server.Tests
                 m_requestHeader,
                 acknowledgements).ConfigureAwait(false);
 
-            Assert.AreEqual((StatusCode)StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
+            Assert.AreEqual(StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
             ServerFixtureUtils.ValidateResponse(publishResponse.ResponseHeader);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 publishResponse.DiagnosticInfos,
@@ -907,7 +902,7 @@ namespace Opc.Ua.Server.Tests
                     m_requestHeader,
                     acknowledgements).ConfigureAwait(false);
 
-                Assert.AreEqual((StatusCode)StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
+                Assert.AreEqual(StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
                 ServerFixtureUtils.ValidateResponse(publishResponse.ResponseHeader);
                 ServerFixtureUtils.ValidateDiagnosticInfos(
                     publishResponse.DiagnosticInfos,
@@ -934,7 +929,7 @@ namespace Opc.Ua.Server.Tests
                 m_requestHeader,
                 acknowledgements).ConfigureAwait(false);
 
-            Assert.AreEqual((StatusCode)StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
+            Assert.AreEqual(StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
             ServerFixtureUtils.ValidateResponse(publishResponse.ResponseHeader);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 publishResponse.DiagnosticInfos,
@@ -975,7 +970,7 @@ namespace Opc.Ua.Server.Tests
                 m_requestHeader,
                 nodesToCall, CancellationToken.None).ConfigureAwait(false);
 
-            Assert.AreEqual(expectedStatus, callResponse.Results[0].StatusCode.Code);
+            Assert.AreEqual(expectedStatus, callResponse.Results[0].StatusCode);
             ServerFixtureUtils.ValidateResponse(callResponse.ResponseHeader, callResponse.Results, nodesToCall);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 callResponse.DiagnosticInfos,
@@ -1294,7 +1289,7 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // start Ref server in provisioning mode
-            var fixture = new ServerFixture<ReferenceServer>
+            var fixture = new ServerFixture<ReferenceServer>(t => new ReferenceServer(t))
             {
                 AllNodeManagers = false,
                 OperationLimits = false,

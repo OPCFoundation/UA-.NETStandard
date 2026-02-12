@@ -274,7 +274,7 @@ namespace Opc.Ua.Server.Tests
                 SelectClauses = GetSelectFields(),
                 WhereClause = GetStateFilter()
             };
-            filter.Validate(filterContext);
+            _ = filter.Validate(filterContext);
 
             MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
 
@@ -410,15 +410,20 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry)
         {
             var alarm = new ExclusiveLevelAlarmState(null);
+            SystemContext context = GetSystemContext(telemetry);
             alarm.Create(
-                GetSystemContext(telemetry),
+                context,
                 new NodeId(12345, 1),
                 new QualifiedName("AnyAlarm", 1),
                 new LocalizedText(string.Empty, "AnyAlarm"),
                 true);
 
             alarm.EventType.Value = ObjectTypeIds.ExclusiveLevelAlarmType;
-
+            alarm.AddOutOfServiceState(context);
+            alarm.AddSuppressedState(context);
+            alarm.AddSilenceState(context);
+            alarm.AddShelvingState(context);
+            alarm.AddSeverityLowLow(context);
             if (addFilterRetain)
             {
                 alarm.SupportsFilteredRetain = new PropertyState<bool>(alarm)
@@ -437,24 +442,32 @@ namespace Opc.Ua.Server.Tests
             int eventIndexCounter = 0;
             var desiredEventFields = new Dictionary<int, QualifiedNameCollection>
             {
-                { eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.EventId }] },
-                { eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.EventType }] },
-                { eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.Time }] },
-                { eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.ActiveState }] },
-                { eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.Message }] },
-                {
-                    eventIndexCounter++,
-                    [.. new QualifiedName[] { BrowseNames.LimitState, BrowseNames.CurrentState }] },
-                {
-                    eventIndexCounter++,
-                    [.. new QualifiedName[] {
-                        BrowseNames.LimitState,
-                        BrowseNames.CurrentState,
-                        BrowseNames.Id }]
+                { eventIndexCounter++, [.. new QualifiedName[] { QualifiedName.From(BrowseNames.EventId) }] },
+                { eventIndexCounter++, [.. new QualifiedName[] { QualifiedName.From(BrowseNames.EventType) }] },
+                { eventIndexCounter++, [.. new QualifiedName[] { QualifiedName.From(BrowseNames.Time) }] },
+                { eventIndexCounter++, [.. new QualifiedName[] { QualifiedName.From(BrowseNames.ActiveState) }] },
+                { eventIndexCounter++, [.. new QualifiedName[] { QualifiedName.From(BrowseNames.Message) }] },
+                { eventIndexCounter++, [.. new QualifiedName[]
+                    {
+                        QualifiedName.From(BrowseNames.LimitState),
+                        QualifiedName.From(BrowseNames.CurrentState)
+                    }
+                ]
                 },
-                {
-                    eventIndexCounter++,
-                    [.. new QualifiedName[] { BrowseNames.LimitState, BrowseNames.LastTransition }]
+                { eventIndexCounter++, [.. new QualifiedName[]
+                    {
+                        QualifiedName.From(BrowseNames.LimitState),
+                        QualifiedName.From(BrowseNames.CurrentState),
+                        QualifiedName.From(BrowseNames.Id)
+                    }
+                ]
+                },
+                { eventIndexCounter++, [.. new QualifiedName[]
+                    {
+                        QualifiedName.From(BrowseNames.LimitState),
+                        QualifiedName.From(BrowseNames.LastTransition)
+                    }
+                ]
                 }
             };
 
@@ -488,7 +501,7 @@ namespace Opc.Ua.Server.Tests
                 filter.SelectClauses = GetSelectFields();
                 filter.WhereClause = GetHighOnlyFilter();
             }
-            filter.Validate(GetFilterContext(telemetry));
+            _ = filter.Validate(GetFilterContext(telemetry));
             return filter;
         }
 
@@ -502,10 +515,12 @@ namespace Opc.Ua.Server.Tests
                 TypeDefinitionId = ObjectTypeIds.ExclusiveLevelAlarmType,
                 BrowsePath =
                 [
-                    .. new QualifiedName[] {
-                        BrowseNames.LimitState,
-                        BrowseNames.CurrentState,
-                        BrowseNames.Id }
+                    .. new QualifiedName[]
+                    {
+                        QualifiedName.From(BrowseNames.LimitState),
+                        QualifiedName.From(BrowseNames.CurrentState),
+                        QualifiedName.From(BrowseNames.Id)
+                    }
                 ]
             };
 
@@ -526,8 +541,8 @@ namespace Opc.Ua.Server.Tests
             var notOutOfServiceState = new SimpleAttributeOperand
             {
                 AttributeId = Attributes.Value,
-                TypeDefinitionId = null,
-                BrowsePath = [.. new QualifiedName[] { BrowseNames.OutOfServiceState }]
+                TypeDefinitionId = default,
+                BrowsePath = [.. new QualifiedName[] { QualifiedName.From(BrowseNames.OutOfServiceState) }]
             };
 
             var desiredOutOfServiceValue = new LiteralOperand { Value = new Variant(InService) };
@@ -539,8 +554,8 @@ namespace Opc.Ua.Server.Tests
             var notSuppressed = new SimpleAttributeOperand
             {
                 AttributeId = Attributes.Value,
-                TypeDefinitionId = null,
-                BrowsePath = [.. new QualifiedName[] { BrowseNames.SuppressedState }]
+                TypeDefinitionId = default,
+                BrowsePath = [.. new QualifiedName[] { QualifiedName.From(BrowseNames.SuppressedState) }]
             };
 
             var desiredSuppressedValue = new LiteralOperand { Value = new Variant(Unsuppressed) };
@@ -552,8 +567,8 @@ namespace Opc.Ua.Server.Tests
             var activeState = new SimpleAttributeOperand
             {
                 AttributeId = Attributes.Value,
-                TypeDefinitionId = null,
-                BrowsePath = [.. new QualifiedName[] { BrowseNames.ActiveState }]
+                TypeDefinitionId = default,
+                BrowsePath = [.. new QualifiedName[] { QualifiedName.From(BrowseNames.ActiveState) }]
             };
 
             var activeValue = new LiteralOperand { Value = new Variant(Active) };
@@ -576,7 +591,7 @@ namespace Opc.Ua.Server.Tests
                 m_systemContext = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
                 m_systemContext.NamespaceUris.Append(Ua.Namespaces.OpcUa);
                 var typeTable = new TypeTable(m_systemContext.NamespaceUris);
-                typeTable.AddSubtype(ObjectTypeIds.BaseObjectType, null);
+                typeTable.AddSubtype(ObjectTypeIds.BaseObjectType, default);
                 typeTable.AddSubtype(ObjectTypeIds.BaseEventType, ObjectTypeIds.BaseObjectType);
                 typeTable.AddSubtype(ObjectTypeIds.ConditionType, ObjectTypeIds.BaseEventType);
                 typeTable.AddSubtype(

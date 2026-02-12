@@ -44,7 +44,7 @@ namespace TestData
         /// <param name="source">The source of the history data.</param>
         public HistoryDataReader(NodeId variableId, IHistoryDataSource source)
         {
-            Id = Guid.NewGuid();
+            Id = Uuid.NewUuid();
             VariableId = variableId;
             m_source = source;
         }
@@ -69,7 +69,7 @@ namespace TestData
         /// <summary>
         /// A globally unique identifier for the instance.
         /// </summary>
-        public Guid Id { get; }
+        public Uuid Id { get; }
 
         /// <summary>
         /// The identifier for the variable being read.
@@ -217,7 +217,7 @@ namespace TestData
                 }
 
                 // apply the data encoding.
-                if (!QualifiedName.IsNull(dataEncoding))
+                if (!dataEncoding.IsNull)
                 {
                     value.Value = null;
                     value.StatusCode = StatusCodes.BadDataEncodingUnsupported;

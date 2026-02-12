@@ -155,13 +155,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 BaseDataType = structureType == StructureType.Union
                     ? DataTypeIds.Union
                     : DataTypeIds.Structure,
-                DefaultEncodingId = null,
+                DefaultEncodingId = default,
                 Fields = GetAllBuiltInTypesFields(),
                 StructureType = structureType
             };
 
             IComplexTypeFieldBuilder fieldBuilder = m_complexTypeBuilder.AddStructuredType(
-                structureType + "." + testFunc,
+                QualifiedName.From(structureType + "." + testFunc),
                 complexTypeStructure);
             nodeId = new ExpandedNodeId(typeId++, m_complexTypeBuilder.TargetNamespace);
             var binaryEncodingId = new ExpandedNodeId(
@@ -210,7 +210,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                         Name = builtInType.ToString(),
                         DataType = new NodeId((uint)builtInType),
                         ArrayDimensions = null,
-                        Description = $"A BuiltInType.{builtInType} property.",
+                        Description = LocalizedText.From($"A BuiltInType.{builtInType} property."),
                         IsOptional = false,
                         MaxStringLength = 0,
                         ValueRank = -1
@@ -241,13 +241,16 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// <summary>
         /// Helper to fill type with default values or random Data.
         /// </summary>
-        public void FillStructWithValues(BaseComplexType structType, bool randomValues)
+        public void FillStructWithValues(
+            BaseComplexType structType,
+            bool randomValues,
+            NamespaceTable namespaceUris)
         {
             int index = 0;
             foreach (ComplexTypePropertyInfo property in structType.GetPropertyEnumerator())
             {
                 BuiltInType builtInType = TypeInfo.GetBuiltInType(
-                    TypeInfo.GetDataTypeId(property.PropertyType));
+                    TypeInfo.GetDataTypeId(property.PropertyType, namespaceUris));
                 object newObj = randomValues
                     ? DataGenerator.GetRandom(builtInType)
                     : TypeInfo.GetDefaultValue(builtInType);
@@ -342,7 +345,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             //Assert.AreEqual(expected.Body, result.Body, encodeInfo);
             Assert.IsTrue(
                 Utils.IsEqual(expected.Body, result.Body),
-                $"Opc.Ua.Utils.IsEqual failed to compare expected and result.\r\n{encodeInfo}.\r\n{expected.Body}!={result.Body}.");
+                $"Opc.Ua.Utils.IsEqual failed to compare expected and result.\r\n{encodeInfo}.\r\n{expected.Body}\r\n!=\r\n{result.Body}.");
         }
 
         /// <summary>

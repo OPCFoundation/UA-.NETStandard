@@ -27,9 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
@@ -72,10 +70,9 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public async Task LoadingConfigurationWithApplicationCertificateShouldMarkItDeprecated()
+        public async Task LoadingConfigurationWithApplicationCertificateShouldMarkItDeprecatedAsync()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var file = Path.Combine(TestContext.CurrentContext.WorkDirectory, "testlegacyconfig.xml");
+            string file = Path.Combine(TestContext.CurrentContext.WorkDirectory, "testlegacyconfig.xml");
 
             var serializer = new DataContractSerializer(typeof(ApplicationConfiguration));
             using var stream = new FileStream(file, FileMode.Open);
@@ -88,10 +85,9 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public async Task LoadingConfigurationWithApplicationCertificateAndApplicationCertificatesShouldNotMarkItDeprecated()
+        public async Task LoadingConfigurationWithApplicationCertificateAndApplicationCertificatesShouldNotMarkItDeprecatedAsync()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var file = Path.Combine(TestContext.CurrentContext.WorkDirectory, "testhybridconfig.xml");
+            string file = Path.Combine(TestContext.CurrentContext.WorkDirectory, "testhybridconfig.xml");
 
             var serializer = new DataContractSerializer(typeof(ApplicationConfiguration));
             using var stream = new FileStream(file, FileMode.Open);
@@ -110,15 +106,15 @@ namespace Opc.Ua.Configuration.Tests
 
             var securityConfiguration = new SecurityConfiguration
             {
-                ApplicationCertificates = new CertificateIdentifierCollection
-                {
+                ApplicationCertificates =
+                [
                     new CertificateIdentifier
                     {
                         StoreType = CertificateStoreType.Directory,
                         StorePath = "pki/own",
                         CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
                     }
-                },
+                ],
                 TrustedPeerCertificates = new CertificateTrustList { StorePath = "Test" },
                 TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" }
             };
@@ -181,6 +177,7 @@ namespace Opc.Ua.Configuration.Tests
             var roundTripped = (ApplicationConfiguration)serializer.ReadObject(
                 new MemoryStream(Encoding.UTF8.GetBytes(xml)));
 
+            Assert.That(roundTripped, Is.Not.Null);
             Assert.That(configuration.SecurityConfiguration.IsDeprecatedConfiguration, Is.True);
             Assert.That(
                 document.Descendants(XName.Get("ApplicationCertificate", Namespaces.OpcUaConfig)).Any(),
@@ -201,15 +198,15 @@ namespace Opc.Ua.Configuration.Tests
                 ApplicationType = ApplicationType.Server,
                 SecurityConfiguration = new SecurityConfiguration
                 {
-                    ApplicationCertificates = new CertificateIdentifierCollection
-                    {
+                    ApplicationCertificates =
+                    [
                         new CertificateIdentifier
                         {
                             StoreType = CertificateStoreType.Directory,
                             StorePath = "pki/own",
                             CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
                         }
-                    },
+                    ],
                     TrustedPeerCertificates = new CertificateTrustList { StorePath = "Test" },
                     TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" }
                 }
@@ -226,6 +223,7 @@ namespace Opc.Ua.Configuration.Tests
             var roundTripped = (ApplicationConfiguration)serializer.ReadObject(
                 new MemoryStream(Encoding.UTF8.GetBytes(xml)));
 
+            Assert.That(roundTripped, Is.Not.Null);
             Assert.That(configuration.SecurityConfiguration.IsDeprecatedConfiguration, Is.False);
             Assert.That(
                 document.Descendants(XName.Get("ApplicationCertificate", Namespaces.OpcUaConfig)).Any(),
@@ -316,8 +314,7 @@ namespace Opc.Ua.Configuration.Tests
 
             // First set legacy to mark deprecated, then set the modern collection.
             configuration.SecurityConfiguration.ApplicationCertificate = legacyCert;
-            configuration.SecurityConfiguration.ApplicationCertificates =
-                new CertificateIdentifierCollection { modernCert };
+            configuration.SecurityConfiguration.ApplicationCertificates = [modernCert];
 
             string xml;
             using (var stream = new MemoryStream())

@@ -73,9 +73,9 @@ namespace Opc.Ua
 
         private void Initialize()
         {
-            ReferenceTypeId = null;
+            ReferenceTypeId = default;
             IsInverse = true;
-            TargetId = null;
+            TargetId = default;
         }
 
         /// <summary>
@@ -174,9 +174,9 @@ namespace Opc.Ua
         {
             var clone = (ReferenceNode)base.MemberwiseClone();
 
-            clone.ReferenceTypeId = CoreUtils.Clone(ReferenceTypeId);
-            clone.IsInverse = (bool)CoreUtils.Clone(IsInverse);
-            clone.TargetId = CoreUtils.Clone(TargetId);
+            clone.ReferenceTypeId = ReferenceTypeId;
+            clone.IsInverse = CoreUtils.Clone(IsInverse);
+            clone.TargetId = TargetId;
 
             return clone;
         }
@@ -195,19 +195,44 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override bool Equals(object obj)
         {
-            return CompareTo(obj) == 0;
+            if (obj is ReferenceNode node)
+            {
+                return Equals(node);
+            }
+            return base.Equals(obj);
         }
 
         /// <inheritdoc/>
-        public bool Equals(ReferenceNode other)
+        public bool Equals(ReferenceNode obj)
         {
-            return CompareTo(other) == 0;
+            if (obj is null)
+            {
+                return false;
+            }
+
+            if (ReferenceTypeId != obj.ReferenceTypeId)
+            {
+                return false;
+            }
+
+            if (IsInverse != obj.IsInverse)
+            {
+                return false;
+            }
+
+            if (TargetId != obj.TargetId)
+            {
+                return false;
+            }
+
+            return true;
         }
 
         /// <inheritdoc/>
         public override int GetHashCode()
         {
             var hash = new HashCode();
+            hash.Add(base.GetHashCode());
             hash.Add(ReferenceTypeId);
             hash.Add(IsInverse);
             hash.Add(TargetId);
@@ -217,13 +242,13 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public static bool operator ==(ReferenceNode a, object b)
         {
-            return a is null ? b is null : a.CompareTo(b) == 0;
+            return a is null ? b is null : a.Equals(b);
         }
 
         /// <inheritdoc/>
         public static bool operator !=(ReferenceNode a, object b)
         {
-            return a is null ? b is not null : a.CompareTo(b) != 0;
+            return a is null ? b is not null : a.Equals(b);
         }
 
         /// <inheritdoc/>
@@ -250,9 +275,9 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public int CompareTo(ReferenceNode obj)
         {
-            if (ReferenceTypeId is null)
+            if (ReferenceTypeId.IsNull)
             {
-                return obj?.ReferenceTypeId is null ? 0 : -1;
+                return obj?.ReferenceTypeId.IsNull == true ? 0 : -1;
             }
 
             int result = ReferenceTypeId.CompareTo(obj.ReferenceTypeId);
@@ -267,9 +292,9 @@ namespace Opc.Ua
                 return IsInverse ? +1 : -1;
             }
 
-            if (TargetId is null)
+            if (TargetId.IsNull)
             {
-                return obj.TargetId is null ? 0 : -1;
+                return obj.TargetId.IsNull ? 0 : -1;
             }
 
             return TargetId.CompareTo(obj.TargetId);

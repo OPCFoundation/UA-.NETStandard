@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Diagnostics.Tracing;
 
 namespace Opc.Ua.Server
@@ -64,16 +63,11 @@ namespace Opc.Ua.Server
             kServerCallId,
             Message = "Server Call={0}, Id={1}",
             Level = EventLevel.Informational)]
-        public void ServerCall(RequestType requestType, uint requestId)
+        public void ServerCall(string requestType, uint requestId)
         {
             if (IsEnabled())
             {
-                string requestTypeString = Enum.GetName(
-#if !NET8_0_OR_GREATER
-                    typeof(RequestType),
-#endif
-                    requestType);
-                WriteEvent(kServerCallId, requestTypeString, requestId);
+                WriteEvent(kServerCallId, requestType, requestId);
             }
         }
 

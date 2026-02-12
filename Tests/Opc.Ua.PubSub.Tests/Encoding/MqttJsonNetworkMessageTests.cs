@@ -72,7 +72,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             NonMetadata = MessageType | DataSetMetaData,
 
             MetaData_Name,
-            MetaData_Description,
             MetaData_Fields,
             MetaData_DataSetClassId,
             MetaData_ConfigurationVersion
@@ -494,12 +493,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 "Json ua-data entries are missing from configuration!");
 
             // set DataSetClassId
-            var dataSetClassId = Guid.NewGuid();
+            var dataSetClassId = Uuid.NewUuid();
             foreach (PubSubEncoding.JsonNetworkMessage uaNetworkMessage in uaNetworkMessages)
             {
                 uaNetworkMessage.DataSetClassId = dataSetClassId.ToString();
                 uaNetworkMessage.DataSetMessages[0].DataSet.DataSetMetaData.DataSetClassId
-                    = (Uuid)dataSetClassId;
+                    = (Guid)dataSetClassId;
             }
 
             bool hasDataSetWriterId =
@@ -543,6 +542,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 "Json ua-data entries are missing from configuration!");
 
             int index = 0;
+            Assert.That(uaDataNetworkMessages.Count, Is.EqualTo(dataSetReaders.Count));
             foreach (PubSubEncoding.JsonNetworkMessage uaDataNetworkMessage in uaDataNetworkMessages)
             {
                 CompareEncodeDecode(uaDataNetworkMessage, [dataSetReaders[index++]]);
@@ -1844,8 +1844,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 dataSetName: "Test missing metadata fields definition",
                 kNamespaceIndexAllTypes,
                 metaDataType.Fields);
-            metadata.Description = new LocalizedText("Description text");
-            metadata.DataSetClassId = new Uuid();
+            metadata.Description = LocalizedText.From("Description text");
+            metadata.DataSetClassId = Uuid.Empty;
 
             _ = hasMetaData ? metadata : null;
 
@@ -1858,12 +1858,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
 
             jsonNetworkMessage.DataSetMetaData.Name = metaDataName;
-            jsonNetworkMessage.DataSetMetaData.Description =
-                metaDataDescription != null
-                    ? new LocalizedText(metaDataDescription)
-                    : metaDataDescription;
+            jsonNetworkMessage.DataSetMetaData.Description = LocalizedText.From(metaDataDescription);
             jsonNetworkMessage.DataSetMetaData.DataSetClassId = hasMetaDataDataSetClassId
-                ? new Uuid(Guid.NewGuid())
+                ? Uuid.NewUuid()
                 : Uuid.Empty;
             jsonNetworkMessage.DataSetMetaData.ConfigurationVersion
                 = hasMetaDataConfigurationVersion
@@ -1908,12 +1905,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                             failOptions,
                             MetaDataFailOptions.MetaData_Name,
                             "ValidateMissingDataSetMetaDataDefinitions should fail due to missing MetaData.Name reason.");
-                        break;
-                    case MetaDataFailOptions.MetaData_Description:
-                        Assert.AreEqual(
-                            failOptions,
-                            MetaDataFailOptions.MetaData_Description,
-                            "ValidateMissingDataSetMetaDataDefinitions should fail due to missing MetaData.Description reason.");
                         break;
                     case MetaDataFailOptions.MetaData_DataSetClassId:
                         Assert.AreEqual(
@@ -2337,11 +2328,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     // check dataValues values
                     string fieldName = fieldEncoded.FieldMetaData.Name;
 
-                    var encodedExpandedNodeId = dataValueEncoded.Value as ExpandedNodeId;
-                    var decodedExpandedNodeId = dataValueDecoded.Value as ExpandedNodeId;
-                    if (encodedExpandedNodeId != null &&
+                    ExpandedNodeId encodedExpandedNodeId =
+                        dataValueEncoded.Value is ExpandedNodeId ee ? ee : default;
+                    ExpandedNodeId decodedExpandedNodeId =
+                        dataValueDecoded.Value is ExpandedNodeId de ? de : default;
+                    if (!encodedExpandedNodeId.IsNull &&
                         !encodedExpandedNodeId.IsAbsolute &&
-                        decodedExpandedNodeId != null &&
+                        !decodedExpandedNodeId.IsNull &&
                         decodedExpandedNodeId.IsAbsolute)
                     {
                         dataValueDecoded.Value = ExpandedNodeId.ToNodeId(
@@ -2553,10 +2546,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 "DataSetMetaData.Name was not decoded correctly, Encoded: {0} Decoded: {1}",
                 jsonNetworkMessage.DataSetMetaData.Name,
                 dataSetMetaData.Name);
-            if (jsonDataSetMetaData.Description == null)
-            {
-                return MetaDataFailOptions.MetaData_Description;
-            }
+
             Assert.AreEqual(
                 jsonNetworkMessage.DataSetMetaData.Description,
                 dataSetMetaData.Description,
@@ -2889,10 +2879,17 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                             case FieldTypeEncodingMask.Variant:
                                                 decodedFieldValue = jsonDecoder.ReadVariant(
                                                     field.FieldMetaData.Name);
-                                                Assert.IsNotNull(
-                                                    ((Variant)decodedFieldValue).Value,
+                                                Assert.IsFalse(
+                                                    ((Variant)decodedFieldValue).IsNull,
                                                     "Decoded Field: {0} value should not be null",
                                                     field.FieldMetaData.Name);
+                                                Assert.AreEqual(
+                                                    field.Value.WrappedValue,
+                                                    (Variant)decodedFieldValue,
+                                                    "Decoded Field name: {0} values: encoded Variant {1} - decoded {2}",
+                                                    field.FieldMetaData.Name,
+                                                    field.Value.WrappedValue,
+                                                    dataSetPayload[field.FieldMetaData.Name]);
                                                 Assert.IsTrue(
                                                     Utils.IsEqual(
                                                         field.Value.Value,
@@ -2918,8 +2915,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                         expandedNodeId1.NamespaceUri))
                                                 {
                                                     // replace the namespaceUri with namespaceIndex to match the encoded value
-                                                    ExpandedNodeId expandedNodeId = Utils.Clone(
-                                                        expandedNodeId1);
+                                                    ExpandedNodeId expandedNodeId = expandedNodeId1;
                                                     Assert.IsNotNull(
                                                         expandedNodeId,
                                                         "Decoded 'ExpandedNodeId' Field: {0} should not be null",
@@ -2940,12 +2936,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                     ExpandedNodeId.Format(
                                                         CultureInfo.InvariantCulture,
                                                         stringBuilder,
-                                                        expandedNodeId.Identifier,
+                                                        expandedNodeId.IdentifierAsString,
                                                         expandedNodeId.IdType,
                                                         namespaceIndex,
                                                         string.Empty,
                                                         expandedNodeId.ServerIndex);
-                                                    decodedFieldValue = new ExpandedNodeId(
+                                                    decodedFieldValue = ExpandedNodeId.Parse(
                                                         stringBuilder.ToString());
                                                 }
                                                 // by convention array decoders always return the Array type
@@ -2991,9 +2987,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                             (byte)BuiltInType.StatusCode)
                                                         {
                                                             dataValue = new DataValue(
-                                                                new Variant(
-                                                                    new StatusCode(
-                                                                        StatusCodes.Good)));
+                                                                new Variant(StatusCodes.Good));
                                                         }
                                                     }
 
@@ -3065,8 +3059,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                             expandedNodeId2.NamespaceUri))
                                                     {
                                                         // replace the namespaceUri with namespaceIndex to match the encoded value
-                                                        ExpandedNodeId expandedNodeId = Utils.Clone(
-                                                            expandedNodeId2);
+                                                        ExpandedNodeId expandedNodeId = expandedNodeId2;
                                                         Assert.IsNotNull(
                                                             expandedNodeId,
                                                             "Decoded 'ExpandedNodeId' Field: {0} should not be null",
@@ -3088,12 +3081,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                         ExpandedNodeId.Format(
                                                             CultureInfo.InvariantCulture,
                                                             stringBuilder,
-                                                            expandedNodeId.Identifier,
+                                                            expandedNodeId.IdentifierAsString,
                                                             expandedNodeId.IdType,
                                                             namespaceIndex,
                                                             string.Empty,
                                                             expandedNodeId.ServerIndex);
-                                                        dataValue.Value = new ExpandedNodeId(
+                                                        dataValue.Value = ExpandedNodeId.Parse(
                                                             stringBuilder.ToString());
                                                     }
                                                     Assert.IsTrue(

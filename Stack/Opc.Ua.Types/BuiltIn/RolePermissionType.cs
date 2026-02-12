@@ -56,7 +56,7 @@ namespace Opc.Ua
 
         private void Initialize()
         {
-            RoleId = null;
+            RoleId = default;
             Permissions = 0;
         }
 
@@ -143,8 +143,8 @@ namespace Opc.Ua
         {
             var clone = (RolePermissionType)base.MemberwiseClone();
 
-            clone.RoleId = CoreUtils.Clone(RoleId);
-            clone.Permissions = (uint)CoreUtils.Clone(Permissions);
+            clone.RoleId = RoleId;
+            clone.Permissions = CoreUtils.Clone(Permissions);
 
             return clone;
         }

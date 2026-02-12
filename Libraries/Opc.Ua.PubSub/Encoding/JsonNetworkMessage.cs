@@ -71,7 +71,7 @@ namespace Opc.Ua.PubSub.Encoding
                 jsonDataSetMessages?.ConvertAll<UaDataSetMessage>(x => x) ?? [],
                 logger)
         {
-            MessageId = Guid.NewGuid().ToString();
+            MessageId = Uuid.NewUuid().ToString();
             MessageType = kDataSetMessageType;
             DataSetClassId = string.Empty;
 
@@ -87,7 +87,7 @@ namespace Opc.Ua.PubSub.Encoding
             ILogger logger = null)
             : base(writerGroupConfiguration, metadata, logger)
         {
-            MessageId = Guid.NewGuid().ToString();
+            MessageId = Uuid.NewUuid().ToString();
             MessageType = kMetaDataMessageType;
             DataSetClassId = string.Empty;
 

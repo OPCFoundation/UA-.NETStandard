@@ -1315,7 +1315,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             // set DataSetClassId
             Assert.IsNotNull(uaNetworkMessage, "uaNetworkMessage should not be null");
-            uaNetworkMessage.DataSetClassId = Guid.NewGuid();
+            uaNetworkMessage.DataSetClassId = Uuid.NewUuid();
 
             PubSubConfigurationDataType subscriberConfiguration = MessagesHelper
                 .CreateSubscriberConfiguration(

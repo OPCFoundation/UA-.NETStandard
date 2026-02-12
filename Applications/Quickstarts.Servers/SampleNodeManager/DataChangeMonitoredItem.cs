@@ -366,7 +366,7 @@ namespace Opc.Ua.Sample
             var value = new DataValue();
 
             ServiceResult error = m_source.Node
-                .ReadAttribute(context, AttributeId, NumericRange.Empty, null, value);
+                .ReadAttribute(context, AttributeId, NumericRange.Empty, default, value);
 
             if (ServiceResult.IsBad(error))
             {
@@ -537,7 +537,7 @@ namespace Opc.Ua.Sample
                     StatusCode = StatusCodes.Good,
                     RevisedSamplingInterval = m_samplingInterval,
                     RevisedQueueSize = 0,
-                    FilterResult = null
+                    FilterResult = default
                 };
 
                 if (m_queue != null)
@@ -561,7 +561,7 @@ namespace Opc.Ua.Sample
                     StatusCode = StatusCodes.Good,
                     RevisedSamplingInterval = m_samplingInterval,
                     RevisedQueueSize = 0,
-                    FilterResult = null
+                    FilterResult = default
                 };
 
                 if (m_queue != null)
@@ -837,10 +837,7 @@ namespace Opc.Ua.Sample
             // set semantics changed bit.
             if (m_semanticsChanged)
             {
-                if (value != null)
-                {
-                    value.StatusCode = value.StatusCode.SetSemanticsChanged(true);
-                }
+                value?.StatusCode = value.StatusCode.SetSemanticsChanged(true);
 
                 m_semanticsChanged = false;
             }
@@ -848,10 +845,7 @@ namespace Opc.Ua.Sample
             // set structure changed bit.
             if (m_structureChanged)
             {
-                if (value != null)
-                {
-                    value.StatusCode = value.StatusCode.SetStructureChanged(true);
-                }
+                value?.StatusCode = value.StatusCode.SetStructureChanged(true);
 
                 m_structureChanged = false;
             }

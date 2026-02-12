@@ -40,172 +40,172 @@ namespace Opc.Ua.Server
         Unknown,
 
         /// <summary>
-        /// <see cref="IDiscoveryServer.FindServers" />
+        /// Find servers request type.
         /// </summary>
         FindServers,
 
         /// <summary>
-        /// <see cref="IDiscoveryServer.GetEndpoints" />
+        /// Get endpoints request type.
         /// </summary>
         GetEndpoints,
 
         /// <summary>
-        /// <see cref="ISessionServer.CreateSession" />
+        /// Create Session request type.
         /// </summary>
         CreateSession,
 
         /// <summary>
-        /// <see cref="ISessionServer.ActivateSession" />
+        /// Activate Session request type.
         /// </summary>
         ActivateSession,
 
         /// <summary>
-        /// <see cref="ISessionServer.CloseSession" />
+        /// CloseSession request type.
         /// </summary>
         CloseSession,
 
         /// <summary>
-        /// <see cref="ISessionServer.Cancel" />
+        /// Cancel request type.
         /// </summary>
         Cancel,
 
         /// <summary>
-        /// <see cref="ISessionServer.Read" />
+        /// Read request type.
         /// </summary>
         Read,
 
         /// <summary>
-        /// <see cref="ISessionServer.HistoryRead" />
+        /// HistoryRead request type.
         /// </summary>
         HistoryRead,
 
         /// <summary>
-        /// <see cref="ISessionServer.Write" />
+        /// Write request type.
         /// </summary>
         Write,
 
         /// <summary>
-        /// <see cref="ISessionServer.HistoryUpdate" />
+        /// HistoryUpdate request type.
         /// </summary>
         HistoryUpdate,
 
         /// <summary>
-        /// <see cref="ISessionServer.Call" />
+        /// Call request type.
         /// </summary>
         Call,
 
         /// <summary>
-        /// <see cref="ISessionServer.CreateMonitoredItems" />
+        /// Create Monitored Items request type.
         /// </summary>
         CreateMonitoredItems,
 
         /// <summary>
-        /// <see cref="ISessionServer.ModifyMonitoredItems" />
+        /// Modify Monitored Items request type.
         /// </summary>
         ModifyMonitoredItems,
 
         /// <summary>
-        /// <see cref="ISessionServer.SetMonitoringMode" />
+        /// SetMonitoringMode request type.
         /// </summary>
         SetMonitoringMode,
 
         /// <summary>
-        /// <see cref="ISessionServer.SetTriggering" />
+        /// SetTriggering request type.
         /// </summary>
         SetTriggering,
 
         /// <summary>
-        /// <see cref="ISessionServer.DeleteMonitoredItems" />
+        /// Delete Monitored Items request type.
         /// </summary>
         DeleteMonitoredItems,
 
         /// <summary>
-        /// <see cref="ISessionServer.CreateSubscription" />
+        /// Create Subscription request type.
         /// </summary>
         CreateSubscription,
 
         /// <summary>
-        /// <see cref="ISessionServer.ModifySubscription" />
+        /// Modify Subscription request type.
         /// </summary>
         ModifySubscription,
 
         /// <summary>
-        /// <see cref="ISessionServer.SetPublishingMode" />
+        /// Set Publishing Mode request type.
         /// </summary>
         SetPublishingMode,
 
         /// <summary>
-        /// <see cref="ISessionServer.Publish" />
+        /// Publish request type.
         /// </summary>
         Publish,
 
         /// <summary>
-        /// <see cref="ISessionServer.Republish" />
+        /// Republish request type.
         /// </summary>
         Republish,
 
         /// <summary>
-        /// <see cref="ISessionServer.TransferSubscriptions" />
+        /// Transfer Subscriptions request type.
         /// </summary>
         TransferSubscriptions,
 
         /// <summary>
-        /// <see cref="ISessionServer.DeleteSubscriptions" />
+        /// Delete Subscriptions request type.
         /// </summary>
         DeleteSubscriptions,
 
         /// <summary>
-        /// <see cref="ISessionServer.AddNodes" />
+        /// Add Nodes request type.
         /// </summary>
         AddNodes,
 
         /// <summary>
-        /// <see cref="ISessionServer.AddReferences" />
+        /// Add References request type.
         /// </summary>
         AddReferences,
 
         /// <summary>
-        /// <see cref="ISessionServer.DeleteNodes" />
+        /// Delete Nodes request type.
         /// </summary>
         DeleteNodes,
 
         /// <summary>
-        /// <see cref="ISessionServer.DeleteReferences" />
+        /// Delete References request type.
         /// </summary>
         DeleteReferences,
 
         /// <summary>
-        /// <see cref="ISessionServer.Browse" />
+        /// Browse request type.
         /// </summary>
         Browse,
 
         /// <summary>
-        /// <see cref="ISessionServer.BrowseNext" />
+        /// BrowseNext request type.
         /// </summary>
         BrowseNext,
 
         /// <summary>
-        /// <see cref="ISessionServer.TranslateBrowsePathsToNodeIds" />
+        /// Translate BrowsePaths To NodeIds request type.
         /// </summary>
         TranslateBrowsePathsToNodeIds,
 
         /// <summary>
-        /// <see cref="ISessionServer.QueryFirst" />
+        /// QueryFirst request type.
         /// </summary>
         QueryFirst,
 
         /// <summary>
-        /// <see cref="ISessionServer.QueryNext" />
+        /// QueryNext request type.
         /// </summary>
         QueryNext,
 
         /// <summary>
-        /// <see cref="ISessionServer.RegisterNodes" />
+        /// Register Nodes request type.
         /// </summary>
         RegisterNodes,
 
         /// <summary>
-        /// <see cref="ISessionServer.UnregisterNodes" />
+        /// Unregister Nodes request type.
         /// </summary>
         UnregisterNodes
     }

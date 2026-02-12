@@ -195,6 +195,10 @@ namespace Opc.Ua.Types
 
         public const uint SessionAuthenticationToken = 388;
 
+        public const uint AttributeWriteMask = 347;
+
+        public const uint BrowseDirection = 510;
+
         public const uint ViewDescription = 511;
 
         public const uint BrowseDescription = 514;

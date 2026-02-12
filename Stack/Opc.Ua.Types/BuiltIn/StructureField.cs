@@ -55,8 +55,8 @@ namespace Opc.Ua
         private void Initialize()
         {
             Name = null;
-            Description = null;
-            DataType = null;
+            Description = default;
+            DataType = default;
             ValueRank = 0;
             m_arrayDimensions = [];
             MaxStringLength = 0;
@@ -226,11 +226,11 @@ namespace Opc.Ua
 
             clone.Name = CoreUtils.Clone(Name);
             clone.Description = CoreUtils.Clone(Description);
-            clone.DataType = CoreUtils.Clone(DataType);
-            clone.ValueRank = (int)CoreUtils.Clone(ValueRank);
+            clone.DataType = DataType;
+            clone.ValueRank = CoreUtils.Clone(ValueRank);
             clone.m_arrayDimensions = CoreUtils.Clone(m_arrayDimensions);
-            clone.MaxStringLength = (uint)CoreUtils.Clone(MaxStringLength);
-            clone.IsOptional = (bool)CoreUtils.Clone(IsOptional);
+            clone.MaxStringLength = CoreUtils.Clone(MaxStringLength);
+            clone.IsOptional = CoreUtils.Clone(IsOptional);
 
             return clone;
         }

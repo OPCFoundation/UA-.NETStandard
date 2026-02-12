@@ -133,7 +133,7 @@ namespace Opc.Ua.Sample
         /// <returns>True if the namespace is one of the nodes.</returns>
         protected virtual bool IsNodeIdInNamespace(NodeId nodeId)
         {
-            if (NodeId.IsNull(nodeId))
+            if (nodeId.IsNull)
             {
                 return false;
             }
@@ -211,7 +211,7 @@ namespace Opc.Ua.Sample
 
                 NodeState parent = null;
 
-                if (parentId != null)
+                if (!parentId.IsNull)
                 {
                     if (!PredefinedNodes.TryGetValue(parentId, out parent))
                     {
@@ -224,7 +224,7 @@ namespace Opc.Ua.Sample
                     parent.AddChild(instance);
                 }
 
-                instance.Create(contextToUse, null, browseName, null, true);
+                instance.Create(contextToUse, default, browseName, default, true);
                 AddPredefinedNode(contextToUse, instance);
 
                 return instance.NodeId;
@@ -380,11 +380,6 @@ namespace Opc.Ua.Sample
             ISystemContext context,
             NodeState predefinedNode)
         {
-            if (predefinedNode is not BaseObjectState)
-            {
-                return predefinedNode;
-            }
-
             return predefinedNode;
         }
 
@@ -572,7 +567,7 @@ namespace Opc.Ua.Sample
                     IReference reference = references[ii];
 
                     // nothing to do with external nodes.
-                    if (reference.TargetId == null || reference.TargetId.IsAbsolute)
+                    if (reference.TargetId.IsNull || reference.TargetId.IsAbsolute)
                     {
                         continue;
                     }
@@ -652,7 +647,7 @@ namespace Opc.Ua.Sample
         /// </summary>
         protected void AddTypesToTypeTree(BaseTypeState type)
         {
-            if (!NodeId.IsNull(type.SuperTypeId) && !Server.TypeTree.IsKnown(type.SuperTypeId))
+            if (!type.SuperTypeId.IsNull && !Server.TypeTree.IsKnown(type.SuperTypeId))
             {
                 AddTypesToTypeTree(type.SuperTypeId);
             }
@@ -684,9 +679,10 @@ namespace Opc.Ua.Sample
         /// Finds the specified node and checks if it is of the expected type.
         /// </summary>
         /// <returns>Returns null if not found or not of the correct type.</returns>
+        [Obsolete("Use FindPredefinedNode<T> instead.")]
         public NodeState FindPredefinedNode(NodeId nodeId, Type expectedType)
         {
-            if (nodeId == null)
+            if (nodeId.IsNull)
             {
                 return null;
             }
@@ -702,6 +698,26 @@ namespace Opc.Ua.Sample
             }
 
             return node;
+        }
+
+        /// <summary>
+        /// Finds the specified node and checks if it is of the expected type.
+        /// </summary>
+        /// <typeparam name="T">Node state type</typeparam>
+        /// <returns>Returns null if not found or not of the correct type.</returns>
+        public T FindPredefinedNode<T>(NodeId nodeId) where T : NodeState
+        {
+            if (nodeId.IsNull)
+            {
+                return null;
+            }
+
+            if (!PredefinedNodes.TryGetValue(nodeId, out NodeState node))
+            {
+                return null;
+            }
+
+            return node is T typedNode ? typedNode : null;
         }
 
         /// <summary>
@@ -891,7 +907,7 @@ namespace Opc.Ua.Sample
                         ((uint)values[1]));
                 }
 
-                metadata.DataType = (NodeId)values[2];
+                metadata.DataType = values[2] is NodeId nodeId ? nodeId : default;
 
                 if (values[3] != null)
                 {
@@ -982,7 +998,7 @@ namespace Opc.Ua.Sample
                         continuationPoint.ReferenceTypeId,
                         continuationPoint.IncludeSubtypes,
                         continuationPoint.BrowseDirection,
-                        null,
+                        default,
                         null,
                         false);
 
@@ -1084,7 +1100,7 @@ namespace Opc.Ua.Sample
                 return null;
             }
 
-            NodeId typeDefinition = null;
+            NodeId typeDefinition = default;
 
             if (target is BaseInstanceState instance)
             {
@@ -1765,9 +1781,7 @@ namespace Opc.Ua.Sample
                             false,
                             methodToCall.MethodId))
                         {
-                            method = (MethodState)FindPredefinedNode(
-                                methodToCall.MethodId,
-                                typeof(MethodState));
+                            method = FindPredefinedNode<MethodState>(methodToCall.MethodId);
                         }
 
                         if (method == null)
@@ -2485,7 +2499,7 @@ namespace Opc.Ua.Sample
             {
                 if (variable.FindChild(
                     context,
-                    BrowseNames.EURange) is not BaseVariableState euRange)
+                    QualifiedName.From(BrowseNames.EURange)) is not BaseVariableState euRange)
                 {
                     return StatusCodes.BadMonitoredItemFilterUnsupported;
                 }
@@ -2590,10 +2604,9 @@ namespace Opc.Ua.Sample
 
             if (ServiceResult.IsBad(error))
             {
-                if (error.StatusCode.Code
-                    is StatusCodes.BadAttributeIdInvalid
-                    or StatusCodes.BadDataEncodingInvalid
-                    or StatusCodes.BadDataEncodingUnsupported)
+                if (error.StatusCode == StatusCodes.BadAttributeIdInvalid ||
+                    error.StatusCode == StatusCodes.BadDataEncodingInvalid ||
+                    error.StatusCode == StatusCodes.BadDataEncodingUnsupported)
                 {
                     return error;
                 }

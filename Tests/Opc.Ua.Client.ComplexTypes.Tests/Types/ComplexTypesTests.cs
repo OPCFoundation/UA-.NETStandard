@@ -117,7 +117,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var baseType = emittedType as BaseComplexType;
 
             // fill struct with default values
-            FillStructWithValues(baseType, randomValue);
+            FillStructWithValues(baseType, randomValue, NameSpaceUris);
 
             for (int i = 0; i < baseType.GetPropertyCount(); i++)
             {

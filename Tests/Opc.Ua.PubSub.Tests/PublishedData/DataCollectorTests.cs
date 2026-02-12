@@ -145,35 +145,35 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             // Define  publishedDataSetSimple.DataSetMetaData
             publishedDataSetSimple.DataSetMetaData = new DataSetMetaDataType
             {
-                DataSetClassId = new Uuid(Guid.Empty),
+                DataSetClassId = Uuid.Empty,
                 Name = publishedDataSetSimple.Name,
                 Fields =
                 [
                     new FieldMetaData
                     {
                         Name = "BoolToggle",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         DataType = DataTypeIds.Boolean,
                         ValueRank = ValueRanks.Scalar
                     },
                     new FieldMetaData
                     {
                         Name = "Int32",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         DataType = DataTypeIds.Int32,
                         ValueRank = ValueRanks.Scalar
                     },
                     new FieldMetaData
                     {
                         Name = "Int32Fast",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         DataType = DataTypeIds.Int32,
                         ValueRank = ValueRanks.Scalar
                     },
                     new FieldMetaData
                     {
                         Name = "DateTime",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         DataType = DataTypeIds.DateTime,
                         ValueRank = ValueRanks.Scalar
                     }
@@ -241,35 +241,35 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             // Define  publishedDataSetSimple.DataSetMetaData
             publishedDataSetSimple.DataSetMetaData = new DataSetMetaDataType
             {
-                DataSetClassId = new Uuid(Guid.Empty),
+                DataSetClassId = Uuid.Empty,
                 Name = publishedDataSetSimple.Name,
                 Fields =
                 [
                     new FieldMetaData
                     {
                         Name = "BoolToggle",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         DataType = DataTypeIds.Boolean,
                         ValueRank = ValueRanks.Scalar
                     },
                     new FieldMetaData
                     {
                         Name = "Int32",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         DataType = DataTypeIds.Int32,
                         ValueRank = ValueRanks.Scalar
                     },
                     new FieldMetaData
                     {
                         Name = "Int32Fast",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         DataType = DataTypeIds.Int32,
                         ValueRank = ValueRanks.Scalar
                     },
                     new FieldMetaData
                     {
                         Name = "DateTime",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         DataType = DataTypeIds.DateTime,
                         ValueRank = ValueRanks.Scalar
                     }
@@ -279,10 +279,10 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             //initialize Extension fields collection
             publishedDataSetSimple.ExtensionFields =
             [
-                new KeyValuePair { Key = new QualifiedName("BoolToggle"), Value = true },
-                new KeyValuePair { Key = new QualifiedName("Int32"), Value = 100 },
-                new KeyValuePair { Key = new QualifiedName("Int32Fast"), Value = 50 },
-                new KeyValuePair { Key = new QualifiedName("DateTime"), Value = DateTime.Today }
+                new KeyValuePair { Key = QualifiedName.From("BoolToggle"), Value = true },
+                new KeyValuePair { Key = QualifiedName.From("Int32"), Value = 100 },
+                new KeyValuePair { Key = QualifiedName.From("Int32Fast"), Value = 50 },
+                new KeyValuePair { Key = QualifiedName.From("DateTime"), Value = DateTime.Today }
             ];
 
             var publishedDataItems = new PublishedDataItemsDataType { PublishedData = [] };
@@ -292,7 +292,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 publishedDataItems.PublishedData.Add(
                     new PublishedVariableDataType
                     {
-                        SubstituteValue = new QualifiedName(field.Name)
+                        SubstituteValue = QualifiedName.From(field.Name)
                     });
             }
             publishedDataSetSimple.DataSetSource = new ExtensionObject(publishedDataItems);

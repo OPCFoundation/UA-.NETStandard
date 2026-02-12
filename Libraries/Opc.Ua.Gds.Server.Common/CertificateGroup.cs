@@ -109,9 +109,7 @@ namespace Opc.Ua.Gds.Server
 
             foreach (string certificateTypeString in Configuration.CertificateTypes)
             {
-                var certificateType = typeof(Ua.ObjectTypeIds).GetField(certificateTypeString)
-                    .GetValue(null) as NodeId;
-                if (certificateType != null)
+                if (Ua.ObjectTypeIds.TryGetIdentifier(certificateTypeString, out NodeId certificateType))
                 {
                     if (!Utils.IsSupportedCertificateType(certificateType))
                     {
@@ -353,7 +351,7 @@ namespace Opc.Ua.Gds.Server
                         "CSR signature invalid.");
                 }
 
-                X509SubjectAltNameExtension altNameExtension = 
+                X509SubjectAltNameExtension altNameExtension =
                     Pkcs10Utils.GetSubjectAltNameExtension(pkcs10CertificationRequest.Attributes);
                 if (altNameExtension != null &&
                     altNameExtension.Uris.Count > 0 &&
@@ -389,7 +387,7 @@ namespace Opc.Ua.Gds.Server
                         "CSR signature invalid.");
                 }
 
-                X509SubjectAltNameExtension altNameExtension = 
+                X509SubjectAltNameExtension altNameExtension =
                     Pkcs10Utils.GetSubjectAltNameExtension(pkcs10CertificationRequest.Attributes);
                 if (altNameExtension != null)
                 {
@@ -427,7 +425,7 @@ namespace Opc.Ua.Gds.Server
                     m_telemetry,
                     ct)
                     .ConfigureAwait(false);
-                var subjectName = pkcs10CertificationRequest.Subject;
+                X500DistinguishedName subjectName = pkcs10CertificationRequest.Subject;
 
                 ICertificateBuilder builder = CertificateBuilder
                     .Create(subjectName)
@@ -473,7 +471,7 @@ namespace Opc.Ua.Gds.Server
                     subjectName);
             }
 
-            if (certificateType is null)
+            if (certificateType.IsNull)
             {
                 throw new ArgumentNullException(nameof(certificateType));
             }
@@ -569,13 +567,14 @@ namespace Opc.Ua.Gds.Server
             bool isCACert = X509Utils.IsCertificateAuthority(certificate);
 
             // find the authority key identifier.
-
             X509AuthorityKeyIdentifierExtension authority =
                 certificate.FindExtension<X509AuthorityKeyIdentifierExtension>();
             string serialNumber;
+            string keyIdentifier;
             if (authority != null)
             {
                 serialNumber = authority.SerialNumber;
+                keyIdentifier = authority.KeyIdentifier;
             }
             else
             {
@@ -605,6 +604,12 @@ namespace Opc.Ua.Gds.Server
                             store,
                             certificate.IssuerName,
                             serialNumber)
+                        .ConfigureAwait(false)
+                    ?? await X509Utils
+                        .FindIssuerCAByKeyIdentifierAsync(
+                            store,
+                            certificate.IssuerName,
+                            keyIdentifier)
                         .ConfigureAwait(false)
                     ?? throw new ServiceResultException(
                         StatusCodes.BadCertificateInvalid,
@@ -683,7 +688,7 @@ namespace Opc.Ua.Gds.Server
             //  Checks if the Certificate Group is for RSA Certificates
             static bool IsRSACertificateType(NodeId certificateType)
             {
-                return certificateType == null ||
+                return certificateType.IsNull ||
                     certificateType == Ua.ObjectTypeIds.ApplicationCertificateType ||
                     certificateType == Ua.ObjectTypeIds.HttpsCertificateType ||
                     certificateType == Ua.ObjectTypeIds.UserCertificateType ||
@@ -759,7 +764,6 @@ namespace Opc.Ua.Gds.Server
                 trustedOrIssuerStore.Close();
             }
         }
-
 
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;

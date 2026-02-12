@@ -72,6 +72,7 @@ namespace Opc.Ua.Client.Tests
             {
                 // start Ref server
                 ServerFixture = new ServerFixture<ReferenceServer>(
+                    t => new ReferenceServer(t),
                     enableTracing,
                     disableActivityLogging)
                 {
@@ -640,11 +641,11 @@ namespace Opc.Ua.Client.Tests
             var serverDiags = new NodeId(
                 Variables.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
 
-            NodeId monitoredItemCountNodeId = null;
-            NodeId maxLifetimeCountNodeId = null;
-            NodeId maxKeepAliveCountNodeId = null;
-            NodeId currentLifetimeCountNodeId = null;
-            NodeId publishingIntervalNodeId = null;
+            NodeId monitoredItemCountNodeId = default;
+            NodeId maxLifetimeCountNodeId = default;
+            NodeId maxKeepAliveCountNodeId = default;
+            NodeId currentLifetimeCountNodeId = default;
+            NodeId publishingIntervalNodeId = default;
 
             (_, _, ReferenceDescriptionCollection references) = await Session.BrowseAsync(
                 null,
@@ -699,7 +700,7 @@ namespace Opc.Ua.Client.Tests
 
                     foreach (ReferenceDescription referenceDescription in desiredReferences)
                     {
-                        NodeId recreated = null;
+                        NodeId recreated = default;
                         if (referenceDescription.NodeId.IsNull)
                         {
                             TestContext.Out.WriteLine(
@@ -711,11 +712,10 @@ namespace Opc.Ua.Client.Tests
                         }
                         else
                         {
-                            recreated = new NodeId(
-                                referenceDescription.NodeId.Identifier,
+                            recreated = referenceDescription.NodeId.InnerNodeId.WithNamespaceIndex(
                                 referenceDescription.NodeId.NamespaceIndex);
 
-                            if (recreated.IsNullNodeId)
+                            if (recreated.IsNull)
                             {
                                 TestContext.Out.WriteLine(
                                     "Subscription Reference {0} Recreated Node is Null",
@@ -809,10 +809,10 @@ namespace Opc.Ua.Client.Tests
                     {
                         AttributeId = Attributes.Value,
                         TypeDefinitionId = ObjectTypeIds.BaseEventType,
-                        BrowsePath = [.. new QualifiedName[] { "EventType" }]
+                        BrowsePath = [.. new QualifiedName[] { QualifiedName.From("EventType") }]
                     },
                     new LiteralOperand {
-                        Value = new Variant(new NodeId(ObjectTypeIds.BaseEventType)) }
+                        Value = new Variant(ObjectTypeIds.BaseEventType) }
                 ]);
 
             return new MonitoredItem(Session.MessageContext.Telemetry)
@@ -832,7 +832,7 @@ namespace Opc.Ua.Client.Tests
                             {
                                 AttributeId = Attributes.Value,
                                 TypeDefinitionId = ObjectTypeIds.BaseEventType,
-                                BrowsePath = [.. new QualifiedName[] { BrowseNames.Message }]
+                                BrowsePath = [.. new QualifiedName[] { QualifiedName.From(BrowseNames.Message) }]
                             }
                         }
                     ],

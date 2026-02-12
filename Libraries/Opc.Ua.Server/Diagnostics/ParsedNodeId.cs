@@ -71,14 +71,13 @@ namespace Opc.Ua.Server
         public static ParsedNodeId Parse(NodeId nodeId)
         {
             // can only parse non-null string node identifiers.
-            if (NodeId.IsNull(nodeId))
+            if (nodeId.IsNull)
             {
                 return null;
             }
 
-            string identifier = nodeId.Identifier as string;
-
-            if (string.IsNullOrEmpty(identifier))
+            if (!nodeId.TryGetIdentifier(out string identifier) ||
+                string.IsNullOrEmpty(identifier))
             {
                 return null;
             }
@@ -258,7 +257,7 @@ namespace Opc.Ua.Server
         {
             if (component == null)
             {
-                return null;
+                return default;
             }
 
             // components must be instances with a parent.
@@ -269,9 +268,9 @@ namespace Opc.Ua.Server
             }
 
             // parent must have a string identifier.
-            if (instance.Parent.NodeId.Identifier is not string parentId)
+            if (!instance.Parent.NodeId.TryGetIdentifier(out string parentId))
             {
-                return null;
+                return default;
             }
 
             var buffer = new StringBuilder();

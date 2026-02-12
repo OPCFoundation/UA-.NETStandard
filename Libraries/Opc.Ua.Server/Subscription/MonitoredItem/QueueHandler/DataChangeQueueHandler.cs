@@ -62,7 +62,8 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="value">the dataValue</param>
         /// <param name="error">the error</param>
-        void QueueValue(DataValue value, ServiceResult error);
+        /// <returns>true of overflow occured</returns>
+        bool QueueValue(DataValue value, ServiceResult error);
 
         /// <summary>
         /// Dequeues the last item
@@ -207,7 +208,8 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="value">the dataValue</param>
         /// <param name="error">the error</param>
-        public void QueueValue(DataValue value, ServiceResult error)
+        /// <returns>true of overflow occured</returns>
+        public bool QueueValue(DataValue value, ServiceResult error)
         {
             long now = HiResClock.TickCount64;
 
@@ -216,11 +218,26 @@ namespace Opc.Ua.Server
                 // check if too soon for another sample.
                 if (now < m_nextSampleTime)
                 {
+                    if (m_logger.IsEnabled(LogLevel.Trace))
+                    {
+                        DataValue overwrittenValue = m_dataValueQueue.PeekLastValue();
+
+                        m_logger.LogTrace(
+                            "OVERWRITTEN VALUE (TOO SOON FOR ANOTHER SAMPLE): Value={Value} CODE={Code}<{Code:X8}> SamplingInterval={SamplingInterval}" +
+                            "QueueValueCall {Now} NextSampleTime {NextSampleTime}",
+                            overwrittenValue.WrappedValue,
+                            overwrittenValue.StatusCode.Code,
+                            value.StatusCode.Code,
+                            m_samplingInterval,
+                            now,
+                            m_nextSampleTime);
+                    }
+
                     m_dataValueQueue.OverwriteLastValue(value, error);
 
                     m_discardedValueHandler?.Invoke();
 
-                    return;
+                    return false;
                 }
             }
 
@@ -240,7 +257,7 @@ namespace Opc.Ua.Server
             }
 
             // queue next value.
-            Enqueue(value, error);
+            return Enqueue(value, error);
         }
 
         /// <summary>
@@ -274,7 +291,12 @@ namespace Opc.Ua.Server
             return false;
         }
 
-        private void Enqueue(DataValue value, ServiceResult error)
+        /// <summary>
+        /// Enque value
+        /// </summary>
+        /// <returns>true of overflow occured</returns>
+        /// <exception cref="ServiceResultException"></exception>
+        private bool Enqueue(DataValue value, ServiceResult error)
         {
             // check for empty queue.
             if (m_dataValueQueue.ItemsInQueue == 0)
@@ -286,7 +308,7 @@ namespace Opc.Ua.Server
 
                 m_dataValueQueue.Enqueue(value, error);
 
-                return;
+                return false;
             }
 
             // check if the latest value has initial dummy data
@@ -296,7 +318,7 @@ namespace Opc.Ua.Server
                 // overwrite the last value
                 m_dataValueQueue.OverwriteLastValue(value, error);
 
-                return;
+                return false;
             }
 
             // check if queue is full.
@@ -307,7 +329,7 @@ namespace Opc.Ua.Server
                 if (!m_discardOldest)
                 {
                     ServerUtils.ReportDiscardedValue(
-                        null,
+                        default,
                         m_monitoredItemId,
                         m_dataValueQueue.PeekLastValue());
 
@@ -317,12 +339,12 @@ namespace Opc.Ua.Server
                     // overwrite last value
                     m_dataValueQueue.OverwriteLastValue(value, error);
 
-                    return;
+                    return true;
                 }
                 // remove oldest value.
                 if (m_dataValueQueue.Dequeue(out DataValue discardedValue, out _))
                 {
-                    ServerUtils.ReportDiscardedValue(null, m_monitoredItemId, discardedValue);
+                    ServerUtils.ReportDiscardedValue(default, m_monitoredItemId, discardedValue);
                 }
                 else
                 {
@@ -332,6 +354,10 @@ namespace Opc.Ua.Server
                 }
                 //set overflow bit in oldest value
                 m_overflow = m_dataValueQueue.PeekOldestValue();
+
+                m_dataValueQueue.Enqueue(value, error);
+
+                return true;
             }
             else if (m_logger.IsEnabled(LogLevel.Trace))
             {
@@ -339,6 +365,8 @@ namespace Opc.Ua.Server
             }
 
             m_dataValueQueue.Enqueue(value, error);
+
+            return false;
         }
 
         /// <summary>
@@ -348,22 +376,14 @@ namespace Opc.Ua.Server
         /// <param name="error">The error to update.</param>
         private static void SetOverflowBit(ref DataValue value, ref ServiceResult error)
         {
-            if (value != null)
-            {
-                StatusCode status = value.StatusCode;
-                status.Overflow = true;
-                value.StatusCode = status;
-            }
+            value?.StatusCode = value.StatusCode.SetOverflow(true);
 
             if (error != null)
             {
-                StatusCode status = error.StatusCode;
-                status.Overflow = true;
-
                 // have to copy before updating because the ServiceResult is invariant.
                 error = new ServiceResult(
                     error.NamespaceUri,
-                    status,
+                    error.StatusCode.SetOverflow(true),
                     error.LocalizedText,
                     error.AdditionalInfo,
                     error.InnerResult);

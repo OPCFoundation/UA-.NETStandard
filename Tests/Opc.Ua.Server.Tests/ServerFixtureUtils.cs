@@ -60,6 +60,7 @@ namespace Opc.Ua.Server.Tests
         /// <param name="server">The server to connect to.</param>
         /// <param name="sessionName">A session name.</param>
         /// <returns>The request header for the session.</returns>
+        /// <exception cref="NotSupportedException"></exception>
         public static async Task<(RequestHeader, SecureChannelContext)> CreateAndActivateSessionAsync(
             this SessionServerBase server,
             string sessionName,
@@ -119,7 +120,7 @@ namespace Opc.Ua.Server.Tests
                 createSessionResponse.ServerSignature,
                 [],
                 [],
-                identityToken != null ? new ExtensionObject(identityToken) : null,
+                identityToken != null ? new ExtensionObject(identityToken) : default,
                 null,
                 CancellationToken.None).ConfigureAwait(false);
             ValidateResponse(activateSessionResponse.ResponseHeader);

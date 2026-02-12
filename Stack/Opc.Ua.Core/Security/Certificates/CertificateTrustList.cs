@@ -89,8 +89,7 @@ namespace Opc.Ua
 
                     if (store == null)
                     {
-                        throw new ServiceResultException(
-                            StatusCodes.BadConfigurationError,
+                        throw ServiceResultException.ConfigurationError(
                             "Failed to open certificate store.");
                     }
 

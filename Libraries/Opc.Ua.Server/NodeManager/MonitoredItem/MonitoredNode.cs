@@ -237,11 +237,11 @@ namespace Opc.Ua.Server
                 {
                     // enqueue event
                     if (context is ISessionSystemContext session &&
-                        session.SessionId != null &&
-                        monitoredItem?.Session?.Id?.Identifier != null)
+                        !session.SessionId.IsNull &&
+                        monitoredItem?.Session != null &&
+                        !monitoredItem.Session.Id.IsNull)
                     {
-                        if (monitoredItem.Session.Id.Identifier
-                            .Equals(session.SessionId.Identifier))
+                        if (monitoredItem.Session.Id.Equals(session.SessionId))
                         {
                             monitoredItem?.QueueEvent(e);
                         }

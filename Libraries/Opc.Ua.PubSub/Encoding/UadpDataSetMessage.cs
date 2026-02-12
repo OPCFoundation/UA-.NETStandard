@@ -709,7 +709,7 @@ namespace Opc.Ua.PubSub.Encoding
                 // 01 RawData Field Encoding
                 Variant variant = field.Value.WrappedValue;
 
-                if (variant.TypeInfo == null || variant.TypeInfo.BuiltInType == BuiltInType.Null)
+                if (variant.TypeInfo.IsUnknown || variant.TypeInfo.BuiltInType == BuiltInType.Null)
                 {
                     return;
                 }
@@ -791,20 +791,22 @@ namespace Opc.Ua.PubSub.Encoding
                         case BuiltInType.QualifiedName:
                             binaryEncoder.WriteQualifiedName(
                                 "QualifiedName",
-                                valueToEncode as QualifiedName);
+                                valueToEncode is QualifiedName qn ? qn : default);
                             break;
                         case BuiltInType.LocalizedText:
                             binaryEncoder.WriteLocalizedText(
                                 "LocalizedText",
-                                valueToEncode as LocalizedText);
+                                valueToEncode is LocalizedText text ? text : default);
                             break;
                         case BuiltInType.NodeId:
-                            binaryEncoder.WriteNodeId("NodeId", valueToEncode as NodeId);
+                            binaryEncoder.WriteNodeId(
+                                "NodeId",
+                                valueToEncode is NodeId n ? n : default);
                             break;
                         case BuiltInType.ExpandedNodeId:
                             binaryEncoder.WriteExpandedNodeId(
                                 "ExpandedNodeId",
-                                valueToEncode as ExpandedNodeId);
+                                valueToEncode is ExpandedNodeId e ? e : default);
                             break;
                         case BuiltInType.StatusCode:
                             binaryEncoder.WriteStatusCode("StatusCode", (StatusCode)valueToEncode);
@@ -822,7 +824,7 @@ namespace Opc.Ua.PubSub.Encoding
                         case BuiltInType.ExtensionObject:
                             binaryEncoder.WriteExtensionObject(
                                 "ExtensionObject",
-                                valueToEncode as ExtensionObject);
+                                valueToEncode is ExtensionObject eo ? eo : default);
                             break;
                         case BuiltInType.Null:
                         case BuiltInType.DataValue:

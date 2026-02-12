@@ -239,11 +239,11 @@ namespace Opc.Ua.Server
             ManagerHandle = null;
             SubscriptionId = 0;
             Id = 0;
-            NodeId = null;
+            NodeId = default;
             AttributeId = 0;
             m_indexRange = null;
             m_parsedIndexRange = NumericRange.Empty;
-            DataEncoding = null;
+            DataEncoding = default;
             ClientHandle = 0;
             MonitoringMode = MonitoringMode.Disabled;
             m_samplingInterval = 0;
@@ -950,9 +950,10 @@ namespace Opc.Ua.Server
         /// </summary>
         private void AddValueToQueue(DataValue value, ServiceResult error)
         {
+            bool overflow = false;
             if (QueueSize > 1)
             {
-                m_dataChangeQueueHandler.QueueValue(value, error);
+                overflow = m_dataChangeQueueHandler.QueueValue(value, error);
             }
 
             if (m_lastValue != null)
@@ -965,14 +966,17 @@ namespace Opc.Ua.Server
             m_lastError = error;
             m_readyToPublish = true;
 
-            m_logger.LogTrace(
-                Utils.TraceMasks.OperationDetail,
-                "QUEUE VALUE[{MonitoredItemId}]: Value={Value} CODE={Code}<{Code:X8}> OVERFLOW={Overflow}",
-                Id,
-                m_lastValue.WrappedValue,
-                m_lastValue.StatusCode.Code,
-                m_lastValue.StatusCode.Code,
-                m_lastValue.StatusCode.Overflow);
+            if (m_logger.IsEnabled(LogLevel.Trace))
+            {
+                m_logger.LogTrace(
+                    Utils.TraceMasks.OperationDetail,
+                    "QUEUE VALUE[{MonitoredItemId}]: Value={Value} CODE={Code}<{Code:X8}> OVERFLOW={Overflow}",
+                    Id,
+                    m_lastValue.WrappedValue,
+                    m_lastValue.StatusCode.Code,
+                    m_lastValue.StatusCode.Code,
+                    overflow);
+            }
         }
 
         /// <summary>
@@ -1118,7 +1122,7 @@ namespace Opc.Ua.Server
             bool passedFilter = filter.WhereClause.Evaluate(context, instance);
 
             ConditionState alarmCondition = null;
-            NodeId conditionId = null;
+            NodeId conditionId = default;
             if (instance is InstanceStateSnapshot instanceStateSnapshot)
             {
                 alarmCondition = instanceStateSnapshot.Handle as ConditionState;
@@ -1135,7 +1139,7 @@ namespace Opc.Ua.Server
             bool canSend = passedFilter;
 
             // ConditionId is valid only if FilteredRetain is set for the alarm condition
-            if (conditionId != null && alarmCondition != null)
+            if (!conditionId.IsNull && alarmCondition != null)
             {
                 HashSet<string> conditionIds = GetFilteredRetainConditionIds();
 
@@ -1448,10 +1452,7 @@ namespace Opc.Ua.Server
             // set semantics changed bit.
             if (m_semanticsChanged)
             {
-                if (value != null)
-                {
-                    value.StatusCode = value.StatusCode.SetSemanticsChanged(true);
-                }
+                value?.StatusCode = value.StatusCode.SetSemanticsChanged(true);
 
                 if (error != null)
                 {
@@ -1469,10 +1470,7 @@ namespace Opc.Ua.Server
             // set structure changed bit.
             if (m_structureChanged)
             {
-                if (value != null)
-                {
-                    value.StatusCode = value.StatusCode.SetStructureChanged(true);
-                }
+                value?.StatusCode = value.StatusCode.SetStructureChanged(true);
 
                 if (error != null)
                 {
@@ -1662,27 +1660,27 @@ namespace Opc.Ua.Server
             }
 
             // get the current status.
-            uint status = StatusCodes.Good;
+            StatusCode status = StatusCodes.Good;
 
             if (error != null)
             {
-                status = error.StatusCode.Code;
+                status = error.StatusCode;
             }
             else if (lastValue != null)
             {
-                status = value.StatusCode.Code;
+                status = value.StatusCode;
             }
 
             // get the last status.
-            uint lastStatus = StatusCodes.Good;
+            StatusCode lastStatus = StatusCodes.Good;
 
             if (lastError != null)
             {
-                lastStatus = lastError.StatusCode.Code;
+                lastStatus = lastError.StatusCode;
             }
             else if (lastValue != null)
             {
-                lastStatus = lastValue.StatusCode.Code;
+                lastStatus = lastValue.StatusCode;
             }
 
             // value changed if any status change occurrs.
@@ -1797,8 +1795,8 @@ namespace Opc.Ua.Server
 
                 if (isVariant)
                 {
-                    element1 = ((Variant)element1).Value;
-                    element2 = ((Variant)element2).Value;
+                    element1 = ((Variant)element1).AsBoxedObject(); // TODO: Rewrite to avoid boxing
+                    element2 = ((Variant)element2).AsBoxedObject();
                 }
 
                 if (!Equals(element1, element2, deadbandType, deadband, range))

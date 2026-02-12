@@ -66,7 +66,7 @@ namespace Opc.Ua
                 BrowseNames.BaseObjectType,
                 string.Empty,
                 BrowseNames.BaseObjectType);
-            Description = null;
+            Description = default;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
             IsAbstract = false;
@@ -85,19 +85,9 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override object Clone()
         {
-            return MemberwiseClone();
-        }
-
-        /// <summary>
-        /// Makes a copy of the node and all children.
-        /// </summary>
-        /// <returns>
-        /// A new object that is a copy of this instance.
-        /// </returns>
-        public new object MemberwiseClone()
-        {
-            var clone = (BaseObjectTypeState)Activator.CreateInstance(GetType());
-            return CloneChildren(clone);
+            var clone = new BaseObjectTypeState();
+            CopyTo(clone);
+            return clone;
         }
     }
 }

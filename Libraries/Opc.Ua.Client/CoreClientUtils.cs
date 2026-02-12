@@ -281,7 +281,8 @@ namespace Opc.Ua.Client
                 EndpointDescription endpoint = endpoints[ii];
 
                 // check for a match on the URL scheme.
-                if (endpoint.EndpointUrl.StartsWith(url.Scheme, StringComparison.Ordinal))
+                if (endpoint.EndpointUrl != null &&
+                    endpoint.EndpointUrl.StartsWith(url.Scheme, StringComparison.Ordinal))
                 {
                     // check if security was requested.
                     if (useSecurity)

@@ -108,7 +108,7 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
             const string filePath = "test.txt";
 
             // Act & Assert
-            Assert.Throws<ArgumentNullException>(() => vfs.Add(filePath, null!));
+            Assert.Throws<ArgumentNullException>(() => vfs.Add(filePath, null));
         }
 
         [Test]

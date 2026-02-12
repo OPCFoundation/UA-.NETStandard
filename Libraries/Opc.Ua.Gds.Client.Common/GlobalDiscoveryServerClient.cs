@@ -379,11 +379,13 @@ namespace Opc.Ua.Gds.Client
                     await ConnectInternalAsync(endpoint, false, ct).ConfigureAwait(false);
                     return;
                 }
-                catch (ServiceResultException e) when ((e.StatusCode is
-                    StatusCodes.BadServerHalted or
-                    StatusCodes.BadSecureChannelClosed or
-                    StatusCodes.BadNoCommunication) &&
-                    attempt < maxAttempts)
+                catch (ServiceResultException e) when (
+                (
+                    e.StatusCode == StatusCodes.BadServerHalted ||
+                    e.StatusCode == StatusCodes.BadSecureChannelClosed ||
+                    e.StatusCode == StatusCodes.BadNoCommunication
+                ) &&
+                attempt < maxAttempts)
                 {
                     m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt + 1);
                     await Task.Delay(1000, ct).ConfigureAwait(false);
@@ -434,11 +436,13 @@ namespace Opc.Ua.Gds.Client
                     await ConnectInternalAsync(endpoint, true, ct).ConfigureAwait(false);
                     return;
                 }
-                catch (ServiceResultException e) when ((e.StatusCode is
-                    StatusCodes.BadServerHalted or
-                    StatusCodes.BadSecureChannelClosed or
-                    StatusCodes.BadNoCommunication) &&
-                    attempt < maxAttempts)
+                catch (ServiceResultException e) when (
+                (
+                    e.StatusCode == StatusCodes.BadServerHalted ||
+                    e.StatusCode == StatusCodes.BadSecureChannelClosed ||
+                    e.StatusCode == StatusCodes.BadNoCommunication
+                ) &&
+                attempt < maxAttempts)
                 {
                     m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt + 1);
                     await Task.Delay(1000, ct).ConfigureAwait(false);
@@ -863,10 +867,12 @@ namespace Opc.Ua.Gds.Client
                 ct,
                 applicationId).ConfigureAwait(false);
 
-            if (outputArguments.Count >= 1)
+            if (outputArguments.Count >= 1 &&
+                outputArguments[0] is ExtensionObject extension &&
+                extension.TryGetEncodeable(
+                    out ApplicationRecordDataType applicationRecord))
             {
-                return ExtensionObject.ToEncodeable(
-                    outputArguments[0] as ExtensionObject) as ApplicationRecordDataType;
+                return applicationRecord;
             }
 
             return null;
@@ -903,12 +909,11 @@ namespace Opc.Ua.Gds.Client
                 ct,
                 application).ConfigureAwait(false);
 
-            if (outputArguments.Count >= 1)
+            if (outputArguments.Count >= 1 && outputArguments[0] is NodeId nodeId)
             {
-                return outputArguments[0] as NodeId;
+                return nodeId;
             }
-
-            return null;
+            return default;
         }
 
         /// <summary>
@@ -1179,12 +1184,12 @@ namespace Opc.Ua.Gds.Client
                 privateKeyFormat,
                 new string(privateKeyPassword)).ConfigureAwait(false);
 
-            if (outputArguments.Count >= 1)
+            if (outputArguments.Count >= 1 && outputArguments[0] is NodeId nodeId)
             {
-                return outputArguments[0] as NodeId;
+                return nodeId;
             }
 
-            return null;
+            return default;
         }
 
         /// <summary>
@@ -1238,12 +1243,12 @@ namespace Opc.Ua.Gds.Client
                 certificateTypeId,
                 certificateRequest).ConfigureAwait(false);
 
-            if (outputArguments.Count >= 1)
+            if (outputArguments.Count >= 1 && outputArguments[0] is NodeId nodeId)
             {
-                return outputArguments[0] as NodeId;
+                return nodeId;
             }
 
-            return null;
+            return default;
         }
 
         /// <summary>
@@ -1375,12 +1380,12 @@ namespace Opc.Ua.Gds.Client
                 applicationId,
                 certificateGroupId).ConfigureAwait(false);
 
-            if (outputArguments.Count >= 1)
+            if (outputArguments.Count >= 1 && outputArguments[0] is NodeId nodeId)
             {
-                return outputArguments[0] as NodeId;
+                return nodeId;
             }
 
-            return null;
+            return default;
         }
 
         /// <summary>
@@ -1540,11 +1545,8 @@ namespace Opc.Ua.Gds.Client
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                if (Session != null)
-                {
-                    Session.Dispose();
-                    Session = null;
-                }
+                Session?.Dispose();
+                Session = null;
 
                 Session = await m_sessionFactory.CreateAsync(
                     Configuration,

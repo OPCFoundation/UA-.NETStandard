@@ -1,0 +1,347 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ * 
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ * 
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+-->
+
+<opc:ModelDesign
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns:ua="http://opcfoundation.org/UA/"
+  xmlns:gds="http://opcfoundation.org/UA/GDS/"
+  xmlns="http://opcfoundation.org/UA/Scheduler/"
+  xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+  TargetNamespace="http://opcfoundation.org/UA/Scheduler/"
+  TargetVersion="1.05.02"
+  TargetPublicationDate="2022-11-01T00:00:00Z"
+>
+  <opc:Namespaces>
+    <opc:Namespace Name="OpcUaScheduler" Prefix="Opc.Ua.Scheduler" XmlNamespace="http://opcfoundation.org/UA/Scheduler/Types.xsd" XmlPrefix="Scheduler">http://opcfoundation.org/UA/Scheduler/</opc:Namespace>
+    <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" InternalPrefix="Opc.Ua.Server" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd" XmlPrefix="OpcUa">http://opcfoundation.org/UA/</opc:Namespace>
+  </opc:Namespaces>
+
+  <opc:Object SymbolicName="OPCUASchedulerNamespaceMetadata" TypeDefinition="ua:NamespaceMetadataType" PartNo="24">
+    <opc:BrowseName>http://opcfoundation.org/UA/Scheduler/</opc:BrowseName>
+    <opc:Children>
+      <opc:Property SymbolicName="ua:NamespaceUri" DataType="ua:String">
+        <opc:DefaultValue>
+          <uax:String>http://opcfoundation.org/UA/Scheduler/</uax:String>
+        </opc:DefaultValue>
+      </opc:Property>
+      <opc:Property SymbolicName="ua:NamespaceVersion" DataType="ua:String">
+        <opc:DefaultValue>
+          <uax:String>1.05.02</uax:String>
+        </opc:DefaultValue>
+      </opc:Property>
+      <opc:Property SymbolicName="ua:NamespacePublicationDate" DataType="ua:DateTime">
+        <opc:DefaultValue>
+          <uax:DateTime>2022-11-01T00:00:00Z</uax:DateTime>
+        </opc:DefaultValue>
+      </opc:Property>
+      <opc:Property SymbolicName="ua:IsNamespaceSubset" DataType="ua:Boolean">
+        <opc:DefaultValue>
+          <uax:Boolean>false</uax:Boolean>
+        </opc:DefaultValue>
+      </opc:Property>
+      <opc:Property SymbolicName="ua:StaticNodeIdTypes" DataType="ua:IdType" ValueRank="Array">
+        <opc:DefaultValue>
+          <uax:ListOfInt32>
+            <uax:Int32>0</uax:Int32>
+          </uax:ListOfInt32>
+        </opc:DefaultValue>
+      </opc:Property>
+      <opc:Property SymbolicName="ua:StaticNumericNodeIdRange" DataType="ua:NumericRange" ValueRank="Array">
+        <opc:DefaultValue>
+          <uax:ListOfString>
+            <uax:String>1:65535</uax:String>
+          </uax:ListOfString>
+        </opc:DefaultValue>
+      </opc:Property>
+      <opc:Property SymbolicName="ua:StaticStringNodeIdPattern" DataType="ua:String">
+        <opc:DefaultValue>
+          <uax:String></uax:String>
+        </opc:DefaultValue>
+      </opc:Property>
+      <opc:Property SymbolicName="ua:DefaultRolePermissions" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="ua:DefaultUserRolePermissions" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="ua:DefaultAccessRestrictions" ModellingRule="Mandatory" />
+    </opc:Children>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:HasComponent</opc:ReferenceType>
+        <opc:TargetId>ua:Server_Namespaces</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+  <opc:ObjectType SymbolicName="CalendarType" BaseType="ua:BaseObjectType" PartNo="24">
+    <opc:Description>Provides a list of calendar dates. Each entry in the list describes a specific date or date pattern, or range of dates</opc:Description>
+    <opc:Children>
+      <opc:Variable SymbolicName="PresentValue" TypeDefinition="ua:BaseDataVariableType" DataType="ua:Boolean" ValueRank="Scalar" ModellingRule="Mandatory">
+        <opc:Description>Indicates if the current date is in the DateList (true) or not (false)</opc:Description>
+      </opc:Variable>
+      <opc:Property SymbolicName="DateList" DataType="CalendarEntryType" ValueRank="Array" ModellingRule="Mandatory">
+        <opc:Description>Array of elements each defining either a specific date or date pattern, or range of dates</opc:Description>
+      </opc:Property>
+      <opc:Method SymbolicName="AddDateListElements" TypeDefinition="AddDateListElementsMethodType" ModellingRule="Optional" />
+      <opc:Method SymbolicName="RemoveDateListElements" TypeDefinition="RemoveDateListElementsMethodType" ModellingRule="Optional" />
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:Method SymbolicName="AddDateListElementsMethodType">
+    <opc:Description>Adds elements to the DateList</opc:Description>
+    <opc:InputArguments>
+      <opc:Argument Name="CalendarEntries" DataType="CalendarEntryType" ValueRank="Array" />
+    </opc:InputArguments>
+    <opc:OutputArguments>
+      <opc:Argument Name="EntryResults" DataType="ua:Int32" ValueRank="Array" />
+    </opc:OutputArguments>
+  </opc:Method>
+
+  <opc:Method SymbolicName="RemoveDateListElementsMethodType">
+    <opc:Description>Removes elements of the DateList</opc:Description>
+    <opc:InputArguments>
+      <opc:Argument Name="CalendarEntries" DataType="CalendarEntryType" ValueRank="Array" />
+    </opc:InputArguments>
+    <opc:OutputArguments>
+      <opc:Argument Name="EntryResults" DataType="ua:Int32" ValueRank="Array" />
+    </opc:OutputArguments>
+  </opc:Method>
+
+  <opc:ObjectType SymbolicName="ScheduleType" BaseType="ua:BaseObjectType">
+    <opc:Description>Defines a periodic schedule that can recur over a range of dates. The schedule may have optional exceptions at arbitrary times or dates. The basic unit of a schedule is days, which are divided into two types: normal days within a week and exception days. A priority mechanism defines which scheduled event is currently valid. The schedule includes a PresentValue Variable whose value describes the current state of the schedule, including a default value when no schedules are in effect.</opc:Description>
+    <opc:Children>
+      <opc:Property SymbolicName="ExceptionSchedule" DataType="SpecialEventType" ValueRank="Array" ModellingRule="Optional">
+        <opc:Description>An array of special events. If present, each of those special events describes a sequence of schedule actions that take precedence over a normal day's behaviour on a special day or days.</opc:Description>
+      </opc:Property>
+      <opc:Method SymbolicName="AddExceptionScheduleElements" TypeDefinition="AddExceptionScheduleElementsMethodType" ModellingRule="Optional" />
+      <opc:Method SymbolicName="RemoveExceptionScheduleElements" TypeDefinition="RemoveExceptionScheduleElementsMethodType" ModellingRule="Optional" />
+      <opc:Property SymbolicName="WeeklySchedule" DataType="DailyScheduleType" ValueRank="Array" ArrayDimensions="7" ModellingRule="Optional">
+        <opc:Description>Each entry represents one day of the week. The first entry in the array represents Monday, the last Sunday. Each element describes a sequence of times and a list of actions that provides a sequence of schedule actions on one day of the week when no ExceptionSchedule is in effect.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="ua:LocalTime" DataType="ua:TimeZoneDataType" ValueRank="Scalar" ModellingRule="Mandatory">
+        <opc:Description>Provides information about the local time of the schedule Object. All scheduled times are UTC time. Clients need to consider this Property to calculate the local time of the schedule. If this Property is changed, it is server-specific whether the times of the schedule are adjusted or not.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="EffectivePeriod" DataType="DateRangeType" ValueRank="Scalar" ModellingRule="Optional">
+        <opc:Description>Specifies the range of dates within which the schedule Object is active. Upon entering its effective period, the object shall execute the defined actions at the defined times, otherwise it shall not execute any actions.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="ApplyLastAfterStart" DataType="ua:Boolean" ValueRank="Scalar" ModellingRule="Mandatory">
+        <opc:Description>The ApplyLastAfterStart Property defines if the last set of actions shall be applied when starting the schedule Object</opc:Description>
+      </opc:Property>
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:Method SymbolicName="AddExceptionScheduleElementsMethodType">
+    <opc:Description>Adds elements to the ExceptionSchedule</opc:Description>
+    <opc:InputArguments>
+      <opc:Argument Name="SpecialEvents" DataType="SpecialEventType" ValueRank="Array" />
+    </opc:InputArguments>
+    <opc:OutputArguments>
+      <opc:Argument Name="EntryResults" DataType="ua:Int32" ValueRank="Array" />
+    </opc:OutputArguments>
+  </opc:Method>
+
+  <opc:Method SymbolicName="RemoveExceptionScheduleElementsMethodType">
+    <opc:Description>Removes elements from the ExceptionSchedule</opc:Description>
+    <opc:InputArguments>
+      <opc:Argument Name="SpecialEvents" DataType="SpecialEventType" ValueRank="Array" />
+    </opc:InputArguments>
+    <opc:OutputArguments>
+      <opc:Argument Name="EntryResults" DataType="ua:Int32" ValueRank="Array" />
+    </opc:OutputArguments>
+  </opc:Method>
+
+  <opc:DataType SymbolicName="SpecialEventType" BaseType="ua:Structure" IsAbstract="false">
+    <opc:Description>This structure contains a period, a list of time values, and a priority. It is a means to identify moments in time over one or more days.</opc:Description>
+    <opc:Fields>
+      <opc:Field Name="Period" DataType="SpecialEventPeriodType" ValueRank="Scalar"></opc:Field>
+      <opc:Field Name="ListOfTimeActions" DataType="TimeActionsType" ValueRank="Array"></opc:Field>
+      <opc:Field Name="EventPriority" DataType="ua:Byte" ValueRank="Scalar"></opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="SpecialEventPeriodType" BaseType="ua:Union" IsAbstract="false">
+    <opc:Description>This union contains a calendar entry or a reference to a calendar object</opc:Description>
+    <opc:Fields>
+      <opc:Field Name="CalendarEntry" DataType="CalendarEntryType" ValueRank="Scalar"></opc:Field>
+      <opc:Field Name="CalendarReference" DataType="ua:NodeId" ValueRank="Scalar"></opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="CalendarEntryType" BaseType="ua:Union" IsAbstract="false">
+    <opc:Description>This union that defines various calendar date values</opc:Description>
+    <opc:Fields>
+      <opc:Field Name="Date" DataType="DateType" ValueRank="Scalar"></opc:Field>
+      <opc:Field Name="DateRange" DataType="DateRangeType" ValueRank="Scalar"></opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="DateType" BaseType="ua:Structure" IsAbstract="false">
+    <opc:Description>This structure defines a calendar date. It allows to define a concrete date, e.g. 2022-02-12. By using wildcards, it also allows to define repeating dates, like every Wednesday, every odd day of a month, every 24th of December, every last day of a month in 2023, etc.</opc:Description>
+    <opc:Fields>
+      <opc:Field Name="Year" DataType="ua:UInt16" ValueRank="Scalar"></opc:Field>
+      <opc:Field Name="Month" DataType="Month" ValueRank="Scalar"></opc:Field>
+      <opc:Field Name="DayOfMonth" DataType="DayOfMonth" ValueRank="Scalar"></opc:Field>
+      <opc:Field Name="DayOfWeek" DataType="DayOfWeek" ValueRank="Scalar"></opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="Month" BaseType="ua:Enumeration" IsAbstract="false">
+    <opc:Description>This enumeration indicates either a specific Gregorian calendar month, or a relative relationship ("odd", "even", and "unspecified").</opc:Description>
+    <opc:Fields>
+      <opc:Field Name="Unspecified" Identifier="0"></opc:Field>
+      <opc:Field Name="January" Identifier="1"></opc:Field>
+      <opc:Field Name="February" Identifier="2"></opc:Field>
+      <opc:Field Name="March" Identifier="3"></opc:Field>
+      <opc:Field Name="April" Identifier="4"></opc:Field>
+      <opc:Field Name="May" Identifier="5"></opc:Field>
+      <opc:Field Name="June" Identifier="6"></opc:Field>
+      <opc:Field Name="July" Identifier="7"></opc:Field>
+      <opc:Field Name="August" Identifier="8"></opc:Field>
+      <opc:Field Name="September" Identifier="9"></opc:Field>
+      <opc:Field Name="October" Identifier="10"></opc:Field>
+      <opc:Field Name="November" Identifier="11"></opc:Field>
+      <opc:Field Name="December" Identifier="12"></opc:Field>
+      <opc:Field Name="Odd" Identifier="13"></opc:Field>
+      <opc:Field Name="Even" Identifier="14"></opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="DayOfMonth" BaseType="ua:Enumeration" IsAbstract="false">
+    <opc:Description>This enumeration indicates specific days of the month by specific date ("1", "22", and so on) or by relative position ("last day of month", "even day of month", and so on).</opc:Description>
+    <opc:Fields>
+      <opc:Field Name="Unspecified" Identifier="0"></opc:Field>
+      <opc:Field Name="Day1" Identifier="1"></opc:Field>
+      <opc:Field Name="Day2" Identifier="2"></opc:Field>
+      <opc:Field Name="Day3" Identifier="3"></opc:Field>
+      <opc:Field Name="Day4" Identifier="4"></opc:Field>
+      <opc:Field Name="Day5" Identifier="5"></opc:Field>
+      <opc:Field Name="Day6" Identifier="6"></opc:Field>
+      <opc:Field Name="Day7" Identifier="7"></opc:Field>
+      <opc:Field Name="Day8" Identifier="8"></opc:Field>
+      <opc:Field Name="Day9" Identifier="9"></opc:Field>
+      <opc:Field Name="Day10" Identifier="10"></opc:Field>
+      <opc:Field Name="Day11" Identifier="11"></opc:Field>
+      <opc:Field Name="Day12" Identifier="12"></opc:Field>
+      <opc:Field Name="Day13" Identifier="13"></opc:Field>
+      <opc:Field Name="Day14" Identifier="14"></opc:Field>
+      <opc:Field Name="Day15" Identifier="15"></opc:Field>
+      <opc:Field Name="Day16" Identifier="16"></opc:Field>
+      <opc:Field Name="Day17" Identifier="17"></opc:Field>
+      <opc:Field Name="Day18" Identifier="18"></opc:Field>
+      <opc:Field Name="Day19" Identifier="19"></opc:Field>
+      <opc:Field Name="Day20" Identifier="20"></opc:Field>
+      <opc:Field Name="Day21" Identifier="21"></opc:Field>
+      <opc:Field Name="Day22" Identifier="22"></opc:Field>
+      <opc:Field Name="Day23" Identifier="23"></opc:Field>
+      <opc:Field Name="Day24" Identifier="24"></opc:Field>
+      <opc:Field Name="Day25" Identifier="25"></opc:Field>
+      <opc:Field Name="Day26" Identifier="26"></opc:Field>
+      <opc:Field Name="Day27" Identifier="27"></opc:Field>
+      <opc:Field Name="Day28" Identifier="28"></opc:Field>
+      <opc:Field Name="Day29" Identifier="29"></opc:Field>
+      <opc:Field Name="Day30" Identifier="30"></opc:Field>
+      <opc:Field Name="Day31" Identifier="31"></opc:Field>
+      <opc:Field Name="LastDayOfMonth" Identifier="32"></opc:Field>
+      <opc:Field Name="OddDayOfMonth" Identifier="33"></opc:Field>
+      <opc:Field Name="EvenDayOfMonth" Identifier="34"></opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="DayOfWeek" BaseType="ua:Enumeration" IsAbstract="false">
+    <opc:Description>This enumeration indicates each of the seven days of the week, or "unspecified".</opc:Description>
+    <opc:Fields>
+      <opc:Field Name="Unspecified" Identifier="0"></opc:Field>
+      <opc:Field Name="Monday" Identifier="1"></opc:Field>
+      <opc:Field Name="Tuesday" Identifier="2"></opc:Field>
+      <opc:Field Name="Wednesday" Identifier="3"></opc:Field>
+      <opc:Field Name="Thursday" Identifier="4"></opc:Field>
+      <opc:Field Name="Friday" Identifier="5"></opc:Field>
+      <opc:Field Name="Saturday" Identifier="6"></opc:Field>
+      <opc:Field Name="Sunday" Identifier="7"></opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="DateRangeType" BaseType="ua:Structure" IsAbstract="false">
+    <opc:Description>This structure defines a time span, with absolute start and end dates. The StartDate and EndDate are limited to specific values, i.e., wild cards like odd months are not allowed. The Year field shall not be 0; the Month field shall be a value between 1 to 12; the DayOfMonth field shall be between 1 to 31 and the DayOfMonth field shall be "unspecified".</opc:Description>
+    <opc:Fields>
+      <opc:Field Name="StartDate" DataType="DateType" ValueRank="Scalar"></opc:Field>
+      <opc:Field Name="EndDate" DataType="DateType" ValueRank="Scalar"></opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="TimeActionsType" BaseType="ua:Structure" IsAbstract="false">
+    <opc:Description>This structure contains a time and an array of actions. It is used to define actions to be executed at a specific point in time.</opc:Description>
+    <opc:Fields>
+      <opc:Field Name="Time" DataType="TimeType" ValueRank="Scalar"></opc:Field>
+      <opc:Field Name="Actions" DataType="BaseActionType" ValueRank="Array" AllowSubTypes="true"></opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="BaseActionType" BaseType="ua:Structure" IsAbstract="true">
+    <opc:Description>This abstract structure defines the base of an action. The base only contains information, if the last execution of the action was successful.</opc:Description>
+    <opc:Fields>
+      <opc:Field Name="LastActionResult" DataType="ua:StatusCode" ValueRank="Scalar"></opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="WriteLocalVariableActionType" BaseType="BaseActionType" IsAbstract="false">
+    <opc:Description>This structure defines an action to write the value of a Variable managed in the same Server where the action is used.</opc:Description>
+    <opc:Fields>
+      <opc:Field Name="Variable" DataType="ua:NodeId" ValueRank="Scalar"></opc:Field>
+      <opc:Field Name="Value" DataType="ua:BaseDataType" ValueRank="Scalar"></opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="CallLocalMethodActionType" BaseType="BaseActionType" IsAbstract="false">
+    <opc:Description>This structure defines an action to call a Method of an Object managed in the same Server where the action is used.</opc:Description>
+    <opc:Fields>
+      <opc:Field Name="ObjectId" DataType="ua:NodeId" ValueRank="Scalar"></opc:Field>
+      <opc:Field Name="MethodId" DataType="ua:NodeId" ValueRank="Scalar"></opc:Field>
+      <opc:Field Name="InputValues" DataType="ua:BaseDataType" ValueRank="Array"></opc:Field>
+      <opc:Field Name="LastOutputValues" DataType="ua:BaseDataType" ValueRank="Array"></opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="TimeType" BaseType="ua:Structure" IsAbstract="false">
+    <opc:Description>This structure that represents a point in time during a day</opc:Description>
+    <opc:Fields>
+      <opc:Field Name="Hour" DataType="ua:Byte" ValueRank="Scalar"></opc:Field>
+      <opc:Field Name="Minute" DataType="ua:Byte" ValueRank="Scalar"></opc:Field>
+      <opc:Field Name="Second" DataType="ua:Byte" ValueRank="Scalar"></opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="DailyScheduleType" BaseType="ua:Structure" IsAbstract="false">
+    <opc:Description>This structure defines a sequence of TimeActionsType structures. Each element in the sequence defines a time/actions pair that describes the actions to be executed at a given point in the day.</opc:Description>
+    <opc:Fields>
+      <opc:Field Name="DaySchedule" DataType="TimeActionsType" ValueRank="Array"></opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+</opc:ModelDesign>

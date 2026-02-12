@@ -31,7 +31,6 @@ using System;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -189,77 +188,5 @@ namespace Opc.Ua
                 messageContext,
                 default).GetAwaiter().GetResult();
         }
-    }
-
-    /// <summary>
-    /// The base interface for client proxies.
-    /// </summary>
-    public interface IChannelBase : IDisposable;
-
-    /// <summary>
-    /// A base class for UA channel objects used access UA interfaces
-    /// </summary>
-    /// <typeparam name="TChannel"></typeparam>
-    public partial class UaChannelBase<TChannel> : IChannelBase
-        where TChannel : class, IChannelBase
-    {
-        /// <summary>
-        /// This must be set by the derived class to initialize the telemtry system
-        /// </summary>
-        public required ITelemetryContext Telemetry
-        {
-            get => m_telemetry;
-            init
-            {
-                m_telemetry = value;
-                m_logger = value.CreateLogger(this);
-            }
-        }
-
-        /// <summary>
-        /// Initializes the object with the specified binding and endpoint address.
-        /// </summary>
-        protected UaChannelBase(ITelemetryContext telemetry = null)
-        {
-            Telemetry = telemetry;
-        }
-
-        /// <summary>
-        /// Frees any unmanaged resources.
-        /// </summary>
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        /// <summary>
-        /// An overrideable version of the Dispose.
-        /// </summary>
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                Utils.SilentDispose(Channel);
-                Channel = null;
-            }
-        }
-
-        /// <summary>
-        /// Gets the inner channel.
-        /// </summary>
-        /// <value>The channel.</value>
-        protected TChannel Channel { get; private set; }
-
-        /// <summary>
-        /// Logger to be used by the concrete channel implementation. Shall
-        /// not be used outside of the channel inheritance hierarchy. Create
-        /// new logger from telemetry context.
-        /// </summary>
-#pragma warning disable IDE1006 // Naming Styles
-        protected ILogger m_logger { get; private set; } = LoggerUtils.Null.Logger;
-#pragma warning restore IDE1006 // Naming Styles
-
-        private readonly ITelemetryContext m_telemetry;
     }
 }

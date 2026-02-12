@@ -334,7 +334,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Quotes("00000000-0000-0000-0000-000000000000"),
                 true
             },
-            { BuiltInType.Guid, new Uuid(s_nodeIdGuid), Quotes($"{s_nodeIdGuid}"), null },
+            { BuiltInType.Guid, s_nodeIdGuid, Quotes($"{s_nodeIdGuid}"), null },
             { BuiltInType.NodeId, NodeId.Null, null, null, null, Quotes(string.Empty) },
             {
                 BuiltInType.NodeId,
@@ -378,7 +378,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             },
             {
                 BuiltInType.NodeId,
-                new NodeId("ns=0;s=" + kNodeIdString),
+                NodeId.Parse("ns=0;s=" + kNodeIdString),
                 $$"""{"IdType":1,"Id":"{{kNodeIdString}}"}""",
                 null,
                 $"""
@@ -388,7 +388,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             },
             {
                 BuiltInType.NodeId,
-                new NodeId("s=" + kNodeIdString),
+                NodeId.Parse("s=" + kNodeIdString),
                 $$"""{"IdType":1,"Id":"{{kNodeIdString}}"}""",
                 null,
                 $"""
@@ -575,7 +575,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             },
             {
                 BuiltInType.ExpandedNodeId,
-                new ExpandedNodeId("ns=0;s=" + kNodeIdString),
+                ExpandedNodeId.Parse("ns=0;s=" + kNodeIdString),
                 $$"""{"IdType":1,"Id":"{{kNodeIdString}}"}""",
                 null,
                 $"""
@@ -585,7 +585,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             },
             {
                 BuiltInType.ExpandedNodeId,
-                new ExpandedNodeId("s=" + kNodeIdString),
+                ExpandedNodeId.Parse("s=" + kNodeIdString),
                 $$"""{"IdType":1,"Id":"{{kNodeIdString}}"}""",
                 null,
                 $"""
@@ -745,7 +745,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             },
             {
                 BuiltInType.ExpandedNodeId,
-                new ExpandedNodeId(new NodeId("ns=33;s=StringIdentifier"), null, 23),
+                new ExpandedNodeId(NodeId.Parse("ns=33;s=StringIdentifier"), null, 23),
                 /*lang=json,strict*/
                 """{"IdType":1,"Id":"StringIdentifier","Namespace":33,"ServerUri": 23}""", // reversible
                 /*lang=json,strict*/
@@ -755,30 +755,30 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 """, // compact
                 null // verbose - null == same as compact
             },
-            { BuiltInType.StatusCode, new StatusCode(StatusCodes.Good), null, null, null, "{}" },
+            { BuiltInType.StatusCode, StatusCodes.Good, null, null, null, "{}" },
             {
                 BuiltInType.StatusCode,
-                new StatusCode(StatusCodes.Good),
-                $"{StatusCodes.Good}",
+                StatusCodes.Good,
+                $"{StatusCodes.Good.Code}",
                 "{}",
                 null,
                 "{}",
                 true },
             {
                 BuiltInType.StatusCode,
-                new StatusCode(StatusCodes.BadBoundNotFound),
-                $"{StatusCodes.BadBoundNotFound}",
-                $$"""{"Code":{{StatusCodes.BadBoundNotFound}}, "Symbol":"{{nameof(StatusCodes.BadBoundNotFound)}}"}""",
-                $$"""{"Code":{{StatusCodes.BadBoundNotFound}}}""",
-                $$"""{"Code":{{StatusCodes.BadBoundNotFound}}, "Symbol":"{{nameof(StatusCodes.BadBoundNotFound)}}"}"""
+                StatusCodes.BadBoundNotFound,
+                $"{StatusCodes.BadBoundNotFound.Code}",
+                $$"""{"Code":{{StatusCodes.BadBoundNotFound.Code}}, "Symbol":"{{nameof(StatusCodes.BadBoundNotFound)}}"}""",
+                $$"""{"Code":{{StatusCodes.BadBoundNotFound.Code}}}""",
+                $$"""{"Code":{{StatusCodes.BadBoundNotFound.Code}}, "Symbol":"{{nameof(StatusCodes.BadBoundNotFound)}}"}"""
             },
             {
                 BuiltInType.StatusCode,
-                new StatusCode(StatusCodes.BadCertificateInvalid),
-                $"{StatusCodes.BadCertificateInvalid}",
-                $$"""{"Code":{{StatusCodes.BadCertificateInvalid}}, "Symbol":"{{nameof(StatusCodes.BadCertificateInvalid)}}"}""",
-                $$"""{"Code":{{StatusCodes.BadCertificateInvalid}}}""",
-                $$"""{"Code":{{StatusCodes.BadCertificateInvalid}}, "Symbol":"{{nameof(StatusCodes.BadCertificateInvalid)}}"}"""
+                StatusCodes.BadCertificateInvalid,
+                $"{StatusCodes.BadCertificateInvalid.Code}",
+                $$"""{"Code":{{StatusCodes.BadCertificateInvalid.Code}}, "Symbol":"{{nameof(StatusCodes.BadCertificateInvalid)}}"}""",
+                $$"""{"Code":{{StatusCodes.BadCertificateInvalid.Code}}}""",
+                $$"""{"Code":{{StatusCodes.BadCertificateInvalid.Code}}, "Symbol":"{{nameof(StatusCodes.BadCertificateInvalid)}}"}"""
             },
             {
                 BuiltInType.StatusCode,
@@ -811,7 +811,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Quotes(string.Empty) },
             {
                 BuiltInType.QualifiedName,
-                new QualifiedName(kQualifiedName),
+                QualifiedName.From(kQualifiedName),
                 $$"""{"Name":"{{kQualifiedName}}"}""",
                 null,
                 $"""
@@ -950,10 +950,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 BuiltInType.DataValue,
                 new DataValue(StatusCodes.BadNotWritable),
-                $$"""{"StatusCode":{{StatusCodes.BadNotWritable}}}""",
-                $$$"""{"StatusCode":{"Code":{{{StatusCodes.BadNotWritable}}}, "Symbol":"{{{nameof(StatusCodes.BadNotWritable)}}}"}}""",
-                $$$"""{"StatusCode":{"Code":{{{StatusCodes.BadNotWritable}}}}}""",
-                $$$"""{"StatusCode":{"Code":{{{StatusCodes.BadNotWritable}}}, "Symbol":"{{{nameof(StatusCodes.BadNotWritable)}}}"}}"""
+                $$"""{"StatusCode":{{StatusCodes.BadNotWritable.Code}}}""",
+                $$$"""{"StatusCode":{"Code":{{{StatusCodes.BadNotWritable.Code}}}, "Symbol":"{{{nameof(StatusCodes.BadNotWritable)}}}"}}""",
+                $$$"""{"StatusCode":{"Code":{{{StatusCodes.BadNotWritable.Code}}}}}""",
+                $$$"""{"StatusCode":{"Code":{{{StatusCodes.BadNotWritable.Code}}}, "Symbol":"{{{nameof(StatusCodes.BadNotWritable)}}}"}}"""
             },
             { BuiltInType.Enumeration, (TestEnumType)0, "0", """
                 "0"
@@ -1280,7 +1280,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string result1;
             {
                 System.Buffers.ReadOnlySequence<byte> sequence = memoryStream.GetReadOnlySequence();
-                result1 = Encoding.UTF8.GetString(sequence);
+                result1 = Encoding.UTF8.GetString(in sequence);
                 Assert.IsNotEmpty(result1);
                 TestContext.Out.WriteLine("Result1:");
                 _ = PrettifyAndValidateJson(result1);
@@ -1412,11 +1412,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var encodeable = new DynamicEncodeable(
                 "FooXml",
                 "urn:dynamic_encoder_test",
-                "ns=2;s=test_dyn_typeid",
-                "s=test_dyn_binaryencodingid",
-                "s=test_dyn_xmlencodingid",
-                "s=test_dyn_jsonencodingid",
-                new Dictionary<string, (int, string)> { { "Foo", (1, "bar_1") } });
+                ExpandedNodeId.Parse("ns=2;s=test_dyn_typeid"),
+                ExpandedNodeId.Parse("s=test_dyn_binaryencodingid"),
+                ExpandedNodeId.Parse("s=test_dyn_xmlencodingid"),
+                ExpandedNodeId.Parse("s=test_dyn_jsonencodingid"),
+                new Dictionary<string, (int, string)>
+                {
+                    { "Foo", (1, "bar_1") }
+                });
             using var encoder = new JsonEncoder(Context, true, false);
             encoder.WriteEncodeable("bar_1", encodeable, typeof(DynamicEncodeable));
 
@@ -1449,13 +1452,15 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var encodeable = new DynamicEncodeable(
                 "FooXml",
                 "urn:dynamic_encoder_test",
-                "s=test_dyn2_typeid",
-                "s=test_dyn2_binaryencodingid",
-                "s=test_dyn2_xmlencodingid",
-                "ns=1;s=test_dyn2_jsonencodingid",
-                new Dictionary<string, (int, string)> {
+                ExpandedNodeId.Parse("s=test_dyn2_typeid"),
+                ExpandedNodeId.Parse("s=test_dyn2_binaryencodingid"),
+                ExpandedNodeId.Parse("s=test_dyn2_xmlencodingid"),
+                ExpandedNodeId.Parse("ns=1;s=test_dyn2_jsonencodingid"),
+                new Dictionary<string, (int, string)>
+                {
                     { "Foo", (1, "bar_1") },
-                    { "Foo2", (2, "bar_2") } });
+                    { "Foo2", (2, "bar_2") }
+                });
 
             // Register in the context's Factory, make it a custom factory so the dynamic type can
             // look up its type information when instantiated during encoding/decoding
@@ -1854,7 +1859,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             const string namespaceUri = "KEPServerEX";
             const string nodeName = "Data Type Examples.16 Bit Device.K Registers.Double3";
             string expectedNodeIdString = $"nsu={namespaceUri};s={nodeName}";
-            var expandedNodeId = new ExpandedNodeId(expectedNodeIdString);
+            var expandedNodeId = ExpandedNodeId.Parse(expectedNodeIdString);
 
             string stringifiedExpandedNodeId = expandedNodeId.ToString();
             TestContext.Out.WriteLine(stringifiedExpandedNodeId);

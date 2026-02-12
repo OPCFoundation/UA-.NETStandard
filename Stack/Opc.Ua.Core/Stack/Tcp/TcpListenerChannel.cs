@@ -185,7 +185,7 @@ namespace Opc.Ua.Bindings
             {
                 OnCleanup(new ServiceResult(
                     StatusCodes.BadNoCommunication,
-                    "Channel closed due to inactivity."));
+                    LocalizedText.From("Channel closed due to inactivity.")));
             }
         }
 
@@ -222,7 +222,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Forces the channel into a faulted state as a result of a fatal error.
         /// </summary>
-        protected void ForceChannelFault(uint statusCode, string format, params object[] args)
+        protected void ForceChannelFault(StatusCode statusCode, string format, params object[] args)
         {
             ForceChannelFault(ServiceResult.Create(statusCode, format, args));
 
@@ -237,7 +237,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void ForceChannelFault(
             Exception exception,
-            uint defaultCode,
+            StatusCode defaultCode,
             string format,
             params object[] args)
         {
@@ -269,7 +269,7 @@ namespace Opc.Ua.Bindings
                 if (State is not TcpChannelState.Connecting and not TcpChannelState.Opening)
                 {
                     int? socketHandle = Socket?.Handle;
-                    if (socketHandle is not null and not (-1))
+                    if (socketHandle is not null and not -1)
                     {
                         m_logger.LogError(
                             "{Channel} ForceChannelFault Socket={SocketHandle:X8}, ChannelId={ChannelId}, TokenId={TokenId}, Reason={Reason}",

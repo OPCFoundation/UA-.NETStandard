@@ -51,10 +51,12 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes object with default values.
         /// </summary>
-        public ServerBase()
+        public ServerBase(ITelemetryContext telemetry)
         {
             ServerError = new ServiceResult(StatusCodes.BadServerHalted);
             m_requestQueue = new RequestQueue(this, 10, 100, 1000);
+            m_telemetry = telemetry;
+            m_logger = m_telemetry.CreateLogger(this);
         }
 
         /// <summary>
@@ -96,6 +98,11 @@ namespace Opc.Ua
                     ServiceHosts.Clear();
                 }
 
+                if (UserTokenPolicys != null)
+                {
+                    UserTokenPolicys.Clear();
+                }
+
                 Utils.SilentDispose(m_requestQueue);
             }
         }
@@ -108,18 +115,7 @@ namespace Opc.Ua
         /// </value>
         /// <exception cref="ServiceResultException">if server was not started</exception>
         public IServiceMessageContext MessageContext
-        {
-            get => m_messageContext ?? throw new ServiceResultException(StatusCodes.BadServerHalted);
-            private set
-            {
-                m_messageContext = value;
-                if (m_telemetry != value.Telemetry)
-                {
-                    m_telemetry = value.Telemetry;
-                    m_logger = m_telemetry.CreateLogger(this);
-                }
-            }
-        }
+            => m_messageContext ?? throw new ServiceResultException(StatusCodes.BadServerHalted);
 
         /// <summary>
         /// An error condition that describes why the server if not running (null if no error exists).
@@ -296,8 +292,7 @@ namespace Opc.Ua
 
             if (hosts == null || hosts.Count == 0)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
+                throw ServiceResultException.ConfigurationError(
                     "The UA server does not have a default host.");
             }
 
@@ -431,8 +426,8 @@ namespace Opc.Ua
                         address.DiscoveryUrl = address.Url;
                         break;
                     default:
-                        throw new ServiceResultException(StatusCodes.BadConfigurationError,
-                            $"Unsupported scheme for base address: {address.Url}");
+                        throw ServiceResultException.ConfigurationError(
+                            "Unsupported scheme for base address: {0}", address.Url);
                 }
 
                 BaseAddresses.Add(address);
@@ -584,6 +579,12 @@ namespace Opc.Ua
                     }
                     host.Close();
                 }
+            }
+
+            // clear policies
+            if (UserTokenPolicys != null)
+            {
+                UserTokenPolicys.Clear();
             }
 
             m_messageContext = null;
@@ -753,8 +754,14 @@ namespace Opc.Ua
         protected List<ITransportListener> TransportListeners { get; } = [];
 
         /// <summary>
+        /// List of all server wide supported token policies
+        /// </summary>
+        protected IList<UserTokenPolicy> UserTokenPolicys { get; } = [];
+
+        /// <summary>
         /// Returns the service contract to use.
         /// </summary>
+        [Obsolete("WCF not supported in this version.")]
         protected virtual Type GetServiceContract()
         {
             return null;
@@ -818,6 +825,7 @@ namespace Opc.Ua
         /// <param name="endpointConfiguration">The configuration of the endpoints.</param>
         /// <param name="listener">The transport listener.</param>
         /// <param name="certificateValidator">The certificate validator for the transport.</param>
+        /// <exception cref="ServiceResultException"></exception>
         public virtual void CreateServiceHostEndpoint(
             Uri endpointUri,
             EndpointDescriptionCollection endpoints,
@@ -828,14 +836,16 @@ namespace Opc.Ua
             // create the stack listener.
             try
             {
+                IServiceMessageContext messageContext = m_messageContext
+                    ?? throw new ServiceResultException(StatusCodes.BadServerHalted);
                 var settings = new TransportListenerSettings
                 {
                     Descriptions = endpoints,
                     Configuration = endpointConfiguration,
                     ServerCertificateTypesProvider = InstanceCertificateTypesProvider,
                     CertificateValidator = certificateValidator,
-                    NamespaceUris = MessageContext.NamespaceUris,
-                    Factory = MessageContext.Factory,
+                    NamespaceUris = messageContext.NamespaceUris,
+                    Factory = messageContext.Factory,
                     MaxChannelCount = 0
                 };
 
@@ -902,10 +912,17 @@ namespace Opc.Ua
                     }
                 }
 
-                // ensure each policy has a unique id within the context of the Server
-                clone.PolicyId = Utils.Format("{0}", ++m_userTokenPolicyId);
+                var existingPolicy = UserTokenPolicys.FirstOrDefault(o => o.Equals(clone));
 
-                policies.Add(clone);
+                // Ensure each policy has a unique ID within the context of the Server
+                if (existingPolicy == null)
+                {
+                    clone.PolicyId = Utils.Format("{0}", UserTokenPolicys.Count + 1);
+                    UserTokenPolicys.Add(clone);
+                    existingPolicy = clone;
+                }
+
+                policies.Add(existingPolicy);
             }
 
             return policies;
@@ -1148,7 +1165,7 @@ namespace Opc.Ua
                 DiscoveryUrls = discoveryUrls
             };
 
-            if (!LocalizedText.IsNullOrEmpty(applicationName))
+            if (!applicationName.IsNullOrEmpty)
             {
                 copy.ApplicationName = applicationName;
             }
@@ -1279,7 +1296,7 @@ namespace Opc.Ua
         /// <returns>Returns a description for the ResponseHeader DataType. </returns>
         protected virtual ResponseHeader CreateResponse(
             RequestHeader requestHeader,
-            uint statusCode)
+            StatusCode statusCode)
         {
             if (StatusCode.IsBad(statusCode))
             {
@@ -1382,7 +1399,7 @@ namespace Opc.Ua
             // from configuration. If a private factory was specified, use it.
             ServiceMessageContext messageContext = configuration.CreateMessageContext(PrivateEncodeableFactory);
             messageContext.NamespaceUris = new NamespaceTable();
-            MessageContext = messageContext;
+            m_messageContext = messageContext;
 
             // fetch properties and configuration.
             Configuration = configuration;
@@ -1414,7 +1431,7 @@ namespace Opc.Ua
             X509Certificate2 defaultInstanceCertificate = null;
             InstanceCertificateTypesProvider = new CertificateTypesProvider(
                 configuration,
-                MessageContext.Telemetry);
+                m_telemetry);
             InstanceCertificateTypesProvider.InitializeAsync().GetAwaiter().GetResult();
 
             foreach (ServerSecurityPolicy securityPolicy in configuration.ServerConfiguration
@@ -1428,14 +1445,12 @@ namespace Opc.Ua
                 X509Certificate2 instanceCertificate =
                     InstanceCertificateTypesProvider.GetInstanceCertificate(
                         securityPolicy.SecurityPolicyUri)
-                    ?? throw new ServiceResultException(
-                        StatusCodes.BadConfigurationError,
+                    ?? throw ServiceResultException.ConfigurationError(
                         "Server does not have an instance certificate assigned.");
 
                 if (!instanceCertificate.HasPrivateKey)
                 {
-                    throw new ServiceResultException(
-                        StatusCodes.BadConfigurationError,
+                    throw ServiceResultException.ConfigurationError(
                         "Server does not have access to the private key for the instance certificate.");
                 }
 
@@ -1471,7 +1486,7 @@ namespace Opc.Ua
             }
 
             // initialize namespace table.
-            MessageContext.NamespaceUris.Append(configuration.ApplicationUri);
+            messageContext.NamespaceUris.Append(configuration.ApplicationUri);
 
             // assign an instance name.
             if (string.IsNullOrEmpty(configuration.ApplicationName) &&
@@ -1489,10 +1504,14 @@ namespace Opc.Ua
         /// <summary>
         /// Creates the endpoints and creates the hosts.
         /// </summary>
-        /// <param name="configuration">The object that stores the configurable configuration information for a UA application.</param>
-        /// <param name="bindingFactory">The object of a class that manages a mapping between a URL scheme and a listener.</param>
-        /// <param name="serverDescription">The object of the class that contains a description for the ApplicationDescription DataType.</param>
-        /// <param name="endpoints">The collection of <see cref="EndpointDescription"/> objects.</param>
+        /// <param name="configuration">The object that stores the configurable
+        /// configuration information for a UA application.</param>
+        /// <param name="bindingFactory">The object of a class that manages a
+        /// mapping between a URL scheme and a listener.</param>
+        /// <param name="serverDescription">The object of the class that contains
+        /// a description for the ApplicationDescription DataType.</param>
+        /// <param name="endpoints">The collection of <see cref="EndpointDescription"/>
+        /// objects.</param>
         /// <returns>Returns list of hosts for a UA service.</returns>
         protected virtual IList<ServiceHost> InitializeServiceHosts(
             ApplicationConfiguration configuration,
@@ -1760,17 +1779,13 @@ namespace Opc.Ua
         /// deriving from this class.
         /// </summary>
 #pragma warning disable IDE1006 // Naming Styles
-        protected ILogger m_logger { get; private set; } = LoggerUtils.Null.Logger;
+        protected ILogger m_logger { get; }
 #pragma warning restore IDE1006 // Naming Styles
 
         private IServiceMessageContext m_messageContext;
         private RequestQueue m_requestQueue;
-        private ITelemetryContext m_telemetry;
+        private readonly ITelemetryContext m_telemetry;
 
-        /// <summary>
-        /// identifier for the UserTokenPolicy should be unique within the context of a single Server
-        /// </summary>
-        private int m_userTokenPolicyId;
         private bool m_disposed;
     }
 }

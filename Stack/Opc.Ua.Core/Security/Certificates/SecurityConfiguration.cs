@@ -68,8 +68,7 @@ namespace Opc.Ua
         {
             if (m_applicationCertificates == null || m_applicationCertificates.Count == 0)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
+                throw ServiceResultException.ConfigurationError(
                     "ApplicationCertificate must be specified.");
             }
             // ensure mandatory stores are valid
@@ -97,16 +96,14 @@ namespace Opc.Ua
             if ((TrustedHttpsCertificates != null && HttpsIssuerCertificates == null) ||
                 (HttpsIssuerCertificates != null && TrustedHttpsCertificates == null))
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
+                throw ServiceResultException.ConfigurationError(
                     "Either none or both of HttpsIssuerCertificates & TrustedHttpsCertificates stores must be specified.");
             }
 
             if ((TrustedUserCertificates != null && UserIssuerCertificates == null) ||
                 (UserIssuerCertificates != null && TrustedUserCertificates == null))
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
+                throw ServiceResultException.ConfigurationError(
                     "Either none or both of UserIssuerCertificates & TrustedUserCertificates stores must be specified.");
             }
 
@@ -130,26 +127,21 @@ namespace Opc.Ua
         {
             if (string.IsNullOrEmpty(storeIdentifier?.StorePath))
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
-                    storeName + " StorePath must be specified.");
+                throw ServiceResultException.ConfigurationError(
+                    "{0} StorePath must be specified.", storeName);
             }
             try
             {
-                ICertificateStore store =
-                    storeIdentifier.OpenStore(telemetry)
-                    ?? throw ServiceResultException.Create(
-                        StatusCodes.BadConfigurationError,
-                        $"Failed to open {storeName} store");
+                ICertificateStore store = storeIdentifier.OpenStore(telemetry) ??
+                    throw ServiceResultException.ConfigurationError(
+                        "Failed to open {0} store", storeName);
                 store.Close();
             }
             catch (Exception ex)
             {
                 ILogger<SecurityConfiguration> logger = telemetry.CreateLogger<SecurityConfiguration>();
                 logger.LogError(ex, "Failed to open {StoreName} store", storeName);
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
-                    storeName + " store is invalid.");
+                throw ServiceResultException.ConfigurationError("{0} store is invalid.", storeName);
             }
         }
 
@@ -173,7 +165,7 @@ namespace Opc.Ua
                     {
                         // undefined certificate type as RsaSha256
                         id = ApplicationCertificates.FirstOrDefault(
-                            certId => certId.CertificateType == null);
+                            certId => certId.CertificateType.IsNull);
                     }
                     else if (certType == ObjectTypeIds.ApplicationCertificateType)
                     {
@@ -210,14 +202,14 @@ namespace Opc.Ua
             var securityPolicies = new StringCollection { SecurityPolicies.None };
             foreach (CertificateIdentifier applicationCertificate in m_applicationCertificates)
             {
-                if (applicationCertificate.CertificateType == null)
+                if (applicationCertificate.CertificateType.IsNull)
                 {
                     securityPolicies.Add(SecurityPolicies.Basic256Sha256);
                     securityPolicies.Add(SecurityPolicies.Aes128_Sha256_RsaOaep);
                     securityPolicies.Add(SecurityPolicies.Aes256_Sha256_RsaPss);
                     continue;
                 }
-                if (applicationCertificate.CertificateType.Identifier is uint identifier)
+                if (applicationCertificate.CertificateType.TryGetIdentifier(out uint identifier))
                 {
                     switch (identifier)
                     {

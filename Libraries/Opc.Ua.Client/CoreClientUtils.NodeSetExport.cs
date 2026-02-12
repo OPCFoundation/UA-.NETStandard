@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 
 namespace Opc.Ua.Client
 {
@@ -43,27 +42,27 @@ namespace Opc.Ua.Client
         /// Whether to export value elements for variables.
         /// Default is false (values are only exported for Complete option).
         /// </summary>
-        public bool ExportValues { get; set; } = false;
+        public bool ExportValues { get; set; }
 
         /// <summary>
         /// Whether to export the ParentNodeId attribute.
         /// Default is false (ParentNodeId is redundant as it can be inferred from references).
         /// </summary>
-        public bool ExportParentNodeId { get; set; } = false;
+        public bool ExportParentNodeId { get; set; }
 
         /// <summary>
         /// Whether to export user context attributes (UserAccessLevel, UserExecutable, UserWriteMask, UserRolePermissions).
         /// Default is false (user context attributes are not exported).
         /// When true, UserAccessLevel is only exported if it differs from AccessLevel.
         /// </summary>
-        public bool ExportUserContext { get; set; } = false;
+        public bool ExportUserContext { get; set; }
 
         /// <summary>
         /// Gets the default export options (no values, essential attributes only).
         /// This produces minimal file size suitable for schema definitions.
         /// MethodDeclarationId is always exported. User context attributes are not exported.
         /// </summary>
-        public static NodeSetExportOptions Default => new NodeSetExportOptions
+        public static NodeSetExportOptions Default => new()
         {
             ExportValues = false,
             ExportParentNodeId = false,
@@ -75,7 +74,7 @@ namespace Opc.Ua.Client
         /// Use this for full data export including runtime values and user context attributes.
         /// MethodDeclarationId is always exported. UserAccessLevel is only exported when different from AccessLevel.
         /// </summary>
-        public static NodeSetExportOptions Complete => new NodeSetExportOptions
+        public static NodeSetExportOptions Complete => new()
         {
             ExportValues = true,
             ExportParentNodeId = true,
@@ -94,6 +93,7 @@ namespace Opc.Ua.Client
         /// <param name="context">The system context containing namespace information.</param>
         /// <param name="nodes">The list of nodes to export.</param>
         /// <param name="outputStream">The output stream to write the NodeSet2 XML to.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="nodes"/> is <c>null</c>.</exception>
         public static void ExportNodesToNodeSet2(
             ISystemContext context,
             IList<INode> nodes,
@@ -109,6 +109,7 @@ namespace Opc.Ua.Client
         /// <param name="nodes">The list of nodes to export.</param>
         /// <param name="outputStream">The output stream to write the NodeSet2 XML to.</param>
         /// <param name="options">Options controlling the export behavior.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="nodes"/> is <c>null</c>.</exception>
         public static void ExportNodesToNodeSet2(
             ISystemContext context,
             IList<INode> nodes,
@@ -164,7 +165,7 @@ namespace Opc.Ua.Client
                 return null;
             }
 
-            NodeState? nodeState = null;
+            NodeState? nodeState;
 
             switch (node.NodeClass)
             {
@@ -182,19 +183,18 @@ namespace Opc.Ua.Client
                     if (node is ILocalNode localNode)
                     {
                         state.Description = localNode.Description;
-                        state.WriteMask = (AttributeWriteMask)localNode.WriteMask;
-                        
+                        state.WriteMask = localNode.WriteMask;
+
                         // Export UserWriteMask only if ExportUserContext is enabled
                         if (options.ExportUserContext)
                         {
-                            state.UserWriteMask = (AttributeWriteMask)localNode.UserWriteMask;
+                            state.UserWriteMask = localNode.UserWriteMask;
                         }
                     }
 
                     nodeState = state;
                     break;
                 }
-
                 case NodeClass.Variable:
                 {
                     var variableNode = node as IVariable;
@@ -221,7 +221,7 @@ namespace Opc.Ua.Client
                     {
                         byte userAccessLevel = variableNode.UserAccessLevel;
                         byte accessLevel = variableNode.AccessLevel;
-                        
+
                         if (userAccessLevel != accessLevel)
                         {
                             state.UserAccessLevel = userAccessLevel;
@@ -236,19 +236,18 @@ namespace Opc.Ua.Client
                     if (node is ILocalNode localNode)
                     {
                         state.Description = localNode.Description;
-                        state.WriteMask = (AttributeWriteMask)localNode.WriteMask;
-                        
+                        state.WriteMask = localNode.WriteMask;
+
                         // Export UserWriteMask only if ExportUserContext is enabled
                         if (options.ExportUserContext)
                         {
-                            state.UserWriteMask = (AttributeWriteMask)localNode.UserWriteMask;
+                            state.UserWriteMask = localNode.UserWriteMask;
                         }
                     }
 
                     nodeState = state;
                     break;
                 }
-
                 case NodeClass.Method:
                 {
                     var methodNode = node as IMethod;
@@ -267,7 +266,7 @@ namespace Opc.Ua.Client
                     }
 
                     // Always export MethodDeclarationId (important type system metadata)
-                    if (node.TypeDefinitionId != null && !NodeId.IsNull(node.TypeDefinitionId))
+                    if (!node.TypeDefinitionId.IsNull)
                     {
                         state.MethodDeclarationId = ExpandedNodeId.ToNodeId(node.TypeDefinitionId, context.NamespaceUris);
                     }
@@ -275,23 +274,22 @@ namespace Opc.Ua.Client
                     if (node is ILocalNode localNode)
                     {
                         state.Description = localNode.Description;
-                        state.WriteMask = (AttributeWriteMask)localNode.WriteMask;
-                        
+                        state.WriteMask = localNode.WriteMask;
+
                         // Export UserWriteMask only if ExportUserContext is enabled
                         if (options.ExportUserContext)
                         {
-                            state.UserWriteMask = (AttributeWriteMask)localNode.UserWriteMask;
+                            state.UserWriteMask = localNode.UserWriteMask;
                         }
                     }
 
                     nodeState = state;
                     break;
                 }
-
                 case NodeClass.ObjectType:
                 {
                     var objectTypeNode = node as IObjectType;
-                    var state = new BaseObjectTypeState()
+                    var state = new BaseObjectTypeState
                     {
                         NodeId = ExpandedNodeId.ToNodeId(node.NodeId, context.NamespaceUris),
                         BrowseName = node.BrowseName,
@@ -302,23 +300,22 @@ namespace Opc.Ua.Client
                     if (node is ILocalNode localNode)
                     {
                         state.Description = localNode.Description;
-                        state.WriteMask = (AttributeWriteMask)localNode.WriteMask;
-                        
+                        state.WriteMask = localNode.WriteMask;
+
                         // Export UserWriteMask only if ExportUserContext is enabled
                         if (options.ExportUserContext)
                         {
-                            state.UserWriteMask = (AttributeWriteMask)localNode.UserWriteMask;
+                            state.UserWriteMask = localNode.UserWriteMask;
                         }
                     }
 
                     nodeState = state;
                     break;
                 }
-
                 case NodeClass.VariableType:
                 {
                     var variableTypeNode = node as IVariableType;
-                    var state = new BaseDataVariableTypeState()
+                    var state = new BaseDataVariableTypeState
                     {
                         NodeId = ExpandedNodeId.ToNodeId(node.NodeId, context.NamespaceUris),
                         BrowseName = node.BrowseName,
@@ -342,23 +339,22 @@ namespace Opc.Ua.Client
                     if (node is ILocalNode localNode)
                     {
                         state.Description = localNode.Description;
-                        state.WriteMask = (AttributeWriteMask)localNode.WriteMask;
-                        
+                        state.WriteMask = localNode.WriteMask;
+
                         // Export UserWriteMask only if ExportUserContext is enabled
                         if (options.ExportUserContext)
                         {
-                            state.UserWriteMask = (AttributeWriteMask)localNode.UserWriteMask;
+                            state.UserWriteMask = localNode.UserWriteMask;
                         }
                     }
 
                     nodeState = state;
                     break;
                 }
-
                 case NodeClass.DataType:
                 {
                     var dataTypeNode = node as IDataType;
-                    var state = new DataTypeState()
+                    var state = new DataTypeState
                     {
                         NodeId = ExpandedNodeId.ToNodeId(node.NodeId, context.NamespaceUris),
                         BrowseName = node.BrowseName,
@@ -369,52 +365,50 @@ namespace Opc.Ua.Client
                     if (node is ILocalNode localNode)
                     {
                         state.Description = localNode.Description;
-                        state.WriteMask = (AttributeWriteMask)localNode.WriteMask;
-                        
+                        state.WriteMask = localNode.WriteMask;
+
                         // Export UserWriteMask only if ExportUserContext is enabled
                         if (options.ExportUserContext)
                         {
-                            state.UserWriteMask = (AttributeWriteMask)localNode.UserWriteMask;
+                            state.UserWriteMask = localNode.UserWriteMask;
                         }
                     }
 
                     nodeState = state;
                     break;
                 }
-
                 case NodeClass.ReferenceType:
                 {
                     var referenceTypeNode = node as IReferenceType;
-                    var state = new ReferenceTypeState()
+                    var state = new ReferenceTypeState
                     {
                         NodeId = ExpandedNodeId.ToNodeId(node.NodeId, context.NamespaceUris),
                         BrowseName = node.BrowseName,
                         DisplayName = node.DisplayName,
                         IsAbstract = referenceTypeNode?.IsAbstract ?? false,
                         Symmetric = referenceTypeNode?.Symmetric ?? false,
-                        InverseName = referenceTypeNode?.InverseName
+                        InverseName = referenceTypeNode?.InverseName ?? default
                     };
 
                     if (node is ILocalNode localNode)
                     {
                         state.Description = localNode.Description;
-                        state.WriteMask = (AttributeWriteMask)localNode.WriteMask;
-                        
+                        state.WriteMask = localNode.WriteMask;
+
                         // Export UserWriteMask only if ExportUserContext is enabled
                         if (options.ExportUserContext)
                         {
-                            state.UserWriteMask = (AttributeWriteMask)localNode.UserWriteMask;
+                            state.UserWriteMask = localNode.UserWriteMask;
                         }
                     }
 
                     nodeState = state;
                     break;
                 }
-
                 case NodeClass.View:
                 {
                     var viewNode = node as IView;
-                    var state = new ViewState()
+                    var state = new ViewState
                     {
                         NodeId = ExpandedNodeId.ToNodeId(node.NodeId, context.NamespaceUris),
                         BrowseName = node.BrowseName,
@@ -426,19 +420,18 @@ namespace Opc.Ua.Client
                     if (node is ILocalNode localNode)
                     {
                         state.Description = localNode.Description;
-                        state.WriteMask = (AttributeWriteMask)localNode.WriteMask;
-                        
+                        state.WriteMask = localNode.WriteMask;
+
                         // Export UserWriteMask only if ExportUserContext is enabled
                         if (options.ExportUserContext)
                         {
-                            state.UserWriteMask = (AttributeWriteMask)localNode.UserWriteMask;
+                            state.UserWriteMask = localNode.UserWriteMask;
                         }
                     }
 
                     nodeState = state;
                     break;
                 }
-
                 default:
                     return null;
             }
@@ -446,7 +439,7 @@ namespace Opc.Ua.Client
             // Handle references - nodeState is guaranteed to be non-null here
             if (node is ILocalNode localNodeWithRefs)
             {
-                var references = localNodeWithRefs.References;
+                IReferenceCollection references = localNodeWithRefs.References;
                 if (references != null && references.Count > 0)
                 {
                     foreach (IReference reference in references)

@@ -66,7 +66,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             var structureDefinition = new StructureDefinition
             {
-                BaseDataType = null,
+                BaseDataType = default,
                 DefaultEncodingId = ExpandedNodeId.ToNodeId(defaultEncodingId, namespaceTable),
                 Fields = [],
                 StructureType = StructureType.Structure
@@ -168,7 +168,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 var dataTypeField = new StructureField
                 {
                     Name = field.Name,
-                    Description = null,
+                    Description = default,
                     DataType = fieldDataTypeNodeId,
                     IsOptional = false,
                     MaxStringLength = 0,
@@ -255,8 +255,8 @@ namespace Opc.Ua.Client.ComplexTypes
                     {
                         Name = fieldName,
                         Value = enumValue.Value,
-                        Description = enumValue.Documentation?.Text?.FirstOrDefault(),
-                        DisplayName = enumValue.Name
+                        Description = LocalizedText.From(enumValue.Documentation?.Text?.FirstOrDefault()),
+                        DisplayName = LocalizedText.From(enumValue.Name)
                     };
                     enumDefinition.Fields.Add(enumTypeField);
                 }
@@ -300,7 +300,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     Name = name,
                     Value = enumValue.Value,
-                    DisplayName = name
+                    DisplayName = LocalizedText.From(name)
                 };
                 enumDefinition.Fields.Add(enumTypeField);
             }
@@ -337,7 +337,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     Name = name,
                     Value = ii,
-                    DisplayName = name
+                    DisplayName = LocalizedText.From(name)
                 };
 
                 enumDefinition.Fields.Add(enumTypeField);

@@ -1517,14 +1517,16 @@ namespace Opc.Ua.Configuration.Tests
             IList<string> applicationUris,
             string subjectName,
             IList<string> domainNames,
-            NodeId certificateType = null)
+            NodeId certificateType = default)
         {
             DateTime notBefore = DateTime.Today.AddDays(-1);
             DateTime notAfter = DateTime.Today.AddYears(1);
 
             // Default to RSA if not specified
-            certificateType ??= ObjectTypeIds.RsaSha256ApplicationCertificateType;
-
+            if (certificateType.IsNull)
+            {
+                certificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType;
+            }
             // Create the SAN extension with multiple URIs
             var subjectAltName = new X509SubjectAltNameExtension(applicationUris, domainNames);
 

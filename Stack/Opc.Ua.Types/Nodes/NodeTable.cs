@@ -186,7 +186,7 @@ namespace Opc.Ua
                     continue;
                 }
 
-                if (browseName == null)
+                if (browseName.IsNull)
                 {
                     return target;
                 }
@@ -251,7 +251,7 @@ namespace Opc.Ua
         /// Returns an enumerator that iterates through the collection.
         /// </summary>
         /// <returns>
-        /// A <see cref="System.Collections.Generic.IEnumerator{T}"/> that can be used to iterate through the collection.
+        /// A <see cref="IEnumerator{T}"/> that can be used to iterate through the collection.
         /// </returns>
         public IEnumerator<INode> GetEnumerator()
         {
@@ -301,7 +301,7 @@ namespace Opc.Ua
             foreach (Node nodeToImport in nodeSet.Nodes)
             {
                 // ignore empty nodes.
-                if (nodeToImport == null || NodeId.IsNull(nodeToImport.NodeId))
+                if (nodeToImport == null || nodeToImport.NodeId.IsNull)
                 {
                     continue;
                 }
@@ -309,13 +309,13 @@ namespace Opc.Ua
                 Node node = nodeSet.Copy(nodeToImport, NamespaceUris, ServerUris);
 
                 // assign a browse name.
-                if (QualifiedName.IsNull(node.BrowseName))
+                if (node.BrowseName.IsNull)
                 {
                     node.BrowseName = new QualifiedName(node.NodeId.ToString(), 1);
                 }
 
                 // assign a display name.
-                if (LocalizedText.IsNullOrEmpty(node.DisplayName))
+                if (node.DisplayName.IsNullOrEmpty)
                 {
                     node.DisplayName = new LocalizedText(node.BrowseName.Name);
                 }
@@ -324,8 +324,8 @@ namespace Opc.Ua
                 foreach (ReferenceNode reference in node.References)
                 {
                     // ignore invalid references.
-                    if (NodeId.IsNull(reference.ReferenceTypeId) ||
-                        NodeId.IsNull(reference.TargetId))
+                    if (reference.ReferenceTypeId.IsNull ||
+                        reference.TargetId.IsNull)
                     {
                         continue;
                     }
@@ -333,7 +333,7 @@ namespace Opc.Ua
                     // ignore missing targets.
                     ExpandedNodeId targetId = reference.TargetId;
 
-                    if (NodeId.IsNull(targetId))
+                    if (targetId.IsNull)
                     {
                         continue;
                     }
@@ -367,7 +367,7 @@ namespace Opc.Ua
             foreach (Node node in importedNodes)
             {
                 // ignore invalid nodes.
-                if (node == null || NodeId.IsNull(node.NodeId))
+                if (node == null || node.NodeId.IsNull)
                 {
                     continue;
                 }
@@ -389,7 +389,7 @@ namespace Opc.Ua
                                 reference.TargetId,
                                 NamespaceUris);
 
-                            if (targetId == null)
+                            if (targetId.IsNull)
                             {
                                 continue;
                             }
@@ -469,7 +469,7 @@ namespace Opc.Ua
                 targetNode.BrowseName = reference.BrowseName;
                 targetNode.DisplayName = reference.DisplayName;
 
-                if (!NodeId.IsNull(reference.TypeDefinition))
+                if (!reference.TypeDefinition.IsNull)
                 {
                     targetNode.ReferenceTable
                         .Add(ReferenceTypeIds.HasTypeDefinition, false, reference.TypeDefinition);
@@ -519,8 +519,8 @@ namespace Opc.Ua
                 foreach (ReferenceNode reference in node.References.OfType<ReferenceNode>())
                 {
                     // ignore invalid references.
-                    if (NodeId.IsNull(reference.ReferenceTypeId) ||
-                        NodeId.IsNull(reference.TargetId))
+                    if (reference.ReferenceTypeId.IsNull ||
+                        reference.TargetId.IsNull)
                     {
                         continue;
                     }
@@ -641,7 +641,7 @@ namespace Opc.Ua
         /// <param name="node">The node.</param>
         private void InternalAdd(ILocalNode node)
         {
-            if (node == null || node.NodeId == null)
+            if (node == null || node.NodeId.IsNull)
             {
                 return;
             }
@@ -655,7 +655,7 @@ namespace Opc.Ua
         /// <param name="node">The node.</param>
         private void InternalRemove(ILocalNode node)
         {
-            if (node == null || node.NodeId == null)
+            if (node == null || node.NodeId.IsNull)
             {
                 return;
             }
@@ -669,7 +669,7 @@ namespace Opc.Ua
         /// <param name="node">The node.</param>
         private void InternalAdd(RemoteNode node)
         {
-            if (node == null || node.NodeId == null)
+            if (node == null || node.NodeId.IsNull)
             {
                 return;
             }
@@ -683,7 +683,7 @@ namespace Opc.Ua
         /// <param name="node">The node.</param>
         private void InternalRemove(RemoteNode node)
         {
-            if (node == null || node.NodeId == null)
+            if (node == null || node.NodeId.IsNull)
             {
                 return;
             }
@@ -697,7 +697,7 @@ namespace Opc.Ua
         /// <param name="nodeId">The node identifier.</param>
         private INode InternalFind(ExpandedNodeId nodeId)
         {
-            if (nodeId == null)
+            if (nodeId.IsNull)
             {
                 return null;
             }
@@ -716,7 +716,7 @@ namespace Opc.Ua
             // convert to locale node id.
             var localId = ExpandedNodeId.ToNodeId(nodeId, NamespaceUris);
 
-            if (localId == null)
+            if (localId.IsNull)
             {
                 return null;
             }
@@ -744,9 +744,9 @@ namespace Opc.Ua
                 NodeId = nodeId;
                 m_refs = 0;
                 NodeClass = NodeClass.Unspecified;
-                BrowseName = new QualifiedName("(Unknown)");
-                DisplayName = new LocalizedText(BrowseName.Name);
-                TypeDefinitionId = null;
+                BrowseName = QualifiedName.From("(Unknown)");
+                DisplayName = LocalizedText.From(BrowseName.Name);
+                TypeDefinitionId = default;
             }
 
             /// <summary>

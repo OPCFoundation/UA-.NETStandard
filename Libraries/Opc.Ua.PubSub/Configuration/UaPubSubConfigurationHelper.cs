@@ -28,10 +28,8 @@
  * ======================================================================*/
 
 using System;
-using System.Globalization;
 using System.IO;
 using System.Runtime.Serialization;
-using System.Text;
 using System.Xml;
 
 namespace Opc.Ua.PubSub.Configuration
@@ -54,12 +52,12 @@ namespace Opc.Ua.PubSub.Configuration
         {
             Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.ReadWrite);
 
+            using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
+            DataContractSerializer serializer =
+                CoreUtils.CreateDataContractSerializer<PubSubConfigurationDataType>();
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = true;
-
             using var writer = XmlWriter.Create(ostrm, settings);
-            var serializer = new DataContractSerializer(typeof(PubSubConfigurationDataType));
-            using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
             serializer.WriteObject(writer, pubSubConfiguration);
         }
 
@@ -75,24 +73,20 @@ namespace Opc.Ua.PubSub.Configuration
         {
             try
             {
-                using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
-                var serializer = new DataContractSerializer(typeof(PubSubConfigurationDataType));
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
-                return (PubSubConfigurationDataType)serializer.ReadObject(stream);
+                DataContractSerializer serializer =
+                    CoreUtils.CreateDataContractSerializer<PubSubConfigurationDataType>();
+                using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+                using var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
+                return (PubSubConfigurationDataType)serializer.ReadObject(reader);
             }
             catch (Exception e)
             {
-                var buffer = new StringBuilder();
-                buffer.AppendFormat(
-                    CultureInfo.InvariantCulture,
-                    "Configuration file could not be loaded: {0}\r\n",
-                    filePath)
-                    .AppendFormat(CultureInfo.InvariantCulture, "Error: {0}", e.Message);
-
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
+                throw ServiceResultException.ConfigurationError(
                     e,
-                    buffer.ToString());
+                    "Configuration file could not be loaded: {0}\nError: {1}",
+                    filePath,
+                    e.Message);
             }
         }
     }

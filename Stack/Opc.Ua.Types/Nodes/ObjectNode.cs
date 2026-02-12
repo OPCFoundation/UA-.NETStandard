@@ -144,7 +144,7 @@ namespace Opc.Ua
         {
             var clone = (ObjectNode)base.MemberwiseClone();
 
-            clone.EventNotifier = (byte)CoreUtils.Clone(EventNotifier);
+            clone.EventNotifier = CoreUtils.Clone(EventNotifier);
 
             return clone;
         }

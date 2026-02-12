@@ -178,7 +178,7 @@ namespace Opc.Ua.PubSub.Transport
                     continue;
                 }
 #pragma warning restore CA1508 // Avoid dead conditional code
-                              //store UdpClient
+                //store UdpClient
                 udpClients.Add(udpClient);
                 logger.LogInformation(
                     "NetworkInterface name('{Name}') UdpClient successfully created.",
@@ -261,12 +261,9 @@ namespace Opc.Ua.PubSub.Transport
                 logger.LogError(ex,
                     "Cannot use Network interface '{Name}'.",
                     networkInterface.Name);
-                if (udpClient != null)
-                {
-                    //cleanup
-                    udpClient.Dispose();
-                    udpClient = null;
-                }
+                //cleanup
+                udpClient?.Dispose();
+                udpClient = null;
             }
 
             return udpClient;

@@ -162,7 +162,7 @@ namespace Alarms
 
             if (alarm.EnabledState.Id.Value)
             {
-                alarm.EventId.Value = Guid.NewGuid().ToByteArray();
+                alarm.EventId.Value = Uuid.NewUuid().ToByteArray();
                 alarm.Time.Value = DateTime.UtcNow;
                 alarm.ReceiveTime.Value = alarm.Time.Value;
 
@@ -291,7 +291,9 @@ namespace Alarms
             if (enabling != alarm.EnabledState.Id.Value)
             {
                 alarm.SetEnableState(SystemContext, enabling);
-                alarm.Message.Value = enabling ? "Enabling" : "Disabling alarm " + MapName;
+                alarm.Message.Value = enabling ?
+                    LocalizedText.From("Enabling") :
+                    LocalizedText.From("Disabling alarm " + MapName);
 
                 // if disabled, it will not fire
                 ReportEvent();
@@ -320,7 +322,7 @@ namespace Alarms
             if (alarmOrBranch == null)
             {
                 string errorMessage = "Unknown event id " + Utils.ToHexString(eventId);
-                alarm.Message.Value = "OnAddComment " + errorMessage;
+                alarm.Message.Value = LocalizedText.From("OnAddComment " + errorMessage);
                 LogError("OnAddComment", errorMessage);
                 return StatusCodes.BadEventIdUnknown;
             }
@@ -338,7 +340,7 @@ namespace Alarms
         {
             bool canSetComment = false;
 
-            if (comment != null)
+            if (!comment.IsNullOrEmpty)
             {
                 canSetComment = true;
 

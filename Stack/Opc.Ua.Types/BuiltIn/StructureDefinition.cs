@@ -38,7 +38,7 @@ namespace Opc.Ua
     /// Structure definition
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public partial class StructureDefinition : DataTypeDefinition
+    public class StructureDefinition : DataTypeDefinition
     {
         /// <inheritdoc/>
         public StructureDefinition()
@@ -54,8 +54,8 @@ namespace Opc.Ua
 
         private void Initialize()
         {
-            DefaultEncodingId = null;
-            BaseDataType = null;
+            DefaultEncodingId = default;
+            BaseDataType = default;
             StructureType = StructureType.Structure;
             m_fields = [];
         }
@@ -96,6 +96,11 @@ namespace Opc.Ua
                 }
             }
         }
+
+        /// <summary>
+        /// The first non-inherited field in the structure definition.
+        /// </summary>
+        public int FirstExplicitFieldIndex { get; set; }
 
         /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.StructureDefinition;
@@ -182,9 +187,9 @@ namespace Opc.Ua
         {
             var clone = (StructureDefinition)base.MemberwiseClone();
 
-            clone.DefaultEncodingId = CoreUtils.Clone(DefaultEncodingId);
-            clone.BaseDataType = CoreUtils.Clone(BaseDataType);
-            clone.StructureType = (StructureType)CoreUtils.Clone(StructureType);
+            clone.DefaultEncodingId = DefaultEncodingId;
+            clone.BaseDataType = BaseDataType;
+            clone.StructureType = CoreUtils.Clone(StructureType);
             clone.m_fields = CoreUtils.Clone(m_fields);
 
             return clone;
@@ -207,19 +212,18 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(context));
             }
 
-            if (dataEncoding?.Name == BrowseNames.DefaultJson)
+            if (dataEncoding.Name == BrowseNames.DefaultJson)
             {
                 DefaultEncodingId = ExpandedNodeId.ToNodeId(typeId, context.NamespaceUris);
                 return;
             }
 
             // note: custom types must be added to the encodeable factory by the node manager to be found
-            Type systemType = context.EncodeableFactory?.GetSystemType(
-                NodeId.ToExpandedNodeId(typeId, context.NamespaceUris));
-            if (systemType != null &&
-                Activator.CreateInstance(systemType) is IEncodeable encodeable)
+            var expandedTypeId = NodeId.ToExpandedNodeId(typeId, context.NamespaceUris);
+            if (context.EncodeableFactory.TryGetEncodeableType(expandedTypeId, out IEncodeableType type) &&
+                type.CreateInstance() is IEncodeable encodeable)
             {
-                if (dataEncoding == null || dataEncoding.Name == BrowseNames.DefaultBinary)
+                if (dataEncoding.IsNull || dataEncoding.Name == BrowseNames.DefaultBinary)
                 {
                     DefaultEncodingId = ExpandedNodeId.ToNodeId(
                         encodeable.BinaryEncodingId,

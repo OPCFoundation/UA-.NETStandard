@@ -220,8 +220,7 @@ namespace Quickstarts
                             {
                                 throw new ServiceResultException(
                                     StatusCodes.BadTimeout,
-                                    "Waiting for a reverse connection timed out."
-                                );
+                                    "Waiting for a reverse connection timed out.");
                             }
                             if (endpointDescription == null)
                             {
