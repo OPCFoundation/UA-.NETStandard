@@ -1844,7 +1844,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 dataSetName: "Test missing metadata fields definition",
                 kNamespaceIndexAllTypes,
                 metaDataType.Fields);
-            metadata.Description = new LocalizedText("Description text");
+            metadata.Description = LocalizedText.From("Description text");
             metadata.DataSetClassId = Uuid.Empty;
 
             _ = hasMetaData ? metadata : null;
@@ -1858,10 +1858,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
 
             jsonNetworkMessage.DataSetMetaData.Name = metaDataName;
-            jsonNetworkMessage.DataSetMetaData.Description =
-                metaDataDescription != null
-                    ? new LocalizedText(metaDataDescription)
-                    : metaDataDescription;
+            jsonNetworkMessage.DataSetMetaData.Description = LocalizedText.From(metaDataDescription);
             jsonNetworkMessage.DataSetMetaData.DataSetClassId = hasMetaDataDataSetClassId
                 ? Uuid.NewUuid()
                 : Uuid.Empty;

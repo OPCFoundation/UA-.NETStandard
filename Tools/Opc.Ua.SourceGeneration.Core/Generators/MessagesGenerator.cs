@@ -54,7 +54,7 @@ namespace Opc.Ua.SourceGeneration
             Service[] serviceTypes = m_context.ModelDesign.GetListOfServices();
             if (serviceTypes.Length == 0)
             {
-                return null;
+                return [];
             }
 
             string fileName = Path.Combine(

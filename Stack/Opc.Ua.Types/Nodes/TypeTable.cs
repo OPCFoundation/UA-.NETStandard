@@ -258,7 +258,7 @@ namespace Opc.Ua
             {
                 if (!m_nodes.TryGetValue(referenceTypeId, out TypeInfo typeInfo))
                 {
-                    return null;
+                    return default;
                 }
 
                 return typeInfo.BrowseName;
@@ -589,7 +589,7 @@ namespace Opc.Ua
         /// </remarks>
         public void AddSubtype(NodeId subTypeId, NodeId superTypeId)
         {
-            AddSubtype(subTypeId, superTypeId, null);
+            AddSubtype(subTypeId, superTypeId, default);
         }
 
         /// <summary>

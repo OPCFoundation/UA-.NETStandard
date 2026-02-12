@@ -809,7 +809,7 @@ namespace Opc.Ua.Client.Tests
                     {
                         AttributeId = Attributes.Value,
                         TypeDefinitionId = ObjectTypeIds.BaseEventType,
-                        BrowsePath = [.. new QualifiedName[] { "EventType" }]
+                        BrowsePath = [.. new QualifiedName[] { QualifiedName.From("EventType") }]
                     },
                     new LiteralOperand {
                         Value = new Variant(ObjectTypeIds.BaseEventType) }
@@ -832,7 +832,7 @@ namespace Opc.Ua.Client.Tests
                             {
                                 AttributeId = Attributes.Value,
                                 TypeDefinitionId = ObjectTypeIds.BaseEventType,
-                                BrowsePath = [.. new QualifiedName[] { BrowseNames.Message }]
+                                BrowsePath = [.. new QualifiedName[] { QualifiedName.From(BrowseNames.Message) }]
                             }
                         }
                     ],

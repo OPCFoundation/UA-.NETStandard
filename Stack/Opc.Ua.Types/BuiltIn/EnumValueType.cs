@@ -57,8 +57,8 @@ namespace Opc.Ua
         private void Initialize()
         {
             Value = 0;
-            DisplayName = null;
-            Description = null;
+            DisplayName = default;
+            Description = default;
         }
 
         /// <summary>

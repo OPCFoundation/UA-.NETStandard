@@ -318,9 +318,10 @@ namespace Opc.Ua.SourceGeneration
             }
 
             // Remove invalid path characters
-            Path.GetInvalidFileNameChars()
-                .ToList()
-                .ForEach(c => path = path.Replace(c, '_'));
+            foreach (char c in Path.GetInvalidFileNameChars())
+            {
+                path = path.Replace(c, '_');
+            }
             return path;
         }
 

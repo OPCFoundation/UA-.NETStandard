@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
@@ -548,6 +549,7 @@ namespace Opc.Ua
         /// <summary>
         /// Update the type id
         /// </summary>
+        [Pure]
         public ExtensionObject WithTypeId(ExpandedNodeId typeId)
         {
             return Body switch

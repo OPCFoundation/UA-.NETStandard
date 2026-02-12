@@ -1150,7 +1150,7 @@ namespace Opc.Ua.Client
             var clientDescription = new ApplicationDescription
             {
                 ApplicationUri = m_configuration.ApplicationUri,
-                ApplicationName = m_configuration.ApplicationName,
+                ApplicationName = LocalizedText.From(m_configuration.ApplicationName),
                 ApplicationType = ApplicationType.Client,
                 ProductUri = m_configuration.ProductUri
             };
@@ -4779,7 +4779,11 @@ namespace Opc.Ua.Client
             {
                 var parameters = new AdditionalParametersType();
                 parameters.Parameters.Add(
-                    new KeyValuePair { Key = "ECDHPolicyUri", Value = userTokenSecurityPolicyUri });
+                    new KeyValuePair
+                    {
+                        Key = QualifiedName.From("ECDHPolicyUri"),
+                        Value = userTokenSecurityPolicyUri
+                    });
                 requestHeader.AdditionalHeader = new ExtensionObject(parameters);
             }
 

@@ -98,7 +98,7 @@ namespace Opc.Ua.Types.Tests.State
                 [
                     new RelativePathElement
                     {
-                        TargetName = new QualifiedName("TestName"),
+                        TargetName = QualifiedName.From("TestName"),
                         IsInverse = false
                     }
                 ]

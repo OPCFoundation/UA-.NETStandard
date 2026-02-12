@@ -167,7 +167,17 @@ namespace Opc.Ua.SourceGeneration
         /// Is multi line string
         /// </summary>
         public bool IsMultiLine
-            => m_operations.Any(o => o.Type == OpType.LineBreak);
+            => m_operations.Find(o => o.Type == OpType.LineBreak) != null;
+
+        /// <summary>
+        /// Arguments either cached or collected
+        /// </summary>
+        internal object[] Arguments => m_arguments ??=
+        [
+            .. m_operations
+                .Where(o => o.Type is OpType.Token or OpType.Value)
+                .Select(o => o.Item)
+        ];
 
         /// <summary>
         /// Get formatting instructions
@@ -175,30 +185,28 @@ namespace Opc.Ua.SourceGeneration
         public IReadOnlyList<Op> Operations => m_operations;
 
         /// <inheritdoc/>
-        public override int ArgumentCount => GetArguments().Length;
+        public override int ArgumentCount => Arguments.Length;
 
         /// <inheritdoc/>
         public override string Format
-            => string.Concat([.. m_operations.Select(o => o.Item)]);
+            => m_format ??= string.Concat(m_operations.Select(o => o.Item));
 
         /// <inheritdoc/>
         public override object GetArgument(int index)
         {
-            return GetArguments()[index];
+            return Arguments[index];
         }
 
         /// <inheritdoc/>
         public override object[] GetArguments()
         {
-            return [.. m_operations
-                .Where(o => o.Type is OpType.Token or OpType.Value)
-                .Select(o => o.Item)];
+            return Arguments;
         }
 
         /// <inheritdoc/>
         public override string ToString(IFormatProvider formatProvider)
         {
-            return string.Format(formatProvider, Format, GetArguments());
+            return string.Format(formatProvider, Format, Arguments);
         }
 
         /// <summary>
@@ -228,6 +236,8 @@ namespace Opc.Ua.SourceGeneration
                         Environment.NewLine,
                         m_curOffset,
                         m_curLine));
+                    m_arguments = null;
+                    m_format = null;
                     m_curOffset = 0; // Reset offset at line break
                     strEndIdx = strStartIdx = i + 1;
                     m_curLine++;
@@ -253,6 +263,8 @@ namespace Opc.Ua.SourceGeneration
                     part,
                     m_curOffset,
                     m_curLine));
+                m_arguments = null;
+                m_format = null;
                 m_curOffset += part.Length;
             }
         }
@@ -267,6 +279,8 @@ namespace Opc.Ua.SourceGeneration
                 item,
                 m_curOffset,
                 m_curLine));
+            m_arguments = null;
+            m_format = null;
             m_curOffset += item.Length;
         }
 
@@ -300,6 +314,8 @@ namespace Opc.Ua.SourceGeneration
             int Offset,
             int LineNumber);
 
+        private object[] m_arguments;
+        private string m_format;
         private readonly List<Op> m_operations;
         private int m_curOffset;
         private int m_curLine;

@@ -93,9 +93,9 @@ namespace Opc.Ua
         {
             NodeId = default;
             NodeClass = NodeClass.Unspecified;
-            BrowseName = null;
-            DisplayName = null;
-            Description = null;
+            BrowseName = default;
+            DisplayName = default;
+            Description = default;
             WriteMask = 0;
             UserWriteMask = 0;
             m_rolePermissions = [];
@@ -509,7 +509,7 @@ namespace Opc.Ua
                         0);
                 }
 
-                return null;
+                return default;
             }
         }
 
@@ -712,7 +712,7 @@ namespace Opc.Ua
                     0);
             }
 
-            return null;
+            return default;
         }
 
         /// <inheritdoc/>

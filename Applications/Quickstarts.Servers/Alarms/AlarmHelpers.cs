@@ -172,9 +172,9 @@ namespace Alarms
             startMethod.InputArguments = new PropertyState<Argument[]>(startMethod)
             {
                 NodeId = new NodeId(startMethod.BrowseName.Name + "InArgs", namespaceIndex),
-                BrowseName = BrowseNames.InputArguments
+                BrowseName = QualifiedName.From(BrowseNames.InputArguments)
             };
-            startMethod.InputArguments.DisplayName = startMethod.InputArguments.BrowseName.Name;
+            startMethod.InputArguments.DisplayName = LocalizedText.From(startMethod.InputArguments.BrowseName.Name);
             startMethod.InputArguments.TypeDefinitionId = VariableTypeIds.PropertyType;
             startMethod.InputArguments.ReferenceTypeId = ReferenceTypeIds.HasProperty;
             startMethod.InputArguments.DataType = DataTypeIds.Argument;
@@ -185,7 +185,7 @@ namespace Alarms
                 new Argument
                 {
                     Name = "UInt32 value",
-                    Description = "Runtime of Alarms in seconds.",
+                    Description = LocalizedText.From("Runtime of Alarms in seconds."),
                     DataType = DataTypeIds.UInt32,
                     ValueRank = ValueRanks.Scalar
                 }

@@ -2892,8 +2892,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 statusCodeArray);
             var qualifiedValueArray = new DataValue(
                 new Variant(new QualifiedNameCollection {
-                    new QualifiedName("123"),
-                    new QualifiedName("abc") }));
+                    QualifiedName.From("123"),
+                    QualifiedName.From("abc") }));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("QualifiedNameArray", namespaceIndexAllTypes),
                 Attributes.Value,

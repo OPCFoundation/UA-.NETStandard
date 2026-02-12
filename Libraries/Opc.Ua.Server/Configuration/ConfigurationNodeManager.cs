@@ -202,19 +202,20 @@ namespace Opc.Ua.Server
 
                             // delete unsupported groups
                             if (m_certificateGroups.All(group =>
-                                    group.BrowseName != activeNode.DefaultHttpsGroup?.BrowseName))
+                                    activeNode.DefaultHttpsGroup == null ||
+                                    activeNode.DefaultHttpsGroup.BrowseName != group.BrowseName))
                             {
                                 activeNode.DefaultHttpsGroup = null;
                             }
                             if (m_certificateGroups.All(group =>
-                                    group.BrowseName != activeNode.DefaultUserTokenGroup?
-                                        .BrowseName))
+                                    activeNode.DefaultUserTokenGroup == null ||
+                                    activeNode.DefaultUserTokenGroup.BrowseName != group.BrowseName))
                             {
                                 activeNode.DefaultUserTokenGroup = null;
                             }
                             if (m_certificateGroups.All(group =>
-                                    group.BrowseName != activeNode.DefaultApplicationGroup?
-                                        .BrowseName))
+                                    activeNode.DefaultApplicationGroup == null ||
+                                    activeNode.DefaultApplicationGroup.BrowseName != group.BrowseName))
                             {
                                 activeNode.DefaultApplicationGroup = null;
                             }
@@ -369,9 +370,9 @@ namespace Opc.Ua.Server
                     SystemContext,
                     default,
                     namespaceMetadataState.BrowseName,
-                    null,
+                    default,
                     true);
-                namespaceMetadataState.DisplayName = namespaceUri;
+                namespaceMetadataState.DisplayName = LocalizedText.From(namespaceUri);
                 namespaceMetadataState.SymbolicName = namespaceUri;
                 namespaceMetadataState.NamespaceUri.Value = namespaceUri;
 

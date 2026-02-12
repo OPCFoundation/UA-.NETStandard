@@ -287,7 +287,7 @@ namespace Opc.Ua
 
             if (stateId == 0)
             {
-                variable.Value = null;
+                variable.Value = default;
                 variable.Id.Value = default;
 
                 variable.Number?.Value = 0;
@@ -308,7 +308,7 @@ namespace Opc.Ua
 
                 if (state.Id == stateId)
                 {
-                    variable.Value = state.Name;
+                    variable.Value = new LocalizedText(state.Name);
                     variable.Id.Value = new NodeId(state.Id, ElementNamespaceIndex);
 
                     variable.Number?.Value = state.Number;
@@ -333,7 +333,7 @@ namespace Opc.Ua
 
             if (transitionId == 0)
             {
-                variable.Value = null;
+                variable.Value = default;
                 variable.Id.Value = default;
 
                 variable.TransitionTime?.Value = DateTime.MinValue;
@@ -356,7 +356,7 @@ namespace Opc.Ua
 
                 if (transition.Id == transitionId)
                 {
-                    variable.Value = transition.Name;
+                    variable.Value = new LocalizedText(transition.Name);
                     variable.Id.Value = new NodeId(transition.Id, ElementNamespaceIndex);
 
                     variable.TransitionTime?.Value = DateTime.UtcNow;

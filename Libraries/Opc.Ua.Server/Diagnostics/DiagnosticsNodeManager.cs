@@ -138,7 +138,7 @@ namespace Opc.Ua.Server
                 {
                     NodeState samplingDiagnosticsArrayNode = serverDiagnosticsNode.FindChild(
                         SystemContext,
-                        BrowseNames.SamplingIntervalDiagnosticsArray);
+                        QualifiedName.From(BrowseNames.SamplingIntervalDiagnosticsArray));
 
                     if (samplingDiagnosticsArrayNode != null)
                     {
@@ -196,7 +196,7 @@ namespace Opc.Ua.Server
                     {
                         NodeState setSubscriptionDurableNode = serverObject.FindChild(
                             SystemContext,
-                            BrowseNames.SetSubscriptionDurable);
+                            QualifiedName.From(BrowseNames.SetSubscriptionDurable));
 
                         if (setSubscriptionDurableNode != null)
                         {
@@ -778,7 +778,7 @@ namespace Opc.Ua.Server
                     systemContext,
                     default,
                     ReferenceTypeIds.HasComponent,
-                    new QualifiedName(diagnostics.SessionName),
+                    QualifiedName.From(diagnostics.SessionName),
                     sessionNode);
 
                 diagnostics.SessionId = nodeId;
@@ -807,7 +807,7 @@ namespace Opc.Ua.Server
 
                 // initialize diagnostics node.
                 var diagnosticsNode =
-                    sessionNode.CreateChild(systemContext, BrowseNames.SessionDiagnostics) as
+                    sessionNode.CreateChild(systemContext, QualifiedName.From(BrowseNames.SessionDiagnostics)) as
                     SessionDiagnosticsVariableState;
 
                 // wrap diagnostics in a thread safe object.
@@ -827,7 +827,7 @@ namespace Opc.Ua.Server
                 var securityDiagnosticsNode =
                     sessionNode.CreateChild(
                         systemContext,
-                        BrowseNames.SessionSecurityDiagnostics) as
+                        QualifiedName.From(BrowseNames.SessionSecurityDiagnostics)) as
                     SessionSecurityDiagnosticsState;
 
                 // wrap diagnostics in a thread safe object.
@@ -909,7 +909,7 @@ namespace Opc.Ua.Server
                     systemContext,
                     default,
                     ReferenceTypeIds.HasComponent,
-                    new QualifiedName(
+                    QualifiedName.From(
                         diagnostics.SubscriptionId.ToString(CultureInfo.InvariantCulture)),
                     diagnosticsNode);
 
@@ -961,7 +961,7 @@ namespace Opc.Ua.Server
                     array = (SubscriptionDiagnosticsArrayState)
                         sessionNode.CreateChild(
                             systemContext,
-                            BrowseNames.SubscriptionDiagnosticsArray);
+                            QualifiedName.From(BrowseNames.SubscriptionDiagnosticsArray));
 
                     array?.AddReference(
                         ReferenceTypeIds.HasComponent,
@@ -1020,7 +1020,7 @@ namespace Opc.Ua.Server
                         SystemContext,
                         default,
                         ReferenceTypeIds.HasComponent,
-                        new QualifiedName(BrowseNames.HistoryServerCapabilities),
+                        QualifiedName.From(BrowseNames.HistoryServerCapabilities),
                         historyServerCapabilitiesNode);
 
                     historyServerCapabilitiesNode.AccessHistoryDataCapability.Value = false;
@@ -1125,7 +1125,7 @@ namespace Opc.Ua.Server
                     NodeId = aggregateId,
                     BrowseName = new QualifiedName(aggregateName, aggregateId.NamespaceIndex)
                 };
-                state.DisplayName = state.BrowseName.Name;
+                state.DisplayName = LocalizedText.From(state.BrowseName.Name);
                 state.WriteMask = AttributeWriteMask.None;
                 state.UserWriteMask = AttributeWriteMask.None;
                 state.EventNotifier = EventNotifiers.None;
@@ -1170,7 +1170,7 @@ namespace Opc.Ua.Server
                     NodeId = modellingRuleId,
                     BrowseName = new QualifiedName(modellingRuleName, modellingRuleId.NamespaceIndex)
                 };
-                state.DisplayName = state.BrowseName.Name;
+                state.DisplayName = LocalizedText.From(state.BrowseName.Name);
                 state.WriteMask = AttributeWriteMask.None;
                 state.UserWriteMask = AttributeWriteMask.None;
                 state.EventNotifier = EventNotifiers.None;
@@ -1753,7 +1753,7 @@ namespace Opc.Ua.Server
                             subscriptionsNode = (SubscriptionDiagnosticsArrayState)
                                 diagnostics.Summary.CreateChild(
                                     SystemContext,
-                                    BrowseNames.SubscriptionDiagnosticsArray);
+                                    QualifiedName.From(BrowseNames.SubscriptionDiagnosticsArray));
 
                             if (subscriptionsNode != null &&
                                 (

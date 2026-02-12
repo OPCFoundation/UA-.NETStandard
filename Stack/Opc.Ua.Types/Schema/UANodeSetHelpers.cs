@@ -486,8 +486,8 @@ namespace Opc.Ua.Export
                 default,
                 true,
                 BrowseDirection.Both,
-                null,
-                null,
+                default,
+                default,
                 true);
             var exportedReferences = new List<Reference>();
             IReference reference = browser.Next();
@@ -1479,7 +1479,7 @@ namespace Opc.Ua.Export
         {
             if (input == null)
             {
-                return null;
+                return default;
             }
 
             for (int ii = 0; ii < input.Length; ii++)
@@ -1490,7 +1490,7 @@ namespace Opc.Ua.Export
                 }
             }
 
-            return null;
+            return default;
         }
 
         /// <summary>

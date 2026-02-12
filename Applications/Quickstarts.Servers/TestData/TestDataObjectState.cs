@@ -92,7 +92,7 @@ namespace TestData
 
             if (variable.FindChild(
                 context,
-                Opc.Ua.BrowseNames.EURange) is BaseVariableState euRange)
+                QualifiedName.From(Opc.Ua.BrowseNames.EURange)) is BaseVariableState euRange)
             {
                 if (context.TypeTable.IsTypeOf(variable.DataType, Opc.Ua.DataTypeIds.UInteger))
                 {
@@ -118,7 +118,7 @@ namespace TestData
             {
                 if (node.FindChild(
                     context,
-                    Opc.Ua.BrowseNames.EURange) is not BaseVariableState euRange)
+                    QualifiedName.From(Opc.Ua.BrowseNames.EURange)) is not BaseVariableState euRange)
                 {
                     return ServiceResult.Good;
                 }

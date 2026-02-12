@@ -71,8 +71,8 @@ namespace Opc.Ua
             SymbolicName = CoreUtils.Format("{0}_Instance1", BrowseNames.BaseObjectType);
             NodeId = default;
             BrowseName = new QualifiedName(SymbolicName, 1);
-            DisplayName = SymbolicName;
-            Description = null;
+            DisplayName = new LocalizedText(SymbolicName);
+            Description = default;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
             TypeDefinitionId = GetDefaultTypeDefinitionId(context.NamespaceUris);

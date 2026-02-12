@@ -1737,7 +1737,7 @@ namespace Opc.Ua
                     context,
                     this,
                     indexRange,
-                    null,
+                    default,
                     ref value,
                     ref statusCode,
                     ref sourceTimestamp);
@@ -1899,8 +1899,8 @@ namespace Opc.Ua
             SymbolicName = CoreUtils.Format("{0}_Instance1", BrowseNames.PropertyType);
             NodeId = default;
             BrowseName = new QualifiedName(SymbolicName, 1);
-            DisplayName = SymbolicName;
-            Description = null;
+            DisplayName = new LocalizedText(SymbolicName);
+            Description = default;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
             ReferenceTypeId = ReferenceTypeIds.HasProperty;
@@ -2001,8 +2001,8 @@ namespace Opc.Ua
             SymbolicName = CoreUtils.Format("{0}_Instance1", BrowseNames.BaseDataVariableType);
             NodeId = default;
             BrowseName = new QualifiedName(SymbolicName, 1);
-            DisplayName = SymbolicName;
-            Description = null;
+            DisplayName = new LocalizedText(SymbolicName);
+            Description = default;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
             ReferenceTypeId = ReferenceTypeIds.HasComponent;

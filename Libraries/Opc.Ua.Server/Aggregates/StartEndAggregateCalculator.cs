@@ -194,7 +194,7 @@ namespace Opc.Ua.Server
                 value.StatusCode = StatusCodes.UncertainDataSubNormal;
             }
 
-            value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
+            value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
 
             // calculate delta.
             double delta = endValue - startValue;
@@ -255,7 +255,7 @@ namespace Opc.Ua.Server
 
                 if (StatusCode.IsNotBad(value.StatusCode))
                 {
-                    value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
+                    value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
                 }
             }
 
@@ -326,7 +326,7 @@ namespace Opc.Ua.Server
                 value.StatusCode = StatusCodes.UncertainDataSubNormal;
             }
 
-            value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
+            value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
 
             // calculate delta.
             double delta = endValue - startValue;

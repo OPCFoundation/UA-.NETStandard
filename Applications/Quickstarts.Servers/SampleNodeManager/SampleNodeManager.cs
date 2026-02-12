@@ -224,7 +224,7 @@ namespace Opc.Ua.Sample
                     parent.AddChild(instance);
                 }
 
-                instance.Create(contextToUse, default, browseName, null, true);
+                instance.Create(contextToUse, default, browseName, default, true);
                 AddPredefinedNode(contextToUse, instance);
 
                 return instance.NodeId;
@@ -998,7 +998,7 @@ namespace Opc.Ua.Sample
                         continuationPoint.ReferenceTypeId,
                         continuationPoint.IncludeSubtypes,
                         continuationPoint.BrowseDirection,
-                        null,
+                        default,
                         null,
                         false);
 
@@ -2499,7 +2499,7 @@ namespace Opc.Ua.Sample
             {
                 if (variable.FindChild(
                     context,
-                    BrowseNames.EURange) is not BaseVariableState euRange)
+                    QualifiedName.From(BrowseNames.EURange)) is not BaseVariableState euRange)
                 {
                     return StatusCodes.BadMonitoredItemFilterUnsupported;
                 }

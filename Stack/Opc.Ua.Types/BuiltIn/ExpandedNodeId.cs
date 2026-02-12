@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Globalization;
 using System.Runtime.Serialization;
 using System.Text;
@@ -372,6 +373,7 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the namespace index.
         /// </summary>
+        [Pure]
         public ExpandedNodeId WithNamespaceIndex(ushort namespaceIndex)
         {
             return new ExpandedNodeId(
@@ -383,6 +385,7 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the namespace uri.
         /// </summary>
+        [Pure]
         public ExpandedNodeId WithNamespaceUri(string uri)
         {
             return new ExpandedNodeId(
@@ -394,6 +397,7 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the server index.
         /// </summary>
+        [Pure]
         public ExpandedNodeId WithServerIndex(uint serverIndex)
         {
             return new ExpandedNodeId(
@@ -405,6 +409,7 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the server index.
         /// </summary>
+        [Pure]
         public ExpandedNodeId WithInnerNode(NodeId innerNodeId)
         {
             return new ExpandedNodeId(
@@ -653,7 +658,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a byte array to an opaque node identifier.
         /// </summary>
-        public static implicit operator ExpandedNodeId(byte[] value)
+        public static explicit operator ExpandedNodeId(byte[] value)
         {
             return new ExpandedNodeId(value);
         }

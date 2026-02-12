@@ -1538,7 +1538,7 @@ namespace Opc.Ua
                 sresult = new ServiceResult(
                     null,
                     StatusCodes.BadCertificateUntrusted,
-                    message,
+                    LocalizedText.From(message),
                     null,
                     sresult);
             }
@@ -1567,7 +1567,7 @@ namespace Opc.Ua
                     sresult = new ServiceResult(
                         null,
                         StatusCodes.BadCertificateUntrusted,
-                        message,
+                        LocalizedText.From(message),
                         null,
                         sresult);
                 }
@@ -1582,7 +1582,7 @@ namespace Opc.Ua
                 sresult = new ServiceResult(
                     null,
                     StatusCodes.BadCertificateHostNameInvalid,
-                    message,
+                    LocalizedText.From(message),
                     null,
                     sresult);
             }
@@ -1598,7 +1598,7 @@ namespace Opc.Ua
                     sresult = new ServiceResult(
                         null,
                         StatusCodes.BadCertificateUseNotAllowed,
-                        "Usage of ECDSA certificate is not allowed.",
+                        LocalizedText.From("Usage of ECDSA certificate is not allowed."),
                         null,
                         sresult);
                 }
@@ -1608,7 +1608,7 @@ namespace Opc.Ua
                 sresult = new ServiceResult(
                     null,
                     StatusCodes.BadCertificateUseNotAllowed,
-                    "Usage of RSA certificate is not allowed.",
+                    LocalizedText.From("Usage of RSA certificate is not allowed."),
                     null,
                     sresult);
             }
@@ -1620,7 +1620,7 @@ namespace Opc.Ua
                 sresult = new ServiceResult(
                     null,
                     StatusCodes.BadCertificatePolicyCheckFailed,
-                    "SHA1 signed certificates are not trusted.",
+                    LocalizedText.From("SHA1 signed certificates are not trusted."),
                     null,
                     sresult);
             }
@@ -1643,7 +1643,7 @@ namespace Opc.Ua
                     sresult = new ServiceResult(
                         null,
                         StatusCodes.BadCertificatePolicyCheckFailed,
-                        "Certificate doesn't meet minimum signature algorithm length requirement.",
+                        LocalizedText.From("Certificate doesn't meet minimum signature algorithm length requirement."),
                         null,
                         sresult);
                 }
@@ -1656,7 +1656,7 @@ namespace Opc.Ua
                     sresult = new ServiceResult(
                         null,
                         StatusCodes.BadCertificatePolicyCheckFailed,
-                        "Certificate doesn't meet minimum key length requirement.",
+                        LocalizedText.From("Certificate doesn't meet minimum key length requirement."),
                         null,
                         sresult);
                 }
@@ -1664,11 +1664,10 @@ namespace Opc.Ua
 
             if (issuedByCA && chainIncomplete)
             {
-                const string message = "Certificate chain validation incomplete.";
                 sresult = new ServiceResult(
                     null,
                     StatusCodes.BadCertificateChainIncomplete,
-                    message,
+                    LocalizedText.From("Certificate chain validation incomplete."),
                     null,
                     sresult);
             }
@@ -1708,7 +1707,7 @@ namespace Opc.Ua
                         .BadCertificateIssuerRevocationUnknown)
                     {
                         //p4List[kvp.Key] = kvp.Value;
-                        string message = CertificateMessage(
+                        LocalizedText message = CertificateMessage(
                             "Certificate issuer revocation list not found.",
                             kvp.Key);
                         sresult = new ServiceResult(
@@ -1720,7 +1719,7 @@ namespace Opc.Ua
                     }
                     else if (StatusCode.IsBad(kvp.Value.StatusCode))
                     {
-                        string message = CertificateMessage(
+                        LocalizedText message = CertificateMessage(
                             "Unknown error while trying to determine the revocation status.",
                             kvp.Key);
                         sresult = new ServiceResult(
@@ -1737,7 +1736,7 @@ namespace Opc.Ua
             {
                 foreach (KeyValuePair<X509Certificate2, ServiceResultException> kvp in p3List)
                 {
-                    string message = CertificateMessage(
+                    LocalizedText message = CertificateMessage(
                         "Certificate revocation list not found.",
                         kvp.Key);
                     sresult = new ServiceResult(
@@ -1752,7 +1751,7 @@ namespace Opc.Ua
             {
                 foreach (KeyValuePair<X509Certificate2, ServiceResultException> kvp in p2List)
                 {
-                    string message = CertificateMessage("Certificate issuer is revoked.", kvp.Key);
+                    LocalizedText message = CertificateMessage("Certificate issuer is revoked.", kvp.Key);
                     sresult = new ServiceResult(
                         null,
                         StatusCodes.BadCertificateIssuerRevoked,
@@ -1765,7 +1764,7 @@ namespace Opc.Ua
             {
                 foreach (KeyValuePair<X509Certificate2, ServiceResultException> kvp in p1List)
                 {
-                    string message = CertificateMessage("Certificate is revoked.", kvp.Key);
+                    LocalizedText message = CertificateMessage("Certificate is revoked.", kvp.Key);
                     sresult = new ServiceResult(
                         null,
                         StatusCodes.BadCertificateRevoked,
@@ -2084,7 +2083,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a certificate information message.
         /// </summary>
-        private static string CertificateMessage(string error, X509Certificate2 certificate)
+        private static LocalizedText CertificateMessage(string error, X509Certificate2 certificate)
         {
             StringBuilder message = new StringBuilder()
                 .AppendLine(error)
@@ -2097,7 +2096,7 @@ namespace Opc.Ua
                     "Issuer: {0}",
                     certificate.Issuer).AppendLine();
             }
-            return message.ToString();
+            return new LocalizedText(message.ToString());
         }
 
         /// <summary>

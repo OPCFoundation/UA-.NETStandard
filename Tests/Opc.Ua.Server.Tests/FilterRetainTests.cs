@@ -442,24 +442,32 @@ namespace Opc.Ua.Server.Tests
             int eventIndexCounter = 0;
             var desiredEventFields = new Dictionary<int, QualifiedNameCollection>
             {
-                { eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.EventId }] },
-                { eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.EventType }] },
-                { eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.Time }] },
-                { eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.ActiveState }] },
-                { eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.Message }] },
-                {
-                    eventIndexCounter++,
-                    [.. new QualifiedName[] { BrowseNames.LimitState, BrowseNames.CurrentState }] },
-                {
-                    eventIndexCounter++,
-                    [.. new QualifiedName[] {
-                        BrowseNames.LimitState,
-                        BrowseNames.CurrentState,
-                        BrowseNames.Id }]
+                { eventIndexCounter++, [.. new QualifiedName[] { QualifiedName.From(BrowseNames.EventId) }] },
+                { eventIndexCounter++, [.. new QualifiedName[] { QualifiedName.From(BrowseNames.EventType) }] },
+                { eventIndexCounter++, [.. new QualifiedName[] { QualifiedName.From(BrowseNames.Time) }] },
+                { eventIndexCounter++, [.. new QualifiedName[] { QualifiedName.From(BrowseNames.ActiveState) }] },
+                { eventIndexCounter++, [.. new QualifiedName[] { QualifiedName.From(BrowseNames.Message) }] },
+                { eventIndexCounter++, [.. new QualifiedName[]
+                    {
+                        QualifiedName.From(BrowseNames.LimitState),
+                        QualifiedName.From(BrowseNames.CurrentState)
+                    }
+                ]
                 },
-                {
-                    eventIndexCounter++,
-                    [.. new QualifiedName[] { BrowseNames.LimitState, BrowseNames.LastTransition }]
+                { eventIndexCounter++, [.. new QualifiedName[]
+                    {
+                        QualifiedName.From(BrowseNames.LimitState),
+                        QualifiedName.From(BrowseNames.CurrentState),
+                        QualifiedName.From(BrowseNames.Id)
+                    }
+                ]
+                },
+                { eventIndexCounter++, [.. new QualifiedName[]
+                    {
+                        QualifiedName.From(BrowseNames.LimitState),
+                        QualifiedName.From(BrowseNames.LastTransition)
+                    }
+                ]
                 }
             };
 
@@ -507,10 +515,12 @@ namespace Opc.Ua.Server.Tests
                 TypeDefinitionId = ObjectTypeIds.ExclusiveLevelAlarmType,
                 BrowsePath =
                 [
-                    .. new QualifiedName[] {
-                        BrowseNames.LimitState,
-                        BrowseNames.CurrentState,
-                        BrowseNames.Id }
+                    .. new QualifiedName[]
+                    {
+                        QualifiedName.From(BrowseNames.LimitState),
+                        QualifiedName.From(BrowseNames.CurrentState),
+                        QualifiedName.From(BrowseNames.Id)
+                    }
                 ]
             };
 
@@ -532,7 +542,7 @@ namespace Opc.Ua.Server.Tests
             {
                 AttributeId = Attributes.Value,
                 TypeDefinitionId = default,
-                BrowsePath = [.. new QualifiedName[] { BrowseNames.OutOfServiceState }]
+                BrowsePath = [.. new QualifiedName[] { QualifiedName.From(BrowseNames.OutOfServiceState) }]
             };
 
             var desiredOutOfServiceValue = new LiteralOperand { Value = new Variant(InService) };
@@ -545,7 +555,7 @@ namespace Opc.Ua.Server.Tests
             {
                 AttributeId = Attributes.Value,
                 TypeDefinitionId = default,
-                BrowsePath = [.. new QualifiedName[] { BrowseNames.SuppressedState }]
+                BrowsePath = [.. new QualifiedName[] { QualifiedName.From(BrowseNames.SuppressedState) }]
             };
 
             var desiredSuppressedValue = new LiteralOperand { Value = new Variant(Unsuppressed) };
@@ -558,7 +568,7 @@ namespace Opc.Ua.Server.Tests
             {
                 AttributeId = Attributes.Value,
                 TypeDefinitionId = default,
-                BrowsePath = [.. new QualifiedName[] { BrowseNames.ActiveState }]
+                BrowsePath = [.. new QualifiedName[] { QualifiedName.From(BrowseNames.ActiveState) }]
             };
 
             var activeValue = new LiteralOperand { Value = new Variant(Active) };

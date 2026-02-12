@@ -410,7 +410,7 @@ namespace Opc.Ua.Server
                     parent.AddChild(instance);
                 }
 
-                instance.Create(contextToUse, default, browseName, null, true);
+                instance.Create(contextToUse, default, browseName, default, true);
                 AddPredefinedNode(contextToUse, instance);
 
                 return instance.NodeId;
@@ -1276,7 +1276,7 @@ namespace Opc.Ua.Server
                         continuationPoint.ReferenceTypeId,
                         continuationPoint.IncludeSubtypes,
                         continuationPoint.BrowseDirection,
-                        null,
+                        default,
                         null,
                         false);
                 }
@@ -1988,7 +1988,7 @@ namespace Opc.Ua.Server
                             systemContext,
                             nodeToWrite.AttributeId,
                             nodeToWrite.ParsedIndexRange,
-                            null,
+                            default,
                             oldValue);
                     }
 
@@ -2161,7 +2161,7 @@ namespace Opc.Ua.Server
                             systemContext,
                             Attributes.Value,
                             monitoredItem.IndexRange,
-                            null,
+                            default,
                             value);
 
                         monitoredItem.QueueValue(value, ServiceResult.Good, true);
@@ -4175,8 +4175,9 @@ namespace Opc.Ua.Server
             // need to look up the EU range if a percent filter is requested.
             if (deadbandFilter.DeadbandType == (uint)DeadbandType.Percent)
             {
-                if (handle.Node
-                    .FindChild(context, BrowseNames.EURange) is not PropertyState property)
+                if (handle.Node.FindChild(
+                    context,
+                    QualifiedName.From(BrowseNames.EURange)) is not PropertyState property)
                 {
                     return StatusCodes.BadMonitoredItemFilterUnsupported;
                 }

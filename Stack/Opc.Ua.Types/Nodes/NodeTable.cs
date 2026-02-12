@@ -744,9 +744,9 @@ namespace Opc.Ua
                 NodeId = nodeId;
                 m_refs = 0;
                 NodeClass = NodeClass.Unspecified;
-                BrowseName = new QualifiedName("(Unknown)");
-                DisplayName = new LocalizedText(BrowseName.Name);
-                TypeDefinitionId = null;
+                BrowseName = QualifiedName.From("(Unknown)");
+                DisplayName = LocalizedText.From(BrowseName.Name);
+                TypeDefinitionId = default;
             }
 
             /// <summary>

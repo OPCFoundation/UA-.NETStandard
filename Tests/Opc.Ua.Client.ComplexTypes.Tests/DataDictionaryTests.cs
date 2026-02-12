@@ -176,7 +176,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     NodeId = dataDictionaryId,
                     AttributeId = Attributes.Value,
                     IndexRange = null,
-                    DataEncoding = null
+                    DataEncoding = default
                 };
 
                 var nodesToRead = new ReadValueIdCollection { readValueId };

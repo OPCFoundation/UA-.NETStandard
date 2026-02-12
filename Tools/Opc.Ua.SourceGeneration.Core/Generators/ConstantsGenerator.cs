@@ -63,7 +63,7 @@ namespace Opc.Ua.SourceGeneration
             if (browseNames.Count == 0)
             {
                 // Nothing to do
-                return null;
+                return [];
             }
 
             string fileName = Path.Combine(m_context.OutputFolder, CoreUtils.Format(
@@ -212,7 +212,7 @@ namespace Opc.Ua.SourceGeneration
                     browseNames[child.SymbolicName.Name] = child.BrowseName;
                 }
 
-                if (child is InstanceDesign instance)
+                if (child is InstanceDesign)
                 {
                     CollectBrowseNames(child, browseNames);
                 }

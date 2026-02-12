@@ -65,7 +65,7 @@ namespace Opc.Ua
                 BrowseNames.BaseObjectType,
                 string.Empty,
                 BrowseNames.BaseObjectType);
-            Description = null;
+            Description = default;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
             IsAbstract = false;

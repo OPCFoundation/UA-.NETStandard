@@ -138,7 +138,7 @@ namespace Opc.Ua.Server
                 SourceTimestamp = GetTimestamp(slice),
                 ServerTimestamp = GetTimestamp(slice)
             };
-            value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
+            value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
             value.StatusCode = GetValueBasedStatusCode(slice, values, value.StatusCode);
 
             // return result.
@@ -234,7 +234,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
+            value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
 
             // return result.
             return value;

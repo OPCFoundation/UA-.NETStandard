@@ -783,7 +783,7 @@ namespace Opc.Ua
                 BrowseNames.BaseDataVariableType,
                 string.Empty,
                 BrowseNames.BaseDataVariableType);
-            Description = null;
+            Description = default;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
             IsAbstract = false;
@@ -875,7 +875,7 @@ namespace Opc.Ua
                 BrowseNames.PropertyType,
                 string.Empty,
                 BrowseNames.PropertyType);
-            Description = null;
+            Description = default;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
             IsAbstract = false;

@@ -607,7 +607,7 @@ namespace Opc.Ua.Server
                             response.Parameters.Add(
                                 new KeyValuePair
                                 {
-                                    Key = "ECDHKey",
+                                    Key = QualifiedName.From("ECDHKey"),
                                     Value = new ExtensionObject(key)
                                 });
                         }
@@ -616,7 +616,7 @@ namespace Opc.Ua.Server
                             response.Parameters.Add(
                                 new KeyValuePair
                                 {
-                                    Key = "ECDHKey",
+                                    Key = QualifiedName.From("ECDHKey"),
                                     Value = StatusCodes.BadSecurityPolicyRejected
                                 });
                         }
@@ -644,8 +644,11 @@ namespace Opc.Ua.Server
             if (key != null)
             {
                 response = new AdditionalParametersType();
-                response.Parameters
-                    .Add(new KeyValuePair { Key = "ECDHKey", Value = new ExtensionObject(key) });
+                response.Parameters.Add(new KeyValuePair
+                {
+                    Key = QualifiedName.From("ECDHKey"),
+                    Value = new ExtensionObject(key)
+                });
             }
 
             return response;
@@ -2513,7 +2516,7 @@ namespace Opc.Ua.Server
             }
 
             // check if translated text required.
-            LocalizedText translatedText = null;
+            LocalizedText translatedText = default;
 
             if ((diagnosticsMasks & DiagnosticsMasks.ServiceLocalizedText) != 0)
             {

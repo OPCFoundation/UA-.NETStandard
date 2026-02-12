@@ -279,10 +279,10 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             //initialize Extension fields collection
             publishedDataSetSimple.ExtensionFields =
             [
-                new KeyValuePair { Key = new QualifiedName("BoolToggle"), Value = true },
-                new KeyValuePair { Key = new QualifiedName("Int32"), Value = 100 },
-                new KeyValuePair { Key = new QualifiedName("Int32Fast"), Value = 50 },
-                new KeyValuePair { Key = new QualifiedName("DateTime"), Value = DateTime.Today }
+                new KeyValuePair { Key = QualifiedName.From("BoolToggle"), Value = true },
+                new KeyValuePair { Key = QualifiedName.From("Int32"), Value = 100 },
+                new KeyValuePair { Key = QualifiedName.From("Int32Fast"), Value = 50 },
+                new KeyValuePair { Key = QualifiedName.From("DateTime"), Value = DateTime.Today }
             ];
 
             var publishedDataItems = new PublishedDataItemsDataType { PublishedData = [] };
@@ -292,7 +292,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 publishedDataItems.PublishedData.Add(
                     new PublishedVariableDataType
                     {
-                        SubstituteValue = new QualifiedName(field.Name)
+                        SubstituteValue = QualifiedName.From(field.Name)
                     });
             }
             publishedDataSetSimple.DataSetSource = new ExtensionObject(publishedDataItems);

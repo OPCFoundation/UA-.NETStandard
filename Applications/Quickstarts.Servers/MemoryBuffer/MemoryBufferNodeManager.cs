@@ -122,7 +122,7 @@ namespace MemoryBuffer
                             SystemContext,
                             new NodeId(bufferNode.SymbolicName, namespaceIndex),
                             new QualifiedName(bufferNode.SymbolicName, namespaceIndex),
-                            null,
+                            default,
                             true);
 
                         bufferNode.CreateBuffer(instance.DataType, instance.TagCount);
@@ -528,7 +528,7 @@ namespace MemoryBuffer
                     context,
                     datachangeItem.AttributeId,
                     NumericRange.Empty,
-                    null,
+                    default,
                     initialValue);
 
                 datachangeItem.QueueValue(initialValue, error);

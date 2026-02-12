@@ -220,7 +220,7 @@ namespace Opc.Ua.Server
                 value.StatusCode = StatusCodes.UncertainDataSubNormal;
             }
 
-            value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
+            value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
 
             // return result.
             return value;
@@ -333,7 +333,7 @@ namespace Opc.Ua.Server
                 value.StatusCode = StatusCodes.UncertainDataSubNormal;
             }
 
-            value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
+            value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
 
             // return result.
             return value;

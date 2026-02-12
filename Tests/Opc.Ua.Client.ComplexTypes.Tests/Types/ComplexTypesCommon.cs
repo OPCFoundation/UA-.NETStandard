@@ -161,7 +161,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             };
 
             IComplexTypeFieldBuilder fieldBuilder = m_complexTypeBuilder.AddStructuredType(
-                structureType + "." + testFunc,
+                QualifiedName.From(structureType + "." + testFunc),
                 complexTypeStructure);
             nodeId = new ExpandedNodeId(typeId++, m_complexTypeBuilder.TargetNamespace);
             var binaryEncodingId = new ExpandedNodeId(
@@ -210,7 +210,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                         Name = builtInType.ToString(),
                         DataType = new NodeId((uint)builtInType),
                         ArrayDimensions = null,
-                        Description = $"A BuiltInType.{builtInType} property.",
+                        Description = LocalizedText.From($"A BuiltInType.{builtInType} property."),
                         IsOptional = false,
                         MaxStringLength = 0,
                         ValueRank = -1

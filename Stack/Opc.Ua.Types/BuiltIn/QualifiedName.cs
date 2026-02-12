@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Runtime.Serialization;
 using System.Text;
 using Opc.Ua.Types;
@@ -62,7 +63,8 @@ namespace Opc.Ua
     public readonly struct QualifiedName :
         IFormattable,
         IComparable,
-        IEquatable<QualifiedName>, IComparable<QualifiedName>
+        IEquatable<QualifiedName>, IComparable<QualifiedName>,
+        IEquatable<string>, IComparable<string>
     {
         /// <summary>
         /// Initializes the object with a name.
@@ -106,6 +108,7 @@ namespace Opc.Ua
         /// <summary>
         /// Create a new QualifiedName with the specified NamespaceIndex
         /// </summary>
+        [Pure]
         public QualifiedName WithNamespaceIndex(ushort namespaceIndex)
         {
             return new QualifiedName(Name, namespaceIndex);
@@ -114,6 +117,7 @@ namespace Opc.Ua
         /// <summary>
         /// Create a new QualifiedName with the specified Name
         /// </summary>
+        [Pure]
         public QualifiedName WithName(string name)
         {
             return new QualifiedName(name, NamespaceIndex);
@@ -124,6 +128,7 @@ namespace Opc.Ua
         {
             return obj switch
             {
+                string qname => CompareTo(qname),
                 QualifiedName qname => CompareTo(qname),
                 _ => -1
             };
@@ -137,11 +142,7 @@ namespace Opc.Ua
                 return NamespaceIndex.CompareTo(obj.NamespaceIndex);
             }
 
-            if (Name != null)
-            {
-                return string.CompareOrdinal(Name, obj.Name);
-            }
-            return 0;
+            return string.CompareOrdinal(Name, obj.Name);
         }
 
         /// <inheritdoc/>
@@ -165,7 +166,42 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public static bool operator >=(QualifiedName left, QualifiedName right)
         {
-            return right.CompareTo(left) <= 0;
+            return left.CompareTo(right) >= 0;
+        }
+
+        /// <inheritdoc/>
+        public int CompareTo(string obj)
+        {
+            if (NamespaceIndex != 0)
+            {
+                return -1;
+            }
+
+            return string.CompareOrdinal(Name, obj);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator >(QualifiedName value1, string value2)
+        {
+            return value1.CompareTo(value2) > 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator <(QualifiedName value1, string value2)
+        {
+            return value1.CompareTo(value2) < 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator <=(QualifiedName left, string right)
+        {
+            return left.CompareTo(right) <= 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator >=(QualifiedName left, string right)
+        {
+            return left.CompareTo(right) >= 0;
         }
 
         /// <inheritdoc/>
@@ -173,6 +209,7 @@ namespace Opc.Ua
         {
             return obj switch
             {
+                string qname => Equals(qname),
                 QualifiedName qname => Equals(qname),
                 _ => base.Equals(obj)
             };
@@ -196,6 +233,28 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public static bool operator !=(QualifiedName value1, QualifiedName value2)
+        {
+            return !value1.Equals(value2);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(string qname)
+        {
+            if (NamespaceIndex != 0)
+            {
+                return false;
+            }
+            return qname == Name;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(QualifiedName value1, string value2)
+        {
+            return value1.Equals(value2);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(QualifiedName value1, string value2)
         {
             return !value1.Equals(value2);
         }
@@ -238,8 +297,7 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    builder.Append(NamespaceIndex)
-                        .Append(':');
+                    builder.Append(NamespaceIndex).Append(':');
                 }
 
                 if (Name != null)
@@ -427,7 +485,7 @@ namespace Opc.Ua
         {
             if (string.IsNullOrEmpty(Name))
             {
-                return null;
+                return string.Empty;
             }
 
             var buffer = new StringBuilder();
@@ -445,14 +503,12 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        buffer.Append(NamespaceIndex)
-                            .Append(':');
+                        buffer.Append(NamespaceIndex).Append(':');
                     }
                 }
                 else
                 {
-                    buffer.Append(NamespaceIndex)
-                        .Append(':');
+                    buffer.Append(NamespaceIndex).Append(':');
                 }
             }
 
@@ -464,8 +520,12 @@ namespace Opc.Ua
         /// Converts a string to a qualified name.
         /// </summary>
         /// <param name="value">The string to turn into a fully qualified name</param>
-        public static QualifiedName ToQualifiedName(string value)
+        public static QualifiedName From(string value)
         {
+            if (string.IsNullOrEmpty(value))
+            {
+                return Null;
+            }
             return new QualifiedName(value);
         }
 
@@ -473,9 +533,9 @@ namespace Opc.Ua
         /// Converts a string to a qualified name.
         /// </summary>
         /// <param name="value">The string to turn into a fully qualified name</param>
-        public static implicit operator QualifiedName(string value)
+        public static explicit operator QualifiedName(string value)
         {
-            return new QualifiedName(value);
+            return From(value);
         }
 
         /// <summary>

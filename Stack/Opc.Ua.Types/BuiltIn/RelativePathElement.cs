@@ -57,7 +57,7 @@ namespace Opc.Ua
             ReferenceTypeId = default;
             IsInverse = true;
             IncludeSubtypes = true;
-            TargetName = null;
+            TargetName = default;
         }
 
         /// <summary>

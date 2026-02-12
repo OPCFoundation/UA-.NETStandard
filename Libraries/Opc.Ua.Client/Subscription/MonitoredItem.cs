@@ -892,7 +892,7 @@ namespace Opc.Ua.Client
             if (GetFieldValue(
                 eventFields,
                 ObjectTypes.BaseEventType,
-                BrowseNames.EventType) is not NodeId eventTypeId)
+                QualifiedName.From(BrowseNames.EventType)) is not NodeId eventTypeId)
             {
                 return null;
             }
@@ -919,7 +919,7 @@ namespace Opc.Ua.Client
             var eventTime = GetFieldValue(
                 eventFields,
                 ObjectTypes.BaseEventType,
-                BrowseNames.Time) as DateTime?;
+                QualifiedName.From(BrowseNames.Time)) as DateTime?;
 
             if (eventTime != null)
             {
@@ -1055,15 +1055,15 @@ namespace Opc.Ua.Client
         {
             var filter = new EventFilter();
 
-            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.EventId);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.EventType);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.SourceNode);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.SourceName);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.Time);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.ReceiveTime);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.LocalTime);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.Message);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.Severity);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.EventId));
+            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.EventType));
+            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.SourceNode));
+            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.SourceName));
+            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.Time));
+            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.ReceiveTime));
+            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.LocalTime));
+            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.Message));
+            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.Severity));
 
             return filter;
         }

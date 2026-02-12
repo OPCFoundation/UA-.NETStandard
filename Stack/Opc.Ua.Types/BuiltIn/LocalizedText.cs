@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.Contracts;
 using System.Globalization;
 using System.Linq;
 using System.Runtime.Serialization;
@@ -113,7 +114,7 @@ namespace Opc.Ua
         {
             m_translation = null;
             m_locale = null;
-            m_text = text != null ? string.Intern(text) : null;
+            m_text = text;
         }
 
         /// <summary>
@@ -124,7 +125,7 @@ namespace Opc.Ua
         [JsonConstructor]
         public LocalizedText(string locale, string text)
         {
-            m_text = text != null ? string.Intern(text) : null;
+            m_text = text;
             m_locale = locale;
             m_translation = LocalizedTextFormatAndTranslation.Create(locale, text);
         }
@@ -350,8 +351,12 @@ namespace Opc.Ua
         /// Converts a string to a localized text.
         /// </summary>
         /// <param name="value">The string to store as localized text</param>
-        public static LocalizedText ToLocalizedText(string value)
+        public static LocalizedText From(string value)
         {
+            if (string.IsNullOrEmpty(value))
+            {
+                return Null;
+            }
             return new LocalizedText(value);
         }
 
@@ -359,9 +364,9 @@ namespace Opc.Ua
         /// Converts a string to a localized text.
         /// </summary>
         /// <param name="value">The string to store as localized text</param>
-        public static implicit operator LocalizedText(string value)
+        public static explicit operator LocalizedText(string value)
         {
-            return new LocalizedText(value);
+            return From(value);
         }
 
         /// <summary>
@@ -371,6 +376,7 @@ namespace Opc.Ua
         /// <param name="preferredLocales">The list of preferred locales, possibly including 'mul'
         /// or 'qst' as the first entry.</param>
         /// <returns>A LocalizedText containing translations as specified by the rules.</returns>
+        [Pure]
         public LocalizedText FilterByPreferredLocales(IList<string> preferredLocales)
         {
             return m_translation == null
@@ -381,6 +387,7 @@ namespace Opc.Ua
         /// <summary>
         /// Add translations to the localized text
         /// </summary>
+        [Pure]
         public LocalizedText WithTranslations(IReadOnlyDictionary<string, string> translations)
         {
             if (translations == null || translations.Count == 0)
@@ -409,6 +416,7 @@ namespace Opc.Ua
         /// <summary>
         /// Replace translation information
         /// </summary>
+        [Pure]
         public LocalizedText WithTranslationInfo(TranslationInfo info)
         {
             if (info.IsNull)
@@ -640,6 +648,7 @@ namespace Opc.Ua
         /// including 'mul' or 'qst' as the first entry.</param>
         /// <returns>A LocalizedText containing translations as specified by the
         /// rules.</returns>
+        [Pure]
         public LocalizedText FilterByPreferredLocales(
             LocalizedText localizedText,
             IList<string> preferredLocales)
@@ -723,6 +732,7 @@ namespace Opc.Ua
         /// Encodes the translations to a JSON string according to the format specified
         /// in https://reference.opcfoundation.org/Core/Part3/v105/docs/8.5
         /// </summary>
+        [Pure]
         public LocalizedText AsMultiLanguage(bool force = false)
         {
             var t = new List<string[]>();

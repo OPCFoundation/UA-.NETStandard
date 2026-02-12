@@ -811,7 +811,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Quotes(string.Empty) },
             {
                 BuiltInType.QualifiedName,
-                new QualifiedName(kQualifiedName),
+                QualifiedName.From(kQualifiedName),
                 $$"""{"Name":"{{kQualifiedName}}"}""",
                 null,
                 $"""

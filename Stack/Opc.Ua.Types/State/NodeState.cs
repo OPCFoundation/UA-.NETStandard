@@ -1125,7 +1125,7 @@ namespace Opc.Ua
 
             if (m_displayName.IsNullOrEmpty && !m_browseName.IsNull)
             {
-                m_displayName = m_browseName.Name;
+                m_displayName = new LocalizedText(m_browseName.Name);
             }
 
             if ((attributesToLoad & AttributesToSave.Description) != 0)
@@ -1209,7 +1209,7 @@ namespace Opc.Ua
         {
             var attributesToLoad = (AttributesToSave)decoder.ReadUInt32(null);
             string symbolicName = null;
-            QualifiedName browseName = null;
+            QualifiedName browseName = default;
 
             var nodeClass = (NodeClass)decoder.ReadEnumerated(null, typeof(NodeClass));
             attributesToLoad &= ~AttributesToSave.NodeClass;
@@ -1282,7 +1282,7 @@ namespace Opc.Ua
         {
             var attributesToLoad = (AttributesToSave)decoder.ReadUInt32(null);
             string symbolicName = null;
-            QualifiedName browseName = null;
+            QualifiedName browseName = default;
 
             var nodeClass = (NodeClass)decoder.ReadEnumerated(null, typeof(NodeClass));
             attributesToLoad &= ~AttributesToSave.NodeClass;
@@ -1603,7 +1603,7 @@ namespace Opc.Ua
 
             if (m_displayName.IsNullOrEmpty && !m_browseName.IsNull)
             {
-                DisplayName = m_browseName.Name;
+                DisplayName = new LocalizedText(m_browseName.Name);
             }
 
             if (decoder.Peek("Description"))
@@ -1754,7 +1754,7 @@ namespace Opc.Ua
 
                 NodeId referenceTypeId = default;
                 bool isInverse = false;
-                ExpandedNodeId targetId = null;
+                ExpandedNodeId targetId = default;
 
                 if (decoder.Peek("ReferenceTypeId"))
                 {
@@ -1927,8 +1927,8 @@ namespace Opc.Ua
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             NodeId nodeId = default;
-            LocalizedText displayName = null;
-            LocalizedText description = null;
+            LocalizedText displayName = default;
+            LocalizedText description = default;
             AttributeWriteMask writeMask = AttributeWriteMask.None;
             const AttributeWriteMask userWriteMask = AttributeWriteMask.None;
             NodeId referenceTypeId = default;
@@ -1948,7 +1948,7 @@ namespace Opc.Ua
 
             if (displayName.IsNullOrEmpty && !browseName.IsNull)
             {
-                displayName = browseName.Name;
+                displayName = new LocalizedText(browseName.Name);
             }
 
             if ((attributesToLoad & AttributesToSave.Description) != 0)
@@ -2187,7 +2187,7 @@ namespace Opc.Ua
                 browseName = decoder.ReadQualifiedName("BrowseName");
             }
 
-            LocalizedText displayName = null;
+            LocalizedText displayName = default;
 
             if (decoder.Peek("DisplayName"))
             {
@@ -2196,10 +2196,10 @@ namespace Opc.Ua
 
             if (displayName.IsNullOrEmpty && !browseName.IsNull)
             {
-                displayName = browseName.Name;
+                displayName = new LocalizedText(browseName.Name);
             }
 
-            LocalizedText description = null;
+            LocalizedText description = default;
 
             if (decoder.Peek("Description"))
             {
@@ -2871,7 +2871,7 @@ namespace Opc.Ua
             {
                 SymbolicName = browseName.Name;
                 BrowseName = browseName;
-                DisplayName = browseName.Name;
+                DisplayName = new LocalizedText(browseName.Name);
             }
 
             // override display name.
@@ -3464,7 +3464,7 @@ namespace Opc.Ua
                         context,
                         attributeIds[ii],
                         NumericRange.Empty,
-                        null,
+                        default,
                         value);
 
                     if (ServiceResult.IsBad(result))
@@ -4392,9 +4392,9 @@ namespace Opc.Ua
                 TypeDefinitionId = VariableTypeIds.PropertyType,
                 SymbolicName = propertyName,
                 NodeId = default,
-                BrowseName = propertyName,
-                DisplayName = propertyName,
-                Description = null,
+                BrowseName = QualifiedName.From(propertyName),
+                DisplayName = LocalizedText.From(propertyName),
+                Description = default,
                 WriteMask = 0,
                 UserWriteMask = 0,
                 Value = default,
@@ -4452,6 +4452,20 @@ namespace Opc.Ua
         /// <remarks>Creates the child if does not already exist.</remarks>
         public bool SetChildValue(
             ISystemContext context,
+            string browseName,
+            BaseInstanceState source,
+            bool copy)
+        {
+            return SetChildValue(context, QualifiedName.From(browseName), source, copy);
+        }
+
+        /// <summary>
+        /// Finds the child with the specified browse and assigns the values from any variables in the hierachy of the source.
+        /// </summary>
+        /// <returns>False if the child does not exist or is not a variable.</returns>
+        /// <remarks>Creates the child if does not already exist.</remarks>
+        public bool SetChildValue(
+            ISystemContext context,
             QualifiedName browseName,
             BaseInstanceState source,
             bool copy)
@@ -4487,6 +4501,20 @@ namespace Opc.Ua
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Finds the child variable with the specified browse and assigns the value to it.
+        /// </summary>
+        /// <returns>False if the child does not exist or is not a variable.</returns>
+        /// <remarks>Creates the child if does not already exist.</remarks>
+        public bool SetChildValue(
+            ISystemContext context,
+            string browseName,
+            object value,
+            bool copy)
+        {
+            return SetChildValue(context, QualifiedName.From(browseName), value, copy);
         }
 
         /// <summary>
@@ -4593,7 +4621,7 @@ namespace Opc.Ua
             // check if reading attributes of current node.
             if (index >= relativePath.Count)
             {
-                return ReadAttribute(context, attributeId, NumericRange.Empty, null, dataValue);
+                return ReadAttribute(context, attributeId, NumericRange.Empty, default, dataValue);
             }
 
             // find the child at the current level.

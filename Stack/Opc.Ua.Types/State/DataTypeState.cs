@@ -257,7 +257,7 @@ namespace Opc.Ua
                             structureType.DefaultEncodingId.IsNull)
                         {
                             // one time set the id for binary encoding, currently the only supported encoding
-                            structureType.SetDefaultEncodingId(context, NodeId, null);
+                            structureType.SetDefaultEncodingId(context, NodeId, default);
                         }
                         value = dataTypeDefinition;
                     }
