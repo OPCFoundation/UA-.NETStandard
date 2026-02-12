@@ -34,7 +34,7 @@ namespace Opc.Ua
     /// <summary>
     /// Defines constants for key user token policies.
     /// </summary>
-    public partial class UserTokenPolicy : IFormattable
+    public partial class UserTokenPolicy : IFormattable, IEquatable<UserTokenPolicy>
     {
         /// <summary>
         /// Creates an empty token policy with the specified token type.
@@ -65,6 +65,64 @@ namespace Opc.Ua
             }
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object obj)
+        {
+            return Equals(obj as UserTokenPolicy);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(UserTokenPolicy other)
+        {            
+            if (ReferenceEquals(null, other))
+            {
+                return false;
+            }
+
+            if (ReferenceEquals(this, other))
+            {
+                return true;
+            }
+
+            return
+                TokenType == other.TokenType &&
+                string.Equals(SecurityPolicyUri, other.SecurityPolicyUri, StringComparison.Ordinal) &&
+                string.Equals(IssuedTokenType, other.IssuedTokenType, StringComparison.Ordinal) &&
+                string.Equals(IssuerEndpointUrl, other.IssuerEndpointUrl, StringComparison.Ordinal);
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(
+                TokenType,
+                SecurityPolicyUri,
+                IssuedTokenType,
+                IssuerEndpointUrl);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(UserTokenPolicy left, UserTokenPolicy right)
+        {
+            if (ReferenceEquals(left, right))
+            {
+                return true;
+            }
+
+            if (ReferenceEquals(left, null))
+            {
+                return false;
+            }
+
+            return left.Equals(right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(UserTokenPolicy left, UserTokenPolicy right)
+        {
+            return !(left == right);
         }
     }
 }
