@@ -676,8 +676,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         protected DataValue CreateDataValue(BuiltInType builtInType, object data)
         {
-            var statusCode = (StatusCode)DataGenerator.GetRandom(BuiltInType.StatusCode);
-            var sourceTimeStamp = (DateTime)DataGenerator.GetRandom(BuiltInType.DateTime);
+            var statusCode = (StatusCode)DataGenerator.GetRandomScalar(BuiltInType.StatusCode);
+            var sourceTimeStamp = (DateTime)DataGenerator.GetRandomScalar(BuiltInType.DateTime);
             Variant variant = (builtInType == BuiltInType.Variant) && (data is Variant v)
                 ? v
                 : new Variant(data);

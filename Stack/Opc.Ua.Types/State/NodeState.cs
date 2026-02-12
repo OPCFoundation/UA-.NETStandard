@@ -4511,7 +4511,7 @@ namespace Opc.Ua
         public bool SetChildValue(
             ISystemContext context,
             string browseName,
-            object value,
+            Variant value,
             bool copy)
         {
             return SetChildValue(context, QualifiedName.From(browseName), value, copy);
@@ -4545,6 +4545,21 @@ namespace Opc.Ua
         /// <remarks>Creates the child if does not already exist.</remarks>
         public bool SetChildValue<T>(
             ISystemContext context,
+            string browseName,
+            T value,
+            bool copy) where T : IEncodeable
+        {
+            return SetChildValue(context, QualifiedName.From(browseName), value, copy);
+        }
+
+        /// <summary>
+        /// Finds the child variable with the specified browse and assigns the value to it.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns>False if the child does not exist or is not a variable.</returns>
+        /// <remarks>Creates the child if does not already exist.</remarks>
+        public bool SetChildValue<T>(
+            ISystemContext context,
             QualifiedName browseName,
             T value,
             bool copy) where T : IEncodeable
@@ -4566,16 +4581,11 @@ namespace Opc.Ua
         /// <remarks>Creates the child if does not already exist.</remarks>
         public bool SetChildValue<T>(
             ISystemContext context,
-            QualifiedName browseName,
-            T value) where T : Enum
+            string browseName,
+            T[] value,
+            bool copy) where T : IEncodeable
         {
-            if (CreateChild(context, browseName) is not BaseVariableState child)
-            {
-                return false;
-            }
-
-            child.Value = Variant.From(value);
-            return true;
+            return SetChildValue(context, QualifiedName.From(browseName), value, copy);
         }
 
         /// <summary>
@@ -4596,6 +4606,40 @@ namespace Opc.Ua
             }
 
             child.Value = Variant.FromStructure(value, copy);
+            return true;
+        }
+
+        /// <summary>
+        /// Finds the child variable with the specified browse and assigns the value to it.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns>False if the child does not exist or is not a variable.</returns>
+        /// <remarks>Creates the child if does not already exist.</remarks>
+        public bool SetChildValue<T>(
+            ISystemContext context,
+            string browseName,
+            T value) where T : Enum
+        {
+            return SetChildValue(context, QualifiedName.From(browseName), value);
+        }
+
+        /// <summary>
+        /// Finds the child variable with the specified browse and assigns the value to it.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns>False if the child does not exist or is not a variable.</returns>
+        /// <remarks>Creates the child if does not already exist.</remarks>
+        public bool SetChildValue<T>(
+            ISystemContext context,
+            QualifiedName browseName,
+            T value) where T : Enum
+        {
+            if (CreateChild(context, browseName) is not BaseVariableState child)
+            {
+                return false;
+            }
+
+            child.Value = Variant.From(value);
             return true;
         }
 

@@ -1018,7 +1018,7 @@ namespace Opc.Ua.Server.Tests
             {
                 var typeInfo = TypeInfo.Construct(dataValue.Value);
                 Assert.IsNotNull(typeInfo);
-                object value = m_generator.GetRandom(typeInfo.BuiltInType);
+                object value = m_generator.GetRandomScalar(typeInfo.BuiltInType);
                 modifiedValues.Add(new DataValue { WrappedValue = new Variant(value) });
             }
 

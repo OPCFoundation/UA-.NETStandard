@@ -403,6 +403,7 @@ namespace Opc.Ua
                 }
 
                 m_value = value;
+
                 m_valueTouched = true;
             }
         }

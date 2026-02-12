@@ -147,7 +147,7 @@ namespace Opc.Ua
                 m_value = value;
             }
         }
-		
+
         /// <summary>
         /// The value of the variable as a Variant.
         /// </summary>

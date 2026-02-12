@@ -252,7 +252,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 BuiltInType builtInType = TypeInfo.GetBuiltInType(
                     TypeInfo.GetDataTypeId(property.PropertyType, namespaceUris));
                 Variant newObj = randomValues
-                    ? DataGenerator.GetRandom(builtInType)
+                    ? DataGenerator.GetRandomScalar(builtInType)
                     : TypeInfo.GetDefaultValue(builtInType);
                 if (newObj.IsNull)
                 {

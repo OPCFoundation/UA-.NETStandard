@@ -926,10 +926,10 @@ namespace Opc.Ua
         /// <returns>The default value.</returns>
         protected Variant GetArgumentDefaultValue(ISystemContext context, Argument outputArgument)
         {
-            return new Variant(TypeInfo.GetDefaultValue(
+            return TypeInfo.GetDefaultValue(
                 outputArgument.DataType,
                 outputArgument.ValueRank,
-                context.TypeTable)); // TODO
+                context.TypeTable);
         }
 
         private bool m_executable;
