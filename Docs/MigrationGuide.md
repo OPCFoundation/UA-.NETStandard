@@ -10,16 +10,31 @@ Version 1.6  introduces a major architectural change from pre-generated code fil
 
 ### Source Generation Architecture
 
-All pre-generated code files (`Generated/` folders) have been removed and are now generated at build time.
+Instead of generating code for OPC UA design files using the [ModelCompiler](https://github.com/OPCFoundation/UA-ModelCompiler), this version of the stack uses [Source Generator](https://learn.microsoft.com/dotnet/csharp/roslyn-sdk/#source-generators)s to generate code behind for your project. Input into the source generator can be NodeSet2.xml files or ModelDesign.xml files (the same that ModelCompiler consumes). Source generators are Roslyn analyzers, that are called by the Roslyn compiler and emit code during the build process.
 
-    - Generated files like `Opc.Ua.Classes.cs`, `Opc.Ua.Constants.cs`, etc. are no longer in the repository
-    - Source generators automatically create these files during compilation
-    - No impact on runtime behavior - all generated types remain the same
+**Model compiler generated csharp code** is not supported in this version.
 
-Normally no migration steps are needed. The generated types and APIs remain identical.
+To migrate remove all your generated files (ending in `*.Classes.cs`, `*.Constants.cs`, etc.) and only leave the design file(s) (.xml and .csv files) in your project. Add an entry into your `csproj` file similar to the following to provide the location of the design files to the source generation process:
 
-However, `*.nodeset2.xml` files previously included as embedded zip have been removed.
-Also, all `*.Types.xsd` and `*.Types.bsd` files are now included as string resource instead of embedded resources. If you need access to these, use the new `Schemas.XmlAsStream` and `Schemas.BinaryAsStream` APIs in the node manager namespace which produce a utf8 stream.
+```xml
+  <PropertyGroup>
+    <!-- Optional: to configure whether to allow sub types - see model compiler documentation -->
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Generate code behind for the following design or nodeset2.xml files during build-->
+    <AdditionalFiles Include="Boiler\Generated\BoilerDesign.csv" />
+    <AdditionalFiles Include="Boiler\Generated\BoilerDesign.xml" />
+    <AdditionalFiles Include="MemoryBuffer\Generated\MemoryBufferDesign.csv" />
+    <AdditionalFiles Include="MemoryBuffer\Generated\MemoryBufferDesign.xml" />
+    <AdditionalFiles Include="TestData\Generated\TestDataDesign.csv" />
+    <AdditionalFiles Include="TestData\Generated\TestDataDesign.xml" />
+  </ItemGroup>
+```
+
+The [source generator model](https://devblogs.microsoft.com/dotnet/introducing-c-source-generators/) has several benefits that go beyond custom `msbuild` targets: Among the most important is that the generator ships with the stack and therefore code that is generated conforms to the stack version that ships the analyzer (the source generator is part of Opc.Ua.Core nuget package). Therefore when updating to a newer version the code generated takes automatically advantage of the improvements made across the entire stack. Code generation during compilation also allows not just emitting code ahead of time, but also to generate code while you are developing. We intend to take advantage of this to generate data types and node states from stub code on the fly in future releases including enabling faster migration of code by injecting functionality such as conversion between types.
+
+The stack itself uses source generators to generate the core opc ua code. Therefore all pre-generated code files (`Generated/` folders) have been removed and are now generated at build time. As a result of using source generators to generate the stack code all `*.nodeset2.xml` files previously included as embedded zip have been removed. Also, all `*.Types.xsd` and `*.Types.bsd` files are now included as string resource instead of embedded resources. If you need access to these, use the new `Schemas.XmlAsStream` and `Schemas.BinaryAsStream` APIs in the node manager namespace which produce a utf8 stream. Alternatively you can use the existing ModelCompiler tool to generate these files.
 
 ### Several built in types are now immutable
 

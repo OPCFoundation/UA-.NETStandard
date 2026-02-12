@@ -392,7 +392,7 @@ namespace Opc.Ua.Client
                         if (!m_nodes.Exists(reference.NodeId))
                         {
                             // transform absolute identifiers.
-                            if (!reference.NodeId.IsNull && reference.NodeId.IsAbsolute)
+                            if (reference.NodeId.IsAbsolute)
                             {
                                 reference.NodeId = ExpandedNodeId.ToNodeId(
                                     reference.NodeId,
@@ -468,7 +468,7 @@ namespace Opc.Ua.Client
                             if (!m_nodes.Exists(reference.NodeId))
                             {
                                 // transform absolute identifiers.
-                                if (!reference.NodeId.IsNull && reference.NodeId.IsAbsolute)
+                                if (reference.NodeId.IsAbsolute)
                                 {
                                     reference.NodeId = ExpandedNodeId.ToNodeId(
                                         reference.NodeId,

@@ -75,10 +75,10 @@ namespace Opc.Ua
         public static ServiceResult ApplyDataEncoding(
             IServiceMessageContext context,
             QualifiedName dataEncoding,
-            ref object value)
+            ref Variant value)
         {
             // check if nothing to do.
-            if (dataEncoding.IsNull || value == null)
+            if (dataEncoding.IsNull || value.IsNull)
             {
                 return ServiceResult.Good;
             }
@@ -98,41 +98,35 @@ namespace Opc.Ua
 
             try
             {
-                // check for array of encodeables.
-                var encodeables = value as IList<IEncodeable>;
+                IEncodeable[] encodeables = null;
 
-                if (encodeables == null)
+                // check for array of extension objects.
+                if (value.TryGet(out ExtensionObject[] extensions))
                 {
-                    // check for array of extension objects.
+                    // convert extension objects to encodeables.
+                    encodeables = new IEncodeable[extensions.Length];
 
-                    if (value is IList<ExtensionObject> extensions)
+                    for (int ii = 0; ii < encodeables.Length; ii++)
                     {
-                        // convert extension objects to encodeables.
-                        encodeables = new IEncodeable[extensions.Count];
-
-                        for (int ii = 0; ii < encodeables.Count; ii++)
+                        if (ExtensionObject.IsNull(extensions[ii]))
                         {
-                            if (ExtensionObject.IsNull(extensions[ii]))
-                            {
-                                encodeables[ii] = null;
-                                continue;
-                            }
-
-                            if (extensions[ii].Body is not IEncodeable element)
-                            {
-                                return StatusCodes.BadTypeMismatch;
-                            }
-
-                            encodeables[ii] = element;
+                            encodeables[ii] = null;
+                            continue;
                         }
+
+                        if (extensions[ii].Body is not IEncodeable element)
+                        {
+                            return StatusCodes.BadTypeMismatch;
+                        }
+
+                        encodeables[ii] = element;
                     }
                 }
 
                 // apply data encoding to the array.
                 if (encodeables != null)
                 {
-                    var extensions = new ExtensionObject[encodeables.Count];
-
+                    extensions = new ExtensionObject[encodeables.Length];
                     for (int ii = 0; ii < extensions.Length; ii++)
                     {
                         extensions[ii] = Encode(context, encodeables[ii], useXml);
@@ -143,26 +137,21 @@ namespace Opc.Ua
                 }
 
                 // check for scalar value.
-                var encodeable = value as IEncodeable;
+                IEncodeable encodeable = null;
 
-                if (encodeable == null)
+                if (value.TryGet(out ExtensionObject extension))
                 {
-                    if (value is not ExtensionObject extension)
-                    {
-                        return StatusCodes.BadDataEncodingUnsupported;
-                    }
-
                     encodeable = extension.Body as IEncodeable;
                 }
 
-                if (encodeable == null)
+                if (encodeable != null)
                 {
-                    return StatusCodes.BadDataEncodingUnsupported;
+                    // do conversion.
+                    value = Encode(context, encodeable, useXml);
+                    return ServiceResult.Good;
                 }
 
-                // do conversion.
-                value = Encode(context, encodeable, useXml);
-                return ServiceResult.Good;
+                return StatusCodes.BadDataEncodingUnsupported;
             }
             catch (Exception e)
             {

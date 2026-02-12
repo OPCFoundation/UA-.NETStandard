@@ -266,7 +266,7 @@ namespace Opc.Ua.Test
         /// <summary>
         /// Returns a random value of the specified built-in type.
         /// </summary>
-        public object GetRandom(
+        public Variant GetRandom(
             NodeId dataType,
             int valueRank,
             IList<uint> arrayDimensions,
@@ -359,23 +359,23 @@ namespace Opc.Ua.Test
                     indexes[jj] = ii / divisor % actualDimensions[jj];
                 }
 
-                object value = GetRandom(dataType, ValueRanks.Scalar, null, typeTree);
+                Variant value = GetRandom(dataType, ValueRanks.Scalar, null, typeTree);
 
-                if (value != null)
+                if (!value.IsNull)
                 {
                     output.SetValue(value, indexes);
                 }
             }
 
             // return array value.
-            return output;
+            return new Variant((object)output);
         }
 
         /// <summary>
         /// Returns a random value of the specified built-in type.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public object GetRandom(BuiltInType expectedType)
+        public Variant GetRandom(BuiltInType expectedType)
         {
             switch (expectedType)
             {
@@ -429,8 +429,6 @@ namespace Opc.Ua.Test
                     return GetRandomExtensionObject();
                 case BuiltInType.DataValue:
                     return GetRandomDataValue();
-                case BuiltInType.DiagnosticInfo:
-                    return GetRandomDiagnosticInfo();
                 case BuiltInType.Number:
                 {
                     var builtInType = (BuiltInType)(m_random.NextInt32(9) + (int)BuiltInType.SByte);
@@ -448,8 +446,9 @@ namespace Opc.Ua.Test
                         (int)BuiltInType.Byte);
                     return GetRandomVariant(builtInType, false);
                 }
+                case BuiltInType.DiagnosticInfo:
                 case BuiltInType.Null:
-                    return null;
+                    return Variant.Null;
                 default:
                     throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {expectedType}");
@@ -593,7 +592,7 @@ namespace Opc.Ua.Test
                 }
             }
 
-            return (T)GetRandom(typeof(T));
+            return (T)GetRandom(typeof(T)).AsBoxedObject();
         }
 
         /// <summary>
@@ -987,7 +986,7 @@ namespace Opc.Ua.Test
 
             if (length < 0)
             {
-                return new Variant(GetRandom(builtInType));
+                return GetRandom(builtInType);
             }
             switch (builtInType)
             {
@@ -1357,7 +1356,7 @@ namespace Opc.Ua.Test
         /// <summary>
         /// Returns a random value of the specified type.
         /// </summary>
-        private object GetRandom(Type expectedType)
+        private Variant GetRandom(Type expectedType)
         {
             BuiltInType builtInType = TypeInfo.Construct(expectedType).BuiltInType;
             return GetRandom(builtInType);

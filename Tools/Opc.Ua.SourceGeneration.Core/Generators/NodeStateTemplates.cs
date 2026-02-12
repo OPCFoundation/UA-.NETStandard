@@ -309,8 +309,8 @@ namespace Opc.Ua.SourceGeneration
                 protected override global::Opc.Ua.ServiceResult? Call(
                     global::Opc.Ua.ISystemContext _context,
                     global::Opc.Ua.NodeId _objectId,
-                    global::System.Collections.Generic.IList<object> _inputArguments,
-                    global::System.Collections.Generic.IList<object> _outputArguments)
+                    global::Opc.Ua.VariantCollection _inputArguments,
+                    global::Opc.Ua.VariantCollection _outputArguments)
                 {
                     if (OnCall == null)
                     {
@@ -334,8 +334,8 @@ namespace Opc.Ua.SourceGeneration
                 protected override async global::System.Threading.Tasks.ValueTask<global::Opc.Ua.ServiceResult?> CallAsync(
                     global::Opc.Ua.ISystemContext _context,
                     global::Opc.Ua.NodeId _objectId,
-                    global::System.Collections.Generic.IList<object> _inputArguments,
-                    global::System.Collections.Generic.IList<object> _outputArguments,
+                    global::Opc.Ua.VariantCollection _inputArguments,
+                    global::Opc.Ua.VariantCollection _outputArguments,
                     global::System.Threading.CancellationToken cancellationToken = default)
                 {
                     if (OnCall == null && OnCallAsync == null)
@@ -528,7 +528,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.NodeState node,
                 global::Opc.Ua.NumericRange indexRange,
                 global::Opc.Ua.QualifiedName dataEncoding,
-                ref object? value,
+                ref global::Opc.Ua.Variant value,
                 ref global::Opc.Ua.StatusCode statusCode,
                 ref global::System.DateTime timestamp)
             {
@@ -539,14 +539,14 @@ namespace Opc.Ua.SourceGeneration
                     var childVariable = m_variable?.{{Tokens.ChildPath}};
                     if (childVariable != null && global::Opc.Ua.StatusCode.IsBad(childVariable.StatusCode))
                     {
-                        value = null;
+                        value = global::Opc.Ua.Variant.Null;
                         statusCode = childVariable.StatusCode;
                         return new global::Opc.Ua.ServiceResult(statusCode);
                     }
 
                     if (m_value != null)
                     {
-                        value = m_value.{{Tokens.ChildPath}};
+                        value = new global::Opc.Ua.Variant(m_value.{{Tokens.ChildPath}});
                     }
 
                     var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
@@ -573,7 +573,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.NodeState node,
                 global::Opc.Ua.NumericRange indexRange,
                 global::Opc.Ua.QualifiedName dataEncoding,
-                ref object? value,
+                ref global::Opc.Ua.Variant value,
                 ref global::Opc.Ua.StatusCode statusCode,
                 ref global::System.DateTime timestamp)
             {
@@ -614,7 +614,7 @@ namespace Opc.Ua.SourceGeneration
                 public new T Value
                 {
                     get => CheckTypeBeforeCast<T>(((global::Opc.Ua.BaseVariableState)this).Value, true);
-                    set => ((global::Opc.Ua.BaseVariableState)this).Value = value;
+                    set => ((global::Opc.Ua.BaseVariableState)this).Value = new global::Opc.Ua.Variant(value);
                 }
 
                 /// <inheritdoc/>
@@ -723,7 +723,7 @@ namespace Opc.Ua.SourceGeneration
                     global::Opc.Ua.NodeState node,
                     global::Opc.Ua.NumericRange indexRange,
                     global::Opc.Ua.QualifiedName dataEncoding,
-                    ref object? value,
+                    ref global::Opc.Ua.Variant value,
                     ref global::Opc.Ua.StatusCode statusCode,
                     ref global::System.DateTime timestamp)
                 {
@@ -733,7 +733,7 @@ namespace Opc.Ua.SourceGeneration
 
                         if (m_value != null)
                         {
-                            value = m_value;
+                            value = new global::Opc.Ua.Variant(m_value);
                         }
 
                         return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
@@ -746,20 +746,15 @@ namespace Opc.Ua.SourceGeneration
                     global::Opc.Ua.NodeState node,
                     global::Opc.Ua.NumericRange indexRange,
                     global::Opc.Ua.QualifiedName dataEncoding,
-                    ref object? value,
+                    ref global::Opc.Ua.Variant value,
                     ref global::Opc.Ua.StatusCode statusCode,
                     ref global::System.DateTime timestamp)
                 {
                     lock (Lock)
                     {
-                        {{Tokens.DataType}}? newValue;
-                        if (value is global::Opc.Ua.ExtensionObject extensionObject)
+                        if (!value.TryGetStructure(out {{Tokens.DataType}} newValue))
                         {
-                            newValue = ({{Tokens.DataType}})extensionObject.Body;
-                        }
-                        else
-                        {
-                            newValue = ({{Tokens.DataType}})value;
+                            newValue = default;
                         }
 
                         if (!global::Opc.Ua.CoreUtils.IsEqual(m_value, newValue))
@@ -1972,12 +1967,12 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Template for value assignment
         /// </summary>
-        public static readonly TemplateString ArrayValue = TemplateString.Parse(
+        public static readonly TemplateString VariantArrayValue = TemplateString.Parse(
             $$"""
-            state.Value = new {{Tokens.DataType}}[]
+            state.WrappedValue = global::Opc.Ua.Variant.FromStructure(new {{Tokens.DataType}}[]
             {
                 {{Tokens.ListOfValues}}
-            };
+            });
             """);
 
         /// <summary>

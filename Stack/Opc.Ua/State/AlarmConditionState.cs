@@ -450,7 +450,7 @@ namespace Opc.Ua
         protected ServiceResult OnReadUnshelveTime(
             ISystemContext context,
             NodeState node,
-            ref object value)
+            ref Variant value)
         {
             double delta = 0;
 
@@ -490,8 +490,8 @@ namespace Opc.Ua
         protected virtual ServiceResult OnOneShotShelve(
             ISystemContext context,
             MethodState method,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             ServiceResult error = null;
 
@@ -546,7 +546,7 @@ namespace Opc.Ua
                     e.SetChildValue(context, BrowseNames.SourceName, "Method/OneShotShelve", false);
 
                     e.SetChildValue(context, BrowseNames.MethodId, method.NodeId, false);
-                    e.SetChildValue(context, BrowseNames.ShelvingTime, null, false);
+                    e.SetChildValue(context, BrowseNames.ShelvingTime, Variant.Null, false);
 
                     ReportEvent(context, e);
                 }
@@ -641,7 +641,7 @@ namespace Opc.Ua
                     e.SetChildValue(
                         context,
                         BrowseNames.InputArguments,
-                        new object[] { shelvingTime },
+                        new Variant[] { shelvingTime },
                         false);
 
                     e.SetChildValue(context, BrowseNames.ShelvingTime, shelvingTime, false);
@@ -674,8 +674,8 @@ namespace Opc.Ua
         protected virtual ServiceResult OnUnshelve(
             ISystemContext context,
             MethodState method,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             ServiceResult error = null;
 
@@ -731,7 +731,7 @@ namespace Opc.Ua
                     e.SetChildValue(context, BrowseNames.SourceName, "Method/UnShelve", false);
 
                     e.SetChildValue(context, BrowseNames.MethodId, method.NodeId, false);
-                    e.SetChildValue(context, BrowseNames.ShelvingTime, null, false);
+                    e.SetChildValue(context, BrowseNames.ShelvingTime, Variant.Null, false);
 
                     ReportEvent(context, e);
                 }
@@ -764,7 +764,7 @@ namespace Opc.Ua
             try
             {
                 var context = (ISystemContext)state;
-                object unshelveTimeObject = new();
+                Variant unshelveTimeObject = default;
                 OnReadUnshelveTime(context, null, ref unshelveTimeObject);
                 double unshelveTime = (double)unshelveTimeObject;
                 if (unshelveTime != ShelvingState.UnshelveTime.Value)

@@ -359,7 +359,7 @@ namespace Opc.Ua
         protected override ServiceResult ReadNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            ref object value)
+            ref Variant value)
         {
             ServiceResult result = null;
 
@@ -408,16 +408,14 @@ namespace Opc.Ua
         protected override ServiceResult WriteNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            object value)
+            Variant value)
         {
             ServiceResult result = null;
 
             switch (attributeId)
             {
                 case Attributes.Executable:
-                    bool? executableRef = value as bool?;
-
-                    if (executableRef == null)
+                    if (!value.TryGet(out bool executable))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -426,8 +424,6 @@ namespace Opc.Ua
                     {
                         return StatusCodes.BadNotWritable;
                     }
-
-                    bool executable = executableRef.Value;
 
                     NodeAttributeEventHandler<bool> onWriteExecutable = OnWriteExecutable;
 
@@ -443,9 +439,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.UserExecutable:
-                    bool? userExecutableRef = value as bool?;
-
-                    if (userExecutableRef == null)
+                    if (!value.TryGet(out bool userExecutable))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -454,8 +448,6 @@ namespace Opc.Ua
                     {
                         return StatusCodes.BadNotWritable;
                     }
-
-                    bool userExecutable = userExecutableRef.Value;
 
                     NodeAttributeEventHandler<bool> onWriteUserExecutable = OnWriteUserExecutable;
 
@@ -614,9 +606,9 @@ namespace Opc.Ua
         public virtual ValueTask<ServiceResult> CallAsync(
             ISystemContext context,
             NodeId objectId,
-            IList<Variant> inputArguments,
+            VariantCollection inputArguments,
             IList<ServiceResult> argumentErrors,
-            IList<Variant> outputArguments,
+            VariantCollection outputArguments,
             CancellationToken cancellationToken = default)
         {
             return CallInternalSyncOrAsync(
@@ -641,9 +633,9 @@ namespace Opc.Ua
         public virtual ServiceResult Call(
             ISystemContext context,
             NodeId objectId,
-            IList<Variant> inputArguments,
+            VariantCollection inputArguments,
             IList<ServiceResult> argumentErrors,
-            IList<Variant> outputArguments)
+            VariantCollection outputArguments)
         {
             // safe to access result directly as sync = true
 #pragma warning disable CA2012 // Use ValueTasks correctly
@@ -672,32 +664,32 @@ namespace Opc.Ua
         protected virtual async ValueTask<ServiceResult> CallInternalSyncOrAsync(
             ISystemContext context,
             NodeId objectId,
-            IList<Variant> inputArguments,
+            VariantCollection inputArguments,
             IList<ServiceResult> argumentErrors,
-            IList<Variant> outputArguments,
+            VariantCollection outputArguments,
             bool sync,
             CancellationToken cancellationToken = default)
         {
             // check if executable.
-            object executable = null;
+            Variant executable = default;
             ReadNonValueAttribute(context, Attributes.Executable, ref executable);
 
-            if (executable is bool exec && !exec)
+            if (executable.TryGet(out bool exec) && !exec)
             {
                 return StatusCodes.BadNotExecutable;
             }
 
             // check if user executable.
-            object userExecutable = null;
+            Variant userExecutable = default;
             ReadNonValueAttribute(context, Attributes.UserExecutable, ref userExecutable);
 
-            if (userExecutable is bool userExec && !userExec)
+            if (userExecutable.TryGet(out bool userExec) && !userExec)
             {
                 return StatusCodes.BadUserAccessDenied;
             }
 
             // validate input arguments.
-            var inputs = new List<object>();
+            var inputs = new VariantCollection();
 
             // check for too few or too many arguments.
             int expectedCount = 0;
@@ -734,7 +726,7 @@ namespace Opc.Ua
                     error = true;
                 }
 
-                inputs.Add(inputArguments[ii].AsBoxedObject());
+                inputs.Add(inputArguments[ii]);
                 argumentErrors.Add(argumentError);
             }
 
@@ -745,7 +737,7 @@ namespace Opc.Ua
             }
 
             // set output arguments to default values.
-            var outputs = new List<object>();
+            var outputs = new VariantCollection();
 
             PropertyState<Argument[]> expectedOutputArguments = OutputArguments;
 
@@ -798,8 +790,8 @@ namespace Opc.Ua
         /// </summary>
         protected virtual ServiceResult Call(
             ISystemContext context,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             return Call(context, default, inputArguments, outputArguments);
         }
@@ -809,8 +801,8 @@ namespace Opc.Ua
         /// </summary>
         protected virtual ValueTask<ServiceResult> CallAsync(
             ISystemContext context,
-            IList<object> inputArguments,
-            IList<object> outputArguments,
+            VariantCollection inputArguments,
+            VariantCollection outputArguments,
             CancellationToken cancellationToken = default)
         {
             return CallAsync(context, default, inputArguments, outputArguments, cancellationToken);
@@ -826,8 +818,8 @@ namespace Opc.Ua
         protected virtual ServiceResult Call(
             ISystemContext context,
             NodeId objectId,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             GenericMethodCalledEventHandler2 onCallMethod2 = OnCallMethod2;
 
@@ -863,8 +855,8 @@ namespace Opc.Ua
         protected virtual async ValueTask<ServiceResult> CallAsync(
             ISystemContext context,
             NodeId objectId,
-            IList<object> inputArguments,
-            IList<object> outputArguments,
+            VariantCollection inputArguments,
+            VariantCollection outputArguments,
             CancellationToken cancellationToken = default)
         {
             GenericMethodCalledEventHandler2Async onCallMethod2Async = OnCallMethod2Async;
@@ -912,7 +904,7 @@ namespace Opc.Ua
             Argument expectedArgument = arguments[index];
 
             var typeInfo = TypeInfo.IsInstanceOfDataType(
-                inputArgument.AsBoxedObject(),
+                inputArgument.AsBoxedObject(), // TODO
                 expectedArgument.DataType,
                 expectedArgument.ValueRank,
                 context.NamespaceUris,
@@ -932,12 +924,12 @@ namespace Opc.Ua
         /// <param name="context">The context to use.</param>
         /// <param name="outputArgument">The output argument description.</param>
         /// <returns>The default value.</returns>
-        protected object GetArgumentDefaultValue(ISystemContext context, Argument outputArgument)
+        protected Variant GetArgumentDefaultValue(ISystemContext context, Argument outputArgument)
         {
-            return TypeInfo.GetDefaultValue(
+            return new Variant(TypeInfo.GetDefaultValue(
                 outputArgument.DataType,
                 outputArgument.ValueRank,
-                context.TypeTable);
+                context.TypeTable)); // TODO
         }
 
         private bool m_executable;
@@ -952,8 +944,8 @@ namespace Opc.Ua
     public delegate ServiceResult GenericMethodCalledEventHandler(
         ISystemContext context,
         MethodState method,
-        IList<object> inputArguments,
-        IList<object> outputArguments);
+        VariantCollection inputArguments,
+        VariantCollection outputArguments);
 
     /// <summary>
     /// Used to process a method call.
@@ -962,8 +954,8 @@ namespace Opc.Ua
         ISystemContext context,
         MethodState method,
         NodeId objectId,
-        IList<object> inputArguments,
-        IList<object> outputArguments);
+        VariantCollection inputArguments,
+        VariantCollection outputArguments);
 
     /// <summary>
     /// Used to process a method call.
@@ -972,7 +964,7 @@ namespace Opc.Ua
         ISystemContext context,
         MethodState method,
         NodeId objectId,
-        IList<object> inputArguments,
-        IList<object> outputArguments,
+        VariantCollection inputArguments,
+        VariantCollection outputArguments,
         CancellationToken cancellationToken = default);
 }

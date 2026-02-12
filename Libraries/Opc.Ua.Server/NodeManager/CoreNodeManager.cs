@@ -747,7 +747,7 @@ namespace Opc.Ua.Server
                     // apply index range to value attributes.
                     if (nodeToRead.AttributeId == Attributes.Value)
                     {
-                        object defaultValue = value.Value;
+                        Variant defaultValue = value.WrappedValue;
 
                         error = nodeToRead.ParsedIndexRange.ApplyRange(ref defaultValue);
 
@@ -3584,9 +3584,7 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadNodeIdUnknown;
             }
 
-            range = target.Value as Range;
-
-            if (range == null)
+            if (!target.Value.TryGetStructure(out range))
             {
                 return StatusCodes.BadTypeMismatch;
             }

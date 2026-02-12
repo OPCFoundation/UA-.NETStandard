@@ -318,7 +318,7 @@ namespace Opc.Ua
         protected override ServiceResult ReadNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            ref object value)
+            ref Variant value)
         {
             ServiceResult result = null;
 
@@ -374,7 +374,7 @@ namespace Opc.Ua
         protected override ServiceResult WriteNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            object value)
+            Variant value)
         {
             ServiceResult result = null;
 
@@ -382,9 +382,9 @@ namespace Opc.Ua
             {
                 case Attributes.InverseName:
 
-                    if (value is not LocalizedText inverseName)
+                    if (!value.TryGet(out LocalizedText inverseName))
                     {
-                        if (value != null)
+                        if (!value.IsNull)
                         {
                             return StatusCodes.BadTypeMismatch;
                         }
@@ -411,9 +411,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.Symmetric:
-                    bool? symmetricRef = value as bool?;
-
-                    if (symmetricRef == null)
+                    if (!value.TryGet(out bool symmetric))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -422,8 +420,6 @@ namespace Opc.Ua
                     {
                         return StatusCodes.BadNotWritable;
                     }
-
-                    bool symmetric = symmetricRef.Value;
 
                     NodeAttributeEventHandler<bool> onWriteSymmetric = OnWriteSymmetric;
 

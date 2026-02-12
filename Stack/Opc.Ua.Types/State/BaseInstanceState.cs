@@ -364,9 +364,9 @@ namespace Opc.Ua
             }
 
             // apply any index range.
-            object value = dataValue.Value;
+            Variant value = dataValue.WrappedValue;
 
-            if (value != null)
+            if (!value.IsNull)
             {
                 result = indexRange.ApplyRange(ref value);
 

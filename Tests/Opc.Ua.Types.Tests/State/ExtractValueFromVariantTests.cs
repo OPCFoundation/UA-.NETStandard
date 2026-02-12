@@ -138,7 +138,7 @@ namespace Opc.Ua.Types.Tests.State
             var propertyState = new PropertyState<string>(null);
 
             // Set null value
-            ((BaseVariableState)propertyState).Value = null;
+            ((BaseVariableState)propertyState).Value = default;
 
             Assert.IsNull(propertyState.Value);
         }

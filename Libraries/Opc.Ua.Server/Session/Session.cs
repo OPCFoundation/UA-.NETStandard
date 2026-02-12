@@ -794,11 +794,11 @@ namespace Opc.Ua.Server
         private ServiceResult OnUpdateDiagnostics(
             ISystemContext context,
             NodeState node,
-            ref object value)
+            ref Variant value)
         {
             lock (DiagnosticsLock)
             {
-                value = Utils.Clone(SessionDiagnostics);
+                value = Variant.FromStructure(SessionDiagnostics);
             }
 
             return ServiceResult.Good;
@@ -810,11 +810,11 @@ namespace Opc.Ua.Server
         private ServiceResult OnUpdateSecurityDiagnostics(
             ISystemContext context,
             NodeState node,
-            ref object value)
+            ref Variant value)
         {
             lock (DiagnosticsLock)
             {
-                value = Utils.Clone(m_securityDiagnostics);
+                value = Variant.FromStructure(m_securityDiagnostics);
             }
 
             return ServiceResult.Good;

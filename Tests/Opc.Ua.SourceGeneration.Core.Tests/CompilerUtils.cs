@@ -560,8 +560,20 @@ namespace Opc.Ua.SourceGeneration
                 {
                     public const string OpcUa = "http://opcfoundation.org/UA/";
                 }
-                public class IdentityMappingRuleType { }
-                public class Range { }
+                public class Encodeable : IEncodeable
+                {
+                    public ExpandedNodeId TypeId => default;
+                    public ExpandedNodeId BinaryEncodingId => default;
+                    public ExpandedNodeId XmlEncodingId => default;
+                    public ExpandedNodeId JsonEncodingId => default;
+                    public void Encode(IEncoder encoder) { }
+                    public void Decode(IDecoder decoder) { }
+                    public bool IsEqual(IEncodeable encodeable) { return true; }
+                    public object Clone() { return this; }
+                }
+                public class IdentityMappingRuleType : Encodeable { }
+                public class Range : Encodeable { }
+                public class EUInformation : Encodeable {}
                 public class FileDirectoryState : BaseObjectState
                 {
                     public FileDirectoryState(NodeState? parent) : base(parent) { }
@@ -829,7 +841,6 @@ namespace Opc.Ua.SourceGeneration
                     public void CreateOrReplaceIdentities(
                         ISystemContext context, BaseInstanceState replacement) { }
                 }
-                public class EUInformation {}
                 public class DeleteFileSystemObjectMethodState : MethodState
                 {
                     public DeleteFileSystemObjectMethodState(NodeState? parent) : base(parent) { }

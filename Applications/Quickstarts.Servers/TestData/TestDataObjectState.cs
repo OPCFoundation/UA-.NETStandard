@@ -96,11 +96,11 @@ namespace TestData
             {
                 if (context.TypeTable.IsTypeOf(variable.DataType, Opc.Ua.DataTypeIds.UInteger))
                 {
-                    euRange.Value = new Range(250, 50);
+                    euRange.Value = Variant.FromStructure(new Range(250, 50));
                 }
                 else
                 {
-                    euRange.Value = new Range(100, -100);
+                    euRange.Value = Variant.FromStructure(new Range(100, -100));
                 }
                 variable.OnSimpleWriteValue = OnWriteAnalogValue;
             }
@@ -112,7 +112,7 @@ namespace TestData
         public ServiceResult OnWriteAnalogValue(
             ISystemContext context,
             NodeState node,
-            ref object value)
+            ref Variant value)
         {
             try
             {
@@ -123,12 +123,12 @@ namespace TestData
                     return ServiceResult.Good;
                 }
 
-                if (euRange.Value is not Range range)
+                if (!euRange.Value.TryGetStructure(out Range range))
                 {
                     return ServiceResult.Good;
                 }
 
-                if (value is Array array)
+                if (value.AsBoxedObject() is Array array)
                 {
                     for (int ii = 0; ii < array.Length; ii++)
                     {
@@ -222,7 +222,7 @@ namespace TestData
             NodeState node,
             NumericRange indexRange,
             QualifiedName dataEncoding,
-            ref object value,
+            ref Variant value,
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {

@@ -126,7 +126,7 @@ namespace TestData
         /// </summary>
         public void OnDataChange(
             BaseVariableState variable,
-            object value,
+            Variant value,
             StatusCode statusCode,
             DateTime timestamp)
         {

@@ -396,11 +396,11 @@ namespace Quickstarts.ReferenceServer
                     var largeInteger = BigInteger.Parse(
                         "1234567890123546789012345678901234567890123456789012345",
                         CultureInfo.InvariantCulture);
-                    decimalVariable.Value = new DecimalDataType
+                    decimalVariable.Value = Variant.FromStructure(new DecimalDataType
                     {
                         Scale = 100,
                         Value = largeInteger.ToByteArray()
-                    };
+                    });
                     variables.Add(decimalVariable);
 
                     ResetRandomGenerator(2);
@@ -446,7 +446,7 @@ namespace Quickstarts.ReferenceServer
                         DataTypeIds.Double,
                         ValueRanks.OneDimension);
                     // Set the first elements of the array to a smaller value.
-                    double[] doubleArrayVal = doubleArrayVar.Value as double[];
+                    double[] doubleArrayVal = (double[])doubleArrayVar.Value;
                     doubleArrayVal[0] %= 10E+10;
                     doubleArrayVal[1] %= 10E+10;
                     doubleArrayVal[2] %= 10E+10;
@@ -468,7 +468,7 @@ namespace Quickstarts.ReferenceServer
                         DataTypeIds.Float,
                         ValueRanks.OneDimension);
                     // Set the first elements of the array to a smaller value.
-                    float[] floatArrayVal = floatArrayVar.Value as float[];
+                    float[] floatArrayVal = (float[])floatArrayVar.Value;
                     floatArrayVal[0] %= 0xf10E + 4;
                     floatArrayVal[1] %= 0xf10E + 4;
                     floatArrayVal[2] %= 0xf10E + 4;
@@ -3734,7 +3734,7 @@ namespace Quickstarts.ReferenceServer
         private ServiceResult OnWriteInterval(
             ISystemContext context,
             NodeState node,
-            ref object value)
+            ref Variant value)
         {
             try
             {
@@ -3757,7 +3757,7 @@ namespace Quickstarts.ReferenceServer
         private ServiceResult OnWriteEnabled(
             ISystemContext context,
             NodeState node,
-            ref object value)
+            ref Variant value)
         {
             try
             {
@@ -3896,7 +3896,7 @@ namespace Quickstarts.ReferenceServer
             BuiltInType dataType,
             int valueRank)
         {
-            return CreateAnalogItemVariable(parent, path, name, dataType, valueRank, null);
+            return CreateAnalogItemVariable(parent, path, name, dataType, valueRank, default);
         }
 
         private AnalogItemState CreateAnalogItemVariable(
@@ -3905,7 +3905,7 @@ namespace Quickstarts.ReferenceServer
             string name,
             BuiltInType dataType,
             int valueRank,
-            object initialValues)
+            Variant initialValues)
         {
             return CreateAnalogItemVariable(
                 parent,
@@ -3923,7 +3923,7 @@ namespace Quickstarts.ReferenceServer
             string name,
             BuiltInType dataType,
             int valueRank,
-            object initialValues,
+            Variant initialValues,
             Range customRange)
         {
             return CreateAnalogItemVariable(
@@ -3942,7 +3942,7 @@ namespace Quickstarts.ReferenceServer
             string name,
             NodeId dataType,
             int valueRank,
-            object initialValues,
+            Variant initialValues,
             Range customRange)
         {
             var variable = new AnalogItemState(parent)
@@ -3996,8 +3996,11 @@ namespace Quickstarts.ReferenceServer
 
             variable.EURange.Value = customRange ?? new Range(100, 0);
 
-            variable.Value = initialValues ??
-                TypeInfo.GetDefaultValue(dataType, valueRank, Server.TypeTree);
+            variable.Value = initialValues;
+            if (variable.Value.IsNull)
+            {
+                variable.Value = TypeInfo.GetDefaultValue(dataType, valueRank, Server.TypeTree);
+            }
 
             variable.StatusCode = StatusCodes.Good;
             // The latest UNECE version (Rev 11, published in 2015) is available here:
@@ -4198,7 +4201,7 @@ namespace Quickstarts.ReferenceServer
             NodeState node,
             NumericRange indexRange,
             QualifiedName dataEncoding,
-            ref object value,
+            ref Variant value,
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
@@ -4237,7 +4240,7 @@ namespace Quickstarts.ReferenceServer
             NodeState node,
             NumericRange indexRange,
             QualifiedName dataEncoding,
-            ref object value,
+            ref Variant value,
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
@@ -4281,7 +4284,7 @@ namespace Quickstarts.ReferenceServer
             NodeState node,
             NumericRange indexRange,
             QualifiedName dataEncoding,
-            ref object value,
+            ref Variant value,
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
@@ -4305,7 +4308,7 @@ namespace Quickstarts.ReferenceServer
             {
                 if (indexRange != NumericRange.Empty)
                 {
-                    object target = variable.Value;
+                    object target = variable.Value.AsBoxedObject(); // TODO: Rewrite ranges
                     ServiceResult result = indexRange.UpdateRange(ref target, value);
 
                     if (ServiceResult.IsBad(result))
@@ -4313,7 +4316,7 @@ namespace Quickstarts.ReferenceServer
                         return result;
                     }
 
-                    value = target;
+                    value = new Variant(target);
                 }
             }
             // check instrument range.
@@ -4342,14 +4345,14 @@ namespace Quickstarts.ReferenceServer
             NodeState node,
             NumericRange indexRange,
             QualifiedName dataEncoding,
-            ref object value,
+            ref Variant value,
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
             var typeInfo = TypeInfo.Construct(value);
 
             if (node is not PropertyState<Range> variable ||
-                value is not ExtensionObject extensionObject ||
+                !value.TryGet(out ExtensionObject extensionObject) ||
                 typeInfo.IsUnknown)
             {
                 return StatusCodes.BadTypeMismatch;
@@ -4372,7 +4375,7 @@ namespace Quickstarts.ReferenceServer
                 return StatusCodes.BadOutOfRange;
             }
 
-            value = newRange;
+            value = Variant.FromStructure(newRange);
 
             return ServiceResult.Good;
         }
@@ -4623,8 +4626,8 @@ namespace Quickstarts.ReferenceServer
         private ServiceResult OnVoidCall(
             ISystemContext context,
             MethodState method,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             return ServiceResult.Good;
         }
@@ -4632,8 +4635,8 @@ namespace Quickstarts.ReferenceServer
         private ServiceResult OnAddCall(
             ISystemContext context,
             MethodState method,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             // all arguments must be provided.
             if (inputArguments.Count < 2)
@@ -4659,8 +4662,8 @@ namespace Quickstarts.ReferenceServer
         private ServiceResult OnMultiplyCall(
             ISystemContext context,
             MethodState method,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             // all arguments must be provided.
             if (inputArguments.Count < 2)
@@ -4686,8 +4689,8 @@ namespace Quickstarts.ReferenceServer
         private ServiceResult OnDivideCall(
             ISystemContext context,
             MethodState method,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             // all arguments must be provided.
             if (inputArguments.Count < 2)
@@ -4713,8 +4716,8 @@ namespace Quickstarts.ReferenceServer
         private ServiceResult OnSubstractCall(
             ISystemContext context,
             MethodState method,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             // all arguments must be provided.
             if (inputArguments.Count < 2)
@@ -4740,8 +4743,8 @@ namespace Quickstarts.ReferenceServer
         private ServiceResult OnHelloCall(
             ISystemContext context,
             MethodState method,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             // all arguments must be provided.
             if (inputArguments.Count < 1)
@@ -4766,8 +4769,8 @@ namespace Quickstarts.ReferenceServer
         private ServiceResult OnInputCall(
             ISystemContext context,
             MethodState method,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             // all arguments must be provided.
             if (inputArguments.Count < 1)
@@ -4781,8 +4784,8 @@ namespace Quickstarts.ReferenceServer
         private ServiceResult OnOutputCall(
             ISystemContext context,
             MethodState method,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             // all arguments must be provided.
             try
@@ -4806,25 +4809,19 @@ namespace Quickstarts.ReferenceServer
             };
         }
 
-        private object GetNewValue(BaseVariableState variable)
+        private Variant GetNewValue(BaseVariableState variable)
         {
             Debug.Assert(m_generator != null, "Need a random generator!");
 
-            object value = null;
-            for (int retryCount = 0; value == null && retryCount < 10; retryCount++)
+            Variant value = default;
+            for (int retryCount = 0; value.IsNull && retryCount < 10; retryCount++)
             {
                 value = m_generator.GetRandom(
                     variable.DataType,
                     variable.ValueRank,
                     [10],
                     Server.TypeTree);
-                // skip Variant Null
-                if (value is Variant variant && variant.IsNull)
-                {
-                    value = null;
-                }
             }
-
             return value;
         }
 

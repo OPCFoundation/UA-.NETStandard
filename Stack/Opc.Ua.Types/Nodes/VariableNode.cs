@@ -57,10 +57,12 @@ namespace Opc.Ua
                 MinimumSamplingInterval = variable.MinimumSamplingInterval;
                 Historizing = variable.Historizing;
 
-                object value = variable.Value ??
-                    TypeInfo.GetDefaultValue(variable.DataType, variable.ValueRank);
-
-                Value = new Variant(value);
+                Variant value = variable.Value;
+                if (value.IsNull)
+                {
+                    value = TypeInfo.GetDefaultValue(variable.DataType, variable.ValueRank);
+                }
+                Value = value;
 
                 if (variable.ArrayDimensions != null)
                 {
@@ -296,16 +298,6 @@ namespace Opc.Ua
             clone.AccessLevelEx = CoreUtils.Clone(AccessLevelEx);
 
             return clone;
-        }
-
-        /// <summary>
-        /// The value attribute.
-        /// </summary>
-        /// <value>The value.</value>
-        object IVariableBase.Value
-        {
-            get => Value.AsBoxedObject();
-            set => Value = new Variant(value);
         }
 
         /// <summary>

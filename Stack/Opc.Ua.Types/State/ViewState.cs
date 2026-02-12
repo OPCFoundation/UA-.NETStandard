@@ -322,7 +322,7 @@ namespace Opc.Ua
         protected override ServiceResult ReadNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            ref object value)
+            ref Variant value)
         {
             ServiceResult result = null;
 
@@ -371,16 +371,14 @@ namespace Opc.Ua
         protected override ServiceResult WriteNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            object value)
+            Variant value)
         {
             ServiceResult result = null;
 
             switch (attributeId)
             {
                 case Attributes.EventNotifier:
-                    byte? eventNotifierRef = value as byte?;
-
-                    if (eventNotifierRef == null)
+                    if (!value.TryGet(out byte eventNotifier))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -389,8 +387,6 @@ namespace Opc.Ua
                     {
                         return StatusCodes.BadNotWritable;
                     }
-
-                    byte eventNotifier = eventNotifierRef.Value;
 
                     NodeAttributeEventHandler<byte> onWriteEventNotifier = OnWriteEventNotifier;
 
@@ -406,9 +402,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.ContainsNoLoops:
-                    bool? containsNoLoopsRef = value as bool?;
-
-                    if (containsNoLoopsRef == null)
+                    if (!value.TryGet(out bool containsNoLoops))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -417,8 +411,6 @@ namespace Opc.Ua
                     {
                         return StatusCodes.BadNotWritable;
                     }
-
-                    bool containsNoLoops = containsNoLoopsRef.Value;
 
                     NodeAttributeEventHandler<bool> onWriteContainsNoLoops = OnWriteContainsNoLoops;
 

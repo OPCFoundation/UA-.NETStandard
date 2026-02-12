@@ -166,9 +166,7 @@ namespace Opc.Ua.Server
 
                 if (getMonitoredItemsOutputArguments != null)
                 {
-                    var outputArgumentsValue = (Argument[])getMonitoredItemsOutputArguments.Value;
-
-                    if (outputArgumentsValue != null)
+                    if (getMonitoredItemsOutputArguments.Value.TryGetStructure(out Argument[] outputArgumentsValue))
                     {
                         foreach (Argument argument in outputArgumentsValue)
                         {
@@ -240,17 +238,15 @@ namespace Opc.Ua.Server
         public ServiceResult OnGetMonitoredItems(
             ISystemContext context,
             MethodState method,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             if (inputArguments == null || inputArguments.Count != 1)
             {
                 return StatusCodes.BadInvalidArgument;
             }
 
-            uint? subscriptionId = inputArguments[0] as uint?;
-
-            if (subscriptionId == null)
+            if (!inputArguments[0].TryGet(out uint subscriptionId))
             {
                 return StatusCodes.BadInvalidArgument;
             }
@@ -286,17 +282,15 @@ namespace Opc.Ua.Server
         public ServiceResult OnResendData(
             ISystemContext context,
             MethodState method,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             if (inputArguments == null || inputArguments.Count != 1)
             {
                 return StatusCodes.BadInvalidArgument;
             }
 
-            uint? subscriptionId = inputArguments[0] as uint?;
-
-            if (subscriptionId == null)
+            if (!inputArguments[0].TryGet(out uint subscriptionId))
             {
                 return StatusCodes.BadInvalidArgument;
             }
@@ -327,8 +321,8 @@ namespace Opc.Ua.Server
         public ServiceResult OnLockServer(
             ISystemContext context,
             MethodState method,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             var systemContext = context as ServerSystemContext;
 
@@ -348,8 +342,8 @@ namespace Opc.Ua.Server
         public ServiceResult OnUnlockServer(
             ISystemContext context,
             MethodState method,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             var systemContext = context as ServerSystemContext;
 
@@ -1200,14 +1194,14 @@ namespace Opc.Ua.Server
         private bool UpdateServerDiagnosticsSummary()
         {
             // get the latest snapshot.
-            object value = null;
+            Variant value = default;
 
             ServiceResult result = m_serverDiagnosticsCallback(
                 SystemContext,
                 m_serverDiagnostics.Variable,
                 ref value);
 
-            var newValue = value as ServerDiagnosticsSummaryDataType;
+            var newValue = value.GetStructure<ServerDiagnosticsSummaryDataType>();
 
             // check for changes.
             if (Utils.IsEqual(newValue, m_serverDiagnostics.Value))
@@ -1250,14 +1244,14 @@ namespace Opc.Ua.Server
             int index)
         {
             // get the latest snapshot.
-            object value = null;
+            Variant value = default;
 
             ServiceResult result = diagnostics.UpdateCallback(
                 SystemContext,
                 diagnostics.Value.Variable,
                 ref value);
 
-            var newValue = value as SessionDiagnosticsDataType;
+            var newValue = value.GetStructure<SessionDiagnosticsDataType>();
 
             sessionArray[index] = newValue;
 
@@ -1307,14 +1301,14 @@ namespace Opc.Ua.Server
             int index)
         {
             // get the latest snapshot.
-            object value = null;
+            Variant value = default;
 
             ServiceResult result = diagnostics.SecurityUpdateCallback(
                 SystemContext,
                 diagnostics.SecurityValue.Variable,
                 ref value);
 
-            var newValue = value as SessionSecurityDiagnosticsDataType;
+            var newValue = value.GetStructure<SessionSecurityDiagnosticsDataType>();
 
             sessionArray[index] = newValue;
 
@@ -1364,14 +1358,14 @@ namespace Opc.Ua.Server
             int index)
         {
             // get the latest snapshot.
-            object value = null;
+            Variant value = default;
 
             ServiceResult result = diagnostics.UpdateCallback(
                 SystemContext,
                 diagnostics.Value.Variable,
                 ref value);
 
-            var newValue = value as SubscriptionDiagnosticsDataType;
+            var newValue = value.GetStructure<SubscriptionDiagnosticsDataType>();
 
             subscriptionArray[index] = newValue;
 
@@ -1512,7 +1506,7 @@ namespace Opc.Ua.Server
         private ServiceResult OnReadDiagnosticsArray(
             ISystemContext context,
             NodeState node,
-            ref object value)
+            ref Variant value)
         {
             lock (Lock)
             {
@@ -1541,7 +1535,7 @@ namespace Opc.Ua.Server
                     }
                     sessionArray = [.. sessionArray.Where(s => s != null)];
 
-                    value = sessionArray;
+                    value = Variant.FromStructure(sessionArray);
                 }
                 else if (node.NodeId ==
                     VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionSecurityDiagnosticsArray)
@@ -1560,7 +1554,7 @@ namespace Opc.Ua.Server
                     }
                     sessionSecurityArray = [.. sessionSecurityArray.Where(s => s != null)];
 
-                    value = sessionSecurityArray;
+                    value = Variant.FromStructure(sessionSecurityArray);
                 }
                 else if (node.NodeId == VariableIds
                     .Server_ServerDiagnostics_SubscriptionDiagnosticsArray)
@@ -1579,7 +1573,7 @@ namespace Opc.Ua.Server
                     }
                     subscriptionArray = [.. subscriptionArray.Where(s => s != null)];
 
-                    value = subscriptionArray;
+                    value = Variant.FromStructure(subscriptionArray);
                 }
 
                 return ServiceResult.Good;

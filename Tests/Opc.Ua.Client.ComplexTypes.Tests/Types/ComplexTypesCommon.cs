@@ -251,10 +251,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             {
                 BuiltInType builtInType = TypeInfo.GetBuiltInType(
                     TypeInfo.GetDataTypeId(property.PropertyType, namespaceUris));
-                object newObj = randomValues
+                Variant newObj = randomValues
                     ? DataGenerator.GetRandom(builtInType)
                     : TypeInfo.GetDefaultValue(builtInType);
-                if (newObj == null)
+                if (newObj.IsNull)
                 {
                     // fill known missing default values (by design)
                     switch (builtInType)
@@ -277,9 +277,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                             break;
                     }
                 }
-                structType[property.Name] = newObj;
-                Assert.AreEqual(structType[property.Name], newObj);
-                Assert.AreEqual(structType[index], newObj);
+
+                object boxed = newObj.AsBoxedObject();
+                structType[property.Name] = boxed;
+                Assert.AreEqual(structType[property.Name], boxed);
+                Assert.AreEqual(structType[index], boxed);
                 index++;
             }
         }

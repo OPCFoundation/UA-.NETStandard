@@ -1188,7 +1188,7 @@ namespace Opc.Ua.SourceGeneration
                 field.ValueRank,
                 field.DefaultValue,
                 null,
-                true,
+                false,
                 m_context.ModelDesign.TargetNamespace.Value,
                 m_context.ModelDesign.Namespaces,
                 m_messageContext,
@@ -1274,7 +1274,7 @@ namespace Opc.Ua.SourceGeneration
                     field.ValueRank,
                     null,
                     null,
-                    true,
+                    false,
                     m_context.ModelDesign.TargetNamespace.Value,
                     m_context.ModelDesign.Namespaces,
                     m_messageContext,
@@ -1422,7 +1422,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     // Get code to create the variant from the XML resource reference
                     // TODO: Need to remove ambient message context usage here
-                    return dataType.GetVariantFromXmlCode(
+                    return dataType.GetVariantValueFromXmlAsCode(
                         valueRank,
                         m_context.ModelDesign.TargetNamespace.Value,
                         m_context.ModelDesign.Namespaces,

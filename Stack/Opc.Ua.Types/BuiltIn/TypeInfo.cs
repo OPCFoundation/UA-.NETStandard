@@ -1555,7 +1555,7 @@ namespace Opc.Ua
         /// <param name="type">The Built-in type.</param>
         /// <returns>The default value.</returns>
         /// <exception cref="ServiceResultException"></exception>
-        public static object GetDefaultValue(BuiltInType type)
+        public static Variant GetDefaultValue(BuiltInType type)
         {
             switch (type)
             {
@@ -1582,14 +1582,15 @@ namespace Opc.Ua
                 case BuiltInType.Double:
                     return (double)0;
                 case BuiltInType.String:
-                    return null;
+                    return (string)null;
                 case BuiltInType.DateTime:
                     return DateTime.MinValue;
                 case BuiltInType.Guid:
                     return Uuid.Empty;
                 case BuiltInType.ByteString:
+                    return (byte[])null;
                 case BuiltInType.XmlElement:
-                    return null;
+                    return (XmlElement)null;
                 case BuiltInType.StatusCode:
                     return StatusCodes.Good;
                 case BuiltInType.NodeId:
@@ -1603,7 +1604,7 @@ namespace Opc.Ua
                 case BuiltInType.Variant:
                     return Variant.Null;
                 case BuiltInType.DataValue:
-                    return null;
+                    return (DataValue)null;
                 case BuiltInType.Enumeration:
                     return 0;
                 case BuiltInType.Number:
@@ -1613,9 +1614,11 @@ namespace Opc.Ua
                 case BuiltInType.UInteger:
                     return (ulong)0;
                 case BuiltInType.Null:
+                    return default;
                 case BuiltInType.ExtensionObject:
+                    return ExtensionObject.Null;
                 case BuiltInType.DiagnosticInfo:
-                    return null;
+                    return default;
                 default:
                     throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {type}");
@@ -1628,7 +1631,7 @@ namespace Opc.Ua
         /// <param name="dataType">The data type.</param>
         /// <param name="valueRank">The value rank.</param>
         /// <returns>The default value.</returns>
-        public static object GetDefaultValue(NodeId dataType, int valueRank)
+        public static Variant GetDefaultValue(NodeId dataType, int valueRank)
         {
             return GetDefaultValue(dataType, valueRank, null);
         }
@@ -1640,11 +1643,11 @@ namespace Opc.Ua
         /// <param name="valueRank">The value rank.</param>
         /// <param name="typeTree">The type tree for a server.</param>
         /// <returns>A default value.</returns>
-        public static object GetDefaultValue(NodeId dataType, int valueRank, ITypeTable typeTree)
+        public static Variant GetDefaultValue(NodeId dataType, int valueRank, ITypeTable typeTree)
         {
             if (valueRank != ValueRanks.Scalar)
             {
-                return null;
+                return default;
             }
 
             if (dataType.IsNull ||
@@ -1686,14 +1689,14 @@ namespace Opc.Ua
                     return GetDefaultValueInternal(dataType, typeTree);
             }
 
-            static object GetDefaultValueInternal(NodeId dataType, ITypeTable typeTree)
+            static Variant GetDefaultValueInternal(NodeId dataType, ITypeTable typeTree)
             {
                 BuiltInType builtInType = GetBuiltInType(dataType, typeTree);
                 if (builtInType != BuiltInType.Null)
                 {
                     return GetDefaultValue(builtInType);
                 }
-                return null;
+                return default;
             }
         }
 

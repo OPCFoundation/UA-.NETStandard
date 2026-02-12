@@ -142,8 +142,8 @@ namespace Boiler
 
             // Autostart boiler simulation state machine
             MethodState start = boiler.Simulation.Start;
-            IList<Variant> inputArguments = [];
-            IList<Variant> outputArguments = [];
+            VariantCollection inputArguments = [];
+            VariantCollection outputArguments = [];
             var errors = new List<ServiceResult>();
             start.Call(context, boiler.NodeId, inputArguments, errors, outputArguments);
         }
@@ -214,8 +214,8 @@ namespace Boiler
 
                     // Autostart boiler simulation state machine
                     MethodState start = activeNode.Simulation.Start;
-                    IList<Variant> inputArguments = [];
-                    IList<Variant> outputArguments = [];
+                    VariantCollection inputArguments = [];
+                    VariantCollection outputArguments = [];
                     var errors = new List<ServiceResult>();
                     start.Call(context, activeNode.NodeId, inputArguments, errors, outputArguments);
 

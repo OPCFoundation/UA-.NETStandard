@@ -533,7 +533,7 @@ namespace Opc.Ua.Sample
             {
                 // assign a default value to any variable value.
 
-                if (source is BaseVariableState variable && variable.Value == null)
+                if (source is BaseVariableState variable && variable.Value.IsNull)
                 {
                     variable.Value = TypeInfo.GetDefaultValue(
                         variable.DataType,
@@ -2504,9 +2504,7 @@ namespace Opc.Ua.Sample
                     return StatusCodes.BadMonitoredItemFilterUnsupported;
                 }
 
-                range = euRange.Value as Range;
-
-                if (range == null)
+                if (!euRange.Value.TryGetStructure(out range))
                 {
                     return StatusCodes.BadMonitoredItemFilterUnsupported;
                 }

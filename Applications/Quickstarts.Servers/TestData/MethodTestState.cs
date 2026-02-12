@@ -139,10 +139,10 @@ namespace TestData
             ISystemContext context,
             MethodState method,
             NodeId objectId,
-            object variantIn,
+            Variant variantIn,
             int enumerationIn,
             ExtensionObject structureIn,
-            ref object variantOut,
+            ref Variant variantOut,
             ref int enumerationOut,
             ref ExtensionObject structureOut)
         {
@@ -310,7 +310,7 @@ namespace TestData
             QualifiedName qualifiedNameIn,
             LocalizedText localizedTextIn,
             StatusCode statusCodeIn,
-            object variantIn,
+            Variant variantIn,
             ref DateTime dateTimeOut,
             ref Uuid guidOut,
             ref byte[] byteStringOut,
@@ -320,7 +320,7 @@ namespace TestData
             ref QualifiedName qualifiedNameOut,
             ref LocalizedText localizedTextOut,
             ref StatusCode statusCodeOut,
-            ref object variantOut)
+            ref Variant variantOut)
         {
             dateTimeOut = dateTimeIn;
             guidOut = guidIn;

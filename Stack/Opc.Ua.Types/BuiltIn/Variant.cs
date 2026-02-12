@@ -1322,10 +1322,11 @@ namespace Opc.Ua
         /// Converts the variant to a structure of type T
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public T GetStructure<T>(T defaultValue = default) where T : IEncodeable
+        public T GetStructure<T>(
+            T defaultValue = default,
+            IServiceMessageContext context = null) where T : IEncodeable
         {
-            return TryGet(out ExtensionObject v) ?
-                (T)ExtensionObject.ToEncodeable(v) : defaultValue;
+            return TryGet(out T v, context) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1517,10 +1518,11 @@ namespace Opc.Ua
         /// Converts the variant to a structure of type T
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public T[] GetStructureArray<T>(T[] defaultValue = default) where T : IEncodeable
+        public T[] GetStructureArray<T>(
+            T[] defaultValue = default,
+            IServiceMessageContext context = null) where T : IEncodeable
         {
-            return TryGet(out ExtensionObject[] v) ?
-                (T[])ExtensionObject.ToArray(v, typeof(T)) : defaultValue;
+            return TryGet(out T[] v, context) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1731,6 +1733,39 @@ namespace Opc.Ua
 #else
                 TryGetScalar(out value, BuiltInType.Enumeration);
 #endif
+        }
+
+        /// <summary>
+        /// Try get a structure value from the Variant. There is no overload
+        /// resolution on generic types so we need to name it differently than
+        /// the scalar TryGet.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="value">The structure value to get.</param>
+        /// <param name="context">The context to use when decoding the structure.
+        /// </param>
+        public bool TryGet<T>(out T value, IServiceMessageContext context)
+            where T : IEncodeable
+        {
+            if (TryGet(out ExtensionObject v) && v.TryGetEncodeable(out value))
+            {
+                return true;
+            }
+            value = default;
+            return false;
+        }
+
+        /// <summary>
+        /// Try get a structure value from the Variant. There is no overload
+        /// resolution on generic types so we need to name it differently than
+        /// the scalar TryGet.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="value">The structure value to get
+        /// </param>
+        public bool TryGetStructure<T>(out T value) where T : IEncodeable
+        {
+            return TryGet(out value, null);
         }
 
         /// <summary>
@@ -2022,6 +2057,47 @@ namespace Opc.Ua
         public bool TryGet(out int[] value)
         {
             return TryGetArray(out value, BuiltInType.Int32);
+        }
+
+        /// <summary>
+        /// Try get a structure value from the Variant. There is no overload
+        /// resolution on generic types so we need to name it differently than
+        /// the scalar TryGet.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="value">The structure value to get.</param>
+        /// <param name="context">The context to use when decoding the structure.
+        /// </param>
+        public bool TryGet<T>(out T[] value, IServiceMessageContext context)
+            where T : IEncodeable
+        {
+            if (!TryGet(out ExtensionObject[] v))
+            {
+                value = default;
+                return false;
+            }
+            value = new T[v.Length];
+            for (var ii = 0; ii < v.Length; ii++)
+            {
+                if (!v[ii].TryGetEncodeable<T>(out value[ii], context))
+                {
+                    value = default;
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Try get a structure value from the Variant. There is no overload
+        /// resolution on generic types so we need to name it differently than
+        /// the scalar TryGet.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="value">The structure value to get</param>
+        public bool TryGetStructure<T>(out T[] value) where T : IEncodeable
+        {
+            return TryGet(out value, null);
         }
 
         /// <summary>
@@ -2607,6 +2683,19 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Create a Variant from a <see cref="IEncodeable"/> value.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="value">The <see cref="IEncodeable"/> value to set
+        /// this Variant to</param>
+        /// <param name="copy">Make a copy of the encodeable</param>
+        public static Variant FromStructure<T>(T value, bool copy = false)
+            where T : IEncodeable
+        {
+            return new Variant(new ExtensionObject(value, copy));
+        }
+
+        /// <summary>
         /// Create a Variant from a <see cref="DataValue"/> value.
         /// </summary>
         /// <param name="value">The <see cref="DataValue"/> value to set
@@ -2838,6 +2927,19 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Create a Variant from a <see cref="IEncodeable"/>-array value.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="value">The <see cref="IEncodeable"/>-array value to set
+        /// this Variant to</param>
+        /// <param name="copy">Make a copy of the encodeable</param>
+        public static Variant FromStructure<T>(IEnumerable<T> value, bool copy = false)
+            where T : IEncodeable
+        {
+            return new Variant(value.Select(b => new ExtensionObject(b, copy)).ToArray());
+        }
+
+        /// <summary>
         /// Create a Variant from a <see cref="DataValue"/>-array value.
         /// </summary>
         /// <param name="value">The <see cref="DataValue"/>-array value to set
@@ -2853,16 +2955,6 @@ namespace Opc.Ua
         /// <param name="value">The <see cref="Variant"/>-array value to set
         /// this Variant to</param>
         public static Variant From(Variant[] value)
-        {
-            return new Variant(value);
-        }
-
-        /// <summary>
-        /// Initializes the object with an <see cref="object"/>-array value.
-        /// </summary>
-        /// <param name="value">The <see cref="object"/>-array value to set
-        /// this Variant to</param>
-        public static Variant From(object[] value)
         {
             return new Variant(value);
         }
@@ -3231,14 +3323,6 @@ namespace Opc.Ua
         /// Converts a Variant[] value to an Variant object.
         /// </summary>
         public static implicit operator Variant(Variant[] value)
-        {
-            return From(value);
-        }
-
-        /// <summary>
-        /// Converts an object[] value to an Variant object.
-        /// </summary>
-        public static implicit operator Variant(object[] value)
         {
             return From(value);
         }

@@ -3748,7 +3748,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Validates  the identity for an open call.
+        /// Validates the identity for an open call.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private void OpenValidateIdentity(
@@ -3792,14 +3792,10 @@ namespace Opc.Ua.Client
                 identityPolicy = m_endpoint.Description.FindUserTokenPolicy(
                     identity.TokenType,
                     identity.IssuedTokenType,
-                    securityPolicyUri);
-
-                if (identityPolicy == null)
-                {
+                    securityPolicyUri) ??
                     throw ServiceResultException.Create(
                         StatusCodes.BadIdentityTokenRejected,
                         "Endpoint does not support the user identity type provided.");
-                }
 
                 identity.TokenHandler.UpdatePolicy(identityPolicy);
             }

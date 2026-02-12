@@ -3086,7 +3086,7 @@ namespace Opc.Ua
 
             if (dv.WrappedValue == Variant.Null)
             {
-                value = TypeInfo.GetDefaultValue(field.BuiltInType, field.ValueRank);
+                value = TypeInfo.GetDefaultValue(field.BuiltInType, field.ValueRank).AsBoxedObject();
                 typeInfo = new TypeInfo((BuiltInType)field.BuiltInType, field.ValueRank);
 
                 if (value != null)
