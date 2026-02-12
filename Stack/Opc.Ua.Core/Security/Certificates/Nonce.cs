@@ -83,7 +83,7 @@ namespace Opc.Ua
 #if xDEBUG
             Span<char> privateKey = stackalloc char[2048];
 
-            if (m_ecdh.TryExportECPrivateKeyPem(privateKey, out int charsWritten))
+            if (m_ecdh != null && m_ecdh.TryExportECPrivateKeyPem(privateKey, out int charsWritten))
             {
                 CryptoTrace.WriteLine($"Private Key PEM ({charsWritten} chars):");
             }
@@ -92,28 +92,35 @@ namespace Opc.Ua
             if (m_ecdh != null)
             {
                 ikm = m_ecdh.DeriveRawSecretAgreement(remoteNonce.m_ecdh.PublicKey);
-
             }
             else if (m_rsadh != null)
             {
                 ikm = m_rsadh.DeriveRawSecretAgreement(remoteNonce.m_rsadh);
             }
 
+#else // !NET8_0_OR_GREATER (NET78 and NET80)
+            if (m_ecdh != null)
+            {
+                ikm = m_ecdh.DeriveKeyMaterial(remoteNonce.m_ecdh.PublicKey);
+            }
+            else if (m_rsadh != null)
+            {
+                ikm = m_rsadh.DeriveRawSecretAgreement(remoteNonce.m_rsadh);
+            }
+#endif
             CryptoTrace.WriteLine($"IKM-Raw={CryptoTrace.KeyToString(ikm)}");
             CryptoTrace.WriteLine($"Previous-IKM={CryptoTrace.KeyToString(previousSecret)}");
 
-            if (previousSecret != null)
+            if (ikm != null && previousSecret != null)
             {
                 for (int ii = 0; ii < ikm.Length && ii < previousSecret.Length; ii++)
                 {
                     ikm[ii] ^= previousSecret[ii];
                 }
             }
-
             CryptoTrace.WriteLine($"IKM-XOR={CryptoTrace.KeyToString(ikm)}");
             CryptoTrace.Finish("GenerateSecret");
 
-#endif
             return ikm;
         }
 
