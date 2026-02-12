@@ -135,6 +135,26 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 ServerConfiguration = new ServerConfiguration()
             };
 
+            configuration.SecurityConfiguration.ApplicationCertificates = new CertificateIdentifierCollection
+            {
+                new CertificateIdentifier
+                {
+                    CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+                },
+                new CertificateIdentifier
+                {
+                    CertificateType = ObjectTypeIds.EccNistP256ApplicationCertificateType
+                },
+                new CertificateIdentifier
+                {
+                    CertificateType = ObjectTypeIds.EccNistP384ApplicationCertificateType
+                },
+                new CertificateIdentifier
+                {
+                    CertificateType = ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType
+                }
+            };
+
             // base addresses, uses localhost. specify multiple endpoints per protocol as per config.
             configuration.ServerConfiguration.BaseAddresses.Add(
                 Utils.ReplaceLocalhost("opc.https://localhost:62540/UA/SampleServer"));
