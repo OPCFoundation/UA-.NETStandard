@@ -137,7 +137,7 @@ namespace Opc.Ua.Server.UserDatabase
                         .GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
                         .Select((prop) => (prop, prop.GetCustomAttribute<DataMemberAttribute>()))
                         .Where((x) => x.Item2 != null)
-                        .OrderBy((x) => x.Item2!.Order))
+                        .OrderBy((x) => x.Item2.Order))
                     {
                         JsonPropertyInfo jsonPropertyInfo = jsonTypeInfo.CreateJsonPropertyInfo(
                             propertyInfo.PropertyType,

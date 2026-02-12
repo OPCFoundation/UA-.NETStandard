@@ -100,7 +100,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(value));
             }
 
-            m_value.Value = CoreUtils.Clone(value.m_value.Value);
+            m_value = value.m_value;
             StatusCode = value.StatusCode;
             SourceTimestamp = value.SourceTimestamp;
             SourcePicoseconds = value.SourcePicoseconds;
@@ -204,54 +204,18 @@ namespace Opc.Ua
             ServerTimestamp = DateTime.MinValue;
         }
 
-        /// <summary>
-        /// Determines if the specified object is equal to the object.
-        /// </summary>
-        /// <param name="obj">The object to compare to *this*</param>
+        /// <inheritdoc/>
         public override bool Equals(object obj)
         {
-            if (ReferenceEquals(this, obj))
+            return obj switch
             {
-                return true;
-            }
-
-            if (obj is DataValue value)
-            {
-                if (StatusCode != value.StatusCode)
-                {
-                    return false;
-                }
-
-                if (ServerTimestamp != value.ServerTimestamp)
-                {
-                    return false;
-                }
-
-                if (SourceTimestamp != value.SourceTimestamp)
-                {
-                    return false;
-                }
-
-                if (ServerPicoseconds != value.ServerPicoseconds)
-                {
-                    return false;
-                }
-
-                if (SourcePicoseconds != value.SourcePicoseconds)
-                {
-                    return false;
-                }
-
-                return CoreUtils.IsEqual(m_value.Value, value.m_value.Value);
-            }
-
-            return false;
+                null => false,
+                DataValue value => Equals(value),
+                _ => base.Equals(obj)
+            };
         }
 
-        /// <summary>
-        /// Determines if the specified object is equal to the object.
-        /// </summary>
-        /// <param name="other">The DataValue to compare to *this*</param>
+        /// <inheritdoc/>
         public bool Equals(DataValue other)
         {
             if (ReferenceEquals(this, other))
@@ -259,37 +223,53 @@ namespace Opc.Ua
                 return true;
             }
 
-            if (other != null)
+            if (other is null)
             {
-                if (StatusCode != other.StatusCode)
-                {
-                    return false;
-                }
-
-                if (ServerTimestamp != other.ServerTimestamp)
-                {
-                    return false;
-                }
-
-                if (SourceTimestamp != other.SourceTimestamp)
-                {
-                    return false;
-                }
-
-                if (ServerPicoseconds != other.ServerPicoseconds)
-                {
-                    return false;
-                }
-
-                if (SourcePicoseconds != other.SourcePicoseconds)
-                {
-                    return false;
-                }
-
-                return CoreUtils.IsEqual(m_value.Value, other.m_value.Value);
+                return false;
+            }
+            if (StatusCode != other.StatusCode)
+            {
+                return false;
             }
 
-            return false;
+            if (ServerTimestamp != other.ServerTimestamp)
+            {
+                return false;
+            }
+
+            if (SourceTimestamp != other.SourceTimestamp)
+            {
+                return false;
+            }
+
+            if (ServerPicoseconds != other.ServerPicoseconds)
+            {
+                return false;
+            }
+
+            if (SourcePicoseconds != other.SourcePicoseconds)
+            {
+                return false;
+            }
+
+            if (m_value != other.m_value)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(DataValue a, DataValue b)
+        {
+            return a is null ? b is null : a.Equals(b);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(DataValue a, DataValue b)
+        {
+            return !(a == b);
         }
 
         /// <summary>
@@ -297,9 +277,9 @@ namespace Opc.Ua
         /// </summary>
         public override int GetHashCode()
         {
-            if (m_value.Value != null)
+            if (!m_value.IsNull)
             {
-                return m_value.Value.GetHashCode();
+                return m_value.GetHashCode();
             }
 
             return StatusCode.GetHashCode();
@@ -348,8 +328,8 @@ namespace Opc.Ua
         /// </summary>
         public object Value
         {
-            get => m_value.Value;
-            set => m_value.Value = value;
+            get => m_value.AsBoxedObject();
+            set => m_value = new Variant(value);
         }
 
         /// <summary>

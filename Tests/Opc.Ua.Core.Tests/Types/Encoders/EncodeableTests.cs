@@ -106,7 +106,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 var testObject = CreateDefaultEncodeableType(systemType) as IEncodeable;
                 array.SetValue(testObject, i);
-                if (dataTypeId == NodeId.Null)
+                if (dataTypeId.IsNull)
                 {
                     dataTypeId = testObject.TypeId;
                 }
@@ -205,7 +205,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 var testObject = CreateDefaultEncodeableType(systemType) as IEncodeable;
                 array.SetValue(testObject, i);
-                if (dataTypeId == NodeId.Null)
+                if (dataTypeId.IsNull)
                 {
                     dataTypeId = testObject.TypeId;
                 }

@@ -61,7 +61,7 @@ namespace Opc.Ua
         void SetMappingTables(NamespaceTable namespaceUris, StringTable serverUris);
 
         /// <summary>
-        /// Decodes an object from a buffer.
+        /// Decodes a message.
         /// </summary>
         IEncodeable DecodeMessage(Type expectedType);
 

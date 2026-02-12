@@ -37,6 +37,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Xml;
+using System.Runtime.Serialization;
 
 #if NETFRAMEWORK
 using System.Runtime.InteropServices;
@@ -1072,15 +1073,43 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Create a data contract serializer for the specified type with OPC UA surrogates.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        public static DataContractSerializer CreateDataContractSerializer<T>(
+            IServiceMessageContext messageContext = null,
+            IEnumerable<Type> knownTypes = null)
+        {
+            return CreateDataContractSerializer(typeof(T), messageContext, knownTypes);
+        }
+
+        /// <summary>
+        /// Create a data contract serializer for the specified type with OPC UA surrogates.
+        /// </summary>
+        /// <returns></returns>
+        public static DataContractSerializer CreateDataContractSerializer(
+            Type systemType,
+            IServiceMessageContext messageContext = null,
+            IEnumerable<Type> knownTypes = null)
+        {
+            var serializer = new DataContractSerializer(systemType,
+                DataContractSurrogates.KnownTypes.Concat(knownTypes ?? []));
+            serializer.SetSerializationSurrogateProvider(
+                new DataContractSurrogates(messageContext ?? AmbientMessageContext.CurrentContext));
+            return serializer;
+        }
+
+        /// <summary>
         /// Get the opc ua core assembly to load manifest from or encodeable types
         /// </summary>
         /// <returns></returns>
-        public static Assembly GetOpcUaCoreAssembly()
+        public static Assembly GetOpcUaAssembly()
         {
             // Find the core assembly with all generated core types if referenced
             foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
             {
-                if (assembly.FullName.StartsWith("Opc.Ua.Core,", StringComparison.Ordinal))
+                if (assembly.GetName().Name.Equals("Opc.Ua", StringComparison.Ordinal))
                 {
                     return assembly;
                 }

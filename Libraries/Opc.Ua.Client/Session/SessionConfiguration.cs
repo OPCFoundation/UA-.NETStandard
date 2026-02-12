@@ -114,13 +114,13 @@ namespace Opc.Ua.Client
         /// The session id assigned by the server.
         /// </summary>
         [DataMember(IsRequired = true, Order = 30)]
-        public NodeId SessionId { get; init; } = NodeId.Null;
+        public NodeId SessionId { get; init; }
 
         /// <summary>
         /// The authentication token used by the server to identify the session.
         /// </summary>
         [DataMember(IsRequired = true, Order = 40)]
-        public NodeId AuthenticationToken { get; init; } = NodeId.Null;
+        public NodeId AuthenticationToken { get; init; }
 
         /// <summary>
         /// The last server nonce received.
@@ -180,11 +180,11 @@ namespace Opc.Ua.Client
         /// </summary>
         public static SessionConfiguration? Create(Stream stream, ITelemetryContext telemetry)
         {
-            // secure settings
-            XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
-            using var reader = XmlReader.Create(stream, settings);
-            var serializer = new DataContractSerializer(typeof(SessionConfiguration));
             using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
+            DataContractSerializer serializer =
+                CoreUtils.CreateDataContractSerializer<SessionConfiguration>();
+            // secure settings
+            using var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
             return (SessionConfiguration?)serializer.ReadObject(reader);
         }
     }

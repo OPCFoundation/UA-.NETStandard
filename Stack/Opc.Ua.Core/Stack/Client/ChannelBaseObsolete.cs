@@ -28,10 +28,268 @@
  * ======================================================================*/
 
 using System;
+using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
+    /// <summary>
+    /// The base interface for client proxies.
+    /// </summary>
+    [Obsolete("Use ITransportChannel instead.")]
+    public interface IChannelBase : IDisposable;
+
+    /// <summary>
+    /// Obsolete, use transport channel instead
+    /// </summary>
+    [Obsolete("Use ITransportChannel instead.")]
+    public interface ISessionChannel : IChannelBase;
+
+    /// <summary>
+    /// Obsolete, use transport channel instead
+    /// </summary>
+    [Obsolete("Use ITransportChannel instead.")]
+    public interface IDiscoveryChannel : IChannelBase;
+
+    /// <summary>
+    /// Obsolete, use transport channel instead
+    /// </summary>
+    [Obsolete("Use ITransportChannel instead.")]
+    public interface IRegistrationChannel : IChannelBase;
+
+    /// <summary>
+    /// Obsolete Session channel methods
+    /// </summary>
+    [Obsolete("Use UaChannelBase methods instead.")]
+    public static class SessionChannel
+    {
+        /// <summary>
+        /// Creates a new transport channel.
+        /// </summary>
+        [Obsolete("Use ClientChannelFactory.CreateChannelAsync method instead.")]
+        public static ITransportChannel Create(
+            ApplicationConfiguration configuration,
+            EndpointDescription description,
+            EndpointConfiguration endpointConfiguration,
+            X509Certificate2 clientCertificate,
+            IServiceMessageContext messageContext)
+        {
+            return ClientChannelManager.CreateUaBinaryChannelAsync(
+                configuration,
+                description,
+                endpointConfiguration,
+                clientCertificate,
+                null,
+                messageContext,
+                null).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Creates a new transport channel.
+        /// </summary>
+        [Obsolete("Use ClientChannelFactory.CreateChannelAsync method instead.")]
+        public static ITransportChannel Create(
+            ApplicationConfiguration configuration,
+            EndpointDescription description,
+            EndpointConfiguration endpointConfiguration,
+            X509Certificate2 clientCertificate,
+            X509Certificate2Collection clientCertificateChain,
+            IServiceMessageContext messageContext)
+        {
+            return ClientChannelManager.CreateUaBinaryChannelAsync(
+                configuration,
+                description,
+                endpointConfiguration,
+                clientCertificate,
+                clientCertificateChain,
+                messageContext,
+                null).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Creates a new transport channel.
+        /// </summary>
+        [Obsolete("Use ClientChannelFactory.CreateChannelAsync method instead.")]
+        public static ITransportChannel Create(
+            ApplicationConfiguration configuration,
+            ITransportWaitingConnection connection,
+            EndpointDescription description,
+            EndpointConfiguration endpointConfiguration,
+            X509Certificate2 clientCertificate,
+            X509Certificate2Collection clientCertificateChain,
+            IServiceMessageContext messageContext)
+        {
+            // create a UA binary channel.
+            return ClientChannelManager.CreateUaBinaryChannelAsync(
+                configuration,
+                connection,
+                description,
+                endpointConfiguration,
+                clientCertificate,
+                clientCertificateChain,
+                messageContext,
+                null).AsTask().GetAwaiter().GetResult();
+        }
+    }
+
+    /// <summary>
+    /// Obsolete discovery channel methods
+    /// </summary>
+    [Obsolete("Use DiscoveryClient.CreateAsync instead to create a discovery client.")]
+    public static class DiscoveryChannel
+    {
+        /// <summary>
+        /// Creates a new transport channel for discovery
+        /// </summary>
+        [Obsolete("Use DiscoveryClient.CreateAsync instead to create a discovery client.")]
+        public static ITransportChannel Create(
+            Uri discoveryUrl,
+            EndpointConfiguration endpointConfiguration,
+            IServiceMessageContext messageContext,
+            X509Certificate2 clientCertificate = null)
+        {
+            return DiscoveryClient.CreateChannelAsync(
+                discoveryUrl,
+                endpointConfiguration,
+                messageContext,
+                clientCertificate).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Creates a new transport channel for discovery
+        /// </summary>
+        [Obsolete("Use CreateAsync instead.")]
+        public static ITransportChannel Create(
+            ApplicationConfiguration configuration,
+            ITransportWaitingConnection connection,
+            EndpointConfiguration endpointConfiguration,
+            IServiceMessageContext messageContext,
+            X509Certificate2 clientCertificate = null)
+        {
+            return DiscoveryClient.CreateChannelAsync(
+                configuration,
+                connection,
+                endpointConfiguration,
+                messageContext,
+                clientCertificate).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Creates a new transport channel for discovery
+        /// </summary>
+        [Obsolete("Use CreateAsync instead.")]
+        public static ITransportChannel Create(
+            ApplicationConfiguration configuration,
+            Uri discoveryUrl,
+            EndpointConfiguration endpointConfiguration,
+            IServiceMessageContext messageContext,
+            X509Certificate2 clientCertificate = null)
+        {
+            return DiscoveryClient.CreateChannelAsync(
+                configuration,
+                discoveryUrl,
+                endpointConfiguration,
+                messageContext,
+                clientCertificate).AsTask().GetAwaiter().GetResult();
+        }
+    }
+
+    /// <summary>
+    /// Obsolete Registration channel methods
+    /// </summary>
+    [Obsolete("Use RegistrationClient.CreateAsync instead to create a registrations client.")]
+    public static class RegistrationChannel
+    {
+        /// <summary>
+        /// Creates a new transport channel that supports registration
+        /// </summary>
+        [Obsolete("Use ClientChannelFactory.CreateChannelAsync instead.")]
+        public static ITransportChannel Create(
+            ApplicationConfiguration configuration,
+            EndpointDescription description,
+            EndpointConfiguration endpointConfiguration,
+            X509Certificate2 clientCertificate,
+            IServiceMessageContext messageContext)
+        {
+            return ClientChannelManager.CreateUaBinaryChannelAsync(
+                configuration,
+                description,
+                endpointConfiguration,
+                clientCertificate,
+                null,
+                messageContext,
+                null).AsTask().GetAwaiter().GetResult();
+        }
+    }
+
+    /// <summary>
+    /// A base class for UA channel objects used access UA interfaces
+    /// </summary>
+    /// <typeparam name="TChannel"></typeparam>
+    [Obsolete("Use UAChannelBase.")]
+    public partial class UaChannelBase<TChannel> : IChannelBase
+        where TChannel : class, IChannelBase
+    {
+        /// <summary>
+        /// This must be set by the derived class to initialize the telemtry system
+        /// </summary>
+        public required ITelemetryContext Telemetry
+        {
+            get => m_telemetry;
+            init
+            {
+                m_telemetry = value;
+                m_logger = value.CreateLogger(this);
+            }
+        }
+
+        /// <summary>
+        /// Initializes the object with the specified binding and endpoint address.
+        /// </summary>
+        protected UaChannelBase(ITelemetryContext telemetry = null)
+        {
+            Telemetry = telemetry;
+        }
+
+        /// <summary>
+        /// Frees any unmanaged resources.
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// An overrideable version of the Dispose.
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                Utils.SilentDispose(Channel);
+                Channel = null;
+            }
+        }
+
+        /// <summary>
+        /// Gets the inner channel.
+        /// </summary>
+        /// <value>The channel.</value>
+        protected TChannel Channel { get; private set; }
+
+        /// <summary>
+        /// Logger to be used by the concrete channel implementation. Shall
+        /// not be used outside of the channel inheritance hierarchy. Create
+        /// new logger from telemetry context.
+        /// </summary>
+#pragma warning disable IDE1006 // Naming Styles
+        protected ILogger m_logger { get; private set; } = LoggerUtils.Null.Logger;
+#pragma warning restore IDE1006 // Naming Styles
+
+        private readonly ITelemetryContext m_telemetry;
+    }
+
     /// <summary>
     /// Legacy api to be removed
     /// </summary>

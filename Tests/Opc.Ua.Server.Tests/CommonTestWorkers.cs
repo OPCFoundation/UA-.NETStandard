@@ -250,7 +250,7 @@ namespace Opc.Ua.Server.Tests
                         null,
                         0,
                         browseDescriptionCollection.Take(0).ToArray()).ConfigureAwait(false));
-                Assert.AreEqual((StatusCode)StatusCodes.BadNothingToDo, (StatusCode)sre.StatusCode);
+                Assert.AreEqual(StatusCodes.BadNothingToDo, sre.StatusCode);
             }
 
             while (browseDescriptionCollection.Count > 0)
@@ -268,8 +268,8 @@ namespace Opc.Ua.Server.Tests
                                 0,
                                 browseDescriptionCollection).ConfigureAwait(false));
                     Assert.AreEqual(
-                        (StatusCode)StatusCodes.BadTooManyOperations,
-                        (StatusCode)sre.StatusCode);
+                        StatusCodes.BadTooManyOperations,
+                        sre.StatusCode);
 
                     // Test if server responds with BadTooManyOperations
                     BrowseDescription[] tempBrowsePath =
@@ -284,8 +284,8 @@ namespace Opc.Ua.Server.Tests
                             0,
                             tempBrowsePath).ConfigureAwait(false));
                     Assert.AreEqual(
-                        (StatusCode)StatusCodes.BadTooManyOperations,
-                        (StatusCode)sre.StatusCode);
+                        StatusCodes.BadTooManyOperations,
+                        sre.StatusCode);
                 }
 
                 bool repeatBrowse;
@@ -318,9 +318,9 @@ namespace Opc.Ua.Server.Tests
 
                         allResults.AddRange(browseResponse.Results);
                     }
-                    catch (ServiceResultException sre)
-                        when (sre.StatusCode is StatusCodes.BadEncodingLimitsExceeded or StatusCodes
-                            .BadResponseTooLarge)
+                    catch (ServiceResultException sre) when (
+                        sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded ||
+                        sre.StatusCode == StatusCodes.BadResponseTooLarge)
                     {
                         // try to address by overriding operation limit
                         maxNodesPerBrowse =
@@ -382,6 +382,10 @@ namespace Opc.Ua.Server.Tests
             }
 
             referenceDescriptions.Sort((x, y) => x.NodeId.CompareTo(y.NodeId));
+            int diagnosticNs = services.MessageContext.NamespaceUris
+                .GetIndex(Ua.Namespaces.OpcUa + "Diagnostics");
+            // Remove diagnostic nodes since they change per session
+            referenceDescriptions.RemoveAll(r => r.NodeId.NamespaceIndex == diagnosticNs);
 
             TestContext.Out
                 .WriteLine("Found {0} references on server.", referenceDescriptions.Count);
@@ -434,8 +438,8 @@ namespace Opc.Ua.Server.Tests
                                 requestHeader,
                                 browsePaths).ConfigureAwait(false));
                     Assert.AreEqual(
-                        (StatusCode)StatusCodes.BadTooManyOperations,
-                        (StatusCode)sre.StatusCode);
+                        StatusCodes.BadTooManyOperations,
+                        sre.StatusCode);
                 }
                 BrowsePathCollection browsePathSnippet =
                     operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds > 0
@@ -456,7 +460,8 @@ namespace Opc.Ua.Server.Tests
                 {
                     if (result.Targets?.Count > 0)
                     {
-                        TestContext.Out.WriteLine("BrowsePath {0}", result.Targets[0].ToString());
+                        TestContext.Out.WriteLine("BrowsePath {0}",
+                            result.Targets[0].TargetId.ToString());
                     }
                 }
 
@@ -515,7 +520,7 @@ namespace Opc.Ua.Server.Tests
                     id,
                     TimestampsToReturn.Neither,
                     itemsToCreate).ConfigureAwait(false));
-            Assert.AreEqual((StatusCode)StatusCodes.BadNothingToDo, (StatusCode)sre.StatusCode);
+            Assert.AreEqual(StatusCodes.BadNothingToDo, sre.StatusCode);
 
             // add item
             uint handleCounter = 1;
@@ -647,10 +652,8 @@ namespace Opc.Ua.Server.Tests
                     var eventNotification = publishResponse.NotificationMessage.NotificationData[0]
                         .Body as EventNotificationList;
                     TestContext.Out.WriteLine(
-                        "Notification: {0} {1} {2}",
+                        "Notification: {0} {1}",
                         publishResponse.NotificationMessage.SequenceNumber,
-                        dataChangeNotification?.MonitoredItems[0].Value.ToString()
-                        ?? eventNotification?.Events[0].Message.ToString(),
                         publishResponse.NotificationMessage.PublishTime);
                 }
 
@@ -794,7 +797,7 @@ namespace Opc.Ua.Server.Tests
                 requestHeader,
                 subscriptionIds,
                 sendInitialData).ConfigureAwait(false);
-            Assert.AreEqual((StatusCode)StatusCodes.Good, transferResponse.ResponseHeader.ServiceResult);
+            Assert.AreEqual(StatusCodes.Good, transferResponse.ResponseHeader.ServiceResult);
             Assert.AreEqual(subscriptionIds.Count, transferResponse.Results.Count);
             ServerFixtureUtils.ValidateResponse(transferResponse.ResponseHeader, transferResponse.Results, subscriptionIds);
             ServerFixtureUtils.ValidateDiagnosticInfos(
@@ -809,7 +812,7 @@ namespace Opc.Ua.Server.Tests
                 if (expectAccessDenied)
                 {
                     Assert.AreEqual(
-                        (StatusCode)StatusCodes.BadUserAccessDenied,
+                        StatusCodes.BadUserAccessDenied,
                         transferResult.StatusCode);
                 }
                 else
@@ -829,7 +832,7 @@ namespace Opc.Ua.Server.Tests
             PublishResponse publishResponse = await services.PublishAsync(
                 requestHeader,
                 acknowledgements).ConfigureAwait(false);
-            Assert.AreEqual((StatusCode)StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
+            Assert.AreEqual(StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
             ServerFixtureUtils.ValidateResponse(publishResponse.ResponseHeader);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 publishResponse.DiagnosticInfos,
@@ -851,7 +854,7 @@ namespace Opc.Ua.Server.Tests
 
             requestHeader.Timestamp = DateTime.UtcNow;
             DeleteSubscriptionsResponse deleteResponse = await services.DeleteSubscriptionsAsync(requestHeader, subscriptionIds).ConfigureAwait(false);
-            Assert.AreEqual((StatusCode)StatusCodes.Good, deleteResponse.ResponseHeader.ServiceResult);
+            Assert.AreEqual(StatusCodes.Good, deleteResponse.ResponseHeader.ServiceResult);
         }
 
         /// <summary>
@@ -989,10 +992,10 @@ namespace Opc.Ua.Server.Tests
                     {
                         AttributeId = Attributes.Value,
                         TypeDefinitionId = ObjectTypeIds.BaseEventType,
-                        BrowsePath = [.. new QualifiedName[] { "EventType" }]
+                        BrowsePath = [.. new QualifiedName[] { QualifiedName.From("EventType") }]
                     },
                     new LiteralOperand {
-                        Value = new Variant(new NodeId(ObjectTypeIds.BaseEventType)) }
+                        Value = new Variant(ObjectTypeIds.BaseEventType) }
                 ]);
 
             return new MonitoredItemCreateRequest
@@ -1019,7 +1022,7 @@ namespace Opc.Ua.Server.Tests
                                         AttributeId = Attributes.Value,
                                         TypeDefinitionId = ObjectTypeIds.BaseEventType,
                                         BrowsePath = [.. new QualifiedName[] {
-                                            BrowseNames.Message }]
+                                            QualifiedName.From(BrowseNames.Message) }]
                                     }
                                 }
                             ],

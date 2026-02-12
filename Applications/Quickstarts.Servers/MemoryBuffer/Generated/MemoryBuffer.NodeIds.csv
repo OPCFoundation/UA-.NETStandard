@@ -1,5 +1,0 @@
-MemoryTagType,1001,VariableType
-MemoryBufferType,1002,ObjectType
-MemoryBufferType_StartAddress,1003,Variable
-MemoryBufferType_SizeInBytes,1004,Variable
-MemoryBuffers,1005,Object

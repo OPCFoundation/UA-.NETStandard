@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -283,13 +282,7 @@ namespace TestData
         /// </summary>
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
-            var predefinedNodes = new NodeStateCollection();
-            predefinedNodes.LoadFromBinaryResource(
-                context,
-                "Quickstarts.Servers.TestData.Generated.TestData.PredefinedNodes.uanodes",
-                GetType().GetTypeInfo().Assembly,
-                true);
-            return predefinedNodes;
+            return new NodeStateCollection().AddTestData(context);
         }
 
         /// <summary>
@@ -303,21 +296,21 @@ namespace TestData
             {
                 NodeId typeId = passiveNode.TypeDefinitionId;
 
-                if (!IsNodeIdInNamespace(typeId) || typeId.IdType != IdType.Numeric)
+                if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetIdentifier(out uint typeIdNumeric))
                 {
                     return predefinedNode;
                 }
 
-                switch ((uint)typeId.Identifier)
+                switch (typeIdNumeric)
                 {
                     case ObjectTypes.TestSystemConditionType:
                     {
-                        if (passiveNode is TestSystemConditionState)
+                        if (passiveNode is TestSystemConditionState activeNode)
                         {
                             break;
                         }
 
-                        var activeNode = new TestSystemConditionState(passiveNode.Parent);
+                        activeNode = new TestSystemConditionState(passiveNode.Parent);
                         activeNode.Create(context, passiveNode);
 
                         passiveNode.Parent?.ReplaceChild(context, activeNode);
@@ -326,12 +319,12 @@ namespace TestData
                     }
                     case ObjectTypes.ScalarValueObjectType:
                     {
-                        if (passiveNode is ScalarValueObjectState)
+                        if (passiveNode is ScalarValueObjectState activeNode)
                         {
                             break;
                         }
 
-                        var activeNode = new ScalarValueObjectState(passiveNode.Parent);
+                        activeNode = new ScalarValueObjectState(passiveNode.Parent);
                         activeNode.Create(context, passiveNode);
 
                         passiveNode.Parent?.ReplaceChild(context, activeNode);
@@ -340,12 +333,12 @@ namespace TestData
                     }
                     case ObjectTypes.StructureValueObjectType:
                     {
-                        if (passiveNode is StructureValueObjectState)
+                        if (passiveNode is StructureValueObjectState activeNode)
                         {
                             break;
                         }
 
-                        var activeNode = new StructureValueObjectState(passiveNode.Parent);
+                        activeNode = new StructureValueObjectState(passiveNode.Parent);
                         activeNode.Create(context, passiveNode);
 
                         passiveNode.Parent?.ReplaceChild(context, activeNode);
@@ -354,12 +347,12 @@ namespace TestData
                     }
                     case ObjectTypes.AnalogScalarValueObjectType:
                     {
-                        if (passiveNode is AnalogScalarValueObjectState)
+                        if (passiveNode is AnalogScalarValueObjectState activeNode)
                         {
                             break;
                         }
 
-                        var activeNode = new AnalogScalarValueObjectState(passiveNode.Parent);
+                        activeNode = new AnalogScalarValueObjectState(passiveNode.Parent);
                         activeNode.Create(context, passiveNode);
 
                         passiveNode.Parent?.ReplaceChild(context, activeNode);
@@ -368,12 +361,12 @@ namespace TestData
                     }
                     case ObjectTypes.ArrayValueObjectType:
                     {
-                        if (passiveNode is ArrayValueObjectState)
+                        if (passiveNode is ArrayValueObjectState activeNode)
                         {
                             break;
                         }
 
-                        var activeNode = new ArrayValueObjectState(passiveNode.Parent);
+                        activeNode = new ArrayValueObjectState(passiveNode.Parent);
                         activeNode.Create(context, passiveNode);
 
                         passiveNode.Parent?.ReplaceChild(context, activeNode);
@@ -382,12 +375,12 @@ namespace TestData
                     }
                     case ObjectTypes.AnalogArrayValueObjectType:
                     {
-                        if (passiveNode is AnalogArrayValueObjectState)
+                        if (passiveNode is AnalogArrayValueObjectState activeNode)
                         {
                             break;
                         }
 
-                        var activeNode = new AnalogArrayValueObjectState(passiveNode.Parent);
+                        activeNode = new AnalogArrayValueObjectState(passiveNode.Parent);
                         activeNode.Create(context, passiveNode);
 
                         passiveNode.Parent?.ReplaceChild(context, activeNode);
@@ -396,12 +389,12 @@ namespace TestData
                     }
                     case ObjectTypes.UserScalarValueObjectType:
                     {
-                        if (passiveNode is UserScalarValueObjectState)
+                        if (passiveNode is UserScalarValueObjectState activeNode)
                         {
                             break;
                         }
 
-                        var activeNode = new UserScalarValueObjectState(passiveNode.Parent);
+                        activeNode = new UserScalarValueObjectState(passiveNode.Parent);
                         activeNode.Create(context, passiveNode);
 
                         passiveNode.Parent?.ReplaceChild(context, activeNode);
@@ -410,12 +403,12 @@ namespace TestData
                     }
                     case ObjectTypes.UserArrayValueObjectType:
                     {
-                        if (passiveNode is UserArrayValueObjectState)
+                        if (passiveNode is UserArrayValueObjectState activeNode)
                         {
                             break;
                         }
 
-                        var activeNode = new UserArrayValueObjectState(passiveNode.Parent);
+                        activeNode = new UserArrayValueObjectState(passiveNode.Parent);
                         activeNode.Create(context, passiveNode);
 
                         passiveNode.Parent?.ReplaceChild(context, activeNode);
@@ -424,12 +417,12 @@ namespace TestData
                     }
                     case ObjectTypes.MethodTestType:
                     {
-                        if (passiveNode is MethodTestState)
+                        if (passiveNode is MethodTestState activeNode)
                         {
                             break;
                         }
 
-                        var activeNode = new MethodTestState(passiveNode.Parent);
+                        activeNode = new MethodTestState(passiveNode.Parent);
                         activeNode.Create(context, passiveNode);
 
                         passiveNode.Parent?.ReplaceChild(context, activeNode);
@@ -443,21 +436,21 @@ namespace TestData
             {
                 NodeId typeId = variableNode.TypeDefinitionId;
 
-                if (!IsNodeIdInNamespace(typeId) || typeId.IdType != IdType.Numeric)
+                if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetIdentifier(out uint typeIdNumeric))
                 {
                     return predefinedNode;
                 }
 
-                switch ((uint)typeId.Identifier)
+                switch (typeIdNumeric)
                 {
                     case VariableTypes.ScalarStructureVariableType:
                     {
-                        if (variableNode is ScalarStructureVariableState)
+                        if (variableNode is ScalarStructureVariableState activeNode)
                         {
                             break;
                         }
 
-                        var activeNode = new ScalarStructureVariableState(variableNode.Parent);
+                        activeNode = new ScalarStructureVariableState(variableNode.Parent);
                         activeNode.Create(context, variableNode);
 
                         variableNode.Parent?.ReplaceChild(context, activeNode);
@@ -466,12 +459,12 @@ namespace TestData
                     }
                     case VariableTypes.VectorVariableType:
                     {
-                        if (variableNode is VectorVariableState)
+                        if (variableNode is VectorVariableState activeNode)
                         {
                             break;
                         }
 
-                        var activeNode = new VectorVariableState(variableNode.Parent);
+                        activeNode = new VectorVariableState(variableNode.Parent);
                         activeNode.Create(context, variableNode);
 
                         variableNode.Parent?.ReplaceChild(context, activeNode);

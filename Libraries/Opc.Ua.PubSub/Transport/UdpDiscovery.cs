@@ -130,7 +130,7 @@ namespace Opc.Ua.PubSub.Transport
 
             if (ExtensionObject.ToEncodeable(pubSubConnectionConfiguration.TransportSettings)
                     is DatagramConnectionTransportDataType transportSettings &&
-                transportSettings.DiscoveryAddress != null &&
+                !transportSettings.DiscoveryAddress.IsNull &&
                 ExtensionObject.ToEncodeable(transportSettings.DiscoveryAddress)
                     is NetworkAddressUrlDataType discoveryNetworkAddressUrlState)
             {

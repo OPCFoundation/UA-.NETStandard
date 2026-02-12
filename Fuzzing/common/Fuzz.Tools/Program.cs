@@ -75,6 +75,10 @@ namespace Opc.Ua.Fuzzing
             var telemetry = new Logging();
             telemetry.Configure(applicationName, string.Empty, true, LogLevel.Trace);
 
+            // TODO: this loads opc ua assembly, but this should not be needed.
+            // but otherwise encoderfactory currently does not get all types.
+            var temp = new AlarmConditionState(null);
+
             IList<string> extraArgs = null;
             try
             {

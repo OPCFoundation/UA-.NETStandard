@@ -736,7 +736,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act
             uaNetworkMessage.SetNetworkMessageContentMask(
                 UadpNetworkMessageContentMask.DataSetClassId);
-            uaNetworkMessage.DataSetClassId = Guid.NewGuid();
+            uaNetworkMessage.DataSetClassId = Uuid.NewUuid();
 
             // Assert
             ILogger logger = m_telemetry.CreateLogger<UadpNetworkMessageTests>();

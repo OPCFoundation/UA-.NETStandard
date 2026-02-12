@@ -50,7 +50,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 #if !CUSTOM_TESTS
         [Ignore("A network interface controller is necessary in order to run correctly.")]
 #endif
-        public async Task ValidateUdpPubSubConnectionNetworkMessagePublishUnicast()
+        public async Task ValidateUdpPubSubConnectionNetworkMessagePublishUnicastAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -148,7 +148,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 #if !CUSTOM_TESTS
         [Ignore("A network interface controller is necessary in order to run correctly.")]
 #endif
-        public async Task ValidateUdpPubSubConnectionNetworkMessagePublishBroadcast()
+        public async Task ValidateUdpPubSubConnectionNetworkMessagePublishBroadcastAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();     //Arrange
             System.Net.NetworkInformation.UnicastIPAddressInformation localhost = GetFirstNic();
@@ -245,7 +245,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 #if !CUSTOM_TESTS
         [Ignore("A network interface controller is necessary in order to run correctly.")]
 #endif
-        public async Task ValidateUdpPubSubConnectionNetworkMessagePublishMulticast()
+        public async Task ValidateUdpPubSubConnectionNetworkMessagePublishMulticastAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -346,7 +346,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 #if !CUSTOM_TESTS
         [Ignore("A network interface controller is necessary in order to run correctly.")]
 #endif
-        public async Task ValidateUdpPubSubConnectionNetworkMessageDiscoveryPublish_DataSetMetadata()
+        public async Task ValidateUdpPubSubConnectionNetworkMessageDiscoveryPublish_DataSetMetadataAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -452,7 +452,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 #if !CUSTOM_TESTS
         [Ignore("A network interface controller is necessary in order to run correctly.")]
 #endif
-        public async Task ValidateUdpPubSubConnectionNetworkMessageDiscoveryPublish_DataSetWriterConfiguration()
+        public async Task ValidateUdpPubSubConnectionNetworkMessageDiscoveryPublish_DataSetWriterConfigurationAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -553,7 +553,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 #if !CUSTOM_TESTS
         [Ignore("A network interface controller is necessary in order to run correctly.")]
 #endif
-        public async Task ValidateUdpPubSubConnectionNetworkMessageDiscoveryPublish_PublisherEndpoints()
+        public async Task ValidateUdpPubSubConnectionNetworkMessageDiscoveryPublish_PublisherEndpointsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -617,7 +617,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#None",
                     Server = new ApplicationDescription
                     {
-                        ApplicationName = "Test security mode None",
+                        ApplicationName = LocalizedText.From("Test security mode None"),
                         ApplicationUri = "urn:localhost:Server"
                     }
                 },
@@ -628,7 +628,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256",
                     Server = new ApplicationDescription
                     {
-                        ApplicationName = "Test security mode Sign",
+                        ApplicationName = LocalizedText.From("Test security mode Sign"),
                         ApplicationUri = "urn:localhost:Server"
                     }
                 },
@@ -639,7 +639,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256",
                     Server = new ApplicationDescription
                     {
-                        ApplicationName = "Test security mode SignAndEncrypt",
+                        ApplicationName = LocalizedText.From("Test security mode SignAndEncrypt"),
                         ApplicationUri = "urn:localhost:Server"
                     }
                 }

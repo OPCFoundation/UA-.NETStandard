@@ -709,7 +709,7 @@ namespace Opc.Ua.PubSub.Encoding
                 // 01 RawData Field Encoding
                 Variant variant = field.Value.WrappedValue;
 
-                if (variant.TypeInfo == null || variant.TypeInfo.BuiltInType == BuiltInType.Null)
+                if (variant.TypeInfo.IsUnknown || variant.TypeInfo.BuiltInType == BuiltInType.Null)
                 {
                     return;
                 }

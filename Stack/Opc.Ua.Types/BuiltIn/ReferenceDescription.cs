@@ -57,11 +57,11 @@ namespace Opc.Ua
         {
             ReferenceTypeId = default;
             IsForward = true;
-            NodeId = null;
-            BrowseName = null;
-            DisplayName = null;
+            NodeId = default;
+            BrowseName = default;
+            DisplayName = default;
             NodeClass = NodeClass.Unspecified;
-            TypeDefinition = null;
+            TypeDefinition = default;
         }
 
         /// <summary>
@@ -212,13 +212,13 @@ namespace Opc.Ua
         {
             var clone = (ReferenceDescription)base.MemberwiseClone();
 
-            clone.ReferenceTypeId = CoreUtils.Clone(ReferenceTypeId);
+            clone.ReferenceTypeId = ReferenceTypeId;
             clone.IsForward = CoreUtils.Clone(IsForward);
-            clone.NodeId = CoreUtils.Clone(NodeId);
-            clone.BrowseName = CoreUtils.Clone(BrowseName);
-            clone.DisplayName = CoreUtils.Clone(DisplayName);
+            clone.NodeId = NodeId;
+            clone.BrowseName = BrowseName;
+            clone.DisplayName = DisplayName;
             clone.NodeClass = CoreUtils.Clone(NodeClass);
-            clone.TypeDefinition = CoreUtils.Clone(TypeDefinition);
+            clone.TypeDefinition = TypeDefinition;
 
             return clone;
         }
@@ -231,12 +231,12 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                if (DisplayName != null && !string.IsNullOrEmpty(DisplayName.Text))
+                if (!string.IsNullOrEmpty(DisplayName.Text))
                 {
                     return DisplayName.Text;
                 }
 
-                if (!QualifiedName.IsNull(BrowseName))
+                if (!BrowseName.IsNull)
                 {
                     return BrowseName.Name;
                 }

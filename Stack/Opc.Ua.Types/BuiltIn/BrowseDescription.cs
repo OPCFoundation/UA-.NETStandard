@@ -203,9 +203,9 @@ namespace Opc.Ua
         {
             var clone = (BrowseDescription)base.MemberwiseClone();
 
-            clone.NodeId = CoreUtils.Clone(NodeId);
+            clone.NodeId = NodeId;
             clone.BrowseDirection = CoreUtils.Clone(BrowseDirection);
-            clone.ReferenceTypeId = CoreUtils.Clone(ReferenceTypeId);
+            clone.ReferenceTypeId = ReferenceTypeId;
             clone.IncludeSubtypes = CoreUtils.Clone(IncludeSubtypes);
             clone.NodeClassMask = CoreUtils.Clone(NodeClassMask);
             clone.ResultMask = CoreUtils.Clone(ResultMask);

@@ -54,7 +54,7 @@ namespace Opc.Ua.Server.Tests
         [OneTimeSetUp]
         public async Task OneTimeSetUpAsync()
         {
-            m_fixture = new ServerFixture<ReferenceServer>
+            m_fixture = new ServerFixture<ReferenceServer>(t => new ReferenceServer(t))
             {
                 AllNodeManagers = true,
                 OperationLimits = true

@@ -691,7 +691,7 @@ namespace Opc.Ua.Server
                         systemContext,
                         null,
                         EventSeverity.Min,
-                        sre.Message,
+                        LocalizedText.From(sre.Message),
                         false,
                         DateTime.UtcNow
                     ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
@@ -763,7 +763,7 @@ namespace Opc.Ua.Server
                     systemContext,
                     null,
                     EventSeverity.Min,
-                    null,
+                    default,
                     StatusCode.IsGood(statusCode),
                     DateTime.UtcNow
                 ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
@@ -834,7 +834,7 @@ namespace Opc.Ua.Server
                     systemContext,
                     null,
                     EventSeverity.Min,
-                    $"Cancel requested for sessionId: {sessionId} with requestHandle: {requestHandle}",
+                    LocalizedText.From($"Cancel requested for sessionId: {sessionId} with requestHandle: {requestHandle}"),
                     StatusCode.IsGood(statusCode),
                     DateTime.UtcNow
                 ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
@@ -896,7 +896,7 @@ namespace Opc.Ua.Server
                     systemContext,
                     null,
                     EventSeverity.Min,
-                    $"RoleMappingRuleChanged - {method?.BrowseName}",
+                    LocalizedText.From($"RoleMappingRuleChanged - {method?.BrowseName}"),
                     status,
                     DateTime.UtcNow
                 ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
@@ -1075,7 +1075,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.UserIdentityToken,
-                    Utils.Clone(session?.IdentityToken),
+                    Utils.Clone(session?.IdentityToken.Token),
                     false);
 
                 server.ReportAuditEvent(systemContext, e);

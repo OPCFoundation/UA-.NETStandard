@@ -93,6 +93,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         {
             // start Ref server
             ServerFixture = new ServerFixture<ReferenceServer>(
+                t => new ReferenceServer(t),
                 enableTracing,
                 disableActivityLogging)
             {
@@ -175,7 +176,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     NodeId = dataDictionaryId,
                     AttributeId = Attributes.Value,
                     IndexRange = null,
-                    DataEncoding = null
+                    DataEncoding = default
                 };
 
                 var nodesToRead = new ReadValueIdCollection { readValueId };

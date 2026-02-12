@@ -213,7 +213,7 @@ namespace Opc.Ua.Gds.Tests
                 GDSClient.AdminCredentials = AdminUser;
                 //register
                 NodeId id = await RegisterAsync(OwnApplicationTestData).ConfigureAwait(false);
-                if (id == null)
+                if (id.IsNull)
                 {
                     return false;
                 }
@@ -221,7 +221,7 @@ namespace Opc.Ua.Gds.Tests
                 //start Key Pair Request
                 NodeId req_id = await StartNewKeyPairAsync(OwnApplicationTestData).ConfigureAwait(
                     false);
-                if (req_id == null)
+                if (req_id.IsNull)
                 {
                     return false;
                 }

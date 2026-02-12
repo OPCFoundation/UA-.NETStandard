@@ -1224,7 +1224,7 @@ namespace Opc.Ua
             {
                 for (int jj = 0; jj < names.Count; jj++)
                 {
-                    if (LocalizedText.IsNullOrEmpty(names[jj]))
+                    if (names[jj].IsNullOrEmpty)
                     {
                         continue;
                     }
@@ -1246,7 +1246,7 @@ namespace Opc.Ua
 
                 for (int jj = 0; jj < names.Count; jj++)
                 {
-                    if (LocalizedText.IsNullOrEmpty(names[jj]))
+                    if (names[jj].IsNullOrEmpty)
                     {
                         continue;
                     }
@@ -1327,7 +1327,7 @@ namespace Opc.Ua
             if (identity1 is IssuedIdentityToken issuedToken1 &&
                 identity2 is IssuedIdentityToken issuedToken2)
             {
-                return IsEqual(issuedToken1.DecryptedTokenData, issuedToken2.DecryptedTokenData);
+                return IsEqual(issuedToken1.TokenData, issuedToken2.TokenData);
             }
 
             return false;
@@ -1409,19 +1409,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns the TimeZone information for the current local time.
-        /// </summary>
-        /// <returns>The TimeZone information for the current local time.</returns>
-        public static TimeZoneDataType GetTimeZoneInfo()
-        {
-            return new TimeZoneDataType
-            {
-                Offset = (short)TimeZoneInfo.Local.GetUtcOffset(DateTime.Now).TotalMinutes,
-                DaylightSavingInOffset = true
-            };
-        }
-
-        /// <summary>
         /// Looks for an extension with the specified type and uses the DataContractSerializer to parse it.
         /// </summary>
         /// <typeparam name="T">The type of extension.</typeparam>
@@ -1475,7 +1462,7 @@ namespace Opc.Ua
 
                 try
                 {
-                    var serializer = new DataContractSerializer(typeof(T));
+                    DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<T>();
                     return (T)serializer.ReadObject(reader);
                 }
                 finally
@@ -1517,8 +1504,8 @@ namespace Opc.Ua
                 {
                     try
                     {
-                        var serializer = new DataContractSerializer(typeof(T));
                         using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
+                        DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<T>();
                         serializer.WriteObject(writer, value);
                     }
                     finally
@@ -1569,72 +1556,6 @@ namespace Opc.Ua
             {
                 (extensions ??= []).Add(document.DocumentElement);
             }
-        }
-
-        /// <summary>
-        /// Returns the public static field names for a class.
-        /// </summary>
-        public static string[] GetFieldNames(Type systemType)
-        {
-            FieldInfo[] fields = systemType.GetFields(BindingFlags.Public | BindingFlags.Static);
-
-            int ii = 0;
-
-            string[] names = new string[fields.Length];
-
-            foreach (FieldInfo field in fields)
-            {
-                names[ii++] = field.Name;
-            }
-
-            return names;
-        }
-
-        /// <summary>
-        /// Returns the data member name for a property.
-        /// </summary>
-        public static string GetDataMemberName(PropertyInfo property)
-        {
-            object[] attributes = [.. property.GetCustomAttributes(
-                typeof(DataMemberAttribute),
-                true)];
-
-            if (attributes != null)
-            {
-                for (int ii = 0; ii < attributes.Length; ii++)
-                {
-                    if (attributes[ii] is DataMemberAttribute contract)
-                    {
-                        if (string.IsNullOrEmpty(contract.Name))
-                        {
-                            return property.Name;
-                        }
-
-                        return contract.Name;
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        /// <summary>
-        /// Returns the numeric constant associated with a name.
-        /// </summary>
-        public static uint GetIdentifier(string name, Type constants)
-        {
-            foreach (FieldInfo field in constants.GetFields(
-                BindingFlags.Public | BindingFlags.Static))
-            {
-                if (field.Name == name)
-                {
-                    return Convert.ToUInt32(
-                        field.GetValue(constants),
-                        CultureInfo.InvariantCulture);
-                }
-            }
-
-            return 0;
         }
 
         private static readonly DateTime s_baseDateTime = new(
@@ -2070,7 +1991,7 @@ namespace Opc.Ua
         /// <param name="certificateType">The certificate type to check.</param>
         public static bool IsSupportedCertificateType(NodeId certificateType)
         {
-            if (certificateType.Identifier is not uint identifier)
+            if (!certificateType.TryGetIdentifier(out uint identifier))
             {
                 return false;
             }

@@ -1223,7 +1223,7 @@ namespace Opc.Ua.Server.Tests
                 DiagnosticInfo publishErrorResult = result2.FirstOrDefault();
                 Assert.That(
                     publishErrorResult.InnerStatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.Good));
+                    Is.EqualTo(StatusCodes.Good));
             }
             else
             {
@@ -1301,7 +1301,7 @@ namespace Opc.Ua.Server.Tests
             DiagnosticInfo publishErrorResult = result2.FirstOrDefault();
             Assert.That(
                 publishErrorResult.InnerStatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.Good));
+                Is.EqualTo(StatusCodes.Good));
         }
 
         [Test]
@@ -1411,7 +1411,8 @@ namespace Opc.Ua.Server.Tests
                     queue.Dequeue(out DataValue value, out ServiceResult _),
                     $"Dequeue operation failed for the {i}st item");
 
-                Assert.That(i, Is.EqualTo((uint)value.Value));
+                Assert.That(value.Value, Is.Not.Null, $"{i}st item has no value");
+                Assert.That(value.Value, Is.EqualTo(i));
 
                 //simulate publishing operation
                 if (i % 501 == 0)

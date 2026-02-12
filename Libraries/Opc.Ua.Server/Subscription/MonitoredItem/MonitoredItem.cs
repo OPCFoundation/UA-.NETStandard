@@ -243,7 +243,7 @@ namespace Opc.Ua.Server
             AttributeId = 0;
             m_indexRange = null;
             m_parsedIndexRange = NumericRange.Empty;
-            DataEncoding = null;
+            DataEncoding = default;
             ClientHandle = 0;
             MonitoringMode = MonitoringMode.Disabled;
             m_samplingInterval = 0;
@@ -1139,7 +1139,7 @@ namespace Opc.Ua.Server
             bool canSend = passedFilter;
 
             // ConditionId is valid only if FilteredRetain is set for the alarm condition
-            if (conditionId != null && alarmCondition != null)
+            if (!conditionId.IsNull && alarmCondition != null)
             {
                 HashSet<string> conditionIds = GetFilteredRetainConditionIds();
 
@@ -1660,27 +1660,27 @@ namespace Opc.Ua.Server
             }
 
             // get the current status.
-            uint status = StatusCodes.Good;
+            StatusCode status = StatusCodes.Good;
 
             if (error != null)
             {
-                status = error.StatusCode.Code;
+                status = error.StatusCode;
             }
             else if (lastValue != null)
             {
-                status = value.StatusCode.Code;
+                status = value.StatusCode;
             }
 
             // get the last status.
-            uint lastStatus = StatusCodes.Good;
+            StatusCode lastStatus = StatusCodes.Good;
 
             if (lastError != null)
             {
-                lastStatus = lastError.StatusCode.Code;
+                lastStatus = lastError.StatusCode;
             }
             else if (lastValue != null)
             {
-                lastStatus = lastValue.StatusCode.Code;
+                lastStatus = lastValue.StatusCode;
             }
 
             // value changed if any status change occurrs.
@@ -1795,8 +1795,8 @@ namespace Opc.Ua.Server
 
                 if (isVariant)
                 {
-                    element1 = ((Variant)element1).Value;
-                    element2 = ((Variant)element2).Value;
+                    element1 = ((Variant)element1).AsBoxedObject(); // TODO: Rewrite to avoid boxing
+                    element2 = ((Variant)element2).AsBoxedObject();
                 }
 
                 if (!Equals(element1, element2, deadbandType, deadband, range))

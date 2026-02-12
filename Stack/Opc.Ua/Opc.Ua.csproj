@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(LibCoreTargetFrameworks)</TargetFrameworks>
+    <AssemblyName>$(AssemblyPrefix)</AssemblyName>
+    <PackageId>$(PackagePrefix).Opc.Ua</PackageId>
+    <RootNamespace>Opc.Ua</RootNamespace>
+    <Description>OPC UA Core Types Library</Description>
+    <IsPackable>true</IsPackable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Types\Opc.Ua.Types.csproj" />
+  </ItemGroup>
+  <!-- Stack source generation -->
+  <PropertyGroup>
+    <!-- Do not run analyzers to speed up build since most of this assembly is generated -->
+    <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Tools\Opc.Ua.SourceGeneration.Stack\Opc.Ua.SourceGeneration.Stack.csproj">
+	  <OutputItemType>Analyzer</OutputItemType>
+	  <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+	</ProjectReference>
+  </ItemGroup>
+  <Target Name="GetPackagingOutputs" />
+</Project>

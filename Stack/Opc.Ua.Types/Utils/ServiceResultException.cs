@@ -88,7 +88,15 @@ namespace Opc.Ua
         /// Initializes the exception with a status code and a message.
         /// </summary>
         public ServiceResultException(StatusCode statusCode, string message)
-            : base(message)
+            : this(statusCode, LocalizedText.From(message))
+        {
+        }
+
+        /// <summary>
+        /// Initializes the exception with a status code and a message.
+        /// </summary>
+        public ServiceResultException(StatusCode statusCode, LocalizedText message)
+            : base(message.Text)
         {
             Result = new ServiceResult(statusCode, message);
         }
@@ -106,29 +114,37 @@ namespace Opc.Ua
         /// Initializes the exception with a status code, a message and an inner exception.
         /// </summary>
         public ServiceResultException(StatusCode statusCode, string message, Exception e)
-            : base(message, e)
+            : this(statusCode, LocalizedText.From(message), e)
         {
-            Result = new ServiceResult(message, statusCode, e);
+        }
+
+        /// <summary>
+        /// Initializes the exception with a status code, a message and an inner exception.
+        /// </summary>
+        public ServiceResultException(StatusCode statusCode, LocalizedText message, Exception e)
+            : base(message.Text, e)
+        {
+            Result = new ServiceResult(statusCode, message, e);
         }
 
         /// <summary>
         /// Initializes the exception with a Result object.
         /// </summary>
         public ServiceResultException(ServiceResult status)
-            : base(GetMessage(status), status.InnerResult != null ? status.InnerResult.GetServiceResultException() : null)
+            : base(GetMessage(status), status.InnerResult?.GetServiceResultException())
         {
             Result = status ?? ServiceResult.Bad;
         }
 
         /// <summary>
-        /// The identifier for the status code.
+        /// The status code.
         /// </summary>
-        public uint StatusCode => Result.StatusCode.Code;
+        public StatusCode StatusCode => Result.StatusCode;
 
         /// <summary>
         /// The identifier for the status code.
         /// </summary>
-        public StatusCode Code => Result.StatusCode;
+        public uint Code => Result.StatusCode.Code;
 
         /// <summary>
         /// The namespace that qualifies symbolic identifier.
@@ -172,7 +188,10 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new instance of a ServiceResultException
         /// </summary>
-        public static ServiceResultException Create(uint code, string format, params object[] args)
+        public static ServiceResultException Create(
+            StatusCode code,
+            string format,
+            params object[] args)
         {
             if (format == null)
             {
@@ -186,7 +205,7 @@ namespace Opc.Ua
         /// Creates a new instance of a ServiceResultException
         /// </summary>
         public static ServiceResultException Create(
-            uint code,
+            StatusCode code,
             Exception e,
             string format,
             params object[] args)

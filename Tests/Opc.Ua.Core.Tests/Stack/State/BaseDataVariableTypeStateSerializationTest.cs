@@ -68,7 +68,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             typeNode.Create(
                 new SystemContext(telemetry) { NamespaceUris = serviceMessageContext.NamespaceUris },
                 VariableTypeIds.DataItemType,
-                BrowseNames.DataItemType,
+                QualifiedName.From(BrowseNames.DataItemType),
                 new LocalizedText("DataItemType"),
                 true);
 
@@ -108,7 +108,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             typeNode.Create(
                 new SystemContext(telemetry) { NamespaceUris = serviceMessageContext.NamespaceUris },
                 VariableTypeIds.DataItemType,
-                BrowseNames.DataItemType,
+                QualifiedName.From(BrowseNames.DataItemType),
                 new LocalizedText("DataItemType"),
                 true);
 
@@ -145,8 +145,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
             variableState.Create(
                 systemContext,
                 new NodeId(1000),
-                new QualifiedName("ByteArrayVariable"),
-                new LocalizedText("ByteArrayVariable"),
+                QualifiedName.From("ByteArrayVariable"),
+                LocalizedText.From("ByteArrayVariable"),
                 true);
 
             // Set DataType to Byte and ValueRank to OneDimension (array)
@@ -162,7 +162,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             Assert.AreEqual(BuiltInType.Byte, wrappedValue.TypeInfo.BuiltInType, "BuiltInType should be Byte");
             Assert.AreEqual(ValueRanks.OneDimension, wrappedValue.TypeInfo.ValueRank, "ValueRank should be OneDimension");
-            Assert.AreEqual(testValue, wrappedValue.Value, "Value should match the original byte array");
+            Assert.AreEqual(testValue, wrappedValue.GetByteString(), "Value should match the original byte array");
         }
 
         /// <summary>
@@ -184,8 +184,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
             variableState.Create(
                 systemContext,
                 new NodeId(1001),
-                new QualifiedName("ByteStringVariable"),
-                new LocalizedText("ByteStringVariable"),
+                QualifiedName.From("ByteStringVariable"),
+                LocalizedText.From("ByteStringVariable"),
                 true);
 
             // Set DataType to ByteString and ValueRank to Scalar
@@ -201,7 +201,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             Assert.AreEqual(BuiltInType.ByteString, wrappedValue.TypeInfo.BuiltInType, "BuiltInType should be ByteString");
             Assert.AreEqual(ValueRanks.Scalar, wrappedValue.TypeInfo.ValueRank, "ValueRank should be Scalar");
-            Assert.AreEqual(testValue, wrappedValue.Value, "Value should match the original byte array");
+            Assert.AreEqual(testValue, wrappedValue.GetByteString(), "Value should match the original byte array");
         }
     }
 }

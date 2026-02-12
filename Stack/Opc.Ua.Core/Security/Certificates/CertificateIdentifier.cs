@@ -729,7 +729,7 @@ namespace Opc.Ua
             X509Certificate2 certificate,
             NodeId certificateType)
         {
-            if (certificateType == null)
+            if (certificateType.IsNull)
             {
                 return true;
             }
@@ -740,7 +740,7 @@ namespace Opc.Ua
                 case Oids.ECDsaWithSha256:
                 case Oids.ECDsaWithSha512:
                     NodeId certType = EccUtils.GetEccCertificateTypeId(certificate);
-                    if (certType.IsNullNodeId)
+                    if (certType.IsNull)
                     {
                         return false;
                     }
@@ -922,14 +922,15 @@ namespace Opc.Ua
         // TODO: remove if not used
         private static string EncodeCertificateType(NodeId certificateType)
         {
-            if (certificateType == null)
+            if (certificateType.IsNull)
             {
                 return null;
             }
 
             foreach (KeyValuePair<uint, string> supportedCertificateType in s_supportedCertificateTypes)
             {
-                if (supportedCertificateType.Key == (uint)certificateType.Identifier)
+                if (certificateType.TryGetIdentifier(out uint numericId) &&
+                    supportedCertificateType.Key == numericId)
                 {
                     return supportedCertificateType.Value;
                 }
@@ -1197,7 +1198,7 @@ namespace Opc.Ua
             X509Certificate2 certificate,
             CancellationToken ct = default)
         {
-            return Task.FromResult((StatusCode)StatusCodes.BadNotSupported);
+            return Task.FromResult(StatusCodes.BadNotSupported);
         }
 
         /// <inheritdoc/>

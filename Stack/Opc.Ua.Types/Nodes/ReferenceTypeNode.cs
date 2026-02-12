@@ -71,7 +71,7 @@ namespace Opc.Ua
         {
             IsAbstract = true;
             Symmetric = true;
-            InverseName = null;
+            InverseName = default;
         }
 
         /// <summary>

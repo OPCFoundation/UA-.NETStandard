@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Threading.Tasks;
+using Opc.Ua.Schema.Types;
 using Opc.Ua.Types;
 
 namespace Opc.Ua
@@ -67,10 +69,10 @@ namespace Opc.Ua
         protected override void Initialize(ISystemContext context)
         {
             SymbolicName = CoreUtils.Format("{0}_Instance1", BrowseNames.BaseObjectType);
-            NodeId = null;
+            NodeId = default;
             BrowseName = new QualifiedName(SymbolicName, 1);
-            DisplayName = SymbolicName;
-            Description = null;
+            DisplayName = new LocalizedText(SymbolicName);
+            Description = default;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
             TypeDefinitionId = GetDefaultTypeDefinitionId(context.NamespaceUris);
@@ -102,19 +104,40 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override object Clone()
         {
-            return MemberwiseClone();
+            var clone = new BaseObjectState(Parent);
+            CopyTo(clone);
+            return clone;
         }
 
-        /// <summary>
-        /// Makes a copy of the node and all children.
-        /// </summary>
-        /// <returns>
-        /// A new object that is a copy of this instance.
-        /// </returns>
-        public new object MemberwiseClone()
+        /// <inheritdoc/>
+        public override bool DeepEquals(NodeState node)
         {
-            var clone = (BaseObjectState)Activator.CreateInstance(GetType(), Parent);
-            return CloneChildren(clone);
+            if (node is not BaseObjectState state)
+            {
+                return false;
+            }
+            return
+                base.DeepEquals(state) &&
+                state.EventNotifier == EventNotifier;
+        }
+
+        /// <inheritdoc/>
+        public override int DeepGetHashCode()
+        {
+            var hash = new HashCode();
+            hash.Add(base.DeepGetHashCode());
+            hash.Add(EventNotifier);
+            return hash.ToHashCode();
+        }
+
+        /// <inheritdoc/>
+        protected override void CopyTo(NodeState target)
+        {
+            if (target is BaseObjectState state)
+            {
+                state.EventNotifier = EventNotifier;
+            }
+            base.CopyTo(target);
         }
 
         /// <summary>

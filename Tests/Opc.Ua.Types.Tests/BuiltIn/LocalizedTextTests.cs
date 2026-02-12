@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Diagnostics;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
@@ -18,15 +17,13 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void MultiLanguageDictionaryCreatesCorrectMulLocale()
         {
-            IgnoreNetStandard20();
-
             // Arrange
             var translations = new Dictionary<string, string> {
                 { "en-US", "Hello" },
                 { "de-DE", "Hallo" } };
 
             // Act
-            var localizedText = new LocalizedText(translations);
+            LocalizedText localizedText = new LocalizedText(translations).AsMultiLanguage();
 
             // Assert
             Assert.IsTrue(localizedText.IsMultiLanguage, "Should be mul locale");
@@ -47,8 +44,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EmptyDictionaryCreatesNullText()
         {
-            IgnoreNetStandard20();
-
             // Arrange
             var translations = new Dictionary<string, string>();
 
@@ -67,8 +62,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void SingleLocaleDictionaryCreatesLocaleAndTextDirectly()
         {
-            IgnoreNetStandard20();
-
             // Arrange
             var translations = new Dictionary<string, string> { { "fr-FR", "Bonjour" } };
 
@@ -76,9 +69,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var localizedText = new LocalizedText(translations);
 
             // Assert
-            Assert.IsFalse(
-                localizedText.IsMultiLanguage,
-                "Should not be mul locale for single entry");
+            Assert.IsFalse(localizedText.IsMultiLanguage, "Should not be mul locale for single entry");
             Assert.AreEqual("fr-FR", localizedText.Locale, "Locale should be 'fr-FR'");
             Assert.AreEqual("Bonjour", localizedText.Text, "Text should be 'Bonjour'");
             Assert.AreEqual(
@@ -91,8 +82,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void LocalizedText_MulLocale_WithThreeTranslations_ParsesCorrectly()
         {
-            IgnoreNetStandard20();
-
             // Arrange
             const string mulLocale = "mul";
             const string jsonText = /*lang=json,strict*/
@@ -123,14 +112,13 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         private static readonly string[] s_preferredLocalesArray0 = ["en-GB"];
         private static readonly string[] s_preferredLocalesArray1 = ["mul", "en-GB"];
         private static readonly string[] s_preferredLocalesArray2 = ["mul"];
-        private static readonly string[] s_preferredLocalesArray3 = ["mul", "fr-FR"];
+        private static readonly string[] s_preferredLocalesArray3 = ["fr-FR"];
         private static readonly string[] s_preferredLocalesArray4 = ["en-GB", "en-US"];
+        private static readonly string[] s_preferredLocalesArray5 = ["mul", "fr-FR"];
 
         [Test]
         public void LocalizedText_MulLocale_ReturnsPreferredTranslations()
         {
-            IgnoreNetStandard20();
-
             // Arrange
             const string mulLocale = "mul";
             const string jsonText = /*lang=json,strict*/
@@ -159,11 +147,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.AreEqual("en-US", singleFR.Locale, "Locale should be 'en-US'");
             Assert.AreEqual("Hello", singleFR.Text, "Text should be 'Hello'");
 
-            // Default locale returned
-            LocalizedText mulGB = localizedText.FilterByPreferredLocales(s_preferredLocalesArray1);
-            Assert.AreEqual("en-US", mulGB.Locale, "Locale should be 'en-US'");
-            Assert.AreEqual("Hello", mulGB.Text, "Text should be 'Hello'");
-
             // All locales returned
             LocalizedText mul = localizedText.FilterByPreferredLocales(s_preferredLocalesArray2);
             Assert.IsTrue(mul.IsMultiLanguage, "Should be mul locale");
@@ -173,9 +156,20 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.AreEqual("Bonjour", mul.Translations["fr-FR"]);
 
             //matching locale returned
-            LocalizedText mulFr = localizedText.FilterByPreferredLocales(s_preferredLocalesArray3);
-            Assert.AreEqual("fr-FR", mulFr.Locale, "Locale should be 'fr-FR'");
-            Assert.AreEqual("Bonjour", mulFr.Text, "Text should be 'Bonjour'");
+            LocalizedText fr = localizedText.FilterByPreferredLocales(s_preferredLocalesArray3);
+            Assert.AreEqual("fr-FR", fr.Locale, "Locale should be 'fr-FR'");
+            Assert.AreEqual("Bonjour", fr.Text, "Text should be 'Bonjour'");
+
+            // Default locale returned
+            LocalizedText gb = localizedText.FilterByPreferredLocales(s_preferredLocalesArray4);
+            Assert.AreEqual("en-US", gb.Locale, "Locale should be 'en-US'");
+            Assert.AreEqual("Hello", gb.Text, "Text should be 'Hello'");
+
+            // Filtered returned only fr locale as mul
+            LocalizedText mulFr = localizedText.FilterByPreferredLocales(s_preferredLocalesArray5);
+            Assert.IsFalse(mulFr.IsMultiLanguage, "Should not be mul locale because only one locale matched.");
+            Assert.AreEqual(1, mulFr.Translations.Count, "Translations should have 1 entries");
+            Assert.AreEqual("Bonjour", mulFr.Translations["fr-FR"]);
         }
 
         [Test]
@@ -185,7 +179,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var localizedText = new LocalizedText("de-DE", "Hallo");
 
             // Assert
-            Assert.IsFalse(localizedText.IsMultiLanguage, "Should be mul locale");
+            Assert.IsFalse(localizedText.IsMultiLanguage, "Should not be mul locale");
 
             //found locale returned
             LocalizedText singleDE = localizedText.FilterByPreferredLocales(s_preferredLocales);
@@ -207,8 +201,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void LocalizedText_MulLocale_InvalidJson()
         {
-            IgnoreNetStandard20();
-
             // Arrange
             const string mulLocale = "mul";
             const string jsonText = /*lang=json,strict*/
@@ -226,8 +218,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void LocalizedText_MulLocale_DeepCopy()
         {
-            IgnoreNetStandard20();
-
             // Arrange
             const string mulLocale = "mul";
             const string jsonText = /*lang=json,strict*/
@@ -235,7 +225,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             // Act
             var localizedText = new LocalizedText(mulLocale, jsonText);
-            var deepCopy = new LocalizedText(localizedText);
+            LocalizedText deepCopy = CoreUtils.Clone(in localizedText);
 
             //Assert
             Assert.IsTrue(localizedText.IsMultiLanguage, "Should be mul locale");
@@ -258,12 +248,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 localizedText.Translations["fr-FR"],
                 deepCopy.Translations["fr-FR"],
                 "French translation should be the same");
-        }
-
-        [Conditional("NET_STANDARD_TESTS")]
-        private static void IgnoreNetStandard20()
-        {
-            NUnit.Framework.Assert.Ignore("Mul locale is not supported on .net standard");
         }
     }
 }

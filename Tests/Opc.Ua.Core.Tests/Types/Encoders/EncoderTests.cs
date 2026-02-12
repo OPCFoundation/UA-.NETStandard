@@ -154,24 +154,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 randomData = DataGenerator.GetRandom(builtInType);
                 // filter a few random special cases to skip
                 // as they test for unsupported objects
-                switch (builtInType)
+                if (randomData is NodeId nodeId)
                 {
-                    case BuiltInType.NodeId:
-                        var nodeId = (NodeId)randomData;
-                        if (nodeId.IdType == IdType.Opaque &&
-                            ((byte[])nodeId.Identifier).Length == 0)
-                        {
-                            getRandom = true;
-                        }
-                        break;
-                    case BuiltInType.ExpandedNodeId:
-                        var expandedNodeId = (ExpandedNodeId)randomData;
-                        if (expandedNodeId.IdType == IdType.Opaque &&
-                            ((byte[])expandedNodeId.Identifier).Length == 0)
-                        {
-                            getRandom = true;
-                        }
-                        break;
+                    getRandom = nodeId.IsNull;
+                }
+                else if (randomData is ExpandedNodeId expandedNodeId)
+                {
+                    getRandom = expandedNodeId.InnerNodeId.IsNull;
                 }
             }
             EncodeDecode(
@@ -1032,8 +1021,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     .Throws<ServiceResultException>(() =>
                         decoder.ReadDataValue("DataValue"));
                 Assert.AreEqual(
-                    (StatusCode)StatusCodes.BadDecodingError,
-                    (StatusCode)sre.StatusCode,
+                    StatusCodes.BadDecodingError,
+                    sre.StatusCode,
                     sre.Message);
             }
         }
@@ -1122,8 +1111,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         decoder.ReadDataValue("DataValue"));
 
                 Assert.AreEqual(
-                    (StatusCode)StatusCodes.BadDecodingError,
-                    (StatusCode)sre.StatusCode,
+                    StatusCodes.BadDecodingError,
+                    sre.StatusCode,
                     sre.Message);
             }
         }
@@ -1211,8 +1200,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 decoder.ReadArray(builtInType.ToString(), matrix.TypeInfo.ValueRank, builtInType));
 
             Assert.AreEqual(
-                (StatusCode)StatusCodes.BadEncodingLimitsExceeded,
-                (StatusCode)sre.StatusCode,
+                StatusCodes.BadEncodingLimitsExceeded,
+                sre.StatusCode,
                 sre.Message);
         }
 
@@ -1241,7 +1230,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             JsonConvert.DeserializeObject<ExtensionObject[]>(text1);
 
             Assert.NotNull(NodeId.Null);
-            Assert.True(NodeId.Null.IsNullNodeId);
+            Assert.True(NodeId.Null.IsNull);
         }
     }
 }

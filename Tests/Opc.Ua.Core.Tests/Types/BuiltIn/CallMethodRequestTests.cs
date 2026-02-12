@@ -119,8 +119,8 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
 
             Assert.IsNotNull(decodedRequest.InputArguments);
             Assert.AreEqual(2, decodedRequest.InputArguments.Count);
-            Assert.AreEqual(42, decodedRequest.InputArguments[0].Value);
-            Assert.AreEqual("test", decodedRequest.InputArguments[1].Value);
+            Assert.AreEqual(42, decodedRequest.InputArguments[0].GetInt32());
+            Assert.AreEqual("test", decodedRequest.InputArguments[1].GetString());
         }
     }
 }

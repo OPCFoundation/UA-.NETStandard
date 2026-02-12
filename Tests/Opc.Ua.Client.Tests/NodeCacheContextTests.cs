@@ -329,9 +329,9 @@ namespace Opc.Ua.Client.Tests
                     NodeClass = NodeClass.Variable,
                     AccessLevel = 1,
                     DataType = NodeId.Parse("ns=2;s=TestDataType1"),
-                    Description = "TestDescription1",
-                    DisplayName = "TestDisplayName1",
-                    BrowseName = "TestBrowseName1",
+                    Description = LocalizedText.From("TestDescription1"),
+                    DisplayName = LocalizedText.From("TestDisplayName1"),
+                    BrowseName = QualifiedName.From("TestBrowseName1"),
                     UserAccessLevel = 1
                 },
                 new VariableNode
@@ -340,9 +340,9 @@ namespace Opc.Ua.Client.Tests
                     NodeClass = NodeClass.Variable,
                     AccessLevel = 1,
                     DataType = NodeId.Parse("ns=2;s=TestDataType2"),
-                    Description = "TestDescription2",
-                    DisplayName = "TestDisplayName2",
-                    BrowseName = "TestBrowseName2",
+                    Description = LocalizedText.From("TestDescription2"),
+                    DisplayName = LocalizedText.From("TestDisplayName2"),
+                    BrowseName = QualifiedName.From("TestBrowseName2"),
                     UserAccessLevel = 1
                 }
             ];
@@ -404,9 +404,9 @@ namespace Opc.Ua.Client.Tests
                     NodeClass = NodeClass.Variable,
                     AccessLevel = 1,
                     DataType = NodeId.Parse("ns=2;s=TestDataType1"),
-                    Description = "TestDescription1",
-                    DisplayName = "TestDisplayName1",
-                    BrowseName = "TestBrowseName1",
+                    Description = LocalizedText.From("TestDescription1"),
+                    DisplayName = LocalizedText.From("TestDisplayName1"),
+                    BrowseName = QualifiedName.From("TestBrowseName1"),
                     UserAccessLevel = 1
                 },
                 new VariableNode
@@ -415,9 +415,9 @@ namespace Opc.Ua.Client.Tests
                     NodeClass = NodeClass.Variable,
                     AccessLevel = 1,
                     DataType = NodeId.Parse("ns=2;s=TestDataType2"),
-                    Description = "TestDescription2",
-                    DisplayName = "TestDisplayName2",
-                    BrowseName = "TestBrowseName2",
+                    Description = LocalizedText.From("TestDescription2"),
+                    DisplayName = LocalizedText.From("TestDisplayName2"),
+                    BrowseName = QualifiedName.From("TestBrowseName2"),
                     UserAccessLevel = 1
                 }
             ];
@@ -481,9 +481,9 @@ namespace Opc.Ua.Client.Tests
                 NodeClass = NodeClass.Variable,
                 AccessLevel = 1,
                 DataType = NodeId.Parse("ns=2;s=TestDataType"),
-                Description = "TestDescription",
-                DisplayName = "TestDisplayName",
-                BrowseName = "TestBrowseName",
+                Description = LocalizedText.From("TestDescription"),
+                DisplayName = LocalizedText.From("TestDisplayName"),
+                BrowseName = QualifiedName.From("TestBrowseName"),
                 UserAccessLevel = 1
             };
 
@@ -546,9 +546,9 @@ namespace Opc.Ua.Client.Tests
                 NodeClass = NodeClass.Variable,
                 AccessLevel = 1,
                 DataType = NodeId.Parse("ns=2;s=TestDataType"),
-                Description = "TestDescription",
-                DisplayName = "TestDisplayName",
-                BrowseName = "TestBrowseName",
+                Description = LocalizedText.From("TestDescription"),
+                DisplayName = LocalizedText.From("TestDisplayName"),
+                BrowseName = QualifiedName.From("TestBrowseName"),
                 UserAccessLevel = 1
             };
             var diagnosticInfos = new DiagnosticInfoCollection();
@@ -593,9 +593,9 @@ namespace Opc.Ua.Client.Tests
                     NodeClass = NodeClass.Variable,
                     AccessLevel = 1,
                     DataType = NodeId.Parse("ns=2;s=TestDataType1"),
-                    Description = "TestDescription1",
-                    DisplayName = "TestDisplayName1",
-                    BrowseName = "TestBrowseName1",
+                    Description = LocalizedText.From("TestDescription1"),
+                    DisplayName = LocalizedText.From("TestDisplayName1"),
+                    BrowseName = QualifiedName.From("TestBrowseName1"),
                     UserAccessLevel = 1
                 },
                 new VariableNode
@@ -604,9 +604,9 @@ namespace Opc.Ua.Client.Tests
                     NodeClass = NodeClass.Variable,
                     AccessLevel = 1,
                     DataType = NodeId.Parse("ns=2;s=TestDataType2"),
-                    Description = "TestDescription2",
-                    DisplayName = "TestDisplayName2",
-                    BrowseName = "TestBrowseName2",
+                    Description = LocalizedText.From("TestDescription2"),
+                    DisplayName = LocalizedText.From("TestDisplayName2"),
+                    BrowseName = QualifiedName.From("TestBrowseName2"),
                     UserAccessLevel = 1
                 }
             ];
@@ -667,9 +667,9 @@ namespace Opc.Ua.Client.Tests
                     NodeClass = NodeClass.Variable,
                     AccessLevel = 1,
                     DataType = NodeId.Parse("ns=2;s=TestDataType1"),
-                    Description = "TestDescription1",
-                    DisplayName = "TestDisplayName1",
-                    BrowseName = "TestBrowseName1",
+                    Description = LocalizedText.From("TestDescription1"),
+                    DisplayName = LocalizedText.From("TestDisplayName1"),
+                    BrowseName = QualifiedName.From("TestBrowseName1"),
                     UserAccessLevel = 1
                 },
                 new VariableNode
@@ -678,9 +678,9 @@ namespace Opc.Ua.Client.Tests
                     NodeClass = NodeClass.Variable,
                     AccessLevel = 1,
                     DataType = NodeId.Parse("ns=2;s=TestDataType2"),
-                    Description = "TestDescription2",
-                    DisplayName = "TestDisplayName2",
-                    BrowseName = "TestBrowseName2",
+                    Description = LocalizedText.From("TestDescription2"),
+                    DisplayName = LocalizedText.From("TestDisplayName2"),
+                    BrowseName = QualifiedName.From("TestBrowseName2"),
                     UserAccessLevel = 1
                 }
             ];
@@ -790,9 +790,9 @@ namespace Opc.Ua.Client.Tests
                 NodeClass = NodeClass.Variable,
                 AccessLevel = 1,
                 DataType = NodeId.Parse("ns=2;s=TestDataType"),
-                Description = "TestDescription",
-                DisplayName = "TestDisplayName",
-                BrowseName = "TestBrowseName",
+                Description = LocalizedText.From("TestDescription"),
+                DisplayName = LocalizedText.From("TestDisplayName"),
+                BrowseName = QualifiedName.From("TestBrowseName"),
                 UserAccessLevel = 1
             };
 
@@ -845,9 +845,9 @@ namespace Opc.Ua.Client.Tests
                     NodeClass = NodeClass.Variable,
                     AccessLevel = 1,
                     DataType = NodeId.Parse("ns=2;s=TestDataType1"),
-                    Description = "TestDescription1",
-                    DisplayName = "TestDisplayName1",
-                    BrowseName = "TestBrowseName1",
+                    Description = LocalizedText.From("TestDescription1"),
+                    DisplayName = LocalizedText.From("TestDisplayName1"),
+                    BrowseName = QualifiedName.From("TestBrowseName1"),
                     UserAccessLevel = 1
                 },
                 new VariableNode
@@ -856,9 +856,9 @@ namespace Opc.Ua.Client.Tests
                     NodeClass = NodeClass.Variable,
                     AccessLevel = 1,
                     DataType = NodeId.Parse("ns=2;s=TestDataType2"),
-                    Description = "TestDescription2",
-                    DisplayName = "TestDisplayName2",
-                    BrowseName = "TestBrowseName2",
+                    Description = LocalizedText.From("TestDescription2"),
+                    DisplayName = LocalizedText.From("TestDisplayName2"),
+                    BrowseName = QualifiedName.From("TestBrowseName2"),
                     UserAccessLevel = 1
                 }
             ];
@@ -916,15 +916,15 @@ namespace Opc.Ua.Client.Tests
                 new ReferenceDescription
                 {
                     NodeId = ExpandedNodeId.Parse("ns=2;s=TestNode1"),
-                    BrowseName = "TestBrowseName1",
-                    DisplayName = "TestDisplayName1",
+                    BrowseName = QualifiedName.From("TestBrowseName1"),
+                    DisplayName = LocalizedText.From("TestDisplayName1"),
                     NodeClass = NodeClass.Variable
                 },
                 new ReferenceDescription
                 {
                     NodeId = ExpandedNodeId.Parse("ns=2;s=TestNode2"),
-                    BrowseName = "TestBrowseName2",
-                    DisplayName = "TestDisplayName2",
+                    BrowseName = QualifiedName.From("TestBrowseName2"),
+                    DisplayName = LocalizedText.From("TestDisplayName2"),
                     NodeClass = NodeClass.Variable
                 }
             };
@@ -988,15 +988,15 @@ namespace Opc.Ua.Client.Tests
                 new ReferenceDescription
                 {
                     NodeId = ExpandedNodeId.Parse("ns=2;s=TestNode1"),
-                    BrowseName = "TestBrowseName1",
-                    DisplayName = "TestDisplayName1",
+                    BrowseName = QualifiedName.From("TestBrowseName1"),
+                    DisplayName = LocalizedText.From("TestDisplayName1"),
                     NodeClass = NodeClass.Variable
                 },
                 new ReferenceDescription
                 {
                     NodeId = ExpandedNodeId.Parse("ns=2;s=TestNode2"),
-                    BrowseName = "TestBrowseName2",
-                    DisplayName = "TestDisplayName2",
+                    BrowseName = QualifiedName.From("TestBrowseName2"),
+                    DisplayName = LocalizedText.From("TestDisplayName2"),
                     NodeClass = NodeClass.Variable
                 }
             };
@@ -1071,8 +1071,8 @@ namespace Opc.Ua.Client.Tests
             var reference = new ReferenceDescription
             {
                 NodeId = ExpandedNodeId.Parse("ns=2;s=TestNode1"),
-                BrowseName = "TestBrowseName1",
-                DisplayName = "TestDisplayName1",
+                BrowseName = QualifiedName.From("TestBrowseName1"),
+                DisplayName = LocalizedText.From("TestDisplayName1"),
                 NodeClass = NodeClass.Variable
             };
 
@@ -1113,8 +1113,8 @@ namespace Opc.Ua.Client.Tests
             var reference = new ReferenceDescription
             {
                 NodeId = ExpandedNodeId.Parse("ns=2;s=TestNode1"),
-                BrowseName = "TestBrowseName1",
-                DisplayName = "TestDisplayName1",
+                BrowseName = QualifiedName.From("TestBrowseName1"),
+                DisplayName = LocalizedText.From("TestDisplayName1"),
                 NodeClass = NodeClass.Variable
             };
 

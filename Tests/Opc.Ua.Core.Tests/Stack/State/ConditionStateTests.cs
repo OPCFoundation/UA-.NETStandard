@@ -72,7 +72,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public void SetEnableStateUpdatesTimestampAndClearsChangeMasks()
         {
             var condition = new ConditionState(null);
-            condition.Create(m_context, new NodeId(1), "Condition", null, true);
+            condition.Create(m_context, new NodeId(1), QualifiedName.From("Condition"), default, true);
 
             // Set initial state
             DateTime beforeTime = DateTime.UtcNow;
@@ -95,7 +95,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public void SetSeverityUpdatesTimestampAndClearsChangeMasks()
         {
             var condition = new ConditionState(null);
-            condition.Create(m_context, new NodeId(1), "Condition", null, true);
+            condition.Create(m_context, new NodeId(1), QualifiedName.From("Condition"), default, true);
 
             DateTime beforeTime = DateTime.UtcNow;
             condition.SetSeverity(m_context, EventSeverity.High);
@@ -118,7 +118,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public void SetActiveStateUpdatesTimestampAndClearsChangeMasks()
         {
             var alarm = new AlarmConditionState(m_telemetry, null);
-            alarm.Create(m_context, new NodeId(1), "Alarm", null, true);
+            alarm.Create(m_context, new NodeId(1), QualifiedName.From("Alarm"), default, true);
 
             DateTime beforeTime = DateTime.UtcNow;
             alarm.SetActiveState(m_context, true);
@@ -140,9 +140,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public void SetSuppressedStateUpdatesTimestampAndClearsChangeMasks()
         {
             var alarm = new AlarmConditionState(m_telemetry, null);
-            alarm.Create(m_context, new NodeId(1), "Alarm", null, true);
+            alarm.Create(m_context, new NodeId(1), QualifiedName.From("Alarm"), default, true);
             alarm.SuppressedState = new TwoStateVariableState(alarm);
-            alarm.SuppressedState.Create(m_context, default, BrowseNames.SuppressedState, null, false);
+            alarm.SuppressedState.Create(m_context, default, QualifiedName.From(BrowseNames.SuppressedState), default, false);
 
             DateTime beforeTime = DateTime.UtcNow;
             alarm.SetSuppressedState(m_context, true);
@@ -164,7 +164,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public void SetAcknowledgedStateUpdatesTimestampAndClearsChangeMasks()
         {
             var condition = new AcknowledgeableConditionState(null);
-            condition.Create(m_context, new NodeId(1), "AckCondition", null, true);
+            condition.Create(m_context, new NodeId(1), QualifiedName.From("AckCondition"), default, true);
 
             DateTime beforeTime = DateTime.UtcNow;
             condition.SetAcknowledgedState(m_context, true);
@@ -186,9 +186,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public void SetConfirmedStateUpdatesTimestampAndClearsChangeMasks()
         {
             var condition = new AcknowledgeableConditionState(null);
-            condition.Create(m_context, new NodeId(1), "AckCondition", null, true);
+            condition.Create(m_context, new NodeId(1), QualifiedName.From("AckCondition"), default, true);
             condition.ConfirmedState = new TwoStateVariableState(condition);
-            condition.ConfirmedState.Create(m_context, default, BrowseNames.ConfirmedState, null, false);
+            condition.ConfirmedState.Create(m_context, default, QualifiedName.From(BrowseNames.ConfirmedState), default, false);
 
             DateTime beforeTime = DateTime.UtcNow;
             condition.SetConfirmedState(m_context, true);
@@ -210,9 +210,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public void SetShelvingStateUpdatesTimestampAndClearsChangeMasks()
         {
             var alarm = new AlarmConditionState(m_telemetry, null);
-            alarm.Create(m_context, new NodeId(1), "Alarm", null, true);
+            alarm.Create(m_context, new NodeId(1), QualifiedName.From("Alarm"), default, true);
             alarm.ShelvingState = new ShelvedStateMachineState(alarm);
-            alarm.ShelvingState.Create(m_context, default, BrowseNames.ShelvingState, null, false);
+            alarm.ShelvingState.Create(m_context, default, QualifiedName.From(BrowseNames.ShelvingState), default, false);
             alarm.ShelvingState.UnshelveTime = new PropertyState<double>(alarm.ShelvingState);
 
             DateTime beforeTime = DateTime.UtcNow;
@@ -235,7 +235,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public void SetActiveStateNotifiesSubscribers()
         {
             var alarm = new AlarmConditionState(m_telemetry, null);
-            alarm.Create(m_context, new NodeId(1), "Alarm", null, true);
+            alarm.Create(m_context, new NodeId(1), QualifiedName.From("Alarm"), default, true);
 
             // Initially inactive
             alarm.SetActiveState(m_context, false);
@@ -263,7 +263,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             // Arrange
             var condition = new ConditionState(null);
-            condition.Create(m_context, default, new QualifiedName("TestCondition"), null, true);
+            condition.Create(m_context, default, QualifiedName.From("TestCondition"), default, true);
 
             // Initially disabled
             condition.SetEnableState(m_context, false);
@@ -289,7 +289,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             // Arrange
             var condition = new TestConditionStateWithRetain(null);
-            condition.Create(m_context, default, new QualifiedName("TestCondition"), null, true);
+            condition.Create(m_context, default, QualifiedName.From("TestCondition"), default, true);
 
             // Enable the condition and set retain to true
             condition.SetEnableState(m_context, true);
@@ -313,7 +313,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             // Arrange
             var condition = new TestConditionStateWithCustomRetain(null);
-            condition.Create(m_context, default, new QualifiedName("TestCondition"), null, true);
+            condition.Create(m_context, default, QualifiedName.From("TestCondition"), default, true);
 
             // Initially disabled
             condition.SetEnableState(m_context, false);

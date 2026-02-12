@@ -129,7 +129,7 @@ namespace Opc.Ua.Client.ComplexTypes
             NodeId dataTypeSystem = default,
             CancellationToken ct = default)
         {
-            if (dataTypeSystem == null)
+            if (dataTypeSystem.IsNull)
             {
                 dataTypeSystem = ObjectIds.OPCBinarySchema_TypeSystem;
             }
@@ -387,7 +387,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     return (typeId, encodingId, dataTypeNode);
                 }
             }
-            return (null, null, null);
+            return (default, default, null);
         }
 
         /// <inheritdoc/>
@@ -519,7 +519,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     NodeId = dictionaryId,
                     AttributeId = Attributes.Value,
                     IndexRange = null,
-                    DataEncoding = null
+                    DataEncoding = default
                 }
             };
             // read value.
@@ -590,7 +590,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     NodeId = nodeId,
                     AttributeId = Attributes.Value,
                     IndexRange = null,
-                    DataEncoding = null
+                    DataEncoding = default
                 };
                 itemsToRead.Add(itemToRead);
             }
@@ -639,7 +639,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Loads the dictionary identified by the node id.
         /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="dictionaryId"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"><paramref name="dictionaryId"/>
+        /// is <c>NodeId.Null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
         private async Task LoadDictionaryAsync(
             DataDictionary dictionaryToLoad,
@@ -649,9 +650,9 @@ namespace Opc.Ua.Client.ComplexTypes
             Dictionary<string, byte[]> imports = null,
             CancellationToken ct = default)
         {
-            if (dictionaryId == null)
+            if (dictionaryId.IsNull)
             {
-                throw new ArgumentNullException(nameof(dictionaryId));
+                throw new ArgumentException("NodeId.Null is invalid dictionary.", nameof(dictionaryId));
             }
 
             await AddTypeSystemAsync(dictionaryToLoad, dictionaryId, ct).ConfigureAwait(false);
@@ -740,7 +741,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 DataValue value = values[ii++];
                 var datatypeId = ExpandedNodeId.ToNodeId(reference.NodeId, NamespaceUris);
-                if (datatypeId != null &&
+                if (!datatypeId.IsNull &&
                     StatusCode.IsGood(value.StatusCode) &&
                     value.Value is string dictName)
                 {

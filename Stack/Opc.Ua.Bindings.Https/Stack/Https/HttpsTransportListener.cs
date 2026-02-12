@@ -414,7 +414,7 @@ namespace Opc.Ua.Bindings
                 // extract the JWT token from the HTTP headers.
                 input.RequestHeader ??= new RequestHeader();
 
-                if (NodeId.IsNull(input.RequestHeader.AuthenticationToken) &&
+                if (input.RequestHeader.AuthenticationToken.IsNull &&
                     input.TypeId != DataTypeIds.CreateSessionRequest &&
                     context.Request.Headers.TryGetValue(
                         kAuthorizationKey,

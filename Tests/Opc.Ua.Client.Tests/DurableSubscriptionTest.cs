@@ -72,6 +72,7 @@ namespace Opc.Ua.Client.Tests
             {
                 // start Ref server
                 ServerFixture = new ServerFixture<ReferenceServer>(
+                    t => new ReferenceServer(t),
                     enableTracing,
                     disableActivityLogging)
                 {
@@ -711,11 +712,10 @@ namespace Opc.Ua.Client.Tests
                         }
                         else
                         {
-                            recreated = new NodeId(
-                                referenceDescription.NodeId.Identifier,
+                            recreated = referenceDescription.NodeId.InnerNodeId.WithNamespaceIndex(
                                 referenceDescription.NodeId.NamespaceIndex);
 
-                            if (recreated.IsNullNodeId)
+                            if (recreated.IsNull)
                             {
                                 TestContext.Out.WriteLine(
                                     "Subscription Reference {0} Recreated Node is Null",
@@ -809,7 +809,7 @@ namespace Opc.Ua.Client.Tests
                     {
                         AttributeId = Attributes.Value,
                         TypeDefinitionId = ObjectTypeIds.BaseEventType,
-                        BrowsePath = [.. new QualifiedName[] { "EventType" }]
+                        BrowsePath = [.. new QualifiedName[] { QualifiedName.From("EventType") }]
                     },
                     new LiteralOperand {
                         Value = new Variant(ObjectTypeIds.BaseEventType) }
@@ -832,7 +832,7 @@ namespace Opc.Ua.Client.Tests
                             {
                                 AttributeId = Attributes.Value,
                                 TypeDefinitionId = ObjectTypeIds.BaseEventType,
-                                BrowsePath = [.. new QualifiedName[] { BrowseNames.Message }]
+                                BrowsePath = [.. new QualifiedName[] { QualifiedName.From(BrowseNames.Message) }]
                             }
                         }
                     ],

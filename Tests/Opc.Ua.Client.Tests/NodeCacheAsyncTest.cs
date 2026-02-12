@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
@@ -253,10 +252,8 @@ namespace Opc.Ua.Client.Tests
             nodeCache.LoadUaDefinedTypes(Session.SystemContext);
 
             // check on all reference type ids
-            var refTypeDictionary = typeof(ReferenceTypeIds)
-                .GetFields(BindingFlags.Public | BindingFlags.Static)
-                .Where(f => f.FieldType == typeof(NodeId))
-                .ToDictionary(f => f.Name, f => (NodeId)f.GetValue(null));
+            var refTypeDictionary = ReferenceTypeIds.Identifiers
+                .ToDictionary(ReferenceTypeIds.GetBrowseName, f => f);
 
             TestContext.Out.WriteLine("Testing {0} references", refTypeDictionary.Count);
             foreach (KeyValuePair<string, NodeId> property in refTypeDictionary)
@@ -269,7 +266,7 @@ namespace Opc.Ua.Client.Tests
                 Assert.NotNull(qn);
                 Assert.AreEqual(property.Key, qn.Name);
                 // find the node by name
-                NodeId refId = await nodeCache.FindReferenceTypeAsync(new QualifiedName(property.Key))
+                NodeId refId = await nodeCache.FindReferenceTypeAsync(QualifiedName.From(property.Key))
                     .ConfigureAwait(false);
                 Assert.NotNull(refId);
                 Assert.AreEqual(property.Value, refId);
@@ -389,14 +386,8 @@ namespace Opc.Ua.Client.Tests
         [Order(910)]
         public async Task FetchAllReferenceTypesAsync()
         {
-            const BindingFlags bindingFlags = BindingFlags.Instance |
-                BindingFlags.Static |
-                BindingFlags.Public;
-            IEnumerable<ExpandedNodeId> fieldValues = typeof(ReferenceTypeIds)
-                .GetFields(bindingFlags)
-                .Select(field => NodeId.ToExpandedNodeId(
-                    (NodeId)field.GetValue(null),
-                    Session.NamespaceUris));
+            IEnumerable<ExpandedNodeId> fieldValues = ReferenceTypeIds.Identifiers
+                 .Select(nodeId => NodeId.ToExpandedNodeId(nodeId, Session.NamespaceUris));
 
             await Session.FetchTypeTreeAsync([.. fieldValues]).ConfigureAwait(false);
         }

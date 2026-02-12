@@ -1,0 +1,3340 @@
+{
+  "$schema": "https://raw.githubusercontent.com/OPCFoundation/UA-.NETStandard/refs/heads/master/Tools/Opc.Ua.SourceGeneration.Core/Schema/ModelDesign.json",
+  "TargetNamespace": "http://test.org/UA/Data/",
+  "Namespaces": [
+    {
+      "Uri": "http://opcfoundation.org/UA/",
+      "Name": "OpcUa",
+      "Prefix": "Opc.Ua",
+      "XmlNamespace": "http://opcfoundation.org/UA/2008/02/Types.xsd"
+    },
+    {
+      "Uri": "http://test.org/UA/Data/",
+      "Name": "TestData",
+      "Prefix": "TestData"
+    }
+  ],
+  "Methods": [
+    {
+      "SymbolicName": "GenerateValuesMethodType",
+      "ModellingRule": "Mandatory",
+      "InputArguments": [
+        {
+          "Name": "Iterations",
+          "DataType": "ua:UInt32",
+          "Description": {
+            "Value": "The number of new values to generate."
+          }
+        }
+      ]
+    },
+    {
+      "SymbolicName": "ScalarValue1MethodType",
+      "ModellingRule": "Mandatory",
+      "InputArguments": [
+        {
+          "Name": "BooleanIn",
+          "DataType": "ua:Boolean"
+        },
+        {
+          "Name": "SByteIn",
+          "DataType": "ua:SByte"
+        },
+        {
+          "Name": "ByteIn",
+          "DataType": "ua:Byte"
+        },
+        {
+          "Name": "Int16In",
+          "DataType": "ua:Int16"
+        },
+        {
+          "Name": "UInt16In",
+          "DataType": "ua:UInt16"
+        },
+        {
+          "Name": "Int32In",
+          "DataType": "ua:Int32"
+        },
+        {
+          "Name": "UInt32In",
+          "DataType": "ua:UInt32"
+        },
+        {
+          "Name": "Int64In",
+          "DataType": "ua:Int64"
+        },
+        {
+          "Name": "UInt64In",
+          "DataType": "ua:UInt64"
+        },
+        {
+          "Name": "FloatIn",
+          "DataType": "ua:Float"
+        },
+        {
+          "Name": "DoubleIn",
+          "DataType": "ua:Double"
+        }
+      ],
+      "OutputArguments": [
+        {
+          "Name": "BooleanOut",
+          "DataType": "ua:Boolean"
+        },
+        {
+          "Name": "SByteOut",
+          "DataType": "ua:SByte"
+        },
+        {
+          "Name": "ByteOut",
+          "DataType": "ua:Byte"
+        },
+        {
+          "Name": "Int16Out",
+          "DataType": "ua:Int16"
+        },
+        {
+          "Name": "UInt16Out",
+          "DataType": "ua:UInt16"
+        },
+        {
+          "Name": "Int32Out",
+          "DataType": "ua:Int32"
+        },
+        {
+          "Name": "UInt32Out",
+          "DataType": "ua:UInt32"
+        },
+        {
+          "Name": "Int64Out",
+          "DataType": "ua:Int64"
+        },
+        {
+          "Name": "UInt64Out",
+          "DataType": "ua:UInt64"
+        },
+        {
+          "Name": "FloatOut",
+          "DataType": "ua:Float"
+        },
+        {
+          "Name": "DoubleOut",
+          "DataType": "ua:Double"
+        }
+      ]
+    },
+    {
+      "SymbolicName": "ScalarValue2MethodType",
+      "ModellingRule": "Mandatory",
+      "InputArguments": [
+        {
+          "Name": "StringIn",
+          "DataType": "ua:String"
+        },
+        {
+          "Name": "DateTimeIn",
+          "DataType": "ua:DateTime"
+        },
+        {
+          "Name": "GuidIn",
+          "DataType": "ua:Guid"
+        },
+        {
+          "Name": "ByteStringIn",
+          "DataType": "ua:ByteString"
+        },
+        {
+          "Name": "XmlElementIn",
+          "DataType": "ua:XmlElement"
+        },
+        {
+          "Name": "NodeIdIn",
+          "DataType": "ua:NodeId"
+        },
+        {
+          "Name": "ExpandedNodeIdIn",
+          "DataType": "ua:ExpandedNodeId"
+        },
+        {
+          "Name": "QualifiedNameIn",
+          "DataType": "ua:QualifiedName"
+        },
+        {
+          "Name": "LocalizedTextIn",
+          "DataType": "ua:LocalizedText"
+        },
+        {
+          "Name": "StatusCodeIn",
+          "DataType": "ua:StatusCode"
+        }
+      ],
+      "OutputArguments": [
+        {
+          "Name": "StringOut",
+          "DataType": "ua:String"
+        },
+        {
+          "Name": "DateTimeOut",
+          "DataType": "ua:DateTime"
+        },
+        {
+          "Name": "GuidOut",
+          "DataType": "ua:Guid"
+        },
+        {
+          "Name": "ByteStringOut",
+          "DataType": "ua:ByteString"
+        },
+        {
+          "Name": "XmlElementOut",
+          "DataType": "ua:XmlElement"
+        },
+        {
+          "Name": "NodeIdOut",
+          "DataType": "ua:NodeId"
+        },
+        {
+          "Name": "ExpandedNodeIdOut",
+          "DataType": "ua:ExpandedNodeId"
+        },
+        {
+          "Name": "QualifiedNameOut",
+          "DataType": "ua:QualifiedName"
+        },
+        {
+          "Name": "LocalizedTextOut",
+          "DataType": "ua:LocalizedText"
+        },
+        {
+          "Name": "StatusCodeOut",
+          "DataType": "ua:StatusCode"
+        }
+      ]
+    },
+    {
+      "SymbolicName": "ScalarValue3MethodType",
+      "ModellingRule": "Mandatory",
+      "InputArguments": [
+        {
+          "Name": "VariantIn",
+          "DataType": "ua:BaseDataType"
+        },
+        {
+          "Name": "EnumerationIn",
+          "DataType": "ua:Enumeration"
+        },
+        {
+          "Name": "StructureIn",
+          "DataType": "ua:Structure"
+        }
+      ],
+      "OutputArguments": [
+        {
+          "Name": "VariantOut",
+          "DataType": "ua:BaseDataType"
+        },
+        {
+          "Name": "EnumerationOut",
+          "DataType": "ua:Enumeration"
+        },
+        {
+          "Name": "StructureOut",
+          "DataType": "ua:Structure"
+        }
+      ]
+    },
+    {
+      "SymbolicName": "ArrayValue1MethodType",
+      "ModellingRule": "Mandatory",
+      "InputArguments": [
+        {
+          "Name": "BooleanIn",
+          "DataType": "ua:Boolean",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "SByteIn",
+          "DataType": "ua:SByte",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "ByteIn",
+          "DataType": "ua:Byte",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "Int16In",
+          "DataType": "ua:Int16",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "UInt16In",
+          "DataType": "ua:UInt16",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "Int32In",
+          "DataType": "ua:Int32",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "UInt32In",
+          "DataType": "ua:UInt32",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "Int64In",
+          "DataType": "ua:Int64",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "UInt64In",
+          "DataType": "ua:UInt64",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "FloatIn",
+          "DataType": "ua:Float",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "DoubleIn",
+          "DataType": "ua:Double",
+          "ValueRank": "Array"
+        }
+      ],
+      "OutputArguments": [
+        {
+          "Name": "BooleanOut",
+          "DataType": "ua:Boolean",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "SByteOut",
+          "DataType": "ua:SByte",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "ByteOut",
+          "DataType": "ua:Byte",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "Int16Out",
+          "DataType": "ua:Int16",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "UInt16Out",
+          "DataType": "ua:UInt16",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "Int32Out",
+          "DataType": "ua:Int32",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "UInt32Out",
+          "DataType": "ua:UInt32",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "Int64Out",
+          "DataType": "ua:Int64",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "UInt64Out",
+          "DataType": "ua:UInt64",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "FloatOut",
+          "DataType": "ua:Float",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "DoubleOut",
+          "DataType": "ua:Double",
+          "ValueRank": "Array"
+        }
+      ]
+    },
+    {
+      "SymbolicName": "ArrayValue2MethodType",
+      "ModellingRule": "Mandatory",
+      "InputArguments": [
+        {
+          "Name": "StringIn",
+          "DataType": "ua:String",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "DateTimeIn",
+          "DataType": "ua:DateTime",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "GuidIn",
+          "DataType": "ua:Guid",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "ByteStringIn",
+          "DataType": "ua:ByteString",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "XmlElementIn",
+          "DataType": "ua:XmlElement",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "NodeIdIn",
+          "DataType": "ua:NodeId",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "ExpandedNodeIdIn",
+          "DataType": "ua:ExpandedNodeId",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "QualifiedNameIn",
+          "DataType": "ua:QualifiedName",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "LocalizedTextIn",
+          "DataType": "ua:LocalizedText",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "StatusCodeIn",
+          "DataType": "ua:StatusCode",
+          "ValueRank": "Array"
+        }
+      ],
+      "OutputArguments": [
+        {
+          "Name": "StringOut",
+          "DataType": "ua:String",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "DateTimeOut",
+          "DataType": "ua:DateTime",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "GuidOut",
+          "DataType": "ua:Guid",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "ByteStringOut",
+          "DataType": "ua:ByteString",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "XmlElementOut",
+          "DataType": "ua:XmlElement",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "NodeIdOut",
+          "DataType": "ua:NodeId",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "ExpandedNodeIdOut",
+          "DataType": "ua:ExpandedNodeId",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "QualifiedNameOut",
+          "DataType": "ua:QualifiedName",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "LocalizedTextOut",
+          "DataType": "ua:LocalizedText",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "StatusCodeOut",
+          "DataType": "ua:StatusCode",
+          "ValueRank": "Array"
+        }
+      ]
+    },
+    {
+      "SymbolicName": "ArrayValue3MethodType",
+      "ModellingRule": "Mandatory",
+      "InputArguments": [
+        {
+          "Name": "VariantIn",
+          "DataType": "ua:BaseDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "EnumerationIn",
+          "DataType": "ua:Enumeration",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "StructureIn",
+          "DataType": "ua:Structure",
+          "ValueRank": "Array"
+        }
+      ],
+      "OutputArguments": [
+        {
+          "Name": "VariantOut",
+          "DataType": "ua:BaseDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "EnumerationOut",
+          "DataType": "ua:Enumeration",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "StructureOut",
+          "DataType": "ua:Structure",
+          "ValueRank": "Array"
+        }
+      ]
+    },
+    {
+      "SymbolicName": "UserScalarValue1MethodType",
+      "ModellingRule": "Mandatory",
+      "InputArguments": [
+        {
+          "Name": "BooleanIn",
+          "DataType": "BooleanDataType"
+        },
+        {
+          "Name": "SByteIn",
+          "DataType": "SByteDataType"
+        },
+        {
+          "Name": "ByteIn",
+          "DataType": "ByteDataType"
+        },
+        {
+          "Name": "Int16In",
+          "DataType": "Int16DataType"
+        },
+        {
+          "Name": "UInt16In",
+          "DataType": "UInt16DataType"
+        },
+        {
+          "Name": "Int32In",
+          "DataType": "Int32DataType"
+        },
+        {
+          "Name": "UInt32In",
+          "DataType": "UInt32DataType"
+        },
+        {
+          "Name": "Int64In",
+          "DataType": "Int64DataType"
+        },
+        {
+          "Name": "UInt64In",
+          "DataType": "UInt64DataType"
+        },
+        {
+          "Name": "FloatIn",
+          "DataType": "FloatDataType"
+        },
+        {
+          "Name": "DoubleIn",
+          "DataType": "DoubleDataType"
+        },
+        {
+          "Name": "StringIn",
+          "DataType": "StringDataType"
+        }
+      ],
+      "OutputArguments": [
+        {
+          "Name": "BooleanOut",
+          "DataType": "BooleanDataType"
+        },
+        {
+          "Name": "SByteOut",
+          "DataType": "SByteDataType"
+        },
+        {
+          "Name": "ByteOut",
+          "DataType": "ByteDataType"
+        },
+        {
+          "Name": "Int16Out",
+          "DataType": "Int16DataType"
+        },
+        {
+          "Name": "UInt16Out",
+          "DataType": "UInt16DataType"
+        },
+        {
+          "Name": "Int32Out",
+          "DataType": "Int32DataType"
+        },
+        {
+          "Name": "UInt32Out",
+          "DataType": "UInt32DataType"
+        },
+        {
+          "Name": "Int64Out",
+          "DataType": "Int64DataType"
+        },
+        {
+          "Name": "UInt64Out",
+          "DataType": "UInt64DataType"
+        },
+        {
+          "Name": "FloatOut",
+          "DataType": "FloatDataType"
+        },
+        {
+          "Name": "DoubleOut",
+          "DataType": "DoubleDataType"
+        },
+        {
+          "Name": "StringOut",
+          "DataType": "StringDataType"
+        }
+      ]
+    },
+    {
+      "SymbolicName": "UserScalarValue2MethodType",
+      "ModellingRule": "Mandatory",
+      "InputArguments": [
+        {
+          "Name": "DateTimeIn",
+          "DataType": "DateTimeDataType"
+        },
+        {
+          "Name": "GuidIn",
+          "DataType": "GuidDataType"
+        },
+        {
+          "Name": "ByteStringIn",
+          "DataType": "ByteStringDataType"
+        },
+        {
+          "Name": "XmlElementIn",
+          "DataType": "XmlElementDataType"
+        },
+        {
+          "Name": "NodeIdIn",
+          "DataType": "NodeIdDataType"
+        },
+        {
+          "Name": "ExpandedNodeIdIn",
+          "DataType": "ExpandedNodeIdDataType"
+        },
+        {
+          "Name": "QualifiedNameIn",
+          "DataType": "QualifiedNameDataType"
+        },
+        {
+          "Name": "LocalizedTextIn",
+          "DataType": "LocalizedTextDataType"
+        },
+        {
+          "Name": "StatusCodeIn",
+          "DataType": "StatusCodeDataType"
+        },
+        {
+          "Name": "VariantIn",
+          "DataType": "VariantDataType"
+        }
+      ],
+      "OutputArguments": [
+        {
+          "Name": "DateTimeOut",
+          "DataType": "DateTimeDataType"
+        },
+        {
+          "Name": "GuidOut",
+          "DataType": "GuidDataType"
+        },
+        {
+          "Name": "ByteStringOut",
+          "DataType": "ByteStringDataType"
+        },
+        {
+          "Name": "XmlElementOut",
+          "DataType": "XmlElementDataType"
+        },
+        {
+          "Name": "NodeIdOut",
+          "DataType": "NodeIdDataType"
+        },
+        {
+          "Name": "ExpandedNodeIdOut",
+          "DataType": "ExpandedNodeIdDataType"
+        },
+        {
+          "Name": "QualifiedNameOut",
+          "DataType": "QualifiedNameDataType"
+        },
+        {
+          "Name": "LocalizedTextOut",
+          "DataType": "LocalizedTextDataType"
+        },
+        {
+          "Name": "StatusCodeOut",
+          "DataType": "StatusCodeDataType"
+        },
+        {
+          "Name": "VariantOut",
+          "DataType": "VariantDataType"
+        }
+      ]
+    },
+    {
+      "SymbolicName": "UserArrayValue1MethodType",
+      "ModellingRule": "Mandatory",
+      "InputArguments": [
+        {
+          "Name": "BooleanIn",
+          "DataType": "BooleanDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "SByteIn",
+          "DataType": "SByteDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "ByteIn",
+          "DataType": "ByteDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "Int16In",
+          "DataType": "Int16DataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "UInt16In",
+          "DataType": "UInt16DataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "Int32In",
+          "DataType": "Int32DataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "UInt32In",
+          "DataType": "UInt32DataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "Int64In",
+          "DataType": "Int64DataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "UInt64In",
+          "DataType": "UInt64DataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "FloatIn",
+          "DataType": "FloatDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "DoubleIn",
+          "DataType": "DoubleDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "StringIn",
+          "DataType": "StringDataType",
+          "ValueRank": "Array"
+        }
+      ],
+      "OutputArguments": [
+        {
+          "Name": "BooleanOut",
+          "DataType": "BooleanDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "SByteOut",
+          "DataType": "SByteDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "ByteOut",
+          "DataType": "ByteDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "Int16Out",
+          "DataType": "Int16DataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "UInt16Out",
+          "DataType": "UInt16DataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "Int32Out",
+          "DataType": "Int32DataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "UInt32Out",
+          "DataType": "UInt32DataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "Int64Out",
+          "DataType": "Int64DataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "UInt64Out",
+          "DataType": "UInt64DataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "FloatOut",
+          "DataType": "FloatDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "DoubleOut",
+          "DataType": "DoubleDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "StringOut",
+          "DataType": "StringDataType",
+          "ValueRank": "Array"
+        }
+      ]
+    },
+    {
+      "SymbolicName": "UserArrayValue2MethodType",
+      "ModellingRule": "Mandatory",
+      "InputArguments": [
+        {
+          "Name": "DateTimeIn",
+          "DataType": "DateTimeDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "GuidIn",
+          "DataType": "GuidDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "ByteStringIn",
+          "DataType": "ByteStringDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "XmlElementIn",
+          "DataType": "XmlElementDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "NodeIdIn",
+          "DataType": "NodeIdDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "ExpandedNodeIdIn",
+          "DataType": "ExpandedNodeIdDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "QualifiedNameIn",
+          "DataType": "QualifiedNameDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "LocalizedTextIn",
+          "DataType": "LocalizedTextDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "StatusCodeIn",
+          "DataType": "StatusCodeDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "VariantIn",
+          "DataType": "VariantDataType",
+          "ValueRank": "Array"
+        }
+      ],
+      "OutputArguments": [
+        {
+          "Name": "DateTimeOut",
+          "DataType": "DateTimeDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "GuidOut",
+          "DataType": "GuidDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "ByteStringOut",
+          "DataType": "ByteStringDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "XmlElementOut",
+          "DataType": "XmlElementDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "NodeIdOut",
+          "DataType": "NodeIdDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "ExpandedNodeIdOut",
+          "DataType": "ExpandedNodeIdDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "QualifiedNameOut",
+          "DataType": "QualifiedNameDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "LocalizedTextOut",
+          "DataType": "LocalizedTextDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "StatusCodeOut",
+          "DataType": "StatusCodeDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "VariantOut",
+          "DataType": "VariantDataType",
+          "ValueRank": "Array"
+        }
+      ]
+    }
+  ],
+  "ObjectTypes": [
+    {
+      "SymbolicName": "GenerateValuesEventType",
+      "BaseType": "ua:BaseEventType",
+      "Children": [
+        {
+          "Property": {
+            "SymbolicName": "Iterations",
+            "DataType": "ua:UInt32",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Property": {
+            "SymbolicName": "NewValueCount",
+            "DataType": "ua:UInt32",
+            "ModellingRule": "Mandatory"
+          }
+        }
+      ]
+    },
+    {
+      "SymbolicName": "TestDataObjectType",
+      "BaseType": "ua:BaseObjectType",
+      "Children": [
+        {
+          "Property": {
+            "SymbolicName": "SimulationActive",
+            "DataType": "ua:Boolean",
+            "ModellingRule": "Mandatory",
+            "Description": {
+              "Value": "If true the server will produce new values for each monitored variable."
+            }
+          }
+        },
+        {
+          "Method": {
+            "SymbolicName": "GenerateValues",
+            "TypeDefinition": "GenerateValuesMethodType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Object": {
+            "SymbolicName": "CycleComplete",
+            "TypeDefinition": "ua:AcknowledgeableConditionType",
+            "ModellingRule": "Mandatory",
+            "References": [
+              {
+                "ReferenceType": "ua:HasEventSource",
+                "TargetId": "TestDataObjectType",
+                "IsInverse": true
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "SymbolicName": "ScalarValueObjectType",
+      "BaseType": "TestDataObjectType",
+      "Children": [
+        {
+          "Variable": {
+            "SymbolicName": "BooleanValue",
+            "DataType": "ua:Boolean",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "SByteValue",
+            "DataType": "ua:SByte",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "ByteValue",
+            "DataType": "ua:Byte",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "Int16Value",
+            "DataType": "ua:Int16",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "UInt16Value",
+            "DataType": "ua:UInt16",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "Int32Value",
+            "DataType": "ua:Int32",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "UInt32Value",
+            "DataType": "ua:UInt32",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "Int64Value",
+            "DataType": "ua:Int64",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "UInt64Value",
+            "DataType": "ua:UInt64",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "FloatValue",
+            "DataType": "ua:Float",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "DoubleValue",
+            "DataType": "ua:Double",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "StringValue",
+            "DataType": "ua:String",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "DateTimeValue",
+            "DataType": "ua:DateTime",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "GuidValue",
+            "DataType": "ua:Guid",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "ByteStringValue",
+            "DataType": "ua:ByteString",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "XmlElementValue",
+            "DataType": "ua:XmlElement",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "NodeIdValue",
+            "DataType": "ua:NodeId",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "ExpandedNodeIdValue",
+            "DataType": "ua:ExpandedNodeId",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "QualifiedNameValue",
+            "DataType": "ua:QualifiedName",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "LocalizedTextValue",
+            "DataType": "ua:LocalizedText",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "StatusCodeValue",
+            "DataType": "ua:StatusCode",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "VariantValue",
+            "DataType": "ua:BaseDataType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "EnumerationValue",
+            "DataType": "ua:Enumeration",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "StructureValue",
+            "DataType": "ua:Structure",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "NumberValue",
+            "DataType": "ua:Number",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "IntegerValue",
+            "DataType": "ua:Integer",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "UIntegerValue",
+            "DataType": "ua:UInteger",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "VectorValue",
+            "DataType": "Vector",
+            "TypeDefinition": "VectorVariableType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "VectorUnionValue",
+            "DataType": "VectorUnion",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "VectorWithOptionalFieldsValue",
+            "DataType": "VectorWithOptionalFields",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "MultipleVectorsValue",
+            "DataType": "MultipleVectors",
+            "ModellingRule": "Mandatory"
+          }
+        }
+      ]
+    },
+    {
+      "SymbolicName": "StructureValueObjectType",
+      "BaseType": "TestDataObjectType",
+      "Children": [
+        {
+          "Variable": {
+            "SymbolicName": "ScalarStructure",
+            "DataType": "ScalarStructureDataType",
+            "TypeDefinition": "ScalarStructureVariableType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "VectorStructure",
+            "DataType": "Vector",
+            "TypeDefinition": "VectorVariableType",
+            "ModellingRule": "Mandatory"
+          }
+        }
+      ]
+    },
+    {
+      "SymbolicName": "AnalogScalarValueObjectType",
+      "BaseType": "TestDataObjectType",
+      "Children": [
+        {
+          "Variable": {
+            "SymbolicName": "SByteValue",
+            "TypeDefinition": "ua:AnalogItemType",
+            "DataType": "ua:SByte",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "ByteValue",
+            "TypeDefinition": "ua:AnalogItemType",
+            "DataType": "ua:Byte",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "Int16Value",
+            "TypeDefinition": "ua:AnalogItemType",
+            "DataType": "ua:Int16",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "UInt16Value",
+            "TypeDefinition": "ua:AnalogItemType",
+            "DataType": "ua:UInt16",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "Int32Value",
+            "TypeDefinition": "ua:AnalogItemType",
+            "DataType": "ua:Int32",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "UInt32Value",
+            "TypeDefinition": "ua:AnalogItemType",
+            "DataType": "ua:UInt32",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "Int64Value",
+            "TypeDefinition": "ua:AnalogItemType",
+            "DataType": "ua:Int64",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "UInt64Value",
+            "TypeDefinition": "ua:AnalogItemType",
+            "DataType": "ua:UInt64",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "FloatValue",
+            "TypeDefinition": "ua:AnalogItemType",
+            "DataType": "ua:Float",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "DoubleValue",
+            "TypeDefinition": "ua:AnalogItemType",
+            "DataType": "ua:Double",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "NumberValue",
+            "TypeDefinition": "ua:AnalogItemType",
+            "DataType": "ua:Number",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "IntegerValue",
+            "TypeDefinition": "ua:AnalogItemType",
+            "DataType": "ua:Integer",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "UIntegerValue",
+            "TypeDefinition": "ua:AnalogItemType",
+            "DataType": "ua:UInteger",
+            "ModellingRule": "Mandatory"
+          }
+        }
+      ]
+    },
+    {
+      "SymbolicName": "ArrayValueObjectType",
+      "BaseType": "TestDataObjectType",
+      "Children": [
+        {
+          "Variable": {
+            "SymbolicName": "BooleanValue",
+            "DataType": "ua:Boolean",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "SByteValue",
+            "DataType": "ua:SByte",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "ByteValue",
+            "DataType": "ua:Byte",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "Int16Value",
+            "DataType": "ua:Int16",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "UInt16Value",
+            "DataType": "ua:UInt16",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "Int32Value",
+            "DataType": "ua:Int32",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "UInt32Value",
+            "DataType": "ua:UInt32",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "Int64Value",
+            "DataType": "ua:Int64",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "UInt64Value",
+            "DataType": "ua:UInt64",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "FloatValue",
+            "DataType": "ua:Float",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "DoubleValue",
+            "DataType": "ua:Double",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "StringValue",
+            "DataType": "ua:String",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "DateTimeValue",
+            "DataType": "ua:DateTime",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "GuidValue",
+            "DataType": "ua:Guid",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "ByteStringValue",
+            "DataType": "ua:ByteString",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "XmlElementValue",
+            "DataType": "ua:XmlElement",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "NodeIdValue",
+            "DataType": "ua:NodeId",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "ExpandedNodeIdValue",
+            "DataType": "ua:ExpandedNodeId",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "QualifiedNameValue",
+            "DataType": "ua:QualifiedName",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "LocalizedTextValue",
+            "DataType": "ua:LocalizedText",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "StatusCodeValue",
+            "DataType": "ua:StatusCode",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "VariantValue",
+            "DataType": "ua:BaseDataType",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "EnumerationValue",
+            "DataType": "ua:Enumeration",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "StructureValue",
+            "DataType": "ua:Structure",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "NumberValue",
+            "DataType": "ua:Number",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "IntegerValue",
+            "DataType": "ua:Integer",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "UIntegerValue",
+            "DataType": "ua:UInteger",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "VectorValue",
+            "DataType": "Vector",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "VectorUnionValue",
+            "DataType": "VectorUnion",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "VectorWithOptionalFieldsValue",
+            "DataType": "VectorWithOptionalFields",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "MultipleVectorsValue",
+            "DataType": "MultipleVectors",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        }
+      ]
+    },
+    {
+      "SymbolicName": "AnalogArrayValueObjectType",
+      "BaseType": "TestDataObjectType",
+      "Children": [
+        {
+          "Variable": {
+            "SymbolicName": "SByteValue",
+            "TypeDefinition": "ua:AnalogItemType",
+            "DataType": "ua:SByte",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "ByteValue",
+            "TypeDefinition": "ua:AnalogItemType",
+            "DataType": "ua:Byte",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "Int16Value",
+            "TypeDefinition": "ua:AnalogItemType",
+            "DataType": "ua:Int16",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "UInt16Value",
+            "TypeDefinition": "ua:AnalogItemType",
+            "DataType": "ua:UInt16",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "Int32Value",
+            "TypeDefinition": "ua:AnalogItemType",
+            "DataType": "ua:Int32",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "UInt32Value",
+            "TypeDefinition": "ua:AnalogItemType",
+            "DataType": "ua:UInt32",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "Int64Value",
+            "TypeDefinition": "ua:AnalogItemType",
+            "DataType": "ua:Int64",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "UInt64Value",
+            "TypeDefinition": "ua:AnalogItemType",
+            "DataType": "ua:UInt64",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "FloatValue",
+            "TypeDefinition": "ua:AnalogItemType",
+            "DataType": "ua:Float",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "DoubleValue",
+            "TypeDefinition": "ua:AnalogItemType",
+            "DataType": "ua:Double",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "NumberValue",
+            "TypeDefinition": "ua:AnalogItemType",
+            "DataType": "ua:Number",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "IntegerValue",
+            "TypeDefinition": "ua:AnalogItemType",
+            "DataType": "ua:Integer",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "UIntegerValue",
+            "TypeDefinition": "ua:AnalogItemType",
+            "DataType": "ua:UInteger",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        }
+      ]
+    },
+    {
+      "SymbolicName": "UserScalarValueObjectType",
+      "BaseType": "TestDataObjectType",
+      "Children": [
+        {
+          "Variable": {
+            "SymbolicName": "BooleanValue",
+            "DataType": "BooleanDataType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "SByteValue",
+            "DataType": "SByteDataType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "ByteValue",
+            "DataType": "ByteDataType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "Int16Value",
+            "DataType": "Int16DataType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "UInt16Value",
+            "DataType": "UInt16DataType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "Int32Value",
+            "DataType": "Int32DataType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "UInt32Value",
+            "DataType": "UInt32DataType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "Int64Value",
+            "DataType": "Int64DataType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "UInt64Value",
+            "DataType": "UInt64DataType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "FloatValue",
+            "DataType": "FloatDataType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "DoubleValue",
+            "DataType": "DoubleDataType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "StringValue",
+            "DataType": "StringDataType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "DateTimeValue",
+            "DataType": "DateTimeDataType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "GuidValue",
+            "DataType": "GuidDataType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "ByteStringValue",
+            "DataType": "ByteStringDataType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "XmlElementValue",
+            "DataType": "XmlElementDataType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "NodeIdValue",
+            "DataType": "NodeIdDataType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "ExpandedNodeIdValue",
+            "DataType": "ExpandedNodeIdDataType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "QualifiedNameValue",
+            "DataType": "QualifiedNameDataType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "LocalizedTextValue",
+            "DataType": "LocalizedTextDataType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "StatusCodeValue",
+            "DataType": "StatusCodeDataType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "VariantValue",
+            "DataType": "VariantDataType",
+            "ModellingRule": "Mandatory"
+          }
+        }
+      ]
+    },
+    {
+      "SymbolicName": "UserArrayValueObjectType",
+      "BaseType": "TestDataObjectType",
+      "Children": [
+        {
+          "Variable": {
+            "SymbolicName": "BooleanValue",
+            "DataType": "BooleanDataType",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "SByteValue",
+            "DataType": "SByteDataType",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "ByteValue",
+            "DataType": "ByteDataType",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "Int16Value",
+            "DataType": "Int16DataType",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "UInt16Value",
+            "DataType": "UInt16DataType",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "Int32Value",
+            "DataType": "Int32DataType",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "UInt32Value",
+            "DataType": "UInt32DataType",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "Int64Value",
+            "DataType": "Int64DataType",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "UInt64Value",
+            "DataType": "UInt64DataType",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "FloatValue",
+            "DataType": "FloatDataType",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "DoubleValue",
+            "DataType": "DoubleDataType",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "StringValue",
+            "DataType": "StringDataType",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "DateTimeValue",
+            "DataType": "DateTimeDataType",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "GuidValue",
+            "DataType": "GuidDataType",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "ByteStringValue",
+            "DataType": "ByteStringDataType",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "XmlElementValue",
+            "DataType": "XmlElementDataType",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "NodeIdValue",
+            "DataType": "NodeIdDataType",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "ExpandedNodeIdValue",
+            "DataType": "ExpandedNodeIdDataType",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "QualifiedNameValue",
+            "DataType": "QualifiedNameDataType",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "LocalizedTextValue",
+            "DataType": "LocalizedTextDataType",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "StatusCodeValue",
+            "DataType": "StatusCodeDataType",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "VariantValue",
+            "DataType": "VariantDataType",
+            "ValueRank": "Array",
+            "ModellingRule": "Mandatory"
+          }
+        }
+      ]
+    },
+    {
+      "SymbolicName": "MethodTestType",
+      "BaseType": "ua:FolderType",
+      "Children": [
+        {
+          "Method": {
+            "SymbolicName": "ScalarMethod1",
+            "TypeDefinition": "ScalarValue1MethodType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Method": {
+            "SymbolicName": "ScalarMethod2",
+            "TypeDefinition": "ScalarValue2MethodType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Method": {
+            "SymbolicName": "ScalarMethod3",
+            "TypeDefinition": "ScalarValue3MethodType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Method": {
+            "SymbolicName": "ArrayMethod1",
+            "TypeDefinition": "ArrayValue1MethodType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Method": {
+            "SymbolicName": "ArrayMethod2",
+            "TypeDefinition": "ArrayValue2MethodType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Method": {
+            "SymbolicName": "ArrayMethod3",
+            "TypeDefinition": "ArrayValue3MethodType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Method": {
+            "SymbolicName": "UserScalarMethod1",
+            "TypeDefinition": "UserScalarValue1MethodType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Method": {
+            "SymbolicName": "UserScalarMethod2",
+            "TypeDefinition": "UserScalarValue2MethodType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Method": {
+            "SymbolicName": "UserArrayMethod1",
+            "TypeDefinition": "UserArrayValue1MethodType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Method": {
+            "SymbolicName": "UserArrayMethod2",
+            "TypeDefinition": "UserArrayValue2MethodType",
+            "ModellingRule": "Mandatory"
+          }
+        }
+      ]
+    },
+    {
+      "SymbolicName": "TestSystemConditionType",
+      "BaseType": "ua:ConditionType",
+      "Children": [
+        {
+          "Property": {
+            "SymbolicName": "MonitoredNodeCount",
+            "DataType": "ua:Int32",
+            "ModellingRule": "Mandatory"
+          }
+        }
+      ]
+    }
+  ],
+  "DataTypes": [
+    {
+      "SymbolicName": "ScalarStructureDataType",
+      "BaseType": "ua:Structure",
+      "Fields": [
+        {
+          "Name": "BooleanValue",
+          "DataType": "ua:Boolean"
+        },
+        {
+          "Name": "SByteValue",
+          "DataType": "ua:SByte"
+        },
+        {
+          "Name": "ByteValue",
+          "DataType": "ua:Byte"
+        },
+        {
+          "Name": "Int16Value",
+          "DataType": "ua:Int16"
+        },
+        {
+          "Name": "UInt16Value",
+          "DataType": "ua:UInt16"
+        },
+        {
+          "Name": "Int32Value",
+          "DataType": "ua:Int32"
+        },
+        {
+          "Name": "UInt32Value",
+          "DataType": "ua:UInt32"
+        },
+        {
+          "Name": "Int64Value",
+          "DataType": "ua:Int64"
+        },
+        {
+          "Name": "UInt64Value",
+          "DataType": "ua:UInt64"
+        },
+        {
+          "Name": "FloatValue",
+          "DataType": "ua:Float"
+        },
+        {
+          "Name": "DoubleValue",
+          "DataType": "ua:Double"
+        },
+        {
+          "Name": "StringValue",
+          "DataType": "ua:String"
+        },
+        {
+          "Name": "DateTimeValue",
+          "DataType": "ua:DateTime"
+        },
+        {
+          "Name": "GuidValue",
+          "DataType": "ua:Guid"
+        },
+        {
+          "Name": "ByteStringValue",
+          "DataType": "ua:ByteString"
+        },
+        {
+          "Name": "XmlElementValue",
+          "DataType": "ua:XmlElement"
+        },
+        {
+          "Name": "NodeIdValue",
+          "DataType": "ua:NodeId"
+        },
+        {
+          "Name": "ExpandedNodeIdValue",
+          "DataType": "ua:ExpandedNodeId"
+        },
+        {
+          "Name": "QualifiedNameValue",
+          "DataType": "ua:QualifiedName"
+        },
+        {
+          "Name": "LocalizedTextValue",
+          "DataType": "ua:LocalizedText"
+        },
+        {
+          "Name": "StatusCodeValue",
+          "DataType": "ua:StatusCode"
+        },
+        {
+          "Name": "VariantValue",
+          "DataType": "ua:BaseDataType"
+        },
+        {
+          "Name": "EnumerationValue",
+          "DataType": "ua:Enumeration"
+        },
+        {
+          "Name": "StructureValue",
+          "DataType": "ua:Structure"
+        },
+        {
+          "Name": "NumberValue",
+          "DataType": "ua:Number"
+        },
+        {
+          "Name": "IntegerValue",
+          "DataType": "ua:Integer"
+        },
+        {
+          "Name": "UIntegerValue",
+          "DataType": "ua:UInteger"
+        }
+      ]
+    },
+    {
+      "SymbolicName": "ArrayValueDataType",
+      "BaseType": "ua:Structure",
+      "Fields": [
+        {
+          "Name": "BooleanValue",
+          "DataType": "ua:Boolean",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "SByteValue",
+          "DataType": "ua:SByte",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "ByteValue",
+          "DataType": "ua:Byte",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "Int16Value",
+          "DataType": "ua:Int16",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "UInt16Value",
+          "DataType": "ua:UInt16",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "Int32Value",
+          "DataType": "ua:Int32",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "UInt32Value",
+          "DataType": "ua:UInt32",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "Int64Value",
+          "DataType": "ua:Int64",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "UInt64Value",
+          "DataType": "ua:UInt64",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "FloatValue",
+          "DataType": "ua:Float",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "DoubleValue",
+          "DataType": "ua:Double",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "StringValue",
+          "DataType": "ua:String",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "DateTimeValue",
+          "DataType": "ua:DateTime",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "GuidValue",
+          "DataType": "ua:Guid",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "ByteStringValue",
+          "DataType": "ua:ByteString",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "XmlElementValue",
+          "DataType": "ua:XmlElement",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "NodeIdValue",
+          "DataType": "ua:NodeId",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "ExpandedNodeIdValue",
+          "DataType": "ua:ExpandedNodeId",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "QualifiedNameValue",
+          "DataType": "ua:QualifiedName",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "LocalizedTextValue",
+          "DataType": "ua:LocalizedText",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "StatusCodeValue",
+          "DataType": "ua:StatusCode",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "VariantValue",
+          "DataType": "ua:BaseDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "EnumerationValue",
+          "DataType": "ua:Enumeration",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "StructureValue",
+          "DataType": "ua:Structure",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "NumberValue",
+          "DataType": "ua:Number",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "IntegerValue",
+          "DataType": "ua:Integer",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "UIntegerValue",
+          "DataType": "ua:UInteger",
+          "ValueRank": "Array"
+        }
+      ]
+    },
+    {
+      "SymbolicName": "BooleanDataType",
+      "BaseType": "ua:Boolean"
+    },
+    {
+      "SymbolicName": "SByteDataType",
+      "BaseType": "ua:SByte"
+    },
+    {
+      "SymbolicName": "ByteDataType",
+      "BaseType": "ua:Byte"
+    },
+    {
+      "SymbolicName": "Int16DataType",
+      "BaseType": "ua:Int16"
+    },
+    {
+      "SymbolicName": "UInt16DataType",
+      "BaseType": "ua:UInt16"
+    },
+    {
+      "SymbolicName": "Int32DataType",
+      "BaseType": "ua:Int32"
+    },
+    {
+      "SymbolicName": "UInt32DataType",
+      "BaseType": "ua:UInt32"
+    },
+    {
+      "SymbolicName": "Int64DataType",
+      "BaseType": "ua:Int64"
+    },
+    {
+      "SymbolicName": "UInt64DataType",
+      "BaseType": "ua:UInt64"
+    },
+    {
+      "SymbolicName": "FloatDataType",
+      "BaseType": "ua:Float"
+    },
+    {
+      "SymbolicName": "DoubleDataType",
+      "BaseType": "ua:Double"
+    },
+    {
+      "SymbolicName": "StringDataType",
+      "BaseType": "ua:String"
+    },
+    {
+      "SymbolicName": "DateTimeDataType",
+      "BaseType": "ua:DateTime"
+    },
+    {
+      "SymbolicName": "GuidDataType",
+      "BaseType": "ua:Guid"
+    },
+    {
+      "SymbolicName": "ByteStringDataType",
+      "BaseType": "ua:ByteString"
+    },
+    {
+      "SymbolicName": "XmlElementDataType",
+      "BaseType": "ua:XmlElement"
+    },
+    {
+      "SymbolicName": "NodeIdDataType",
+      "BaseType": "ua:NodeId"
+    },
+    {
+      "SymbolicName": "ExpandedNodeIdDataType",
+      "BaseType": "ua:ExpandedNodeId"
+    },
+    {
+      "SymbolicName": "QualifiedNameDataType",
+      "BaseType": "ua:QualifiedName"
+    },
+    {
+      "SymbolicName": "LocalizedTextDataType",
+      "BaseType": "ua:LocalizedText"
+    },
+    {
+      "SymbolicName": "StatusCodeDataType",
+      "BaseType": "ua:StatusCode"
+    },
+    {
+      "SymbolicName": "VariantDataType",
+      "BaseType": "ua:BaseDataType"
+    },
+    {
+      "SymbolicName": "UserScalarValueDataType",
+      "BaseType": "ua:Structure",
+      "Fields": [
+        {
+          "Name": "BooleanDataType",
+          "DataType": "BooleanDataType"
+        },
+        {
+          "Name": "SByteDataType",
+          "DataType": "SByteDataType"
+        },
+        {
+          "Name": "ByteDataType",
+          "DataType": "ByteDataType"
+        },
+        {
+          "Name": "Int16DataType",
+          "DataType": "Int16DataType"
+        },
+        {
+          "Name": "UInt16DataType",
+          "DataType": "UInt16DataType"
+        },
+        {
+          "Name": "Int32DataType",
+          "DataType": "Int32DataType"
+        },
+        {
+          "Name": "UInt32DataType",
+          "DataType": "UInt32DataType"
+        },
+        {
+          "Name": "Int64DataType",
+          "DataType": "Int64DataType"
+        },
+        {
+          "Name": "UInt64DataType",
+          "DataType": "UInt64DataType"
+        },
+        {
+          "Name": "FloatDataType",
+          "DataType": "FloatDataType"
+        },
+        {
+          "Name": "DoubleDataType",
+          "DataType": "DoubleDataType"
+        },
+        {
+          "Name": "StringDataType",
+          "DataType": "StringDataType"
+        },
+        {
+          "Name": "DateTimeDataType",
+          "DataType": "DateTimeDataType"
+        },
+        {
+          "Name": "GuidDataType",
+          "DataType": "GuidDataType"
+        },
+        {
+          "Name": "ByteStringDataType",
+          "DataType": "ByteStringDataType"
+        },
+        {
+          "Name": "XmlElementDataType",
+          "DataType": "XmlElementDataType"
+        },
+        {
+          "Name": "NodeIdDataType",
+          "DataType": "NodeIdDataType"
+        },
+        {
+          "Name": "ExpandedNodeIdDataType",
+          "DataType": "ExpandedNodeIdDataType"
+        },
+        {
+          "Name": "QualifiedNameDataType",
+          "DataType": "QualifiedNameDataType"
+        },
+        {
+          "Name": "LocalizedTextDataType",
+          "DataType": "LocalizedTextDataType"
+        },
+        {
+          "Name": "StatusCodeDataType",
+          "DataType": "StatusCodeDataType"
+        },
+        {
+          "Name": "VariantDataType",
+          "DataType": "VariantDataType"
+        }
+      ]
+    },
+    {
+      "SymbolicName": "UserArrayValueDataType",
+      "BaseType": "ua:Structure",
+      "Fields": [
+        {
+          "Name": "BooleanDataType",
+          "DataType": "BooleanDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "SByteDataType",
+          "DataType": "SByteDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "ByteDataType",
+          "DataType": "ByteDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "Int16DataType",
+          "DataType": "Int16DataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "UInt16DataType",
+          "DataType": "UInt16DataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "Int32DataType",
+          "DataType": "Int32DataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "UInt32DataType",
+          "DataType": "UInt32DataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "Int64DataType",
+          "DataType": "Int64DataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "UInt64DataType",
+          "DataType": "UInt64DataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "FloatDataType",
+          "DataType": "FloatDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "DoubleDataType",
+          "DataType": "DoubleDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "StringDataType",
+          "DataType": "StringDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "DateTimeDataType",
+          "DataType": "DateTimeDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "GuidDataType",
+          "DataType": "GuidDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "ByteStringDataType",
+          "DataType": "ByteStringDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "XmlElementDataType",
+          "DataType": "XmlElementDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "NodeIdDataType",
+          "DataType": "NodeIdDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "ExpandedNodeIdDataType",
+          "DataType": "ExpandedNodeIdDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "QualifiedNameDataType",
+          "DataType": "QualifiedNameDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "LocalizedTextDataType",
+          "DataType": "LocalizedTextDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "StatusCodeDataType",
+          "DataType": "StatusCodeDataType",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "VariantDataType",
+          "DataType": "VariantDataType",
+          "ValueRank": "Array"
+        }
+      ]
+    },
+    {
+      "SymbolicName": "Vector",
+      "BaseType": "ua:Structure",
+      "Fields": [
+        {
+          "Name": "X",
+          "DataType": "ua:Double"
+        },
+        {
+          "Name": "Y",
+          "DataType": "ua:Double"
+        },
+        {
+          "Name": "Z",
+          "DataType": "ua:Double"
+        }
+      ]
+    },
+    {
+      "SymbolicName": "VectorUnion",
+      "BaseType": "ua:Union",
+      "IsUnion": true,
+      "Fields": [
+        {
+          "Name": "X",
+          "DataType": "ua:Double"
+        },
+        {
+          "Name": "Y",
+          "DataType": "ua:Double"
+        },
+        {
+          "Name": "Z",
+          "DataType": "ua:Double"
+        }
+      ]
+    },
+    {
+      "SymbolicName": "VectorWithOptionalFields",
+      "BaseType": "ua:Structure",
+      "Fields": [
+        {
+          "Name": "X",
+          "DataType": "ua:Double",
+          "IsOptional": true
+        },
+        {
+          "Name": "Y",
+          "DataType": "ua:Double",
+          "IsOptional": true
+        },
+        {
+          "Name": "Z",
+          "DataType": "ua:Double",
+          "IsOptional": true
+        }
+      ]
+    },
+    {
+      "SymbolicName": "MultipleVectors",
+      "BaseType": "ua:Structure",
+      "Fields": [
+        {
+          "Name": "Vector",
+          "DataType": "Vector"
+        },
+        {
+          "Name": "VectorUnion",
+          "DataType": "VectorUnion"
+        },
+        {
+          "Name": "VectorWithOptionalFields",
+          "DataType": "VectorWithOptionalFields"
+        },
+        {
+          "Name": "VectorArray",
+          "DataType": "Vector",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "VectorUnionArray",
+          "DataType": "VectorUnion",
+          "ValueRank": "Array"
+        },
+        {
+          "Name": "VectorWithOptionalFieldsArray",
+          "DataType": "VectorWithOptionalFields",
+          "ValueRank": "Array"
+        }
+      ]
+    },
+    {
+      "SymbolicName": "WorkOrderStatusType",
+      "BaseType": "ua:Structure",
+      "Fields": [
+        {
+          "Name": "Actor",
+          "DataType": "ua:String"
+        },
+        {
+          "Name": "Timestamp",
+          "DataType": "ua:DateTime"
+        },
+        {
+          "Name": "Comment",
+          "DataType": "ua:LocalizedText"
+        }
+      ]
+    },
+    {
+      "SymbolicName": "WorkOrderType",
+      "BaseType": "ua:Structure",
+      "Fields": [
+        {
+          "Name": "ID",
+          "DataType": "ua:Guid"
+        },
+        {
+          "Name": "AssetID",
+          "DataType": "ua:String"
+        },
+        {
+          "Name": "StartTime",
+          "DataType": "ua:DateTime"
+        },
+        {
+          "Name": "StatusComments",
+          "DataType": "WorkOrderStatusType",
+          "ValueRank": "Array"
+        }
+      ]
+    }
+  ],
+  "VariableTypes": [
+    {
+      "SymbolicName": "ScalarStructureVariableType",
+      "DataType": "ScalarStructureDataType",
+      "BaseType": "ua:BaseDataVariableType",
+      "Children": [
+        {
+          "Variable": {
+            "SymbolicName": "BooleanValue",
+            "DataType": "ua:Boolean",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "SByteValue",
+            "DataType": "ua:SByte",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "ByteValue",
+            "DataType": "ua:Byte",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "Int16Value",
+            "DataType": "ua:Int16",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "UInt16Value",
+            "DataType": "ua:UInt16",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "Int32Value",
+            "DataType": "ua:Int32",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "UInt32Value",
+            "DataType": "ua:UInt32",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "Int64Value",
+            "DataType": "ua:Int64",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "UInt64Value",
+            "DataType": "ua:UInt64",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "FloatValue",
+            "DataType": "ua:Float",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "DoubleValue",
+            "DataType": "ua:Double",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "StringValue",
+            "DataType": "ua:String",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "DateTimeValue",
+            "DataType": "ua:DateTime",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "GuidValue",
+            "DataType": "ua:Guid",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "ByteStringValue",
+            "DataType": "ua:ByteString",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "XmlElementValue",
+            "DataType": "ua:XmlElement",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "NodeIdValue",
+            "DataType": "ua:NodeId",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "ExpandedNodeIdValue",
+            "DataType": "ua:ExpandedNodeId",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "QualifiedNameValue",
+            "DataType": "ua:QualifiedName",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "LocalizedTextValue",
+            "DataType": "ua:LocalizedText",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "StatusCodeValue",
+            "DataType": "ua:StatusCode",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "VariantValue",
+            "DataType": "ua:BaseDataType",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "EnumerationValue",
+            "DataType": "ua:Enumeration",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "StructureValue",
+            "DataType": "ua:Structure",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "NumberValue",
+            "DataType": "ua:Number",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "IntegerValue",
+            "DataType": "ua:Integer",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Variable": {
+            "SymbolicName": "UIntegerValue",
+            "DataType": "ua:UInteger",
+            "ModellingRule": "Mandatory"
+          }
+        }
+      ]
+    },
+    {
+      "SymbolicName": "VectorVariableType",
+      "DataType": "Vector",
+      "BaseType": "ua:BaseDataVariableType",
+      "Children": [
+        {
+          "Property": {
+            "SymbolicName": "X",
+            "DataType": "ua:Double",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Property": {
+            "SymbolicName": "Y",
+            "DataType": "ua:Double",
+            "ModellingRule": "Mandatory"
+          }
+        },
+        {
+          "Property": {
+            "SymbolicName": "Z",
+            "DataType": "ua:Double",
+            "ModellingRule": "Mandatory"
+          }
+        }
+      ]
+    }
+  ],
+  "Objects": [
+    {
+      "SymbolicName": "Data",
+      "TypeDefinition": "ua:FolderType",
+      "SupportsEvents": true,
+      "Children": [
+        {
+          "Object": {
+            "SymbolicName": "Static",
+            "TypeDefinition": "ua:FolderType",
+            "SupportsEvents": true,
+            "Children": [
+              {
+                "Object": {
+                  "SymbolicName": "Scalar",
+                  "TypeDefinition": "ScalarValueObjectType",
+                  "ModellingRule": "Mandatory"
+                }
+              },
+              {
+                "Object": {
+                  "SymbolicName": "Structure",
+                  "TypeDefinition": "StructureValueObjectType",
+                  "ModellingRule": "Mandatory"
+                }
+              },
+              {
+                "Object": {
+                  "SymbolicName": "Array",
+                  "TypeDefinition": "ArrayValueObjectType",
+                  "ModellingRule": "Mandatory"
+                }
+              },
+              {
+                "Object": {
+                  "SymbolicName": "UserScalar",
+                  "TypeDefinition": "UserScalarValueObjectType",
+                  "ModellingRule": "Mandatory"
+                }
+              },
+              {
+                "Object": {
+                  "SymbolicName": "UserArray",
+                  "TypeDefinition": "UserArrayValueObjectType",
+                  "ModellingRule": "Mandatory"
+                }
+              },
+              {
+                "Object": {
+                  "SymbolicName": "AnalogScalar",
+                  "TypeDefinition": "AnalogScalarValueObjectType",
+                  "ModellingRule": "Mandatory"
+                }
+              },
+              {
+                "Object": {
+                  "SymbolicName": "AnalogArray",
+                  "TypeDefinition": "AnalogArrayValueObjectType",
+                  "ModellingRule": "Mandatory"
+                }
+              },
+              {
+                "Object": {
+                  "SymbolicName": "MethodTest",
+                  "TypeDefinition": "MethodTestType",
+                  "ModellingRule": "Mandatory"
+                }
+              }
+            ],
+            "References": [
+              {
+                "ReferenceType": "ua:HasEventSource",
+                "TargetId": "Data_Static_Scalar"
+              },
+              {
+                "ReferenceType": "ua:HasEventSource",
+                "TargetId": "Data_Static_Array"
+              }
+            ]
+          }
+        },
+        {
+          "Object": {
+            "SymbolicName": "Dynamic",
+            "TypeDefinition": "ua:FolderType",
+            "SupportsEvents": true,
+            "Children": [
+              {
+                "Object": {
+                  "SymbolicName": "Scalar",
+                  "TypeDefinition": "ScalarValueObjectType",
+                  "ModellingRule": "Mandatory",
+                  "Children": [
+                    {
+                      "Property": {
+                        "SymbolicName": "SimulationActive",
+                        "DefaultValue": {
+                          "Boolean": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "Object": {
+                  "SymbolicName": "Structure",
+                  "TypeDefinition": "StructureValueObjectType",
+                  "ModellingRule": "Mandatory",
+                  "Children": [
+                    {
+                      "Property": {
+                        "SymbolicName": "SimulationActive",
+                        "DefaultValue": {
+                          "Boolean": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "Object": {
+                  "SymbolicName": "Array",
+                  "TypeDefinition": "ArrayValueObjectType",
+                  "ModellingRule": "Mandatory",
+                  "Children": [
+                    {
+                      "Property": {
+                        "SymbolicName": "SimulationActive",
+                        "DefaultValue": {
+                          "Boolean": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "Object": {
+                  "SymbolicName": "UserScalar",
+                  "TypeDefinition": "UserScalarValueObjectType",
+                  "ModellingRule": "Mandatory",
+                  "Children": [
+                    {
+                      "Property": {
+                        "SymbolicName": "SimulationActive",
+                        "DefaultValue": {
+                          "Boolean": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "Object": {
+                  "SymbolicName": "UserArray",
+                  "TypeDefinition": "UserArrayValueObjectType",
+                  "ModellingRule": "Mandatory",
+                  "Children": [
+                    {
+                      "Property": {
+                        "SymbolicName": "SimulationActive",
+                        "DefaultValue": {
+                          "Boolean": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "Object": {
+                  "SymbolicName": "AnalogScalar",
+                  "TypeDefinition": "AnalogScalarValueObjectType",
+                  "ModellingRule": "Mandatory",
+                  "Children": [
+                    {
+                      "Property": {
+                        "SymbolicName": "SimulationActive",
+                        "DefaultValue": {
+                          "Boolean": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "Object": {
+                  "SymbolicName": "AnalogArray",
+                  "TypeDefinition": "AnalogArrayValueObjectType",
+                  "ModellingRule": "Mandatory",
+                  "Children": [
+                    {
+                      "Property": {
+                        "SymbolicName": "SimulationActive",
+                        "DefaultValue": {
+                          "Boolean": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "References": [
+              {
+                "ReferenceType": "ua:HasEventSource",
+                "TargetId": "Data_Dynamic_Scalar"
+              },
+              {
+                "ReferenceType": "ua:HasEventSource",
+                "TargetId": "Data_Dynamic_Array"
+              }
+            ]
+          }
+        },
+        {
+          "Object": {
+            "SymbolicName": "Conditions",
+            "TypeDefinition": "ua:FolderType",
+            "SupportsEvents": true,
+            "Children": [
+              {
+                "Object": {
+                  "SymbolicName": "SystemStatus",
+                  "TypeDefinition": "TestSystemConditionType",
+                  "ModellingRule": "Mandatory"
+                }
+              }
+            ],
+            "References": [
+              {
+                "ReferenceType": "ua:HasEventSource",
+                "TargetId": "Data_Conditions_SystemStatus"
+              }
+            ]
+          }
+        }
+      ],
+      "References": [
+        {
+          "ReferenceType": "ua:Organizes",
+          "TargetId": "ua:ObjectsFolder",
+          "IsInverse": true
+        },
+        {
+          "ReferenceType": "ua:HasNotifier",
+          "TargetId": "ua:Server",
+          "IsInverse": true
+        },
+        {
+          "ReferenceType": "ua:HasNotifier",
+          "TargetId": "Data_Static"
+        },
+        {
+          "ReferenceType": "ua:HasNotifier",
+          "TargetId": "Data_Dynamic"
+        }
+      ]
+    }
+  ]
+}

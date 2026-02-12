@@ -49,6 +49,7 @@ namespace Quickstarts.Servers
 
         private static readonly JsonSerializerSettings s_settings = new()
         {
+            ReferenceLoopHandling = ReferenceLoopHandling.Ignore, // Uses equality which does not work with Variant.
             TypeNameHandling = TypeNameHandling.All
         };
 

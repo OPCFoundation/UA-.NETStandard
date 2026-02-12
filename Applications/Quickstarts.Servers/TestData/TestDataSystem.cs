@@ -218,7 +218,7 @@ namespace TestData
                         return m_generator.GetRandom<DateTime>(false);
                     case Variables.ScalarValueObjectType_GuidValue:
                     case Variables.UserScalarValueObjectType_GuidValue:
-                        return m_generator.GetRandom<Guid>(false);
+                        return m_generator.GetRandom<Uuid>(false);
                     case Variables.ScalarValueObjectType_ByteStringValue:
                     case Variables.UserScalarValueObjectType_ByteStringValue:
                         return m_generator.GetRandom<byte[]>(false);
@@ -242,7 +242,7 @@ namespace TestData
                         return m_generator.GetRandom<StatusCode>(false);
                     case Variables.ScalarValueObjectType_VariantValue:
                     case Variables.UserScalarValueObjectType_VariantValue:
-                        return m_generator.GetRandomVariant(false).Value;
+                        return m_generator.GetRandomVariant(false).AsBoxedObject();
                     case Variables.ScalarValueObjectType_StructureValue:
                         return GetRandomStructure();
                     case Variables.ScalarValueObjectType_EnumerationValue:
@@ -434,7 +434,7 @@ namespace TestData
                         return m_generator.GetRandomArray<DateTime>(false, 100, false);
                     case Variables.ArrayValueObjectType_GuidValue:
                     case Variables.UserArrayValueObjectType_GuidValue:
-                        return m_generator.GetRandomArray<Guid>(false, 100, false);
+                        return m_generator.GetRandomArray<Uuid>(false, 100, false);
                     case Variables.ArrayValueObjectType_ByteStringValue:
                     case Variables.UserArrayValueObjectType_ByteStringValue:
                         return m_generator.GetRandomArray<byte[]>(false, 100, false);
@@ -632,7 +632,7 @@ namespace TestData
 
             return new VectorWithOptionalFields
             {
-                EncodingMask = encodingMask,
+                EncodingMask = (uint)encodingMask,
                 X = (double)m_generator.GetRandom(BuiltInType.Double),
                 Y = (double)m_generator.GetRandom(BuiltInType.Double),
                 Z = (double)m_generator.GetRandom(BuiltInType.Double)
@@ -718,7 +718,7 @@ namespace TestData
                 DoubleValue = m_generator.GetRandomArray<double>(false, 10, false),
                 StringValue = m_generator.GetRandomArray<string>(false, 10, false),
                 DateTimeValue = m_generator.GetRandomArray<DateTime>(false, 10, false),
-                GuidValue = m_generator.GetRandomArray<Uuid>(false, 10, false),
+                GuidValue = (UuidCollection)m_generator.GetRandomArray<Uuid>(false, 10, false),
                 ByteStringValue = m_generator.GetRandomArray<byte[]>(false, 10, false),
                 XmlElementValue = m_generator.GetRandomArray<XmlElement>(false, 10, false),
                 NodeIdValue = m_generator.GetRandomArray<NodeId>(false, 10, false),

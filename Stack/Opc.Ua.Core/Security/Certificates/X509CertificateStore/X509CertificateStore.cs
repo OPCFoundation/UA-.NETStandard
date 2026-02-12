@@ -291,7 +291,7 @@ namespace Opc.Ua
 
                 if (crl.IsRevoked(certificate))
                 {
-                    return (StatusCode)StatusCodes.BadCertificateRevoked;
+                    return StatusCodes.BadCertificateRevoked;
                 }
 
                 if (crl.ThisUpdate <= DateTime.UtcNow &&
@@ -304,11 +304,11 @@ namespace Opc.Ua
             // certificate is fine.
             if (!crlExpired)
             {
-                return (StatusCode)StatusCodes.Good;
+                return StatusCodes.Good;
             }
 
             // can't find a valid CRL.
-            return (StatusCode)StatusCodes.BadCertificateRevocationUnknown;
+            return StatusCodes.BadCertificateRevocationUnknown;
         }
 
         /// <inheritdoc/>

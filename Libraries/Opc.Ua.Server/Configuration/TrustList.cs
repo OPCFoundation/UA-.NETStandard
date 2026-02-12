@@ -250,8 +250,7 @@ namespace Opc.Ua.Server
                 {
                     if (store == null)
                     {
-                        throw new ServiceResultException(
-                            StatusCodes.BadConfigurationError,
+                        throw ServiceResultException.ConfigurationError(
                             "Failed to open issuer certificate store.");
                     }
 
@@ -291,7 +290,7 @@ namespace Opc.Ua.Server
 
                 lock (m_lock)
                 {
-                    if (m_sessionId != null)
+                    if (!m_sessionId.IsNull)
                     {
                         // to avoid deadlocks, last open always wins
                         m_sessionId = default;
@@ -740,7 +739,7 @@ namespace Opc.Ua.Server
             bool isSessionOpen;
             lock (m_lock)
             {
-                isSessionOpen = m_sessionId != null;
+                isSessionOpen = !m_sessionId.IsNull;
             }
 
             if (isSessionOpen)
@@ -847,7 +846,7 @@ namespace Opc.Ua.Server
             bool isSessionOpen;
             lock (m_lock)
             {
-                isSessionOpen = m_sessionId != null;
+                isSessionOpen = !m_sessionId.IsNull;
             }
 
             if (isSessionOpen)

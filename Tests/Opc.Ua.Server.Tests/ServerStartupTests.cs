@@ -57,7 +57,7 @@ namespace Opc.Ua.Server.Tests
         [Theory]
         public async Task StartServerAsync(string uriScheme)
         {
-            var fixture = new ServerFixture<StandardServer>();
+            var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
             Assert.NotNull(fixture);
             fixture.UriScheme = uriScheme;
             StandardServer server = await fixture.StartAsync().ConfigureAwait(false);

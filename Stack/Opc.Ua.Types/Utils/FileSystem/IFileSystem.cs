@@ -73,27 +73,12 @@ namespace Opc.Ua
         /// <param name="path"></param>
         /// <returns></returns>
         DateTime GetLastWriteTime(string path);
-    }
-
-    /// <summary>
-    /// Extensions for file system
-    /// </summary>
-    public static class FileSystemExtensions
-    {
-        /// <summary>
-        /// Create a text writer
-        /// </summary>
-        public static TextWriter CreateTextWriter(this IFileSystem fileSystem, string path)
-        {
-            return new StreamWriter(fileSystem.OpenWrite(path));
-        }
 
         /// <summary>
-        /// Create a text reader
+        /// Get length of file
         /// </summary>
-        public static TextReader CreateTextReader(this IFileSystem fileSystem, string path)
-        {
-            return new StreamReader(fileSystem.OpenRead(path));
-        }
+        /// <param name="path"></param>
+        /// <returns></returns>
+        long GetLength(string path);
     }
 }

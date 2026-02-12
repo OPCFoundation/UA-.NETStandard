@@ -65,7 +65,7 @@ namespace Alarms
             }
 
             m_alarmRootName = m_alarmTypeName + extraName;
-            m_mapName = (string)m_parent.NodeId.Identifier + "." + m_alarmRootName;
+            m_mapName = m_parent.NodeId.IdentifierAsString + "." + m_alarmRootName;
 
             InitializeInternal(m_alarm);
         }
@@ -116,10 +116,10 @@ namespace Alarms
         {
         }
 
-        private void InitializeInternal(BaseEventState alarm, NodeId branchId = null)
+        private void InitializeInternal(BaseEventState alarm, NodeId branchId = default)
         {
             string alarmName = AlarmName;
-            string alarmNodeId = (string)m_parent.NodeId.Identifier + "." + AlarmName;
+            string alarmNodeId = m_parent.NodeId.IdentifierAsString + "." + AlarmName;
 
             alarm.SymbolicName = alarmName;
             var createQualifiedName = new QualifiedName(alarmName, NamespaceIndex);
@@ -145,7 +145,7 @@ namespace Alarms
         private static bool IsBranch(NodeId branchId)
         {
             bool isBranch = false;
-            if (branchId != null && !branchId.IsNullNodeId)
+            if (!branchId.IsNull)
             {
                 isBranch = true;
             }
