@@ -721,7 +721,7 @@ namespace Opc.Ua.Gds.Client
                 applicationName,
                 applicationUri,
                 productUri,
-                Variant.From(serverCapabilities.ToArray())).ConfigureAwait(false);
+                Variant.From(serverCapabilities?.ToArray())).ConfigureAwait(false);
 
             ServerOnNetwork[] servers = null;
 
