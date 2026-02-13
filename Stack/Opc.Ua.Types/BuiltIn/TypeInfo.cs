@@ -37,7 +37,6 @@ using System.Collections.Generic;
 using System.Runtime.Serialization;
 using Opc.Ua.Types;
 using System.Text.Json.Serialization;
-
 #if NET8_0_OR_GREATER
 using System.Collections.Frozen;
 #else
@@ -155,6 +154,38 @@ namespace Opc.Ua
             return !left.Equals(right);
         }
 
+        /// <inheritdoc/>
+        public override string ToString()
+        {
+            return ToString(null, null);
+        }
+
+        /// <inheritdoc/>
+        public string ToString(string format, IFormatProvider formatProvider)
+        {
+            if (format == null)
+            {
+                var buffer = new System.Text.StringBuilder();
+                buffer.Append(BuiltInType.ToString());
+
+                if (ValueRank >= 0)
+                {
+                    buffer.Append('[');
+
+                    for (int ii = 1; ii < ValueRank; ii++)
+                    {
+                        buffer.Append(',');
+                    }
+
+                    buffer.Append(']');
+                }
+
+                return buffer.ToString();
+            }
+
+            throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
+        }
+
         /// <summary>
         /// Construct the object with a built-in type and a value rank.
         /// Uses static TypeInfo definitions if available.
@@ -175,86 +206,411 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns the data type id that describes a value.
+        /// Returns a static or allocated type info object for a scalar of the specified type.
         /// </summary>
-        /// <param name="value">The value instance to check the data type.</param>
-        /// <param name="namespaceTable">The namespace table.</param>
-        /// <returns>An data type identifier for a node in a server's address space.</returns>
-        public static NodeId GetDataTypeId(object value, NamespaceTable namespaceTable = null)
+        public static TypeInfo CreateScalar(BuiltInType builtInType)
         {
-            if (value is null)
-            {
-                return NodeId.Null;
-            }
+            return new TypeInfo(builtInType, ValueRanks.Scalar);
+        }
 
-            if (value is IEncodeable encodable && !encodable.TypeId.IsNull)
-            {
-                namespaceTable ??= AmbientMessageContext.CurrentContext?.NamespaceUris;
-                return ExpandedNodeId.ToNodeId(encodable.TypeId, namespaceTable);
-            }
+        /// <summary>
+        /// Constants for scalar types.
+        /// </summary>
+        public static class Scalars
+        {
+            /// <summary>
+            /// A boolean logic value (true or false).
+            /// </summary>
+            public static readonly TypeInfo Boolean = new(
+                BuiltInType.Boolean,
+                ValueRanks.Scalar);
 
-            NodeId dataTypeId = GetDataTypeId(value.GetType(), namespaceTable);
+            /// <summary>
+            /// An 8 bit signed integer value.
+            /// </summary>
+            public static readonly TypeInfo SByte = new(
+                BuiltInType.SByte,
+                ValueRanks.Scalar);
 
-            if (dataTypeId.IsNull && value is Matrix matrix)
-            {
-                return GetDataTypeId(matrix.TypeInfo);
-            }
+            /// <summary>
+            /// An 8 bit unsigned integer value.
+            /// </summary>
+            public static readonly TypeInfo Byte = new(
+                BuiltInType.Byte,
+                ValueRanks.Scalar);
 
-            return dataTypeId;
+            /// <summary>
+            /// A 16 bit signed integer value.
+            /// </summary>
+            public static readonly TypeInfo Int16 = new(
+                BuiltInType.Int16,
+                ValueRanks.Scalar);
+
+            /// <summary>
+            /// A 16 bit signed integer value.
+            /// </summary>
+            public static readonly TypeInfo UInt16 = new(
+                BuiltInType.UInt16,
+                ValueRanks.Scalar);
+
+            /// <summary>
+            /// A 32 bit signed integer value.
+            /// </summary>
+            public static readonly TypeInfo Int32 = new(
+                BuiltInType.Int32,
+                ValueRanks.Scalar);
+
+            /// <summary>
+            /// A 32 bit unsigned integer value.
+            /// </summary>
+            public static readonly TypeInfo UInt32 = new(
+                BuiltInType.UInt32,
+                ValueRanks.Scalar);
+
+            /// <summary>
+            /// A 64 bit signed integer value.
+            /// </summary>
+            public static readonly TypeInfo Int64 = new(
+                BuiltInType.Int64,
+                ValueRanks.Scalar);
+
+            /// <summary>
+            /// A 64 bit unsigned integer value.
+            /// </summary>
+            public static readonly TypeInfo UInt64 = new(
+                BuiltInType.UInt64,
+                ValueRanks.Scalar);
+
+            /// <summary>
+            /// An IEEE single precision (32 bit) floating point value.
+            /// </summary>
+            public static readonly TypeInfo Float = new(
+                BuiltInType.Float,
+                ValueRanks.Scalar);
+
+            /// <summary>
+            /// An IEEE double precision (64 bit) floating point value.
+            /// </summary>
+            public static readonly TypeInfo Double = new(
+                BuiltInType.Double,
+                ValueRanks.Scalar);
+
+            /// <summary>
+            /// A sequence of Unicode characters.
+            /// </summary>
+            public static readonly TypeInfo String = new(
+                BuiltInType.String,
+                ValueRanks.Scalar);
+
+            /// <summary>
+            /// An instance in time.
+            /// </summary>
+            public static readonly TypeInfo DateTime = new(
+                BuiltInType.DateTime,
+                ValueRanks.Scalar);
+
+            /// <summary>
+            /// A 128-bit globally unique identifier.
+            /// </summary>
+            public static readonly TypeInfo Guid = new(
+                BuiltInType.Guid,
+                ValueRanks.Scalar);
+
+            /// <summary>
+            /// A sequence of bytes.
+            /// </summary>
+            public static readonly TypeInfo ByteString = new(
+                BuiltInType.ByteString,
+                ValueRanks.Scalar);
+
+            /// <summary>
+            /// An XML element.
+            /// </summary>
+            public static readonly TypeInfo XmlElement = new(
+                BuiltInType.XmlElement,
+                ValueRanks.Scalar);
+
+            /// <summary>
+            /// An identifier for a node in the address space of a UA server.
+            /// </summary>
+            public static readonly TypeInfo NodeId = new(
+                BuiltInType.NodeId,
+                ValueRanks.Scalar);
+
+            /// <summary>
+            /// A node id that stores the namespace URI instead of the namespace index.
+            /// </summary>
+            public static readonly TypeInfo ExpandedNodeId = new(
+                BuiltInType.ExpandedNodeId,
+                ValueRanks.Scalar);
+
+            /// <summary>
+            /// A structured result code.
+            /// </summary>
+            public static readonly TypeInfo StatusCode = new(
+                BuiltInType.StatusCode,
+                ValueRanks.Scalar);
+
+            /// <summary>
+            /// A string qualified with a namespace.
+            /// </summary>
+            public static readonly TypeInfo QualifiedName = new(
+                BuiltInType.QualifiedName,
+                ValueRanks.Scalar);
+
+            /// <summary>
+            /// A localized text string with an locale identifier.
+            /// </summary>
+            public static readonly TypeInfo LocalizedText = new(
+                BuiltInType.LocalizedText,
+                ValueRanks.Scalar);
+
+            /// <summary>
+            /// An opaque object with a syntax that may be unknown to the receiver.
+            /// </summary>
+            public static readonly TypeInfo ExtensionObject = new(
+                BuiltInType.ExtensionObject,
+                ValueRanks.Scalar);
+
+            /// <summary>
+            /// A data value with an associated quality and timestamp.
+            /// </summary>
+            public static readonly TypeInfo DataValue = new(
+                BuiltInType.DataValue,
+                ValueRanks.Scalar);
+
+            /// <summary>
+            /// Any of the other built-in types.
+            /// </summary>
+            public static readonly TypeInfo Variant = new(
+                BuiltInType.Variant,
+                ValueRanks.Scalar);
+
+            /// <summary>
+            /// A diagnostic information associated with a result code.
+            /// </summary>
+            public static readonly TypeInfo DiagnosticInfo = new(
+                BuiltInType.DiagnosticInfo,
+                ValueRanks.Scalar);
+
+            /// <summary>
+            /// An enum type info.
+            /// </summary>
+            public static readonly TypeInfo Enumeration = new(
+                BuiltInType.Enumeration,
+                ValueRanks.Scalar);
+        }
+
+        /// <summary>
+        /// Returns a static of allocated type info object for a one dimensional array of the specified type.
+        /// </summary>
+        public static TypeInfo CreateArray(BuiltInType builtInType)
+        {
+            return new TypeInfo(builtInType, ValueRanks.OneDimension);
+        }
+
+        /// <summary>
+        /// Constants for one dimensional array types.
+        /// </summary>
+        public static class Arrays
+        {
+            /// <summary>
+            /// A boolean logic value (true or false).
+            /// </summary>
+            public static readonly TypeInfo Boolean = new(
+                BuiltInType.Boolean,
+                ValueRanks.OneDimension);
+
+            /// <summary>
+            /// An 8 bit signed integer value.
+            /// </summary>
+            public static readonly TypeInfo SByte = new(BuiltInType.SByte, ValueRanks.OneDimension);
+
+            /// <summary>
+            /// An 8 bit unsigned integer value.
+            /// </summary>
+            public static readonly TypeInfo Byte = new(BuiltInType.Byte, ValueRanks.OneDimension);
+
+            /// <summary>
+            /// A 16 bit signed integer value.
+            /// </summary>
+            public static readonly TypeInfo Int16 = new(BuiltInType.Int16, ValueRanks.OneDimension);
+
+            /// <summary>
+            /// A 16 bit signed integer value.
+            /// </summary>
+            public static readonly TypeInfo UInt16 = new(
+                BuiltInType.UInt16,
+                ValueRanks.OneDimension);
+
+            /// <summary>
+            /// A 32 bit signed integer value.
+            /// </summary>
+            public static readonly TypeInfo Int32 = new(BuiltInType.Int32, ValueRanks.OneDimension);
+
+            /// <summary>
+            /// A 32 bit unsigned integer value.
+            /// </summary>
+            public static readonly TypeInfo UInt32 = new(
+                BuiltInType.UInt32,
+                ValueRanks.OneDimension);
+
+            /// <summary>
+            /// A 64 bit signed integer value.
+            /// </summary>
+            public static readonly TypeInfo Int64 = new(BuiltInType.Int64, ValueRanks.OneDimension);
+
+            /// <summary>
+            /// A 64 bit unsigned integer value.
+            /// </summary>
+            public static readonly TypeInfo UInt64 = new(
+                BuiltInType.UInt64,
+                ValueRanks.OneDimension);
+
+            /// <summary>
+            /// An IEEE single precision (32 bit) floating point value.
+            /// </summary>
+            public static readonly TypeInfo Float = new(BuiltInType.Float, ValueRanks.OneDimension);
+
+            /// <summary>
+            /// An IEEE double precision (64 bit) floating point value.
+            /// </summary>
+            public static readonly TypeInfo Double = new(
+                BuiltInType.Double,
+                ValueRanks.OneDimension);
+
+            /// <summary>
+            /// A sequence of Unicode characters.
+            /// </summary>
+            public static readonly TypeInfo String = new(
+                BuiltInType.String,
+                ValueRanks.OneDimension);
+
+            /// <summary>
+            /// An instance in time.
+            /// </summary>
+            public static readonly TypeInfo DateTime = new(
+                BuiltInType.DateTime,
+                ValueRanks.OneDimension);
+
+            /// <summary>
+            /// A 128-bit globally unique identifier.
+            /// </summary>
+            public static readonly TypeInfo Guid = new(
+                BuiltInType.Guid,
+                ValueRanks.OneDimension);
+
+            /// <summary>
+            /// A sequence of bytes.
+            /// </summary>
+            public static readonly TypeInfo ByteString = new(
+                BuiltInType.ByteString,
+                ValueRanks.OneDimension);
+
+            /// <summary>
+            /// An XML element.
+            /// </summary>
+            public static readonly TypeInfo XmlElement = new(
+                BuiltInType.XmlElement,
+                ValueRanks.OneDimension);
+
+            /// <summary>
+            /// An identifier for a node in the address space of a UA server.
+            /// </summary>
+            public static readonly TypeInfo NodeId = new(
+                BuiltInType.NodeId,
+                ValueRanks.OneDimension);
+
+            /// <summary>
+            /// A node id that stores the namespace URI instead of the namespace index.
+            /// </summary>
+            public static readonly TypeInfo ExpandedNodeId = new(
+                BuiltInType.ExpandedNodeId,
+                ValueRanks.OneDimension);
+
+            /// <summary>
+            /// A structured result code.
+            /// </summary>
+            public static readonly TypeInfo StatusCode = new(
+                BuiltInType.StatusCode,
+                ValueRanks.OneDimension);
+
+            /// <summary>
+            /// A string qualified with a namespace.
+            /// </summary>
+            public static readonly TypeInfo QualifiedName = new(
+                BuiltInType.QualifiedName,
+                ValueRanks.OneDimension);
+
+            /// <summary>
+            /// A localized text string with an locale identifier.
+            /// </summary>
+            public static readonly TypeInfo LocalizedText = new(
+                BuiltInType.LocalizedText,
+                ValueRanks.OneDimension);
+
+            /// <summary>
+            /// An opaque object with a syntax that may be unknown to the receiver.
+            /// </summary>
+            public static readonly TypeInfo ExtensionObject = new(
+                BuiltInType.ExtensionObject,
+                ValueRanks.OneDimension);
+
+            /// <summary>
+            /// A data value with an associated quality and timestamp.
+            /// </summary>
+            public static readonly TypeInfo DataValue = new(
+                BuiltInType.DataValue,
+                ValueRanks.OneDimension);
+
+            /// <summary>
+            /// Any of the other built-in types.
+            /// </summary>
+            public static readonly TypeInfo Variant = new(
+                BuiltInType.Variant,
+                ValueRanks.OneDimension);
+
+            /// <summary>
+            /// A diagnostic information associated with a result code.
+            /// </summary>
+            public static readonly TypeInfo DiagnosticInfo = new(
+                BuiltInType.DiagnosticInfo,
+                ValueRanks.OneDimension);
+
+            /// <summary>
+            /// An array of enum values.
+            /// </summary>
+            public static readonly TypeInfo Enumeration = new(
+                BuiltInType.Enumeration,
+                ValueRanks.OneDimension);
         }
 
         /// <summary>
         /// Returns the data type id that describes a value.
         /// </summary>
-        /// <param name="type">The framework type.</param>
+        /// <param name="value">The value instance to check the data type.</param>
         /// <param name="namespaceTable">The namespace table.</param>
         /// <returns>An data type identifier for a node in a server's address space.</returns>
-        public static NodeId GetDataTypeId(Type type, NamespaceTable namespaceTable = null)
+        public static NodeId GetDataTypeId(Variant value, NamespaceTable namespaceTable = null)
         {
-            TypeInfo typeInfo = Construct(type);
-
-            NodeId dataTypeId = GetDataTypeId(typeInfo);
-
-            if (dataTypeId.IsNull)
+            if (value.IsNull)
             {
-                if (type.GetTypeInfo().IsEnum ||
-                    (type.IsArray && type.GetElementType().GetTypeInfo().IsEnum))
-                {
-                    return DataTypeIds.Enumeration;
-                }
+                return NodeId.Null;
             }
 
-            // Check if the type implements IEncodeable and has a specific TypeId
-            if (dataTypeId == DataTypeIds.Structure &&
-                typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(type.GetTypeInfo()))
+            if (value.TryGet(out ExtensionObject eo) &&
+                eo.TryGetEncodeable(out IEncodeable encodable) &&
+                !encodable.TypeId.IsNull)
             {
-                // Try to create an instance and get its TypeId
-                // All well-known IEncodeable types have parameterless constructors and instance TypeId properties
-                try
-                {
-                    var instance = Activator.CreateInstance(type) as IEncodeable;
-                    if (instance?.TypeId != null)
-                    {
-                        namespaceTable ??= AmbientMessageContext.CurrentContext?.NamespaceUris;
-                        return ExpandedNodeId.ToNodeId(instance.TypeId, namespaceTable);
-                    }
-                }
-                catch (MissingMethodException)
-                {
-                    // Type doesn't have a parameterless constructor, fall back to Structure
-                }
-                catch (TargetInvocationException)
-                {
-                    // Constructor threw an exception, fall back to Structure
-                }
-                catch (MethodAccessException)
-                {
-                    // No permission to create instance, fall back to Structure
-                }
-                catch (NotSupportedException)
-                {
-                    // Type is not supported for instantiation, fall back to Structure
-                }
+                namespaceTable ??= AmbientMessageContext.CurrentContext?.NamespaceUris;
+                return ExpandedNodeId.ToNodeId(encodable.TypeId, namespaceTable);
+            }
+
+            NodeId dataTypeId = GetDataTypeId(value.TypeInfo);
+
+            if (dataTypeId.IsNull && value.AsBoxedObject() is Matrix matrix) // TODO
+            {
+                return GetDataTypeId(matrix.TypeInfo);
             }
 
             return dataTypeId;
@@ -334,54 +690,6 @@ namespace Opc.Ua
                     throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {typeInfo.BuiltInType}");
             }
-        }
-
-        /// <summary>
-        /// Returns the array rank for a value.
-        /// </summary>
-        /// <param name="value">The value instance to check the array rank.</param>
-        /// <returns>The array rank of the <paramref name="value"/></returns>
-        public static int GetValueRank(object value)
-        {
-            if (value == null)
-            {
-                return ValueRanks.Any;
-            }
-
-            TypeInfo typeInfo = Construct(value);
-
-            if (typeInfo.BuiltInType == BuiltInType.Null && value is Matrix matrix)
-            {
-                return matrix.TypeInfo.ValueRank;
-            }
-
-            return typeInfo.ValueRank;
-        }
-
-        /// <summary>
-        /// Returns the array rank for a type.
-        /// </summary>
-        /// <param name="type">The framework type to check the array rank.</param>
-        /// <returns>The array rank of the <paramref name="type"/> </returns>
-        public static int GetValueRank(Type type)
-        {
-            TypeInfo typeInfo = Construct(type);
-
-            if (typeInfo.BuiltInType == BuiltInType.Null)
-            {
-                if (type.GetTypeInfo().IsEnum ||
-                    (type.IsArray && type.GetElementType().GetTypeInfo().IsEnum))
-                {
-                    if (type.IsArray)
-                    {
-                        return ValueRanks.OneOrMoreDimensions;
-                    }
-
-                    return ValueRanks.Scalar;
-                }
-            }
-
-            return typeInfo.ValueRank;
         }
 
         /// <summary>
@@ -551,7 +859,8 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the BuiltInType type for the DataTypeId.
         /// </summary>
-        /// <param name="datatypeId">The data type identifier for a node in a server's address space..</param>
+        /// <param name="datatypeId">The data type identifier for a node in a
+        /// server's address space..</param>
         /// <param name="typeTree">The type tree for a server. .</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>
@@ -708,92 +1017,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns the xml qualified name for the specified system type id.
-        /// </summary>
-        /// <remarks>
-        /// Returns the xml qualified name for the specified system type id.
-        /// </remarks>
-        /// <param name="systemType">The underlying type to query and return the Xml qualified name of</param>
-        public static XmlQualifiedName GetXmlName(Type systemType)
-        {
-            if (systemType == null)
-            {
-                return null;
-            }
-
-            object[] attributes =
-            [
-                .. systemType.GetTypeInfo().GetCustomAttributes(typeof(DataContractAttribute), true)
-            ];
-
-            if (attributes != null)
-            {
-                for (int ii = 0; ii < attributes.Length; ii++)
-                {
-                    if (attributes[ii] is DataContractAttribute contract)
-                    {
-                        if (string.IsNullOrEmpty(contract.Name))
-                        {
-                            return new XmlQualifiedName(systemType.Name, contract.Namespace);
-                        }
-
-                        return new XmlQualifiedName(contract.Name, contract.Namespace);
-                    }
-                }
-            }
-
-            attributes =
-            [
-                .. systemType.GetTypeInfo()
-                    .GetCustomAttributes(typeof(CollectionDataContractAttribute), true)
-            ];
-
-            if (attributes != null)
-            {
-                for (int ii = 0; ii < attributes.Length; ii++)
-                {
-                    if (attributes[ii] is CollectionDataContractAttribute contract)
-                    {
-                        if (string.IsNullOrEmpty(contract.Name))
-                        {
-                            return new XmlQualifiedName(systemType.Name, contract.Namespace);
-                        }
-
-                        return new XmlQualifiedName(contract.Name, contract.Namespace);
-                    }
-                }
-            }
-
-            if (systemType == typeof(byte[]))
-            {
-                return new XmlQualifiedName("ByteString");
-            }
-
-            return new XmlQualifiedName(systemType.FullName);
-        }
-
-        /// <summary>
-        /// Returns the xml qualified name for the specified object.
-        /// </summary>
-        /// <remarks>
-        /// Returns the xml qualified name for the specified object.
-        /// </remarks>
-        /// <param name="value">The object to query and return the Xml qualified name of</param>
-        /// <param name="context">Context</param>
-        public static XmlQualifiedName GetXmlName(object value, IServiceMessageContext context)
-        {
-            if (value is IDynamicComplexTypeInstance xmlEncodeable)
-            {
-                XmlQualifiedName xmlName = xmlEncodeable.GetXmlName(context);
-                if (xmlName != null)
-                {
-                    return xmlName;
-                }
-            }
-            return GetXmlName(value?.GetType());
-        }
-
-        /// <summary>
         /// Returns the type info if the value is an instance of the data type with the specified value rank.
         /// </summary>
         /// <param name="value">The value instance to check.</param>
@@ -802,18 +1025,18 @@ namespace Opc.Ua
         /// <param name="namespaceUris">The namespace URI's.</param>
         /// <param name="typeTree">The type tree for a server.</param>
         /// <returns>
-        /// An data type info if the value is an instance of the data type with the specified value rank; otherwise <c>null</c>.
+        /// An data type info if the Variant is an instance of the data type with the specified value rank
         /// </returns>
         /// <exception cref="ServiceResultException"></exception>
         public static TypeInfo IsInstanceOfDataType(
-            object value,
+            Variant value,
             NodeId expectedDataTypeId,
             int expectedValueRank,
             NamespaceTable namespaceUris,
             ITypeTable typeTree)
         {
             // get the type info.
-            TypeInfo typeInfo = Construct(value);
+            TypeInfo typeInfo = value.TypeInfo;
 
             BuiltInType expectedType;
             if (typeInfo.BuiltInType == BuiltInType.Null)
@@ -1030,8 +1253,9 @@ namespace Opc.Ua
             }
 
             // check every element in the array or matrix.
-            var array = value as Array;
-            if (array == null && value is Matrix matrix)
+            object boxed = value.AsBoxedObject();
+            var array = boxed as Array;
+            if (array == null && boxed is Matrix matrix)
             {
                 array = matrix.Elements;
             }
@@ -1082,7 +1306,7 @@ namespace Opc.Ua
                     }
 
                     TypeInfo elementInfo = IsInstanceOfDataType(
-                        element,
+                        new Variant(element),
                         expectedDataTypeId,
                         ValueRanks.Scalar,
                         namespaceUris,
@@ -1109,7 +1333,7 @@ namespace Opc.Ua
         /// <param name="namespaceUris">The namespace uris.</param>
         /// <param name="typeTree">The type tree for a server.</param>
         /// <returns>Returns the data type identifier that describes a value.</returns>
-        public NodeId GetDataTypeId(object value, NamespaceTable namespaceUris, ITypeTable typeTree)
+        public NodeId GetDataTypeId(Variant value, NamespaceTable namespaceUris, ITypeTable typeTree)
         {
             if (BuiltInType == BuiltInType.Null)
             {
@@ -1118,12 +1342,12 @@ namespace Opc.Ua
 
             if (BuiltInType == BuiltInType.ExtensionObject)
             {
-                if (value is IEncodeable encodeable)
+                if (value.TryGetStructure(out IEncodeable encodeable))
                 {
                     return ExpandedNodeId.ToNodeId(encodeable.TypeId, namespaceUris);
                 }
 
-                if (value is ExtensionObject extension)
+                if (value.TryGet(out ExtensionObject extension))
                 {
                     encodeable = extension.Body as IEncodeable;
                     if (encodeable != null)
@@ -1358,6 +1582,15 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the type info for the provided value.
         /// </summary>
+        [Obsolete("Use TypeInfo property on Variant value directly")]
+        public static TypeInfo Construct(Variant value)
+        {
+            return value.TypeInfo;
+        }
+
+        /// <summary>
+        /// Returns the type info for the provided value.
+        /// </summary>
         /// <param name="value">The value.</param>
         /// <returns><see cref="TypeInfo"/> instance storing information about
         /// the <paramref name="value"/> type.</returns>
@@ -1555,7 +1788,7 @@ namespace Opc.Ua
         /// <param name="type">The Built-in type.</param>
         /// <returns>The default value.</returns>
         /// <exception cref="ServiceResultException"></exception>
-        public static Variant GetDefaultValue(BuiltInType type)
+        public static Variant GetDefaultVariantValue(BuiltInType type)
         {
             switch (type)
             {
@@ -1613,12 +1846,11 @@ namespace Opc.Ua
                     return (long)0;
                 case BuiltInType.UInteger:
                     return (ulong)0;
-                case BuiltInType.Null:
-                    return default;
                 case BuiltInType.ExtensionObject:
                     return ExtensionObject.Null;
+                case BuiltInType.Null:
                 case BuiltInType.DiagnosticInfo:
-                    return default;
+                    return Variant.Null;
                 default:
                     throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {type}");
@@ -1631,9 +1863,9 @@ namespace Opc.Ua
         /// <param name="dataType">The data type.</param>
         /// <param name="valueRank">The value rank.</param>
         /// <returns>The default value.</returns>
-        public static Variant GetDefaultValue(NodeId dataType, int valueRank)
+        public static Variant GetDefaultVariantValue(NodeId dataType, int valueRank)
         {
-            return GetDefaultValue(dataType, valueRank, null);
+            return GetDefaultVariantValue(dataType, valueRank, null);
         }
 
         /// <summary>
@@ -1643,7 +1875,7 @@ namespace Opc.Ua
         /// <param name="valueRank">The value rank.</param>
         /// <param name="typeTree">The type tree for a server.</param>
         /// <returns>A default value.</returns>
-        public static Variant GetDefaultValue(NodeId dataType, int valueRank, ITypeTable typeTree)
+        public static Variant GetDefaultVariantValue(NodeId dataType, int valueRank, ITypeTable typeTree)
         {
             if (valueRank != ValueRanks.Scalar)
             {
@@ -1660,7 +1892,7 @@ namespace Opc.Ua
             if (id <= DataTypes.DiagnosticInfo)
             {
                 // Handle built-in types.
-                return GetDefaultValue((BuiltInType)(int)id);
+                return GetDefaultVariantValue((BuiltInType)(int)id);
             }
 
             // Handle known UA types that derive from built in type
@@ -1694,184 +1926,13 @@ namespace Opc.Ua
                 BuiltInType builtInType = GetBuiltInType(dataType, typeTree);
                 if (builtInType != BuiltInType.Null)
                 {
-                    return GetDefaultValue(builtInType);
+                    return GetDefaultVariantValue(builtInType);
                 }
                 return default;
             }
         }
 
-        /// <summary>
-        /// Returns the default value for the specified built-in type.
-        /// </summary>
-        /// <param name="type">The built-in type.</param>
-        /// <param name="dimensions">The dimensions.</param>
-        /// <returns>The default value for the specified built-in type</returns>
-        /// <exception cref="ArgumentOutOfRangeException"></exception>
-        /// <exception cref="ServiceResultException"></exception>
-        public static Array CreateArray(BuiltInType type, params int[] dimensions)
-        {
-            if (dimensions == null || dimensions.Length == 0)
-            {
-                throw new ArgumentOutOfRangeException(
-                    nameof(dimensions),
-                    "Array dimensions must be specified.");
-            }
 
-            int length = dimensions[0];
-
-            // create one dimensional array.
-            if (dimensions.Length == 1)
-            {
-                switch (type)
-                {
-                    case BuiltInType.Null:
-                        return new object[length];
-                    case BuiltInType.Boolean:
-                        return new bool[length];
-                    case BuiltInType.SByte:
-                        return new sbyte[length];
-                    case BuiltInType.Byte:
-                        return new byte[length];
-                    case BuiltInType.Int16:
-                        return new short[length];
-                    case BuiltInType.UInt16:
-                        return new ushort[length];
-                    case BuiltInType.Int32:
-                        return new int[length];
-                    case BuiltInType.UInt32:
-                        return new uint[length];
-                    case BuiltInType.Int64:
-                        return new long[length];
-                    case BuiltInType.UInt64:
-                        return new ulong[length];
-                    case BuiltInType.Float:
-                        return new float[length];
-                    case BuiltInType.Double:
-                        return new double[length];
-                    case BuiltInType.String:
-                        return new string[length];
-                    case BuiltInType.DateTime:
-                        return new DateTime[length];
-                    case BuiltInType.Guid:
-                        return new Uuid[length];
-                    case BuiltInType.ByteString:
-                        return new byte[length][];
-                    case BuiltInType.XmlElement:
-                        return new XmlElement[length];
-                    case BuiltInType.StatusCode:
-                        return new StatusCode[length];
-                    case BuiltInType.NodeId:
-                        return new NodeId[length];
-                    case BuiltInType.ExpandedNodeId:
-                        return new ExpandedNodeId[length];
-                    case BuiltInType.QualifiedName:
-                        return new QualifiedName[length];
-                    case BuiltInType.LocalizedText:
-                        return new LocalizedText[length];
-                    case BuiltInType.Variant:
-                        return new Variant[length];
-                    case BuiltInType.DataValue:
-                        return new DataValue[length];
-                    case BuiltInType.ExtensionObject:
-                        return new ExtensionObject[length];
-                    case BuiltInType.DiagnosticInfo:
-                        return new DiagnosticInfo[length];
-                    case BuiltInType.Enumeration:
-                        return new int[length];
-                    case BuiltInType.Number:
-
-                    case BuiltInType.Integer:
-
-                    case BuiltInType.UInteger:
-                        return new Variant[length];
-                    default:
-                        throw ServiceResultException.Unexpected(
-                            $"Unexpected BuiltInType {type}");
-                }
-            }
-            // create higher dimension arrays.
-            else
-            {
-                switch (type)
-                {
-                    case BuiltInType.Null:
-                        return Array.CreateInstance(typeof(object), dimensions);
-                    case BuiltInType.Boolean:
-                        return Array.CreateInstance(typeof(bool), dimensions);
-                    case BuiltInType.SByte:
-                        return Array.CreateInstance(typeof(sbyte), dimensions);
-                    case BuiltInType.Byte:
-                        return Array.CreateInstance(typeof(byte), dimensions);
-                    case BuiltInType.Int16:
-                        return Array.CreateInstance(typeof(short), dimensions);
-                    case BuiltInType.UInt16:
-                        return Array.CreateInstance(typeof(ushort), dimensions);
-                    case BuiltInType.Int32:
-                        return Array.CreateInstance(typeof(int), dimensions);
-                    case BuiltInType.UInt32:
-                        return Array.CreateInstance(typeof(uint), dimensions);
-                    case BuiltInType.Int64:
-                        return Array.CreateInstance(typeof(long), dimensions);
-                    case BuiltInType.UInt64:
-                        return Array.CreateInstance(typeof(ulong), dimensions);
-                    case BuiltInType.Float:
-                        return Array.CreateInstance(typeof(float), dimensions);
-                    case BuiltInType.Double:
-                        return Array.CreateInstance(typeof(double), dimensions);
-                    case BuiltInType.String:
-                        return Array.CreateInstance(typeof(string), dimensions);
-                    case BuiltInType.DateTime:
-                        return Array.CreateInstance(typeof(DateTime), dimensions);
-                    case BuiltInType.Guid:
-                        return Array.CreateInstance(typeof(Uuid), dimensions);
-                    case BuiltInType.ByteString:
-                        return Array.CreateInstance(typeof(byte[]), dimensions);
-                    case BuiltInType.XmlElement:
-                        return Array.CreateInstance(typeof(XmlElement), dimensions);
-                    case BuiltInType.StatusCode:
-                        return Array.CreateInstance(typeof(StatusCode), dimensions);
-                    case BuiltInType.NodeId:
-                        return Array.CreateInstance(typeof(NodeId), dimensions);
-                    case BuiltInType.ExpandedNodeId:
-                        return Array.CreateInstance(typeof(ExpandedNodeId), dimensions);
-                    case BuiltInType.QualifiedName:
-                        return Array.CreateInstance(typeof(QualifiedName), dimensions);
-                    case BuiltInType.LocalizedText:
-                        return Array.CreateInstance(typeof(LocalizedText), dimensions);
-                    case BuiltInType.Variant:
-                        return Array.CreateInstance(typeof(Variant), dimensions);
-                    case BuiltInType.DataValue:
-                        return Array.CreateInstance(typeof(DataValue), dimensions);
-                    case BuiltInType.ExtensionObject:
-                        return Array.CreateInstance(typeof(ExtensionObject), dimensions);
-                    case BuiltInType.DiagnosticInfo:
-                        return Array.CreateInstance(typeof(DiagnosticInfo), dimensions);
-                    case BuiltInType.Enumeration:
-                        return Array.CreateInstance(typeof(int), dimensions);
-                    case BuiltInType.Number:
-
-                    case BuiltInType.Integer:
-
-                    case BuiltInType.UInteger:
-                        return Array.CreateInstance(typeof(Variant), dimensions);
-                    default:
-                        throw ServiceResultException.Unexpected(
-                            $"Unexpected BuiltInType {type}");
-                }
-            }
-        }
-
-        /// <summary>
-        /// Casts a value to the specified target type.
-        /// </summary>
-        /// <param name="source">The instance of a source value.</param>
-        /// <param name="targetType">Type of the target.</param>
-        /// <returns>Return casted value.<see cref="DBNull"/></returns>
-        /// <exception cref="InvalidCastException">if impossible to cast.</exception>
-        public static object Cast(object source, BuiltInType targetType)
-        {
-            return Cast(source, Construct(source), targetType);
-        }
 
         /// <summary>
         /// Casts a value to the specified target type.
@@ -1972,141 +2033,6 @@ namespace Opc.Ua
                         $"Unexpected BuiltInType {targetType}");
             }
         }
-
-        /// <summary>
-        /// Converts the array using the specified conversion function.
-        /// </summary>
-        /// <param name="dst">The destination array (must have the same size as the source array).</param>
-        /// <param name="dstType">The data type of the elements in the destination array.</param>
-        /// <param name="src">The source array.</param>
-        /// <param name="srcType">The data type of the elements in the source array.</param>
-        /// <param name="convertor">The handler which does the conversion.</param>
-        public static void CastArray(
-            Array dst,
-            BuiltInType dstType,
-            Array src,
-            BuiltInType srcType,
-            CastArrayElementHandler convertor)
-        {
-            bool isSrcVariant = src.GetType().GetElementType() == typeof(Variant);
-            bool isDstVariant = dst.GetType().GetElementType() == typeof(Variant);
-
-            // optimize performance if dealing with a one dimensional array.
-            if (src.Rank == 1)
-            {
-                for (int ii = 0; ii < dst.Length; ii++)
-                {
-                    object element = src.GetValue(ii);
-
-                    if (isSrcVariant)
-                    {
-                        element = ((Variant)element).AsBoxedObject(); // TODO: Avoid boxing
-                    }
-
-                    if (convertor != null)
-                    {
-                        element = convertor(element, srcType, dstType);
-                    }
-
-                    if (isDstVariant)
-                    {
-                        element = new Variant(element);
-                    }
-
-                    dst.SetValue(element, ii);
-                }
-
-                return;
-            }
-
-            // do it the hard way for multidimensional arrays.
-            int[] dimensions = new int[src.Rank];
-
-            for (int ii = 0; ii < dimensions.Length; ii++)
-            {
-                dimensions[ii] = src.GetLength(ii);
-            }
-
-            int length = dst.Length;
-            int[] indexes = new int[dimensions.Length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                int divisor = dst.Length;
-
-                for (int jj = 0; jj < indexes.Length; jj++)
-                {
-                    divisor /= dimensions[jj];
-                    indexes[jj] = ii / divisor % dimensions[jj];
-                }
-
-                object element = src.GetValue(indexes);
-
-                if (element != null)
-                {
-                    if (isSrcVariant)
-                    {
-                        element = ((Variant)element).AsBoxedObject(); // TODO: Avoid boxing
-                    }
-
-                    if (convertor != null)
-                    {
-                        element = convertor(element, srcType, dstType);
-                    }
-
-                    if (isDstVariant)
-                    {
-                        element = new Variant(element);
-                    }
-
-                    dst.SetValue(element, indexes);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Converts the array.
-        /// </summary>
-        /// <param name="srcArray">The source array.</param>
-        /// <param name="srcType">The type of the source array.</param>
-        /// <param name="dstType">The type of the converted array.</param>
-        /// <param name="convertor">The handler which does the conversion.</param>
-        /// <returns>The converted array.</returns>
-        public static Array CastArray(
-            Array srcArray,
-            BuiltInType srcType,
-            BuiltInType dstType,
-            CastArrayElementHandler convertor)
-        {
-            if (srcArray == null)
-            {
-                return null;
-            }
-
-            int[] dimensions = new int[srcArray.Rank];
-
-            for (int ii = 0; ii < dimensions.Length; ii++)
-            {
-                dimensions[ii] = srcArray.GetLength(ii);
-            }
-
-            Array dstArray = CreateArray(dstType, dimensions);
-            CastArray(dstArray, dstType, srcArray, srcType, convertor);
-
-            return dstArray;
-        }
-
-        /// <summary>
-        /// A delegate for a function that converts an array element.
-        /// </summary>
-        /// <param name="source">The element to be converted.</param>
-        /// <param name="srcType">The type of the source element.</param>
-        /// <param name="dstType">The type of the converted value.</param>
-        /// <returns>The converted</returns>
-        public delegate object CastArrayElementHandler(
-            object source,
-            BuiltInType srcType,
-            BuiltInType dstType);
 
         /// <summary>
         /// Maps the type name to a built-in type.
@@ -3186,473 +3112,476 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns a static or allocated type info object for a scalar of the specified type.
+        /// Returns the default value for the specified built-in type.
         /// </summary>
-        public static TypeInfo CreateScalar(BuiltInType builtInType)
+        /// <param name="type">The Built-in type.</param>
+        /// <returns>The default value.</returns>
+        /// <exception cref="ServiceResultException"></exception>
+        public static object GetDefaultValue(BuiltInType type)
         {
-            if (s_scalars.Value.TryGetValue(builtInType, out TypeInfo scalarTypeInfo))
+            switch (type)
             {
-                return scalarTypeInfo;
+                case BuiltInType.Boolean:
+                    return false;
+                case BuiltInType.SByte:
+                    return (sbyte)0;
+                case BuiltInType.Byte:
+                    return (byte)0;
+                case BuiltInType.Int16:
+                    return (short)0;
+                case BuiltInType.UInt16:
+                    return (ushort)0;
+                case BuiltInType.Int32:
+                    return 0;
+                case BuiltInType.UInt32:
+                    return (uint)0;
+                case BuiltInType.Int64:
+                    return (long)0;
+                case BuiltInType.UInt64:
+                    return (ulong)0;
+                case BuiltInType.Float:
+                    return (float)0;
+                case BuiltInType.Double:
+                    return (double)0;
+                case BuiltInType.DateTime:
+                    return DateTime.MinValue;
+                case BuiltInType.Guid:
+                    return Uuid.Empty;
+                case BuiltInType.StatusCode:
+                    return StatusCodes.Good;
+                case BuiltInType.NodeId:
+                    return NodeId.Null;
+                case BuiltInType.ExpandedNodeId:
+                    return ExpandedNodeId.Null;
+                case BuiltInType.QualifiedName:
+                    return QualifiedName.Null;
+                case BuiltInType.LocalizedText:
+                    return LocalizedText.Null;
+                case BuiltInType.Variant:
+                    return Variant.Null;
+                case BuiltInType.Enumeration:
+                    return 0;
+                case BuiltInType.Number:
+                    return (double)0;
+                case BuiltInType.Integer:
+                    return (long)0;
+                case BuiltInType.UInteger:
+                    return (ulong)0;
+                case BuiltInType.ExtensionObject:
+                    return ExtensionObject.Null;
+                case BuiltInType.DataValue:
+                case BuiltInType.Null:
+                case BuiltInType.DiagnosticInfo:
+                case BuiltInType.String:
+                case BuiltInType.ByteString:
+                case BuiltInType.XmlElement:
+                    return null;
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {type}");
             }
-            return new TypeInfo(builtInType, ValueRanks.Scalar);
         }
 
         /// <summary>
-        /// Constants for scalar types.
+        /// Returns the default value for the specified data type and value rank.
         /// </summary>
-        public static class Scalars
+        /// <param name="dataType">The data type.</param>
+        /// <param name="valueRank">The value rank.</param>
+        /// <returns>The default value.</returns>
+        public static object GetDefaultValue(NodeId dataType, int valueRank)
         {
-            /// <summary>
-            /// A boolean logic value (true or false).
-            /// </summary>
-            public static readonly TypeInfo Boolean = new(
-                BuiltInType.Boolean,
-                ValueRanks.Scalar);
-
-            /// <summary>
-            /// An 8 bit signed integer value.
-            /// </summary>
-            public static readonly TypeInfo SByte = new(
-                BuiltInType.SByte,
-                ValueRanks.Scalar);
-
-            /// <summary>
-            /// An 8 bit unsigned integer value.
-            /// </summary>
-            public static readonly TypeInfo Byte = new(
-                BuiltInType.Byte,
-                ValueRanks.Scalar);
-
-            /// <summary>
-            /// A 16 bit signed integer value.
-            /// </summary>
-            public static readonly TypeInfo Int16 = new(
-                BuiltInType.Int16,
-                ValueRanks.Scalar);
-
-            /// <summary>
-            /// A 16 bit signed integer value.
-            /// </summary>
-            public static readonly TypeInfo UInt16 = new(
-                BuiltInType.UInt16,
-                ValueRanks.Scalar);
-
-            /// <summary>
-            /// A 32 bit signed integer value.
-            /// </summary>
-            public static readonly TypeInfo Int32 = new(
-                BuiltInType.Int32,
-                ValueRanks.Scalar);
-
-            /// <summary>
-            /// A 32 bit unsigned integer value.
-            /// </summary>
-            public static readonly TypeInfo UInt32 = new(
-                BuiltInType.UInt32,
-                ValueRanks.Scalar);
-
-            /// <summary>
-            /// A 64 bit signed integer value.
-            /// </summary>
-            public static readonly TypeInfo Int64 = new(
-                BuiltInType.Int64,
-                ValueRanks.Scalar);
-
-            /// <summary>
-            /// A 64 bit unsigned integer value.
-            /// </summary>
-            public static readonly TypeInfo UInt64 = new(
-                BuiltInType.UInt64,
-                ValueRanks.Scalar);
-
-            /// <summary>
-            /// An IEEE single precision (32 bit) floating point value.
-            /// </summary>
-            public static readonly TypeInfo Float = new(
-                BuiltInType.Float,
-                ValueRanks.Scalar);
-
-            /// <summary>
-            /// An IEEE double precision (64 bit) floating point value.
-            /// </summary>
-            public static readonly TypeInfo Double = new(
-                BuiltInType.Double,
-                ValueRanks.Scalar);
-
-            /// <summary>
-            /// A sequence of Unicode characters.
-            /// </summary>
-            public static readonly TypeInfo String = new(
-                BuiltInType.String,
-                ValueRanks.Scalar);
-
-            /// <summary>
-            /// An instance in time.
-            /// </summary>
-            public static readonly TypeInfo DateTime = new(
-                BuiltInType.DateTime,
-                ValueRanks.Scalar);
-
-            /// <summary>
-            /// A 128-bit globally unique identifier.
-            /// </summary>
-            public static readonly TypeInfo Guid = new(
-                BuiltInType.Guid,
-                ValueRanks.Scalar);
-
-            /// <summary>
-            /// A sequence of bytes.
-            /// </summary>
-            public static readonly TypeInfo ByteString = new(
-                BuiltInType.ByteString,
-                ValueRanks.Scalar);
-
-            /// <summary>
-            /// An XML element.
-            /// </summary>
-            public static readonly TypeInfo XmlElement = new(
-                BuiltInType.XmlElement,
-                ValueRanks.Scalar);
-
-            /// <summary>
-            /// An identifier for a node in the address space of a UA server.
-            /// </summary>
-            public static readonly TypeInfo NodeId = new(
-                BuiltInType.NodeId,
-                ValueRanks.Scalar);
-
-            /// <summary>
-            /// A node id that stores the namespace URI instead of the namespace index.
-            /// </summary>
-            public static readonly TypeInfo ExpandedNodeId = new(
-                BuiltInType.ExpandedNodeId,
-                ValueRanks.Scalar);
-
-            /// <summary>
-            /// A structured result code.
-            /// </summary>
-            public static readonly TypeInfo StatusCode = new(
-                BuiltInType.StatusCode,
-                ValueRanks.Scalar);
-
-            /// <summary>
-            /// A string qualified with a namespace.
-            /// </summary>
-            public static readonly TypeInfo QualifiedName = new(
-                BuiltInType.QualifiedName,
-                ValueRanks.Scalar);
-
-            /// <summary>
-            /// A localized text string with an locale identifier.
-            /// </summary>
-            public static readonly TypeInfo LocalizedText = new(
-                BuiltInType.LocalizedText,
-                ValueRanks.Scalar);
-
-            /// <summary>
-            /// An opaque object with a syntax that may be unknown to the receiver.
-            /// </summary>
-            public static readonly TypeInfo ExtensionObject = new(
-                BuiltInType.ExtensionObject,
-                ValueRanks.Scalar);
-
-            /// <summary>
-            /// A data value with an associated quality and timestamp.
-            /// </summary>
-            public static readonly TypeInfo DataValue = new(
-                BuiltInType.DataValue,
-                ValueRanks.Scalar);
-
-            /// <summary>
-            /// Any of the other built-in types.
-            /// </summary>
-            public static readonly TypeInfo Variant = new(
-                BuiltInType.Variant,
-                ValueRanks.Scalar);
-
-            /// <summary>
-            /// A diagnostic information associated with a result code.
-            /// </summary>
-            public static readonly TypeInfo DiagnosticInfo = new(
-                BuiltInType.DiagnosticInfo,
-                ValueRanks.Scalar);
-
-            /// <summary>
-            /// An enum type info.
-            /// </summary>
-            public static readonly TypeInfo Enumeration = new(
-                BuiltInType.Enumeration,
-                ValueRanks.Scalar);
+            return GetDefaultValue(dataType, valueRank, null);
         }
 
         /// <summary>
-        /// The on demand look up table for one dimensional arrays.
+        /// Returns the default value for the specified data type and value rank.
         /// </summary>
-        private static readonly Lazy<IReadOnlyDictionary<BuiltInType, TypeInfo>> s_scalars =
-            new(() =>
-            {
-                FieldInfo[] fields = typeof(Scalars).GetFields(
-                    BindingFlags.Public | BindingFlags.Static);
-
-                var keyValuePairs = new Dictionary<BuiltInType, TypeInfo>();
-                foreach (FieldInfo field in fields)
-                {
-                    var typeInfo = (TypeInfo)field.GetValue(typeof(TypeInfo));
-                    keyValuePairs.Add(typeInfo.BuiltInType, typeInfo);
-                }
-
-#if NET8_0_OR_GREATER
-                return keyValuePairs.ToFrozenDictionary();
-#else
-                return new ReadOnlyDictionary<BuiltInType, TypeInfo>(keyValuePairs);
-#endif
-            });
-
-        /// <summary>
-        /// Returns a static of allocated type info object for a one dimensional array of the specified type.
-        /// </summary>
-        public static TypeInfo CreateArray(BuiltInType builtInType)
+        /// <param name="dataType">The data type.</param>
+        /// <param name="valueRank">The value rank.</param>
+        /// <param name="typeTree">The type tree for a server.</param>
+        /// <returns>A default value.</returns>
+        public static object GetDefaultValue(NodeId dataType, int valueRank, ITypeTable typeTree)
         {
-            if (s_arrays.Value.TryGetValue(builtInType, out TypeInfo arrayTypeInfo))
+            if (valueRank != ValueRanks.Scalar)
             {
-                return arrayTypeInfo;
+                return default;
             }
-            return new TypeInfo(builtInType, ValueRanks.OneDimension);
-        }
 
-        /// <summary>
-        /// Constants for one dimensional array types.
-        /// </summary>
-        public static class Arrays
-        {
-            /// <summary>
-            /// A boolean logic value (true or false).
-            /// </summary>
-            public static readonly TypeInfo Boolean = new(
-                BuiltInType.Boolean,
-                ValueRanks.OneDimension);
-
-            /// <summary>
-            /// An 8 bit signed integer value.
-            /// </summary>
-            public static readonly TypeInfo SByte = new(BuiltInType.SByte, ValueRanks.OneDimension);
-
-            /// <summary>
-            /// An 8 bit unsigned integer value.
-            /// </summary>
-            public static readonly TypeInfo Byte = new(BuiltInType.Byte, ValueRanks.OneDimension);
-
-            /// <summary>
-            /// A 16 bit signed integer value.
-            /// </summary>
-            public static readonly TypeInfo Int16 = new(BuiltInType.Int16, ValueRanks.OneDimension);
-
-            /// <summary>
-            /// A 16 bit signed integer value.
-            /// </summary>
-            public static readonly TypeInfo UInt16 = new(
-                BuiltInType.UInt16,
-                ValueRanks.OneDimension);
-
-            /// <summary>
-            /// A 32 bit signed integer value.
-            /// </summary>
-            public static readonly TypeInfo Int32 = new(BuiltInType.Int32, ValueRanks.OneDimension);
-
-            /// <summary>
-            /// A 32 bit unsigned integer value.
-            /// </summary>
-            public static readonly TypeInfo UInt32 = new(
-                BuiltInType.UInt32,
-                ValueRanks.OneDimension);
-
-            /// <summary>
-            /// A 64 bit signed integer value.
-            /// </summary>
-            public static readonly TypeInfo Int64 = new(BuiltInType.Int64, ValueRanks.OneDimension);
-
-            /// <summary>
-            /// A 64 bit unsigned integer value.
-            /// </summary>
-            public static readonly TypeInfo UInt64 = new(
-                BuiltInType.UInt64,
-                ValueRanks.OneDimension);
-
-            /// <summary>
-            /// An IEEE single precision (32 bit) floating point value.
-            /// </summary>
-            public static readonly TypeInfo Float = new(BuiltInType.Float, ValueRanks.OneDimension);
-
-            /// <summary>
-            /// An IEEE double precision (64 bit) floating point value.
-            /// </summary>
-            public static readonly TypeInfo Double = new(
-                BuiltInType.Double,
-                ValueRanks.OneDimension);
-
-            /// <summary>
-            /// A sequence of Unicode characters.
-            /// </summary>
-            public static readonly TypeInfo String = new(
-                BuiltInType.String,
-                ValueRanks.OneDimension);
-
-            /// <summary>
-            /// An instance in time.
-            /// </summary>
-            public static readonly TypeInfo DateTime = new(
-                BuiltInType.DateTime,
-                ValueRanks.OneDimension);
-
-            /// <summary>
-            /// A 128-bit globally unique identifier.
-            /// </summary>
-            public static readonly TypeInfo Guid = new(
-                BuiltInType.Guid,
-                ValueRanks.OneDimension);
-
-            /// <summary>
-            /// A sequence of bytes.
-            /// </summary>
-            public static readonly TypeInfo ByteString = new(
-                BuiltInType.ByteString,
-                ValueRanks.OneDimension);
-
-            /// <summary>
-            /// An XML element.
-            /// </summary>
-            public static readonly TypeInfo XmlElement = new(
-                BuiltInType.XmlElement,
-                ValueRanks.OneDimension);
-
-            /// <summary>
-            /// An identifier for a node in the address space of a UA server.
-            /// </summary>
-            public static readonly TypeInfo NodeId = new(
-                BuiltInType.NodeId,
-                ValueRanks.OneDimension);
-
-            /// <summary>
-            /// A node id that stores the namespace URI instead of the namespace index.
-            /// </summary>
-            public static readonly TypeInfo ExpandedNodeId = new(
-                BuiltInType.ExpandedNodeId,
-                ValueRanks.OneDimension);
-
-            /// <summary>
-            /// A structured result code.
-            /// </summary>
-            public static readonly TypeInfo StatusCode = new(
-                BuiltInType.StatusCode,
-                ValueRanks.OneDimension);
-
-            /// <summary>
-            /// A string qualified with a namespace.
-            /// </summary>
-            public static readonly TypeInfo QualifiedName = new(
-                BuiltInType.QualifiedName,
-                ValueRanks.OneDimension);
-
-            /// <summary>
-            /// A localized text string with an locale identifier.
-            /// </summary>
-            public static readonly TypeInfo LocalizedText = new(
-                BuiltInType.LocalizedText,
-                ValueRanks.OneDimension);
-
-            /// <summary>
-            /// An opaque object with a syntax that may be unknown to the receiver.
-            /// </summary>
-            public static readonly TypeInfo ExtensionObject = new(
-                BuiltInType.ExtensionObject,
-                ValueRanks.OneDimension);
-
-            /// <summary>
-            /// A data value with an associated quality and timestamp.
-            /// </summary>
-            public static readonly TypeInfo DataValue = new(
-                BuiltInType.DataValue,
-                ValueRanks.OneDimension);
-
-            /// <summary>
-            /// Any of the other built-in types.
-            /// </summary>
-            public static readonly TypeInfo Variant = new(
-                BuiltInType.Variant,
-                ValueRanks.OneDimension);
-
-            /// <summary>
-            /// A diagnostic information associated with a result code.
-            /// </summary>
-            public static readonly TypeInfo DiagnosticInfo = new(
-                BuiltInType.DiagnosticInfo,
-                ValueRanks.OneDimension);
-
-            /// <summary>
-            /// An array of enum values.
-            /// </summary>
-            public static readonly TypeInfo Enumeration = new(
-                BuiltInType.Enumeration,
-                ValueRanks.OneDimension);
-        }
-
-        /// <summary>
-        /// The on demand look up table for one dimensional arrays.
-        /// </summary>
-        private static readonly Lazy<IReadOnlyDictionary<BuiltInType, TypeInfo>> s_arrays =
-            new(() =>
+            if (dataType.IsNull ||
+                dataType.NamespaceIndex != 0 ||
+                !dataType.TryGetIdentifier(out uint id))
             {
-                FieldInfo[] fields = typeof(Arrays).GetFields(
-                    BindingFlags.Public | BindingFlags.Static);
+                return GetDefaultValueInternal(dataType, typeTree);
+            }
 
-                var keyValuePairs = new Dictionary<BuiltInType, TypeInfo>();
-                foreach (FieldInfo field in fields)
+            if (id <= DataTypes.DiagnosticInfo)
+            {
+                // Handle built-in types.
+                return GetDefaultValue((BuiltInType)(int)id);
+            }
+
+            // Handle known UA types that derive from built in type
+            switch (id)
+            {
+                case DataTypes.Duration:
+                    return (double)0;
+                case DataTypes.UtcTime:
+                    return DateTime.MinValue;
+                case DataTypes.Counter:
+                case DataTypes.IntegerId:
+                    return (uint)0;
+                case DataTypes.Number:
+                    return (double)0;
+                case DataTypes.UInteger:
+                    return (ulong)0;
+                case DataTypes.Integer:
+                    return (long)0;
+                case DataTypes.IdType:
+                    return (int)IdType.Numeric;
+                case DataTypes.NodeClass:
+                    return (int)NodeClass.Unspecified;
+                case DataTypes.Enumeration:
+                    return 0;
+                default:
+                    return GetDefaultValueInternal(dataType, typeTree);
+            }
+
+            static object GetDefaultValueInternal(NodeId dataType, ITypeTable typeTree)
+            {
+                BuiltInType builtInType = GetBuiltInType(dataType, typeTree);
+                if (builtInType != BuiltInType.Null)
                 {
-                    var typeInfo = (TypeInfo)field.GetValue(typeof(TypeInfo));
-                    keyValuePairs.Add(typeInfo.BuiltInType, typeInfo);
+                    return GetDefaultValue(builtInType);
                 }
-#if NET8_0_OR_GREATER
-                return keyValuePairs.ToFrozenDictionary();
-#else
-                return new ReadOnlyDictionary<BuiltInType, TypeInfo>(keyValuePairs);
-#endif
-            });
-
-        /// <summary>
-        /// Formats the type information as a string.
-        /// </summary>
-        public override string ToString()
-        {
-            return ToString(null, null);
+                return default;
+            }
         }
 
         /// <summary>
-        /// Formats the type information as a string.
+        /// Returns the default value for the specified built-in type.
         /// </summary>
-        /// <exception cref="FormatException"></exception>
-        public string ToString(string format, IFormatProvider formatProvider)
+        /// <param name="type">The built-in type.</param>
+        /// <param name="dimensions">The dimensions.</param>
+        /// <returns>The default value for the specified built-in type</returns>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public static Array CreateArray(BuiltInType type, params int[] dimensions)
         {
-            if (format == null)
+            if (dimensions == null || dimensions.Length == 0)
             {
-                var buffer = new System.Text.StringBuilder();
-                buffer.Append(BuiltInType.ToString());
+                throw new ArgumentOutOfRangeException(
+                    nameof(dimensions),
+                    "Array dimensions must be specified.");
+            }
 
-                if (ValueRank >= 0)
+            int length = dimensions[0];
+
+            // create one dimensional array.
+            if (dimensions.Length == 1)
+            {
+                switch (type)
                 {
-                    buffer.Append('[');
+                    case BuiltInType.Null:
+                        return new object[length];
+                    case BuiltInType.Boolean:
+                        return new bool[length];
+                    case BuiltInType.SByte:
+                        return new sbyte[length];
+                    case BuiltInType.Byte:
+                        return new byte[length];
+                    case BuiltInType.Int16:
+                        return new short[length];
+                    case BuiltInType.UInt16:
+                        return new ushort[length];
+                    case BuiltInType.Int32:
+                        return new int[length];
+                    case BuiltInType.UInt32:
+                        return new uint[length];
+                    case BuiltInType.Int64:
+                        return new long[length];
+                    case BuiltInType.UInt64:
+                        return new ulong[length];
+                    case BuiltInType.Float:
+                        return new float[length];
+                    case BuiltInType.Double:
+                        return new double[length];
+                    case BuiltInType.String:
+                        return new string[length];
+                    case BuiltInType.DateTime:
+                        return new DateTime[length];
+                    case BuiltInType.Guid:
+                        return new Uuid[length];
+                    case BuiltInType.ByteString:
+                        return new byte[length][];
+                    case BuiltInType.XmlElement:
+                        return new XmlElement[length];
+                    case BuiltInType.StatusCode:
+                        return new StatusCode[length];
+                    case BuiltInType.NodeId:
+                        return new NodeId[length];
+                    case BuiltInType.ExpandedNodeId:
+                        return new ExpandedNodeId[length];
+                    case BuiltInType.QualifiedName:
+                        return new QualifiedName[length];
+                    case BuiltInType.LocalizedText:
+                        return new LocalizedText[length];
+                    case BuiltInType.Variant:
+                        return new Variant[length];
+                    case BuiltInType.DataValue:
+                        return new DataValue[length];
+                    case BuiltInType.ExtensionObject:
+                        return new ExtensionObject[length];
+                    case BuiltInType.DiagnosticInfo:
+                        return new DiagnosticInfo[length];
+                    case BuiltInType.Enumeration:
+                        return new int[length];
+                    case BuiltInType.Number:
 
-                    for (int ii = 1; ii < ValueRank; ii++)
+                    case BuiltInType.Integer:
+
+                    case BuiltInType.UInteger:
+                        return new Variant[length];
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected BuiltInType {type}");
+                }
+            }
+            // create higher dimension arrays.
+            else
+            {
+                switch (type)
+                {
+                    case BuiltInType.Null:
+                        return Array.CreateInstance(typeof(object), dimensions);
+                    case BuiltInType.Boolean:
+                        return Array.CreateInstance(typeof(bool), dimensions);
+                    case BuiltInType.SByte:
+                        return Array.CreateInstance(typeof(sbyte), dimensions);
+                    case BuiltInType.Byte:
+                        return Array.CreateInstance(typeof(byte), dimensions);
+                    case BuiltInType.Int16:
+                        return Array.CreateInstance(typeof(short), dimensions);
+                    case BuiltInType.UInt16:
+                        return Array.CreateInstance(typeof(ushort), dimensions);
+                    case BuiltInType.Int32:
+                        return Array.CreateInstance(typeof(int), dimensions);
+                    case BuiltInType.UInt32:
+                        return Array.CreateInstance(typeof(uint), dimensions);
+                    case BuiltInType.Int64:
+                        return Array.CreateInstance(typeof(long), dimensions);
+                    case BuiltInType.UInt64:
+                        return Array.CreateInstance(typeof(ulong), dimensions);
+                    case BuiltInType.Float:
+                        return Array.CreateInstance(typeof(float), dimensions);
+                    case BuiltInType.Double:
+                        return Array.CreateInstance(typeof(double), dimensions);
+                    case BuiltInType.String:
+                        return Array.CreateInstance(typeof(string), dimensions);
+                    case BuiltInType.DateTime:
+                        return Array.CreateInstance(typeof(DateTime), dimensions);
+                    case BuiltInType.Guid:
+                        return Array.CreateInstance(typeof(Uuid), dimensions);
+                    case BuiltInType.ByteString:
+                        return Array.CreateInstance(typeof(byte[]), dimensions);
+                    case BuiltInType.XmlElement:
+                        return Array.CreateInstance(typeof(XmlElement), dimensions);
+                    case BuiltInType.StatusCode:
+                        return Array.CreateInstance(typeof(StatusCode), dimensions);
+                    case BuiltInType.NodeId:
+                        return Array.CreateInstance(typeof(NodeId), dimensions);
+                    case BuiltInType.ExpandedNodeId:
+                        return Array.CreateInstance(typeof(ExpandedNodeId), dimensions);
+                    case BuiltInType.QualifiedName:
+                        return Array.CreateInstance(typeof(QualifiedName), dimensions);
+                    case BuiltInType.LocalizedText:
+                        return Array.CreateInstance(typeof(LocalizedText), dimensions);
+                    case BuiltInType.Variant:
+                        return Array.CreateInstance(typeof(Variant), dimensions);
+                    case BuiltInType.DataValue:
+                        return Array.CreateInstance(typeof(DataValue), dimensions);
+                    case BuiltInType.ExtensionObject:
+                        return Array.CreateInstance(typeof(ExtensionObject), dimensions);
+                    case BuiltInType.DiagnosticInfo:
+                        return Array.CreateInstance(typeof(DiagnosticInfo), dimensions);
+                    case BuiltInType.Enumeration:
+                        return Array.CreateInstance(typeof(int), dimensions);
+                    case BuiltInType.Number:
+
+                    case BuiltInType.Integer:
+
+                    case BuiltInType.UInteger:
+                        return Array.CreateInstance(typeof(Variant), dimensions);
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected BuiltInType {type}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Returns the data type id that describes a value.
+        /// </summary>
+        /// <param name="type">The framework type.</param>
+        /// <param name="namespaceTable">The namespace table.</param>
+        /// <returns>An data type identifier for a node in a server's address space.</returns>
+        public static NodeId GetDataTypeId(Type type, NamespaceTable namespaceTable = null)
+        {
+            TypeInfo typeInfo = Construct(type);
+
+            NodeId dataTypeId = GetDataTypeId(typeInfo);
+
+            if (dataTypeId.IsNull)
+            {
+                if (type.GetTypeInfo().IsEnum ||
+                    (type.IsArray && type.GetElementType().GetTypeInfo().IsEnum))
+                {
+                    return DataTypeIds.Enumeration;
+                }
+            }
+
+            // Check if the type implements IEncodeable and has a specific TypeId
+            if (dataTypeId == DataTypeIds.Structure &&
+                typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(type.GetTypeInfo()))
+            {
+                // Try to create an instance and get its TypeId
+                // All well-known IEncodeable types have parameterless constructors and instance TypeId properties
+                try
+                {
+                    var instance = Activator.CreateInstance(type) as IEncodeable;
+                    if (instance?.TypeId != null)
                     {
-                        buffer.Append(',');
+                        namespaceTable ??= AmbientMessageContext.CurrentContext?.NamespaceUris;
+                        return ExpandedNodeId.ToNodeId(instance.TypeId, namespaceTable);
+                    }
+                }
+                catch (MissingMethodException)
+                {
+                    // Type doesn't have a parameterless constructor, fall back to Structure
+                }
+                catch (TargetInvocationException)
+                {
+                    // Constructor threw an exception, fall back to Structure
+                }
+                catch (MethodAccessException)
+                {
+                    // No permission to create instance, fall back to Structure
+                }
+                catch (NotSupportedException)
+                {
+                    // Type is not supported for instantiation, fall back to Structure
+                }
+            }
+
+            return dataTypeId;
+        }
+
+        /// <summary>
+        /// Returns the array rank for a type.
+        /// </summary>
+        /// <param name="type">The framework type to check the array rank.</param>
+        /// <returns>The array rank of the <paramref name="type"/> </returns>
+        public static int GetValueRank(Type type)
+        {
+            TypeInfo typeInfo = Construct(type);
+
+            if (typeInfo.BuiltInType == BuiltInType.Null)
+            {
+                if (type.GetTypeInfo().IsEnum ||
+                    (type.IsArray && type.GetElementType().GetTypeInfo().IsEnum))
+                {
+                    if (type.IsArray)
+                    {
+                        return ValueRanks.OneOrMoreDimensions;
                     }
 
-                    buffer.Append(']');
+                    return ValueRanks.Scalar;
                 }
-
-                return buffer.ToString();
             }
 
-            throw new FormatException(CoreUtils.Format("Invalid format string: '{0}'.", format));
+            return typeInfo.ValueRank;
+        }
+
+        /// <summary>
+        /// Returns the xml qualified name for the specified system type id.
+        /// </summary>
+        /// <remarks>
+        /// Returns the xml qualified name for the specified system type id.
+        /// </remarks>
+        /// <param name="systemType">The underlying type to query and return the Xml qualified name of</param>
+        public static XmlQualifiedName GetXmlName(Type systemType)
+        {
+            if (systemType == null)
+            {
+                return null;
+            }
+
+            object[] attributes =
+            [
+                .. systemType.GetTypeInfo().GetCustomAttributes(typeof(DataContractAttribute), true)
+            ];
+
+            if (attributes != null)
+            {
+                for (int ii = 0; ii < attributes.Length; ii++)
+                {
+                    if (attributes[ii] is DataContractAttribute contract)
+                    {
+                        if (string.IsNullOrEmpty(contract.Name))
+                        {
+                            return new XmlQualifiedName(systemType.Name, contract.Namespace);
+                        }
+
+                        return new XmlQualifiedName(contract.Name, contract.Namespace);
+                    }
+                }
+            }
+
+            attributes =
+            [
+                .. systemType.GetTypeInfo()
+                    .GetCustomAttributes(typeof(CollectionDataContractAttribute), true)
+            ];
+
+            if (attributes != null)
+            {
+                for (int ii = 0; ii < attributes.Length; ii++)
+                {
+                    if (attributes[ii] is CollectionDataContractAttribute contract)
+                    {
+                        if (string.IsNullOrEmpty(contract.Name))
+                        {
+                            return new XmlQualifiedName(systemType.Name, contract.Namespace);
+                        }
+
+                        return new XmlQualifiedName(contract.Name, contract.Namespace);
+                    }
+                }
+            }
+
+            if (systemType == typeof(byte[]))
+            {
+                return new XmlQualifiedName("ByteString");
+            }
+
+            return new XmlQualifiedName(systemType.FullName);
+        }
+
+        /// <summary>
+        /// Returns the xml qualified name for the specified object.
+        /// </summary>
+        /// <param name="value">The object to query and return the Xml qualified name of</param>
+        /// <param name="context">Context</param>
+        public static XmlQualifiedName GetXmlName(object value, IServiceMessageContext context)
+        {
+            if (value is IDynamicComplexTypeInstance xmlEncodeable)
+            {
+                XmlQualifiedName xmlName = xmlEncodeable.GetXmlName(context);
+                if (xmlName != null)
+                {
+                    return xmlName;
+                }
+            }
+            return GetXmlName(value?.GetType());
         }
 
         private readonly short m_valueRank;

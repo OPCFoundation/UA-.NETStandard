@@ -2079,7 +2079,7 @@ namespace Opc.Ua
             value = new T[v.Length];
             for (var ii = 0; ii < v.Length; ii++)
             {
-                if (!v[ii].TryGetEncodeable<T>(out value[ii], context))
+                if (!v[ii].TryGetEncodeable(out value[ii], context))
                 {
                     value = default;
                     return false;
@@ -2936,7 +2936,7 @@ namespace Opc.Ua
         public static Variant FromStructure<T>(IEnumerable<T> value, bool copy = false)
             where T : IEncodeable
         {
-            return new Variant(value.Select(b => new ExtensionObject(b, copy)).ToArray());
+            return new Variant(value?.Select(b => new ExtensionObject(b, copy)).ToArray());
         }
 
         /// <summary>
@@ -3693,6 +3693,868 @@ namespace Opc.Ua
         public static explicit operator Variant[](Variant value)
         {
             return value.TryGet(out Variant[] v) ? v : throw CannotCast<Variant[]>();
+        }
+
+        /// <summary>
+        /// Converts to a Variant with Boolean
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public Variant ConvertToBoolean()
+        {
+            switch (TypeInfo.BuiltInType)
+            {
+                case BuiltInType.Boolean:
+                    return this;
+                case BuiltInType.SByte:
+                    return Convert.ToBoolean(GetSByte());
+                case BuiltInType.Byte:
+                    return Convert.ToBoolean(GetByte());
+                case BuiltInType.Int16:
+                    return Convert.ToBoolean(GetInt16());
+                case BuiltInType.UInt16:
+                    return Convert.ToBoolean(GetUInt16());
+                case BuiltInType.Int32:
+                    return Convert.ToBoolean(GetInt32());
+                case BuiltInType.UInt32:
+                    return Convert.ToBoolean(GetUInt32());
+                case BuiltInType.Int64:
+                    return Convert.ToBoolean(GetInt64());
+                case BuiltInType.UInt64:
+                    return Convert.ToBoolean(GetUInt64());
+                case BuiltInType.Float:
+                    return Convert.ToBoolean(GetFloat());
+                case BuiltInType.Double:
+                    return Convert.ToBoolean(GetDouble());
+                case BuiltInType.String:
+                    return XmlConvert.ToBoolean(GetString());
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {TypeInfo.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts to a Variant with SByte
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public Variant ConvertToSByte()
+        {
+            switch (TypeInfo.BuiltInType)
+            {
+                case BuiltInType.SByte:
+                    return this;
+                case BuiltInType.Boolean:
+                    return Convert.ToSByte(GetBoolean());
+                case BuiltInType.Byte:
+                    return Convert.ToSByte(GetByte());
+                case BuiltInType.Int16:
+                    return Convert.ToSByte(GetInt16());
+                case BuiltInType.UInt16:
+                    return Convert.ToSByte(GetUInt16());
+                case BuiltInType.Int32:
+                    return Convert.ToSByte(GetInt32());
+                case BuiltInType.UInt32:
+                    return Convert.ToSByte(GetUInt32());
+                case BuiltInType.Int64:
+                    return Convert.ToSByte(GetInt64());
+                case BuiltInType.UInt64:
+                    return Convert.ToSByte(GetUInt64());
+                case BuiltInType.Float:
+                    return Convert.ToSByte(GetFloat());
+                case BuiltInType.Double:
+                    return Convert.ToSByte(GetDouble());
+                case BuiltInType.String:
+                    return XmlConvert.ToSByte(GetString());
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {TypeInfo.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts to a Variant with Byte
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public Variant ConvertToByte()
+        {
+            switch (TypeInfo.BuiltInType)
+            {
+                case BuiltInType.Byte:
+                    return this;
+                case BuiltInType.Boolean:
+                    return Convert.ToByte(GetBoolean());
+                case BuiltInType.SByte:
+                    return Convert.ToByte(GetSByte());
+                case BuiltInType.Int16:
+                    return Convert.ToByte(GetInt16());
+                case BuiltInType.UInt16:
+                    return Convert.ToByte(GetUInt16());
+                case BuiltInType.Int32:
+                    return Convert.ToByte(GetInt32());
+                case BuiltInType.UInt32:
+                    return Convert.ToByte(GetUInt32());
+                case BuiltInType.Int64:
+                    return Convert.ToByte(GetInt64());
+                case BuiltInType.UInt64:
+                    return Convert.ToByte(GetUInt64());
+                case BuiltInType.Float:
+                    return Convert.ToByte(GetFloat());
+                case BuiltInType.Double:
+                    return Convert.ToByte(GetDouble());
+                case BuiltInType.String:
+                    return XmlConvert.ToByte(GetString());
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {TypeInfo.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts to a Variant with Int16
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public Variant ConvertToInt16()
+        {
+            switch (TypeInfo.BuiltInType)
+            {
+                case BuiltInType.Int16:
+                    return this;
+                case BuiltInType.Boolean:
+                    return Convert.ToInt16(GetBoolean());
+                case BuiltInType.SByte:
+                    return Convert.ToInt16(GetSByte());
+                case BuiltInType.Byte:
+                    return Convert.ToInt16(GetByte());
+                case BuiltInType.UInt16:
+                    return Convert.ToInt16(GetUInt16());
+                case BuiltInType.Int32:
+                    return Convert.ToInt16(GetInt32());
+                case BuiltInType.UInt32:
+                    return Convert.ToInt16(GetUInt32());
+                case BuiltInType.Int64:
+                    return Convert.ToInt16(GetInt64());
+                case BuiltInType.UInt64:
+                    return Convert.ToInt16(GetUInt64());
+                case BuiltInType.Float:
+                    return Convert.ToInt16(GetFloat());
+                case BuiltInType.Double:
+                    return Convert.ToInt16(GetDouble());
+                case BuiltInType.String:
+                    return XmlConvert.ToInt16(GetString());
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {TypeInfo.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts to a Variant with UInt16
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public Variant ConvertToUInt16()
+        {
+            switch (TypeInfo.BuiltInType)
+            {
+                case BuiltInType.UInt16:
+                    return this;
+                case BuiltInType.Boolean:
+                    return Convert.ToUInt16(GetBoolean());
+                case BuiltInType.SByte:
+                    return Convert.ToUInt16(GetSByte());
+                case BuiltInType.Byte:
+                    return Convert.ToUInt16(GetByte());
+                case BuiltInType.Int16:
+                    return Convert.ToUInt16(GetInt16());
+                case BuiltInType.Int32:
+                    return Convert.ToUInt16(GetInt32());
+                case BuiltInType.UInt32:
+                    return Convert.ToUInt16(GetUInt32());
+                case BuiltInType.Int64:
+                    return Convert.ToUInt16(GetInt64());
+                case BuiltInType.UInt64:
+                    return Convert.ToUInt16(GetUInt64());
+                case BuiltInType.Float:
+                    return Convert.ToUInt16(GetFloat());
+                case BuiltInType.Double:
+                    return Convert.ToUInt16(GetDouble());
+                case BuiltInType.String:
+                    return XmlConvert.ToUInt16(GetString());
+                case BuiltInType.StatusCode:
+                    var code = GetStatusCode();
+                    return (ushort)(code.CodeBits >> 16);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {TypeInfo.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts to a Variant with Int32
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public Variant ConvertToInt32()
+        {
+            switch (TypeInfo.BuiltInType)
+            {
+                case BuiltInType.Int32:
+                    return this;
+                case BuiltInType.Boolean:
+                    return Convert.ToInt32(GetBoolean());
+                case BuiltInType.SByte:
+                    return Convert.ToInt32(GetSByte());
+                case BuiltInType.Byte:
+                    return Convert.ToInt32(GetByte());
+                case BuiltInType.Int16:
+                    return Convert.ToInt32(GetInt16());
+                case BuiltInType.UInt16:
+                    return Convert.ToInt32(GetUInt16());
+                case BuiltInType.UInt32:
+                    return Convert.ToInt32(GetUInt32());
+                case BuiltInType.Int64:
+                    return Convert.ToInt32(GetInt64());
+                case BuiltInType.UInt64:
+                    return Convert.ToInt32(GetUInt64());
+                case BuiltInType.Float:
+                    return Convert.ToInt32(GetFloat());
+                case BuiltInType.Double:
+                    return Convert.ToInt32(GetDouble());
+                case BuiltInType.String:
+                    return XmlConvert.ToInt32(GetString());
+                case BuiltInType.StatusCode:
+                    return Convert.ToInt32(GetStatusCode().Code);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {TypeInfo.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts to a Variant with UInt32
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public Variant ConvertToUInt32()
+        {
+            switch (TypeInfo.BuiltInType)
+            {
+                case BuiltInType.UInt32:
+                    return this;
+                case BuiltInType.Boolean:
+                    return Convert.ToUInt32(GetBoolean());
+                case BuiltInType.SByte:
+                    return Convert.ToUInt32(GetSByte());
+                case BuiltInType.Byte:
+                    return Convert.ToUInt32(GetByte());
+                case BuiltInType.Int16:
+                    return Convert.ToUInt32(GetInt16());
+                case BuiltInType.UInt16:
+                    return Convert.ToUInt32(GetUInt16());
+                case BuiltInType.Int32:
+                    return Convert.ToUInt32(GetInt32());
+                case BuiltInType.Int64:
+                    return Convert.ToUInt32(GetInt64());
+                case BuiltInType.UInt64:
+                    return Convert.ToUInt32(GetUInt64());
+                case BuiltInType.Float:
+                    return Convert.ToUInt32(GetFloat());
+                case BuiltInType.Double:
+                    return Convert.ToUInt32(GetDouble());
+                case BuiltInType.String:
+                    return XmlConvert.ToUInt32(GetString());
+                case BuiltInType.StatusCode:
+                    return Convert.ToUInt32(GetStatusCode().Code);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {TypeInfo.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts to a Variant with Int64
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public Variant ConvertToInt64()
+        {
+            switch (TypeInfo.BuiltInType)
+            {
+                case BuiltInType.Int64:
+                    return this;
+                case BuiltInType.Boolean:
+                    return Convert.ToInt64(GetBoolean());
+                case BuiltInType.SByte:
+                    return Convert.ToInt64(GetSByte());
+                case BuiltInType.Byte:
+                    return Convert.ToInt64(GetByte());
+                case BuiltInType.Int16:
+                    return Convert.ToInt64(GetInt16());
+                case BuiltInType.UInt16:
+                    return Convert.ToInt64(GetUInt16());
+                case BuiltInType.Int32:
+                    return Convert.ToInt64(GetInt32());
+                case BuiltInType.UInt32:
+                    return Convert.ToInt64(GetUInt32());
+                case BuiltInType.UInt64:
+                    return Convert.ToInt64(GetUInt64());
+                case BuiltInType.Float:
+                    return Convert.ToInt64(GetFloat());
+                case BuiltInType.Double:
+                    return Convert.ToInt64(GetDouble());
+                case BuiltInType.String:
+                    return XmlConvert.ToInt64(GetString());
+                case BuiltInType.StatusCode:
+                    return Convert.ToInt64(GetStatusCode().Code);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {TypeInfo.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts to a Variant with UInt64
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public Variant ConvertToUInt64()
+        {
+            switch (TypeInfo.BuiltInType)
+            {
+                case BuiltInType.UInt64:
+                    return this;
+                case BuiltInType.Boolean:
+                    return Convert.ToUInt64(GetBoolean());
+                case BuiltInType.SByte:
+                    return Convert.ToUInt64(GetSByte());
+                case BuiltInType.Byte:
+                    return Convert.ToUInt64(GetByte());
+                case BuiltInType.Int16:
+                    return Convert.ToUInt64(GetInt16());
+                case BuiltInType.UInt16:
+                    return Convert.ToUInt64(GetUInt16());
+                case BuiltInType.Int32:
+                    return Convert.ToUInt64(GetInt32());
+                case BuiltInType.UInt32:
+                    return Convert.ToUInt64(GetUInt32());
+                case BuiltInType.Int64:
+                    return Convert.ToUInt64(GetInt64());
+                case BuiltInType.Float:
+                    return Convert.ToUInt64(GetFloat());
+                case BuiltInType.Double:
+                    return Convert.ToUInt64(GetDouble());
+                case BuiltInType.String:
+                    return XmlConvert.ToUInt64(GetString());
+                case BuiltInType.StatusCode:
+                    return Convert.ToUInt64(GetStatusCode().Code);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {TypeInfo.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts to a Variant with Float
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public Variant ConvertToFloat()
+        {
+            switch (TypeInfo.BuiltInType)
+            {
+                case BuiltInType.Float:
+                    return this;
+                case BuiltInType.Boolean:
+                    return Convert.ToSingle(GetBoolean());
+                case BuiltInType.SByte:
+                    return Convert.ToSingle(GetSByte());
+                case BuiltInType.Byte:
+                    return Convert.ToSingle(GetByte());
+                case BuiltInType.Int16:
+                    return Convert.ToSingle(GetInt16());
+                case BuiltInType.UInt16:
+                    return Convert.ToSingle(GetUInt16());
+                case BuiltInType.Int32:
+                    return Convert.ToSingle(GetInt32());
+                case BuiltInType.UInt32:
+                    return Convert.ToSingle(GetUInt32());
+                case BuiltInType.Int64:
+                    return Convert.ToSingle(GetInt64());
+                case BuiltInType.UInt64:
+                    return Convert.ToSingle(GetUInt64());
+                case BuiltInType.Double:
+                    return Convert.ToSingle(GetDouble());
+                case BuiltInType.String:
+                    return XmlConvert.ToSingle(GetString());
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {TypeInfo.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts to a Variant with Double
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public Variant ConvertToDouble()
+        {
+            switch (TypeInfo.BuiltInType)
+            {
+                case BuiltInType.Double:
+                    return this;
+                case BuiltInType.Boolean:
+                    return Convert.ToDouble(GetBoolean());
+                case BuiltInType.SByte:
+                    return Convert.ToDouble(GetSByte());
+                case BuiltInType.Byte:
+                    return Convert.ToDouble(GetByte());
+                case BuiltInType.Int16:
+                    return Convert.ToDouble(GetInt16());
+                case BuiltInType.UInt16:
+                    return Convert.ToDouble(GetUInt16());
+                case BuiltInType.Int32:
+                    return Convert.ToDouble(GetInt32());
+                case BuiltInType.UInt32:
+                    return Convert.ToDouble(GetUInt32());
+                case BuiltInType.Int64:
+                    return Convert.ToDouble(GetInt64());
+                case BuiltInType.UInt64:
+                    return Convert.ToDouble(GetUInt64());
+                case BuiltInType.Float:
+                    return Convert.ToDouble(GetFloat());
+                case BuiltInType.String:
+                    return XmlConvert.ToDouble(GetString());
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {TypeInfo.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts to a Variant with String
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public Variant ConvertToString()
+        {
+            switch (TypeInfo.BuiltInType)
+            {
+                case BuiltInType.String:
+                    return this;
+                case BuiltInType.Boolean:
+                    return XmlConvert.ToString(GetBoolean());
+                case BuiltInType.SByte:
+                    return XmlConvert.ToString(GetSByte());
+                case BuiltInType.Byte:
+                    return XmlConvert.ToString(GetByte());
+                case BuiltInType.Int16:
+                    return XmlConvert.ToString(GetInt16());
+                case BuiltInType.UInt16:
+                    return XmlConvert.ToString(GetUInt16());
+                case BuiltInType.Int32:
+                    return XmlConvert.ToString(GetInt32());
+                case BuiltInType.UInt32:
+                    return XmlConvert.ToString(GetUInt32());
+                case BuiltInType.Int64:
+                    return XmlConvert.ToString(GetInt64());
+                case BuiltInType.UInt64:
+                    return XmlConvert.ToString(GetUInt64());
+                case BuiltInType.Float:
+                    return XmlConvert.ToString(GetFloat());
+                case BuiltInType.Double:
+                    return XmlConvert.ToString(GetDouble());
+                case BuiltInType.DateTime:
+                    return XmlConvert.ToString(GetDateTime(), XmlDateTimeSerializationMode.Unspecified);
+                case BuiltInType.Guid:
+                    return GetGuid().ToString();
+                case BuiltInType.NodeId:
+                    return GetNodeId().ToString();
+                case BuiltInType.ExpandedNodeId:
+                    return GetExpandedNodeId().ToString();
+                case BuiltInType.LocalizedText:
+                    return GetLocalizedText().Text;
+                case BuiltInType.QualifiedName:
+                    return GetQualifiedName().ToString();
+                case BuiltInType.XmlElement:
+                    return GetXmlElement().OuterXml;
+                case BuiltInType.StatusCode:
+                    return GetStatusCode().Code.ToString(CultureInfo.InvariantCulture);
+                case BuiltInType.ExtensionObject:
+                    return GetExtensionObject().ToString();
+                case BuiltInType.Null:
+                    return default;
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {TypeInfo.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts to a Variant with DateTime
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public Variant ConvertToDateTime()
+        {
+            switch (TypeInfo.BuiltInType)
+            {
+                case BuiltInType.DateTime:
+                    return this;
+                case BuiltInType.String:
+                    return XmlConvert.ToDateTime(GetString(), XmlDateTimeSerializationMode.Unspecified);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {TypeInfo.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts to a Variant with Guid
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public Variant ConvertToGuid()
+        {
+            switch (TypeInfo.BuiltInType)
+            {
+                case BuiltInType.Guid:
+                    return this;
+                case BuiltInType.String:
+                    return Uuid.Parse(GetString());
+                case BuiltInType.ByteString:
+                    return new Uuid(GetByteString());
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {TypeInfo.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts to a Variant with ByteString
+        /// </summary>
+        /// <exception cref="FormatException"></exception>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public Variant ConvertToByteString()
+        {
+            switch (TypeInfo.BuiltInType)
+            {
+                case BuiltInType.ByteString:
+                    return this;
+                case BuiltInType.String:
+                    string text = GetString();
+                    if (text == null)
+                    {
+                        return new Variant((byte[])null);
+                    }
+                    return CoreUtils.FromHexString(text);
+                case BuiltInType.Guid:
+                    return GetGuid().ToByteArray();
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {TypeInfo.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts to a Variant with XmlElement
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public Variant ConvertToXmlElement()
+        {
+            switch (TypeInfo.BuiltInType)
+            {
+                case BuiltInType.XmlElement:
+                    return this;
+                case BuiltInType.String:
+                    var document = new XmlDocument();
+                    document.LoadInnerXml(GetString());
+                    return document.DocumentElement;
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {TypeInfo.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts to a Variant with NodeId
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public Variant ConvertToNodeId()
+        {
+            switch (TypeInfo.BuiltInType)
+            {
+                case BuiltInType.NodeId:
+                    return this;
+                case BuiltInType.ExpandedNodeId:
+                    return (NodeId)GetExpandedNodeId();
+                case BuiltInType.String:
+                    return NodeId.Parse(GetString());
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {TypeInfo.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts to a Variant with ExpandedNodeId
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public Variant ConvertToExpandedNodeId()
+        {
+            switch (TypeInfo.BuiltInType)
+            {
+                case BuiltInType.ExpandedNodeId:
+                    return this;
+                case BuiltInType.NodeId:
+                    return (ExpandedNodeId)GetNodeId();
+                case BuiltInType.String:
+                    return ExpandedNodeId.Parse(GetString());
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {TypeInfo.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts to a Variant with StatusCode
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public Variant ConvertToStatusCode()
+        {
+            switch (TypeInfo.BuiltInType)
+            {
+                case BuiltInType.StatusCode:
+                    return this;
+                case BuiltInType.UInt16:
+                    uint code = Convert.ToUInt32(GetUInt16(), CultureInfo.InvariantCulture);
+                    code <<= 16;
+                    return (StatusCode)code;
+                case BuiltInType.Int32:
+                    return (StatusCode)Convert.ToUInt32(GetInt32(), CultureInfo.InvariantCulture);
+                case BuiltInType.UInt32:
+                    return (StatusCode)GetUInt32();
+                case BuiltInType.Int64:
+                    return (StatusCode)Convert.ToUInt32(GetInt64(), CultureInfo.InvariantCulture);
+                case BuiltInType.UInt64:
+                    return (StatusCode)Convert.ToUInt32(GetUInt64());
+                case BuiltInType.String:
+                    string text = GetString();
+                    if (text == null)
+                    {
+                        return StatusCodes.Good;
+                    }
+                    text = text.Trim();
+                    if (text.StartsWith("0x", StringComparison.Ordinal))
+                    {
+                        return (StatusCode)Convert.ToUInt32(text[2..], 16);
+                    }
+                    return (StatusCode)Convert.ToUInt32(GetString(), CultureInfo.InvariantCulture);
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {TypeInfo.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts to a Variant with QualifiedName
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public Variant ConvertToQualifiedName()
+        {
+            switch (TypeInfo.BuiltInType)
+            {
+                case BuiltInType.QualifiedName:
+                    return this;
+                case BuiltInType.String:
+                    return QualifiedName.Parse(GetString());
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {TypeInfo.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts to a Variant with LocalizedText
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public Variant ConvertToLocalizedText()
+        {
+            switch (TypeInfo.BuiltInType)
+            {
+                case BuiltInType.LocalizedText:
+                    return this;
+                case BuiltInType.String:
+                    return new LocalizedText(GetString());
+                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
+                    // conversion not supported.
+                    throw new InvalidCastException();
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {TypeInfo.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Converts a variant to a Variant with a specified target type. Throws if
+        /// conversion is not possible.
+        /// </summary>
+        /// <param name="targetType">Type of the target.</param>
+        /// <returns>Returns a converted variant.</returns>
+        /// <exception cref="InvalidCastException">if impossible to cast.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public Variant ConvertTo(BuiltInType targetType)
+        {
+            if (TypeInfo.BuiltInType == BuiltInType.Null)
+            {
+                return default;
+            }
+            if (TypeInfo.BuiltInType == targetType)
+            {
+                return this;
+            }
+            if (TypeInfo.IsScalar)
+            {
+                switch (targetType)
+                {
+                    case BuiltInType.Boolean:
+                        return ConvertToBoolean();
+                    case BuiltInType.SByte:
+                        return ConvertToSByte();
+                    case BuiltInType.Byte:
+                        return ConvertToByte();
+                    case BuiltInType.Int16:
+                        return ConvertToInt16();
+                    case BuiltInType.UInt16:
+                        return ConvertToUInt16();
+                    case BuiltInType.Int32:
+                        return ConvertToInt32();
+                    case BuiltInType.UInt32:
+                        return ConvertToUInt32();
+                    case BuiltInType.Int64:
+                        return ConvertToInt64();
+                    case BuiltInType.UInt64:
+                        return ConvertToUInt64();
+                    case BuiltInType.Float:
+                        return ConvertToFloat();
+                    case BuiltInType.Double:
+                        return ConvertToDouble();
+                    case BuiltInType.String:
+                        return ConvertToString();
+                    case BuiltInType.DateTime:
+                        return ConvertToDateTime();
+                    case BuiltInType.Guid:
+                        return ConvertToGuid();
+                    case BuiltInType.ByteString:
+                        return ConvertToByteString();
+                    case BuiltInType.NodeId:
+                        return ConvertToNodeId();
+                    case BuiltInType.ExpandedNodeId:
+                        return ConvertToExpandedNodeId();
+                    case BuiltInType.StatusCode:
+                        return ConvertToStatusCode();
+                    case BuiltInType.QualifiedName:
+                        return ConvertToQualifiedName();
+                    case BuiltInType.LocalizedText:
+                        return ConvertToLocalizedText();
+                    case BuiltInType.Variant:
+                        return this;
+                    case BuiltInType.Number:
+                        return ConvertToDouble();
+                    case BuiltInType.Integer:
+                        return ConvertToInt64();
+                    case BuiltInType.UInteger:
+                        return ConvertToUInt64();
+                    case BuiltInType.Enumeration:
+                        return ConvertToInt32();
+                    case BuiltInType.XmlElement:
+                        return ConvertToXmlElement();
+                    case BuiltInType.Null:
+                    case BuiltInType.ExtensionObject:
+                    case BuiltInType.DataValue:
+                    case BuiltInType.DiagnosticInfo:
+                        throw new InvalidCastException();
+                    default:
+                        throw ServiceResultException.Unexpected(
+                            $"Unexpected BuiltInType {targetType}");
+                }
+            }
+            if (TypeInfo.IsArray)
+            {
+                return Collapse(Expand().Select(v => v.ConvertTo(targetType)));
+            }
+            throw new InvalidCastException();
         }
 
         /// <inheritdoc/>
@@ -4846,6 +5708,174 @@ namespace Opc.Ua
             using var decoder = new XmlDecoder(reader, context);
             object contents = decoder.ReadVariantContents(out _);
             return new Variant(contents);
+        }
+
+        /// <summary>
+        /// Lifts all elements contained in this variant into individual variants
+        /// with the same type info. If the variant is scalar returns only the
+        /// variant.
+        /// </summary>
+        /// <returns></returns>
+        internal IEnumerable<Variant> Expand()
+        {
+            if (TypeInfo.IsScalar)
+            {
+                return [this];
+            }
+            if (TypeInfo.IsArray)
+            {
+                switch (TypeInfo.BuiltInType)
+                {
+                    case BuiltInType.Boolean:
+                        return GetBooleanArray().Select(v => new Variant(v));
+                    case BuiltInType.SByte:
+                        return GetSByteArray().Select(v => new Variant(v));
+                    case BuiltInType.Byte:
+                        return GetByteString().Select(v => new Variant(v));
+                    case BuiltInType.Int16:
+                        return GetInt16Array().Select(v => new Variant(v));
+                    case BuiltInType.UInt16:
+                        return GetUInt16Array().Select(v => new Variant(v));
+                    case BuiltInType.Int32:
+                        return GetInt32Array().Select(v => new Variant(v));
+                    case BuiltInType.UInt32:
+                        return GetUInt32Array().Select(v => new Variant(v));
+                    case BuiltInType.Int64:
+                        return GetInt64Array().Select(v => new Variant(v));
+                    case BuiltInType.UInt64:
+                        return GetUInt64Array().Select(v => new Variant(v));
+                    case BuiltInType.Float:
+                        return GetFloatArray().Select(v => new Variant(v));
+                    case BuiltInType.Double:
+                        return GetDoubleArray().Select(v => new Variant(v));
+                    case BuiltInType.String:
+                        return GetStringArray().Select(v => new Variant(v));
+                    case BuiltInType.DateTime:
+                        return GetDateTimeArray().Select(v => new Variant(v));
+                    case BuiltInType.Guid:
+                        return GetGuidArray().Select(v => new Variant(v));
+                    case BuiltInType.ByteString:
+                        return GetByteStringArray().Select(v => new Variant(v));
+                    case BuiltInType.XmlElement:
+                        return GetXmlElementArray().Select(v => new Variant(v));
+                    case BuiltInType.NodeId:
+                        return GetNodeIdArray().Select(v => new Variant(v));
+                    case BuiltInType.ExpandedNodeId:
+                        return GetExpandedNodeIdArray().Select(v => new Variant(v));
+                    case BuiltInType.StatusCode:
+                        return GetStatusCodeArray().Select(v => new Variant(v));
+                    case BuiltInType.QualifiedName:
+                        return GetQualifiedNameArray().Select(v => new Variant(v));
+                    case BuiltInType.LocalizedText:
+                        return GetLocalizedTextArray().Select(v => new Variant(v));
+                    case BuiltInType.ExtensionObject:
+                        return GetExtensionObjectArray().Select(v => new Variant(v));
+                    case BuiltInType.DataValue:
+                        return GetDataValueArray().Select(v => new Variant(v));
+                    case BuiltInType.DiagnosticInfo:
+                        return [];
+                    case BuiltInType.Number:
+                    case BuiltInType.Integer:
+                    case BuiltInType.UInteger:
+                    case BuiltInType.Enumeration:
+                    case BuiltInType.Variant:
+                        return GetVariantArray();
+                }
+            }
+            // TODO: Enumerate matrix
+            return [];
+        }
+
+        /// <summary>
+        /// Collapses a list of variants into a variant Type info array. If the
+        /// type infos of the individual items are not the same, collapses to a
+        /// variant of variants.
+        /// </summary>
+        /// <returns></returns>
+        internal Variant Collapse(IEnumerable<Variant> variants)
+        {
+            var items = variants.ToList();
+            if (items.Count == 0)
+            {
+                return default;
+            }
+            if (items.Count == 1)
+            {
+                return items[0];
+            }
+            var typeInfo = items[0].TypeInfo;
+            if (!items.All(v => v.TypeInfo == typeInfo))
+            {
+                // Variant of variants
+                return new Variant(items.ToArray());
+            }
+            if (typeInfo.IsScalar)
+            {
+                switch (TypeInfo.BuiltInType)
+                {
+                    case BuiltInType.Boolean:
+                        return new Variant(items.Select(v => v.GetBoolean()).ToArray());
+                    case BuiltInType.SByte:
+                        return new Variant(items.Select(v => v.GetSByte()).ToArray());
+                    case BuiltInType.Byte:
+                        return new Variant(items.Select(v => v.GetByte()).ToArray());
+                    case BuiltInType.Int16:
+                        return new Variant(items.Select(v => v.GetInt16()).ToArray());
+                    case BuiltInType.UInt16:
+                        return new Variant(items.Select(v => v.GetUInt16()).ToArray());
+                    case BuiltInType.Int32:
+                        return new Variant(items.Select(v => v.GetInt32()).ToArray());
+                    case BuiltInType.UInt32:
+                        return new Variant(items.Select(v => v.GetUInt32()).ToArray());
+                    case BuiltInType.Int64:
+                        return new Variant(items.Select(v => v.GetInt64()).ToArray());
+                    case BuiltInType.UInt64:
+                        return new Variant(items.Select(v => v.GetUInt64()).ToArray());
+                    case BuiltInType.Float:
+                        return new Variant(items.Select(v => v.GetFloat()).ToArray());
+                    case BuiltInType.Double:
+                        return new Variant(items.Select(v => v.GetDouble()).ToArray());
+                    case BuiltInType.String:
+                        return new Variant(items.Select(v => v.GetString()).ToArray());
+                    case BuiltInType.DateTime:
+                        return new Variant(items.Select(v => v.GetDateTime()).ToArray());
+                    case BuiltInType.Guid:
+                        return new Variant(items.Select(v => v.GetGuid()).ToArray());
+                    case BuiltInType.ByteString:
+                        return new Variant(items.Select(v => v.GetByteString()).ToArray());
+                    case BuiltInType.XmlElement:
+                        return new Variant(items.Select(v => v.GetXmlElement()).ToArray());
+                    case BuiltInType.NodeId:
+                        return new Variant(items.Select(v => v.GetNodeId()).ToArray());
+                    case BuiltInType.ExpandedNodeId:
+                        return new Variant(items.Select(v => v.GetExpandedNodeId()).ToArray());
+                    case BuiltInType.StatusCode:
+                        return new Variant(items.Select(v => v.GetStatusCode()).ToArray());
+                    case BuiltInType.QualifiedName:
+                        return new Variant(items.Select(v => v.GetQualifiedName()).ToArray());
+                    case BuiltInType.LocalizedText:
+                        return new Variant(items.Select(v => v.GetLocalizedText()).ToArray());
+                    case BuiltInType.ExtensionObject:
+                        return new Variant(items.Select(v => v.GetExtensionObject()).ToArray());
+                    case BuiltInType.DataValue:
+                        return new Variant(items.Select(v => v.GetDataValue()).ToArray());
+                    case BuiltInType.DiagnosticInfo:
+                        return default;
+                    case BuiltInType.Number:
+                    case BuiltInType.Integer:
+                    case BuiltInType.UInteger:
+                    case BuiltInType.Enumeration:
+                    case BuiltInType.Variant:
+                        return new Variant(items.ToArray());
+                }
+            }
+            if (typeInfo.IsArray)
+            {
+                // TODO: Collapse each individual one first
+                return new Variant(items.ToArray());
+            }
+            // TODO: Collapse matrix
+            return [];
         }
 
         /// <summary>

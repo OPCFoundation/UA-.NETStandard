@@ -3855,7 +3855,7 @@ namespace Quickstarts.ReferenceServer
             variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
             variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
             variable.Historizing = false;
-            variable.Value = TypeInfo.GetDefaultValue((uint)dataType, valueRank, Server.TypeTree);
+            variable.Value = TypeInfo.GetDefaultVariantValue((uint)dataType, valueRank, Server.TypeTree);
             variable.StatusCode = StatusCodes.Good;
 
             if (valueRank == ValueRanks.OneDimension)
@@ -3992,7 +3992,7 @@ namespace Quickstarts.ReferenceServer
             variable.Value = initialValues;
             if (variable.Value.IsNull)
             {
-                variable.Value = TypeInfo.GetDefaultValue(dataType, valueRank, Server.TypeTree);
+                variable.Value = TypeInfo.GetDefaultVariantValue(dataType, valueRank, Server.TypeTree);
             }
 
             variable.StatusCode = StatusCodes.Good;
@@ -4237,7 +4237,7 @@ namespace Quickstarts.ReferenceServer
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
-            var typeInfo = TypeInfo.Construct(value);
+            var typeInfo = value.TypeInfo;
 
             if (node is not MultiStateValueDiscreteState variable ||
                 typeInfo.IsUnknown ||
@@ -4342,7 +4342,7 @@ namespace Quickstarts.ReferenceServer
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
-            var typeInfo = TypeInfo.Construct(value);
+            var typeInfo = value.TypeInfo;
 
             if (node is not PropertyState<Range> variable ||
                 !value.TryGet(out ExtensionObject extensionObject) ||
@@ -4361,7 +4361,7 @@ namespace Quickstarts.ReferenceServer
                 return StatusCodes.BadIndexRangeInvalid;
             }
 
-            var parentTypeInfo = TypeInfo.Construct(parent.Value);
+            var parentTypeInfo = parent.Value.TypeInfo;
             Range parentRange = GetAnalogRange(parentTypeInfo.BuiltInType);
             if (parentRange.High < newRange.High || parentRange.Low > newRange.Low)
             {

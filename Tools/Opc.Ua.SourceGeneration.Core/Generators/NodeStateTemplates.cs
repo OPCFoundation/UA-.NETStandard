@@ -629,10 +629,7 @@ namespace Opc.Ua.SourceGeneration
                 protected override void Initialize(global::Opc.Ua.ISystemContext context)
                 {
                     base.Initialize(context);
-
-                    Value = default(T);
-                    DataType = global::Opc.Ua.TypeInfo.GetDataTypeId(typeof(T), context.NamespaceUris);
-                    ValueRank = global::Opc.Ua.TypeInfo.GetValueRank(typeof(T));
+                    base.Initialize<T>(context);
                 }
 
                 /// <inheritdoc/>

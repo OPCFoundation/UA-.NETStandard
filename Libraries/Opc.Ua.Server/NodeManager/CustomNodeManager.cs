@@ -571,7 +571,7 @@ namespace Opc.Ua.Server
                 nodeStateVar.NodeId.NamespaceIndex == 0 &&
                 nodeStateVar.Value.IsNull)
             {
-                nodeStateVar.Value = TypeInfo.GetDefaultValue(
+                nodeStateVar.Value = TypeInfo.GetDefaultVariantValue(
                     nodeStateVar.DataType,
                     nodeStateVar.ValueRank,
                     Server.TypeTree);
@@ -1975,7 +1975,7 @@ namespace Opc.Ua.Server
                         nodeToWrite.IndexRange);
 #endif
                     var propertyState = handle.Node as PropertyState;
-                    Variant previousPropertyValue = propertyState.Value;
+                    Variant previousPropertyValue = propertyState?.Value ?? default;
 
                     DataValue oldValue = null;
 

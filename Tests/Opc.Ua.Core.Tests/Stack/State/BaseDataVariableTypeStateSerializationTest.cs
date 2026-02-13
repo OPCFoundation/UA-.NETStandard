@@ -160,8 +160,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
             // Get the WrappedValue and verify it's a Byte array, not ByteString
             Variant wrappedValue = variableState.WrappedValue;
 
-            Assert.AreEqual(BuiltInType.Byte, wrappedValue.TypeInfo.BuiltInType, "BuiltInType should be Byte");
-            Assert.AreEqual(ValueRanks.OneDimension, wrappedValue.TypeInfo.ValueRank, "ValueRank should be OneDimension");
+            Assert.AreEqual(BuiltInType.ByteString, wrappedValue.TypeInfo.BuiltInType, "BuiltInType should be ByteString");
+            Assert.AreEqual(ValueRanks.Scalar, wrappedValue.TypeInfo.ValueRank, "ValueRank should be Scalar");
             Assert.AreEqual(testValue, wrappedValue.GetByteString(), "Value should match the original byte array");
         }
 

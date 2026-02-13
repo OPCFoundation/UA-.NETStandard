@@ -938,11 +938,11 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async ValueTask<bool> IsEncodingForAsync(
             NodeId expectedTypeId,
-            object value,
+            Variant value,
             CancellationToken ct = default)
         {
             // null actual datatype matches nothing.
-            if (value == null)
+            if (value.IsNull)
             {
                 return false;
             }
@@ -977,7 +977,7 @@ namespace Opc.Ua.Client
 
             // for structure types must try to determine the subtype.
 
-            if (value is ExtensionObject extension)
+            if (value.TryGet(out ExtensionObject extension))
             {
                 return await IsEncodingForAsync(
                     expectedTypeId,
@@ -987,7 +987,7 @@ namespace Opc.Ua.Client
 
             // every element in an array must match.
 
-            if (value is ExtensionObject[] extensions)
+            if (value.TryGet(out ExtensionObject[] extensions))
             {
                 for (int ii = 0; ii < extensions.Length; ii++)
                 {

@@ -180,11 +180,11 @@ namespace Opc.Ua.Test
             m_random ??= new RandomSource();
 
             // load the boundary values.
-            Dictionary<string, object[]> boundaryValues = [];
+            Dictionary<BuiltInType, Variant[]> boundaryValues = [];
 
             for (int ii = 0; ii < s_availableBoundaryValues.Length; ii++)
             {
-                boundaryValues[s_availableBoundaryValues[ii].SystemType.Name] =
+                boundaryValues[s_availableBoundaryValues[ii].BuiltInType] =
                 [
                     .. s_availableBoundaryValues[ii].Values
                 ];
@@ -363,7 +363,18 @@ namespace Opc.Ua.Test
 
                 if (!value.IsNull)
                 {
-                    output.SetValue(value.AsBoxedObject(), indexes);
+                    switch (expectedType)
+                    {
+                        case BuiltInType.Variant:
+                        case BuiltInType.Number:
+                        case BuiltInType.UInteger:
+                        case BuiltInType.Integer:
+                            output.SetValue(value, indexes);
+                            break;
+                        default:
+                            output.SetValue(value.AsBoxedObject(), indexes);
+                            break;
+                    }
                 }
             }
 
@@ -456,46 +467,6 @@ namespace Opc.Ua.Test
         }
 
         /// <summary>
-        /// Returns an array wrapped in a variant.
-        /// </summary>
-        private Variant[] GetRandomArrayInVariant(
-            BuiltInType builtInType,
-            bool useBoundaryValues,
-            int length,
-            bool fixedLength)
-        {
-            Array array = GetRandomArray(builtInType, useBoundaryValues, length, fixedLength);
-            var variants = new Variant[array.Length];
-            var typeInfo = TypeInfo.CreateScalar(builtInType);
-
-            for (int ii = 0; ii < variants.Length; ii++)
-            {
-                variants[ii] = new Variant(array.GetValue(ii), typeInfo);
-            }
-
-            return variants;
-        }
-
-        /// <summary>
-        /// This method returns a random value of values for the type.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        public T GetRandom<T>(bool useBoundaryValues)
-        {
-            if (useBoundaryValues && UseBoundaryValue())
-            {
-                object boundaryValue = GetBoundaryValue(typeof(T));
-
-                if (boundaryValue != null || !typeof(T).GetTypeInfo().IsValueType)
-                {
-                    return (T)boundaryValue;
-                }
-            }
-
-            return (T)GetRandom(typeof(T)).AsBoxedObject();
-        }
-
-        /// <summary>
         /// This method returns a random array of values for the type.
         /// </summary>
         /// <typeparam name="T"></typeparam>
@@ -541,43 +512,21 @@ namespace Opc.Ua.Test
 
             for (int ii = 0; ii < value.Length; ii++)
             {
-                object element;
+                Variant element;
+                var typeInfo = TypeInfo.Construct(typeof(T));
                 if (useBoundaryValues && UseBoundaryValue())
                 {
-                    element = GetBoundaryValue(typeof(T));
+                    element = GetBoundaryValue(typeInfo.BuiltInType);
                 }
                 else
                 {
-                    element = GetRandom(typeof(T));
+                    element = GetRandomScalar(typeInfo.BuiltInType);
                 }
 
-                if (element == null)
+                if (!element.IsNull)
                 {
-                    // ensure a valid null type is returned
-                    Type t = typeof(T);
-                    if (t == typeof(ExpandedNodeId))
-                    {
-                        element = ExpandedNodeId.Null;
-                    }
-                    else if (t == typeof(NodeId))
-                    {
-                        element = NodeId.Null;
-                    }
-                    else if (t == typeof(LocalizedText))
-                    {
-                        element = LocalizedText.Null;
-                    }
-                    else if (t == typeof(QualifiedName))
-                    {
-                        element = QualifiedName.Null;
-                    }
-                    else
-                    {
-                        element = default(T);
-                    }
+                    value[ii] = (T)element.AsBoxedObject();
                 }
-
-                value[ii] = (T)element;
             }
 
             return value;
@@ -1070,6 +1019,31 @@ namespace Opc.Ua.Test
         }
 
         /// <summary>
+        /// Returns an array wrapped in a variant.
+        /// </summary>
+        private Variant[] GetRandomArrayInVariant(
+            BuiltInType builtInType,
+            bool useBoundaryValues,
+            int length,
+            bool fixedLength)
+        {
+            Array array = GetRandomArray(builtInType, useBoundaryValues, length, fixedLength);
+            if (array == null)
+            {
+                return Array.Empty<Variant>();
+            }
+            var variants = new Variant[array.Length];
+            var typeInfo = TypeInfo.CreateScalar(builtInType);
+
+            for (int ii = 0; ii < variants.Length; ii++)
+            {
+                variants[ii] = new Variant(array.GetValue(ii), typeInfo);
+            }
+
+            return variants;
+        }
+
+        /// <summary>
         /// Get random unsigned integer variant array
         /// </summary>
         public Variant[] GetRandomUIntegerArray(bool useBoundaryValues, int length, bool fixedLength)
@@ -1107,6 +1081,36 @@ namespace Opc.Ua.Test
                 length,
                 fixedLength);
         }
+
+        /// <summary>
+        /// Get random variant array
+        /// </summary>
+        public Variant[] GetRandomVariantArray(bool useBoundaryValues, int length, bool fixedLength)
+        {
+            var builtInType = (BuiltInType)(m_random.NextInt32(22) + (int)BuiltInType.Boolean);
+            return GetRandomArrayInVariant(
+                builtInType,
+                useBoundaryValues,
+                length,
+                fixedLength);
+        }
+
+        /// <summary>
+        /// Returns a random value of the specified built-in type.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        public object GetRandom(BuiltInType expectedType)
+		{
+		    switch (expectedType)
+			{
+				case BuiltInType.DiagnosticInfo:
+                    return GetRandomDiagnosticInfo();
+				case BuiltInType.Null:
+                    return null;
+				default:
+					return GetRandomScalar(expectedType).AsBoxedObject();
+			}
+		}
 
         /// <summary>
         /// Returns a random value of the specified built-in type.
@@ -1190,9 +1194,9 @@ namespace Opc.Ua.Test
         /// </summary>
         private class BoundaryValues
         {
-            public BoundaryValues(Type systemType, params object[] values)
+            public BoundaryValues(BuiltInType builtInType, params Variant[] values)
             {
-                SystemType = systemType;
+                BuiltInType = builtInType;
 
                 if (values != null)
                 {
@@ -1204,8 +1208,8 @@ namespace Opc.Ua.Test
                 }
             }
 
-            public Type SystemType;
-            public List<object> Values;
+            public BuiltInType BuiltInType { get; set; }
+            public List<Variant> Values { get; set; }
         }
 
         /// <summary>
@@ -1213,16 +1217,15 @@ namespace Opc.Ua.Test
         /// </summary>
         private static readonly BoundaryValues[] s_availableBoundaryValues =
         [
-            new(typeof(sbyte), sbyte.MinValue, (sbyte)0, sbyte.MaxValue),
-            new(typeof(byte), byte.MinValue, byte.MaxValue),
-            new(typeof(short), short.MinValue, (short)0, short.MaxValue),
-            new(typeof(ushort), ushort.MinValue, ushort.MaxValue),
-            new(typeof(int), int.MinValue, 0, int.MaxValue),
-            new(typeof(uint), uint.MinValue, uint.MaxValue),
-            new(typeof(long), long.MinValue, (long)0, long.MaxValue),
-            new(typeof(ulong), ulong.MinValue, ulong.MaxValue),
-            new(
-                typeof(float),
+            new(BuiltInType.SByte, sbyte.MinValue, (sbyte)0, sbyte.MaxValue),
+            new(BuiltInType.Byte, byte.MinValue, byte.MaxValue),
+            new(BuiltInType.Int16, short.MinValue, (short)0, short.MaxValue),
+            new(BuiltInType.UInt16, ushort.MinValue, ushort.MaxValue),
+            new(BuiltInType.Int32, int.MinValue, 0, int.MaxValue),
+            new(BuiltInType.UInt32, uint.MinValue, uint.MaxValue),
+            new(BuiltInType.Int64, long.MinValue, (long)0, long.MaxValue),
+            new(BuiltInType.UInt64, ulong.MinValue, ulong.MaxValue),
+            new(BuiltInType.Float,
                 float.Epsilon,
                 float.MaxValue,
                 float.MinValue,
@@ -1231,8 +1234,7 @@ namespace Opc.Ua.Test
                 float.PositiveInfinity,
                 (float)0
             ),
-            new(
-                typeof(double),
+            new(BuiltInType.Double,
                 double.Epsilon,
                 double.MaxValue,
                 double.MinValue,
@@ -1241,9 +1243,8 @@ namespace Opc.Ua.Test
                 double.PositiveInfinity,
                 (double)0
             ),
-            new(typeof(string), null, string.Empty),
-            new(
-                typeof(DateTime),
+            new(BuiltInType.String, (string)null, string.Empty),
+            new(BuiltInType.DateTime,
                 DateTime.MinValue,
                 DateTime.MaxValue,
                 new DateTime(1099, 1, 1),
@@ -1251,28 +1252,24 @@ namespace Opc.Ua.Test
                 new DateTime(2039, 4, 4),
                 new DateTime(2001, 9, 11, 9, 15, 0, DateTimeKind.Local)
             ),
-            new(typeof(Uuid), Uuid.Empty),
-            new(typeof(byte[]), null, Array.Empty<byte>()),
-            new(typeof(XmlElement), null),
-            new(
-                typeof(NodeId),
-                null,
+            new(BuiltInType.Guid, Uuid.Empty),
+            new(BuiltInType.ByteString, (byte[])null, Array.Empty<byte>()),
+            new(BuiltInType.XmlElement, (XmlElement)null),
+            new(BuiltInType.NodeId,
                 NodeId.Null,
                 new NodeId(Guid.Empty),
                 new NodeId(string.Empty, 0),
                 new NodeId([])),
-            new(
-                typeof(ExpandedNodeId),
-                null,
+            new(BuiltInType.ExpandedNodeId,
                 ExpandedNodeId.Null,
                 new ExpandedNodeId(Guid.Empty),
                 new ExpandedNodeId(string.Empty, 0),
                 new ExpandedNodeId([])
             ),
-            new(typeof(QualifiedName), null, QualifiedName.Null),
-            new(typeof(LocalizedText), null, LocalizedText.Null),
-            new(typeof(StatusCode), StatusCodes.Good, StatusCodes.Uncertain, StatusCodes.Bad),
-            new(typeof(ExtensionObject), ExtensionObject.Null)
+            new(BuiltInType.QualifiedName, QualifiedName.Null),
+            new(BuiltInType.LocalizedText, LocalizedText.Null),
+            new(BuiltInType.StatusCode, StatusCodes.Good, StatusCodes.Uncertain, StatusCodes.Bad),
+            new(BuiltInType.ExtensionObject, ExtensionObject.Null)
         ];
 
         /// <summary>
@@ -1334,31 +1331,19 @@ namespace Opc.Ua.Test
         /// <summary>
         /// Randomly selects a boundary value for type.
         /// </summary>
-        private object GetBoundaryValue(Type type)
+        private Variant GetBoundaryValue(BuiltInType type)
         {
-            if (type == null)
+            if (!m_boundaryValues.TryGetValue(type, out Variant[] boundaryValues))
             {
-                return null;
-            }
-
-            if (!m_boundaryValues.TryGetValue(type.Name, out object[] boundaryValues))
-            {
-                return null;
+                return default;
             }
 
             if (boundaryValues == null || boundaryValues.Length == 0)
             {
-                return null;
+                return default;
             }
 
-            int index = m_random.NextInt32(boundaryValues.Length - 1);
-
-            if (type.IsInstanceOfType(boundaryValues[index]))
-            {
-                return boundaryValues[index];
-            }
-
-            return null;
+            return boundaryValues[m_random.NextInt32(boundaryValues.Length - 1)];
         }
 
         /// <summary>
@@ -1382,15 +1367,6 @@ namespace Opc.Ua.Test
             }
 
             return m_random.NextInt32(max - min) + min;
-        }
-
-        /// <summary>
-        /// Returns a random value of the specified type.
-        /// </summary>
-        private Variant GetRandom(Type expectedType)
-        {
-            BuiltInType builtInType = TypeInfo.Construct(expectedType).BuiltInType;
-            return GetRandomScalar(builtInType);
         }
 
         /// <summary>
@@ -1446,7 +1422,7 @@ namespace Opc.Ua.Test
 
         private readonly ILogger m_logger;
         private readonly IRandomSource m_random;
-        private readonly FrozenDictionary<string, object[]> m_boundaryValues;
+        private readonly FrozenDictionary<BuiltInType, Variant[]> m_boundaryValues;
         private readonly string[] m_availableLocales;
         private readonly FrozenDictionary<string, string[]> m_tokenValues;
         private const string kPunctuation = "`~!@#$%^&*()_-+={}[]:\"';?><,./";

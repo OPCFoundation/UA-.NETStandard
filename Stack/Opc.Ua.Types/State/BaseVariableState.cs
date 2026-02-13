@@ -105,6 +105,17 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Initialized data type and value rank
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="context"></param>
+        protected virtual void Initialize<T>(ISystemContext context)
+        {
+            DataType = TypeInfo.GetDataTypeId(typeof(T), context.NamespaceUris);
+            ValueRank = TypeInfo.GetValueRank(typeof(T));
+        }
+
+        /// <summary>
         /// If overridden returns the id of the default type definition node for the instance.
         /// </summary>
         /// <param name="namespaceUris">The namespace uris.</param>
@@ -276,7 +287,8 @@ namespace Opc.Ua
         /// <param name="value">The value.</param>
         /// <param name="throwOnError">if set to <c>true</c> <see cref="ServiceResultException"/> is thrown on error.</param>
         /// <returns>Returns <paramref name="value"/> or default for <typeparamref name="T"/></returns>
-        /// <exception cref="ServiceResultException"> if it is impossible to cast the value or the value is null and <see cref="IsValueType"/> for the type <typeparamref name="T"/> returns true. </exception>
+        /// <exception cref="ServiceResultException"> if it is impossible to cast the value or the value is null
+        /// and <see cref="IsValueType"/> for the type <typeparamref name="T"/> returns true. </exception>
         public static T CheckTypeBeforeCast<T>(Variant value, bool throwOnError)
         {
             if (value.IsNull)
@@ -290,6 +302,21 @@ namespace Opc.Ua
             {
                 // Can convert
                 return typedValue;
+            }
+
+            if (boxedValue is ExtensionObject eo &&
+                ExtensionObject.ToEncodeable(eo) is T encodeable)
+            {
+                // Can convert extension object
+                return encodeable;
+            }
+
+            if (boxedValue is ExtensionObject[] eos &&
+                typeof(T).IsArray &&
+                ExtensionObject.ToArray(eos, typeof(T).GetElementType()) is T encodeables)
+            {
+                // Can convert extension object
+                return encodeables;
             }
 
             // Otherwise check if we need to throw and throw or return default
@@ -407,6 +434,7 @@ namespace Opc.Ua
                 m_valueTouched = true;
             }
         }
+
         /// <summary>
         /// The value of the variable as a Variant.
         /// </summary>
@@ -1222,7 +1250,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.ArrayDimensions:
-                    uint[] arrayDimensions = [.. m_arrayDimensions];
+                    uint[] arrayDimensions = m_arrayDimensions?.ToArray();
 
                     NodeAttributeEventHandler<uint[]> onReadArrayDimensions
                         = OnReadArrayDimensions;
@@ -1949,10 +1977,7 @@ namespace Opc.Ua
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
-
-            Value = default;
-            DataType = TypeInfo.GetDataTypeId(typeof(T), context.NamespaceUris);
-            ValueRank = TypeInfo.GetValueRank(typeof(T));
+            base.Initialize<T>(context);
         }
 
         /// <summary>
@@ -2173,10 +2198,7 @@ namespace Opc.Ua
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
-
-            Value = default;
-            DataType = TypeInfo.GetDataTypeId(typeof(T), context.NamespaceUris);
-            ValueRank = TypeInfo.GetValueRank(typeof(T));
+            base.Initialize<T>(context);
         }
 
         /// <summary>

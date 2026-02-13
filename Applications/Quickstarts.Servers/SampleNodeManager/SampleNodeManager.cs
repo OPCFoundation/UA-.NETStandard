@@ -535,7 +535,7 @@ namespace Opc.Ua.Sample
 
                 if (source is BaseVariableState variable && variable.Value.IsNull)
                 {
-                    variable.Value = TypeInfo.GetDefaultValue(
+                    variable.Value = TypeInfo.GetDefaultVariantValue(
                         variable.DataType,
                         variable.ValueRank,
                         Server.TypeTree);

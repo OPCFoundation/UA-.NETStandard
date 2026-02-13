@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -4140,7 +4139,7 @@ namespace Opc.Ua
                     {
                         accessRestrictions = (AccessRestrictionType)accessRestrictions16;
                     }
-                    if (value.TryGet(out uint accessRestrictions32))
+                    else if (value.TryGet(out uint accessRestrictions32))
                     {
                         accessRestrictions = (AccessRestrictionType)accessRestrictions32;
                     }

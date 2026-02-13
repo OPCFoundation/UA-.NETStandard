@@ -904,7 +904,7 @@ namespace Opc.Ua
             Argument expectedArgument = arguments[index];
 
             var typeInfo = TypeInfo.IsInstanceOfDataType(
-                inputArgument.AsBoxedObject(), // TODO
+                inputArgument,
                 expectedArgument.DataType,
                 expectedArgument.ValueRank,
                 context.NamespaceUris,
@@ -926,7 +926,7 @@ namespace Opc.Ua
         /// <returns>The default value.</returns>
         protected Variant GetArgumentDefaultValue(ISystemContext context, Argument outputArgument)
         {
-            return TypeInfo.GetDefaultValue(
+            return TypeInfo.GetDefaultVariantValue(
                 outputArgument.DataType,
                 outputArgument.ValueRank,
                 context.TypeTable);

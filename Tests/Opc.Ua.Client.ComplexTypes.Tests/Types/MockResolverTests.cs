@@ -676,7 +676,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 {
                     if (randomValues)
                     {
-                        value = DataGenerator.GetRandomScalar(builtInType);
+                        value = DataGenerator.GetRandom(builtInType);
                     }
                     else
                     {
@@ -714,7 +714,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                         int[] indices = new int[valueRank];
                         for (int ii = 0; ii < array.Length; ii++)
                         {
-                            array.SetValue(DataGenerator.GetRandomScalar(builtInType), indices);
+                            array.SetValue(DataGenerator.GetRandom(builtInType), indices);
                             Iterate(dimensions, indices);
                         }
                         value = array;
@@ -877,7 +877,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             BuiltInType builtInType = TypeInfo.GetBuiltInType(valueType);
             if (builtInType != BuiltInType.Null)
             {
-                return DataGenerator.GetRandomScalar(builtInType);
+                return DataGenerator.GetRandom(builtInType);
             }
             if (valueType == DataTypeIds.BuildInfo)
             {

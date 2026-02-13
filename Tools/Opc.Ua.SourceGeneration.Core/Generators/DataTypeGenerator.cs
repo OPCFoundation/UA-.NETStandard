@@ -32,14 +32,10 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Resources;
 using System.Xml;
-using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Schema.Model;
-using Opc.Ua.Schema.Types;
 using Opc.Ua.Types;
-using static Opc.Ua.RelativePathFormatter;
 
 namespace Opc.Ua.SourceGeneration
 {

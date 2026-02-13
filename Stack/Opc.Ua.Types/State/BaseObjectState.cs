@@ -28,8 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Threading.Tasks;
-using Opc.Ua.Schema.Types;
 using Opc.Ua.Types;
 
 namespace Opc.Ua

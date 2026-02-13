@@ -31,7 +31,6 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Xml;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.Extensions.Logging;

@@ -1610,7 +1610,8 @@ namespace Opc.Ua
 
         private void WriteVariantIntoObject(string fieldName, Variant value)
         {
-            if (Variant.Null == value)
+            var boxed = value.AsBoxedObject();
+            if (boxed is null)
             {
                 return;
             }
@@ -3086,7 +3087,7 @@ namespace Opc.Ua
 
             if (dv.WrappedValue == Variant.Null)
             {
-                value = TypeInfo.GetDefaultValue(field.BuiltInType, field.ValueRank).AsBoxedObject();
+                value = TypeInfo.GetDefaultValue(field.BuiltInType, field.ValueRank);
                 typeInfo = new TypeInfo((BuiltInType)field.BuiltInType, field.ValueRank);
 
                 if (value != null)

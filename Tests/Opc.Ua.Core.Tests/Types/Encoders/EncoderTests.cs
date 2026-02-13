@@ -123,7 +123,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
             Assume.That(builtInType != BuiltInType.DiagnosticInfo);
-            object randomData = DataGenerator.GetRandomScalar(builtInType);
+            object randomData = DataGenerator.GetRandom(builtInType);
             EncodeDecodeDataValue(
                 encoderType,
                 jsonEncodingType,
@@ -151,7 +151,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             while (getRandom)
             {
                 getRandom = false;
-                randomData = DataGenerator.GetRandomScalar(builtInType);
+                randomData = DataGenerator.GetRandom(builtInType);
                 // filter a few random special cases to skip
                 // as they test for unsupported objects
                 if (randomData is NodeId nodeId)
@@ -291,7 +291,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
             SetRepeatedRandomSeed();
-            object randomData = DataGenerator.GetRandomScalar(BuiltInType.Variant);
+            object randomData = DataGenerator.GetRandom(BuiltInType.Variant);
             EncodeDecodeDataValue(
                 encoderType,
                 jsonEncodingType,
@@ -309,7 +309,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void EncodeBuiltInTypeAsVariantInDataValueToNonReversibleJson(
             BuiltInType builtInType)
         {
-            object randomData = DataGenerator.GetRandomScalar(builtInType);
+            object randomData = DataGenerator.GetRandom(builtInType);
             if (builtInType == BuiltInType.DiagnosticInfo)
             {
                 NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
@@ -338,7 +338,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("BuiltInType")]
         public void EncodeBuiltInTypeAsVariantInDataValueToVerboseJson(BuiltInType builtInType)
         {
-            object randomData = DataGenerator.GetRandomScalar(builtInType);
+            object randomData = DataGenerator.GetRandom(builtInType);
             if (builtInType == BuiltInType.DiagnosticInfo)
             {
                 NUnit.Framework.Assert.Throws<ServiceResultException>(() =>

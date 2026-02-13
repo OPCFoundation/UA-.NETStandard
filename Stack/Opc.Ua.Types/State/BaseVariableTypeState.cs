@@ -70,6 +70,17 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Initialized data type and value rank
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="context"></param>
+        protected virtual void Initialize<T>(ISystemContext context)
+        {
+            DataType = TypeInfo.GetDataTypeId(typeof(T), context.NamespaceUris);
+            ValueRank = TypeInfo.GetValueRank(typeof(T));
+        }
+
+        /// <summary>
         /// Sets the value to its default value if it is not valid.
         /// </summary>
         protected virtual object ExtractValueFromVariant(
@@ -496,7 +507,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.ArrayDimensions:
-                    uint[] arrayDimensions = [.. m_arrayDimensions];
+                    uint[] arrayDimensions = m_arrayDimensions?.ToArray();
 
                     NodeAttributeEventHandler<uint[]> onReadArrayDimensions = OnReadArrayDimensions;
 
@@ -816,10 +827,7 @@ namespace Opc.Ua
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
-
-            Value = default;
-            DataType = TypeInfo.GetDataTypeId(typeof(T), context.NamespaceUris);
-            ValueRank = TypeInfo.GetValueRank(typeof(T));
+            base.Initialize<T>(context);
         }
 
         /// <summary>
@@ -908,10 +916,7 @@ namespace Opc.Ua
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
-
-            Value = default;
-            DataType = TypeInfo.GetDataTypeId(typeof(T), context.NamespaceUris);
-            ValueRank = TypeInfo.GetValueRank(typeof(T));
+            base.Initialize<T>(context);
         }
 
         /// <summary>

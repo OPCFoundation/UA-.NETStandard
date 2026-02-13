@@ -967,7 +967,7 @@ namespace Opc.Ua.Server
                     }
 
                     // check whether value being written is an instance of the expected data type.
-                    object valueToWrite = nodeToWrite.Value.Value;
+                    Variant valueToWrite = nodeToWrite.Value.WrappedValue;
 
                     var typeInfo = TypeInfo.IsInstanceOfDataType(
                         valueToWrite,
@@ -991,7 +991,7 @@ namespace Opc.Ua.Server
                             errors[ii] = StatusCodes.BadIndexRangeInvalid;
                             continue;
                         }
-                        var array = (Array)valueToWrite;
+                        var array = (Array)valueToWrite.AsBoxedObject();
 
                         if (nodeToWrite.ParsedIndexRange.Count != array.Length)
                         {

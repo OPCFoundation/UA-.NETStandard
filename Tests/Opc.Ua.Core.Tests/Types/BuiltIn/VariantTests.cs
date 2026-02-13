@@ -118,7 +118,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         public void VariantScalarFromBuiltInType(BuiltInType builtInType)
         {
             SetRepeatedRandomSeed();
-            object randomData = DataGenerator.GetRandomScalar(builtInType);
+            object randomData = DataGenerator.GetRandom(builtInType);
             var variant1 = new Variant(randomData);
             Assert.AreEqual(builtInType, variant1.TypeInfo.BuiltInType);
             var variant2 = new Variant(randomData, TypeInfo.CreateScalar(builtInType));

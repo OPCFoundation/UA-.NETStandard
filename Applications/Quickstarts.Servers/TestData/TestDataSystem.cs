@@ -456,7 +456,7 @@ namespace TestData
                         return m_generator.GetRandomArray<StatusCode>(false, 100, false);
                     case Variables.ArrayValueObjectType_VariantValue:
                     case Variables.UserArrayValueObjectType_VariantValue:
-                        return m_generator.GetRandomArray<Variant>(false, 100, false);
+                        return m_generator.GetRandomVariantArray(false, 100, false);
                     case Variables.ArrayValueObjectType_StructureValue:
                     {
                         ExtensionObject[] values = m_generator.GetRandomArray<ExtensionObject>(
@@ -593,9 +593,9 @@ namespace TestData
         {
             return new Vector
             {
-                X = (double)m_generator.GetRandomScalar(BuiltInType.Double),
-                Y = (double)m_generator.GetRandomScalar(BuiltInType.Double),
-                Z = (double)m_generator.GetRandomScalar(BuiltInType.Double)
+                X = (double)m_generator.GetRandom(BuiltInType.Double),
+                Y = (double)m_generator.GetRandom(BuiltInType.Double),
+                Z = (double)m_generator.GetRandom(BuiltInType.Double)
             };
         }
 
@@ -604,9 +604,9 @@ namespace TestData
             return new VectorUnion
             {
                 SwitchField = (VectorUnionFields)(m_generator.GetRandomUInt16() % 4),
-                X = (double)m_generator.GetRandomScalar(BuiltInType.Double),
-                Y = (double)m_generator.GetRandomScalar(BuiltInType.Double),
-                Z = (double)m_generator.GetRandomScalar(BuiltInType.Double)
+                X = (double)m_generator.GetRandom(BuiltInType.Double),
+                Y = (double)m_generator.GetRandom(BuiltInType.Double),
+                Z = (double)m_generator.GetRandom(BuiltInType.Double)
             };
         }
 
@@ -631,9 +631,9 @@ namespace TestData
             return new VectorWithOptionalFields
             {
                 EncodingMask = (uint)encodingMask,
-                X = (double)m_generator.GetRandomScalar(BuiltInType.Double),
-                Y = (double)m_generator.GetRandomScalar(BuiltInType.Double),
-                Z = (double)m_generator.GetRandomScalar(BuiltInType.Double)
+                X = (double)m_generator.GetRandom(BuiltInType.Double),
+                Y = (double)m_generator.GetRandom(BuiltInType.Double),
+                Z = (double)m_generator.GetRandom(BuiltInType.Double)
             };
         }
 

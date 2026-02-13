@@ -41,7 +41,7 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 * **ECC Profiles**: Support for NIST & Brainpool [Security Profiles](Docs/EccProfiles.md).
 * **Durable Subscriptions**: Support for Durable Subscriptions [Durable Subscriptions](Docs/DurableSubscription.md).
 
-#### Breaking Changes and Heads-Up when upgrading from 1.04 to 1.05
+#### Breaking Changes
 
 * A few features are still missing to fully comply for 1.05, but certification for V1.04 is still possible with the 1.05 release.
 * **Thread Safety and Locking**: Improved thread safety and reduced locking in secure channel operations.
