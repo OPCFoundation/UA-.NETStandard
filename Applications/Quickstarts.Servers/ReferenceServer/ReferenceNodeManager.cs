@@ -4237,7 +4237,7 @@ namespace Quickstarts.ReferenceServer
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
-            var typeInfo = value.TypeInfo;
+            TypeInfo typeInfo = value.TypeInfo;
 
             if (node is not MultiStateValueDiscreteState variable ||
                 typeInfo.IsUnknown ||
@@ -4342,7 +4342,7 @@ namespace Quickstarts.ReferenceServer
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
-            var typeInfo = value.TypeInfo;
+            TypeInfo typeInfo = value.TypeInfo;
 
             if (node is not PropertyState<Range> variable ||
                 !value.TryGet(out ExtensionObject extensionObject) ||
@@ -4361,7 +4361,7 @@ namespace Quickstarts.ReferenceServer
                 return StatusCodes.BadIndexRangeInvalid;
             }
 
-            var parentTypeInfo = parent.Value.TypeInfo;
+            TypeInfo parentTypeInfo = parent.Value.TypeInfo;
             Range parentRange = GetAnalogRange(parentTypeInfo.BuiltInType);
             if (parentRange.High < newRange.High || parentRange.Low > newRange.Low)
             {

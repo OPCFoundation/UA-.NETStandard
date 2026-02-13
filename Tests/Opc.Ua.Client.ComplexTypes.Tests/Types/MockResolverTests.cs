@@ -714,7 +714,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                         int[] indices = new int[valueRank];
                         for (int ii = 0; ii < array.Length; ii++)
                         {
-                            array.SetValue(DataGenerator.GetRandom(builtInType), indices);
+                            object rndValue = DataGenerator.GetRandom(builtInType);
+                            array.SetValue(rndValue, indices);
                             Iterate(dimensions, indices);
                         }
                         value = array;

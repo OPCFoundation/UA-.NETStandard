@@ -305,134 +305,106 @@ namespace TestData
                 {
                     case ObjectTypes.TestSystemConditionType:
                     {
-                        if (passiveNode is TestSystemConditionState activeNode)
+                        if (passiveNode is not TestSystemConditionState activeNode)
                         {
-                            break;
+                            activeNode = new TestSystemConditionState(passiveNode.Parent);
+                            activeNode.Create(context, passiveNode);
+
+                            passiveNode.Parent?.ReplaceChild(context, activeNode);
                         }
-
-                        activeNode = new TestSystemConditionState(passiveNode.Parent);
-                        activeNode.Create(context, passiveNode);
-
-                        passiveNode.Parent?.ReplaceChild(context, activeNode);
-
                         return activeNode;
                     }
                     case ObjectTypes.ScalarValueObjectType:
                     {
-                        if (passiveNode is ScalarValueObjectState activeNode)
+                        if (passiveNode is not ScalarValueObjectState activeNode)
                         {
-                            break;
+                            activeNode = new ScalarValueObjectState(passiveNode.Parent);
+                            activeNode.Create(context, passiveNode);
+
+                            passiveNode.Parent?.ReplaceChild(context, activeNode);
                         }
-
-                        activeNode = new ScalarValueObjectState(passiveNode.Parent);
-                        activeNode.Create(context, passiveNode);
-
-                        passiveNode.Parent?.ReplaceChild(context, activeNode);
-
                         return activeNode;
                     }
                     case ObjectTypes.StructureValueObjectType:
                     {
-                        if (passiveNode is StructureValueObjectState activeNode)
+                        if (passiveNode is not StructureValueObjectState activeNode)
                         {
-                            break;
+                            activeNode = new StructureValueObjectState(passiveNode.Parent);
+                            activeNode.Create(context, passiveNode);
+
+                            passiveNode.Parent?.ReplaceChild(context, activeNode);
                         }
-
-                        activeNode = new StructureValueObjectState(passiveNode.Parent);
-                        activeNode.Create(context, passiveNode);
-
-                        passiveNode.Parent?.ReplaceChild(context, activeNode);
-
                         return activeNode;
                     }
                     case ObjectTypes.AnalogScalarValueObjectType:
                     {
-                        if (passiveNode is AnalogScalarValueObjectState activeNode)
+                        if (passiveNode is not AnalogScalarValueObjectState activeNode)
                         {
-                            break;
+                            activeNode = new AnalogScalarValueObjectState(passiveNode.Parent);
+                            activeNode.Create(context, passiveNode);
+
+                            passiveNode.Parent?.ReplaceChild(context, activeNode);
                         }
-
-                        activeNode = new AnalogScalarValueObjectState(passiveNode.Parent);
-                        activeNode.Create(context, passiveNode);
-
-                        passiveNode.Parent?.ReplaceChild(context, activeNode);
-
                         return activeNode;
                     }
                     case ObjectTypes.ArrayValueObjectType:
                     {
-                        if (passiveNode is ArrayValueObjectState activeNode)
+                        if (passiveNode is not ArrayValueObjectState activeNode)
                         {
-                            break;
+                            activeNode = new ArrayValueObjectState(passiveNode.Parent);
+                            activeNode.Create(context, passiveNode);
+
+                            passiveNode.Parent?.ReplaceChild(context, activeNode);
                         }
-
-                        activeNode = new ArrayValueObjectState(passiveNode.Parent);
-                        activeNode.Create(context, passiveNode);
-
-                        passiveNode.Parent?.ReplaceChild(context, activeNode);
-
                         return activeNode;
                     }
                     case ObjectTypes.AnalogArrayValueObjectType:
                     {
-                        if (passiveNode is AnalogArrayValueObjectState activeNode)
+                        if (passiveNode is not AnalogArrayValueObjectState activeNode)
                         {
-                            break;
+                            activeNode = new AnalogArrayValueObjectState(passiveNode.Parent);
+                            activeNode.Create(context, passiveNode);
+
+                            passiveNode.Parent?.ReplaceChild(context, activeNode);
                         }
-
-                        activeNode = new AnalogArrayValueObjectState(passiveNode.Parent);
-                        activeNode.Create(context, passiveNode);
-
-                        passiveNode.Parent?.ReplaceChild(context, activeNode);
-
                         return activeNode;
                     }
                     case ObjectTypes.UserScalarValueObjectType:
                     {
-                        if (passiveNode is UserScalarValueObjectState activeNode)
+                        if (passiveNode is not UserScalarValueObjectState activeNode)
                         {
-                            break;
+                            activeNode = new UserScalarValueObjectState(passiveNode.Parent);
+                            activeNode.Create(context, passiveNode);
+
+                            passiveNode.Parent?.ReplaceChild(context, activeNode);
                         }
-
-                        activeNode = new UserScalarValueObjectState(passiveNode.Parent);
-                        activeNode.Create(context, passiveNode);
-
-                        passiveNode.Parent?.ReplaceChild(context, activeNode);
-
                         return activeNode;
                     }
                     case ObjectTypes.UserArrayValueObjectType:
                     {
-                        if (passiveNode is UserArrayValueObjectState activeNode)
+                        if (passiveNode is not UserArrayValueObjectState activeNode)
                         {
-                            break;
+                            activeNode = new UserArrayValueObjectState(passiveNode.Parent);
+                            activeNode.Create(context, passiveNode);
+
+                            passiveNode.Parent?.ReplaceChild(context, activeNode);
                         }
-
-                        activeNode = new UserArrayValueObjectState(passiveNode.Parent);
-                        activeNode.Create(context, passiveNode);
-
-                        passiveNode.Parent?.ReplaceChild(context, activeNode);
-
                         return activeNode;
                     }
                     case ObjectTypes.MethodTestType:
                     {
-                        if (passiveNode is MethodTestState activeNode)
+                        if (passiveNode is not MethodTestState activeNode)
                         {
-                            break;
+                            activeNode = new MethodTestState(passiveNode.Parent);
+                            activeNode.Create(context, passiveNode);
+
+                            passiveNode.Parent?.ReplaceChild(context, activeNode);
                         }
-
-                        activeNode = new MethodTestState(passiveNode.Parent);
-                        activeNode.Create(context, passiveNode);
-
-                        passiveNode.Parent?.ReplaceChild(context, activeNode);
-
                         return activeNode;
                     }
                 }
             }
-
-            if (predefinedNode is BaseVariableState variableNode)
+            else if (predefinedNode is BaseVariableState variableNode)
             {
                 NodeId typeId = variableNode.TypeDefinitionId;
 
@@ -445,35 +417,28 @@ namespace TestData
                 {
                     case VariableTypes.ScalarStructureVariableType:
                     {
-                        if (variableNode is ScalarStructureVariableState activeNode)
+                        if (variableNode is not ScalarStructureVariableState activeNode)
                         {
-                            break;
+                            activeNode = new ScalarStructureVariableState(variableNode.Parent);
+                            activeNode.Create(context, variableNode);
+
+                            variableNode.Parent?.ReplaceChild(context, activeNode);
                         }
-
-                        activeNode = new ScalarStructureVariableState(variableNode.Parent);
-                        activeNode.Create(context, variableNode);
-
-                        variableNode.Parent?.ReplaceChild(context, activeNode);
-
                         return activeNode;
                     }
                     case VariableTypes.VectorVariableType:
                     {
-                        if (variableNode is VectorVariableState activeNode)
+                        if (variableNode is not VectorVariableState activeNode)
                         {
-                            break;
+                            activeNode = new VectorVariableState(variableNode.Parent);
+                            activeNode.Create(context, variableNode);
+
+                            variableNode.Parent?.ReplaceChild(context, activeNode);
                         }
-
-                        activeNode = new VectorVariableState(variableNode.Parent);
-                        activeNode.Create(context, variableNode);
-
-                        variableNode.Parent?.ReplaceChild(context, activeNode);
-
                         return activeNode;
                     }
                 }
             }
-
             return predefinedNode;
         }
 

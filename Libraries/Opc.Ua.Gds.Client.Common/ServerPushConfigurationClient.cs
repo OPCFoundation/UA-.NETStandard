@@ -482,7 +482,7 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                System.Collections.Generic.IList<object> outputArguments = await session.CallAsync(
+                VariantCollection outputArguments = await session.CallAsync(
                     ExpandedNodeId.ToNodeId(
                         Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList,
                         session.NamespaceUris
@@ -651,7 +651,7 @@ namespace Opc.Ua.Gds.Client
                         maxTrustListSize);
                 }
 
-                System.Collections.Generic.IList<object> outputArguments = await session.CallAsync(
+                VariantCollection outputArguments = await session.CallAsync(
                     ExpandedNodeId.ToNodeId(
                         Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList,
                         session.NamespaceUris
@@ -858,7 +858,7 @@ namespace Opc.Ua.Gds.Client
             IUserIdentity oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
             try
             {
-                System.Collections.Generic.IList<object> outputArguments = await session.CallAsync(
+                VariantCollection outputArguments = await session.CallAsync(
                     ExpandedNodeId.ToNodeId(
                         Ua.ObjectIds.ServerConfiguration,
                         session.NamespaceUris),
@@ -870,8 +870,8 @@ namespace Opc.Ua.Gds.Client
                     certificateGroupId).ConfigureAwait(false);
                 if (outputArguments.Count >= 2)
                 {
-                    certificateTypeIds = outputArguments[0] as NodeId[];
-                    certificates = outputArguments[1] as byte[][];
+                    certificateTypeIds = outputArguments[0].GetNodeIdArray();
+                    certificates = outputArguments[1].GetByteStringArray();
                 }
             }
             finally
@@ -927,7 +927,7 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                System.Collections.Generic.IList<object> outputArguments = await session.CallAsync(
+                VariantCollection outputArguments = await session.CallAsync(
                     ExpandedNodeId.ToNodeId(
                         Ua.ObjectIds.ServerConfiguration,
                         session.NamespaceUris),
@@ -1006,7 +1006,7 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                System.Collections.Generic.IList<object> outputArguments = await session.CallAsync(
+                VariantCollection outputArguments = await session.CallAsync(
                     ExpandedNodeId.ToNodeId(
                         Ua.ObjectIds.ServerConfiguration,
                         session.NamespaceUris),
@@ -1053,7 +1053,7 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                System.Collections.Generic.IList<object> outputArguments = await session.CallAsync(
+                VariantCollection outputArguments = await session.CallAsync(
                     ExpandedNodeId.ToNodeId(
                         Ua.ObjectIds.ServerConfiguration,
                         session.NamespaceUris),

@@ -40,7 +40,7 @@ namespace Opc.Ua
     /// <summary>
     /// The base class for custom nodes.
     /// </summary>
-    public abstract partial class NodeState : IDisposable, IFormattable, ICloneable
+    public abstract class NodeState : IDisposable, IFormattable, ICloneable
     {
         /// <summary>
         /// Creates an empty object.
@@ -2904,7 +2904,7 @@ namespace Opc.Ua
                 UpdateReferenceTargets(context, children, mappingTable);
             }
 
-            CallOnAfterCreate(context, null);
+            CallOnAfterCreate(context, children);
 
             ClearChangeMasks(context, true);
         }

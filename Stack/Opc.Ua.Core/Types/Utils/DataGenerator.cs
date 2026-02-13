@@ -1100,17 +1100,22 @@ namespace Opc.Ua.Test
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         public object GetRandom(BuiltInType expectedType)
-		{
-		    switch (expectedType)
-			{
-				case BuiltInType.DiagnosticInfo:
+        {
+            switch (expectedType)
+            {
+                case BuiltInType.DiagnosticInfo:
                     return GetRandomDiagnosticInfo();
-				case BuiltInType.Null:
+                case BuiltInType.Null:
                     return null;
-				default:
-					return GetRandomScalar(expectedType).AsBoxedObject();
-			}
-		}
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                case BuiltInType.Variant:
+                    return GetRandomScalar(expectedType);
+                default:
+                    return GetRandomScalar(expectedType).AsBoxedObject();
+            }
+        }
 
         /// <summary>
         /// Returns a random value of the specified built-in type.

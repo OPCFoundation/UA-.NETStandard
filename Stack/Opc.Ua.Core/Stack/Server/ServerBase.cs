@@ -912,7 +912,7 @@ namespace Opc.Ua
                     }
                 }
 
-                var existingPolicy = UserTokenPolicys.FirstOrDefault(o => o.Equals(clone));
+                UserTokenPolicy existingPolicy = UserTokenPolicys.FirstOrDefault(o => o.Equals(clone));
 
                 // Ensure each policy has a unique ID within the context of the Server
                 if (existingPolicy == null)

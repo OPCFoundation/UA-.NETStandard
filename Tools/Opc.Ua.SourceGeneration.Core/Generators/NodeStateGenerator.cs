@@ -1597,7 +1597,7 @@ namespace Opc.Ua.SourceGeneration
         private bool WriteTemplate_Argument(IWriteContext context)
         {
             Argument argument = null;
-            Parameter parameter = null;
+            Parameter parameter;
             switch (context.Target)
             {
                 case Argument arg:
@@ -1774,7 +1774,6 @@ namespace Opc.Ua.SourceGeneration
                 [variableType],
                 LoadTemplate_VariableTypeValue,
                 WriteTemplate_VariableTypeValue);
-            return;
         }
 
         private void AddNodeStateClassObjectTypeReplacements(

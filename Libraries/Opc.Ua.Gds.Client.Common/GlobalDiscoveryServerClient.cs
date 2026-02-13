@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -552,7 +553,7 @@ namespace Opc.Ua.Gds.Client
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            IList<object> outputArguments = await session.CallAsync(
+            VariantCollection outputArguments = await session.CallAsync(
                 ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(
                     MethodIds.Directory_FindApplications,
@@ -560,17 +561,12 @@ namespace Opc.Ua.Gds.Client
                 ct,
                 applicationUri).ConfigureAwait(false);
 
-            ApplicationRecordDataType[] applications = null;
-
             if (outputArguments.Count > 0)
             {
-                applications = (ApplicationRecordDataType[])
-                    ExtensionObject.ToArray(
-                        outputArguments[0] as ExtensionObject[],
-                        typeof(ApplicationRecordDataType));
+                return outputArguments[0].GetStructureArray<ApplicationRecordDataType>();
             }
 
-            return applications;
+            return null;
         }
 
         /// <summary>
@@ -716,7 +712,7 @@ namespace Opc.Ua.Gds.Client
 
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            IList<object> outputArguments = await session.CallAsync(
+            VariantCollection outputArguments = await session.CallAsync(
                 ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(MethodIds.Directory_QueryServers, session.NamespaceUris),
                 ct,
@@ -725,17 +721,14 @@ namespace Opc.Ua.Gds.Client
                 applicationName,
                 applicationUri,
                 productUri,
-                serverCapabilities).ConfigureAwait(false);
+                Variant.From(serverCapabilities.ToArray())).ConfigureAwait(false);
 
             ServerOnNetwork[] servers = null;
 
             if (outputArguments.Count >= 2)
             {
                 lastCounterResetTime = (DateTime)outputArguments[0];
-                servers = (ServerOnNetwork[])
-                    ExtensionObject.ToArray(
-                        outputArguments[1] as ExtensionObject[],
-                        typeof(ServerOnNetwork));
+                servers = outputArguments[1].GetStructureArray<ServerOnNetwork>();
             }
 
             return (servers, lastCounterResetTime);
@@ -809,7 +802,7 @@ namespace Opc.Ua.Gds.Client
 
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            IList<object> outputArguments = await session.CallAsync(
+            VariantCollection outputArguments = await session.CallAsync(
                 ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(
                     MethodIds.Directory_QueryApplications,
@@ -821,7 +814,7 @@ namespace Opc.Ua.Gds.Client
                 applicationUri,
                 applicationType,
                 productUri,
-                serverCapabilities).ConfigureAwait(false);
+                Variant.From(serverCapabilities.ToArray())).ConfigureAwait(false);
 
             ApplicationDescription[] applications = null;
 
@@ -829,10 +822,7 @@ namespace Opc.Ua.Gds.Client
             {
                 lastCounterResetTime = (DateTime)outputArguments[0];
                 nextRecordId = (uint)outputArguments[1];
-                applications = (ApplicationDescription[])
-                    ExtensionObject.ToArray(
-                        outputArguments[2] as ExtensionObject[],
-                        typeof(ApplicationDescription));
+                applications = outputArguments[2].GetStructureArray<ApplicationDescription>();
             }
 
             return (applications, lastCounterResetTime, nextRecordId);
@@ -861,16 +851,14 @@ namespace Opc.Ua.Gds.Client
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            IList<object> outputArguments = await session.CallAsync(
+            VariantCollection outputArguments = await session.CallAsync(
                 ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(MethodIds.Directory_GetApplication, session.NamespaceUris),
                 ct,
                 applicationId).ConfigureAwait(false);
 
             if (outputArguments.Count >= 1 &&
-                outputArguments[0] is ExtensionObject extension &&
-                extension.TryGetEncodeable(
-                    out ApplicationRecordDataType applicationRecord))
+                outputArguments[0].TryGetStructure(out ApplicationRecordDataType applicationRecord))
             {
                 return applicationRecord;
             }
@@ -901,15 +889,15 @@ namespace Opc.Ua.Gds.Client
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            IList<object> outputArguments = await session.CallAsync(
+            VariantCollection outputArguments = await session.CallAsync(
                 ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(
                     MethodIds.Directory_RegisterApplication,
                     session.NamespaceUris),
                 ct,
-                application).ConfigureAwait(false);
+                Variant.FromStructure(application)).ConfigureAwait(false);
 
-            if (outputArguments.Count >= 1 && outputArguments[0] is NodeId nodeId)
+            if (outputArguments.Count >= 1 && outputArguments[0].TryGet(out NodeId nodeId))
             {
                 return nodeId;
             }
@@ -958,7 +946,7 @@ namespace Opc.Ua.Gds.Client
 
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            IList<object> outputArguments = await session.CallAsync(
+            VariantCollection outputArguments = await session.CallAsync(
                 ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(
                     MethodIds.CertificateDirectoryType_GetCertificates,
@@ -969,8 +957,8 @@ namespace Opc.Ua.Gds.Client
 
             if (outputArguments.Count >= 2)
             {
-                certificateTypeIds = outputArguments[0] as NodeId[];
-                certificates = outputArguments[1] as byte[][];
+                certificateTypeIds = outputArguments[0].GetNodeIdArray();
+                certificates = outputArguments[1].GetByteStringArray();
             }
 
             return (certificateTypeIds, certificates);
@@ -1007,7 +995,7 @@ namespace Opc.Ua.Gds.Client
 
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            IList<object> outputArguments = await session.CallAsync(
+            VariantCollection outputArguments = await session.CallAsync(
                 ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(
                     MethodIds.CertificateDirectoryType_CheckRevocationStatus,
@@ -1049,7 +1037,7 @@ namespace Opc.Ua.Gds.Client
                     MethodIds.Directory_UpdateApplication,
                     session.NamespaceUris),
                 ct,
-                application).ConfigureAwait(false);
+                Variant.FromStructure(application)).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1170,7 +1158,7 @@ namespace Opc.Ua.Gds.Client
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            IList<object> outputArguments = await session.CallAsync(
+            VariantCollection outputArguments = await session.CallAsync(
                 ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(
                     MethodIds.Directory_StartNewKeyPairRequest,
@@ -1180,11 +1168,11 @@ namespace Opc.Ua.Gds.Client
                 certificateGroupId,
                 certificateTypeId,
                 subjectName,
-                domainNames,
+                Variant.From(domainNames.ToArray()),
                 privateKeyFormat,
                 new string(privateKeyPassword)).ConfigureAwait(false);
 
-            if (outputArguments.Count >= 1 && outputArguments[0] is NodeId nodeId)
+            if (outputArguments.Count >= 1 && outputArguments[0].TryGet(out NodeId nodeId))
             {
                 return nodeId;
             }
@@ -1232,7 +1220,7 @@ namespace Opc.Ua.Gds.Client
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            IList<object> outputArguments = await session.CallAsync(
+            VariantCollection outputArguments = await session.CallAsync(
                 ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(
                     MethodIds.Directory_StartSigningRequest,
@@ -1243,7 +1231,7 @@ namespace Opc.Ua.Gds.Client
                 certificateTypeId,
                 certificateRequest).ConfigureAwait(false);
 
-            if (outputArguments.Count >= 1 && outputArguments[0] is NodeId nodeId)
+            if (outputArguments.Count >= 1 && outputArguments[0].TryGet(out NodeId nodeId))
             {
                 return nodeId;
             }
@@ -1290,7 +1278,7 @@ namespace Opc.Ua.Gds.Client
 
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            IList<object> outputArguments = await session.CallAsync(
+            VariantCollection outputArguments = await session.CallAsync(
                 ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(MethodIds.Directory_FinishRequest, session.NamespaceUris),
                 ct,
@@ -1301,17 +1289,17 @@ namespace Opc.Ua.Gds.Client
 
             if (outputArguments.Count >= 1)
             {
-                certificate = outputArguments[0] as byte[];
+                certificate = outputArguments[0].GetByteString();
             }
 
             if (outputArguments.Count >= 2)
             {
-                privateKey = outputArguments[1] as byte[];
+                privateKey = outputArguments[1].GetByteString();
             }
 
             if (outputArguments.Count >= 3)
             {
-                issuerCertificates = outputArguments[2] as byte[][];
+                issuerCertificates = outputArguments[2].GetByteStringArray();
             }
 
             return (certificate, privateKey, issuerCertificates);
@@ -1336,7 +1324,7 @@ namespace Opc.Ua.Gds.Client
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            IList<object> outputArguments = await session.CallAsync(
+            VariantCollection outputArguments = await session.CallAsync(
                 ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(
                     MethodIds.Directory_GetCertificateGroups,
@@ -1344,9 +1332,9 @@ namespace Opc.Ua.Gds.Client
                 ct,
                 applicationId).ConfigureAwait(false);
 
-            if (outputArguments.Count >= 1)
+            if (outputArguments.Count >= 1 && outputArguments[0].TryGet(out NodeId[] nodeIds))
             {
-                return outputArguments[0] as NodeId[];
+                return nodeIds;
             }
 
             return null;
@@ -1373,14 +1361,14 @@ namespace Opc.Ua.Gds.Client
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            IList<object> outputArguments = await session.CallAsync(
+            VariantCollection outputArguments = await session.CallAsync(
                 ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(MethodIds.Directory_GetTrustList, session.NamespaceUris),
                 ct,
                 applicationId,
                 certificateGroupId).ConfigureAwait(false);
 
-            if (outputArguments.Count >= 1 && outputArguments[0] is NodeId nodeId)
+            if (outputArguments.Count >= 1 && outputArguments[0].TryGet(out NodeId nodeId))
             {
                 return nodeId;
             }
@@ -1400,7 +1388,10 @@ namespace Opc.Ua.Gds.Client
             NodeId certificateGroupId,
             NodeId certificateTypeId)
         {
-            return GetCertificateStatusAsync(applicationId, certificateGroupId, certificateTypeId).GetAwaiter().GetResult();
+            return GetCertificateStatusAsync(
+                applicationId,
+                certificateGroupId,
+                certificateTypeId).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -1418,7 +1409,7 @@ namespace Opc.Ua.Gds.Client
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            IList<object> outputArguments = await session.CallAsync(
+            VariantCollection outputArguments = await session.CallAsync(
                 ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(
                     MethodIds.Directory_GetCertificateStatus,
@@ -1428,13 +1419,9 @@ namespace Opc.Ua.Gds.Client
                 certificateGroupId,
                 certificateTypeId).ConfigureAwait(false);
 
-            if (outputArguments.Count >= 1 && outputArguments[0] != null)
+            if (outputArguments.Count >= 1 && outputArguments[0].TryGet(out bool result))
             {
-                bool? result = outputArguments[0] as bool?;
-                if (result != null)
-                {
-                    return (bool)result;
-                }
+                return result;
             }
 
             return false;
@@ -1462,11 +1449,14 @@ namespace Opc.Ua.Gds.Client
         /// Reads the trust list.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public async Task<TrustListDataType> ReadTrustListAsync(NodeId trustListId, long maxTrustListSize, CancellationToken ct = default)
+        public async Task<TrustListDataType> ReadTrustListAsync(
+            NodeId trustListId,
+            long maxTrustListSize,
+            CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
-            IList<object> outputArguments = await session.CallAsync(
+            VariantCollection outputArguments = await session.CallAsync(
                 trustListId,
                 Ua.MethodIds.FileType_Open,
                 ct,
@@ -1521,7 +1511,11 @@ namespace Opc.Ua.Gds.Client
             }
             finally
             {
-                await session.CallAsync(trustListId, Ua.MethodIds.FileType_Close, ct, fileHandle).ConfigureAwait(false);
+                await session.CallAsync(
+                    trustListId,
+                    Ua.MethodIds.FileType_Close,
+                    ct,
+                    fileHandle).ConfigureAwait(false);
             }
 
             ostrm.Position = 0;

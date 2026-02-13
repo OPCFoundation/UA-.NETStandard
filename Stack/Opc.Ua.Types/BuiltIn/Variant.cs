@@ -3897,7 +3897,7 @@ namespace Opc.Ua
                 case BuiltInType.String:
                     return XmlConvert.ToUInt16(GetString());
                 case BuiltInType.StatusCode:
-                    var code = GetStatusCode();
+                    StatusCode code = GetStatusCode();
                     return (ushort)(code.CodeBits >> 16);
                 case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                     // conversion not supported.
@@ -5792,7 +5792,7 @@ namespace Opc.Ua
         /// variant of variants.
         /// </summary>
         /// <returns></returns>
-        internal Variant Collapse(IEnumerable<Variant> variants)
+        internal static Variant Collapse(IEnumerable<Variant> variants)
         {
             var items = variants.ToList();
             if (items.Count == 0)
@@ -5803,7 +5803,7 @@ namespace Opc.Ua
             {
                 return items[0];
             }
-            var typeInfo = items[0].TypeInfo;
+            TypeInfo typeInfo = items[0].TypeInfo;
             if (!items.All(v => v.TypeInfo == typeInfo))
             {
                 // Variant of variants
@@ -5811,7 +5811,7 @@ namespace Opc.Ua
             }
             if (typeInfo.IsScalar)
             {
-                switch (TypeInfo.BuiltInType)
+                switch (typeInfo.BuiltInType)
                 {
                     case BuiltInType.Boolean:
                         return new Variant(items.Select(v => v.GetBoolean()).ToArray());
@@ -5872,10 +5872,9 @@ namespace Opc.Ua
             if (typeInfo.IsArray)
             {
                 // TODO: Collapse each individual one first
-                return new Variant(items.ToArray());
             }
             // TODO: Collapse matrix
-            return [];
+            return new Variant(items.ToArray());
         }
 
         /// <summary>

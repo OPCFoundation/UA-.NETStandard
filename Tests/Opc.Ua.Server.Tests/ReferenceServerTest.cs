@@ -1016,7 +1016,7 @@ namespace Opc.Ua.Server.Tests
             var modifiedValues = new DataValueCollection();
             foreach (DataValue dataValue in readResponse.Results)
             {
-                var typeInfo = dataValue.WrappedValue.TypeInfo;
+                TypeInfo typeInfo = dataValue.WrappedValue.TypeInfo;
                 Assert.False(typeInfo.IsUnknown);
                 Variant value = m_generator.GetRandomScalar(typeInfo.BuiltInType);
                 modifiedValues.Add(new DataValue { WrappedValue = value });

@@ -556,8 +556,7 @@ namespace Opc.Ua
         {
             if (OutputArguments == null)
             {
-                PropertyState<Argument[]> child = replacement as PropertyState<Argument[]>;
-                if (child == null)
+                if (replacement is not PropertyState<Argument[]> child)
                 {
                     child = new PropertyState<Argument[]>(this);
                     if (replacement != null)
@@ -579,8 +578,7 @@ namespace Opc.Ua
         {
             if (InputArguments == null)
             {
-                PropertyState<Argument[]> child = replacement as PropertyState<Argument[]>;
-                if (child == null)
+                if (replacement is not PropertyState<Argument[]> child)
                 {
                     child = new PropertyState<Argument[]>(this);
                     if (replacement != null)

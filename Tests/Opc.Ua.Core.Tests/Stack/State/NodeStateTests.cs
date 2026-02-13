@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
@@ -86,6 +87,48 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Assert.AreEqual(0, context.NamespaceUris.GetIndexOrAppend(OpcUa));
             testObject.Create(context, new NodeId(1000), QualifiedName.From("Name"), LocalizedText.From("DisplayName"), true);
             testObject.Dispose();
+        }
+
+        /// <summary>
+        /// Instantiate NodeState types across Opc.Ua assemblies and fail on placeholder children.
+        /// </summary>
+        [Test]
+        public void NodeStateTypesAcrossOpcUaAssemblies_ShouldNotInstantiatePlaceholderChildren()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var context = new SystemContext(telemetry) { NamespaceUris = Context.NamespaceUris };
+            var placeholders = new List<string>();
+            uint nodeId = 200000;
+            Type[] nodeStateTypesToScan = [.. GetOpcUaNodeStateTypes().OrderBy(type => type.FullName)];
+
+            foreach (Type systemType in nodeStateTypesToScan)
+            {
+                if (CreateDefaultNodeStateType(systemType) is not NodeState testObject)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    testObject.Create(context, new NodeId(nodeId++), QualifiedName.From("Name"), LocalizedText.From("DisplayName"), true);
+                    CollectInstantiatedPlaceholders(
+                        context,
+                        testObject,
+                        systemType.Assembly.GetName().Name,
+                        systemType.FullName,
+                        placeholders);
+                }
+                finally
+                {
+                    testObject.Dispose();
+                }
+            }
+
+            Assert.That(
+                placeholders,
+                Is.Empty,
+                "Instantiated placeholder children were found:" + Environment.NewLine +
+                string.Join(Environment.NewLine, placeholders));
         }
 
         /// <summary>
@@ -148,6 +191,132 @@ namespace Opc.Ua.Core.Tests.Stack.State
             }
 
             return CreateDefaultNodeStateType(systemType) is NodeState;
+        }
+
+        /// <summary>
+        /// Recursively collect instantiated placeholder children for diagnostics.
+        /// </summary>
+        private static void CollectInstantiatedPlaceholders(
+            ISystemContext context,
+            NodeState nodeState,
+            string ownerAssembly,
+            string ownerType,
+            List<string> placeholders)
+        {
+            var children = new List<BaseInstanceState>();
+            nodeState.GetChildren(context, children);
+
+            foreach (BaseInstanceState child in children)
+            {
+                string browseName = child.BrowseName.Name ?? string.Empty;
+                bool hasPlaceholderName =
+                    browseName.Length > 1 &&
+                    browseName[0] == '<' &&
+                    browseName[browseName.Length - 1] == '>';
+
+                bool hasPlaceholderModellingRule =
+                    child.ModellingRuleId == ObjectIds.ModellingRule_OptionalPlaceholder ||
+                    child.ModellingRuleId == ObjectIds.ModellingRule_MandatoryPlaceholder;
+
+                if (hasPlaceholderName || hasPlaceholderModellingRule)
+                {
+                    string modellingRule = child.ModellingRuleId.ToString();
+                    placeholders.Add(
+                        $"{ownerAssembly}: {ownerType}: {child.GetDisplayPath()} (BrowseName='{browseName}', ModellingRuleId='{modellingRule}')");
+                }
+
+                CollectInstantiatedPlaceholders(
+                    context,
+                    child,
+                    ownerAssembly,
+                    ownerType,
+                    placeholders);
+            }
+        }
+
+        /// <summary>
+        /// Discover loadable public NodeState types from reachable Opc.Ua assemblies.
+        /// </summary>
+        private static IEnumerable<Type> GetOpcUaNodeStateTypes()
+        {
+            var assemblies = new Dictionary<string, Assembly>(StringComparer.OrdinalIgnoreCase);
+            var toScan = new Queue<Assembly>();
+
+            void TryEnqueueAssembly(Assembly assembly)
+            {
+                if (assembly == null || assembly.IsDynamic)
+                {
+                    return;
+                }
+
+                AssemblyName assemblyName = assembly.GetName();
+
+                if (!assemblyName.Name.StartsWith("Opc.Ua", StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                if (assemblies.ContainsKey(assembly.FullName))
+                {
+                    return;
+                }
+
+                assemblies[assembly.FullName] = assembly;
+                toScan.Enqueue(assembly);
+            }
+
+            TryEnqueueAssembly(typeof(NodeState).Assembly);
+            TryEnqueueAssembly(typeof(OrderedListState).Assembly);
+            TryEnqueueAssembly(typeof(StateTypesTests).Assembly);
+
+            foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                TryEnqueueAssembly(assembly);
+            }
+
+            while (toScan.Count > 0)
+            {
+                Assembly assembly = toScan.Dequeue();
+
+                foreach (AssemblyName reference in assembly.GetReferencedAssemblies())
+                {
+                    if (!reference.Name.StartsWith("Opc.Ua", StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        TryEnqueueAssembly(Assembly.Load(reference));
+                    }
+                    catch
+                    {
+                        // Nothing we can do if an assembly fails to load, just skip it.
+                    }
+                }
+            }
+
+            return assemblies.Values
+                .SelectMany(GetExportedTypesSafe)
+                .Where(IsNodeStateType)
+                .GroupBy(type => type.AssemblyQualifiedName)
+                .Select(group => group.First());
+        }
+
+        /// <summary>
+        /// Return exported types while tolerating partial type-load failures.
+        /// </summary>
+        private static IEnumerable<Type> GetExportedTypesSafe(Assembly assembly)
+        {
+            try
+            {
+                return assembly.GetExportedTypes();
+            }
+            catch (ReflectionTypeLoadException e)
+            {
+                // Continue with loadable public types if some types in the assembly fail to load.
+                return e.Types.Where(type => type != null && type.IsPublic);
+            }
         }
     }
 

@@ -933,7 +933,7 @@ namespace Opc.Ua
         {
             // TODO: Make it work on array types without boxing.
             var boxed = value.AsBoxedObject();
-            var result = ApplyRange(ref boxed);
+            StatusCode result = ApplyRange(ref boxed);
             value = new Variant(boxed);
             return result;
         }

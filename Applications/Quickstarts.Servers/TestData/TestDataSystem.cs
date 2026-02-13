@@ -695,7 +695,7 @@ namespace TestData
                 VariantValue = m_generator.GetRandomVariant(),
                 IntegerValue = m_generator.GetRandomInteger(),
                 UIntegerValue = m_generator.GetRandomUInteger(),
-                NumberValue =  m_generator.GetRandomNumber()
+                NumberValue = m_generator.GetRandomNumber()
             };
         }
 

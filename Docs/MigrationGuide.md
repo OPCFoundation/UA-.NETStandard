@@ -7,7 +7,7 @@
     - [Several UA built in types are now immutable](#several-ua-built-in-types-are-now-immutable)
       - [Variant](#variant)
         - [Deprecated boxing behavior](#deprecated-boxing-behavior)
-        - [Replacement of all use of object in generated code and API](#replacement-of-all-use-of-object-in-generated-code-and-api)
+        - [Replacement of all use of System.Object in generated code and API](#replacement-of-all-use-of-systemobject-in-generated-code-and-api)
       - [QualifiedName and LocalizedText](#qualifiedname-and-localizedtext)
       - [StatusCode](#statuscode)
       - [NodeId/ExpandedNodeId](#nodeidexpandednodeid)
@@ -97,9 +97,18 @@ In some cases it is desirable to gain access to what was returned from the now o
 > All other built in value types (`ExtensionObject`, `NodeId`, `QualifiedName`, `LocalizedText`, `Uuid`, etc.) are > 8 bytes in size and are therefore boxed when stored inside a Variant.
 > `ArrayOf`/`MatrixOf` are stored *spliced* inside the Variant (where the array pointer is stored in the object, and length/offset inside the union).
 
-##### Replacement of all use of object in generated code and API
+##### Replacement of all use of System.Object in generated code and API
 
-`Variant` is now the type reflecting the OPC UA type in all API.  That means all generated API now uses Variant instead of `object` and all Value Properties are Variant too.  This provides type safety and removes the need for Reflection via `GetType()`. To migrate, perform the following general replacements in your code:
+`Variant` is now the type reflecting the OPC UA Variant type in all API. That means all generated API now uses Variant instead of `System.Object` and all `Value` Properties are `Variant` too.  This provides type safety and removes the need for Reflection via `GetType()` when the underlying type already is `Variant`.
+
+**System.Object and Variant comparable operations:**
+
+- *Casting*: Casting from Variant to built in system type "will just work" the same way as casting from the object, e.g. `object a; uint b = (uint)a;` is equivalent to `Variant a; uint b = (uint)a;`. Both throw `InvalidCastException` if the cast is not possible.
+- *Pattern matching*: If you use is pattern matching use the new `TryGet/TryGetStructure` calls. If you cast using as, use the same or if you prefer a default value in case the Variant has a different type, the `Get<BuiltInType>` or `GetStructure<T>` or equivalent array returning methods ending in `Array`. They do not throw, but return the default value.
+- *Reflection*: Use `TypeInfo` property on Variant to obtain metadata for for example switching.
+- *Conversion*: Previously TypeInfo had support to Cast an object aligned with Variant behavior. These API have been removed in favor of the `ConvertTo<BuiltInType>()` members or `ConvertTo(BuiltInType target)`. NOTE: Under the hood `IConvertible` is used, which means integer values are boxed.
+
+To migrate, perform the following general replacements in your code:
 
 **Change code as follows:**
 
@@ -107,6 +116,7 @@ In some cases it is desirable to gain access to what was returned from the now o
 - Generally replace all `ref object` with `ref Variant`.
 - In addition: for all callbacks registered in `BaseVariableState` change the callback signature to use `Variant` instead of `object` and `Variant[]` instead of `object[]`.
 - For all remaining `object[]` instances, replace with `VariantCollection` judiciously.
+- Keep all casts from Variant to object if you intend to preserve throw behavior. For any pattern matching (is/as) use `TryGet` if you need to check the result, or `Get<BuiltInType>` if you do not want to throw but are happy with the default value.
 
 > IMPORTANT: Care must be taken to not accidentally box a `Variant` value into an `object`.  E.g. current code like `object f = state.Value` will not be flagged by the compiler but must be replaced with `Variant f = state.Value` to remain type safe. Here it is best to use `var` for locals which requires no code changes.
 
@@ -170,6 +180,7 @@ There is no implicit conversion from `uint`/`Guid`/`string`/`byte[]` to `NodeId`
 - `WriteGuid(string, Guid)` -> use `WriteGuid(string, Uuid)`
 - `WriteGuidArray(string, IList<Guid>)` -> use `WriteGuidArray(string, IList<Uuid>)`
 - new `Variant(Guid)` -> use `Variant.From(Uuid)` or `new Variant(Uuid)`
+- Session `Call/CallAsync(param object[])` -> use `Call/CallAsync(param Variant[])`
 
 ### Node State handling
 

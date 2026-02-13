@@ -1201,7 +1201,7 @@ namespace Opc.Ua.Server
                 m_serverDiagnostics.Variable,
                 ref value);
 
-            var newValue = value.GetStructure<ServerDiagnosticsSummaryDataType>();
+            ServerDiagnosticsSummaryDataType newValue = value.GetStructure<ServerDiagnosticsSummaryDataType>();
 
             // check for changes.
             if (Utils.IsEqual(newValue, m_serverDiagnostics.Value))
@@ -1251,7 +1251,7 @@ namespace Opc.Ua.Server
                 diagnostics.Value.Variable,
                 ref value);
 
-            var newValue = value.GetStructure<SessionDiagnosticsDataType>();
+            SessionDiagnosticsDataType newValue = value.GetStructure<SessionDiagnosticsDataType>();
 
             sessionArray[index] = newValue;
 
@@ -1308,7 +1308,7 @@ namespace Opc.Ua.Server
                 diagnostics.SecurityValue.Variable,
                 ref value);
 
-            var newValue = value.GetStructure<SessionSecurityDiagnosticsDataType>();
+            SessionSecurityDiagnosticsDataType newValue = value.GetStructure<SessionSecurityDiagnosticsDataType>();
 
             sessionArray[index] = newValue;
 
@@ -1365,7 +1365,7 @@ namespace Opc.Ua.Server
                 diagnostics.Value.Variable,
                 ref value);
 
-            var newValue = value.GetStructure<SubscriptionDiagnosticsDataType>();
+            SubscriptionDiagnosticsDataType newValue = value.GetStructure<SubscriptionDiagnosticsDataType>();
 
             subscriptionArray[index] = newValue;
 

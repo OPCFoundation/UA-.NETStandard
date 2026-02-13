@@ -1593,8 +1593,14 @@ namespace Opc.Ua.Gds.Server
 
             m_request.AcceptRequest(requestId, result.Certificate);
 
-            VariantCollection inputArguments
-                = [applicationId, requestId, result.Certificate, result.PrivateKey, result.IssuerCertificates];
+            VariantCollection inputArguments =
+            [
+                applicationId,
+                requestId,
+                result.Certificate,
+                result.PrivateKey,
+                result.IssuerCertificates
+            ];
             Server.ReportCertificateDeliveredAuditEvent(context, objectId, method, inputArguments, m_logger);
 
             result.ServiceResult = ServiceResult.Good;
