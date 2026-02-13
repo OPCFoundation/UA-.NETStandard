@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -47,7 +47,7 @@ namespace Opc.Ua.Core.Tests.Types.ServiceMessageContextTests
         public void ConstructorWithNullFactoryCreatesNewFactory()
         {
             // Arrange & Act
-            var context = new ServiceMessageContext((ITelemetryContext)null, (IEncodeableFactory)null);
+            var context = new ServiceMessageContext(null, (IEncodeableFactory)null);
 
             // Assert
             Assert.IsNotNull(context.Factory);
@@ -126,7 +126,7 @@ namespace Opc.Ua.Core.Tests.Types.ServiceMessageContextTests
         {
             // Arrange
             var context = new ServiceMessageContext(null);
-            var originalFactory = context.Factory;
+            IEncodeableFactory originalFactory = context.Factory;
 
             // Act
             context.Factory = null;

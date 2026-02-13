@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+-->
+
+<opc:ModelDesign
+  xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:ua="http://opcfoundation.org/UA/"
+  xmlns:di="http://opcfoundation.org/UA/DI/"
+  xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns="urn:opcfoundation.org:2024-01:DemoModel"
+  TargetNamespace="urn:opcfoundation.org:2024-01:DemoModel"
+  TargetXmlNamespace="urn:opc-foundation.org:2024-01:DemoModel"
+  TargetVersion="1.05.03"
+  TargetPublicationDate="2023-12-15T00:00:00Z">
+
+  <opc:Namespaces>
+    <opc:Namespace Name="DemoModel" Prefix="DemoModel" XmlNamespace="urn:opcfoundation.org:2024-01:DemoModelTypes.xsd"  XmlPrefix="DemoModel">urn:opcfoundation.org:2024-01:DemoModel</opc:Namespace>
+    <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" InternalPrefix="Opc.Ua.Server" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd" XmlPrefix="OpcUa">http://opcfoundation.org/UA/</opc:Namespace>
+    <opc:Namespace Name="DI" Prefix="Opc.Ua.Di" InternalPrefix="Opc.Ua.Di.Server" XmlPrefix="OpcUaDi">http://opcfoundation.org/UA/DI/</opc:Namespace>
+  </opc:Namespaces>
+
+  <opc:PermissionSets>
+    <opc:PermissionSet Name="AuthenticatedUserOnly" >
+      <opc:RolePermission Role="ua:WellKnownRole_AuthenticatedUser">
+        <opc:Permission>Browse</opc:Permission>
+        <opc:Permission>Read</opc:Permission>
+        <opc:Permission>Write</opc:Permission>
+        <opc:Permission>Call</opc:Permission>
+      </opc:RolePermission>
+    </opc:PermissionSet>
+    <opc:PermissionSet Name="SecurityAdminOnly" >
+      <opc:RolePermission Role="ua:WellKnownRole_SecurityAdmin">
+        <opc:Permission>Browse</opc:Permission>
+        <opc:Permission>Read</opc:Permission>
+        <opc:Permission>Write</opc:Permission>
+        <opc:Permission>Call</opc:Permission>
+      </opc:RolePermission>
+    </opc:PermissionSet>
+    <opc:PermissionSet Name="SeekerOnly" >
+      <opc:RolePermission Role="Seeker">
+        <opc:Permission>Browse</opc:Permission>
+        <opc:Permission>Read</opc:Permission>
+      </opc:RolePermission>
+    </opc:PermissionSet>
+  </opc:PermissionSets>
+
+  <opc:Object SymbolicName="Seeker" TypeDefinition="ua:RoleType">
+    <opc:BrowseName>Seeker</opc:BrowseName>
+    <opc:DisplayName>Seeker</opc:DisplayName>
+    <opc:Description>The Role is a test role.</opc:Description>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:HasComponent</opc:ReferenceType>
+        <opc:TargetId>ua:Server_ServerCapabilities_RoleSet</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+    <opc:Extensions>
+      <opc:Extension>
+        <some:Thing xmlns:some="http://tempuri.com/something">Wicked</some:Thing>
+      </opc:Extension>
+    </opc:Extensions>
+  </opc:Object>
+
+  <opc:DataType SymbolicName="EnumUnderscoreTest" BaseType="ua:Enumeration" ForceEnumValues="true">
+    <opc:Fields>
+      <opc:Field Name="x_x" Identifier="1"/>
+      <opc:Field Name="_x" Identifier="2"/>
+      <opc:Field Name="x_" Identifier="3"/>
+      <opc:Field Name="_" Identifier="4"/>
+      <opc:Field Name="Test5" Identifier="-1">
+        <opc:DisplayName>Test_5</opc:DisplayName>
+      </opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:VariableType SymbolicName="RestrictedVariableType" BaseType="ua:BaseDataVariableType" DataType="ua:String" >
+    <opc:Children>
+      <opc:Variable SymbolicName="Yellow" TypeDefinition="ua:PropertyType" DataType="ua:Int32">
+        <opc:DefaultRolePermissions Name="SeekerOnly" />
+        <opc:DefaultAccessRestrictions>SessionWithSigningRequired</opc:DefaultAccessRestrictions>
+      </opc:Variable>
+      <opc:Variable SymbolicName="X" TypeDefinition="ua:PropertyType" DataType="ua:Int32" />
+      <opc:Variable SymbolicName="Y" TypeDefinition="ua:PropertyType" DataType="ua:Int32" />
+      <opc:Variable SymbolicName="Z" TypeDefinition="ua:PropertyType" DataType="ua:Int32" />
+    </opc:Children>
+    <opc:DefaultRolePermissions Name="SecurityAdminOnly" />
+    <opc:DefaultAccessRestrictions>EncryptionRequired</opc:DefaultAccessRestrictions>
+  </opc:VariableType>
+
+  <opc:ObjectType SymbolicName="RestrictedObjectType" BaseType="ua:BaseObjectType">
+    <opc:Children>
+      <opc:Variable SymbolicName="Red" TypeDefinition="RestrictedVariableType" ModellingRule="Mandatory"/>
+      <opc:Variable SymbolicName="Pink_Placeholder" TypeDefinition="RestrictedVariableType" ModellingRule="OptionalPlaceholder">
+        <opc:BrowseName>&lt;Pink&gt;</opc:BrowseName>
+      </opc:Variable>
+      <opc:Method SymbolicName="Blue" ModellingRule="Mandatory">
+        <opc:DefaultRolePermissions Name="SecurityAdminOnly" />
+        <opc:DefaultAccessRestrictions>SessionWithSigningAndApplyToBrowseRequired</opc:DefaultAccessRestrictions>
+      </opc:Method>
+    </opc:Children>
+    <opc:Extensions>
+      <opc:Extension>
+        <some:Thing xmlns:some="http://tempuri.com/something">This way</some:Thing>
+      </opc:Extension>
+      <opc:Extension>
+        <some:World xmlns:some="http://tempuri.com/something">comes</some:World>
+      </opc:Extension>
+    </opc:Extensions>
+  </opc:ObjectType>
+
+  <opc:Object SymbolicName="TestObject" TypeDefinition="RestrictedObjectType">
+    <opc:DefaultRolePermissions Name="AuthenticatedUserOnly" />
+  </opc:Object>
+
+  <opc:Object SymbolicName="Test_Error" TypeDefinition="ua:BaseObjectType" />
+
+  <opc:Object SymbolicName="Test_ErrorComponent" TypeDefinition="ua:BaseObjectType">
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:HasComponent</opc:ReferenceType>
+        <opc:TargetId>Test_Error</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+  <opc:DataType SymbolicName="HeaterStatus" BaseType="ua:Enumeration">
+    <opc:Fields>
+      <opc:Field Name="Off" Identifier="0">
+        <opc:DisplayName>It is really off!</opc:DisplayName>
+      </opc:Field>
+      <opc:Field Name="Heating" Identifier="1">
+        <opc:DisplayName>暖房</opc:DisplayName>
+      </opc:Field>
+      <opc:Field Name="Cooling" Identifier="2">
+        <opc:DisplayName>200_冷房</opc:DisplayName>
+      </opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="Vector" BaseType="ua:Structure">
+    <opc:Extensions>
+      <opc:Extension>
+        <some:Thing xmlns:some="http://tempuri.com/something">This way</some:Thing>
+      </opc:Extension>
+    </opc:Extensions>
+    <opc:Fields>
+      <opc:Field Name="X" DataType="ua:Double" />
+      <opc:Field Name="Y" DataType="ua:Double" />
+      <opc:Field Name="Z" DataType="ua:Double" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="WorkOrderStatusType" BaseType="ua:Structure">
+    <opc:Fields>
+      <opc:Field Name="Actor" DataType="ua:String" />
+      <opc:Field Name="Timestamp" DataType="ua:DateTime" />
+      <opc:Field Name="Comment" DataType="ua:LocalizedText" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="WorkOrderType" BaseType="ua:Structure">
+    <opc:Fields>
+      <opc:Field Name="ID" DataType="ua:Guid" />
+      <opc:Field Name="AssetID" DataType="ua:String" />
+      <opc:Field Name="StartTime" DataType="ua:DateTime" />
+      <opc:Field Name="StatusComments" DataType="WorkOrderStatusType" ValueRank="Array" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="SampleUnion" BaseType="ua:Union" IsUnion="true">
+    <opc:Fields>
+      <opc:Field Name="FieldX" DataType="ua:UInt32" />
+      <opc:Field Name="FieldY" DataType="ua:String" ValueRank="Array" />
+      <opc:Field Name="FieldZ" DataType="ua:ByteString" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="SampleStructureWithOptionalFields" BaseType="ua:Structure">
+    <opc:Fields>
+      <opc:Field Name="FieldX" DataType="ua:UInt32" />
+      <opc:Field Name="FieldY" DataType="ua:String" ValueRank="Array" IsOptional="true" />
+      <opc:Field Name="FieldZ" DataType="ua:ByteString" IsOptional="true" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="SampleUnionAllowSubtypes" BaseType="ua:Union" IsUnion="true">
+    <opc:Fields>
+      <opc:Field Name="FieldX" DataType="WorkOrderType" AllowSubTypes="true" />
+      <opc:Field Name="FieldY" DataType="WorkOrderStatusType" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="SampleStructureAllowSubtypes" BaseType="ua:Structure">
+    <opc:Fields>
+      <opc:Field Name="FieldX" DataType="Vector" AllowSubTypes="true" />
+      <opc:Field Name="FieldY" DataType="Vector" ValueRank="Array" AllowSubTypes="true" />
+      <opc:Field Name="FieldZ" DataType="Vector" ValueRank="ScalarOrArray" AllowSubTypes="true" />
+      <opc:Field Name="FieldW" DataType="WorkOrderStatusType" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:ObjectType SymbolicName="WithTwoDimensionalVariableType" BaseType="ua:BaseObjectType">
+    <opc:Children>
+      <opc:Variable SymbolicName="X" DataType="ua:Int32" ValueRank="OneOrMoreDimensions" ArrayDimensions="0,0" ModellingRule="Optional"/>
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:DataType SymbolicName="Person" BaseType="ua:Structure">
+    <opc:Fields>
+      <opc:Field Name="LastName" DataType="ua:String" IsOptional="true" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="Student" BaseType="Person">
+    <opc:Fields>
+      <opc:Field Name="FirstName" DataType="ua:String" IsOptional="true" />
+      <opc:Field Name="University" DataType="ua:String" IsOptional="true" />
+    </opc:Fields>
+  </opc:DataType>
+
+</opc:ModelDesign>

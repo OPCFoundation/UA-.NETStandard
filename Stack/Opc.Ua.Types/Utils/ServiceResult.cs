@@ -44,6 +44,15 @@ namespace Opc.Ua
     public class ServiceResult
     {
         /// <summary>
+        /// Get according ServiceResultException for ServiceResult
+        /// </summary>
+        /// <returns>ServiceResultException</returns>
+        public ServiceResultException GetServiceResultException()
+        {
+            return new ServiceResultException(this);
+        }
+
+        /// <summary>
         /// Constructs an object by specifying each property.
         /// </summary>
         [Obsolete("Use StatusCode constructor with symbolic id")]
@@ -130,7 +139,7 @@ namespace Opc.Ua
         /// </summary>
         internal ServiceResult()
         {
-            StatusCode = new StatusCode(StatusCodes.Good, nameof(StatusCodes.Good));
+            StatusCode = StatusCodes.Good;
         }
 
         /// <summary>
@@ -152,7 +161,7 @@ namespace Opc.Ua
         /// Constructs an object by specifying each property.
         /// </summary>
         public ServiceResult(StatusCode code, ServiceResult innerResult)
-            : this(null, code, null, null, innerResult)
+            : this(null, code, LocalizedText.Null, null, innerResult)
         {
         }
 
@@ -160,7 +169,7 @@ namespace Opc.Ua
         /// Constructs an object from a StatusCode.
         /// </summary>
         public ServiceResult(StatusCode code)
-            : this(null, code, null, null, (ServiceResult)null)
+            : this(null, code, LocalizedText.Null, null, (ServiceResult)null)
         {
         }
 
@@ -238,7 +247,7 @@ namespace Opc.Ua
 
             // check if no new information provided.
             if (code.Code == innerResult.Code &&
-                localizedText == null &&
+                localizedText.IsNullOrEmpty &&
                 additionalInfo == null)
             {
                 StatusCode = innerResult.Code;
@@ -280,7 +289,7 @@ namespace Opc.Ua
         /// The innerException is used to construct the innerResult.
         /// </remarks>
         public ServiceResult(StatusCode code, Exception innerException)
-            : this(null, code, null, null, innerException)
+            : this(null, code, LocalizedText.Null, null, innerException)
         {
         }
 
@@ -294,7 +303,7 @@ namespace Opc.Ua
             string namespaceUri,
             StatusCode code,
             Exception innerException)
-            : this(namespaceUri, code, null, null, innerException)
+            : this(namespaceUri, code, LocalizedText.Null, null, innerException)
         {
         }
 
@@ -336,7 +345,7 @@ namespace Opc.Ua
                 LocalizedText = sre.Result.LocalizedText;
                 InnerResult = sre.Result.InnerResult;
 
-                if (LocalizedText.IsNullOrEmpty(LocalizedText))
+                if (LocalizedText.IsNullOrEmpty)
                 {
                     LocalizedText = defaultLocalizedText;
                 }
@@ -402,7 +411,7 @@ namespace Opc.Ua
         /// Constructs an object from an exception.
         /// </summary>
         public ServiceResult(Exception exception)
-            : this(exception, new StatusCode(StatusCodes.Bad, nameof(StatusCodes.Bad)))
+            : this(exception, StatusCodes.Bad)
         {
         }
 
@@ -477,21 +486,19 @@ namespace Opc.Ua
         /// <summary>
         /// A result representing a good status.
         /// </summary>
-        public static ServiceResult Good { get; } = new ServiceResult(
-            new StatusCode(StatusCodes.Good, nameof(StatusCodes.Good)));
+        public static ServiceResult Good { get; } = new ServiceResult(StatusCodes.Good);
 
         /// <summary>
         /// A result representing a bad status.
         /// </summary>
-        public static ServiceResult Bad { get; } = new ServiceResult(
-            new StatusCode(StatusCodes.Bad, nameof(StatusCodes.Bad)));
+        public static ServiceResult Bad { get; } = new ServiceResult(StatusCodes.Bad);
 
         /// <summary>
         /// Creates a new instance of a ServiceResult
         /// </summary>
         public static ServiceResult Create(StatusCode code, TranslationInfo translation)
         {
-            if (translation == null)
+            if (translation.IsNull)
             {
                 return new ServiceResult(code);
             }
@@ -514,7 +521,7 @@ namespace Opc.Ua
                 defaultCode = sre.StatusCode;
             }
 
-            if (translation == null)
+            if (translation.IsNull)
             {
                 return new ServiceResult(e, defaultCode);
             }
@@ -534,10 +541,10 @@ namespace Opc.Ua
 
             if (args == null || args.Length == 0)
             {
-                return new ServiceResult(code, format);
+                return new ServiceResult(code, new LocalizedText(format));
             }
 
-            return new ServiceResult(code, CoreUtils.Format(format, args));
+            return new ServiceResult(code, new LocalizedText(CoreUtils.Format(format, args)));
         }
 
         /// <summary>
@@ -556,17 +563,17 @@ namespace Opc.Ua
                 defaultCode = sre.StatusCode;
             }
 
-            if (format == null)
+            if (string.IsNullOrEmpty(format))
             {
                 return new ServiceResult(e, defaultCode);
             }
 
             if (args == null || args.Length == 0)
             {
-                return new ServiceResult(defaultCode, format, e);
+                return new ServiceResult(defaultCode, new LocalizedText(format), e);
             }
 
-            return new ServiceResult(defaultCode, CoreUtils.Format(format, args), e);
+            return new ServiceResult(defaultCode, new LocalizedText(CoreUtils.Format(format, args)), e);
         }
 
         /// <summary>
@@ -682,35 +689,12 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Converts a 32-bit code to a ServiceResult object.
-        /// </summary>
-        public static implicit operator ServiceResult(uint code)
-        {
-            // TODO Obsolete
-            return new ServiceResult(code);
-        }
-
-        /// <summary>
-        /// Converts a StatusCode object to a 32-bit code.
-        /// </summary>
-        public static explicit operator uint(ServiceResult status)
-        {
-            // TODO Obsolete
-            if (status == null)
-            {
-                return StatusCodes.Good;
-            }
-
-            return status.Code;
-        }
-
-        /// <summary>
         /// Looks up the symbolic name for a status code.
         /// </summary>
-        [Obsolete("Unsupported. Use StatusCodes.LookupSymbolicId instead.")]
+        [Obsolete("Use Status code type with symbolic id directly.")]
         public static string LookupSymbolicId(uint code)
         {
-            return null;
+            return StatusCode.LookupSymbolicId(code);
         }
 
         /// <summary>
@@ -793,7 +777,7 @@ namespace Opc.Ua
                 }
             }
 
-            if (!LocalizedText.IsNullOrEmpty(LocalizedText))
+            if (!LocalizedText.IsNullOrEmpty)
             {
                 buffer.AppendFormat(CultureInfo.InvariantCulture, " '{0}'", LocalizedText);
             }
@@ -840,7 +824,7 @@ namespace Opc.Ua
         {
             if (exception == null)
             {
-                return LocalizedText.Null;
+                return default;
             }
 
             if (exception is AggregateException ae && ae.InnerExceptions.Count == 1)
@@ -852,28 +836,28 @@ namespace Opc.Ua
             {
                 if (exception.Message.StartsWith('['))
                 {
-                    return exception.Message;
+                    return new LocalizedText(exception.Message);
                 }
                 if (exception is ServiceResultException)
                 {
 #if !DEBUG
-                    return exception.Message;
+                    return new LocalizedText(exception.Message);
 #endif
                 }
-                return CoreUtils.Format("[{0}] {1}",
+                return new LocalizedText(CoreUtils.Format("[{0}] {1}",
                     exception.GetType().Name,
 #if !DEBUG
-                    exception.Message);
+                    exception.Message));
 #else
-                    BuildExceptionTrace(exception));
+                    BuildExceptionTrace(exception)));
 #endif
             }
 
-            return CoreUtils.Format("[{0}]",
+            return new LocalizedText(CoreUtils.Format("[{0}]",
 #if !DEBUG
-                exception.GetType().Name);
+                exception.GetType().Name));
 #else
-                BuildExceptionTrace(exception));
+                BuildExceptionTrace(exception)));
 #endif
         }
     }

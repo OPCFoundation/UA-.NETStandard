@@ -185,14 +185,14 @@ namespace Opc.Ua.Gds.Tests
             // verify authority key in signed cert
             X509SubjectKeyIdentifierExtension subjectKeyId =
                 issuerCert.FindExtension<X509SubjectKeyIdentifierExtension>();
-            TestContext.Out.WriteLine($"Issuer Subject Key Identifier: {subjectKeyId}");
+            TestContext.Out.WriteLine($"Issuer Subject Key Identifier: {subjectKeyId.SubjectKeyIdentifier}");
             Assert.AreEqual(subjectKeyId.SubjectKeyIdentifier, authority.KeyIdentifier);
             Assert.AreEqual(issuerCert.SerialNumber, authority.SerialNumber);
 
             X509SubjectAltNameExtension subjectAlternateName = signedCert
                 .FindExtension<X509SubjectAltNameExtension>();
             Assert.NotNull(subjectAlternateName);
-            TestContext.Out.WriteLine($"Issuer Subject Alternate Name: {subjectAlternateName}");
+            TestContext.Out.WriteLine($"Issuer Subject Alternate Name: {subjectAlternateName.Oid.FriendlyName}");
             Assert.False(subjectAlternateName.Critical);
             IList<string> domainNames = X509Utils.GetDomainsFromCertificate(signedCert);
             foreach (string domainName in testApp.DomainNames)

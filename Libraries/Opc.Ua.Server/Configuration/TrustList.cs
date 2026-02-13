@@ -114,7 +114,7 @@ namespace Opc.Ua.Server
             byte mode,
             ref uint fileHandle)
         {
-            var result = OpenAsync(
+            OpenMethodStateResult result = OpenAsync(
                 context,
                 method,
                 objectId,
@@ -147,7 +147,7 @@ namespace Opc.Ua.Server
             uint masks,
             ref uint fileHandle)
         {
-            var result = OpenWithMasksAsync(
+            OpenWithMasksMethodStateResult result = OpenWithMasksAsync(
                 context,
                 method,
                 objectId,
@@ -164,7 +164,7 @@ namespace Opc.Ua.Server
             uint masks,
             CancellationToken cancellationToken)
         {
-            var result = await OpenCoreAsync(
+            OpenMethodStateResult result = await OpenCoreAsync(
                 context,
                 method,
                 objectId,
@@ -216,8 +216,7 @@ namespace Opc.Ua.Server
                 {
                     if (store == null)
                     {
-                        throw new ServiceResultException(
-                            StatusCodes.BadConfigurationError,
+                        throw ServiceResultException.ConfigurationError(
                             "Failed to open trusted certificate store.");
                     }
 
@@ -251,8 +250,7 @@ namespace Opc.Ua.Server
                 {
                     if (store == null)
                     {
-                        throw new ServiceResultException(
-                            StatusCodes.BadConfigurationError,
+                        throw ServiceResultException.ConfigurationError(
                             "Failed to open issuer certificate store.");
                     }
 
@@ -292,16 +290,15 @@ namespace Opc.Ua.Server
 
                 lock (m_lock)
                 {
-                    if (m_sessionId != null)
+                    if (!m_sessionId.IsNull)
                     {
                         // to avoid deadlocks, last open always wins
-                        m_sessionId = null;
+                        m_sessionId = default;
                         m_strm = null;
                         m_node.OpenCount.Value = 0;
                     }
 
-                    m_readMode = mode == OpenFileMode.Read;
-                    m_sessionId = (context as ISessionSystemContext)?.SessionId;
+                    m_sessionId = (context as ISessionSystemContext)?.SessionId ?? default;
                     fileHandle = ++m_fileHandle;
                     m_totalBytesProcessed = 0; // Reset counter for new file operation
                     m_strm = strm;
@@ -329,7 +326,7 @@ namespace Opc.Ua.Server
             int length,
             ref byte[] data)
         {
-            var result = ReadAsync(
+            ReadMethodStateResult result = ReadAsync(
                 context,
                 method,
                 objectId,
@@ -419,7 +416,7 @@ namespace Opc.Ua.Server
             uint fileHandle,
             byte[] data)
         {
-            var result = WriteAsync(
+            WriteMethodStateResult result = WriteAsync(
                 context,
                 method,
                 objectId,
@@ -486,7 +483,7 @@ namespace Opc.Ua.Server
             NodeId objectId,
             uint fileHandle)
         {
-            var result = CloseAsync(
+            CloseMethodStateResult result = CloseAsync(
                 context,
                 method,
                 objectId,
@@ -523,7 +520,7 @@ namespace Opc.Ua.Server
                     });
                 }
 
-                m_sessionId = null;
+                m_sessionId = default;
                 m_strm = null;
                 m_node.OpenCount.Value = 0;
             }
@@ -541,7 +538,7 @@ namespace Opc.Ua.Server
             uint fileHandle,
             ref bool restartRequired)
         {
-            var result = CloseAndUpdateAsync(
+            CloseAndUpdateMethodStateResult result = CloseAndUpdateAsync(
                 context,
                 method,
                 objectId,
@@ -678,7 +675,7 @@ namespace Opc.Ua.Server
             {
                 lock (m_lock)
                 {
-                    m_sessionId = null;
+                    m_sessionId = default;
                     m_strm = null;
                     m_node.LastUpdateTime.Value = DateTime.UtcNow;
                     m_node.OpenCount.Value = 0;
@@ -709,7 +706,7 @@ namespace Opc.Ua.Server
             byte[] certificate,
             bool isTrustedCertificate)
         {
-            var result = AddCertificateAsync(
+            AddCertificateMethodStateResult result = AddCertificateAsync(
                 context,
                 method,
                 objectId,
@@ -742,7 +739,7 @@ namespace Opc.Ua.Server
             bool isSessionOpen;
             lock (m_lock)
             {
-                isSessionOpen = m_sessionId != null;
+                isSessionOpen = !m_sessionId.IsNull;
             }
 
             if (isSessionOpen)
@@ -816,7 +813,7 @@ namespace Opc.Ua.Server
             string thumbprint,
             bool isTrustedCertificate)
         {
-            var result = RemoveCertificateAsync(
+            RemoveCertificateMethodStateResult result = RemoveCertificateAsync(
                 context,
                 method,
                 objectId,
@@ -849,7 +846,7 @@ namespace Opc.Ua.Server
             bool isSessionOpen;
             lock (m_lock)
             {
-                isSessionOpen = m_sessionId != null;
+                isSessionOpen = !m_sessionId.IsNull;
             }
 
             if (isSessionOpen)
@@ -998,8 +995,7 @@ namespace Opc.Ua.Server
                 {
                     if (store == null)
                     {
-                        throw new ServiceResultException(
-                            StatusCodes.BadConfigurationError,
+                        throw ServiceResultException.ConfigurationError(
                             "Failed to open certificate store.");
                     }
 
@@ -1043,8 +1039,7 @@ namespace Opc.Ua.Server
                 {
                     if (store == null)
                     {
-                        throw new ServiceResultException(
-                            StatusCodes.BadConfigurationError,
+                        throw ServiceResultException.ConfigurationError(
                             "Failed to open certificate store.");
                     }
 
@@ -1116,7 +1111,6 @@ namespace Opc.Ua.Server
         private readonly ILogger m_logger;
         private readonly TrustListState m_node;
         private MemoryStream m_strm;
-        private bool m_readMode;
         private readonly int m_maxTrustListSize;
         private long m_totalBytesProcessed;
     }

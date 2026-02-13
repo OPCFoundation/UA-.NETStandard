@@ -311,8 +311,7 @@ namespace Opc.Ua.PubSub.Configuration
                 if (replaceExisting)
                 {
                     //remove previous configured published data sets
-                    if (PubSubConfiguration != null &&
-                        PubSubConfiguration.PublishedDataSets.Count > 0)
+                    if (PubSubConfiguration.PublishedDataSets.Count > 0)
                     {
                         foreach (PublishedDataSetDataType publishedDataSet in pubSubConfiguration
                             .PublishedDataSets)
@@ -322,7 +321,7 @@ namespace Opc.Ua.PubSub.Configuration
                     }
 
                     //remove previous configured connections
-                    if (PubSubConfiguration != null && PubSubConfiguration.Connections.Count > 0)
+                    if (PubSubConfiguration.Connections.Count > 0)
                     {
                         foreach (PubSubConnectionDataType connection in PubSubConfiguration
                             .Connections
@@ -332,8 +331,8 @@ namespace Opc.Ua.PubSub.Configuration
                         }
                     }
 
-                    PubSubConfiguration?.Connections.Clear();
-                    PubSubConfiguration?.PublishedDataSets.Clear();
+                    PubSubConfiguration.Connections.Clear();
+                    PubSubConfiguration.PublishedDataSets.Clear();
                 }
 
                 //first load Published DataSet information

@@ -1,0 +1,893 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<opc:TypeDictionary
+  xmlns:s0="http://opcfoundation.org/UA/BuiltInTypes/"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:opc="http://opcfoundation.org/UA/TypeDictionary/"
+  xmlns="http://opcfoundation.org/UA/StatusCodes/"
+  TargetNamespace="http://opcfoundation.org/UA/StatusCodes/"
+  TargetVersion="1.04"
+  TargetPublicationDate="2018-02-09T00:00:00Z"
+>
+  <!-- Common Service Level Codes -->
+  <opc:Constant Name="Bad_UnexpectedError">
+    <opc:Documentation>An unexpected error occurred.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_InternalError">
+    <opc:Documentation>An internal error occurred as a result of a programming or configuration error.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_OutOfMemory">
+    <opc:Documentation>Not enough memory to complete the operation.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ResourceUnavailable">
+    <opc:Documentation>An operating system resource is not available.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_CommunicationError">
+    <opc:Documentation>A low level communication error occurred.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_EncodingError">
+    <opc:Documentation>Encoding halted because of invalid data in the objects being serialized.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_DecodingError">
+    <opc:Documentation>Decoding halted because of invalid data in the stream.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_EncodingLimitsExceeded">
+    <opc:Documentation>The message encoding/decoding limits imposed by the stack have been exceeded.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_RequestTooLarge">
+    <opc:Documentation>The request message size exceeds limits set by the server.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ResponseTooLarge">
+    <opc:Documentation>The response message size exceeds limits set by the client or server.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_UnknownResponse">
+    <opc:Documentation>An unrecognized response was received from the server.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_Timeout">
+    <opc:Documentation>The operation timed out.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ServiceUnsupported">
+    <opc:Documentation>The server does not support the requested service.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_Shutdown">
+    <opc:Documentation>The operation was cancelled because the application is shutting down.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ServerNotConnected">
+    <opc:Documentation>The operation could not complete because the client is not connected to the server.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ServerHalted">
+    <opc:Documentation>The server has stopped and cannot process any requests.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_NothingToDo">
+    <opc:Documentation>No processing could be done because there was nothing to do.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_TooManyOperations">
+    <opc:Documentation>The request could not be processed because it specified too many operations.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_TooManyMonitoredItems">
+    <opc:Documentation>The request could not be processed because there are too many monitored items in the subscription.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_DataTypeIdUnknown">
+    <opc:Documentation>The extension object cannot be (de)serialized because the data type id is not recognized.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_CertificateInvalid">
+    <opc:Documentation>The certificate provided as a parameter is not valid.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_SecurityChecksFailed">
+    <opc:Documentation>An error occurred verifying security.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_CertificatePolicyCheckFailed">
+    <opc:Documentation>The certificate does not meet the requirements of the security policy.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_CertificateTimeInvalid">
+    <opc:Documentation>The certificate has expired or is not yet valid.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_CertificateIssuerTimeInvalid">
+    <opc:Documentation>An issuer certificate has expired or is not yet valid.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_CertificateHostNameInvalid">
+    <opc:Documentation>The HostName used to connect to a server does not match a HostName in the certificate.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_CertificateUriInvalid">
+    <opc:Documentation>The URI specified in the ApplicationDescription does not match the URI in the certificate.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_CertificateUseNotAllowed">
+    <opc:Documentation>The certificate may not be used for the requested operation.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_CertificateIssuerUseNotAllowed">
+    <opc:Documentation>The issuer certificate may not be used for the requested operation.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_CertificateUntrusted">
+    <opc:Documentation>The certificate is not trusted.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_CertificateRevocationUnknown">
+    <opc:Documentation>It was not possible to determine if the certificate has been revoked.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_CertificateIssuerRevocationUnknown">
+    <opc:Documentation>It was not possible to determine if the issuer certificate has been revoked.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_CertificateRevoked">
+    <opc:Documentation>The certificate has been revoked.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_CertificateIssuerRevoked">
+    <opc:Documentation>The issuer certificate has been revoked.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_CertificateChainIncomplete">
+    <opc:Documentation>The certificate chain is incomplete.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_UserAccessDenied">
+    <opc:Documentation>User does not have permission to perform the requested operation.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_IdentityTokenInvalid">
+    <opc:Documentation>The user identity token is not valid.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_IdentityTokenRejected">
+    <opc:Documentation>The user identity token is valid but the server has rejected it.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_SecureChannelIdInvalid">
+    <opc:Documentation>The specified secure channel is no longer valid.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_InvalidTimestamp">
+    <opc:Documentation>The timestamp is outside the range allowed by the server.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_NonceInvalid">
+    <opc:Documentation>The nonce does appear to be not a random value or it is not the correct length.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_SessionIdInvalid">
+    <opc:Documentation>The session id is not valid.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_SessionClosed">
+    <opc:Documentation>The session was closed by the client.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_SessionNotActivated">
+    <opc:Documentation>The session cannot be used because ActivateSession has not been called.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_SubscriptionIdInvalid">
+    <opc:Documentation>The subscription id is not valid.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_RequestHeaderInvalid">
+    <opc:Documentation>The header for the request is missing or invalid.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_TimestampsToReturnInvalid">
+    <opc:Documentation>The timestamps to return parameter is invalid.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_RequestCancelledByClient">
+    <opc:Documentation>The request was cancelled by the client.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_TooManyArguments">
+    <opc:Documentation>Too many arguments were provided.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_LicenseExpired">
+    <opc:Documentation>The server requires a license to operate in general or to perform a service or operation, but existing license is expired.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_LicenseLimitsExceeded">
+    <opc:Documentation>The server has limits on number of allowed operations / objects, based on installed licenses, and these limits where exceeded.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_LicenseNotAvailable">
+    <opc:Documentation>The server does not have a license which is required to operate in general or to perform a service or operation.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ServerTooBusy">
+    <opc:Documentation>The Server does not have the resources to process the request at this time.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Good_PasswordChangeRequired">
+    <opc:Documentation>The log-on for the user succeeded but the user is required to change the password.</opc:Documentation>
+  </opc:Constant>
+  
+  <!-- Common Operation Level Codes  -->
+  <opc:Constant Name="Good_SubscriptionTransferred">
+    <opc:Documentation>The subscription was transferred to another session.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Good_CompletesAsynchronously">
+    <opc:Documentation>The processing will complete asynchronously.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Good_Overload">
+    <opc:Documentation>Sampling has slowed down due to resource limitations.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Good_Clamped">
+    <opc:Documentation>The value written was accepted but was clamped.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_NoCommunication">
+    <opc:Documentation>Communication with the data source is defined, but not established, and there is no last known value available.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_WaitingForInitialData">
+    <opc:Documentation>Waiting for the server to obtain values from the underlying data source.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_NodeIdInvalid">
+    <opc:Documentation>The syntax the node id is not valid or refers to a node that is not valid for the operation.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_NodeIdUnknown">
+    <opc:Documentation>The node id refers to a node that does not exist in the server address space.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_AttributeIdInvalid">
+    <opc:Documentation>The attribute is not supported for the specified Node.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_IndexRangeInvalid">
+    <opc:Documentation>The syntax of the index range parameter is invalid.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_IndexRangeNoData">
+    <opc:Documentation>No data exists within the range of indexes specified.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_IndexRangeDataMismatch">
+    <opc:Documentation>The written data does not match the IndexRange specified.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_DataEncodingInvalid">
+    <opc:Documentation>The data encoding is invalid.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_DataEncodingUnsupported">
+    <opc:Documentation>The server does not support the requested data encoding for the node.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_NotReadable">
+    <opc:Documentation>The access level does not allow reading or subscribing to the Node.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_NotWritable">
+    <opc:Documentation>The access level does not allow writing to the Node.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_OutOfRange">
+    <opc:Documentation>The value was out of range.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Uncertain_OverRange">
+    <opc:Documentation>The value is over the allowed range.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Uncertain_UnderRange">
+    <opc:Documentation>The value is under the allowed range.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_NotSupported">
+    <opc:Documentation>The requested operation is not supported.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_NotFound">
+    <opc:Documentation>A requested item was not found or a search operation ended without success.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ObjectDeleted">
+    <opc:Documentation>The object cannot be used because it has been deleted.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_NotImplemented">
+    <opc:Documentation>Requested operation is not implemented.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_MonitoringModeInvalid">
+    <opc:Documentation>The monitoring mode is invalid.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_MonitoredItemIdInvalid">
+    <opc:Documentation>The monitoring item id does not refer to a valid monitored item.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_MonitoredItemFilterInvalid">
+    <opc:Documentation>The monitored item filter parameter is not valid.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_MonitoredItemFilterUnsupported">
+    <opc:Documentation>The server does not support the requested monitored item filter.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_FilterNotAllowed">
+    <opc:Documentation>A monitoring filter cannot be used in combination with the attribute specified.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_StructureMissing">
+    <opc:Documentation>A mandatory structured parameter was missing or null.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_EventFilterInvalid">
+    <opc:Documentation>The event filter is not valid.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ContentFilterInvalid">
+    <opc:Documentation>The content filter is not valid.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_FilterOperatorInvalid">
+    <opc:Documentation>An unrecognized operator was provided in a filter.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_FilterOperatorUnsupported">
+    <opc:Documentation>A valid operator was provided, but the server does not provide support for this filter operator.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_FilterOperandCountMismatch">
+    <opc:Documentation>The number of operands provided for the filter operator was less then expected for the operand provided.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_FilterOperandInvalid">
+    <opc:Documentation>The operand used in a content filter is not valid.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_FilterElementInvalid">
+    <opc:Documentation>The referenced element is not a valid element in the content filter.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_FilterLiteralInvalid">
+    <opc:Documentation>The referenced literal is not a valid value.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ContinuationPointInvalid">
+    <opc:Documentation>The continuation point provide is longer valid.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_NoContinuationPoints">
+    <opc:Documentation>The operation could not be processed because all continuation points have been allocated.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ReferenceTypeIdInvalid">
+    <opc:Documentation>The reference type id does not refer to a valid reference type node.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_BrowseDirectionInvalid">
+    <opc:Documentation>The browse direction is not valid.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_NodeNotInView">
+    <opc:Documentation>The node is not part of the view.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_NumericOverflow">
+    <opc:Documentation>The number was not accepted because of a numeric overflow.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_LocaleNotSupported">
+    <opc:Documentation>The locale in the requested write operation is not supported.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_NoValue">
+    <opc:Documentation>The variable has no default value and no initial value.</opc:Documentation>
+  </opc:Constant>
+  
+  <!-- RegisterServer -->
+  <opc:Constant Name="Bad_ServerUriInvalid">
+    <opc:Documentation>The ServerUri is not a valid URI.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ServerNameMissing">
+    <opc:Documentation>No ServerName was specified.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_DiscoveryUrlMissing">
+    <opc:Documentation>No DiscoveryUrl was specified.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_SemaphoreFileMissing">
+    <opc:Documentation>The semaphore file specified by the client is not valid.</opc:Documentation>
+  </opc:Constant>
+
+  <!-- OpenSecureChannel -->
+  <opc:Constant Name="Bad_RequestTypeInvalid">
+    <opc:Documentation>The security token request type is not valid.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_SecurityModeRejected">
+    <opc:Documentation>The security mode does not meet the requirements set by the server.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_SecurityPolicyRejected">
+    <opc:Documentation>The security policy does not meet the requirements set by the server.</opc:Documentation>
+  </opc:Constant>
+
+  <!-- CreateSession -->
+  <opc:Constant Name="Bad_TooManySessions">
+    <opc:Documentation>The server has reached its maximum number of sessions.</opc:Documentation>
+  </opc:Constant>
+
+  <!-- ActivateSession -->
+  <opc:Constant Name="Bad_UserSignatureInvalid">
+    <opc:Documentation>The user token signature is missing or invalid.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ApplicationSignatureInvalid">
+    <opc:Documentation>The signature generated with the client certificate is missing or invalid.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_NoValidCertificates">
+    <opc:Documentation>The client did not provide at least one software certificate that is valid and meets the profile requirements for the server.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_IdentityChangeNotSupported">
+    <opc:Documentation>The server does not support changing the user identity assigned to the session.</opc:Documentation>
+  </opc:Constant>
+
+  <!-- Cancel -->
+  <opc:Constant Name="Bad_RequestCancelledByRequest">
+    <opc:Documentation>The request was cancelled by the client with the Cancel service.</opc:Documentation>
+  </opc:Constant>
+
+  <!-- AddNodes -->
+  <opc:Constant Name="Bad_ParentNodeIdInvalid">
+    <opc:Documentation>The parent node id does not to refer to a valid node.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ReferenceNotAllowed">
+    <opc:Documentation>The reference could not be created because it violates constraints imposed by the data model.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_NodeIdRejected">
+    <opc:Documentation>The requested node id was reject because it was either invalid or server does not allow node ids to be specified by the client.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_NodeIdExists">
+    <opc:Documentation>The requested node id is already used by another node.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_NodeClassInvalid">
+    <opc:Documentation>The node class is not valid.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_BrowseNameInvalid">
+    <opc:Documentation>The browse name is invalid.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_BrowseNameDuplicated">
+    <opc:Documentation>The browse name is not unique among nodes that share the same relationship with the parent.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_NodeAttributesInvalid">
+    <opc:Documentation>The node attributes are not valid for the node class.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_TypeDefinitionInvalid">
+    <opc:Documentation>The type definition node id does not reference an appropriate type node.</opc:Documentation>
+  </opc:Constant>
+
+  <!-- AddReference -->
+  <opc:Constant Name="Bad_SourceNodeIdInvalid">
+    <opc:Documentation>The source node id does not reference a valid node.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_TargetNodeIdInvalid">
+    <opc:Documentation>The target node id does not reference a valid node.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_DuplicateReferenceNotAllowed">
+    <opc:Documentation>The reference type between the nodes is already defined.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_InvalidSelfReference">
+    <opc:Documentation>The server does not allow this type of self reference on this node.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ReferenceLocalOnly">
+    <opc:Documentation>The reference type is not valid for a reference to a remote server.</opc:Documentation>
+  </opc:Constant>
+
+  <!-- DeleteNode -->
+  <opc:Constant Name="Bad_NoDeleteRights">
+    <opc:Documentation>The server will not allow the node to be deleted.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Uncertain_ReferenceNotDeleted">
+    <opc:Documentation>The server was not able to delete all target references.</opc:Documentation>
+  </opc:Constant>
+
+  <!-- DeleteReference -->
+  <opc:Constant Name="Bad_ServerIndexInvalid">
+    <opc:Documentation>The server index is not valid.</opc:Documentation>
+  </opc:Constant>
+
+  <!-- Browse -->
+  <opc:Constant Name="Bad_ViewIdUnknown">
+    <opc:Documentation>The view id does not refer to a valid view node.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ViewTimestampInvalid">
+    <opc:Documentation>The view timestamp is not available or not supported.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ViewParameterMismatch">
+    <opc:Documentation>The view parameters are not consistent with each other.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ViewVersionInvalid">
+    <opc:Documentation>The view version is not available or not supported.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Uncertain_NotAllNodesAvailable">
+    <opc:Documentation>The list of references may not be complete because the underlying system is not available.</opc:Documentation>
+  </opc:Constant>
+
+  <!-- Query -->
+  <opc:Constant Name="Good_ResultsMayBeIncomplete">
+    <opc:Documentation>The server should have followed a reference to a node in a remote server but did not. The result set may be incomplete.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_NotTypeDefinition">
+    <opc:Documentation>The provided Nodeid was not a type definition nodeid.</opc:Documentation>
+  </opc:Constant>
+
+
+  <!-- TranslateBrowsePathsToNodeIds -->
+  <opc:Constant Name="Uncertain_ReferenceOutOfServer">
+    <opc:Documentation>One of the references to follow in the relative path references to a node in the address space in another server.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_TooManyMatches">
+    <opc:Documentation>The requested operation has too many matches to return.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_QueryTooComplex">
+    <opc:Documentation>The requested operation requires too many resources in the server.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_NoMatch">
+    <opc:Documentation>The requested operation has no match to return.</opc:Documentation>
+  </opc:Constant>
+
+  <!-- Read -->
+  <opc:Constant Name="Bad_MaxAgeInvalid">
+    <opc:Documentation>The max age parameter is invalid.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_SecurityModeInsufficient">
+    <opc:Documentation>The operation is not permitted over the current secure channel.</opc:Documentation>
+  </opc:Constant>
+  
+  <!-- ReadHistory -->
+  <opc:Constant Name="Bad_HistoryOperationInvalid">
+    <opc:Documentation>The history details parameter is not valid.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_HistoryOperationUnsupported">
+    <opc:Documentation>The server does not support the requested operation.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_InvalidTimestampArgument">
+    <opc:Documentation>The defined timestamp to return was invalid.</opc:Documentation>
+  </opc:Constant>
+
+  <!-- Write -->
+  <opc:Constant Name="Bad_WriteNotSupported">
+    <opc:Documentation>The server does not support writing the combination of value, status and timestamps provided.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_TypeMismatch">
+    <opc:Documentation>The value supplied for the attribute is not of the same type as the attribute's value.</opc:Documentation>
+  </opc:Constant>
+
+  <!-- Call -->
+  <opc:Constant Name="Bad_MethodInvalid">
+    <opc:Documentation>The method id does not refer to a method for the specified object.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ArgumentsMissing">
+    <opc:Documentation>The client did not specify all of the input arguments for the method.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_NotExecutable">
+    <opc:Documentation>The executable attribute does not allow the execution of the method.</opc:Documentation>
+  </opc:Constant>
+  
+  <!-- CreateSubscription -->
+  <opc:Constant Name="Bad_TooManySubscriptions">
+    <opc:Documentation>The server has reached its maximum number of subscriptions.</opc:Documentation>
+  </opc:Constant>
+
+  <!-- Publish -->
+  <opc:Constant Name="Bad_TooManyPublishRequests">
+    <opc:Documentation>The server has reached the maximum number of queued publish requests.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_NoSubscription">
+    <opc:Documentation>There is no subscription available for this session.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_SequenceNumberUnknown">
+    <opc:Documentation>The sequence number is unknown to the server.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Good_RetransmissionQueueNotSupported">
+    <opc:Documentation>The Server does not support retransmission queue and acknowledgement of sequence numbers is not available.</opc:Documentation>
+  </opc:Constant>
+  
+  <!-- Republish -->
+  <opc:Constant Name="Bad_MessageNotAvailable">
+    <opc:Documentation>The requested notification message is no longer available.</opc:Documentation>
+  </opc:Constant>
+
+  <!-- TransferSubscription -->
+  <opc:Constant Name="Bad_InsufficientClientProfile">
+    <opc:Documentation>The client of the current session does not support one or more Profiles that are necessary for the subscription.</opc:Documentation>
+  </opc:Constant>
+
+  <!-- Part 5 -->
+  <opc:Constant Name="Bad_StateNotActive">
+    <opc:Documentation>The sub-state machine is not currently active.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_AlreadyExists">
+    <opc:Documentation>An equivalent rule already exists.</opc:Documentation>
+  </opc:Constant>
+  
+  <!-- Part 6 -->
+  <opc:Constant Name="Bad_TcpServerTooBusy">
+    <opc:Documentation>The server cannot process the request because it is too busy.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_TcpMessageTypeInvalid">
+    <opc:Documentation>The type of the message specified in the header invalid.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_TcpSecureChannelUnknown">
+    <opc:Documentation>The SecureChannelId and/or TokenId are not currently in use.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_TcpMessageTooLarge">
+    <opc:Documentation>The size of the message chunk specified in the header is too large.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_TcpNotEnoughResources">
+    <opc:Documentation>There are not enough resources to process the request.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_TcpInternalError">
+    <opc:Documentation>An internal error occurred.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_TcpEndpointUrlInvalid">
+    <opc:Documentation>The server does not recognize the QueryString specified.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_RequestInterrupted">
+    <opc:Documentation>The request could not be sent because of a network interruption.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_RequestTimeout">
+    <opc:Documentation>Timeout occurred while processing the request.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_SecureChannelClosed">
+    <opc:Documentation>The secure channel has been closed.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_SecureChannelTokenUnknown">
+    <opc:Documentation>The token has expired or is not recognized.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_SequenceNumberInvalid">
+    <opc:Documentation>The sequence number is not valid.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ProtocolVersionUnsupported">
+    <opc:Documentation>The applications do not have compatible protocol versions.</opc:Documentation>
+  </opc:Constant>
+
+  <!-- Part 8 -->
+  <opc:Constant Name="Bad_ConfigurationError">
+    <opc:Documentation>There is a problem with the configuration that affects the usefulness of the value.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_NotConnected">
+    <opc:Documentation>The variable should receive its value from another variable, but has never been configured to do so.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_DeviceFailure">
+    <opc:Documentation>There has been a failure in the device/data source that generates the value that has affected the value.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_SensorFailure">
+    <opc:Documentation>There has been a failure in the sensor from which the value is derived by the device/data source.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_OutOfService">
+    <opc:Documentation>The source of the data is not operational.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_DeadbandFilterInvalid">
+    <opc:Documentation>The deadband filter is not valid.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Uncertain_NoCommunicationLastUsableValue">
+    <opc:Documentation>Communication to the data source has failed. The variable value is the last value that had a good quality.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Uncertain_LastUsableValue">
+    <opc:Documentation>Whatever was updating this value has stopped doing so.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Uncertain_SubstituteValue">
+    <opc:Documentation>The value is an operational value that was manually overwritten.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Uncertain_InitialValue">
+    <opc:Documentation>The value is an initial value for a variable that normally receives its value from another variable.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Uncertain_SensorNotAccurate">
+    <opc:Documentation>The value is at one of the sensor limits.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Uncertain_EngineeringUnitsExceeded">
+    <opc:Documentation>The value is outside of the range of values defined for this parameter.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Uncertain_SubNormal">
+    <opc:Documentation>The data value is derived from multiple sources and has less than the required number of Good sources.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Good_LocalOverride">
+    <opc:Documentation>The value has been overridden.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Good_SubNormal">
+    <opc:Documentation>The value is derived from multiple sources and has the required number of Good sources, but less than the full number of Good sources.</opc:Documentation>
+  </opc:Constant>
+
+  <!-- Part 9 -->
+  <opc:Constant Name="Bad_RefreshInProgress">
+    <opc:Documentation>This Condition refresh failed, a Condition refresh operation is already in progress.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ConditionAlreadyDisabled">
+    <opc:Documentation>This condition has already been disabled.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ConditionAlreadyEnabled">
+    <opc:Documentation>This condition has already been enabled.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ConditionDisabled">
+    <opc:Documentation>Property not available, this condition is disabled.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_EventIdUnknown">
+    <opc:Documentation>The specified event id is not recognized.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_EventNotAcknowledgeable">
+    <opc:Documentation>The event cannot be acknowledged.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_DialogNotActive">
+    <opc:Documentation>The dialog condition is not active.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_DialogResponseInvalid">
+    <opc:Documentation>The response is not valid for the dialog.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ConditionBranchAlreadyAcked">
+    <opc:Documentation>The condition branch has already been acknowledged.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ConditionBranchAlreadyConfirmed">
+    <opc:Documentation>The condition branch has already been confirmed.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ConditionAlreadyShelved">
+    <opc:Documentation>The condition has already been shelved.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ConditionNotShelved">
+    <opc:Documentation>The condition is not currently shelved.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ShelvingTimeOutOfRange">
+    <opc:Documentation>The shelving time not within an acceptable range.</opc:Documentation>
+  </opc:Constant>
+
+  <!-- Part 11 -->
+  <opc:Constant Name="Bad_NoData">
+    <opc:Documentation>No data exists for the requested time range or event filter.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_BoundNotFound">
+    <opc:Documentation>No data found to provide upper or lower bound value.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_BoundNotSupported">
+    <opc:Documentation>The server cannot retrieve a bound for the variable.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_DataLost">
+    <opc:Documentation>Data is missing due to collection started/stopped/lost.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_DataUnavailable">
+    <opc:Documentation>Expected data is unavailable for the requested time range due to an un-mounted volume, an off-line archive or tape, or similar reason for temporary unavailability.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_EntryExists">
+    <opc:Documentation>The data or event was not successfully inserted because a matching entry exists.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_NoEntryExists">
+    <opc:Documentation>The data or event was not successfully updated because no matching entry exists.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_TimestampNotSupported">
+    <opc:Documentation>The Client requested history using a TimestampsToReturn the Server does not support.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Good_EntryInserted">
+    <opc:Documentation>The data or event was successfully inserted into the historical database.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Good_EntryReplaced">
+    <opc:Documentation>The data or event field was successfully replaced in the historical database.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Uncertain_DataSubNormal">
+    <opc:Documentation>The aggregate value is derived from multiple values and has less than the required number of Good values.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Good_NoData">
+    <opc:Documentation>No data exists for the requested time range or event filter.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Good_MoreData">
+    <opc:Documentation>More data is available in the time range beyond the number of values requested.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_AggregateListMismatch">
+    <opc:Documentation>The requested number of Aggregates does not match the requested number of NodeIds.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_AggregateNotSupported">
+    <opc:Documentation>The requested Aggregate is not support by the server.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_AggregateInvalidInputs">
+    <opc:Documentation>The aggregate value could not be derived due to invalid data inputs.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_AggregateConfigurationRejected">
+    <opc:Documentation>The aggregate configuration is not valid for specified node.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Good_DataIgnored">
+    <opc:Documentation>The request specifies fields which are not valid for the EventType or cannot be saved by the historian.</opc:Documentation>
+  </opc:Constant>
+
+  <!-- Part 12 -->
+  <opc:Constant Name="Bad_RequestNotAllowed">
+    <opc:Documentation>The request was rejected by the server because it did not meet the criteria set by the server.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_RequestNotComplete">
+    <opc:Documentation>The request has not been processed by the server yet.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_TransactionPending">
+    <opc:Documentation>The operation is not allowed because a transaction is in progress.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_TransactionFailed">
+    <opc:Documentation>The operation failed and all changes which were part of the transaction are rolled back.</opc:Documentation>
+  </opc:Constant>
+
+  <!-- Part 21 -->
+  <opc:Constant Name="Bad_TicketRequired">
+    <opc:Documentation>The device identity needs a ticket before it can be accepted.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_TicketInvalid">
+    <opc:Documentation>The device identity needs a ticket before it can be accepted.</opc:Documentation>
+  </opc:Constant>
+
+  <!-- DI -->
+  <opc:Constant Name="Bad_Locked">
+    <opc:Documentation>The requested operation is not allowed, because the Node is locked by a different application.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_RequiresLock">
+    <opc:Documentation>The requested operation is not allowed, because the Node is not locked by the application.</opc:Documentation>
+  </opc:Constant>
+  
+  <!-- FDI -->
+  <opc:Constant Name="Good_Edited">
+    <opc:Documentation>The value does not come from the real source and has been edited by the server.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Good_PostActionFailed">
+    <opc:Documentation>There was an error in execution of these post-actions.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Uncertain_DominantValueChanged">
+    <opc:Documentation>The related EngineeringUnit has been changed but the Variable Value is still provided based on the previous unit.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Good_DependentValueChanged">
+    <opc:Documentation>A dependent value has been changed but the change has not been applied to the device.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_DominantValueChanged">
+    <opc:Documentation>The related EngineeringUnit has been changed but this change has not been applied to the device. The Variable Value is still dependent on the previous unit but its status is currently Bad.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Uncertain_DependentValueChanged">
+    <opc:Documentation>A dependent value has been changed but the change has not been applied to the device. The quality of the dominant variable is uncertain.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_DependentValueChanged">
+    <opc:Documentation>A dependent value has been changed but the change has not been applied to the device. The quality of the dominant variable is Bad.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Good_Edited_DependentValueChanged">
+    <opc:Documentation>It is delivered with a dominant Variable value when a dependent Variable has changed but the change has not been applied.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Good_Edited_DominantValueChanged">
+    <opc:Documentation>It is delivered with a dependent Variable value when a dominant Variable has changed but the change has not been applied.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Good_Edited_DominantValueChanged_DependentValueChanged">
+    <opc:Documentation>It is delivered with a dependent Variable value when a dominant or dependent Variable has changed but change has not been applied.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_Edited_OutOfRange">
+    <opc:Documentation>It is delivered with a Variable value when Variable has changed but the value is not legal.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_InitialValue_OutOfRange">
+    <opc:Documentation>It is delivered with a Variable value when a source Variable has changed but the value is not legal.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_OutOfRange_DominantValueChanged">
+    <opc:Documentation>It is delivered with a dependent Variable value when a dominant Variable has changed and the value is not legal.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_Edited_OutOfRange_DominantValueChanged">
+    <opc:Documentation>It is delivered with a dependent Variable value when a dominant Variable has changed, the value is not legal and the change has not been applied.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_OutOfRange_DominantValueChanged_DependentValueChanged">
+    <opc:Documentation>It is delivered with a dependent Variable value when a dominant or dependent Variable has changed and the value is not legal.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_Edited_OutOfRange_DominantValueChanged_DependentValueChanged">
+    <opc:Documentation>It is delivered with a dependent Variable value when a dominant or dependent Variable has changed, the value is not legal and the change has not been applied.</opc:Documentation>
+  </opc:Constant>
+
+  <!-- Codes Only Used By The Stack  -->
+  <opc:Constant Name="Good_CommunicationEvent">
+    <opc:Documentation>The communication layer has raised an event.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Good_ShutdownEvent">
+    <opc:Documentation>The system is shutting down.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Good_CallAgain">
+    <opc:Documentation>The operation is not finished and needs to be called again.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Good_NonCriticalTimeout">
+    <opc:Documentation>A non-critical timeout occurred.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_InvalidArgument">
+    <opc:Documentation>One or more arguments are invalid.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ConnectionRejected">
+    <opc:Documentation>Could not establish a network connection to remote server.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_Disconnect">
+    <opc:Documentation>The server has disconnected from the client.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ConnectionClosed">
+    <opc:Documentation>The network connection has been closed.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_InvalidState">
+    <opc:Documentation>The operation cannot be completed because the object is closed, uninitialized or in some other invalid state.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_EndOfStream">
+    <opc:Documentation>Cannot move beyond end of the stream.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_NoDataAvailable">
+    <opc:Documentation>No data is currently available for reading from a non-blocking stream.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_WaitingForResponse">
+    <opc:Documentation>The asynchronous operation is waiting for a response.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_OperationAbandoned">
+    <opc:Documentation>The asynchronous operation was abandoned by the caller.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ExpectedStreamToBlock">
+    <opc:Documentation>The stream did not return all data requested (possibly because it is a non-blocking stream).</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_WouldBlock">
+    <opc:Documentation>Non blocking behaviour is required and the operation would block.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_SyntaxError">
+    <opc:Documentation>A value had an invalid syntax.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_MaxConnectionsReached">
+    <opc:Documentation>The operation could not be finished because all available connections are in use.</opc:Documentation>
+  </opc:Constant>
+
+  <!-- OPATH Codes  -->  
+  <opc:Constant Name="Uncertain_TransducerInManual">
+    <opc:Documentation>The value may not be accurate because the transducer is in manual mode.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Uncertain_SimulatedValue">
+    <opc:Documentation>The value is simulated.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Uncertain_SensorCalibration">
+    <opc:Documentation>The value may not be accurate due to a sensor calibration fault.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Uncertain_ConfigurationError">
+    <opc:Documentation>The value may not be accurate due to a configuration issue.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Good_CascadeInitializationAcknowledged">
+    <opc:Documentation>The value source supports cascade handshaking and the value has been Initialized based on an initialization request from a cascade secondary.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Good_CascadeInitializationRequest">
+    <opc:Documentation>The value source supports cascade handshaking and is requesting initialization of a cascade primary.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Good_CascadeNotInvited">
+    <opc:Documentation>The value source supports cascade handshaking, however, the source’s current state does not allow for cascade.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Good_CascadeNotSelected">
+    <opc:Documentation>The value source supports cascade handshaking, however, the source has not selected the corresponding cascade primary for use.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Good_FaultStateActive">
+    <opc:Documentation>There is a fault state condition active in the value source.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Good_InitiateFaultState">
+    <opc:Documentation>A fault state condition is being requested of the destination.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Good_Cascade">
+    <opc:Documentation>The value is accurate, and the signal source supports cascade handshaking.</opc:Documentation>
+  </opc:Constant>
+
+  <!-- FLC Codes  -->
+  <opc:Constant Name="Bad_DataSetIdInvalid">
+    <opc:Documentation>The DataSet specified for the DataSetWriter creation is invalid.</opc:Documentation>
+  </opc:Constant>
+  
+</opc:TypeDictionary>

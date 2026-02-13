@@ -214,7 +214,7 @@ namespace MemoryBuffer
                 return StatusCodes.BadIndexRangeInvalid;
             }
 
-            if (!QualifiedName.IsNull(dataEncoding))
+            if (!dataEncoding.IsNull)
             {
                 return StatusCodes.BadDataEncodingUnsupported;
             }
@@ -233,7 +233,7 @@ namespace MemoryBuffer
                     return StatusCodes.BadOutOfService;
                 }
 
-                value = GetValueAtOffset(offset).Value;
+                value = GetValueAtOffset(offset).AsBoxedObject();
             }
 
             statusCode = StatusCodes.Good;
@@ -265,7 +265,7 @@ namespace MemoryBuffer
                 return StatusCodes.BadIndexRangeInvalid;
             }
 
-            if (!QualifiedName.IsNull(dataEncoding))
+            if (!dataEncoding.IsNull)
             {
                 return StatusCodes.BadDataEncodingUnsupported;
             }

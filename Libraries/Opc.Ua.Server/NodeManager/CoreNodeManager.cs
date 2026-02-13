@@ -200,7 +200,7 @@ namespace Opc.Ua.Server
         {
             lock (DataLock)
             {
-                if (NodeId.IsNull(nodeId))
+                if (nodeId.IsNull)
                 {
                     return null;
                 }
@@ -345,8 +345,8 @@ namespace Opc.Ua.Server
 
                     // silently ignore bad values.
                     if (reference == null ||
-                        NodeId.IsNull(reference.ReferenceTypeId) ||
-                        NodeId.IsNull(reference.TargetId))
+                        reference.ReferenceTypeId.IsNull ||
+                        reference.TargetId.IsNull)
                     {
                         continue;
                     }
@@ -443,7 +443,7 @@ namespace Opc.Ua.Server
             }
 
             // check reference type filter.
-            if (!NodeId.IsNull(referenceTypeId) && reference.ReferenceTypeId != referenceTypeId)
+            if (!referenceTypeId.IsNull && reference.ReferenceTypeId != referenceTypeId)
             {
                 return includeSubtypes &&
                     Server.TypeTree.IsTypeOf(reference.ReferenceTypeId, referenceTypeId);
@@ -491,7 +491,7 @@ namespace Opc.Ua.Server
                     metadata.DisplayName = target.DisplayName;
 
                     // check if the display name can be localized.
-                    if (!string.IsNullOrEmpty(metadata.DisplayName.Key))
+                    if (!string.IsNullOrEmpty(metadata.DisplayName.TranslationInfo.Key))
                     {
                         metadata.DisplayName = Server.ResourceManager.Translate(
                             context.PreferredLocales,
@@ -759,7 +759,7 @@ namespace Opc.Ua.Server
                         }
 
                         // apply data encoding.
-                        if (!QualifiedName.IsNull(nodeToRead.DataEncoding))
+                        if (!nodeToRead.DataEncoding.IsNull)
                         {
                             error = EncodeableObject.ApplyDataEncoding(
                                 Server.MessageContext,
@@ -976,7 +976,7 @@ namespace Opc.Ua.Server
                         Server.NamespaceUris,
                         Server.TypeTree);
 
-                    if (typeInfo == null)
+                    if (typeInfo.IsUnknown)
                     {
                         errors[ii] = StatusCodes.BadTypeMismatch;
                         continue;
@@ -1392,10 +1392,9 @@ namespace Opc.Ua.Server
                     // final check for initial value
                     ServiceResult error = ReadInitialValue(context, node, monitoredItem);
                     if (ServiceResult.IsBad(error) &&
-                        error.StatusCode.Code
-                            is StatusCodes.BadAttributeIdInvalid
-                                or StatusCodes.BadDataEncodingInvalid
-                                or StatusCodes.BadDataEncodingUnsupported)
+                        (error.StatusCode == StatusCodes.BadAttributeIdInvalid ||
+                            error.StatusCode == StatusCodes.BadDataEncodingInvalid ||
+                            error.StatusCode == StatusCodes.BadDataEncodingUnsupported))
                     {
                         errors[ii] = error;
                         continue;
@@ -1950,12 +1949,12 @@ namespace Opc.Ua.Server
             NodeId referenceTypeId,
             bool isInverse)
         {
-            if (sourceId == null)
+            if (sourceId.IsNull)
             {
                 throw new ArgumentNullException(nameof(sourceId));
             }
 
-            if (referenceTypeId == null)
+            if (referenceTypeId.IsNull)
             {
                 throw new ArgumentNullException(nameof(referenceTypeId));
             }
@@ -2001,12 +2000,12 @@ namespace Opc.Ua.Server
             bool isInverse,
             QualifiedName browseName)
         {
-            if (sourceId == null)
+            if (sourceId.IsNull)
             {
                 throw new ArgumentNullException(nameof(sourceId));
             }
 
-            if (referenceTypeId == null)
+            if (referenceTypeId.IsNull)
             {
                 throw new ArgumentNullException(nameof(referenceTypeId));
             }
@@ -2015,7 +2014,7 @@ namespace Opc.Ua.Server
             {
                 if (GetManagerHandle(sourceId) is not ILocalNode source)
                 {
-                    return null;
+                    return default;
                 }
 
                 foreach (ReferenceNode reference in source.References.OfType<ReferenceNode>())
@@ -2038,13 +2037,13 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    if (QualifiedName.IsNull(browseName) || target.BrowseName == browseName)
+                    if (browseName.IsNull || target.BrowseName == browseName)
                     {
                         return (NodeId)targetId;
                     }
                 }
 
-                return null;
+                return default;
             }
         }
 
@@ -2060,7 +2059,7 @@ namespace Opc.Ua.Server
                 return targets[0];
             }
 
-            return null;
+            return default;
         }
 
         /// <summary>
@@ -2135,7 +2134,7 @@ namespace Opc.Ua.Server
         /// <exception cref="ArgumentNullException"><paramref name="nodeId"/> is <c>null</c>.</exception>
         public void RegisterSource(NodeId nodeId, object source, object handle, bool isEventSource)
         {
-            if (nodeId == null)
+            if (nodeId.IsNull)
             {
                 throw new ArgumentNullException(nameof(nodeId));
             }
@@ -2462,7 +2461,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            if (!NodeId.IsNull(existingTypeId))
+            if (!existingTypeId.IsNull)
             {
                 if (m_nodes.TypeTree.IsTypeOf(existingTypeId, typeDefinitionId))
                 {
@@ -2845,7 +2844,7 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         public void DeleteNode(NodeId nodeId, bool deleteChildren, bool silent)
         {
-            if (nodeId == null)
+            if (nodeId.IsNull)
             {
                 throw new ArgumentNullException(nameof(nodeId));
             }
@@ -2888,7 +2887,7 @@ namespace Opc.Ua.Server
 
             if (referencesToDelete.Count > 0)
             {
-                Task.Run(() => OnDeleteReferencesAsync(referencesToDelete));
+                _ = Task.Run(() => OnDeleteReferencesAsync(referencesToDelete));
             }
         }
 
@@ -2918,7 +2917,7 @@ namespace Opc.Ua.Server
                 // check need to connect subtypes to the supertype if they are being deleted.
                 ExpandedNodeId supertypeId = Server.TypeTree.FindSuperType(node.NodeId);
 
-                if (!NodeId.IsNull(supertypeId))
+                if (!supertypeId.IsNull)
                 {
                     Server.TypeTree.Remove(node.NodeId);
                 }
@@ -3156,7 +3155,7 @@ namespace Opc.Ua.Server
                 lock (Server.DiagnosticsLock)
                 {
                     NodeState state = Server.DiagnosticsNodeManager
-                        .FindPredefinedNode(source.NodeId, null);
+                        .FindPredefinedNode<NodeState>(source.NodeId);
 
                     if (state != null)
                     {
@@ -3166,7 +3165,7 @@ namespace Opc.Ua.Server
                             referenceTypeId,
                             true,
                             isInverse ? BrowseDirection.Inverse : BrowseDirection.Forward,
-                            null,
+                            default,
                             null,
                             true);
 
@@ -3265,12 +3264,12 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(sourceHandle));
             }
 
-            if (referenceTypeId == null)
+            if (referenceTypeId.IsNull)
             {
                 throw new ArgumentNullException(nameof(referenceTypeId));
             }
 
-            if (targetId == null)
+            if (targetId.IsNull)
             {
                 throw new ArgumentNullException(nameof(targetId));
             }
@@ -3332,7 +3331,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public ILocalNode GetLocalNode(ExpandedNodeId nodeId)
         {
-            if (nodeId == null)
+            if (nodeId.IsNull)
             {
                 return null;
             }
@@ -3352,7 +3351,7 @@ namespace Opc.Ua.Server
                     return null;
                 }
 
-                return GetLocalNode(new NodeId(nodeId.Identifier, (ushort)namespaceIndex));
+                return GetLocalNode(nodeId.InnerNodeId.WithNamespaceIndex((ushort)namespaceIndex));
             }
 
             return GetLocalNode((NodeId)nodeId);
@@ -3478,7 +3477,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (QualifiedName.IsNull(browseName) || browseName == target.BrowseName)
+                if (browseName.IsNull || browseName == target.BrowseName)
                 {
                     return target;
                 }
@@ -3560,7 +3559,7 @@ namespace Opc.Ua.Server
         {
             lock (DataLock)
             {
-                if (nodeId == null || nodeId.IsAbsolute)
+                if (nodeId.IsNull || nodeId.IsAbsolute)
                 {
                     return null;
                 }
@@ -3579,8 +3578,12 @@ namespace Opc.Ua.Server
         {
             range = null;
 
-            if (GetTargetNode(node, ReferenceTypes.HasProperty, false, true, BrowseNames.EURange)
-                is not IVariable target)
+            if (GetTargetNode(
+                node,
+                ReferenceTypes.HasProperty,
+                false,
+                true,
+                QualifiedName.From(BrowseNames.EURange)) is not IVariable target)
             {
                 return StatusCodes.BadNodeIdUnknown;
             }
@@ -3609,7 +3612,7 @@ namespace Opc.Ua.Server
             // check filter.
             DataChangeFilter datachangeFilter = null;
 
-            if (filter != null)
+            if (!filter.IsNull)
             {
                 datachangeFilter = filter.Body as DataChangeFilter;
             }
@@ -3638,7 +3641,7 @@ namespace Opc.Ua.Server
                 {
                     ExpandedNodeId typeDefinitionId = metadata.TypeDefinition;
 
-                    if (typeDefinitionId == null)
+                    if (typeDefinitionId.IsNull)
                     {
                         return StatusCodes.BadDeadbandFilterInvalid;
                     }

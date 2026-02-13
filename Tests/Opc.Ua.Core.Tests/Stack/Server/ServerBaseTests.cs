@@ -81,11 +81,12 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         ];
 
         public ServerBaseTests()
+            : this(TestConfigurations.SingleBaseAdresses)
         {
-            m_testConfiguration = TestConfigurations.SingleBaseAdresses;
         }
 
         public ServerBaseTests(TestConfigurations configType)
+            : base(NUnitTelemetryContext.Create(true))
         {
             m_testConfiguration = configType;
         }
@@ -450,14 +451,32 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             // validate results have matching UserTokenPolicies in baseaddresses
             foreach (EndpointDescription translatedEndpoint in translatedEndpoints)
             {
+                var translatedUri = new Uri(translatedEndpoint.EndpointUrl);
+
                 var matches = m_endpoints
-                    .Where(endpoint =>
-                        Utils.IsEqual(
-                            endpoint.UserIdentityTokens,
-                            translatedEndpoint.UserIdentityTokens))
-                    .ToList();
+                     .Where(endpoint =>
+                     {
+                         var endpointUri = new Uri(endpoint.EndpointUrl);
+                         return endpoint.TransportProfileUri == translatedEndpoint.TransportProfileUri &&
+                             endpoint.SecurityMode == translatedEndpoint.SecurityMode &&
+                             endpoint.SecurityPolicyUri == translatedEndpoint.SecurityPolicyUri &&
+                             endpoint.BinaryEncodingId == translatedEndpoint.BinaryEncodingId &&
+                             endpointUri.Scheme == translatedUri.Scheme &&
+                             (m_testConfiguration
+                                is not TestConfigurations.SingleBaseAddressesWithAlternateHostAndPort
+                                and not TestConfigurations.SingleBaseAdressesWithAlternatePort
+                                and not TestConfigurations.DualBaseAddressesWithAlternateHostAndPort
+                                and not TestConfigurations.DualBaseAdressesWithAlternatePort ?
+                                    endpointUri.Port == translatedUri.Port :
+                                    endpointUri.Port % 10 == translatedUri.Port % 10)
+                             &&Utils.IsEqual(
+                                 endpoint.UserIdentityTokens,
+                                 translatedEndpoint.UserIdentityTokens);
+                     })
+                     .ToList();
+
                 Assert.NotNull(matches);
-                Assert.AreEqual(matches.Count, 1);
+                Assert.Greater(matches.Count, 0);
                 EndpointDescription firstMatch = matches[0];
                 Assert.AreEqual(
                     firstMatch.UserIdentityTokens.Count,

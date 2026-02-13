@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
@@ -214,16 +215,16 @@ namespace Opc.Ua
                 return default(T);
             }
 
-            if (typeof(T).IsInstanceOfType(value))
+            if (value is T typedValue)
             {
-                return value;
+                return typedValue;
             }
 
             if (value is ExtensionObject extension)
             {
-                if (typeof(T).IsInstanceOfType(extension.Body))
+                if (extension.Body is T typedBody)
                 {
-                    return extension.Body;
+                    return typedBody;
                 }
 
                 if (typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(typeof(T).GetTypeInfo()))
@@ -312,7 +313,7 @@ namespace Opc.Ua
 
                     for (int ii = 0; ii < variants.Count; ii++)
                     {
-                        objects[ii] = variants[ii].Value;
+                        objects[ii] = variants[ii].AsBoxedObject();
                     }
 
                     return objects;
@@ -321,13 +322,13 @@ namespace Opc.Ua
                 // check for array of uuids.
                 if (typeof(Guid).GetTypeInfo().IsAssignableFrom(elementType.GetTypeInfo()))
                 {
-                    if (value is IList<Uuid> uuids)
+                    if (value is IList<Guid> uuids)
                     {
                         var guids = new Guid[uuids.Count];
 
                         for (int ii = 0; ii < uuids.Count; ii++)
                         {
-                            guids[ii] = (Guid)uuids[ii];
+                            guids[ii] = uuids[ii];
                         }
 
                         return guids;
@@ -353,11 +354,11 @@ namespace Opc.Ua
 
             if (typeof(Guid).GetTypeInfo().IsAssignableFrom(typeof(T).GetTypeInfo()))
             {
-                var uuid = value as Uuid?;
+                var uuid = value as Guid?;
 
                 if (uuid != null)
                 {
-                    return (Guid)uuid.Value;
+                    return uuid.Value;
                 }
             }
 
@@ -411,12 +412,7 @@ namespace Opc.Ua
                     IServiceMessageContext messageContext;
                     if (context != null)
                     {
-                        messageContext = new ServiceMessageContext(context.Telemetry)
-                        {
-                            NamespaceUris = context.NamespaceUris,
-                            ServerUris = context.ServerUris,
-                            Factory = context.EncodeableFactory
-                        };
+                        messageContext = context.AsMessageContext();
                     }
                     else
                     {
@@ -479,40 +475,101 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"> if it is impossible to cast the value or the value is null and <see cref="IsValueType"/> for the type <typeparamref name="T"/> returns true. </exception>
         public static T CheckTypeBeforeCast<T>(object value, bool throwOnError)
         {
-            if ((value == null && typeof(T).GetTypeInfo().IsValueType) ||
-                (value != null && !typeof(T).IsInstanceOfType(value)))
+            if (value is T typedValue)
             {
-                if (throwOnError)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadTypeMismatch,
-                        "Cannot convert '{0}' to a {1}.",
-                        value,
-                        typeof(T).Name);
-                }
+                // Can convert
+                return typedValue;
+            }
 
+            if (value == null)
+            {
+                // Use default either null or default value of value type
                 return default;
             }
 
-            return (T)value;
+            // Otherwise check if we need to throw and throw or return default
+            if (throwOnError)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTypeMismatch,
+                    "Cannot convert '{0}' to a {1}.",
+                    value,
+                    typeof(T).Name);
+            }
+            return default;
         }
 
         /// <inheritdoc/>
         public override object Clone()
         {
-            return MemberwiseClone();
+            var clone = (BaseInstanceState)Activator.CreateInstance(GetType(), Parent);
+            CopyTo(clone);
+            return clone;
         }
 
-        /// <summary>
-        /// Makes a copy of the node and all children.
-        /// </summary>
-        /// <returns>
-        /// A new object that is a copy of this instance.
-        /// </returns>
-        public new object MemberwiseClone()
+        /// <inheritdoc/>
+        public override bool DeepEquals(NodeState node)
         {
-            var clone = (BaseInstanceState)Activator.CreateInstance(GetType(), Parent);
-            return CloneChildren(clone);
+            if (node is not BaseVariableState state)
+            {
+                return false;
+            }
+            return
+                base.DeepEquals(state) &&
+                state.Timestamp == Timestamp &&
+                state.StatusCode == StatusCode &&
+                EqualityComparer<object>.Default.Equals(state.Value, Value) &&
+                state.DataType == DataType &&
+                state.ValueRank == ValueRank &&
+                ArrayEqualityComparer<uint>.Default.Equals(
+                    state.ArrayDimensions?.ToArray(), ArrayDimensions?.ToArray()) &&
+                state.AccessLevel == AccessLevel &&
+                state.UserAccessLevel == UserAccessLevel &&
+                state.MinimumSamplingInterval == MinimumSamplingInterval &&
+                state.Historizing == Historizing &&
+                state.IsValueType == IsValueType
+                ;
+        }
+
+        /// <inheritdoc/>
+        public override int DeepGetHashCode()
+        {
+            var hash = new HashCode();
+            hash.Add(base.DeepGetHashCode());
+            hash.Add(Timestamp);
+            hash.Add(StatusCode);
+            hash.Add(Value);
+            hash.Add(DataType);
+            hash.Add(ValueRank);
+            hash.Add(ArrayEqualityComparer<uint>.Default.GetHashCode(
+                ArrayDimensions?.ToArray()));
+            hash.Add(AccessLevel);
+            hash.Add(UserAccessLevel);
+            hash.Add(MinimumSamplingInterval);
+            hash.Add(Historizing);
+            hash.Add(IsValueType);
+            return hash.ToHashCode();
+        }
+
+        /// <inheritdoc/>
+        protected override void CopyTo(NodeState target)
+        {
+            if (target is BaseVariableState state)
+            {
+                state.Value = Value;
+                state.Timestamp = Timestamp;
+                state.StatusCode = StatusCode;
+                state.m_valueTouched = m_valueTouched;
+                state.DataType = DataType;
+                state.ValueRank = ValueRank;
+                state.ArrayDimensions = ArrayDimensions;
+                state.AccessLevel = AccessLevel;
+                state.UserAccessLevel = UserAccessLevel;
+                state.MinimumSamplingInterval = MinimumSamplingInterval;
+                state.Historizing = Historizing;
+                state.IsValueType = IsValueType;
+            }
+            base.CopyTo(target);
         }
 
         /// <summary>
@@ -560,12 +617,12 @@ namespace Opc.Ua
             {
                 // If we have a valid DataType and ValueRank, use them to construct the TypeInfo
                 // This is necessary to distinguish between byte[] (Byte array) and ByteString
-                if (m_value != null && !NodeId.IsNull(m_dataType))
+                if (m_value != null && !m_dataType.IsNull)
                 {
                     BuiltInType builtInType = TypeInfo.GetBuiltInType(m_dataType);
                     if (builtInType != BuiltInType.Null)
                     {
-                        TypeInfo typeInfo = TypeInfo.Create(builtInType, m_valueRank);
+                        var typeInfo = TypeInfo.Create(builtInType, m_valueRank);
                         return new Variant(m_value, typeInfo);
                     }
                 }
@@ -629,7 +686,7 @@ namespace Opc.Ua
             get => m_dataType;
             set
             {
-                if (!ReferenceEquals(m_dataType, value))
+                if (m_dataType != value)
                 {
                     ChangeMasks |= NodeStateChangeMasks.NonValue;
                 }
@@ -949,7 +1006,7 @@ namespace Opc.Ua
                 encoder.WriteStatusCode("StatusCode", StatusCode);
             }
 
-            if (!NodeId.IsNull(DataType))
+            if (!DataType.IsNull)
             {
                 encoder.WriteNodeId("DataType", DataType);
             }
@@ -1099,7 +1156,7 @@ namespace Opc.Ua
                 attributesToSave |= AttributesToSave.StatusCode;
             }
 
-            if (!NodeId.IsNull(m_dataType))
+            if (!m_dataType.IsNull)
             {
                 attributesToSave |= AttributesToSave.DataType;
             }
@@ -1647,14 +1704,9 @@ namespace Opc.Ua
             }
 
             // apply data encoding.
-            if (!QualifiedName.IsNull(dataEncoding))
+            if (!dataEncoding.IsNull)
             {
-                var messageContext = new ServiceMessageContext(context.Telemetry)
-                {
-                    NamespaceUris = context.NamespaceUris,
-                    ServerUris = context.ServerUris,
-                    Factory = context.EncodeableFactory
-                };
+                IServiceMessageContext messageContext = context.AsMessageContext();
 
                 result = EncodeableObject.ApplyDataEncoding(
                     messageContext,
@@ -1936,7 +1988,7 @@ namespace Opc.Ua
                     context,
                     this,
                     indexRange,
-                    null,
+                    default,
                     ref value,
                     ref statusCode,
                     ref sourceTimestamp);
@@ -1975,7 +2027,7 @@ namespace Opc.Ua
                 context.NamespaceUris,
                 context.TypeTable);
 
-            if (typeInfo == null || typeInfo == TypeInfo.Unknown)
+            if (typeInfo.IsUnknown)
             {
                 //if xml element data decoding error appeared : a value of type status code is received with the error code
                 if (DataTypeIds.XmlElement == m_dataType)
@@ -1986,14 +2038,14 @@ namespace Opc.Ua
                         -1,
                         context.NamespaceUris,
                         context.TypeTable);
-                    if (statusCodeTypeInfo != null)
+                    if (!statusCodeTypeInfo.IsUnknown)
                     {
                         //the error code
                         return (StatusCode)(uint)value;
                     }
                 }
                 // test for special case Null type
-                if (!(m_dataType.IsNullNodeId && value == null))
+                if (!(m_dataType.IsNull && value == null))
                 {
                     return StatusCodes.BadTypeMismatch;
                 }
@@ -2098,10 +2150,10 @@ namespace Opc.Ua
         protected override void Initialize(ISystemContext context)
         {
             SymbolicName = CoreUtils.Format("{0}_Instance1", BrowseNames.PropertyType);
-            NodeId = null;
+            NodeId = default;
             BrowseName = new QualifiedName(SymbolicName, 1);
-            DisplayName = SymbolicName;
-            Description = null;
+            DisplayName = new LocalizedText(SymbolicName);
+            Description = default;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
             ReferenceTypeId = ReferenceTypeIds.HasProperty;
@@ -2151,7 +2203,7 @@ namespace Opc.Ua
             base.Initialize(context);
 
             Value = default;
-            DataType = TypeInfo.GetDataTypeId(typeof(T));
+            DataType = TypeInfo.GetDataTypeId(typeof(T), context.NamespaceUris);
             ValueRank = TypeInfo.GetValueRank(typeof(T));
         }
 
@@ -2211,10 +2263,10 @@ namespace Opc.Ua
         protected override void Initialize(ISystemContext context)
         {
             SymbolicName = CoreUtils.Format("{0}_Instance1", BrowseNames.BaseDataVariableType);
-            NodeId = null;
+            NodeId = default;
             BrowseName = new QualifiedName(SymbolicName, 1);
-            DisplayName = SymbolicName;
-            Description = null;
+            DisplayName = new LocalizedText(SymbolicName);
+            Description = default;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
             ReferenceTypeId = ReferenceTypeIds.HasComponent;
@@ -2236,6 +2288,46 @@ namespace Opc.Ua
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return VariableTypeIds.BaseDataVariableType;
+        }
+
+        /// <inheritdoc/>
+        public override object Clone()
+        {
+            var clone = (BaseDataVariableState)Activator.CreateInstance(GetType(), Parent);
+            CopyTo(clone);
+            return clone;
+        }
+
+        /// <inheritdoc/>
+        public override bool DeepEquals(NodeState node)
+        {
+            if (node is not BaseDataVariableState state)
+            {
+                return false;
+            }
+            return
+                base.DeepEquals(state) &&
+                EqualityComparer<PropertyState<LocalizedText[]>>.Default.Equals(
+                    state.EnumStrings, EnumStrings);
+        }
+
+        /// <inheritdoc/>
+        public override int DeepGetHashCode()
+        {
+            var hash = new HashCode();
+            hash.Add(base.DeepGetHashCode());
+            hash.Add(EnumStrings);
+            return hash.ToHashCode();
+        }
+
+        /// <inheritdoc/>
+        protected override void CopyTo(NodeState target)
+        {
+            if (target is BaseDataVariableState state)
+            {
+                state.EnumStrings = EnumStrings;
+            }
+            base.CopyTo(target);
         }
 
         /// <summary>
@@ -2279,29 +2371,43 @@ namespace Opc.Ua
             bool createOrReplace,
             BaseInstanceState replacement)
         {
-            if (QualifiedName.IsNull(browseName))
+            if (browseName.IsNull)
             {
                 return null;
             }
 
+            BaseInstanceState instance = null;
             switch (browseName.Name)
             {
                 case BrowseNames.EnumStrings:
-                    if (createOrReplace && EnumStrings == null)
-                    {
-                        if (replacement == null)
-                        {
-                            EnumStrings = new PropertyState<LocalizedText[]>(this);
-                        }
-                        else
-                        {
-                            EnumStrings = (PropertyState<LocalizedText[]>)replacement;
-                        }
-                    }
-                    return EnumStrings ?? base.FindChild(context, browseName, createOrReplace, replacement);
-                default:
-                    return base.FindChild(context, browseName, createOrReplace, replacement);
+                    instance = !createOrReplace ?
+                        EnumStrings : CreateOrReplaceEnumStrings(context, replacement);
+                    break;
             }
+            return instance ?? base.FindChild(context, browseName, createOrReplace, replacement);
+        }
+
+        /// <summary>
+        /// Create or replace enum strings
+        /// </summary>
+        public PropertyState<LocalizedText[]> CreateOrReplaceEnumStrings(
+            ISystemContext context,
+            BaseInstanceState replacement)
+        {
+            if (EnumStrings == null)
+            {
+                PropertyState<LocalizedText[]> child = replacement as PropertyState<LocalizedText[]>;
+                if (child == null)
+                {
+                    child = new PropertyState<LocalizedText[]>(this);
+                    if (replacement != null)
+                    {
+                        child.Create(context, replacement);
+                    }
+                }
+                EnumStrings = child;
+            }
+            return EnumStrings;
         }
 
         private PropertyState<LocalizedText[]> m_enumStrings;
@@ -2333,7 +2439,7 @@ namespace Opc.Ua
             base.Initialize(context);
 
             Value = default;
-            DataType = TypeInfo.GetDataTypeId(typeof(T));
+            DataType = TypeInfo.GetDataTypeId(typeof(T), context.NamespaceUris);
             ValueRank = TypeInfo.GetValueRank(typeof(T));
         }
 

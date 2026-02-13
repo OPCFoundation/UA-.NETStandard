@@ -102,7 +102,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
 
             // start Ref server
-            m_serverFixture = new ServerFixture<ReferenceServer>
+            m_serverFixture = new ServerFixture<ReferenceServer>(t => new ReferenceServer(t))
             {
                 UriScheme = m_uriScheme,
                 SecurityNone = true,
@@ -294,7 +294,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                         NodeId superType =
                             await Session.NodeCache.FindSuperTypeAsync(fullTypeId).ConfigureAwait(false);
                         NodeId lastGoodType = variableNode.DataType;
-                        while (!superType.IsNullNodeId && superType != DataTypes.BaseDataType)
+                        while (!superType.IsNull && superType != DataTypes.BaseDataType)
                         {
                             if (superType == DataTypeIds.Structure)
                             {

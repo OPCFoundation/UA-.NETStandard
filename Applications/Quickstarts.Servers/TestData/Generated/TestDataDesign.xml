@@ -126,8 +126,8 @@
       <opc:Field Name="UIntegerValue" DataType="ua:UInteger" />
     </opc:Fields>
   </opc:DataType>
-  
-  <opc:VariableType SymbolicName="ScalarStructureVariableType" DataType="ScalarStructureDataType" BaseType="ua:BaseDataVariableType">
+
+  <opc:VariableType SymbolicName="ScalarStructureVariableType" DataType="ScalarStructureDataType" BaseType="ua:BaseDataVariableType" ValueRank="Scalar">
     <opc:Children>
       <opc:Variable SymbolicName="BooleanValue" DataType="ua:Boolean" ModellingRule="Mandatory"/>
       <opc:Variable SymbolicName="SByteValue" DataType="ua:SByte" ModellingRule="Mandatory" />
@@ -266,7 +266,7 @@
 
   <opc:ObjectType SymbolicName="StructureValueObjectType" BaseType="TestDataObjectType">
     <opc:Children>
-      <opc:Variable SymbolicName="ScalarStructure" DataType="ScalarStructureDataType" TypeDefinition="ScalarStructureVariableType" ModellingRule="Mandatory"/>      
+      <opc:Variable SymbolicName="ScalarStructure" DataType="ScalarStructureDataType" TypeDefinition="ScalarStructureVariableType" ModellingRule="Mandatory"/>
       <opc:Variable SymbolicName="VectorStructure" DataType="Vector" TypeDefinition="VectorVariableType" ModellingRule="Mandatory" />
     </opc:Children>
   </opc:ObjectType>
@@ -466,7 +466,7 @@
   <opc:DataType SymbolicName="LocalizedTextDataType" BaseType="ua:LocalizedText" />
   <opc:DataType SymbolicName="StatusCodeDataType" BaseType="ua:StatusCode" />
   <opc:DataType SymbolicName="VariantDataType" BaseType="ua:BaseDataType" />
-  
+
   <opc:DataType SymbolicName="UserScalarValueDataType" BaseType="ua:Structure">
     <opc:Fields>
       <opc:Field Name="BooleanDataType" DataType="BooleanDataType" />
@@ -641,14 +641,13 @@
     </opc:Fields>
   </opc:DataType>
 
-  <opc:VariableType SymbolicName="VectorVariableType" DataType="Vector" BaseType="ua:BaseDataVariableType">
+  <opc:VariableType SymbolicName="VectorVariableType" DataType="Vector" BaseType="ua:BaseDataVariableType" ValueRank="Scalar">
     <opc:Children>
       <opc:Property SymbolicName="X" DataType="ua:Double" ModellingRule="Mandatory"/>
       <opc:Property SymbolicName="Y" DataType="ua:Double" ModellingRule="Mandatory" />
       <opc:Property SymbolicName="Z" DataType="ua:Double" ModellingRule="Mandatory" />
     </opc:Children>
   </opc:VariableType>
-
 
   <opc:DataType SymbolicName="VectorUnion" BaseType="ua:Union" IsUnion="true">
     <opc:Fields>
@@ -677,7 +676,7 @@
     </opc:Fields>
   </opc:DataType>
 
-<!--  
+<!--
   <opc:DataType SymbolicName="SampleUnion" BaseType="ua:Union" IsUnion="true">
     <opc:Fields>
       <opc:Field Name="FieldA" DataType="ua:UInt32" />
@@ -695,7 +694,7 @@
       <opc:Field Name="FieldD" DataType="WorkOrderType" IsOptional="true" />
     </opc:Fields>
   </opc:DataType>
-  
+
   <opc:DataType SymbolicName="WorkOrderTypeWithDescription" BaseType="ua:Structure">
     <opc:Fields>
       <opc:Field Name="ID" DataType="ua:Guid" />

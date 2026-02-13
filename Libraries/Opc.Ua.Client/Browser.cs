@@ -297,7 +297,7 @@ namespace Opc.Ua.Client
             }
 
             // fetch initial set of references.
-            byte[] continuationPoint = results[0].ContinuationPoint;
+            byte[]? continuationPoint = results[0].ContinuationPoint;
             ReferenceDescriptionCollection references = results[0].References;
 
             try
@@ -574,10 +574,7 @@ namespace Opc.Ua.Client
             int nodeClassMask,
             CancellationToken ct = default)
         {
-            if (requestHeader != null)
-            {
-                requestHeader.RequestHandle = 0;
-            }
+            requestHeader?.RequestHandle = 0;
 
             var result = new List<ReferenceDescriptionCollection>(nodeIds.Count);
             (
@@ -625,10 +622,7 @@ namespace Opc.Ua.Client
             }
             while (nextContinuationPoints.Count > 0)
             {
-                if (requestHeader != null)
-                {
-                    requestHeader.RequestHandle = 0;
-                }
+                requestHeader?.RequestHandle = 0;
                 (
                     _,
                     ByteStringCollection revisedContinuationPoints,
@@ -682,7 +676,7 @@ namespace Opc.Ua.Client
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The next batch of references</returns>
         /// <exception cref="ServiceResultException"></exception>
-        private static async ValueTask<(ReferenceDescriptionCollection, byte[])> BrowseNextAsync(
+        private static async ValueTask<(ReferenceDescriptionCollection, byte[]?)> BrowseNextAsync(
             ISessionClient session,
             byte[] continuationPoint,
             bool cancel,
@@ -725,11 +719,11 @@ namespace Opc.Ua.Client
         /// </summary>
         public static Browser? Load(Stream stream, ITelemetryContext telemetry)
         {
-            // secure settings
-            XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
-            using var reader = XmlReader.Create(stream, settings);
-            var serializer = new DataContractSerializer(typeof(BrowserOptions));
             using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
+            DataContractSerializer serializer =
+                CoreUtils.CreateDataContractSerializer<BrowserOptions>();
+            // secure settings
+            using var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
             var options = (BrowserOptions?)serializer.ReadObject(reader);
             return new Browser(telemetry, options);
         }
@@ -741,8 +735,10 @@ namespace Opc.Ua.Client
         {
             // secure settings
             using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
-            var serializer = new DataContractSerializer(typeof(BrowserOptions));
-            serializer.WriteObject(stream, State);
+            DataContractSerializer serializer =
+                CoreUtils.CreateDataContractSerializer<BrowserOptions>();
+            using var writer = XmlWriter.Create(stream, Utils.DefaultXmlWriterSettings());
+            serializer.WriteObject(writer, State);
         }
 
         /// <summary>

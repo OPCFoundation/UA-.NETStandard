@@ -21,7 +21,7 @@ jobs:
       matrix:
         # os: [ubuntu-latest, windows-latest, macOS-latest] - disable mac os due to cost
         os: [ubuntu-latest, windows-latest]
-        csproj: [Security.Certificates, Types, Core, Server, Client, Client.ComplexTypes, PubSub, Configuration, Gds]
+        csproj: [Security.Certificates, Types, Core, Server, Client, Client.ComplexTypes, PubSub, Configuration, Gds, SourceGeneration.Stack, SourceGeneration, SourceGeneration.Core]
         include:
           - framework: 'net10.0'
             dotnet-version: '10.0.x'
@@ -51,11 +51,11 @@ jobs:
       run: ./.azurepipelines/set-version.ps1
 
     - name: Build
-      run: dotnet build ${{ env.CSPROJECT }} --force --framework ${{ matrix.framework }} --configuration ${{ matrix.configuration }} /p:CustomTestTarget=${{ matrix.customtesttarget }}
+      run: dotnet build ${{ env.CSPROJECT }} --framework ${{ matrix.framework }} --configuration ${{ matrix.configuration }} /p:CustomTestTarget=${{ matrix.customtesttarget }}
 
     - name: Test
       # note: /p:CollectCoverage=true is only used to disable deterministic builds
-      run: dotnet test ${{ env.CSPROJECT }} --no-build --framework ${{ matrix.framework }} --logger trx --configuration ${{ matrix.configuration }} /p:CollectCoverage=true /p:CustomTestTarget=${{ matrix.customtesttarget }} --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory ${{ env.TESTRESULTS }} 
+      run: dotnet test ${{ env.CSPROJECT }} --no-build --framework ${{ matrix.framework }} --logger trx --configuration ${{ matrix.configuration }} /p:CollectCoverage=true /p:CustomTestTarget=${{ matrix.customtesttarget }} --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory ${{ env.TESTRESULTS }}
 
     - name: Upload test results
       uses: actions/upload-artifact@v6

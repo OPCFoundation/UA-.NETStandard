@@ -30,9 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -684,7 +682,7 @@ namespace Opc.Ua.Server
                 {
                     NodeId sessionId = subscription.SessionId;
 
-                    if (!NodeId.IsNull(sessionId))
+                    if (!sessionId.IsNull)
                     {
                         // check that the subscription is the owner.
                         if (context != null &&
@@ -1012,7 +1010,7 @@ namespace Opc.Ua.Server
                     Message = subscription.PublishTimeout()
                 };
 
-                if (subscription.SessionId != null &&
+                if (!subscription.SessionId.IsNull &&
                     m_statusMessages.TryGetValue(
                         subscription.SessionId,
                         out Queue<StatusMessage> queue))
@@ -1259,7 +1257,8 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
             }
 
-            if (subscription.SessionId != (context as ISessionSystemContext)?.SessionId)
+            NodeId curSession = (context as ISessionSystemContext)?.SessionId ?? default;
+            if (subscription.SessionId != curSession)
             {
                 // user tries to access subscription of different session
                 return StatusCodes.BadUserAccessDenied;
@@ -1400,7 +1399,7 @@ namespace Opc.Ua.Server
                     // check if new and old sessions are different
                     ISession ownerSession = subscription.Session;
                     if (ownerSession != null &&
-                        !NodeId.IsNull(ownerSession.Id) &&
+                        !ownerSession.Id.IsNull &&
                         ownerSession.Id == context.Session.Id)
                     {
                         result.StatusCode = StatusCodes.BadNothingToDo;
@@ -1412,27 +1411,21 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    // get the identity of the current or last owner
-                    UserIdentityToken ownerIdentity = subscription.EffectiveIdentity
-                        .GetIdentityToken();
-
                     // Validate the identity of the user who owns/owned the subscription
                     // is the same as the new owner.
-                    bool validIdentity = Utils.IsEqualUserIdentity(
-                        ownerIdentity,
-                        context.Session.EffectiveIdentity.GetIdentityToken());
+                    bool validIdentity = subscription.EffectiveIdentity.TokenHandler.Equals(
+                        context.Session.EffectiveIdentity.TokenHandler);
 
-                    // Test if anonymous user is using a
-                    // secure session using Sign or SignAndEncrypt
-                    if (validIdentity && (ownerIdentity is AnonymousIdentityToken))
+                    // Test if anonymous user is using a secure session using Sign or SignAndEncrypt
+                    if (validIdentity &&
+                        subscription.EffectiveIdentity.TokenType == UserTokenType.Anonymous)
                     {
                         MessageSecurityMode securityMode = context.ChannelContext
                             .EndpointDescription
                             .SecurityMode;
-                        if (securityMode is not MessageSecurityMode.Sign and not MessageSecurityMode.SignAndEncrypt)
-                        {
-                            validIdentity = false;
-                        }
+                        validIdentity = securityMode
+                            is MessageSecurityMode.Sign
+                            or MessageSecurityMode.SignAndEncrypt;
                     }
 
                     // continue if identity check failed
@@ -1533,7 +1526,7 @@ namespace Opc.Ua.Server
                         bool statusQueued = false;
                         lock (m_statusMessagesLock)
                         {
-                            if (!NodeId.IsNull(ownerSession.Id) &&
+                            if (!ownerSession.Id.IsNull &&
                                 m_statusMessages.TryGetValue(
                                     ownerSession.Id,
                                     out Queue<StatusMessage> queue))
@@ -2256,7 +2249,7 @@ namespace Opc.Ua.Server
                     "Server - {Count} Subscriptions scheduled for delete.",
                     subscriptionsToDelete.Count);
 
-                Task.Run(
+                _ = Task.Run(
                     () => CleanupSubscriptionsCoreAsync(server, subscriptionsToDelete, logger));
             }
         }

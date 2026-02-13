@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.IO;
 
@@ -67,9 +69,10 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Stream OpenWrite(string path)
         {
-            if (!Directory.Exists(Path.GetDirectoryName(path)))
+            string? directoryName = Path.GetDirectoryName(path);
+            if (directoryName != null && !Directory.Exists(directoryName))
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(path));
+                Directory.CreateDirectory(directoryName);
             }
             return File.Open(path, FileMode.Create, FileAccess.ReadWrite);
         }
@@ -84,6 +87,12 @@ namespace Opc.Ua
         public DateTime GetLastWriteTime(string path)
         {
             return new FileInfo(path).LastWriteTimeUtc;
+        }
+
+        /// <inheritdoc/>
+        public long GetLength(string path)
+        {
+            return new FileInfo(path).Length;
         }
     }
 }

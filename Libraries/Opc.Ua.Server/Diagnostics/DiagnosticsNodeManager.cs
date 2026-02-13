@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 
@@ -132,15 +131,14 @@ namespace Opc.Ua.Server
                 base.CreateAddressSpace(externalReferences);
 
                 // sampling interval diagnostics not supported by the server.
-                var serverDiagnosticsNode = (ServerDiagnosticsState)FindPredefinedNode(
-                    ObjectIds.Server_ServerDiagnostics,
-                    typeof(ServerDiagnosticsState));
+                ServerDiagnosticsState serverDiagnosticsNode = FindPredefinedNode<ServerDiagnosticsState>(
+                    ObjectIds.Server_ServerDiagnostics);
 
                 if (serverDiagnosticsNode != null)
                 {
                     NodeState samplingDiagnosticsArrayNode = serverDiagnosticsNode.FindChild(
                         SystemContext,
-                        BrowseNames.SamplingIntervalDiagnosticsArray);
+                        QualifiedName.From(BrowseNames.SamplingIntervalDiagnosticsArray));
 
                     if (samplingDiagnosticsArrayNode != null)
                     {
@@ -157,19 +155,14 @@ namespace Opc.Ua.Server
                 Server.CoreNodeManager.ImportNodes(SystemContext, PredefinedNodes.Values, true);
 
                 // hook up the server GetMonitoredItems method.
-                var getMonitoredItems = (GetMonitoredItemsMethodState)FindPredefinedNode(
-                    MethodIds.Server_GetMonitoredItems,
-                    typeof(GetMonitoredItemsMethodState));
+                GetMonitoredItemsMethodState getMonitoredItems = FindPredefinedNode<GetMonitoredItemsMethodState>(
+                    MethodIds.Server_GetMonitoredItems);
 
-                if (getMonitoredItems != null)
-                {
-                    getMonitoredItems.OnCallMethod = OnGetMonitoredItems;
-                }
+                getMonitoredItems?.OnCallMethod = OnGetMonitoredItems;
 
                 // set ArrayDimensions for GetMonitoredItems.OutputArguments.Value.
-                var getMonitoredItemsOutputArguments = (PropertyState)FindPredefinedNode(
-                    VariableIds.Server_GetMonitoredItems_OutputArguments,
-                    typeof(PropertyState));
+                PropertyState getMonitoredItemsOutputArguments = FindPredefinedNode<PropertyState>(
+                    VariableIds.Server_GetMonitoredItems_OutputArguments);
 
                 if (getMonitoredItemsOutputArguments != null)
                 {
@@ -189,28 +182,23 @@ namespace Opc.Ua.Server
                 if (m_durableSubscriptionsEnabled)
                 {
                     // hook up the server SetSubscriptionDurable method.
-                    var setSubscriptionDurable
-                        = (SetSubscriptionDurableMethodState)FindPredefinedNode(
-                        MethodIds.Server_SetSubscriptionDurable,
-                        typeof(SetSubscriptionDurableMethodState));
+                    SetSubscriptionDurableMethodState setSubscriptionDurable
+                        = FindPredefinedNode<SetSubscriptionDurableMethodState>(
+                        MethodIds.Server_SetSubscriptionDurable);
 
-                    if (setSubscriptionDurable != null)
-                    {
-                        setSubscriptionDurable.OnCall = OnSetSubscriptionDurable;
-                    }
+                    setSubscriptionDurable?.OnCall = OnSetSubscriptionDurable;
                 }
                 else
                 {
                     // Subscription Durable mode not supported by the server.
-                    var serverObject = (ServerObjectState)FindPredefinedNode(
-                        ObjectIds.Server,
-                        typeof(ServerObjectState));
+                    ServerObjectState serverObject = FindPredefinedNode<ServerObjectState>(
+                        ObjectIds.Server);
 
                     if (serverObject != null)
                     {
                         NodeState setSubscriptionDurableNode = serverObject.FindChild(
                             SystemContext,
-                            BrowseNames.SetSubscriptionDurable);
+                            QualifiedName.From(BrowseNames.SetSubscriptionDurable));
 
                         if (setSubscriptionDurableNode != null)
                         {
@@ -221,14 +209,10 @@ namespace Opc.Ua.Server
                 }
                 // hookup server ResendData method.
 
-                var resendData = (ResendDataMethodState)FindPredefinedNode(
-                    MethodIds.Server_ResendData,
-                    typeof(ResendDataMethodState));
+                ResendDataMethodState resendData = FindPredefinedNode<ResendDataMethodState>(
+                    MethodIds.Server_ResendData);
 
-                if (resendData != null)
-                {
-                    resendData.OnCallMethod = OnResendData;
-                }
+                resendData?.OnCallMethod = OnResendData;
             }
         }
 
@@ -348,7 +332,7 @@ namespace Opc.Ua.Server
         {
             var systemContext = context as ServerSystemContext;
 
-            if (m_serverLockHolder != null && m_serverLockHolder != systemContext.SessionId)
+            if (!m_serverLockHolder.IsNull && m_serverLockHolder != systemContext.SessionId)
             {
                 return StatusCodes.BadSessionIdInvalid;
             }
@@ -369,12 +353,12 @@ namespace Opc.Ua.Server
         {
             var systemContext = context as ServerSystemContext;
 
-            if (m_serverLockHolder != null && m_serverLockHolder != systemContext.SessionId)
+            if (!m_serverLockHolder.IsNull && m_serverLockHolder != systemContext.SessionId)
             {
                 return StatusCodes.BadSessionIdInvalid;
             }
 
-            m_serverLockHolder = null;
+            m_serverLockHolder = default;
 
             return ServiceResult.Good;
         }
@@ -384,14 +368,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
-            var predefinedNodes = new NodeStateCollection();
-            Assembly assembly = typeof(ReadRequest).GetTypeInfo().Assembly;
-            predefinedNodes.LoadFromBinaryResource(
-                context,
-                "Opc.Ua.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes",
-                assembly,
-                true);
-            return predefinedNodes;
+            return new NodeStateCollection().AddOpcUa(context);
         }
 
         /// <summary>
@@ -458,12 +435,12 @@ namespace Opc.Ua.Server
 
             NodeId typeId = passiveNode.TypeDefinitionId;
 
-            if (!IsNodeIdInNamespace(typeId) || typeId.IdType != IdType.Numeric)
+            if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetIdentifier(out uint numericId))
             {
                 return predefinedNode;
             }
 
-            switch ((uint)typeId.Identifier)
+            switch (numericId)
             {
                 case ObjectTypes.ServerType:
                 {
@@ -574,12 +551,14 @@ namespace Opc.Ua.Server
 
             NodeId typeId = instance.TypeDefinitionId;
 
-            if (typeId == null || typeId.IdType != IdType.Numeric || typeId.NamespaceIndex != 0)
+            if (typeId.IsNull ||
+                typeId.NamespaceIndex != 0 ||
+                typeId.TryGetIdentifier(out uint numericId))
             {
                 return false;
             }
 
-            switch ((uint)typeId.Identifier)
+            switch (numericId)
             {
                 case VariableTypes.ServerDiagnosticsSummaryType:
                 case ObjectTypes.SessionDiagnosticsObjectType:
@@ -622,11 +601,8 @@ namespace Opc.Ua.Server
                 if (!enabled)
                 {
                     // stop scans.
-                    if (m_diagnosticsScanTimer != null)
-                    {
-                        m_diagnosticsScanTimer.Dispose();
-                        m_diagnosticsScanTimer = null;
-                    }
+                    m_diagnosticsScanTimer?.Dispose();
+                    m_diagnosticsScanTimer = null;
 
                     if (m_sessions != null)
                     {
@@ -659,9 +635,8 @@ namespace Opc.Ua.Server
                     }
 
                     // get the node.
-                    var diagnosticsNode = (ServerDiagnosticsState)FindPredefinedNode(
-                        ObjectIds.Server_ServerDiagnostics,
-                        typeof(ServerDiagnosticsState));
+                    ServerDiagnosticsState diagnosticsNode = FindPredefinedNode<ServerDiagnosticsState>(
+                        ObjectIds.Server_ServerDiagnostics);
 
                     // clear arrays.
                     if (diagnosticsNode != null)
@@ -731,9 +706,8 @@ namespace Opc.Ua.Server
             lock (Lock)
             {
                 // get the node.
-                var diagnosticsNode = (ServerDiagnosticsSummaryState)FindPredefinedNode(
-                    VariableIds.Server_ServerDiagnostics_ServerDiagnosticsSummary,
-                    typeof(ServerDiagnosticsSummaryState));
+                ServerDiagnosticsSummaryState diagnosticsNode = FindPredefinedNode<ServerDiagnosticsSummaryState>(
+                    VariableIds.Server_ServerDiagnostics_ServerDiagnosticsSummary);
 
                 // wrap diagnostics in a thread safe object.
                 var diagnosticsValue = new ServerDiagnosticsSummaryValue(
@@ -754,9 +728,8 @@ namespace Opc.Ua.Server
                 m_serverDiagnosticsCallback = updateCallback;
 
                 // set up handler for session diagnostics array.
-                var array1 = (SessionDiagnosticsArrayState)FindPredefinedNode(
-                    VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionDiagnosticsArray,
-                    typeof(SessionDiagnosticsArrayState));
+                SessionDiagnosticsArrayState array1 = FindPredefinedNode<SessionDiagnosticsArrayState>(
+                    VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionDiagnosticsArray);
 
                 if (array1 != null)
                 {
@@ -766,9 +739,8 @@ namespace Opc.Ua.Server
                 }
 
                 // set up handler for session security diagnostics array.
-                var array2 = (SessionSecurityDiagnosticsArrayState)FindPredefinedNode(
-                    VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionSecurityDiagnosticsArray,
-                    typeof(SessionSecurityDiagnosticsArrayState));
+                SessionSecurityDiagnosticsArrayState array2 = FindPredefinedNode<SessionSecurityDiagnosticsArrayState>(
+                    VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionSecurityDiagnosticsArray);
 
                 if (array2 != null)
                 {
@@ -778,9 +750,8 @@ namespace Opc.Ua.Server
                 }
 
                 // set up handler for subscription security diagnostics array.
-                var array3 = (SubscriptionDiagnosticsArrayState)FindPredefinedNode(
-                    VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray,
-                    typeof(SubscriptionDiagnosticsArrayState));
+                SubscriptionDiagnosticsArrayState array3 = FindPredefinedNode<SubscriptionDiagnosticsArrayState>(
+                    VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
 
                 if (array3 != null)
                 {
@@ -802,7 +773,7 @@ namespace Opc.Ua.Server
             SessionSecurityDiagnosticsDataType securityDiagnostics,
             NodeValueSimpleEventHandler updateSecurityCallback)
         {
-            NodeId nodeId = null;
+            NodeId nodeId = default;
 
             lock (Lock)
             {
@@ -811,9 +782,9 @@ namespace Opc.Ua.Server
                 // create a new instance and assign ids.
                 nodeId = CreateNode(
                     systemContext,
-                    null,
+                    default,
                     ReferenceTypeIds.HasComponent,
-                    new QualifiedName(diagnostics.SessionName),
+                    QualifiedName.From(diagnostics.SessionName),
                     sessionNode);
 
                 diagnostics.SessionId = nodeId;
@@ -832,9 +803,8 @@ namespace Opc.Ua.Server
                     ObjectIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary);
 
                 // add reference from session summary object.
-                var summary = (SessionsDiagnosticsSummaryState)FindPredefinedNode(
-                    ObjectIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary,
-                    typeof(SessionsDiagnosticsSummaryState));
+                SessionsDiagnosticsSummaryState summary = FindPredefinedNode<SessionsDiagnosticsSummaryState>(
+                    ObjectIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary);
 
                 summary?.AddReference(ReferenceTypeIds.HasComponent, false, sessionNode.NodeId);
 
@@ -843,7 +813,7 @@ namespace Opc.Ua.Server
 
                 // initialize diagnostics node.
                 var diagnosticsNode =
-                    sessionNode.CreateChild(systemContext, BrowseNames.SessionDiagnostics) as
+                    sessionNode.CreateChild(systemContext, QualifiedName.From(BrowseNames.SessionDiagnostics)) as
                     SessionDiagnosticsVariableState;
 
                 // wrap diagnostics in a thread safe object.
@@ -863,7 +833,7 @@ namespace Opc.Ua.Server
                 var securityDiagnosticsNode =
                     sessionNode.CreateChild(
                         systemContext,
-                        BrowseNames.SessionSecurityDiagnostics) as
+                        QualifiedName.From(BrowseNames.SessionSecurityDiagnostics)) as
                     SessionSecurityDiagnosticsState;
 
                 // wrap diagnostics in a thread safe object.
@@ -915,7 +885,7 @@ namespace Opc.Ua.Server
                 // release the server lock if it is being held.
                 if (m_serverLockHolder == nodeId)
                 {
-                    m_serverLockHolder = null;
+                    m_serverLockHolder = default;
                 }
             }
 
@@ -928,14 +898,14 @@ namespace Opc.Ua.Server
             SubscriptionDiagnosticsDataType diagnostics,
             NodeValueSimpleEventHandler updateCallback)
         {
-            NodeId nodeId = null;
+            NodeId nodeId = default;
 
             lock (Lock)
             {
                 // check if diagnostics have been enabled.
                 if (!DiagnosticsEnabled)
                 {
-                    return null;
+                    return default;
                 }
 
                 var diagnosticsNode = new SubscriptionDiagnosticsState(null);
@@ -943,9 +913,9 @@ namespace Opc.Ua.Server
                 // create a new instance and assign ids.
                 nodeId = CreateNode(
                     systemContext,
-                    null,
+                    default,
                     ReferenceTypeIds.HasComponent,
-                    new QualifiedName(
+                    QualifiedName.From(
                         diagnostics.SubscriptionId.ToString(CultureInfo.InvariantCulture)),
                     diagnosticsNode);
 
@@ -973,13 +943,12 @@ namespace Opc.Ua.Server
                     new SubscriptionDiagnosticsData(diagnosticsValue, updateCallback));
 
                 // add reference from subscription array.
-                var array = (SubscriptionDiagnosticsArrayState)FindPredefinedNode(
-                    VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray,
-                    typeof(SubscriptionDiagnosticsArrayState));
+                SubscriptionDiagnosticsArrayState array = FindPredefinedNode<SubscriptionDiagnosticsArrayState>(
+                    VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
 
                 array?.AddReference(ReferenceTypeIds.HasComponent, false, diagnosticsNode.NodeId);
 
-                if (diagnostics.SessionId != null)
+                if (!diagnostics.SessionId.IsNull)
                 {
                     // add reference to session subscription array.
                     diagnosticsNode.AddReference(
@@ -989,9 +958,8 @@ namespace Opc.Ua.Server
                 }
 
                 // add reference from session subscription array.
-                var sessionNode = (SessionDiagnosticsObjectState)FindPredefinedNode(
-                    diagnostics.SessionId,
-                    typeof(SessionDiagnosticsObjectState));
+                SessionDiagnosticsObjectState sessionNode = FindPredefinedNode<SessionDiagnosticsObjectState>(
+                    diagnostics.SessionId);
 
                 if (sessionNode != null)
                 {
@@ -999,7 +967,7 @@ namespace Opc.Ua.Server
                     array = (SubscriptionDiagnosticsArrayState)
                         sessionNode.CreateChild(
                             systemContext,
-                            BrowseNames.SubscriptionDiagnosticsArray);
+                            QualifiedName.From(BrowseNames.SubscriptionDiagnosticsArray));
 
                     array?.AddReference(
                         ReferenceTypeIds.HasComponent,
@@ -1045,10 +1013,9 @@ namespace Opc.Ua.Server
                 }
 
                 // search the Node in PredefinedNodes.
-                var historyServerCapabilitiesNode
-                    = (HistoryServerCapabilitiesState)FindPredefinedNode(
-                    ObjectIds.HistoryServerCapabilities,
-                    typeof(HistoryServerCapabilitiesState));
+                HistoryServerCapabilitiesState historyServerCapabilitiesNode
+                    = FindPredefinedNode<HistoryServerCapabilitiesState>(
+                    ObjectIds.HistoryServerCapabilities);
 
                 if (historyServerCapabilitiesNode == null)
                 {
@@ -1057,9 +1024,9 @@ namespace Opc.Ua.Server
 
                     NodeId nodeId = CreateNode(
                         SystemContext,
-                        null,
+                        default,
                         ReferenceTypeIds.HasComponent,
-                        new QualifiedName(BrowseNames.HistoryServerCapabilities),
+                        QualifiedName.From(BrowseNames.HistoryServerCapabilities),
                         historyServerCapabilitiesNode);
 
                     historyServerCapabilitiesNode.AccessHistoryDataCapability.Value = false;
@@ -1077,9 +1044,8 @@ namespace Opc.Ua.Server
                     historyServerCapabilitiesNode.DeleteAtTimeCapability.Value = false;
                     historyServerCapabilitiesNode.ServerTimestampSupported.Value = false;
 
-                    NodeState parent = FindPredefinedNode(
-                        ObjectIds.Server_ServerCapabilities,
-                        typeof(ServerCapabilitiesState));
+                    ServerCapabilitiesState parent = FindPredefinedNode<ServerCapabilitiesState>(
+                        ObjectIds.Server_ServerCapabilities);
 
                     if (parent != null)
                     {
@@ -1110,9 +1076,8 @@ namespace Opc.Ua.Server
                 HistoryServerCapabilitiesState historyCapabilities = GetDefaultHistoryCapabilities();
 
                 // Find the Server object
-                var serverObject = (ServerObjectState)FindPredefinedNode(
-                    ObjectIds.Server,
-                    typeof(ServerObjectState));
+                ServerObjectState serverObject = FindPredefinedNode<ServerObjectState>(
+                    ObjectIds.Server);
 
                 if (serverObject != null && historyCapabilities != null)
                 {
@@ -1166,14 +1131,13 @@ namespace Opc.Ua.Server
                     NodeId = aggregateId,
                     BrowseName = new QualifiedName(aggregateName, aggregateId.NamespaceIndex)
                 };
-                state.DisplayName = state.BrowseName.Name;
+                state.DisplayName = LocalizedText.From(state.BrowseName.Name);
                 state.WriteMask = AttributeWriteMask.None;
                 state.UserWriteMask = AttributeWriteMask.None;
                 state.EventNotifier = EventNotifiers.None;
 
-                NodeState folder = FindPredefinedNode(
-                    ObjectIds.Server_ServerCapabilities_AggregateFunctions,
-                    typeof(BaseObjectState));
+                NodeState folder = FindPredefinedNode<BaseObjectState>(
+                    ObjectIds.Server_ServerCapabilities_AggregateFunctions);
 
                 if (folder != null)
                 {
@@ -1183,9 +1147,8 @@ namespace Opc.Ua.Server
 
                 if (isHistorical)
                 {
-                    folder = FindPredefinedNode(
-                        ObjectIds.HistoryServerCapabilities_AggregateFunctions,
-                        typeof(BaseObjectState));
+                    folder = FindPredefinedNode<BaseObjectState>(
+                        ObjectIds.HistoryServerCapabilities_AggregateFunctions);
 
                     if (folder != null)
                     {
@@ -1213,14 +1176,13 @@ namespace Opc.Ua.Server
                     NodeId = modellingRuleId,
                     BrowseName = new QualifiedName(modellingRuleName, modellingRuleId.NamespaceIndex)
                 };
-                state.DisplayName = state.BrowseName.Name;
+                state.DisplayName = LocalizedText.From(state.BrowseName.Name);
                 state.WriteMask = AttributeWriteMask.None;
                 state.UserWriteMask = AttributeWriteMask.None;
                 state.EventNotifier = EventNotifiers.None;
 
-                NodeState folder = FindPredefinedNode(
-                    ObjectIds.Server_ServerCapabilities_ModellingRules,
-                    typeof(BaseObjectState));
+                NodeState folder = FindPredefinedNode<BaseObjectState>(
+                    ObjectIds.Server_ServerCapabilities_ModellingRules);
 
                 if (folder != null)
                 {
@@ -1460,7 +1422,8 @@ namespace Opc.Ua.Server
             ISystemContext context,
             int index)
         {
-            if ((sessionId != (context as ISessionSystemContext)?.SessionId) &&
+            NodeId curSession = (context as ISessionSystemContext)?.SessionId ?? default;
+            if ((sessionId != curSession) &&
                 !HasApplicationSecureAdminAccess(context))
             {
                 list[index] = default;
@@ -1484,8 +1447,8 @@ namespace Opc.Ua.Server
             }
             else
             {
-                adminUser = (node.NodeId == (context as ISessionSystemContext)?.SessionId) ||
-                    HasApplicationSecureAdminAccess(context);
+                NodeId curSession = (context as ISessionSystemContext)?.SessionId ?? default;
+                adminUser = node.NodeId == curSession || HasApplicationSecureAdminAccess(context);
             }
 
             if (adminUser)
@@ -1684,9 +1647,8 @@ namespace Opc.Ua.Server
                         }
 
                         // check of the session diagnostics array node needs to be updated.
-                        var sessionsNode = (SessionDiagnosticsArrayState)FindPredefinedNode(
-                            VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionDiagnosticsArray,
-                            typeof(SessionDiagnosticsArrayState));
+                        SessionDiagnosticsArrayState sessionsNode = FindPredefinedNode<SessionDiagnosticsArrayState>(
+                            VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionDiagnosticsArray);
 
                         if (sessionsNode != null &&
                             (
@@ -1717,17 +1679,17 @@ namespace Opc.Ua.Server
                         }
 
                         // check of the array node needs to be updated.
-                        var sessionsSecurityNode
-                            = (SessionSecurityDiagnosticsArrayState)FindPredefinedNode(
+                        SessionSecurityDiagnosticsArrayState sessionsSecurityNode
+                            = FindPredefinedNode<SessionSecurityDiagnosticsArrayState>(
                             VariableIds
-                                .Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionSecurityDiagnosticsArray,
-                            typeof(SessionSecurityDiagnosticsArrayState));
+                                .Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionSecurityDiagnosticsArray);
 
                         if (sessionsSecurityNode != null &&
                             (
                                 sessionsSecurityNode.Value == null ||
                                 StatusCode.IsBad(sessionsSecurityNode.StatusCode) ||
-                                sessionsSecurityChanged))
+                                sessionsSecurityChanged)
+                            )
                         {
                             sessionsSecurityNode.Value = sessionSecurityArray;
                             sessionsSecurityNode.ClearChangeMasks(SystemContext, false);
@@ -1752,10 +1714,9 @@ namespace Opc.Ua.Server
                         }
 
                         // check of the subscription node needs to be updated.
-                        var subscriptionsNode
-                            = (SubscriptionDiagnosticsArrayState)FindPredefinedNode(
-                            VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray,
-                            typeof(SubscriptionDiagnosticsArrayState));
+                        SubscriptionDiagnosticsArrayState subscriptionsNode
+                            = FindPredefinedNode<SubscriptionDiagnosticsArrayState>(
+                            VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
 
                         if (subscriptionsNode != null &&
                             (
@@ -1798,7 +1759,7 @@ namespace Opc.Ua.Server
                             subscriptionsNode = (SubscriptionDiagnosticsArrayState)
                                 diagnostics.Summary.CreateChild(
                                     SystemContext,
-                                    BrowseNames.SubscriptionDiagnosticsArray);
+                                    QualifiedName.From(BrowseNames.SubscriptionDiagnosticsArray));
 
                             if (subscriptionsNode != null &&
                                 (

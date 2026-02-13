@@ -288,7 +288,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 var nodeId = ExpandedNodeId.ToNodeId(data.TypeId, EncoderContext.NamespaceUris);
                 if (jsonEncoding is JsonEncodingType.NonReversible or JsonEncodingType.Reversible)
                 {
-                    typeId = $"\"TypeId\":{{\"Id\":{nodeId.Identifier},\"Namespace\":{nodeId.NamespaceIndex}}},";
+                    typeId = $"\"TypeId\":{{\"Id\":{nodeId.IdentifierAsString},\"Namespace\":{nodeId.NamespaceIndex}}},";
                 }
                 else
                 {

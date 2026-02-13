@@ -53,13 +53,17 @@ namespace Quickstarts
     /// </summary>
     public sealed class ConsoleTelemetry : ITelemetryContext, IDisposable
     {
+        private readonly Action<ILoggingBuilder> m_configure;
+
         public ConsoleTelemetry(Action<ILoggingBuilder> configure = null)
         {
+            m_configure = configure;
+
             LoggerFactory = Microsoft.Extensions.Logging.LoggerFactory
                 .Create(builder =>
                 {
                     builder.SetMinimumLevel(LogLevel.Information);
-                    configure?.Invoke(builder);
+                    m_configure?.Invoke(builder);
                 })
                 .AddSerilog(Log.Logger);
 
@@ -183,9 +187,18 @@ namespace Quickstarts
             // create the serilog logger
             Serilog.Core.Logger serilogger = loggerConfiguration.CreateLogger();
 
-            // create the ILogger for Opc.Ua.Core
-            LoggerFactory = LoggerFactory.AddSerilog(serilogger);
+            // Dispose the old LoggerFactory and create a new one with the updated configuration
+            ILoggerFactory oldLoggerFactory = LoggerFactory;
+            LoggerFactory = Microsoft.Extensions.Logging.LoggerFactory
+                .Create(builder =>
+                {
+                    builder.SetMinimumLevel(consoleLogLevel);
+                    m_configure?.Invoke(builder);
+                })
+                .AddSerilog(serilogger);
             m_logger = LoggerFactory.CreateLogger("Main");
+
+            oldLoggerFactory.Dispose();
         }
 
         private void CurrentDomain_UnhandledException(

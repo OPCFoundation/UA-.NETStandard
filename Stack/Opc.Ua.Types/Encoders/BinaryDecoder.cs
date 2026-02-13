@@ -478,7 +478,7 @@ namespace Opc.Ua
         {
             const int kGuidLength = 16;
             byte[] bytes = SafeReadBytes(kGuidLength);
-            return new Uuid(new Guid(bytes));
+            return new Uuid(bytes);
         }
 
         /// <inheritdoc/>
@@ -550,13 +550,11 @@ namespace Opc.Ua
         {
             byte encodingByte = SafeReadByte();
 
-            var value = new NodeId();
-
-            ReadNodeIdBody(encodingByte, value);
+            ReadNodeIdBody(encodingByte, out NodeId value);
 
             if (m_namespaceMappings != null && m_namespaceMappings.Length > value.NamespaceIndex)
             {
-                value.SetNamespaceIndex(m_namespaceMappings[value.NamespaceIndex]);
+                return value.WithNamespaceIndex(m_namespaceMappings[value.NamespaceIndex]);
             }
 
             return value;
@@ -567,37 +565,38 @@ namespace Opc.Ua
         {
             byte encodingByte = SafeReadByte();
 
-            var value = new ExpandedNodeId();
-
-            var body = new NodeId();
-            ReadNodeIdBody(encodingByte, body);
-            value.InnerNodeId = body;
+            ReadNodeIdBody(encodingByte, out NodeId body);
+            var expandedNodeId = new ExpandedNodeId(body);
 
             // read the namespace uri if present.
             if ((encodingByte & 0x80) != 0)
             {
                 string namespaceUri = ReadString(null);
-                value.SetNamespaceUri(namespaceUri);
+                expandedNodeId = expandedNodeId.WithNamespaceUri(namespaceUri);
             }
 
             // read the server index if present.
             if ((encodingByte & 0x40) != 0)
             {
                 uint serverIndex = SafeReadUInt32();
-                value.SetServerIndex(serverIndex);
+                expandedNodeId = expandedNodeId.WithServerIndex(serverIndex);
             }
 
-            if (m_namespaceMappings != null && m_namespaceMappings.Length > value.NamespaceIndex)
+            if (m_namespaceMappings != null &&
+                m_namespaceMappings.Length > expandedNodeId.NamespaceIndex)
             {
-                value.SetNamespaceIndex(m_namespaceMappings[value.NamespaceIndex]);
+                expandedNodeId = expandedNodeId.WithNamespaceIndex(
+                    m_namespaceMappings[expandedNodeId.NamespaceIndex]);
             }
 
-            if (m_serverMappings != null && m_serverMappings.Length > value.ServerIndex)
+            if (m_serverMappings != null &&
+                m_serverMappings.Length > expandedNodeId.ServerIndex)
             {
-                value.SetServerIndex(m_serverMappings[value.NamespaceIndex]);
+                expandedNodeId = expandedNodeId.WithServerIndex(
+                    m_serverMappings[expandedNodeId.ServerIndex]);
             }
 
-            return value;
+            return expandedNodeId;
         }
 
         /// <inheritdoc/>
@@ -609,7 +608,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public DiagnosticInfo ReadDiagnosticInfo(string fieldName)
         {
-            return ReadDiagnosticInfo(fieldName, 0);
+            return ReadDiagnosticInfo(0);
         }
 
         /// <inheritdoc/>
@@ -729,7 +728,7 @@ namespace Opc.Ua
         public IEncodeable ReadEncodeable(
             string fieldName,
             Type systemType,
-            ExpandedNodeId encodeableTypeId = null)
+            ExpandedNodeId encodeableTypeId = default)
         {
             if (systemType == null)
             {
@@ -744,7 +743,7 @@ namespace Opc.Ua
                     systemType.FullName);
             }
 
-            if (encodeableTypeId != null)
+            if (!encodeableTypeId.IsNull)
             {
                 // set type identifier for custom complex data types before decode.
 
@@ -1278,7 +1277,7 @@ namespace Opc.Ua
         public Array ReadEncodeableArray(
             string fieldName,
             Type systemType,
-            ExpandedNodeId encodeableTypeId = null)
+            ExpandedNodeId encodeableTypeId = default)
         {
             int length = ReadArrayLength();
 
@@ -1323,7 +1322,7 @@ namespace Opc.Ua
             int valueRank,
             BuiltInType builtInType,
             Type systemType = null,
-            ExpandedNodeId encodeableTypeId = null)
+            ExpandedNodeId encodeableTypeId = default)
         {
             if (valueRank == ValueRanks.OneDimension)
             {
@@ -1489,7 +1488,7 @@ namespace Opc.Ua
         /// Limits the InnerDiagnosticInfo nesting level.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private DiagnosticInfo ReadDiagnosticInfo(string fieldName, int depth)
+        private DiagnosticInfo ReadDiagnosticInfo(int depth)
         {
             if (depth >= DiagnosticInfo.MaxInnerDepth)
             {
@@ -1546,7 +1545,7 @@ namespace Opc.Ua
 
                 if ((encodingByte & (byte)DiagnosticInfoEncodingBits.InnerDiagnosticInfo) != 0)
                 {
-                    value.InnerDiagnosticInfo = ReadDiagnosticInfo(null, depth + 1) ??
+                    value.InnerDiagnosticInfo = ReadDiagnosticInfo(depth + 1) ??
                         new DiagnosticInfo();
                 }
 
@@ -1568,7 +1567,7 @@ namespace Opc.Ua
             ref Type systemType,
             ExpandedNodeId encodeableTypeId)
         {
-            if (encodeableTypeId != null && systemType == null)
+            if (!encodeableTypeId.IsNull && systemType == null)
             {
                 systemType = Context.Factory.GetSystemType(encodeableTypeId);
             }
@@ -1943,33 +1942,33 @@ namespace Opc.Ua
         /// Reads the body of a node id.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void ReadNodeIdBody(byte encodingByte, NodeId value)
+        private void ReadNodeIdBody(byte encodingByte, out NodeId value)
         {
+            ushort namespaceIndex;
             switch ((NodeIdEncodingBits)(encodingByte & 0x3F))
             {
                 case NodeIdEncodingBits.TwoByte:
-                    value.SetNamespaceIndex(0);
-                    value.SetIdentifier(IdType.Numeric, (uint)SafeReadByte());
+                    value = new NodeId(SafeReadByte());
                     break;
                 case NodeIdEncodingBits.FourByte:
-                    value.SetNamespaceIndex(SafeReadByte());
-                    value.SetIdentifier(IdType.Numeric, (uint)SafeReadUInt16());
+                    namespaceIndex = SafeReadByte();
+                    value = new NodeId(SafeReadUInt16(), namespaceIndex);
                     break;
                 case NodeIdEncodingBits.Numeric:
-                    value.SetNamespaceIndex(SafeReadUInt16());
-                    value.SetIdentifier(IdType.Numeric, SafeReadUInt32());
+                    namespaceIndex = SafeReadUInt16();
+                    value = new NodeId(SafeReadUInt32(), namespaceIndex);
                     break;
                 case NodeIdEncodingBits.String:
-                    value.SetNamespaceIndex(SafeReadUInt16());
-                    value.SetIdentifier(IdType.String, ReadString(null));
+                    namespaceIndex = SafeReadUInt16();
+                    value = new NodeId(ReadString(null), namespaceIndex);
                     break;
                 case NodeIdEncodingBits.Guid:
-                    value.SetNamespaceIndex(SafeReadUInt16());
-                    value.SetIdentifier(IdType.Guid, (Guid)ReadGuid(null));
+                    namespaceIndex = SafeReadUInt16();
+                    value = new NodeId((Guid)ReadGuid(null), namespaceIndex);
                     break;
                 case NodeIdEncodingBits.ByteString:
-                    value.SetNamespaceIndex(SafeReadUInt16());
-                    value.SetIdentifier(IdType.Opaque, ReadByteString(null));
+                    namespaceIndex = SafeReadUInt16();
+                    value = new NodeId(ReadByteString(null), namespaceIndex);
                     break;
                 default:
                     throw ServiceResultException.Create(
@@ -1985,15 +1984,14 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private ExtensionObject ReadExtensionObject()
         {
-            var extension = new ExtensionObject();
-
             // read type id.
             NodeId typeId = ReadNodeId(null);
 
             // convert to absolute node id.
-            extension.TypeId = NodeId.ToExpandedNodeId(typeId, Context.NamespaceUris);
+            var extension = new ExtensionObject(
+                NodeId.ToExpandedNodeId(typeId, Context.NamespaceUris));
 
-            if (!NodeId.IsNull(typeId) && NodeId.IsNull(extension.TypeId))
+            if (!typeId.IsNull && extension.TypeId.IsNull)
             {
                 m_logger.LogWarning(
                     "Cannot deserialize extension objects if the NamespaceUri is not in the NamespaceTable: Type = {Type}",
@@ -2009,7 +2007,9 @@ namespace Opc.Ua
                 return extension;
             }
 
-            if (encoding is not ((byte)ExtensionObjectEncoding.Binary) and not ((byte)ExtensionObjectEncoding.Xml))
+            if (encoding is
+                not ((byte)ExtensionObjectEncoding.Binary) and
+                not ((byte)ExtensionObjectEncoding.Xml))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
@@ -2023,7 +2023,9 @@ namespace Opc.Ua
             // check for XML bodies.
             if (encoding == (byte)ExtensionObjectEncoding.Xml)
             {
-                extension.Body = ReadXmlElement(null);
+                extension = new ExtensionObject(
+                    extension.TypeId,
+                    ReadXmlElement(null));
 
                 // attempt to decode a known type.
                 if (systemType != null && extension.Body != null)
@@ -2040,7 +2042,7 @@ namespace Opc.Ua
                         xmlDecoder.PopNamespace();
 
                         // update body.
-                        extension.Body = body;
+                        extension = new ExtensionObject(body);
 
                         xmlDecoder.Close();
                     }
@@ -2110,10 +2112,9 @@ namespace Opc.Ua
                     errorMessage = "End of stream";
                     exception = eofStream;
                 }
-                catch (ServiceResultException sre)
-                    when (sre.StatusCode is
-                    StatusCodes.BadEncodingLimitsExceeded or
-                    StatusCodes.BadDecodingError)
+                catch (ServiceResultException sre) when (
+                    sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded ||
+                    sre.StatusCode == StatusCodes.BadDecodingError)
                 {
                     errorMessage = sre.Message;
                     exception = sre;
@@ -2182,9 +2183,9 @@ namespace Opc.Ua
                 }
 
                 // read the bytes of the body.
-                extension.Body = SafeReadBytes(length);
-
-                return extension;
+                return new ExtensionObject(
+                    extension.TypeId,
+                    SafeReadBytes(length));
             }
 
             // any unread data indicates a decoding error.
@@ -2200,11 +2201,7 @@ namespace Opc.Ua
                         extension.TypeId);
                 }
             }
-
-            // Set the known TypeId for encodeables.
-            extension.TypeId = encodeable.TypeId;
-            extension.Body = encodeable;
-            return extension;
+            return new ExtensionObject(encodeable);
         }
 
         /// <summary>
@@ -2235,7 +2232,7 @@ namespace Opc.Ua
 
                 if (array == null)
                 {
-                    value = new Variant((StatusCode)StatusCodes.BadDecodingError);
+                    value = new Variant(StatusCodes.BadDecodingError);
                 }
                 else
                 {
@@ -2678,7 +2675,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(stream));
             }
 
-            if (stream.CanSeek != true || stream.CanRead != true)
+            if (!stream.CanSeek || !stream.CanRead)
             {
                 throw new ArgumentException("Stream must be seekable and readable.");
             }

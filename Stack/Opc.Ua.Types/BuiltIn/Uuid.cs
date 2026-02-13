@@ -29,7 +29,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.Serialization;
+using System.Text.Json.Serialization;
 
 namespace Opc.Ua
 {
@@ -37,34 +39,42 @@ namespace Opc.Ua
     /// A wrapper for a GUID used during object serialization.
     /// </summary>
     /// <remarks>
-    /// This class provides a wrapper around the <see cref="Guid"/> object, allowing it to be serialized
-    /// and encoded/decoded to/from an underlying stream.
+    /// This class provides a wrapper around the <see cref="System.Guid"/>
+    /// object, allowing it to be serialized  and encoded/decoded
+    /// to/from an underlying stream.
     /// </remarks>x
-    [DataContract(Name = "Guid", Namespace = Namespaces.OpcUaXsd)]
-    public struct Uuid : IComparable, IFormattable, IEquatable<Uuid>
+    public readonly struct Uuid :
+        IComparable,
+        IFormattable,
+        IEquatable<Uuid>,
+        IEquatable<Guid>
     {
         /// <summary>
         /// Initializes the object with a string.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with a string. The string will be used to create a <see cref="Guid"/>.
-        /// </remarks>
-        /// <param name="text">The string that will be turned into a Guid</param>
+        /// <param name="text">The string that will be turned
+        /// into a Guid</param>
         public Uuid(string text)
         {
-            m_guid = new Guid(text);
+            Guid = new Guid(text);
+        }
+
+        /// <summary>
+        /// Create a new guid from a byte array.
+        /// </summary>
+        public Uuid(byte[] bytes)
+        {
+            Guid = new Guid(bytes);
         }
 
         /// <summary>
         /// Initializes the object with a Guid.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with a Guid.
-        /// </remarks>
         /// <param name="guid">The Guid to wrap</param>
+        [JsonConstructor]
         public Uuid(Guid guid)
         {
-            m_guid = guid;
+            Guid = guid;
         }
 
         /// <summary>
@@ -73,242 +83,174 @@ namespace Opc.Ua
         public static readonly Uuid Empty;
 
         /// <summary>
-        /// The GUID serialized as a string.
+        /// The wrapped guid value.
         /// </summary>
-        /// <remarks>
-        /// The GUID serialized as a string.
-        /// </remarks>
-        [DataMember(Name = "String", Order = 1)]
-        public string GuidString
+        public Guid Guid { get; }
+
+        /// <summary>
+        /// Parses a string into a Uuid.
+        /// </summary>
+        public static Uuid Parse(string value)
         {
-            readonly get => m_guid.ToString();
-            set
-            {
-                if (string.IsNullOrEmpty(value))
-                {
-                    m_guid = Guid.Empty;
-                }
-                else
-                {
-                    m_guid = new Guid(value);
-                }
-            }
+            return new Uuid(Guid.Parse(value));
+        }
+
+        /// <summary>
+        /// Try parse a string into a uuid
+        /// </summary>
+        public static bool TryParse(string input, out Uuid result)
+        {
+            bool success = Guid.TryParse(input, out Guid guid);
+            result = success ? new Uuid(guid) : default;
+            return success;
+        }
+
+        /// <summary>
+        /// Converts Uuid to a byte array.
+        /// </summary>
+        public byte[] ToByteArray()
+        {
+            return Guid.ToByteArray();
+        }
+
+        /// <summary>
+        /// Create new random guid
+        /// </summary>
+        public static Uuid NewUuid()
+        {
+            return new Uuid(Guid.NewGuid());
         }
 
         /// <summary>
         /// Converts Uuid to a Guid structure.
         /// </summary>
-        /// <remarks>
-        /// Converts Uuid to a Guid structure.
-        /// </remarks>
         /// <param name="guid">The Guid to convert to a Uuid</param>
         public static implicit operator Guid(Uuid guid)
         {
-            return guid.m_guid;
+            return guid.Guid;
         }
 
         /// <summary>
         /// Converts Guid to a Uuid.
         /// </summary>
-        /// <remarks>
-        /// Converts Guid to a Uuid.
-        /// </remarks>
-        /// <param name="guid">The <see cref="Guid"/> to convert to a <see cref="Uuid"/></param>
-        public static explicit operator Uuid(Guid guid)
+        /// <param name="guid">The <see cref="System.Guid"/> to convert
+        /// to a <see cref="Uuid"/></param>
+        public static implicit operator Uuid(Guid guid)
         {
             return new Uuid(guid);
         }
 
-        /// <summary>
-        /// Returns true if the objects are equal.
-        /// </summary>
-        /// <remarks>
-        /// Returns true if the objects are equal.
-        /// </remarks>
-        /// <param name="a">The first object to compare</param>
-        /// <param name="b">The second object to compare</param>
+        /// <inheritdoc/>
         public static bool operator ==(Uuid a, Uuid b)
         {
             return a.Equals(b);
         }
 
-        /// <summary>
-        /// Returns true if the objects are not equal.
-        /// </summary>
-        /// <remarks>
-        /// Returns true if the objects are not equal.
-        /// </remarks>
-        /// <param name="a">The first object to compare</param>
-        /// <param name="b">The second object being compared to</param>
+        /// <inheritdoc/>
         public static bool operator !=(Uuid a, Uuid b)
         {
             return !a.Equals(b);
         }
 
-        /// <summary>
-        /// Returns true if the objects are not equal.
-        /// </summary>
-        /// <remarks>
-        /// Returns true if the objects are not equal.
-        /// </remarks>
-        /// <param name="a">The first object being compared</param>
-        /// <param name="b">The second object being compared to</param>
+        /// <inheritdoc/>
         public static bool operator ==(Uuid a, Guid b)
         {
             return a.Equals(b);
         }
 
-        /// <summary>
-        /// Returns true if the objects are not equal.
-        /// </summary>
-        /// <remarks>
-        /// Returns true if the objects are not equal.
-        /// </remarks>
-        /// <param name="a">The first object being compared</param>
-        /// <param name="b">The second object being compared to</param>
+        /// <inheritdoc/>
         public static bool operator !=(Uuid a, Guid b)
         {
             return !a.Equals(b);
         }
 
-        /// <summary>
-        /// Returns true if the object a is less than object b.
-        /// </summary>
-        /// <remarks>
-        /// Returns true if the object a is less than object b.
-        /// </remarks>
-        /// <param name="a">The first object being compared</param>
-        /// <param name="b">The second object being compared to</param>
+        /// <inheritdoc/>
         public static bool operator <(Uuid a, Uuid b)
         {
             return a.CompareTo(b) < 0;
         }
 
-        /// <summary>
-        /// Returns true if the object a is greater than object b.
-        /// </summary>
-        /// <remarks>
-        /// Returns true if the object a is greater than object b.
-        /// </remarks>
-        /// <param name="a">The first object being compared</param>
-        /// <param name="b">The second object being compared to</param>
+        /// <inheritdoc/>
         public static bool operator >(Uuid a, Uuid b)
         {
             return a.CompareTo(b) > 0;
         }
 
-
-        /// <summary>
-        /// Returns true if the object a is less or equal to object b.
-        /// </summary>
-        /// <remarks>
-        /// Returns true if the object a is less or equal to  object b.
-        /// </remarks>
-        /// <param name="a">The first object being compared</param>
-        /// <param name="b">The second object being compared to</param>
+        /// <inheritdoc/>
         public static bool operator <=(Uuid a, Uuid b)
         {
             return a.CompareTo(b) <= 0;
         }
 
-        /// <summary>
-        /// Returns true if the object a is greater or equal to  object b.
-        /// </summary>
-        /// <remarks>
-        /// Returns true if the object a is greater or equal to  object b.
-        /// </remarks>
-        /// <param name="a">The first object being compared</param>
-        /// <param name="b">The second object being compared to</param>
+        /// <inheritdoc/>
         public static bool operator >=(Uuid a, Uuid b)
         {
             return a.CompareTo(b) >= 0;
         }
 
-        /// <summary>
-        /// Returns true if the objects are equal.
-        /// </summary>
-        /// <remarks>
-        /// Returns true if the objects are equal.
-        /// </remarks>
-        /// <param name="obj">The object being compared to *this* object</param>
-        public override readonly bool Equals(object obj)
+        /// <inheritdoc/>
+        public override bool Equals(object obj)
         {
-            return CompareTo(obj) == 0;
-        }
-
-        /// <summary>
-        /// Returns true if the objects are equal.
-        /// </summary>
-        /// <remarks>
-        /// Returns true if the objects are equal.
-        /// </remarks>
-        /// <param name="other">The object being compared to *this* object</param>
-        public readonly bool Equals(Uuid other)
-        {
-            return CompareTo(other) == 0;
-        }
-
-        /// <summary>
-        /// Returns a hash code for the object.
-        /// </summary>
-        /// <remarks>
-        /// Returns a unique hash code for the object.
-        /// </remarks>
-        public override readonly int GetHashCode()
-        {
-            return m_guid.GetHashCode();
-        }
-
-        /// <summary>
-        /// Converts the object to a string.
-        /// </summary>
-        /// <remarks>
-        /// Converts the object to a string.
-        /// </remarks>
-        public override readonly string ToString()
-        {
-            return m_guid.ToString();
-        }
-
-        /// <summary>
-        /// Compares the current instance to the object.
-        /// </summary>
-        /// <remarks>
-        /// Compares the current instance to the object. This function will check if the object
-        /// passed in is a <see cref="Guid"/> or <see cref="Uuid"/>.
-        /// </remarks>
-        /// <param name="obj">The object being compared to *this* object</param>
-        public readonly int CompareTo(object obj)
-        {
-            // check for uuids.
-            if (obj is Uuid uuidValue)
+            return obj switch
             {
-                return uuidValue.m_guid.CompareTo(m_guid);
-            }
-
-            // compare guids.
-            if (obj is Guid guidValue)
-            {
-                return m_guid.CompareTo(guidValue);
-            }
-
-            return +1;
+                Uuid uuidValue => Equals(uuidValue),
+                Guid guidValue => Equals(guidValue),
+                _ => base.Equals(obj)
+            };
         }
 
-        /// <summary>
-        /// Returns the string representation of the object.
-        /// </summary>
-        /// <remarks>
-        /// Returns the string representation of the object.
-        /// </remarks>
-        /// <param name="format">The format you want to apply to the string</param>
-        /// <param name="formatProvider">The FormatProvider</param>
-        public readonly string ToString(string format, IFormatProvider formatProvider)
+        /// <inheritdoc/>
+        public bool Equals(Uuid other)
         {
-            return m_guid.ToString(format);
+            return Guid.Equals(other.Guid);
         }
 
-        private Guid m_guid;
+        /// <inheritdoc/>
+        public bool Equals(Guid other)
+        {
+            return Guid.Equals(other);
+        }
+
+        /// <inheritdoc/>
+        public int CompareTo(object obj)
+        {
+            return obj switch
+            {
+                Uuid uuidValue => CompareTo(uuidValue),
+                Guid guidValue => CompareTo(guidValue),
+                _ => 1
+            };
+        }
+
+        /// <inheritdoc/>
+        public int CompareTo(Uuid other)
+        {
+            return Guid.CompareTo(other.Guid);
+        }
+
+        /// <inheritdoc/>
+        public int CompareTo(Guid other)
+        {
+            return Guid.CompareTo(other);
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return Guid.GetHashCode();
+        }
+
+        /// <inheritdoc/>
+        public override string ToString()
+        {
+            return Guid.ToString();
+        }
+
+        /// <inheritdoc/>
+        public string ToString(string format, IFormatProvider formatProvider)
+        {
+            return Guid.ToString(format);
+        }
     }
 
     /// <summary>
@@ -320,67 +262,45 @@ namespace Opc.Ua
         ItemName = "Guid")]
     public class UuidCollection : List<Uuid>, ICloneable
     {
-        /// <summary>
-        /// Initializes an empty collection.
-        /// </summary>
-        /// <remarks>
-        /// Initializes an empty collection.
-        /// </remarks>
+        /// <inheritdoc/>
         public UuidCollection()
         {
         }
 
-        /// <summary>
-        /// Initializes the collection from another collection.
-        /// </summary>
-        /// <remarks>
-        /// Initializes the collection from another collection.
-        /// </remarks>
-        /// <param name="collection">The collection to copy</param>
+        /// <inheritdoc/>
         public UuidCollection(IEnumerable<Uuid> collection)
             : base(collection)
         {
         }
 
-        /// <summary>
-        /// Initializes the collection with the specified capacity.
-        /// </summary>
-        /// <remarks>
-        /// Initializes the collection with the specified capacity.
-        /// </remarks>
-        /// <param name="capacity">The maximum size of the collection</param>
+        /// <inheritdoc/>
         public UuidCollection(int capacity)
             : base(capacity)
         {
         }
 
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
-        /// <param name="values">The array of <see cref="Uuid"/> values to return as a collection</param>
-        public static UuidCollection ToUuidCollection(Uuid[] values)
+        /// <inheritdoc/>
+        public static implicit operator UuidCollection(Guid[] values)
         {
-            if (values != null)
-            {
-                return [.. values];
-            }
-
-            return [];
+            return values != null ? [.. values.Select(g => new Uuid(g))] : [];
         }
 
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
-        /// <param name="values">The array of <see cref="Uuid"/> values to return as a collection</param>
+        /// <inheritdoc/>
+        public static explicit operator Guid[](UuidCollection values)
+        {
+            return values != null ? [.. values.Select(g => g.Guid)] : [];
+        }
+
+        /// <inheritdoc/>
         public static implicit operator UuidCollection(Uuid[] values)
         {
-            return ToUuidCollection(values);
+            return values != null ? [.. values] : [];
+        }
+
+        /// <inheritdoc/>
+        public static implicit operator Uuid[](UuidCollection values)
+        {
+            return values != null ? [.. values] : [];
         }
 
         /// <inheritdoc/>
@@ -389,15 +309,67 @@ namespace Opc.Ua
             return MemberwiseClone();
         }
 
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
-        /// <remarks>
-        /// Returns a new instance of the collection, copying the contents of this collection
-        /// </remarks>
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             return new UuidCollection(this);
+        }
+    }
+
+    /// <summary>
+    /// A wrapper for a GUID used during object serialization.
+    /// </summary>
+    /// <remarks>
+    /// This class provides a wrapper around the <see cref="Uuid"/>
+    /// object, allowing it to be serialized  and encoded/decoded
+    /// to/from an underlying stream.
+    /// </remarks>x
+    [DataContract(Name = "Guid", Namespace = Namespaces.OpcUaXsd)]
+    public sealed class SerializableUuid :
+        ISurrogateFor<Uuid>
+    {
+        /// <inheritdoc/>
+        public SerializableUuid()
+        {
+            Value = default;
+        }
+
+        /// <inheritdoc/>
+        public SerializableUuid(Uuid guid)
+        {
+            Value = guid;
+        }
+
+        /// <summary>
+        /// The GUID serialized as a string.
+        /// </summary>
+        /// <remarks>
+        /// The GUID serialized as a string.
+        /// </remarks>
+        [DataMember(Name = "String", Order = 1)]
+        public string GuidString
+        {
+            get => Value.ToString();
+            set
+            {
+                if (string.IsNullOrEmpty(value))
+                {
+                    Value = Uuid.Empty;
+                }
+                else
+                {
+                    Value = new Uuid(value);
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        public Uuid Value { get; private set; }
+
+        /// <inheritdoc/>
+        public object GetValue()
+        {
+            return Value;
         }
     }
 }

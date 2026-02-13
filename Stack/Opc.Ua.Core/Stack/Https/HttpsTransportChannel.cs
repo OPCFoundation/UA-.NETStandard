@@ -35,7 +35,6 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Security;
-using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -389,11 +388,10 @@ namespace Opc.Ua.Bindings
                 {
                     ClientCertificateOptions = ClientCertificateOption.Manual,
                     AllowAutoRedirect = false,
+                    // limit the number of concurrent connections, if supported
+                    MaxConnectionsPerServer = kMaxConnectionsPerServer,
                     MaxRequestContentBufferSize = m_quotas!.MaxMessageSize
                 };
-
-                // limit the number of concurrent connections, if supported
-                handler.MaxConnectionsPerServer = kMaxConnectionsPerServer;
 
                 // send client certificate for servers that require TLS client authentication
                 if (m_settings!.ClientCertificate != null)

@@ -314,7 +314,7 @@ namespace Opc.Ua.Test
         /// <param name="value2">Second Value.</param>
         /// <returns>True in case of equal values.
         /// False or ServiceResultException in case of unequal values.</returns>
-        public bool CompareUuid(Uuid value1, Uuid value2)
+        public bool CompareGuid(Uuid value1, Uuid value2)
         {
             if (value1 != value2)
             {
@@ -472,26 +472,10 @@ namespace Opc.Ua.Test
         /// False or ServiceResultException in case of unequal values.</returns>
         public bool CompareNodeId(NodeId value1, NodeId value2)
         {
-            if (NodeId.IsNull(value1) && NodeId.IsNull(value2))
-            {
-                return true;
-            }
-
-            if (value1 == null || value2 == null)
-            {
-                if (value1 != value2)
-                {
-                    return ReportError(value1, value2);
-                }
-
-                return true;
-            }
-
             if (value1 != value2)
             {
                 return ReportError(value1, value2);
             }
-
             return true;
         }
 
@@ -504,14 +488,9 @@ namespace Opc.Ua.Test
         /// False or ServiceResultException in case of unequal values.</returns>
         public bool CompareExpandedNodeId(ExpandedNodeId value1, ExpandedNodeId value2)
         {
-            if (NodeId.IsNull(value1) && NodeId.IsNull(value2))
+            if (value1.IsNull && value2.IsNull)
             {
                 return true;
-            }
-
-            if (value1 == null || value2 == null)
-            {
-                return value1 == value2;
             }
 
             if (value1 != value2)
@@ -610,16 +589,6 @@ namespace Opc.Ua.Test
         /// False or ServiceResultException in case of unequal values.</returns>
         public bool CompareQualifiedName(QualifiedName value1, QualifiedName value2)
         {
-            if (value1 == null)
-            {
-                return value2 == null || value2 == QualifiedName.Null;
-            }
-
-            if (value2 == null)
-            {
-                return value1 == QualifiedName.Null;
-            }
-
             if (!value1.Equals(value2))
             {
                 return ReportError(value1, value1);
@@ -636,16 +605,6 @@ namespace Opc.Ua.Test
         /// False or ServiceResultException in case of unequal values.</returns>
         public bool CompareLocalizedText(LocalizedText value1, LocalizedText value2)
         {
-            if (value1 == null)
-            {
-                return value2 == null || value2 == LocalizedText.Null;
-            }
-
-            if (value2 == null)
-            {
-                return value1 == LocalizedText.Null;
-            }
-
             if (!value1.Equals(value2))
             {
                 return ReportError(value1, value1);
@@ -662,11 +621,11 @@ namespace Opc.Ua.Test
         /// False or ServiceResultException in case of unequal values.</returns>
         public bool CompareVariant(Variant value1, Variant value2)
         {
-            if (value1.Value == null || value2.Value == null)
+            if (value1.IsNull || value2.IsNull)
             {
-                if (value1.Value != value2.Value)
+                if (value1.IsNull != value2.IsNull)
                 {
-                    return ReportError(value1.Value, value2.Value);
+                    return ReportError(value1.AsBoxedObject(), value2.AsBoxedObject());
                 }
 
                 return true;
@@ -676,7 +635,7 @@ namespace Opc.Ua.Test
 
             if (systemType != value2.Value.GetType())
             {
-                return ReportError(value1.Value, value2.Value);
+                return ReportError(value1.AsBoxedObject(), value2.AsBoxedObject());
             }
 
             if (!systemType.IsArray || systemType == typeof(byte[]))
@@ -735,7 +694,7 @@ namespace Opc.Ua.Test
                 }
                 if (systemType == typeof(Uuid))
                 {
-                    return CompareUuid((Uuid)value1.Value, (Uuid)value2.Value);
+                    return CompareGuid((Uuid)value1.Value, (Uuid)value2.Value);
                 }
                 if (systemType == typeof(byte[]))
                 {
@@ -863,7 +822,7 @@ namespace Opc.Ua.Test
                 }
                 if (systemType == typeof(Uuid[]))
                 {
-                    return CompareArray((Uuid[])value1.Value, (Uuid[])value2.Value, CompareUuid);
+                    return CompareArray((Uuid[])value1.Value, (Uuid[])value2.Value, CompareGuid);
                 }
                 if (systemType == typeof(byte[][]))
                 {
@@ -1087,16 +1046,6 @@ namespace Opc.Ua.Test
         /// False or ServiceResultException in case of unequal values.</returns>
         public bool CompareExtensionObject(ExtensionObject value1, ExtensionObject value2)
         {
-            if (value1 == null || value2 == null)
-            {
-                if (value1 != value2)
-                {
-                    return ReportError(value1, value2);
-                }
-
-                return true;
-            }
-
             object body1 = value1.Body;
             object body2 = value2.Body;
 

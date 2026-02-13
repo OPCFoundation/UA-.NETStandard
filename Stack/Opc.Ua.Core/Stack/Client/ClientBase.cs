@@ -30,8 +30,8 @@
 #nullable enable
 
 using System;
-using System.Collections;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Threading;
@@ -49,8 +49,12 @@ namespace Opc.Ua
         /// Intializes the object with a channel and a message context.
         /// </summary>
         /// <param name="channel">The channel.</param>
-        public ClientBase(ITransportChannel channel)
+        /// <param name="telemetry"></param>
+        public ClientBase(ITransportChannel channel, ITelemetryContext telemetry)
         {
+            m_logger = telemetry.CreateLogger<ClientBase>();
+            m_meter = telemetry.CreateMeter();
+
             if (channel == null)
             {
                 throw new ArgumentNullException(nameof(channel));
@@ -82,7 +86,6 @@ namespace Opc.Ua
 
                 Utils.SilentDispose(m_meter);
                 m_instruments.Clear();
-                m_meter = null;
 
                 Disposed = true;
             }
@@ -174,6 +177,7 @@ namespace Opc.Ua
         /// Note: deprecated, only to fulfill a few references
         /// in the generated code.
         /// </summary>
+        [Obsolete("Use ITransportChannel instead.")]
         internal IChannelBase? InnerChannel
         {
             get
@@ -199,10 +203,7 @@ namespace Opc.Ua
             set
             {
                 ITransportChannel? channel = NullableTransportChannel;
-                if (channel != null)
-                {
-                    channel.OperationTimeout = value;
-                }
+                channel?.OperationTimeout = value;
             }
         }
 
@@ -331,7 +332,7 @@ namespace Opc.Ua
                     ref m_nextRequestHandle);
             }
 
-            if (NodeId.IsNull(request.RequestHeader.AuthenticationToken))
+            if (request.RequestHeader.AuthenticationToken.IsNull)
             {
                 request.RequestHeader.AuthenticationToken = AuthenticationToken;
             }
@@ -393,12 +394,12 @@ namespace Opc.Ua
 
                 context.AddEvent(new ActivityEvent("Started", tags:
                 [
-                    new System.Collections.Generic.KeyValuePair<string, object?>(
+                    new KeyValuePair<string, object?>(
                         nameof(RequestHeader.RequestHandle),
                         (object?)request.RequestHeader.RequestHandle),
-                    new System.Collections.Generic.KeyValuePair<string, object?>(
+                    new KeyValuePair<string, object?>(
                         nameof(RequestHeader.AuditEntryId),
-                        (object?)request.RequestHeader.AuditEntryId)
+                        request.RequestHeader.AuditEntryId)
                 ]));
 
                 // https://reference.opcfoundation.org/Core/Part26/v105/docs/5.5.4
@@ -408,19 +409,19 @@ namespace Opc.Ua
                 context.TraceId.CopyTo(traceId);
                 var spanContextParameter = new KeyValuePair
                 {
-                    Key = "SpanContext",
+                    Key = QualifiedName.From("SpanContext"),
                     Value = new Variant(new SpanContextDataType
                     {
 #if NET8_0_OR_GREATER
                         SpanId = BitConverter.ToUInt64(spanId),
-                        TraceId = (Uuid)new Guid(traceId)
+                        TraceId = new Guid(traceId)
 #else
                         SpanId = BitConverter.ToUInt64(spanId.ToArray(), 0),
-                        TraceId = (Uuid)new Guid(traceId.ToArray())
+                        TraceId = new Guid(traceId.ToArray())
 #endif
                     })
                 };
-                if (request.RequestHeader.AdditionalHeader?.Body == null)
+                if (request.RequestHeader.AdditionalHeader.IsNull)
                 {
                     var additionalHeader = new AdditionalParametersType();
                     additionalHeader.Parameters.Add(spanContextParameter);
@@ -482,7 +483,7 @@ namespace Opc.Ua
                 else
                 {
                     m_logger.LogError("{Activity}#{Handle} failed with {StatusCode} in {Elapsed}.",
-                        serviceName, requestHandle, statusCode.GetSymbolicId(), duration);
+                        serviceName, requestHandle, statusCode, duration);
                 }
             }
             if ((ActivityTraceFlags & ClientTraceFlags.EventLog) != 0)
@@ -513,10 +514,10 @@ namespace Opc.Ua
                 }
                 context.AddEvent(new ActivityEvent("Completed", tags:
                 [
-                    new System.Collections.Generic.KeyValuePair<string, object?>(
+                    new KeyValuePair<string, object?>(
                         nameof(RequestHeader.RequestHandle),
                         (object?)requestHandle),
-                    new System.Collections.Generic.KeyValuePair<string, object?>(
+                    new KeyValuePair<string, object?>(
                         nameof(ResponseHeader.ServiceResult),
                         (object?)statusCode)
                 ]));
@@ -529,16 +530,16 @@ namespace Opc.Ua
                 GetDurationInstrument(m_meter).Record(
                     duration.Value.TotalSeconds,
                     new TagList(
-                    new System.Collections.Generic.KeyValuePair<string, object?>(
+                    new KeyValuePair<string, object?>(
                         "opc.ua.request.service",
                         serviceName),
-                    new System.Collections.Generic.KeyValuePair<string, object?>(
+                    new KeyValuePair<string, object?>(
                         "opc.ua.response.status.code",
                         statusCode.CodeBits),
-                    new System.Collections.Generic.KeyValuePair<string, object?>(
+                    new KeyValuePair<string, object?>(
                         "server.address",
                         Endpoint?.EndpointUrl),
-                    new System.Collections.Generic.KeyValuePair<string, object?>(
+                    new KeyValuePair<string, object?>(
                         "opc.ua.request.timeout",
                         NullableTransportChannel?.OperationTimeout)));
             }
@@ -549,9 +550,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="request">The request.</param>
         /// <returns>log entry</returns>
-        protected virtual string CreateAuditLogEntry(IServiceRequest request)
+        protected virtual string? CreateAuditLogEntry(IServiceRequest request)
         {
-            return request.RequestHeader.AuditEntryId;
+            return request.RequestHeader?.AuditEntryId;
         }
 
         /// <summary>
@@ -581,11 +582,15 @@ namespace Opc.Ua
         /// <summary>
         /// Validates a response returned by the server.
         /// </summary>
+        /// <typeparam name="TRequest"></typeparam>
+        /// <typeparam name="TResponse"></typeparam>
         /// <param name="response">The response.</param>
         /// <param name="request">The request.</param>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ServiceResultException"></exception>
-        public static void ValidateResponse(IList response, IList request)
+        public static void ValidateResponse<TRequest, TResponse>(
+            IReadOnlyList<TResponse> response,
+            IReadOnlyList<TRequest> request)
         {
             if (response is DiagnosticInfoCollection)
             {
@@ -599,18 +604,33 @@ namespace Opc.Ua
                 throw ServiceResultException.Unexpected(
                     "The server returned a list without the expected number of elements.");
             }
+
+            for (int ii = 0; ii < response.Count; ii++)
+            {
+                if (response[ii] is null)
+                {
+                    throw ServiceResultException.Unexpected(
+                        "The server returned a list that contained elements set to null.");
+                }
+            }
         }
 
         /// <summary>
         /// Validates a response returned by the server.
         /// </summary>
+        /// <typeparam name="TRequest"></typeparam>
         /// <param name="response">The response.</param>
         /// <param name="request">The request.</param>
         /// <exception cref="ServiceResultException"></exception>
-        public static void ValidateDiagnosticInfos(DiagnosticInfoCollection response, IList request)
+        public static void ValidateDiagnosticInfos<TRequest>(
+            DiagnosticInfoCollection response,
+            IReadOnlyList<TRequest> request)
         {
             // returning an empty list for diagnostic info arrays is allowed.
-            if (response != null && response.Count != 0 && request != null && response.Count != request.Count)
+            if (response != null &&
+                response.Count != 0 &&
+                request != null &&
+                response.Count != request.Count)
             {
                 throw ServiceResultException.Unexpected(
                     "The server failed to fill in the DiagnosticInfos array correctly when returning an operation level error.");
@@ -736,18 +756,13 @@ namespace Opc.Ua
                     }));
         }
 
+        /// <summary>
+        /// Logger for client inheritence chain
+        /// </summary>
 #pragma warning disable IDE1006 // Naming Styles
-        /// <summary>
-        /// Logger to be used by the client inheritance chain
-        /// </summary>
-        protected ILogger m_logger { get; set; } = LoggerUtils.Null.Logger;
-
-        /// <summary>
-        /// Meter to be used by the client inheritance chain
-        /// </summary>
-        protected Meter? m_meter { get; set; }
+        protected readonly ILogger m_logger;
 #pragma warning restore IDE1006 // Naming Styles
-
+        private readonly Meter m_meter;
         private ITransportChannel? m_channel;
         private readonly ConcurrentDictionary<string, Instrument<double>> m_instruments = [];
         private int m_nextRequestHandle;

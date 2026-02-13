@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
@@ -86,6 +85,7 @@ namespace Opc.Ua.Client.Tests
         {
             // start Ref server
             ServerFixture = new ServerFixture<ReferenceServer>(
+                t => new ReferenceServer(t),
                 enableTracing,
                 disableActivityLogging)
             {
@@ -151,7 +151,7 @@ namespace Opc.Ua.Client.Tests
 
             int namespaceIndex = theSession.NamespaceUris.GetIndex(
                 "http://opcfoundation.org/Quickstarts/ReferenceServer");
-            var nodeId = new NodeId($"ns={namespaceIndex};s=Scalar_Static_ByteString");
+            var nodeId = NodeId.Parse($"ns={namespaceIndex};s=Scalar_Static_ByteString");
 
             byte[] chunk = new byte[MaxByteStringLengthForTest];
             UnsecureRandom.Shared.NextBytes(chunk);

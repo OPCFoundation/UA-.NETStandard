@@ -260,9 +260,9 @@ namespace Opc.Ua
 
             ushort[] mapping = new ushort[source.Count];
 
-            for (uint ii = 0; ii < source.Count; ii++)
+            for (int ii = 0; ii < source.Count; ii++)
             {
-                string uri = source.GetString(ii);
+                string uri = source.GetString((uint)ii);
 
                 int index = GetIndex(uri);
 

@@ -28,12 +28,12 @@
  * ======================================================================*/
 
 using System.Xml;
-using System.Reflection;
 using System.Collections.Generic;
 using System.IO;
 using System;
+using System.Linq;
 
-namespace Opc.Ua.Schema
+namespace Opc.Ua.Schema.Types
 {
     /// <summary>
     /// Generates files used to describe data types.
@@ -43,18 +43,14 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Intializes the object with default values.
         /// </summary>
-        public TypeDictionaryValidator(string resourcePath)
+        public TypeDictionaryValidator(
+            IFileSystem fileSystem,
+            IDictionary<string, string> namespaceUriToLocationMapping = null)
+            : base(
+                  fileSystem,
+                  namespaceUriToLocationMapping,
+                  BuiltInTypesXmlImport)
         {
-            SetResourcePaths(s_wellKnownDictionaries);
-        }
-
-        /// <summary>
-        /// Intializes the object with a file table.
-        /// </summary>
-        public TypeDictionaryValidator(Dictionary<string, string> fileTable, string resourcePath)
-            : base(fileTable)
-        {
-            SetResourcePaths(s_wellKnownDictionaries);
         }
 
         /// <summary>
@@ -63,9 +59,10 @@ namespace Opc.Ua.Schema
         public TypeDictionary Dictionary { get; private set; }
 
         /// <summary>
-        /// The location of the embedded resources.
+        /// Get loaded dictionaries
         /// </summary>
-        public string EmbeddedResourcePath { get; set; }
+        public IEnumerable<TypeDictionary> LoadedTypeDictionaries
+            => LoadedFiles.Values.Cast<TypeDictionary>();
 
         /// <summary>
         /// Finds the data type with the specified name.
@@ -81,7 +78,8 @@ namespace Opc.Ua.Schema
         }
 
         /// <summary>
-        /// Finds the concrete type identified by the type name (i.e. resolves any type definitions).
+        /// Finds the concrete type identified by the type name (i.e. resolves
+        /// any type definitions).
         /// </summary>
         public DataType ResolveType(XmlQualifiedName typeName)
         {
@@ -106,7 +104,7 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Tests whether the type is excluded
         /// </summary>
-        public static bool IsExcluded(IList<string> exclusions, DataType datatype)
+        public static bool IsExcluded(IReadOnlyList<string> exclusions, DataType datatype)
         {
             if (exclusions != null)
             {
@@ -122,7 +120,8 @@ namespace Opc.Ua.Schema
                         return true;
                     }
 
-                    if (datatype.Category != null && datatype.Category.Contains(jj, StringComparison.Ordinal))
+                    if (datatype.Category != null &&
+                        datatype.Category.Contains(jj, StringComparison.Ordinal))
                     {
                         return true;
                     }
@@ -135,7 +134,7 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Tests whether the type is excluded
         /// </summary>
-        public static bool IsExcluded(IList<string> exclusions, EnumeratedValue value)
+        public static bool IsExcluded(IReadOnlyList<string> exclusions, EnumeratedValue value)
         {
             if (exclusions != null)
             {
@@ -154,7 +153,7 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Tests whether the type is excluded
         /// </summary>
-        public static bool IsExcluded(IList<string> exclusions, FieldType field)
+        public static bool IsExcluded(IReadOnlyList<string> exclusions, FieldType field)
         {
             if (exclusions != null)
             {
@@ -173,18 +172,18 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Generates the code from the contents of the address space.
         /// </summary>
-        public void Validate(string inputPath, IList<string> exclusions)
+        public void Validate(string inputPath)
         {
-            using Stream stream = File.OpenRead(inputPath);
-            Validate(stream, exclusions);
+            using Stream stream = FileSystem.OpenRead(inputPath);
+            Validate(stream);
         }
 
         /// <summary>
         /// Generates the code from the contents of the address space.
         /// </summary>
-        public void Validate(Stream stream, IList<string> exclusions)
+        public void Validate(Stream stream)
         {
-            Dictionary = (TypeDictionary)LoadInput(typeof(TypeDictionary), stream);
+            Dictionary = LoadInput<TypeDictionary>(stream);
             m_datatypes = [];
 
             // import types from referenced dictionaries.
@@ -220,16 +219,18 @@ namespace Opc.Ua.Schema
                 return;
             }
 
-            var dictionary = (TypeDictionary)Load(
-                typeof(TypeDictionary),
-                directive.Namespace,
+            TypeDictionary dictionary = Load<TypeDictionary>(
                 directive.Location,
-                Assembly.GetExecutingAssembly());
+                directive.Namespace);
 
             // verify namespace.
-            if (!string.IsNullOrEmpty(dictionary.TargetNamespace) && directive.Namespace != dictionary.TargetNamespace)
+            if (!string.IsNullOrEmpty(dictionary.TargetNamespace) &&
+                directive.Namespace != dictionary.TargetNamespace)
             {
-                throw Exception("Imported dictionary '{0}' does not match uri specified: '{1}'.", dictionary.TargetNamespace, directive.Namespace);
+                throw Exception(
+                    "Imported dictionary '{0}' does not match uri specified: '{1}'.",
+                    dictionary.TargetNamespace,
+                    directive.Namespace);
             }
 
             // save file.
@@ -306,7 +307,9 @@ namespace Opc.Ua.Schema
 
             if (m_datatypes.ContainsKey(datatype.QName))
             {
-                throw Exception("The datatype name '{0}' already used by another datatype.", datatype.Name);
+                throw Exception(
+                    "The datatype name '{0}' already used by another datatype.",
+                    datatype.Name);
             }
 
             if (datatype is ComplexType complexType)
@@ -383,7 +386,10 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Validates the base type of a complex type.
         /// </summary>
-        private void ValidateBaseType(ComplexType complexType, XmlQualifiedName baseType, Dictionary<string, FieldType> fields)
+        private void ValidateBaseType(
+            ComplexType complexType,
+            XmlQualifiedName baseType,
+            Dictionary<string, FieldType> fields)
         {
             if (IsNull(baseType))
             {
@@ -392,7 +398,10 @@ namespace Opc.Ua.Schema
 
             if (ResolveType(baseType) is not ComplexType parentType)
             {
-                throw Exception("The base type '{1}' for complex type '{0}' is not a complex type.", complexType.Name, baseType);
+                throw Exception(
+                    "The base type '{1}' for complex type '{0}' is not a complex type.",
+                    complexType.Name,
+                    baseType);
             }
 
             ValidateBaseType(complexType, parentType.BaseType, fields);
@@ -410,12 +419,17 @@ namespace Opc.Ua.Schema
         {
             if (IsNull(declaration.SourceType))
             {
-                throw Exception("The type declaration '{0}'does not have a source type.", declaration.Name);
+                throw Exception(
+                    "The type declaration '{0}'does not have a source type.",
+                    declaration.Name);
             }
 
             if (!m_datatypes.TryGetValue(declaration.SourceType, out DataType dataType))
             {
-                throw Exception("Cannot find a concrete source type '{1}' for the type declaration '{0}'", declaration.Name, declaration.SourceType);
+                throw Exception(
+                    "Cannot find a concrete source type '{1}' for the type declaration '{0}'",
+                    declaration.Name,
+                    declaration.SourceType);
             }
 
             if (dataType is TypeDeclaration typeDeclaration)
@@ -470,18 +484,27 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Validates a field type.
         /// </summary>
-        private void ValidateFieldType(DataType datatype, Dictionary<string, FieldType> fields, FieldType field)
+        private void ValidateFieldType(
+            DataType datatype,
+            Dictionary<string, FieldType> fields,
+            FieldType field)
         {
             if (fields.ContainsKey(field.Name))
             {
-                throw Exception("The field '{1}' in complex type '{0}' already exists", datatype.Name, field.Name);
+                throw Exception(
+                    "The field '{1}' in complex type '{0}' already exists",
+                    datatype.Name,
+                    field.Name);
             }
 
             if (IsNull(field.DataType))
             {
                 if (field.ComplexType == null)
                 {
-                    throw Exception("The field '{1}' in complex type '{0}' has no data type.", datatype.Name, field.Name);
+                    throw Exception(
+                        "The field '{1}' in complex type '{0}' has no data type.",
+                        datatype.Name,
+                        field.Name);
                 }
 
                 ValidateDataType(field.ComplexType);
@@ -493,12 +516,19 @@ namespace Opc.Ua.Schema
             {
                 if (field.ComplexType != null)
                 {
-                    throw Exception("The field '{1}' in complex type '{0}' has an ambiguous data type.", datatype.Name, field.Name);
+                    throw Exception(
+                        "The field '{1}' in complex type '{0}' has an ambiguous data type.",
+                        datatype.Name,
+                        field.Name);
                 }
 
                 if (ResolveType(field.DataType) == null)
                 {
-                    throw Exception("The field '{1}' in complex type '{0}' has an unrecognized data type '{2}'.", datatype.Name, field.Name, field.DataType);
+                    throw Exception(
+                        "The field '{1}' in complex type '{0}' has an unrecognized data type '{2}'.",
+                        datatype.Name,
+                        field.Name,
+                        field.DataType);
                 }
             }
 
@@ -512,10 +542,12 @@ namespace Opc.Ua.Schema
         {
             if (enumeratedType.Value == null || enumeratedType.Value.Length == 0)
             {
-                throw Exception("The enumerated type '{0}' does not have any values specified.", enumeratedType.Name);
+                throw Exception(
+                    "The enumerated type '{0}' does not have any values specified.",
+                    enumeratedType.Name);
             }
 
-            int nextIndex = 0;
+            decimal nextIndex = 0;
             var values = new Dictionary<string, EnumeratedValue>();
 
             for (int ii = 0; ii < enumeratedType.Value.Length; ii++)
@@ -524,7 +556,10 @@ namespace Opc.Ua.Schema
 
                 if (values.ContainsKey(value.Name))
                 {
-                    throw Exception("The enumerated type '{0}' has a duplicate value '{1}'.", enumeratedType.Name, value.Value);
+                    throw Exception(
+                        "The enumerated type '{0}' has a duplicate value '{1}'.",
+                        enumeratedType.Name,
+                        value.Value);
                 }
 
                 if (!value.ValueSpecified)
@@ -541,10 +576,30 @@ namespace Opc.Ua.Schema
             }
         }
 
-        private static readonly string[][] s_wellKnownDictionaries =
-        [
-            [Namespaces.OpcUaBuiltInTypes, "Opc.Ua.Schema.BuiltInTypes.xml"]
-        ];
+        /// <summary>
+        /// Get the built-in types xml as an import table. We do this because the
+        /// built in type xml is part of the types assembly, and there is a file
+        /// that is the model for the built-in types in the source generator that
+        /// conflicts by name. Since this never changes it will be more stable
+        /// than the same named file in the source generator.
+        /// </summary>
+        private static IReadOnlyDictionary<string, byte[]> BuiltInTypesXmlImport
+        {
+            get
+            {
+                if (field == null)
+                {
+                    var dictionary = new Dictionary<string, byte[]>();
+                    using Stream stream = typeof(TypeDictionaryValidator).Assembly
+                        .GetManifestResourceStream("Opc.Ua.Schema.BuiltInTypes.xml");
+                    using var ms = new MemoryStream();
+                    stream.CopyTo(ms);
+                    dictionary[Namespaces.OpcUaBuiltInTypes] = ms.ToArray();
+                    field = dictionary;
+                }
+                return field;
+            }
+        }
 
         private Dictionary<XmlQualifiedName, DataType> m_datatypes;
     }

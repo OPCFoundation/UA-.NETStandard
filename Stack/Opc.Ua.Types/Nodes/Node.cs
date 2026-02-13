@@ -91,11 +91,11 @@ namespace Opc.Ua
 
         private void Initialize()
         {
-            NodeId = null;
+            NodeId = default;
             NodeClass = NodeClass.Unspecified;
-            BrowseName = null;
-            DisplayName = null;
-            Description = null;
+            BrowseName = default;
+            DisplayName = default;
+            Description = default;
             WriteMask = 0;
             UserWriteMask = 0;
             m_rolePermissions = [];
@@ -345,16 +345,16 @@ namespace Opc.Ua
         {
             var clone = (Node)base.MemberwiseClone();
 
-            clone.NodeId = CoreUtils.Clone(NodeId);
-            clone.NodeClass = (NodeClass)CoreUtils.Clone(NodeClass);
-            clone.BrowseName = CoreUtils.Clone(BrowseName);
+            clone.NodeId = NodeId;
+            clone.NodeClass = CoreUtils.Clone(NodeClass);
+            clone.BrowseName = BrowseName;
             clone.DisplayName = CoreUtils.Clone(DisplayName);
             clone.Description = CoreUtils.Clone(Description);
-            clone.WriteMask = (uint)CoreUtils.Clone(WriteMask);
-            clone.UserWriteMask = (uint)CoreUtils.Clone(UserWriteMask);
+            clone.WriteMask = CoreUtils.Clone(WriteMask);
+            clone.UserWriteMask = CoreUtils.Clone(UserWriteMask);
             clone.m_rolePermissions = CoreUtils.Clone(m_rolePermissions);
             clone.m_userRolePermissions = CoreUtils.Clone(m_userRolePermissions);
-            clone.AccessRestrictions = (ushort)CoreUtils.Clone(AccessRestrictions);
+            clone.AccessRestrictions = CoreUtils.Clone(AccessRestrictions);
             clone.m_references = CoreUtils.Clone(m_references);
 
             return clone;
@@ -456,12 +456,12 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                if (DisplayName != null && !string.IsNullOrEmpty(DisplayName.Text))
+                if (!string.IsNullOrEmpty(DisplayName.Text))
                 {
                     return DisplayName.Text;
                 }
 
-                if (!QualifiedName.IsNull(BrowseName))
+                if (!BrowseName.IsNull)
                 {
                     return BrowseName.Name;
                 }
@@ -509,7 +509,7 @@ namespace Opc.Ua
                         0);
                 }
 
-                return null;
+                return default;
             }
         }
 
@@ -642,7 +642,8 @@ namespace Opc.Ua
                 default:
                     // check data type.
                     if (attributeId != Attributes.Value &&
-                        Attributes.GetDataTypeId(attributeId) != TypeInfo.GetDataTypeId(value))
+                        Attributes.GetDataTypeId(attributeId) !=
+                            TypeInfo.GetDataTypeId(value, null)) // TODO: Pass message context
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -711,7 +712,7 @@ namespace Opc.Ua
                     0);
             }
 
-            return null;
+            return default;
         }
 
         /// <inheritdoc/>

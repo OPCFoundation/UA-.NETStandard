@@ -73,7 +73,8 @@ namespace TestData
             // allow writes if the simulation is not active.
             if (!SimulationActive.Value)
             {
-                variable.AccessLevel = variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
 
                 var children = new List<BaseInstanceState>();
                 variable.GetChildren(context, children);
@@ -81,8 +82,8 @@ namespace TestData
                 {
                     if (child is BaseVariableState variableChild)
                     {
-                        variableChild.AccessLevel = variableChild.UserAccessLevel = AccessLevels
-                            .CurrentReadOrWrite;
+                        variableChild.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                        variableChild.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
                     }
                 }
             }
@@ -91,7 +92,7 @@ namespace TestData
 
             if (variable.FindChild(
                 context,
-                Opc.Ua.BrowseNames.EURange) is BaseVariableState euRange)
+                QualifiedName.From(Opc.Ua.BrowseNames.EURange)) is BaseVariableState euRange)
             {
                 if (context.TypeTable.IsTypeOf(variable.DataType, Opc.Ua.DataTypeIds.UInteger))
                 {
@@ -117,7 +118,7 @@ namespace TestData
             {
                 if (node.FindChild(
                     context,
-                    Opc.Ua.BrowseNames.EURange) is not BaseVariableState euRange)
+                    QualifiedName.From(Opc.Ua.BrowseNames.EURange)) is not BaseVariableState euRange)
                 {
                     return ServiceResult.Good;
                 }
@@ -135,7 +136,7 @@ namespace TestData
 
                         if (typeof(Variant).IsInstanceOfType(element))
                         {
-                            element = ((Variant)element).Value;
+                            element = ((Variant)element).AsBoxedObject();
                         }
 
                         double elementNumber = Convert.ToDouble(

@@ -947,7 +947,7 @@ namespace Opc.Ua
 
             // check for list type.
             IList list = null;
-            TypeInfo typeInfo = null;
+            TypeInfo typeInfo = default;
 
             if (array == null)
             {
@@ -1029,7 +1029,7 @@ namespace Opc.Ua
 
             Array clone;
             // check for list.
-            if (list != null && typeInfo != null)
+            if (list != null && !typeInfo.IsUnknown)
             {
                 clone = TypeInfo.CreateArray(typeInfo.BuiltInType, subLength);
 

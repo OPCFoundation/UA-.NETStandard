@@ -28,6 +28,10 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Opc.Ua.Schema.Types;
 using Opc.Ua.Types;
 
 namespace Opc.Ua
@@ -58,19 +62,45 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override object Clone()
         {
-            return MemberwiseClone();
+            var clone = new DataTypeState();
+            CopyTo(clone);
+            return clone;
         }
 
-        /// <summary>
-        /// Makes a copy of the node and all children.
-        /// </summary>
-        /// <returns>
-        /// A new object that is a copy of this instance.
-        /// </returns>
-        public new object MemberwiseClone()
+        /// <inheritdoc/>
+        public override bool DeepEquals(NodeState node)
         {
-            var clone = (DataTypeState)Activator.CreateInstance(GetType());
-            return CloneChildren(clone);
+            if (node is not DataTypeState state)
+            {
+                return false;
+            }
+            return
+                base.DeepEquals(state) &&
+                EqualityComparer<ExtensionObject>.Default.Equals(
+                    state.DataTypeDefinition,
+                    DataTypeDefinition) &&
+                state.Purpose == Purpose;
+        }
+
+        /// <inheritdoc/>
+        public override int DeepGetHashCode()
+        {
+            var hash = new HashCode();
+            hash.Add(base.DeepGetHashCode());
+            hash.Add(DataTypeDefinition);
+            hash.Add(Purpose);
+            return hash.ToHashCode();
+        }
+
+        /// <inheritdoc/>
+        protected override void CopyTo(NodeState target)
+        {
+            if (target is DataTypeState state)
+            {
+                state.DataTypeDefinition = CoreUtils.Clone(DataTypeDefinition);
+                state.Purpose = Purpose;
+            }
+            base.CopyTo(target);
         }
 
         /// <summary>
@@ -106,7 +136,7 @@ namespace Opc.Ua
 
             encoder.PushNamespace(Namespaces.OpcUaXsd);
 
-            if (m_dataTypeDefinition != null)
+            if (!m_dataTypeDefinition.IsNull)
             {
                 encoder.WriteExtensionObject("DataTypeDefinition", m_dataTypeDefinition);
             }
@@ -142,7 +172,7 @@ namespace Opc.Ua
         {
             AttributesToSave attributesToSave = base.GetAttributesToSave(context);
 
-            if (m_dataTypeDefinition != null)
+            if (!m_dataTypeDefinition.IsNull)
             {
                 attributesToSave |= AttributesToSave.DataTypeDefinition;
             }
@@ -223,12 +253,11 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        if (dataTypeDefinition?.Body is StructureDefinition structureType &&
-                            (structureType.DefaultEncodingId == null ||
-                                structureType.DefaultEncodingId.IsNullNodeId))
+                        if (dataTypeDefinition.Body is StructureDefinition structureType &&
+                            structureType.DefaultEncodingId.IsNull)
                         {
                             // one time set the id for binary encoding, currently the only supported encoding
-                            structureType.SetDefaultEncodingId(context, NodeId, null);
+                            structureType.SetDefaultEncodingId(context, NodeId, default);
                         }
                         value = dataTypeDefinition;
                     }
@@ -257,7 +286,7 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.DataTypeDefinition:
-                    var dataTypeDefinition = value as ExtensionObject;
+                    ExtensionObject dataTypeDefinition = value is ExtensionObject eo ? eo : default;
 
                     if ((WriteMask & AttributeWriteMask.DataTypeDefinition) == 0)
                     {

@@ -36,7 +36,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
+using System.Text.Json;
 using Opc.Ua;
 
 namespace Quickstarts.Servers
@@ -44,9 +44,9 @@ namespace Quickstarts.Servers
     /// <inheritdoc/>
     public class BatchPersistor : IBatchPersistor
     {
-        private static readonly JsonSerializerSettings s_settings = new()
+        private static readonly JsonSerializerOptions s_settings = new()
         {
-            TypeNameHandling = TypeNameHandling.All
+            // TypeInfoResolver = DefaultJsonTypeInfoResolver.Instance,
         };
 
         private static readonly string s_storage_path = Path.Combine(
@@ -116,7 +116,7 @@ namespace Quickstarts.Servers
                 {
                     string json = File.ReadAllText(filePath);
                     using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
-                    result = JsonConvert.DeserializeObject(json, batch.GetType(), s_settings);
+                    result = JsonSerializer.Deserialize(json, batch.GetType(), s_settings);
 
                     File.Delete(filePath);
                 }
@@ -154,7 +154,7 @@ namespace Quickstarts.Servers
             try
             {
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
-                string result = JsonConvert.SerializeObject(batch, s_settings);
+                string result = JsonSerializer.Serialize(batch, s_settings);
 
                 if (!Directory.Exists(s_storage_path))
                 {
@@ -254,8 +254,8 @@ namespace Quickstarts.Servers
             }
         }
 
-        private readonly ConcurrentDictionary<Guid, BatchBase> m_batchesToRestore = new();
-        private readonly ConcurrentDictionary<Guid, BatchBase> m_batchesToPersist = new();
+        private readonly ConcurrentDictionary<Uuid, BatchBase> m_batchesToRestore = new();
+        private readonly ConcurrentDictionary<Uuid, BatchBase> m_batchesToPersist = new();
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
     }

@@ -160,6 +160,12 @@ namespace Opc.Ua.Security.Certificates
             return false;
         }
 
+        /// <inheritdoc/>
+        public override string ToString()
+        {
+            return IssuerName?.Name ?? string.Empty;
+        }
+
         /// <summary>
         /// Decode the complete CRL.
         /// </summary>

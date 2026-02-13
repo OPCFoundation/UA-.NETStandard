@@ -30,7 +30,7 @@
 using System.Xml;
 using System.Xml.Serialization;
 
-namespace Opc.Ua.Schema
+namespace Opc.Ua.Schema.Types
 {
     /// <summary>
     /// A description of type,

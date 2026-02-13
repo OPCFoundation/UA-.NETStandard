@@ -903,7 +903,7 @@ namespace Opc.Ua
 
                     if (crl.IsRevoked(certificate))
                     {
-                        return Task.FromResult((StatusCode)StatusCodes.BadCertificateRevoked);
+                        return Task.FromResult(StatusCodes.BadCertificateRevoked);
                     }
 
                     if (crl.ThisUpdate <= DateTime.UtcNow &&
@@ -916,12 +916,12 @@ namespace Opc.Ua
                 // certificate is fine.
                 if (!crlExpired)
                 {
-                    return Task.FromResult((StatusCode)StatusCodes.Good);
+                    return Task.FromResult(StatusCodes.Good);
                 }
             }
 
             // can't find a valid CRL.
-            return Task.FromResult((StatusCode)StatusCodes.BadCertificateRevocationUnknown);
+            return Task.FromResult(StatusCodes.BadCertificateRevocationUnknown);
         }
 
         /// <inheritdoc/>

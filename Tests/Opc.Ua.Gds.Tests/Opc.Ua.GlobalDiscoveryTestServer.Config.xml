@@ -106,7 +106,6 @@
     <UserTokenPolicies>
       <ua:UserTokenPolicy>
         <ua:TokenType>Anonymous_0</ua:TokenType>
-        
       </ua:UserTokenPolicy>
       <ua:UserTokenPolicy>
         <ua:TokenType>UserName_1</ua:TokenType>

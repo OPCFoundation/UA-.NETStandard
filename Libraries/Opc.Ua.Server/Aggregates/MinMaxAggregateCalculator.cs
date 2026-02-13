@@ -65,13 +65,11 @@ namespace Opc.Ua.Server
         /// </summary>
         protected override DataValue ComputeValue(TimeSlice slice)
         {
-            uint? id = AggregateId.Identifier as uint?;
-
-            if (id == null)
+            if (!AggregateId.TryGetIdentifier(out uint numericId))
             {
                 return base.ComputeValue(slice);
             }
-            switch (id.Value)
+            switch (numericId)
             {
                 case Objects.AggregateFunction_Minimum:
                     return ComputeMinMax(slice, 1, false);
@@ -120,8 +118,8 @@ namespace Opc.Ua.Server
             DateTime minimumGoodTimestamp = DateTime.MinValue;
             DateTime maximumGoodTimestamp = DateTime.MinValue;
 
-            TypeInfo minimumOriginalType = null;
-            TypeInfo maximumOriginalType = null;
+            TypeInfo minimumOriginalType = default;
+            TypeInfo maximumOriginalType = default;
 
             bool badValuesExist = false;
             bool duplicatesMinimumsExist = false;
@@ -216,7 +214,7 @@ namespace Opc.Ua.Server
 
             // determine the calculated value to return.
             object processedValue = null;
-            TypeInfo processedType = null;
+            TypeInfo processedType = default;
             DateTime processedTimestamp = DateTime.MinValue;
             bool duplicatesExist = false;
 
@@ -247,18 +245,18 @@ namespace Opc.Ua.Server
             // set calculated if not returning actual time and value is not at the start time.
             if (!returnActualTime && processedTimestamp != slice.StartTime)
             {
-                statusCode = statusCode.SetAggregateBits(AggregateBits.Calculated);
+                statusCode = statusCode.WithAggregateBits(AggregateBits.Calculated);
             }
 
             // set the multiple values flags.
             if (duplicatesExist)
             {
-                statusCode = statusCode.SetAggregateBits(
+                statusCode = statusCode.WithAggregateBits(
                     statusCode.AggregateBits | AggregateBits.MultipleValues);
             }
 
             // convert back to original datatype.
-            if (processedType != null && processedType.BuiltInType != BuiltInType.Double)
+            if (!processedType.IsUnknown && processedType.BuiltInType != BuiltInType.Double)
             {
                 processedValue = TypeInfo.Cast(
                     processedValue,
@@ -314,8 +312,8 @@ namespace Opc.Ua.Server
             StatusCode minimumGoodStatusCode = StatusCodes.Good;
             StatusCode maximumGoodStatusCode = StatusCodes.Good;
 
-            TypeInfo minimumOriginalType = null;
-            TypeInfo maximumOriginalType = null;
+            TypeInfo minimumOriginalType = default;
+            TypeInfo maximumOriginalType = default;
 
             bool duplicatesMinimumsExist = false;
             bool duplicatesMaximumsExist = false;
@@ -389,15 +387,15 @@ namespace Opc.Ua.Server
                 // check if interval is partial and set the flag accordingly
                 if (slice.Partial)
                 {
-                    noDataValue.StatusCode = noDataValue.StatusCode
-                        .SetAggregateBits(AggregateBits.Partial);
+                    noDataValue.StatusCode =
+                        noDataValue.StatusCode.WithAggregateBits(AggregateBits.Partial);
                 }
                 return noDataValue;
             }
 
             // determine the calculated value to return.
             object processedValue = null;
-            TypeInfo processedType = null;
+            TypeInfo processedType = default;
             DateTime processedTimestamp = DateTime.MinValue;
             StatusCode processedStatusCode = StatusCodes.Good;
             bool duplicatesExist = false;
@@ -432,19 +430,19 @@ namespace Opc.Ua.Server
                 processedTimestamp != slice.StartTime &&
                 (statusCode.AggregateBits & AggregateBits.Interpolated) == 0)
             {
-                statusCode = statusCode.SetAggregateBits(
+                statusCode = statusCode.WithAggregateBits(
                     statusCode.AggregateBits | AggregateBits.Calculated);
             }
 
             // set the multiple values flags.
             if (duplicatesExist)
             {
-                statusCode = statusCode.SetAggregateBits(
+                statusCode = statusCode.WithAggregateBits(
                     statusCode.AggregateBits | AggregateBits.MultipleValues);
             }
 
             // convert back to original datatype.
-            if (processedType != null && processedType.BuiltInType != BuiltInType.Double)
+            if (!processedType.IsUnknown && processedType.BuiltInType != BuiltInType.Double)
             {
                 processedValue = TypeInfo.Cast(
                     processedValue,
@@ -477,14 +475,14 @@ namespace Opc.Ua.Server
                     if (processedTimestamp == slice.StartTime)
                     {
                         processedTimestamp = processedTimestamp.AddMilliseconds(+1);
-                        value.StatusCode = value.StatusCode.SetAggregateBits(
+                        value.StatusCode = value.StatusCode.WithAggregateBits(
                             value.StatusCode.AggregateBits | AggregateBits.Interpolated);
                     }
                 }
                 else if (processedTimestamp == slice.EndTime)
                 {
                     processedTimestamp = processedTimestamp.AddMilliseconds(-1);
-                    value.StatusCode = value.StatusCode.SetAggregateBits(
+                    value.StatusCode = value.StatusCode.WithAggregateBits(
                         value.StatusCode.AggregateBits | AggregateBits.Interpolated);
                 }
 

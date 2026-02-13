@@ -314,7 +314,7 @@ namespace Opc.Ua
             }
 
             if ((DiagnosticsMasks.ServiceLocalizedText & diagnosticsMask) != 0 &&
-                !Ua.LocalizedText.IsNullOrEmpty(result.LocalizedText))
+                !result.LocalizedText.IsNullOrEmpty)
             {
                 if (!string.IsNullOrEmpty(result.LocalizedText.Locale))
                 {
