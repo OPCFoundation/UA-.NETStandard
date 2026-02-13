@@ -208,7 +208,14 @@ namespace Opc.Ua.Bindings
                         m_localNonce = Nonce.CreateNonce(SecurityPolicy);
                         return m_localNonce.Data;
                     }
-                    return Nonce.CreateRandomNonceData(SecurityPolicy.SecureChannelNonceLength);
+                    // Basic128Rsa15 is the only RSA based security policy that allows nonces 
+                    // with a length less than 32 bytes for compatibility reasons. 
+                    bool enforceMinimumLength = !SecurityPolicy.Uri.Equals(
+                        SecurityPolicies.Basic128Rsa15,
+                        StringComparison.Ordinal);
+                    return Nonce.CreateRandomNonceData(
+                        SecurityPolicy.SecureChannelNonceLength,
+                        enforceMinimumLength);
                 case CertificateKeyFamily.ECC:
                     m_localNonce = Nonce.CreateNonce(SecurityPolicy);
                     return m_localNonce.Data;

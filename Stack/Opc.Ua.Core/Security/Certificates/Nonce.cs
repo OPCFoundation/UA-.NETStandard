@@ -308,7 +308,15 @@ namespace Opc.Ua
         /// <returns>The requested Nonce as a</returns>
         public static byte[] CreateRandomNonceData(int length)
         {
-            if (length < s_minNonceLength)
+            return CreateRandomNonceData(length, true);
+        }
+
+        /// <summary>
+        /// Generates nonce data with optional minimum length enforcement.
+        /// </summary>
+        public static byte[] CreateRandomNonceData(int length, bool enforceMinimumLength)
+        {
+            if (enforceMinimumLength && length < s_minNonceLength)
             {
                 length = (int)s_minNonceLength;
             }

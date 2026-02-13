@@ -368,15 +368,14 @@ namespace Opc.Ua
         /// </summary>
         public static readonly SecurityPolicyInfo Basic128Rsa15 = new(SecurityPolicies.Basic128Rsa15)
         {
-            // HMAC-SHA1 requires a 160-bit derived signature key.
-            DerivedSignatureKeyLength = 160 / 8,
+            DerivedSignatureKeyLength = 128 / 8,
             SymmetricEncryptionKeyLength = 128 / 8,
             // HMAC-SHA1 produces a 160-bit MAC
             SymmetricSignatureLength = 160 / 8,
             InitializationVectorLength = 128 / 8,
             MinAsymmetricKeyLength = 1024,
             MaxAsymmetricKeyLength = 2048,
-            SecureChannelNonceLength = 32,
+            SecureChannelNonceLength = 16,
             LegacySequenceNumbers = true,
             AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.RsaPkcs15Sha1,
             AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.RsaPkcs15Sha1,
