@@ -105,8 +105,21 @@ namespace Opc.Ua.Client.Tests
         [DatapointSource]
         public static readonly string[] Policies =
         [
-            .. SecurityPolicies.GetDisplayNames().Select(SecurityPolicies.GetUri)
+            .. GetPolicyUrisForTests()
         ];
+
+        private static IEnumerable<string> GetPolicyUrisForTests()
+        {
+            IEnumerable<string> displayNames = SecurityPolicies.GetDisplayNames();
+
+#if NETFRAMEWORK
+            displayNames = displayNames.Where(name =>
+                !name.EndsWith("_AesGcm", StringComparison.Ordinal) &&
+                !name.EndsWith("_ChaChaPoly", StringComparison.Ordinal));
+#endif
+
+            return displayNames.Select(SecurityPolicies.GetUri);
+        }
 
         /// <summary>
         /// Set up a Server and a Client instance.

@@ -146,13 +146,12 @@ namespace Opc.Ua.Client.Tests
 
         /// <summary>
         /// Override to exclude None policy from benchmarks to avoid CI test failures.
+        /// Uses the base policy list so target-specific filtering is preserved.
         /// </summary>
         public new IEnumerable<string> BenchPolicies()
         {
-            // Return all security policies except None
-            foreach (string displayName in SecurityPolicies.GetDisplayNames())
+            foreach (string policyUri in Policies)
             {
-                string policyUri = SecurityPolicies.GetUri(displayName);
                 if (policyUri != SecurityPolicies.None)
                 {
                     yield return policyUri;
