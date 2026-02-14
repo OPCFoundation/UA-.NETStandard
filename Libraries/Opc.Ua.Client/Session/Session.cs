@@ -1445,7 +1445,7 @@ namespace Opc.Ua.Client
                     identity.TokenType,
                     identity.IssuedTokenType,
                     securityPolicyUri,
-                    [.. m_configuration.SecurityConfiguration.SupportedSecurityPolicies])
+                    [.. m_configuration.SecurityConfiguration.SupportedSecurityPolicies ?? []])
                 ?? throw ServiceResultException.Create(
                     StatusCodes.BadIdentityTokenRejected,
                     "Endpoint does not support the user identity type provided.");
@@ -2326,7 +2326,7 @@ namespace Opc.Ua.Client
                     m_identity.TokenType,
                     m_identity.IssuedTokenType,
                     endpoint.SecurityPolicyUri,
-                    [.. m_configuration.SecurityConfiguration.SupportedSecurityPolicies]);
+                    [.. m_configuration.SecurityConfiguration.SupportedSecurityPolicies ?? []]);
 
                 if (identityPolicy == null)
                 {
@@ -3794,7 +3794,7 @@ namespace Opc.Ua.Client
                     identity.TokenType,
                     identity.IssuedTokenType,
                     securityPolicyUri,
-                    [.. m_configuration.SecurityConfiguration.SupportedSecurityPolicies]);
+                    [.. m_configuration.SecurityConfiguration.SupportedSecurityPolicies ?? []]);
 
                 if (identityPolicy == null)
                 {
