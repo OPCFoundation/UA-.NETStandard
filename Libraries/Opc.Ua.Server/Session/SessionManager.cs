@@ -728,9 +728,9 @@ namespace Opc.Ua.Server
         private readonly int m_maxHistoryContinuationPoints;
 
         private readonly ConcurrentDictionary<string, ClientLockoutInfo> m_clientLockouts = new();
-        private const int MaxFailedAuthenticationAttempts = 5;
-        private static readonly long LockoutDurationTicks = (long)(HiResClock.Frequency * 5 * 60);
-        private static readonly long FailureExpirationTicks = (long)(HiResClock.Frequency * 30 * 60);
+        private const int kMaxFailedAuthenticationAttempts = 5;
+        private static readonly long s_lockoutDurationTicks = HiResClock.Frequency * 5 * 60;
+        private static readonly long s_failureExpirationTicks = HiResClock.Frequency * 1 * 60;
 
         private readonly Lock m_eventLock = new();
         private event SessionEventHandler m_SessionCreated;
@@ -931,7 +931,7 @@ namespace Opc.Ua.Server
                     return true;
                 }
 
-                if (lockoutInfo.IsExpired(currentTicks, FailureExpirationTicks))
+                if (lockoutInfo.IsExpired(currentTicks, s_failureExpirationTicks))
                 {
                     m_clientLockouts.TryRemove(clientKey, out _);
                 }
@@ -953,9 +953,9 @@ namespace Opc.Ua.Server
             long currentTicks = HiResClock.Ticks;
             ClientLockoutInfo lockoutInfo = m_clientLockouts.AddOrUpdate(
                 clientKey,
-                _ => new ClientLockoutInfo(1, currentTicks, LockoutDurationTicks, MaxFailedAuthenticationAttempts),
+                _ => new ClientLockoutInfo(1, currentTicks, s_lockoutDurationTicks, kMaxFailedAuthenticationAttempts),
                 (_, existing) => existing.IncrementFailures(
-                    currentTicks, LockoutDurationTicks, FailureExpirationTicks, MaxFailedAuthenticationAttempts));
+                    currentTicks, s_lockoutDurationTicks, s_failureExpirationTicks, kMaxFailedAuthenticationAttempts));
 
             if (lockoutInfo.IsLockedOut(currentTicks))
             {
@@ -1001,10 +1001,15 @@ namespace Opc.Ua.Server
             public long LastFailureTicks { get; }
             public long LockoutEndTicks { get; }
 
-            public bool IsLockedOut(long currentTicks) => LockoutEndTicks > currentTicks;
+            public bool IsLockedOut(long currentTicks)
+            {
+                return LockoutEndTicks > currentTicks;
+            }
 
             public bool IsExpired(long currentTicks, long expirationTicks)
-                => !IsLockedOut(currentTicks) && (currentTicks - LastFailureTicks) > expirationTicks;
+            {
+                return !IsLockedOut(currentTicks) && (currentTicks - LastFailureTicks) > expirationTicks;
+            }
 
             public ClientLockoutInfo IncrementFailures(
                 long currentTicks,

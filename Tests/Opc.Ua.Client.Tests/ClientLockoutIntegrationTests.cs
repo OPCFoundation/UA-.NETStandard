@@ -57,9 +57,10 @@ namespace Opc.Ua.Client.Tests
         private EndpointDescriptionCollection m_endpoints;
         private ITelemetryContext m_telemetry;
 
-        [OneTimeSetUp]
-        public async Task OneTimeSetUpAsync()
+        [SetUp]
+        public async Task SetUpAsync()
         {
+            //Restart server before every test to reset client lockout
             m_telemetry = NUnitTelemetryContext.Create();
             m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
 
@@ -240,7 +241,7 @@ namespace Opc.Ua.Client.Tests
                 configuredEndpoint,
                 false,
                 false,
-                "ResetTestSession_Success",
+                "ResetTestSession_Success2",
                 60000,
                 new UserIdentity(),
                 null).ConfigureAwait(false))
