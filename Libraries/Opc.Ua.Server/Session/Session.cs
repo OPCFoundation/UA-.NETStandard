@@ -843,6 +843,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private IUserIdentityTokenHandler ValidateUserIdentityToken(
+            OperationContext context,
             ExtensionObject identityToken,
             SignatureData userTokenSignature,
             out UserTokenPolicy policy)

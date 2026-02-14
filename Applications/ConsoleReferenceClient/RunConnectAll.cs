@@ -418,7 +418,7 @@ namespace SecurityTestClient
 
         private async Task<ReferenceDescriptionCollection> BrowseFullAddressSpaceAsync(
             ISession session,
-            NodeId startingNode = null,
+            NodeId? startingNode = default,
             BrowseDescription browseDescription = null,
             CancellationToken ct = default)
         {
@@ -492,7 +492,7 @@ namespace SecurityTestClient
                                 {
                                     Parameters = new KeyValuePairCollection([
                                         new Opc.Ua.KeyValuePair() {
-                                        Key = AdditionalParameterNames.Padding,
+                                        Key = QualifiedName.From(AdditionalParameterNames.Padding),
                                         Value = new Variant(padding)
                                     }
                                     ])
@@ -540,8 +540,8 @@ namespace SecurityTestClient
                     }
                     catch (ServiceResultException sre)
                     {
-                        if (sre.StatusCode is StatusCodes.BadEncodingLimitsExceeded or StatusCodes
-                            .BadResponseTooLarge)
+                        if (sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded ||
+                            sre.StatusCode == StatusCodes.BadResponseTooLarge)
                         {
                             // try to address by overriding operation limit
                             maxNodesPerBrowse =
