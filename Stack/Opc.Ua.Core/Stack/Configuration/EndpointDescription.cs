@@ -86,16 +86,14 @@ namespace Opc.Ua
                 string preferredSecurityPolicyUri,
                 string[] fallbackSecurityPolicyUris)
             {
-                // Use the namespace uri for the issued token type.
-                string issuedTokenTypeDef = issuedTokenType?.Namespace;
-
                 // Iterate twice: first for exact matches, then for relaxed matches.
                 foreach (bool exactMatch in new[] { true, false })
                 {
                     // Check preferred policy.
                     UserTokenPolicy match = FindUserTokenPolicy(
+                        endpointDescription,
                         tokenType,
-                        issuedTokenTypeDef,
+                        issuedTokenType,
                         preferredSecurityPolicyUri,
                         exactMatch);
 
@@ -110,8 +108,9 @@ namespace Opc.Ua
                         foreach (string policy in fallbackSecurityPolicyUris)
                         {
                             match = FindUserTokenPolicy(
+                                endpointDescription,
                                 tokenType,
-                                issuedTokenTypeDef,
+                                issuedTokenType,
                                 policy,
                                 exactMatch);
 
@@ -132,20 +131,23 @@ namespace Opc.Ua
             public UserTokenPolicy FindUserTokenPolicy(
                 UserTokenType tokenType,
                 XmlQualifiedName issuedTokenType,
-                string tokenSecurityPolicyUri)
+                string tokenSecurityPolicyUri,
+                bool matchSecurityPolicyUriExactly = false)
             {
                 if (issuedTokenType == null)
                 {
                     return endpointDescription.FindUserTokenPolicy(
                         tokenType,
                         (string)null,
-                        tokenSecurityPolicyUri);
+                        tokenSecurityPolicyUri,
+                        matchSecurityPolicyUriExactly);
                 }
 
                 return endpointDescription.FindUserTokenPolicy(
                     tokenType,
                     issuedTokenType.Namespace,
-                    tokenSecurityPolicyUri);
+                    tokenSecurityPolicyUri,
+                    matchSecurityPolicyUriExactly);
             }
 
             /// <summary>
@@ -154,7 +156,8 @@ namespace Opc.Ua
             public UserTokenPolicy FindUserTokenPolicy(
                 UserTokenType tokenType,
                 string issuedTokenType,
-                string tokenSecurityPolicyUri)
+                string tokenSecurityPolicyUri,
+                bool matchSecurityPolicyUriExactly = false)
             {
                 // construct issuer type.
                 string issuedTokenTypeText = issuedTokenType;
@@ -173,6 +176,7 @@ namespace Opc.Ua
                             return policy;
                         }
                         else if ((
+                                !matchSecurityPolicyUriExactly &&
                                 policy.SecurityPolicyUri != null &&
                                 tokenSecurityPolicyUri != null &&
                                 EccUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
@@ -184,12 +188,11 @@ namespace Opc.Ua
                         {
                             sameEncryptionAlgorithm ??= policy;
                         }
-                        else if (policy.SecurityPolicyUri == null)
+                        else if (
+                            (!matchSecurityPolicyUriExactly || tokenSecurityPolicyUri == null)&&
+                            policy.SecurityPolicyUri == null)
                         {
-                            if (sameEncryptionAlgorithm == null)
-                            {
-                                unspecifiedSecPolicy = policy;
-                            }
+                            unspecifiedSecPolicy = policy;
                         }
                     }
                 }
