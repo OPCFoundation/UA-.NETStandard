@@ -740,7 +740,7 @@ namespace Opc.Ua
                 case Oids.ECDsaWithSha256:
                 case Oids.ECDsaWithSha512:
                     NodeId certType = CryptoUtils.GetEccCertificateTypeId(certificate);
-                    if (certType.IsNullNodeId)
+                    if (certType.IsNull)
                     {
                         return false;
                     }

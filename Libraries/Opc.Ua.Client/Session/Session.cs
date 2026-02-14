@@ -1326,8 +1326,7 @@ namespace Opc.Ua.Client
 
                     userTokenSignature = identityToken.Sign(
                         dataToSign,
-                        tokenSecurityPolicyUri,
-                        m_telemetry);
+                        tokenSecurityPolicyUri);
                 }
                 else
                 {
@@ -4009,8 +4008,8 @@ namespace Opc.Ua.Client
             SignatureData serverSignature,
             byte[]? clientCertificateData,
             byte[]? clientCertificateChainData,
-            byte[] clientNonce,
-            byte[] serverNonce)
+            byte[]? clientNonce,
+            byte[]? serverNonce)
         {
             if (serverSignature == null || serverSignature.Signature == null)
             {

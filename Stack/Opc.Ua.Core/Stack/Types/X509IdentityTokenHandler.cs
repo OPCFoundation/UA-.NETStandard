@@ -137,9 +137,9 @@ namespace Opc.Ua
             X509Certificate2 certificate = Certificate ??
                 CertificateFactory.Create(m_token.CertificateData);
 
-            SignatureData signatureData = SecurityPolicies.Sign(
-                certificate,
+            SignatureData signatureData = SecurityPolicies.CreateSignatureData(
                 securityPolicyUri,
+                certificate,
                 dataToSign);
 
             m_token.CertificateData = certificate.RawData;
@@ -158,11 +158,11 @@ namespace Opc.Ua
                 X509Certificate2 certificate = Certificate ??
                     CertificateFactory.Create(m_token.CertificateData);
 
-                bool valid = SecurityPolicies.Verify(
-                    certificate,
+                bool valid = SecurityPolicies.VerifySignatureData(
+                    signatureData,
                     securityPolicyUri,
-                    dataToVerify,
-                    signatureData);
+                    certificate,
+                    dataToVerify);
 
                 m_token.CertificateData = certificate.RawData;
 
