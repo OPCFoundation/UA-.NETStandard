@@ -1126,7 +1126,8 @@ namespace Opc.Ua.SourceGeneration
             /// Creates the {{Tokens.SymbolicName}} ObjectType node state.
             /// </summary>
             internal static global::Opc.Ua.BaseObjectTypeState Create{{Tokens.SymbolicId}}(
-                this global::Opc.Ua.ISystemContext context)
+                this global::Opc.Ua.ISystemContext context,
+                bool forInstance = false)
             {
                 var state = new global::Opc.Ua.BaseObjectTypeState();
                 state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
@@ -1147,7 +1148,11 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
-                {{Tokens.ListOfOptionalChildNodeStates}}
+                if (!forInstance)
+                {
+                    {{Tokens.ModellingRuleId}}
+                    {{Tokens.ListOfOptionalChildNodeStates}}
+                }
                 return state;
             }
 
@@ -1162,7 +1167,8 @@ namespace Opc.Ua.SourceGeneration
             /// Creates the {{Tokens.SymbolicName}} VariableType node state.
             /// </summary>
             internal static {{Tokens.StateClassName}} Create{{Tokens.SymbolicId}}(
-                this global::Opc.Ua.ISystemContext context)
+                this global::Opc.Ua.ISystemContext context,
+                bool forInstance = false)
             {
                 var state = new {{Tokens.StateClassName}}();
                 state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
@@ -1187,7 +1193,11 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
-                {{Tokens.ListOfOptionalChildNodeStates}}
+                if (!forInstance)
+                {
+                    {{Tokens.ModellingRuleId}}
+                    {{Tokens.ListOfOptionalChildNodeStates}}
+                }
                 return state;
             }
 
@@ -1202,7 +1212,8 @@ namespace Opc.Ua.SourceGeneration
             /// Creates the {{Tokens.SymbolicName}} ReferenceType node state.
             /// </summary>
             internal static global::Opc.Ua.ReferenceTypeState Create{{Tokens.SymbolicId}}(
-                this global::Opc.Ua.ISystemContext context)
+                this global::Opc.Ua.ISystemContext context,
+                bool forInstance = false)
             {
                 var state = new global::Opc.Ua.ReferenceTypeState();
                 state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
@@ -1225,7 +1236,11 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
-                {{Tokens.ListOfOptionalChildNodeStates}}
+                if (!forInstance)
+                {
+                    {{Tokens.ModellingRuleId}}
+                    {{Tokens.ListOfOptionalChildNodeStates}}
+                }
                 return state;
             }
 
@@ -1240,7 +1255,8 @@ namespace Opc.Ua.SourceGeneration
             /// Creates the {{Tokens.SymbolicName}} DataType node state.
             /// </summary>
             internal static global::Opc.Ua.DataTypeState Create{{Tokens.SymbolicId}}(
-                this global::Opc.Ua.ISystemContext context)
+                this global::Opc.Ua.ISystemContext context,
+                bool forInstance = false)
             {
                 var state = new global::Opc.Ua.DataTypeState();
                 state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
@@ -1262,7 +1278,11 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
-                {{Tokens.ListOfOptionalChildNodeStates}}
+                if (!forInstance)
+                {
+                    {{Tokens.ModellingRuleId}}
+                    {{Tokens.ListOfOptionalChildNodeStates}}
+                }
                 return state;
             }
 
@@ -1277,7 +1297,8 @@ namespace Opc.Ua.SourceGeneration
             /// Creates the {{Tokens.SymbolicName}} Object node state.
             /// </summary>
             internal static {{Tokens.StateClassName}} Create{{Tokens.SymbolicId}}(
-                this global::Opc.Ua.ISystemContext context)
+                this global::Opc.Ua.ISystemContext context,
+                bool forInstance = true)
             {
                 var state = new {{Tokens.StateClassName}}(null);
                 state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
@@ -1301,7 +1322,11 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
-                {{Tokens.ListOfOptionalChildNodeStates}}
+                if (!forInstance)
+                {
+                    {{Tokens.ModellingRuleId}}
+                    {{Tokens.ListOfOptionalChildNodeStates}}
+                }
                 return state;
             }
 
@@ -1316,7 +1341,8 @@ namespace Opc.Ua.SourceGeneration
             /// Creates the {{Tokens.SymbolicName}} Variable node state.
             /// </summary>
             internal static {{Tokens.StateClassName}} Create{{Tokens.SymbolicId}}(
-                this global::Opc.Ua.ISystemContext context)
+                this global::Opc.Ua.ISystemContext context,
+                bool forInstance = true)
             {
                 var state = new {{Tokens.StateClassName}}(null);
                 state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
@@ -1348,7 +1374,11 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
-                {{Tokens.ListOfOptionalChildNodeStates}}
+                if (!forInstance)
+                {
+                    {{Tokens.ModellingRuleId}}
+                    {{Tokens.ListOfOptionalChildNodeStates}}
+                }
                 return state;
             }
 
@@ -1384,7 +1414,11 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
-                {{Tokens.ListOfOptionalChildNodeStates}}
+                if (!forInstance)
+                {
+                    {{Tokens.ModellingRuleId}}
+                    {{Tokens.ListOfOptionalChildNodeStates}}
+                }
                 return state;
             }
 
@@ -1405,6 +1439,21 @@ namespace Opc.Ua.SourceGeneration
             {
                 var state = new {{Tokens.StateClassName}}(parent);
                 state.NodeId = {{Tokens.NodeIdConstant}};
+                if (!browseName.IsNull)
+                {
+                    state.SymbolicName = browseName.Name;
+                    state.BrowseName = browseName;
+                    state.DisplayName = new global::Opc.Ua.LocalizedText(browseName.Name);
+                }
+                else
+                {
+                    state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
+                    state.BrowseName = new global::Opc.Ua.QualifiedName(
+                        {{Tokens.BrowseNameSymbol}},
+                        context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
+                    state.DisplayName = new global::Opc.Ua.LocalizedText(
+                        {{Tokens.DisplayName}});
+                }
                 {{Tokens.MethodDeclarationId}}
                 {{Tokens.DescriptionValue}}
                 state.WriteMask = {{Tokens.WriteMaskValue}};
@@ -1421,21 +1470,6 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
-                if (!browseName.IsNull)
-                {
-                    state.SymbolicName = browseName.Name;
-                    state.BrowseName = browseName;
-                    state.DisplayName = new global::Opc.Ua.LocalizedText(browseName.Name);
-                }
-                else
-                {
-                    state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
-                    state.BrowseName = new global::Opc.Ua.QualifiedName(
-                        {{Tokens.BrowseNameSymbol}},
-                        context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
-                    state.DisplayName = new global::Opc.Ua.LocalizedText(
-                        {{Tokens.DisplayName}});
-                }
                 return state;
             }
 
@@ -1456,19 +1490,6 @@ namespace Opc.Ua.SourceGeneration
             {
                 var state = new {{Tokens.StateClassName}}(parent);
                 state.NodeId = {{Tokens.NodeIdConstant}};
-                state.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
-                {{Tokens.DescriptionValue}}
-                state.WriteMask = {{Tokens.WriteMaskValue}};
-                state.UserWriteMask = {{Tokens.UserWriteMaskValue}};
-                state.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
-                state.EventNotifier = {{Tokens.EventNotifier}};
-                {{Tokens.ReleaseStatusValue}}
-                {{Tokens.CategoriesValue}}
-                {{Tokens.SpecificationValue}}
-                {{Tokens.AccessRestrictionsValue}}
-                {{Tokens.ListOfRolePermissions}}
-                {{Tokens.ListOfReferences}}
-                {{Tokens.ListOfChildNodeStates}}
                 if (!browseName.IsNull)
                 {
                     state.SymbolicName = browseName.Name;
@@ -1483,8 +1504,20 @@ namespace Opc.Ua.SourceGeneration
                         context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
                     state.DisplayName = new global::Opc.Ua.LocalizedText(
                         {{Tokens.DisplayName}});
-                    {{Tokens.ModellingRuleId}}
                 }
+                state.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
+                {{Tokens.DescriptionValue}}
+                state.WriteMask = {{Tokens.WriteMaskValue}};
+                state.UserWriteMask = {{Tokens.UserWriteMaskValue}};
+                state.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
+                state.EventNotifier = {{Tokens.EventNotifier}};
+                {{Tokens.ReleaseStatusValue}}
+                {{Tokens.CategoriesValue}}
+                {{Tokens.SpecificationValue}}
+                {{Tokens.AccessRestrictionsValue}}
+                {{Tokens.ListOfRolePermissions}}
+                {{Tokens.ListOfReferences}}
+                {{Tokens.ListOfChildNodeStates}}
                 return state;
             }
 
@@ -1496,7 +1529,7 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString Create_InstanceOfVariableType = TemplateString.Parse(
             $$"""
             /// <summary>
-            /// Creates an instance of the {{Tokens.TypeName}} type.
+            /// Creates an instance of the {{Tokens.TypeName}} variable type.
             /// </summary>
             public static {{Tokens.StateClassName}} Create{{Tokens.SymbolicId}}(
                 this global::Opc.Ua.ISystemContext context,
@@ -1505,6 +1538,22 @@ namespace Opc.Ua.SourceGeneration
             {
                 var state = new {{Tokens.StateClassName}}(parent);
                 state.NodeId = {{Tokens.NodeIdConstant}};
+                if (!browseName.IsNull)
+                {
+                    state.SymbolicName = browseName.Name;
+                    state.BrowseName = browseName;
+                    state.DisplayName = new global::Opc.Ua.LocalizedText(browseName.Name);
+                }
+                else
+                {
+                    state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
+                    state.BrowseName = new global::Opc.Ua.QualifiedName(
+                        {{Tokens.BrowseNameSymbol}},
+                        context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
+                    state.DisplayName = new global::Opc.Ua.LocalizedText(
+                        {{Tokens.DisplayName}});
+                }
+
                 state.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
                 {{Tokens.DescriptionValue}}
                 state.WriteMask = {{Tokens.WriteMaskValue}};
@@ -1526,21 +1575,6 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
-                if (!browseName.IsNull)
-                {
-                    state.SymbolicName = browseName.Name;
-                    state.BrowseName = browseName;
-                    state.DisplayName = new global::Opc.Ua.LocalizedText(browseName.Name);
-                }
-                else
-                {
-                    state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
-                    state.BrowseName = new global::Opc.Ua.QualifiedName(
-                        {{Tokens.BrowseNameSymbol}},
-                        context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
-                    state.DisplayName = new global::Opc.Ua.LocalizedText(
-                        {{Tokens.DisplayName}});
-                }
                 return state;
             }
 
@@ -1701,10 +1735,28 @@ namespace Opc.Ua.SourceGeneration
             internal static {{Tokens.StateClassName}} Create{{Tokens.SymbolicId}}(
                 this global::Opc.Ua.ISystemContext context,
                 global::Opc.Ua.NodeState parent,
-                global::Opc.Ua.QualifiedName browseName = default)
+                global::Opc.Ua.QualifiedName browseName = default,
+                bool forInstance = false)
             {
                 var state = new {{Tokens.StateClassName}}(parent);
                 state.NodeId = {{Tokens.NodeIdConstant}};
+                if (!browseName.IsNull)
+                {
+                    state.SymbolicName = browseName.Name;
+                    state.BrowseName = browseName;
+                    state.DisplayName = new global::Opc.Ua.LocalizedText(browseName.Name);
+                    forInstance = true;
+                }
+                else
+                {
+                    // Create the state for the type parent
+                    state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
+                    state.BrowseName = new global::Opc.Ua.QualifiedName(
+                        {{Tokens.BrowseNameSymbol}},
+                        context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
+                    state.DisplayName = new global::Opc.Ua.LocalizedText(
+                        {{Tokens.DisplayName}});
+                }
                 state.NumericId = {{Tokens.NumericIdValue}};
                 {{Tokens.DescriptionValue}}
                 state.WriteMask = {{Tokens.WriteMaskValue}};
@@ -1719,21 +1771,8 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
-                if (!browseName.IsNull)
+                if (!forInstance)
                 {
-                    state.SymbolicName = browseName.Name;
-                    state.BrowseName = browseName;
-                    state.DisplayName = new global::Opc.Ua.LocalizedText(browseName.Name);
-                }
-                else
-                {
-                    // Create the state for the type parent
-                    state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
-                    state.BrowseName = new global::Opc.Ua.QualifiedName(
-                        {{Tokens.BrowseNameSymbol}},
-                        context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
-                    state.DisplayName = new global::Opc.Ua.LocalizedText(
-                        {{Tokens.DisplayName}});
                     {{Tokens.ModellingRuleId}}
                     {{Tokens.ListOfOptionalChildNodeStates}}
                 }
@@ -1753,10 +1792,28 @@ namespace Opc.Ua.SourceGeneration
             internal static {{Tokens.StateClassName}} Create{{Tokens.SymbolicId}}(
                 this global::Opc.Ua.ISystemContext context,
                 global::Opc.Ua.NodeState parent,
-                global::Opc.Ua.QualifiedName browseName = default)
+                global::Opc.Ua.QualifiedName browseName = default,
+                bool forInstance = false)
             {
                 var state = new {{Tokens.StateClassName}}(parent);
                 state.NodeId = {{Tokens.NodeIdConstant}};
+                if (!browseName.IsNull)
+                {
+                    state.SymbolicName = browseName.Name;
+                    state.BrowseName = browseName;
+                    state.DisplayName = new global::Opc.Ua.LocalizedText(browseName.Name);
+                    forInstance = true;
+                }
+                else
+                {
+                    // Create the state for the type parent
+                    state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
+                    state.BrowseName = new global::Opc.Ua.QualifiedName(
+                        {{Tokens.BrowseNameSymbol}},
+                        context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
+                    state.DisplayName = new global::Opc.Ua.LocalizedText(
+                        {{Tokens.DisplayName}});
+                }
                 state.NumericId = {{Tokens.NumericIdValue}};
                 {{Tokens.DescriptionValue}}
                 state.WriteMask = {{Tokens.WriteMaskValue}};
@@ -1779,21 +1836,8 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
-                if (!browseName.IsNull)
+                if (!forInstance)
                 {
-                    state.SymbolicName = browseName.Name;
-                    state.BrowseName = browseName;
-                    state.DisplayName = new global::Opc.Ua.LocalizedText(browseName.Name);
-                }
-                else
-                {
-                    // Create the state for the type parent
-                    state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
-                    state.BrowseName = new global::Opc.Ua.QualifiedName(
-                        {{Tokens.BrowseNameSymbol}},
-                        context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
-                    state.DisplayName = new global::Opc.Ua.LocalizedText(
-                        {{Tokens.DisplayName}});
                     {{Tokens.ModellingRuleId}}
                     {{Tokens.ListOfOptionalChildNodeStates}}
                 }
@@ -1813,10 +1857,28 @@ namespace Opc.Ua.SourceGeneration
             internal static {{Tokens.StateClassName}} Create{{Tokens.SymbolicId}}(
                 this global::Opc.Ua.ISystemContext context,
                 global::Opc.Ua.NodeState parent,
-                global::Opc.Ua.QualifiedName browseName = default)
+                global::Opc.Ua.QualifiedName browseName = default,
+                bool forInstance = false)
             {
                 var state = new {{Tokens.StateClassName}}(parent);
                 state.NodeId = {{Tokens.NodeIdConstant}};
+                if (!browseName.IsNull)
+                {
+                    state.SymbolicName = browseName.Name;
+                    state.BrowseName = browseName;
+                    state.DisplayName = new global::Opc.Ua.LocalizedText(browseName.Name);
+                    forInstance = true;
+                }
+                else
+                {
+                    // Create the state for the type parent
+                    state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
+                    state.BrowseName = new global::Opc.Ua.QualifiedName(
+                        {{Tokens.BrowseNameSymbol}},
+                        context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
+                    state.DisplayName = new global::Opc.Ua.LocalizedText(
+                        {{Tokens.DisplayName}});
+                }
                 state.NumericId = {{Tokens.NumericIdValue}};
                 {{Tokens.DescriptionValue}}
                 state.WriteMask = {{Tokens.WriteMaskValue}};
@@ -1832,21 +1894,8 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
-                if (!browseName.IsNull)
+                if (!forInstance)
                 {
-                    state.SymbolicName = browseName.Name;
-                    state.BrowseName = browseName;
-                    state.DisplayName = new global::Opc.Ua.LocalizedText(browseName.Name);
-                }
-                else
-                {
-                    // Create the state for the type parent
-                    state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
-                    state.BrowseName = new global::Opc.Ua.QualifiedName(
-                        {{Tokens.BrowseNameSymbol}},
-                        context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
-                    state.DisplayName = new global::Opc.Ua.LocalizedText(
-                        {{Tokens.DisplayName}});
                     {{Tokens.ModellingRuleId}}
                     {{Tokens.ListOfOptionalChildNodeStates}}
                 }

@@ -124,11 +124,10 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 }
             }
 
-        //     Assert.That(
-        //         placeholders,
-        //         Is.Empty,
-        //         "Instantiated placeholder children were found:" + Environment.NewLine +
-        //         string.Join(Environment.NewLine, placeholders));
+            Assert.That(
+                placeholders,
+                Is.Empty,
+                "Instantiated placeholder children were found:" + Environment.NewLine + string.Join(Environment.NewLine, placeholders));
         }
 
         /// <summary>
@@ -212,7 +211,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 bool hasPlaceholderName =
                     browseName.Length > 1 &&
                     browseName[0] == '<' &&
-                    browseName[browseName.Length - 1] == '>';
+                    browseName[^1] == '>';
 
                 bool hasPlaceholderModellingRule =
                     child.ModellingRuleId == ObjectIds.ModellingRule_OptionalPlaceholder ||

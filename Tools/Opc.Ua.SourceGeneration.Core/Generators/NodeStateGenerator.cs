@@ -1515,39 +1515,50 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
-            if (node.Parent != null &&
-                IsInAddressSpace(node.Parent) &&
-                node.Parent.Design is InstanceDesign parentInstance &&
-                (HasChildDefined(parentInstance.TypeDefinitionNode, instance.SymbolicName.Name) ||
-                    IsBuiltInProperty(node)))
+            string forInstanceVariableValue = node.Parent?.InstanceOf != null ? "true" : "forInstance";
+            if (node.Parent != null && IsInAddressSpace(node.Parent))
             {
-                switch (instance.ModellingRule)
+                switch (node.Parent.Design)
                 {
-                    case ModellingRule.Mandatory:
-                    case ModellingRule.Optional:
+                    case TypeDesign parentType:
                         context.Out.WriteLine(
-                            "state.CreateOrReplace{0}(context, Create{1}(context, state));",
-                            instance.SymbolicName.Name,
-                            instance.SymbolicId.Name);
-                        return null;
-                    case ModellingRule.OptionalPlaceholder:
-                    case ModellingRule.MandatoryPlaceholder:
-                        // TODO
+                            "state.AddChild(Create{0}(context, state, forInstance: {1}));",
+                            instance.SymbolicId.Name,
+                            forInstanceVariableValue);
                         break;
-                    case ModellingRule.ExposesItsArray:
-                    case ModellingRule.None:
-                    case ModellingRule.CardinalityRestriction:
-                    case ModellingRule.MandatoryShared:
+                    case InstanceDesign parentInstance:
+                        if (HasChildDefined(parentInstance.TypeDefinitionNode, instance.SymbolicName.Name) ||
+                            IsBuiltInProperty(node))
+                        {
+                            switch (instance.ModellingRule)
+                            {
+                                case ModellingRule.Mandatory:
+                                case ModellingRule.Optional:
+                                    context.Out.WriteLine(
+                                        "state.CreateOrReplace{0}(context, Create{1}(context, state, forInstance: {2}));",
+                                        instance.SymbolicName.Name,
+                                        instance.SymbolicId.Name,
+                                        forInstanceVariableValue);
+                                    return null;
+                                case ModellingRule.OptionalPlaceholder:
+                                case ModellingRule.MandatoryPlaceholder:
+                                    // TODO
+                                    break;
+                                case ModellingRule.ExposesItsArray:
+                                case ModellingRule.None:
+                                case ModellingRule.CardinalityRestriction:
+                                case ModellingRule.MandatoryShared:
+                                    break;
+                            }
+                        }
                         break;
                 }
             }
 
-            // context.Out.WriteLine(
-            //     "state.ReplaceChild(context, Create{0}(context, state));",
-            //     instance.SymbolicId.Name);
             context.Out.WriteLine(
-                "state.AddChild(Create{0}(context, state));",
-                instance.SymbolicId.Name);
+                "state.AddChild(Create{0}(context, state, forInstance: {1}));",
+                instance.SymbolicId.Name,
+                forInstanceVariableValue);
             return null;
         }
 
