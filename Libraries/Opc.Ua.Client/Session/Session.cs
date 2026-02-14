@@ -310,7 +310,7 @@ namespace Opc.Ua.Client
         private void ValidateServerNonce(
             IUserIdentity identity,
             byte[]? serverNonce,
-            string securityPolicyUri,
+            string? securityPolicyUri,
             byte[]? previousServerNonce,
             MessageSecurityMode channelSecurityMode = MessageSecurityMode.None)
         {
@@ -952,10 +952,10 @@ namespace Opc.Ua.Client
             Snapshot(out SessionConfiguration sessionConfiguration);
             if (stream != null)
             {
-                XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
-                using var writer = XmlWriter.Create(stream, settings);
-                var serializer = new DataContractSerializer(typeof(SessionConfiguration));
+                DataContractSerializer serializer =
+                    CoreUtils.CreateDataContractSerializer<SessionConfiguration>(MessageContext);
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(MessageContext);
+                using var writer = XmlWriter.Create(stream, Utils.DefaultXmlWriterSettings());
                 serializer.WriteObject(writer, sessionConfiguration);
             }
             return sessionConfiguration;
@@ -975,11 +975,13 @@ namespace Opc.Ua.Client
                 subscription.Snapshot(out SubscriptionState state);
                 subscriptionStateCollection.Add(state);
             }
-            XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
 
-            using var writer = XmlWriter.Create(stream, settings);
-            var serializer = new DataContractSerializer(typeof(SubscriptionStateCollection), knownTypes);
+            DataContractSerializer serializer =
+                CoreUtils.CreateDataContractSerializer<SubscriptionStateCollection>(
+                    MessageContext,
+                    knownTypes);
             using IDisposable scope = AmbientMessageContext.SetScopedContext(MessageContext);
+            using var writer = XmlWriter.Create(stream, Utils.DefaultXmlWriterSettings());
             serializer.WriteObject(writer, subscriptionStateCollection);
         }
 
@@ -991,12 +993,15 @@ namespace Opc.Ua.Client
         {
             using Activity? activity = m_telemetry.StartActivity();
             // secure settings
+
+            DataContractSerializer serializer =
+                CoreUtils.CreateDataContractSerializer<SubscriptionStateCollection>(
+                    MessageContext,
+                    knownTypes);
+            using IDisposable scope = AmbientMessageContext.SetScopedContext(MessageContext);
             XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
             settings.CloseInput = true;
-
             using var reader = XmlReader.Create(stream, settings);
-            var serializer = new DataContractSerializer(typeof(SubscriptionStateCollection), knownTypes);
-            using IDisposable scope = AmbientMessageContext.SetScopedContext(MessageContext);
             var stateCollection = (SubscriptionStateCollection?)serializer.ReadObject(reader);
             if (stateCollection == null)
             {
@@ -1091,12 +1096,12 @@ namespace Opc.Ua.Client
 
             OpenValidateIdentity(
                 ref identity,
-                out UserIdentityToken identityToken,
                 out UserTokenPolicy identityPolicy,
                 out string securityPolicyUri,
                 out bool requireEncryption);
 
             // validate the server certificate /certificate chain.
+            IUserIdentityTokenHandler identityToken = identity.TokenHandler;
             X509Certificate2? serverCertificate = null;
             byte[]? certificateData = m_endpoint.Description.ServerCertificate;
 
@@ -1145,7 +1150,7 @@ namespace Opc.Ua.Client
             var clientDescription = new ApplicationDescription
             {
                 ApplicationUri = m_configuration.ApplicationUri,
-                ApplicationName = m_configuration.ApplicationName,
+                ApplicationName = LocalizedText.From(m_configuration.ApplicationName),
                 ApplicationType = ApplicationType.Client,
                 ProductUri = m_configuration.ProductUri
             };
@@ -1204,7 +1209,7 @@ namespace Opc.Ua.Client
                     maxMessageSize,
                     ct).ConfigureAwait(false);
             }
-            if (NodeId.IsNull(response?.SessionId))
+            if (response is null || response.SessionId.IsNull)
             {
                 throw ServiceResultException.Unexpected(
                     "Create response returned null session id");
@@ -1281,8 +1286,7 @@ namespace Opc.Ua.Client
                 // sign data with user token.
                 SignatureData userTokenSignature = identityToken.Sign(
                     dataToSign,
-                    tokenSecurityPolicyUri,
-                    m_telemetry);
+                    tokenSecurityPolicyUri);
 
                 // encrypt token.
                 identityToken.Encrypt(
@@ -1307,7 +1311,7 @@ namespace Opc.Ua.Client
                     clientSignature,
                     [],
                     m_preferredLocales,
-                    new ExtensionObject(identityToken),
+                    new ExtensionObject(identityToken.Token),
                     userTokenSignature,
                     ct).ConfigureAwait(false);
 
@@ -1474,12 +1478,11 @@ namespace Opc.Ua.Client
                 m_endpoint.Description.SecurityMode);
 
             // sign data with user token.
-            UserIdentityToken identityToken = identity.GetIdentityToken();
-            identityToken.PolicyId = identityPolicy.PolicyId;
+            using var identityToken = (IUserIdentityTokenHandler)identity.TokenHandler.Clone();
+            identityToken.UpdatePolicy(identityPolicy);
             SignatureData userTokenSignature = identityToken.Sign(
                 dataToSign,
-                tokenSecurityPolicyUri,
-                m_telemetry);
+                tokenSecurityPolicyUri);
 
             m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
 
@@ -1499,7 +1502,7 @@ namespace Opc.Ua.Client
                 clientSignature,
                 [],
                 preferredLocales,
-                new ExtensionObject(identityToken),
+                new ExtensionObject(identityToken.Token),
                 userTokenSignature,
                 ct).ConfigureAwait(false);
 
@@ -2352,12 +2355,11 @@ namespace Opc.Ua.Client
                     m_endpoint.Description.SecurityMode);
 
                 // sign data with user token.
-                UserIdentityToken identityToken = m_identity.GetIdentityToken();
-                identityToken.PolicyId = identityPolicy.PolicyId;
+                using var identityToken = (IUserIdentityTokenHandler)m_identity.TokenHandler.Clone();
+                identityToken.UpdatePolicy(identityPolicy);
                 SignatureData userTokenSignature = identityToken.Sign(
                     dataToSign,
-                    tokenSecurityPolicyUri,
-                    m_telemetry);
+                    tokenSecurityPolicyUri);
 
                 // encrypt token.
                 identityToken.Encrypt(
@@ -2448,7 +2450,7 @@ namespace Opc.Ua.Client
                         clientSignature,
                         [],
                         m_preferredLocales,
-                        new ExtensionObject(identityToken),
+                        new ExtensionObject(identityToken.Token),
                         userTokenSignature,
                         timeout.Token).ConfigureAwait(false);
 
@@ -2770,7 +2772,11 @@ namespace Opc.Ua.Client
             try
             {
                 keepAliveCancellation!.Cancel();
-                await keepAliveWorker.ConfigureAwait(false);
+                if (!m_inKeepAliveCallback)
+                {
+                    // Make sure no circular loops
+                    await keepAliveWorker.ConfigureAwait(false);
+                }
             }
             catch (OperationCanceledException)
             {
@@ -3206,8 +3212,10 @@ namespace Opc.Ua.Client
             {
                 try
                 {
+                    m_inKeepAliveCallback = true;
                     var args = new KeepAliveEventArgs(result, ServerState.Unknown, DateTime.UtcNow);
                     callback(this, args);
+                    m_inKeepAliveCallback = false;
                     return !args.CancelKeepAlive;
                 }
                 catch (Exception e)
@@ -3428,7 +3436,7 @@ namespace Opc.Ua.Client
                 Task<PublishResponse> task = PublishAsync(
                     requestHeader,
                     acknowledgementsToSend,
-                    default); // TODO: Need a session scoped cancellation token.
+                    default).AsTask(); // TODO: Need a session scoped cancellation token.
                 AsyncRequestStarted(task, activity, requestHeader.RequestHandle, DataTypes.PublishRequest);
                 task.ConfigureAwait(false)
                     .GetAwaiter()
@@ -3517,7 +3525,7 @@ namespace Opc.Ua.Client
                 }
 
                 // nothing more to do if we were never connected
-                if (NodeId.IsNull(sessionId))
+                if (sessionId.IsNull)
                 {
                     return;
                 }
@@ -3747,7 +3755,6 @@ namespace Opc.Ua.Client
         /// <exception cref="ServiceResultException"></exception>
         private void OpenValidateIdentity(
             ref IUserIdentity identity,
-            out UserIdentityToken identityToken,
             out UserTokenPolicy identityPolicy,
             out string securityPolicyUri,
             out bool requireEncryption)
@@ -3776,12 +3783,9 @@ namespace Opc.Ua.Client
             // get the identity token.
             identity ??= new UserIdentity();
 
-            // get identity token.
-            identityToken = identity.GetIdentityToken();
-
             // check that the user identity is supported by the endpoint.
-            identityPolicy = m_endpoint.Description
-                .FindUserTokenPolicy(identityToken.PolicyId);
+            identityPolicy = m_endpoint.Description.FindUserTokenPolicy(
+                identity.TokenHandler.Token.PolicyId);
 
             if (identityPolicy == null)
             {
@@ -3799,7 +3803,7 @@ namespace Opc.Ua.Client
                         "Endpoint does not support the user identity type provided.");
                 }
 
-                identityToken.PolicyId = identityPolicy.PolicyId;
+                identity.TokenHandler.UpdatePolicy(identityPolicy);
             }
 
             requireEncryption = securityPolicyUri != SecurityPolicies.None;
@@ -4788,7 +4792,11 @@ namespace Opc.Ua.Client
             {
                 var parameters = new AdditionalParametersType();
                 parameters.Parameters.Add(
-                    new KeyValuePair { Key = "ECDHPolicyUri", Value = userTokenSecurityPolicyUri });
+                    new KeyValuePair
+                    {
+                        Key = QualifiedName.From("ECDHPolicyUri"),
+                        Value = userTokenSecurityPolicyUri
+                    });
                 requestHeader.AdditionalHeader = new ExtensionObject(parameters);
             }
 
@@ -4811,8 +4819,9 @@ namespace Opc.Ua.Client
             ResponseHeader responseHeader,
             X509Certificate2? serverCertificate)
         {
-            if (ExtensionObject.ToEncodeable(
-                responseHeader?.AdditionalHeader) is AdditionalParametersType parameters)
+            if (responseHeader != null &&
+                responseHeader.AdditionalHeader.TryGetEncodeable(out IEncodeable e) &&
+                e is AdditionalParametersType parameters)
             {
                 foreach (KeyValuePair ii in parameters.Parameters)
                 {
@@ -4821,12 +4830,11 @@ namespace Opc.Ua.Client
                         if (ii.Value.TypeInfo == TypeInfo.Scalars.StatusCode)
                         {
                             throw new ServiceResultException(
-                                (uint)(StatusCode)ii.Value.Value,
+                                ii.Value.GetStatusCode(StatusCodes.Bad),
                                 "Server could not provide an ECDHKey. User authentication not possible.");
                         }
 
-                        if (ExtensionObject.ToEncodeable(
-                            ii.Value.Value as ExtensionObject) is not EphemeralKeyType key)
+                        if (ExtensionObject.ToEncodeable(ii.Value.GetExtensionObject()) is not EphemeralKeyType key)
                         {
                             throw new ServiceResultException(
                                 StatusCodes.BadDecodingError,
@@ -4940,6 +4948,7 @@ namespace Opc.Ua.Client
         private readonly AsyncAutoResetEvent m_keepAliveEvent = new();
         private uint m_keepAliveCounter;
         private Task? m_keepAliveWorker;
+        private bool m_inKeepAliveCallback;
         private CancellationTokenSource? m_keepAliveCancellation;
         private readonly SemaphoreSlim m_reconnectLock = new(1, 1);
         private int m_minPublishRequestCount;

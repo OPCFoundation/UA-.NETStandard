@@ -88,9 +88,9 @@ namespace Opc.Ua.Server
         IUserIdentity Identity { get; }
 
         /// <summary>
-        /// The user identity token provided by the client.
+        /// The user identity token provided by the client wrapped into a handler.
         /// </summary>
-        UserIdentityToken IdentityToken { get; }
+        IUserIdentityTokenHandler IdentityToken { get; }
 
         /// <summary>
         /// The locales requested when the session was created.
@@ -112,7 +112,7 @@ namespace Opc.Ua.Server
         /// </summary>
         bool Activate(
             OperationContext context,
-            UserIdentityToken identityToken,
+            IUserIdentityTokenHandler identityToken,
             IUserIdentity identity,
             IUserIdentity effectiveIdentity,
             StringCollection localeIds,
@@ -187,7 +187,7 @@ namespace Opc.Ua.Server
             SignatureData clientSignature,
             ExtensionObject userIdentityToken,
             SignatureData userTokenSignature,
-            out UserIdentityToken identityToken,
+            out IUserIdentityTokenHandler identityToken,
             out UserTokenPolicy userTokenPolicy);
 
         /// <summary>

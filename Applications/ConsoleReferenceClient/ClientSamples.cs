@@ -34,7 +34,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -83,19 +82,19 @@ namespace Quickstarts
 
             m_desiredEventFields.Add(
                 eventIndexCounter++,
-                [.. new QualifiedName[] { BrowseNames.Time }]);
+                [.. new QualifiedName[] { QualifiedName.From(BrowseNames.Time) }]);
             m_desiredEventFields.Add(
                 eventIndexCounter++,
-                [.. new QualifiedName[] { BrowseNames.ActiveState }]);
+                [.. new QualifiedName[] { QualifiedName.From(BrowseNames.ActiveState) }]);
             m_desiredEventFields.Add(
                 eventIndexCounter++,
-                [.. new QualifiedName[] { BrowseNames.Message }]);
+                [.. new QualifiedName[] { QualifiedName.From(BrowseNames.Message) }]);
             m_desiredEventFields.Add(
                 eventIndexCounter++,
-                [.. new QualifiedName[] { BrowseNames.LimitState, BrowseNames.CurrentState }]);
+                [.. new QualifiedName[] { QualifiedName.From(BrowseNames.LimitState), QualifiedName.From(BrowseNames.CurrentState) }]);
             m_desiredEventFields.Add(
                 eventIndexCounter++,
-                [.. new QualifiedName[] { BrowseNames.LimitState, BrowseNames.LastTransition }]);
+                [.. new QualifiedName[] { QualifiedName.From(BrowseNames.LimitState), QualifiedName.From(BrowseNames.LastTransition) }]);
         }
 
         /// <summary>
@@ -526,7 +525,7 @@ namespace Quickstarts
                 {
                     AttributeId = Attributes.Value,
                     TypeDefinitionId = ObjectTypeIds.ExclusiveLevelAlarmType,
-                    BrowsePath = new QualifiedNameCollection(["EventType"])
+                    BrowsePath = [QualifiedName.From("EventType")]
                 };
                 var desiredEventType = new LiteralOperand
                 {
@@ -749,7 +748,7 @@ namespace Quickstarts
                 }
             }
 
-            var nodesToBrowse = new List<NodeId> { startingNode ?? ObjectIds.RootFolder };
+            var nodesToBrowse = new List<NodeId> { startingNode.IsNull ? ObjectIds.RootFolder : startingNode };
 
             const int kMaxReferencesPerNode = 1000;
 
@@ -905,7 +904,7 @@ namespace Quickstarts
                 browseDescription
                 ?? new BrowseDescription
                 {
-                    NodeId = startingNode ?? ObjectIds.RootFolder,
+                    NodeId = startingNode.IsNull ? ObjectIds.RootFolder : startingNode,
                     BrowseDirection = BrowseDirection.Forward,
                     ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
                     IncludeSubtypes = true,
@@ -914,7 +913,7 @@ namespace Quickstarts
                 };
             BrowseDescriptionCollection browseDescriptionCollection
                 = CreateBrowseDescriptionCollectionFromNodeId(
-                [.. new NodeId[] { startingNode ?? ObjectIds.RootFolder }],
+                [.. new NodeId[] { startingNode.IsNull ? ObjectIds.RootFolder : startingNode }],
                 browseTemplate);
 
             // Browse
@@ -1167,16 +1166,9 @@ namespace Quickstarts
             ISession session,
             CancellationToken ct = default)
         {
-            // fetch the reference types first, otherwise browse for e.g. hierarchical
-            // references with subtypes won't work
-            const BindingFlags bindingFlags = BindingFlags.Instance |
-                BindingFlags.Static |
-                BindingFlags.Public;
             NamespaceTable namespaceUris = session.NamespaceUris;
-            IEnumerable<ExpandedNodeId> referenceTypes = typeof(ReferenceTypeIds)
-                .GetFields(bindingFlags)
-                .Select(
-                    field => NodeId.ToExpandedNodeId((NodeId)field.GetValue(null), namespaceUris));
+            IEnumerable<ExpandedNodeId> referenceTypes = ReferenceTypeIds.Identifiers
+                .Select(nodeId => NodeId.ToExpandedNodeId(nodeId, namespaceUris));
             return session.FetchTypeTreeAsync([.. referenceTypes], ct);
         }
 
@@ -1336,7 +1328,7 @@ namespace Quickstarts
                         StartNodeId = item.NodeId,
                         AttributeId = Attributes.Value,
                         SamplingInterval = samplingInterval,
-                        DisplayName = item.DisplayName?.Text ?? item.BrowseName?.Name ?? "unknown",
+                        DisplayName = item.DisplayName.Text ?? item.BrowseName.Name ?? "unknown",
                         QueueSize = queueSize,
                         DiscardOldest = true,
                         MonitoringMode = MonitoringMode.Reporting
@@ -1505,7 +1497,7 @@ namespace Quickstarts
                         {
                             try
                             {
-                                var currentTime = (DateTime)field.Value;
+                                DateTime currentTime = field.GetDateTime();
                                 TimeSpan timeSpan = currentTime - m_lastEventTime;
                                 m_lastEventTime = currentTime;
                                 m_processedEvents++;
@@ -1534,7 +1526,7 @@ namespace Quickstarts
                             "\tField [{Index}] \"{Name}\" = [{Value}]",
                             entry.Key,
                             fieldName,
-                            field.Value);
+                            field);
                     }
                 }
             }
@@ -1666,8 +1658,9 @@ namespace Quickstarts
                 {
                     string namespaceUri = session.NamespaceUris.GetString(group.Key);
                     // Exclude OPC Foundation companion specifications
-                    return !string.IsNullOrEmpty(namespaceUri) &&
-                        !namespaceUri.StartsWith("http://opcfoundation.org/UA/", StringComparison.OrdinalIgnoreCase);
+                    return
+                        !string.IsNullOrEmpty(namespaceUri) &&
+                        !namespaceUri.StartsWith(Namespaces.OpcUa, StringComparison.OrdinalIgnoreCase);
                 })
                 .ToDictionary(
                     group => group.Key,

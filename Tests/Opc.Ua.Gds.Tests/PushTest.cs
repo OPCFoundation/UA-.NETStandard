@@ -358,8 +358,8 @@ namespace Opc.Ua.Gds.Tests
                 .ThrowsAsync<ServiceResultException>(() =>
                     m_pushClient.PushClient.RemoveCertificateAsync(m_caCert.Thumbprint, false));
             Assert.AreEqual(
-                (StatusCode)StatusCodes.BadInvalidArgument,
-                (StatusCode)serviceResultException.StatusCode,
+                StatusCodes.BadInvalidArgument,
+                serviceResultException.StatusCode,
                 serviceResultException.Message);
             TrustListDataType afterRemoveTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
             Assert.IsFalse(Utils.IsEqual(beforeTrustList, afterRemoveTrustList));
@@ -687,7 +687,7 @@ namespace Opc.Ua.Gds.Tests
                 default,
                 m_certificateType,
                 csr).ConfigureAwait(false);
-            Assert.NotNull(requestId);
+            Assert.False(requestId.IsNull);
             byte[] privateKey = null;
             byte[] certificate = null;
             byte[][] issuerCertificates = null;
@@ -853,7 +853,7 @@ namespace Opc.Ua.Gds.Tests
                 keyFormat,
                 null).ConfigureAwait(false);
 
-            Assert.NotNull(requestId);
+            Assert.False(requestId.IsNull);
             byte[] privateKey = null;
             byte[] certificate = null;
             byte[][] issuerCertificates = null;
@@ -1044,9 +1044,9 @@ namespace Opc.Ua.Gds.Tests
                 };
             }
             Assert.IsNotNull(m_applicationRecord);
-            Assert.IsNull(m_applicationRecord.ApplicationId);
+            Assert.True(m_applicationRecord.ApplicationId.IsNull);
             NodeId id = await m_gdsClient.GDSClient.RegisterApplicationAsync(m_applicationRecord, ct).ConfigureAwait(false);
-            Assert.IsNotNull(id);
+            Assert.False(id.IsNull);
             m_applicationRecord.ApplicationId = id;
 
             // add issuer and trusted certs to client stores
@@ -1314,7 +1314,7 @@ namespace Opc.Ua.Gds.Tests
             X509CRL caCrl = await CertificateGroup
                 .RevokeCertificateAsync(certificateStoreIdentifier, m_caCert, null, m_telemetry)
                 .ConfigureAwait(false);
-            Assert.That(caCrl, Is.Not.Null);
+            NUnit.Framework.Assert.That(caCrl, Is.Not.Null);
         }
 
         private static bool EraseStore(CertificateStoreIdentifier storeIdentifier, ITelemetryContext telemetry)

@@ -439,6 +439,11 @@ dotnet_diagnostic.CA1724.severity                                             = 
 dotnet_diagnostic.CA2326.severity = none
 dotnet_diagnostic.CA2327.severity = none
 
+dotnet_diagnostic.CA5390.severity = none
+dotnet_diagnostic.CA5403.severity = none
+dotnet_code_quality.CA5390.excluded_symbol_names = Initializers
+dotnet_code_quality.CA5403.excluded_symbol_names = Initializers
+
 # TODO Fix as P1:
 
 # CA2213: Disposable fields should be disposed
@@ -1051,18 +1056,6 @@ dotnet_diagnostic.RCS1266.severity                                            = 
 dotnet_diagnostic.UA_NETStandard_1.severity = none
 
 # exclude generated code
-
-[**/Generated/*.cs]
-generated_code = true
-dotnet_diagnostic.severity = none
-dotnet_analyzer.severity = none
-#dotnet_analyzer_diagnostic.category-roslynator.severity = none
-
-[**/*.{Classes,DataTypes,Constants,StatusCodes,Attributes}.cs]
-generated_code = true
-dotnet_diagnostic.severity = none
-dotnet_analyzer.severity = none
-#dotnet_analyzer_diagnostic.category-roslynator.severity = none
 
 [**/OPCBinarySchema.cs]
 generated_code = true

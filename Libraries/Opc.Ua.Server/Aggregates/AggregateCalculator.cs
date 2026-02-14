@@ -204,7 +204,7 @@ namespace Opc.Ua.Server
             {
                 if (m_startOfData > earlyTime && m_startOfData < lateTime)
                 {
-                    value.StatusCode = value.StatusCode.SetAggregateBits(
+                    value.StatusCode = value.StatusCode.WithAggregateBits(
                         value.StatusCode.AggregateBits | AggregateBits.Partial);
                 }
 
@@ -213,7 +213,7 @@ namespace Opc.Ua.Server
                     m_endOfData >= earlyTime &&
                     m_endOfData < lateTime)
                 {
-                    value.StatusCode = value.StatusCode.SetAggregateBits(
+                    value.StatusCode = value.StatusCode.WithAggregateBits(
                         value.StatusCode.AggregateBits | AggregateBits.Partial);
                 }
             }
@@ -270,7 +270,7 @@ namespace Opc.Ua.Server
                     m_endOfData >= earlyTime &&
                     m_endOfData < lateTime)
                 {
-                    value.StatusCode = value.StatusCode.SetAggregateBits(
+                    value.StatusCode = value.StatusCode.WithAggregateBits(
                         value.StatusCode.AggregateBits | AggregateBits.Partial);
                 }
             }
@@ -825,7 +825,7 @@ namespace Opc.Ua.Server
                     if (!ReferenceEquals(slice.EarlyBound.Next, slice.LateBound))
                     {
                         dataValue.StatusCode = dataValue.StatusCode
-                            .SetCodeBits(StatusCodes.UncertainDataSubNormal);
+                            .WithCodeBits(StatusCodes.UncertainDataSubNormal);
                     }
 
                     return dataValue;
@@ -843,7 +843,7 @@ namespace Opc.Ua.Server
                             slice.SecondEarlyBound.Value,
                             slice.EarlyBound.Value);
                         dataValue.StatusCode = dataValue.StatusCode
-                            .SetCodeBits(StatusCodes.UncertainDataSubNormal);
+                            .WithCodeBits(StatusCodes.UncertainDataSubNormal);
                         return dataValue;
                     }
 
@@ -862,7 +862,7 @@ namespace Opc.Ua.Server
                 {
                     UsingExtrapolation = true;
                     dataValue.StatusCode = dataValue.StatusCode
-                        .SetCodeBits(StatusCodes.UncertainDataSubNormal);
+                        .WithCodeBits(StatusCodes.UncertainDataSubNormal);
                 }
 
                 return dataValue;
@@ -904,7 +904,7 @@ namespace Opc.Ua.Server
             }
 
             dataValue.StatusCode = dataValue.StatusCode
-                .SetAggregateBits(AggregateBits.Interpolated);
+                .WithAggregateBits(AggregateBits.Interpolated);
             return dataValue;
         }
 
@@ -932,7 +932,7 @@ namespace Opc.Ua.Server
                     if (StatusCode.IsNotBad(dataValue2.StatusCode))
                     {
                         dataValue2.StatusCode = dataValue2.StatusCode
-                            .SetCodeBits(StatusCodes.UncertainDataSubNormal);
+                            .WithCodeBits(StatusCodes.UncertainDataSubNormal);
                     }
 
                     return dataValue2;
@@ -967,7 +967,7 @@ namespace Opc.Ua.Server
                 }
 
                 dataValue.StatusCode = dataValue.StatusCode
-                    .SetAggregateBits(AggregateBits.Interpolated);
+                    .WithAggregateBits(AggregateBits.Interpolated);
 
                 return dataValue;
             }
@@ -1079,7 +1079,7 @@ namespace Opc.Ua.Server
             if (StatusCode.IsGood(value.StatusCode) && revertToStepped)
             {
                 value.StatusCode = StatusCodes.UncertainDataSubNormal;
-                value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Interpolated);
+                value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Interpolated);
             }
 
             return value;
@@ -1435,20 +1435,18 @@ namespace Opc.Ua.Server
             if (totalCount == 0 || goodCount / totalCount * 100 >= Configuration.PercentDataGood)
             {
                 // good if the good count is greater than or equal to the configured threshold.
-                statusCode = statusCode.SetCodeBits(StatusCodes.Good);
+                return statusCode.WithCodeBits(StatusCodes.Good);
             }
             else if (badCount / totalCount * 100 >= Configuration.PercentDataBad)
             {
                 // bad if the bad count is greater than or equal to the configured threshold.
-                statusCode = StatusCodes.Bad;
+                return StatusCodes.Bad;
             }
             else
             {
                 // uncertain if did not meet the Good or Bad requirements
-                statusCode = statusCode.SetCodeBits(StatusCodes.UncertainDataSubNormal);
+                return statusCode.WithCodeBits(StatusCodes.UncertainDataSubNormal);
             }
-
-            return statusCode;
         }
 
         /// <summary>
@@ -1509,21 +1507,18 @@ namespace Opc.Ua.Server
                 goodDuration / totalDuration * 100 >= Configuration.PercentDataGood)
             {
                 // good if the good duration is greater than or equal to the configured threshold.
-                statusCode = statusCode.SetCodeBits(StatusCodes.Good);
+                return statusCode.WithCodeBits(StatusCodes.Good);
             }
             else if (badDuration / totalDuration * 100 >= Configuration.PercentDataBad)
             {
                 // bad if the bad duration is greater than or equal to the configured threshold.
-                statusCode = StatusCodes.Bad;
+                return StatusCodes.Bad;
             }
             else
             {
                 // uncertain if did not meet the Good or Bad requirements
-                statusCode = statusCode.SetCodeBits(StatusCodes.UncertainDataSubNormal);
+                return statusCode.WithCodeBits(StatusCodes.UncertainDataSubNormal);
             }
-
-            // always calculated.
-            return statusCode;
         }
 
         private readonly ILogger m_logger;

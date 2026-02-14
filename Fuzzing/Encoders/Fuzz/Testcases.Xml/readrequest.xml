@@ -1,10 +1,9 @@
 <ReadRequest xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
   <RequestHeader>
-    <Timestamp>2024-05-03T12:59:58.4456622Z</Timestamp>
+    <Timestamp>2026-02-10T12:12:24.8796375Z</Timestamp>
     <RequestHandle>42</RequestHandle>
     <ReturnDiagnostics>0</ReturnDiagnostics>
     <TimeoutHint>0</TimeoutHint>
-    <AdditionalHeader />
   </RequestHeader>
   <MaxAge>0</MaxAge>
   <TimestampsToReturn>Source_0</TimestampsToReturn>

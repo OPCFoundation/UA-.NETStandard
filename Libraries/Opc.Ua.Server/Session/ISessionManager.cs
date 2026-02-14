@@ -234,11 +234,11 @@ namespace Opc.Ua.Server
         /// Creates a new instance.
         /// </summary>
         public ImpersonateEventArgs(
-            UserIdentityToken newIdentity,
+            IUserIdentityTokenHandler newIdentityHandler,
             UserTokenPolicy userTokenPolicy,
             EndpointDescription endpointDescription = null)
         {
-            NewIdentity = newIdentity;
+            UserIdentityTokenHandler = newIdentityHandler;
             UserTokenPolicy = userTokenPolicy;
             EndpointDescription = endpointDescription;
         }
@@ -246,7 +246,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The new user identity for the session.
         /// </summary>
-        public UserIdentityToken NewIdentity { get; }
+        public IUserIdentityTokenHandler UserIdentityTokenHandler { get; }
+
+        /// <summary>
+        /// The new user identity for the session.
+        /// </summary>
+        [Obsolete("Use UserIdentityTokenHandler to process the token.")]
+        public UserIdentityToken NewIdentity => UserIdentityTokenHandler.Token;
 
         /// <summary>
         /// The user token policy selected by the client.

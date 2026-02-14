@@ -111,7 +111,7 @@ namespace Opc.Ua
             ExpandedNodeId typeId,
             [NotNullWhen(true)] out IEncodeableType? encodeableType)
         {
-            if (NodeId.IsNull(typeId))
+            if (typeId.IsNull)
             {
                 encodeableType = null;
                 return false;
@@ -157,7 +157,7 @@ namespace Opc.Ua
                 ExpandedNodeId encodingId,
                 Type systemType)
             {
-                if (!NodeId.IsNull(encodingId))
+                if (!encodingId.IsNull)
                 {
                     IEncodeableType? type = ReflectionBasedType.From(systemType);
                     if (type != null)
@@ -184,7 +184,7 @@ namespace Opc.Ua
                 ExpandedNodeId encodingId,
                 IEncodeableType type)
             {
-                if (NodeId.IsNull(encodingId))
+                if (encodingId.IsNull)
                 {
                     throw new ArgumentNullException(nameof(encodingId));
                 }
@@ -202,7 +202,7 @@ namespace Opc.Ua
                 }
 
                 Type[] systemTypes = assembly.GetExportedTypes();
-                var unboundTypeIds = new Dictionary<string, ExpandedNodeId?>();
+                var unboundTypeIds = new Dictionary<string, ExpandedNodeId>();
 
                 const string jsonEncodingSuffix = "_Encoding_DefaultJson";
 
@@ -229,9 +229,9 @@ namespace Opc.Ua
                                 {
                                     unboundTypeIds[name] = new ExpandedNodeId(nodeId);
                                 }
-                                else
+                                else if (value is ExpandedNodeId expandedNodeId)
                                 {
-                                    unboundTypeIds[name] = (ExpandedNodeId?)value;
+                                    unboundTypeIds[name] = expandedNodeId;
                                 }
                             }
                             catch
@@ -262,7 +262,7 @@ namespace Opc.Ua
                 ExpandedNodeId typeId,
                 [NotNullWhen(true)] out IEncodeableType? systemType)
             {
-                if (NodeId.IsNull(typeId))
+                if (typeId.IsNull)
                 {
                     systemType = null;
                     return false;
@@ -320,7 +320,7 @@ namespace Opc.Ua
             /// <param name="unboundTypeIds">A dictionary of unbound typeIds, e.g. JSON type ids
             /// referenced by object name.</param>
             private void AddEncodeableType(Type systemType,
-                Dictionary<string, ExpandedNodeId?>? unboundTypeIds)
+                Dictionary<string, ExpandedNodeId>? unboundTypeIds)
             {
                 IEncodeableType? encodeableType = ReflectionBasedType.From(systemType);
                 if (encodeableType == null)
@@ -338,7 +338,7 @@ namespace Opc.Ua
             /// referenced by object name.</param>
             /// <exception cref="InvalidOperationException"></exception>
             private void AddEncodeableType(IEncodeableType encodeableType,
-                Dictionary<string, ExpandedNodeId?>? unboundTypeIds)
+                Dictionary<string, ExpandedNodeId>? unboundTypeIds)
             {
                 if (encodeableType.Type.IsEnum)
                 {
@@ -352,7 +352,7 @@ namespace Opc.Ua
                         $"Encodeable type {encodeableType} cannot create instance");
                 ExpandedNodeId nodeId = encodeable.TypeId;
 
-                if (!NodeId.IsNull(nodeId))
+                if (!nodeId.IsNull)
                 {
                     // check for default namespace.
                     if (nodeId.NamespaceUri == Namespaces.OpcUa)
@@ -365,7 +365,7 @@ namespace Opc.Ua
 
                 nodeId = encodeable.BinaryEncodingId;
 
-                if (!NodeId.IsNull(nodeId))
+                if (!nodeId.IsNull)
                 {
                     // check for default namespace.
                     if (nodeId.NamespaceUri == Namespaces.OpcUa)
@@ -385,7 +385,7 @@ namespace Opc.Ua
                     nodeId = ExpandedNodeId.Null;
                 }
 
-                if (!NodeId.IsNull(nodeId))
+                if (!nodeId.IsNull)
                 {
                     // check for default namespace.
                     if (nodeId.NamespaceUri == Namespaces.OpcUa)
@@ -407,7 +407,7 @@ namespace Opc.Ua
                         nodeId = ExpandedNodeId.Null;
                     }
 
-                    if (!NodeId.IsNull(nodeId))
+                    if (!nodeId.IsNull)
                     {
                         // check for default namespace.
                         if (nodeId.NamespaceUri == Namespaces.OpcUa)
@@ -420,8 +420,8 @@ namespace Opc.Ua
                 }
                 else if (unboundTypeIds != null &&
                     unboundTypeIds.TryGetValue(encodeableType.Type.Name,
-                        out ExpandedNodeId? jsonEncodingId) &&
-                    jsonEncodingId != null)
+                        out ExpandedNodeId jsonEncodingId) &&
+                    !jsonEncodingId.IsNull)
                 {
                     m_encodeableTypes[jsonEncodingId] = encodeableType;
                 }
@@ -509,7 +509,7 @@ namespace Opc.Ua
             IEncodeableFactoryBuilder builder = factory.Builder
                 .AddEncodeableTypes(typeof(EncodeableFactory).Assembly);
 
-            Assembly? core = CoreUtils.GetOpcUaCoreAssembly();
+            Assembly? core = CoreUtils.GetOpcUaAssembly();
             if (core != null)
             {
                 builder = builder.AddEncodeableTypes(core);

@@ -64,7 +64,7 @@ namespace Opc.Ua.PubSub
             StatusCode? status = null,
             DateTime? timestamp = null)
         {
-            if (nodeId == null)
+            if (nodeId.IsNull)
             {
                 throw new ArgumentException(null, nameof(nodeId));
             }
@@ -101,7 +101,7 @@ namespace Opc.Ua.PubSub
             uint attributeId = Attributes.Value,
             DataValue dataValue = null)
         {
-            if (nodeId == null)
+            if (nodeId.IsNull)
             {
                 throw new ArgumentException(null, nameof(nodeId));
             }
@@ -136,7 +136,7 @@ namespace Opc.Ua.PubSub
         public DataValue ReadPublishedDataItem(NodeId nodeId, uint attributeId = Attributes.Value)
         {
             // todo find out why the deltaFrame parameter is not used
-            if (nodeId == null)
+            if (nodeId.IsNull)
             {
                 throw new ArgumentException(null, nameof(nodeId));
             }

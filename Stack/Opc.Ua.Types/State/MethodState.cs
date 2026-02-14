@@ -88,19 +88,55 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override object Clone()
         {
-            return MemberwiseClone();
+            var clone = (MethodState)Activator.CreateInstance(GetType(), Parent);
+            CopyTo(clone);
+            return clone;
         }
 
-        /// <summary>
-        /// Makes a copy of the node and all children.
-        /// </summary>
-        /// <returns>
-        /// A new object that is a copy of this instance.
-        /// </returns>
-        public new object MemberwiseClone()
+        /// <inheritdoc/>
+        public override bool DeepEquals(NodeState node)
         {
-            var clone = (MethodState)Activator.CreateInstance(GetType(), Parent);
-            return CloneChildren(clone);
+            if (node is not MethodState state)
+            {
+                return false;
+            }
+            return
+                base.DeepEquals(state) &&
+                EqualityComparer<PropertyState<Argument[]>>.Default.Equals(
+                    state.OutputArguments, OutputArguments) &&
+                EqualityComparer<PropertyState<Argument[]>>.Default.Equals(
+                    state.InputArguments, InputArguments) &&
+                state.MethodDeclarationId == MethodDeclarationId &&
+                state.Executable == Executable &&
+                state.UserExecutable == UserExecutable
+                ;
+        }
+
+        /// <inheritdoc/>
+        public override int DeepGetHashCode()
+        {
+            var hash = new HashCode();
+            hash.Add(base.DeepGetHashCode());
+            hash.Add(OutputArguments);
+            hash.Add(OutputArguments);
+            hash.Add(MethodDeclarationId);
+            hash.Add(Executable);
+            hash.Add(UserExecutable);
+            return hash.ToHashCode();
+        }
+
+        /// <inheritdoc/>
+        protected override void CopyTo(NodeState target)
+        {
+            if (target is MethodState state)
+            {
+                state.OutputArguments = OutputArguments;
+                state.InputArguments = InputArguments;
+                state.MethodDeclarationId = MethodDeclarationId;
+                state.Executable = Executable;
+                state.UserExecutable = UserExecutable;
+            }
+            base.CopyTo(target);
         }
 
         /// <summary>
@@ -473,11 +509,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// Populates a list with the children that belong to the node.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="children">The list of children to populate.</param>
+        /// <inheritdoc/>
         public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
         {
             PropertyState<Argument[]> inputArguments = m_inputArguments;
@@ -497,51 +529,76 @@ namespace Opc.Ua
             base.GetChildren(context, children);
         }
 
-        /// <summary>
-        /// Finds the child with the specified browse name.
-        /// </summary>
+        /// <inheritdoc/>
         protected override BaseInstanceState FindChild(
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
             BaseInstanceState replacement)
         {
-            if (QualifiedName.IsNull(browseName))
+            if (browseName.IsNull)
             {
                 return null;
             }
-
+            BaseInstanceState instance = null;
             switch (browseName.Name)
             {
                 case BrowseNames.InputArguments:
-                    if (createOrReplace && InputArguments == null)
-                    {
-                        if (replacement == null)
-                        {
-                            InputArguments = new PropertyState<Argument[]>(this);
-                        }
-                        else
-                        {
-                            InputArguments = (PropertyState<Argument[]>)replacement;
-                        }
-                    }
-                    return InputArguments ?? base.FindChild(context, browseName, createOrReplace, replacement);
+                    instance = !createOrReplace ?
+                        OutputArguments : CreateOrReplaceInputArguments(context, replacement);
+                    break;
                 case BrowseNames.OutputArguments:
-                    if (createOrReplace && OutputArguments == null)
-                    {
-                        if (replacement == null)
-                        {
-                            OutputArguments = new PropertyState<Argument[]>(this);
-                        }
-                        else
-                        {
-                            OutputArguments = (PropertyState<Argument[]>)replacement;
-                        }
-                    }
-                    return OutputArguments ?? base.FindChild(context, browseName, createOrReplace, replacement);
-                default:
-                    return base.FindChild(context, browseName, createOrReplace, replacement);
+                    instance = !createOrReplace ?
+                        OutputArguments : CreateOrReplaceOutputArguments(context, replacement);
+                    break;
             }
+            return instance ?? base.FindChild(context, browseName, createOrReplace, replacement);
+        }
+
+        /// <summary>
+        /// Create or replace output arguments
+        /// </summary>
+        public PropertyState<Argument[]> CreateOrReplaceOutputArguments(
+            ISystemContext context,
+            BaseInstanceState replacement)
+        {
+            if (OutputArguments == null)
+            {
+                PropertyState<Argument[]> child = replacement as PropertyState<Argument[]>;
+                if (child == null)
+                {
+                    child = new PropertyState<Argument[]>(this);
+                    if (replacement != null)
+                    {
+                        child.Create(context, replacement);
+                    }
+                }
+                OutputArguments = child;
+            }
+            return OutputArguments;
+        }
+
+        /// <summary>
+        /// Create or replace input arguments
+        /// </summary>
+        public PropertyState<Argument[]> CreateOrReplaceInputArguments(
+            ISystemContext context,
+            BaseInstanceState replacement)
+        {
+            if (InputArguments == null)
+            {
+                PropertyState<Argument[]> child = replacement as PropertyState<Argument[]>;
+                if (child == null)
+                {
+                    child = new PropertyState<Argument[]>(this);
+                    if (replacement != null)
+                    {
+                        child.Create(context, replacement);
+                    }
+                }
+                InputArguments = child;
+            }
+            return InputArguments;
         }
 
         /// <summary>
@@ -677,7 +734,7 @@ namespace Opc.Ua
                     error = true;
                 }
 
-                inputs.Add(inputArguments[ii].Value);
+                inputs.Add(inputArguments[ii].AsBoxedObject());
                 argumentErrors.Add(argumentError);
             }
 
@@ -744,7 +801,7 @@ namespace Opc.Ua
             IList<object> inputArguments,
             IList<object> outputArguments)
         {
-            return Call(context, null, inputArguments, outputArguments);
+            return Call(context, default, inputArguments, outputArguments);
         }
 
         /// <summary>
@@ -756,7 +813,7 @@ namespace Opc.Ua
             IList<object> outputArguments,
             CancellationToken cancellationToken = default)
         {
-            return CallAsync(context, null, inputArguments, outputArguments, cancellationToken);
+            return CallAsync(context, default, inputArguments, outputArguments, cancellationToken);
         }
 
         /// <summary>
@@ -823,7 +880,7 @@ namespace Opc.Ua
                     cancellationToken).ConfigureAwait(false);
             }
 
-            return Call(context, null, inputArguments, outputArguments);
+            return Call(context, default, inputArguments, outputArguments);
         }
 
         /// <summary>
@@ -855,13 +912,13 @@ namespace Opc.Ua
             Argument expectedArgument = arguments[index];
 
             var typeInfo = TypeInfo.IsInstanceOfDataType(
-                inputArgument.Value,
+                inputArgument.AsBoxedObject(),
                 expectedArgument.DataType,
                 expectedArgument.ValueRank,
                 context.NamespaceUris,
                 context.TypeTable);
 
-            if (typeInfo == null)
+            if (typeInfo.IsUnknown)
             {
                 return StatusCodes.BadTypeMismatch;
             }

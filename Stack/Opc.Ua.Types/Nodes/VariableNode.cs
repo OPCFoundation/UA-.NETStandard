@@ -286,7 +286,7 @@ namespace Opc.Ua
             var clone = (VariableNode)base.MemberwiseClone();
 
             clone.Value = CoreUtils.Clone(Value);
-            clone.DataType = CoreUtils.Clone(DataType);
+            clone.DataType = DataType;
             clone.ValueRank = CoreUtils.Clone(ValueRank);
             clone.m_arrayDimensions = CoreUtils.Clone(m_arrayDimensions);
             clone.AccessLevel = CoreUtils.Clone(AccessLevel);
@@ -304,7 +304,7 @@ namespace Opc.Ua
         /// <value>The value.</value>
         object IVariableBase.Value
         {
-            get => Value.Value;
+            get => Value.AsBoxedObject();
             set => Value = new Variant(value);
         }
 
@@ -378,7 +378,7 @@ namespace Opc.Ua
                     return AccessLevelEx;
                 // values are copied when the are written so then can be safely returned.
                 case Attributes.Value:
-                    return Value.Value;
+                    return Value.AsBoxedObject();
                 // array dimensions attribute is not support if it is empty.
                 case Attributes.ArrayDimensions:
                     if (m_arrayDimensions == null || m_arrayDimensions.Count == 0)

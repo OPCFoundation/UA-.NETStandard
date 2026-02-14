@@ -66,10 +66,10 @@ namespace Opc.Ua
                 element = element.NextSibling;
             }
 
+            DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<ConfigurationLocation>();
             using var reader = XmlReader.Create(
                 new StringReader(element.OuterXml),
                 Utils.DefaultXmlReaderSettings());
-            var serializer = new DataContractSerializer(typeof(ConfigurationLocation));
             return serializer.ReadObject(reader) as ConfigurationLocation;
         }
     }
@@ -320,10 +320,12 @@ namespace Opc.Ua
             using var stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read);
             try
             {
-                var serializer = new DataContractSerializer(systemType);
-
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
-                var configuration = serializer.ReadObject(stream) as ApplicationConfiguration;
+                DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer(
+                    systemType);
+
+                using var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
+                var configuration = serializer.ReadObject(reader) as ApplicationConfiguration;
                 configuration.Initialize(telemetry);
 
                 configuration?.SourceFilePath = file.FullName;
@@ -502,9 +504,11 @@ namespace Opc.Ua
             ApplicationConfiguration configuration;
             try
             {
-                var serializer = new DataContractSerializer(systemType);
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
-                configuration = (ApplicationConfiguration)serializer.ReadObject(stream);
+                DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer(
+                    systemType);
+                using var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
+                configuration = (ApplicationConfiguration)serializer.ReadObject(reader);
                 configuration.Initialize(telemetry);
             }
             catch (Exception e)
@@ -566,13 +570,12 @@ namespace Opc.Ua
         /// <remarks>Calls GetType() on the current instance and passes that to the DataContractSerializer.</remarks>
         public void SaveToFile(string filePath)
         {
+            using Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.ReadWrite);
+            using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
+            DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer(GetType());
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = true;
-
-            using Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.ReadWrite);
             using var writer = XmlWriter.Create(ostrm, settings);
-            var serializer = new DataContractSerializer(GetType());
-            using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
             serializer.WriteObject(writer, this);
         }
 

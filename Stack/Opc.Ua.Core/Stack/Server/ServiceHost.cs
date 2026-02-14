@@ -56,12 +56,10 @@ namespace Opc.Ua
         /// Initializes the service host.
         /// </summary>
         /// <param name="server">The server.</param>
-        /// <param name="endpointType">Type of the endpoint.</param>
         /// <param name="addresses">The addresses.</param>
-        public ServiceHost(ServerBase server, Type endpointType, params Uri[] addresses)
+        public ServiceHost(ServerBase server, params Uri[] addresses)
         {
             m_server = server;
-            EndpointType = endpointType;
             Addresses = addresses;
         }
 
@@ -115,11 +113,6 @@ namespace Opc.Ua
         /// State of the service host.
         /// </summary>
         public ServiceHostState State { get; private set; }
-
-        /// <summary>
-        /// Endpoint type
-        /// </summary>
-        internal Type EndpointType { get; }
 
         /// <summary>
         /// Addresses

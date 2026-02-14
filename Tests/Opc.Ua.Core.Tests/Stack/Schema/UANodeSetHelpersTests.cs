@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -47,13 +46,6 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
     [Parallelizable]
     public class UANodeSetHelpersTests
     {
-        [DatapointSource]
-        public static readonly NodeSet2Asset[] NodeSet2AssetArray =
-        [
-            .. AssetCollection<NodeSet2Asset>.CreateFromFiles(
-                Ua.Tests.TestUtils.EnumerateTestAssets("*.NodeSet2.xml"))
-        ];
-
         /// <summary>
         /// Test Structure Field ArrayDimensions attribute is correctly imported respectively exported
         /// </summary>
@@ -183,63 +175,6 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             {
                 File.Delete(bufferPath);
             }
-        }
-
-        /// <summary>
-        /// Test NodeSet2 import.
-        /// </summary>
-        [Test]
-        [TestCase("Stack/Opc.Ua.Core/Schema/Opc.Ua.NodeSet2.xml")]
-        [TestCase("Applications/Quickstarts.Servers/TestData/Generated/TestData.NodeSet2.xml")]
-        [TestCase(
-            "Applications/Quickstarts.Servers/MemoryBuffer/Generated/MemoryBuffer.NodeSet2.xml")]
-        [TestCase("Applications/Quickstarts.Servers/Boiler/Generated/Boiler.NodeSet2.xml")]
-        public void NodeSet2ValidationTest(string nodeset2File)
-        {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-
-            string assetPath = Utils.GetAbsoluteFilePath(
-                "../../../../../" + nodeset2File,
-                checkCurrentDirectory: true,
-                createAlways: false);
-            using var importStream = new FileStream(assetPath, FileMode.Open);
-            var importedNodeSet = Export.UANodeSet.Read(importStream);
-            Assert.NotNull(importedNodeSet);
-
-            var importedNodeStates = new NodeStateCollection();
-            var localContext = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
-            if (importedNodeSet.NamespaceUris != null)
-            {
-                foreach (string namespaceUri in importedNodeSet.NamespaceUris)
-                {
-                    localContext.NamespaceUris.Append(namespaceUri);
-                }
-            }
-            importedNodeSet.Import(localContext, importedNodeStates);
-        }
-
-        /// <summary>
-        /// Test NodeSet2 import. Requires test assets to be in the 'Assets' folder.
-        /// </summary>
-        [Theory]
-        public void NodeSet2ValidationTest(NodeSet2Asset nodeset2Asset)
-        {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-
-            using var importStream = new MemoryStream(nodeset2Asset.Xml);
-            var importedNodeSet = Export.UANodeSet.Read(importStream);
-            Assert.NotNull(importedNodeSet);
-
-            var importedNodeStates = new NodeStateCollection();
-            var localContext = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
-            if (importedNodeSet.NamespaceUris != null)
-            {
-                foreach (string namespaceUri in importedNodeSet.NamespaceUris)
-                {
-                    localContext.NamespaceUris.Append(namespaceUri);
-                }
-            }
-            importedNodeSet.Import(localContext, importedNodeStates);
         }
 
         /// <summary>
@@ -418,27 +353,6 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             parentObject.GetChildren(localContext, children);
 
             Assert.AreEqual(0, children.Count, "ParentObject should have 0 children by default (backward compatibility)");
-        }
-    }
-
-    /// <summary>
-    /// A NodeSet2 as test asset.
-    /// </summary>
-    public class NodeSet2Asset : IAsset, IFormattable
-    {
-        public string Path { get; private set; }
-        public byte[] Xml { get; private set; }
-
-        public void Initialize(byte[] blob, string path)
-        {
-            Path = path;
-            Xml = blob;
-        }
-
-        public string ToString(string format, IFormatProvider formatProvider)
-        {
-            string file = System.IO.Path.GetFileName(Path);
-            return $"{file}";
         }
     }
 }

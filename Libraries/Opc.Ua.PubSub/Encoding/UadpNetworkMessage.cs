@@ -76,7 +76,7 @@ namespace Opc.Ua.PubSub.Encoding
                 logger)
         {
             UADPVersion = kUadpVersion;
-            DataSetClassId = Guid.Empty;
+            DataSetClassId = Uuid.Empty;
             Timestamp = DateTime.UtcNow;
 
             UADPNetworkMessageType = UADPNetworkMessageType.DataSetMessage;
@@ -92,7 +92,7 @@ namespace Opc.Ua.PubSub.Encoding
             : base(writerGroupConfiguration, metadata, logger)
         {
             UADPVersion = kUadpVersion;
-            DataSetClassId = Guid.Empty;
+            DataSetClassId = Uuid.Empty;
             Timestamp = DateTime.UtcNow;
 
             UADPNetworkMessageType = UADPNetworkMessageType.DiscoveryResponse;
@@ -110,7 +110,7 @@ namespace Opc.Ua.PubSub.Encoding
             : base(null, [], logger)
         {
             UADPVersion = kUadpVersion;
-            DataSetClassId = Guid.Empty;
+            DataSetClassId = Uuid.Empty;
             Timestamp = DateTime.UtcNow;
 
             UADPNetworkMessageType = UADPNetworkMessageType.DiscoveryRequest;
@@ -129,7 +129,7 @@ namespace Opc.Ua.PubSub.Encoding
             : base(null, [], logger)
         {
             UADPVersion = kUadpVersion;
-            DataSetClassId = Guid.Empty;
+            DataSetClassId = Uuid.Empty;
             Timestamp = DateTime.UtcNow;
 
             PublisherEndpoints = publisherEndpoints;
@@ -152,7 +152,7 @@ namespace Opc.Ua.PubSub.Encoding
             : base(null, [], logger)
         {
             UADPVersion = kUadpVersion;
-            DataSetClassId = Guid.Empty;
+            DataSetClassId = Uuid.Empty;
             Timestamp = DateTime.UtcNow;
 
             DataSetWriterIds = writerIds;
@@ -281,7 +281,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Get and Set DataSetClassId
         /// </summary>
-        public Guid DataSetClassId { get; set; }
+        public Uuid DataSetClassId { get; set; }
 
         /// <summary>
         /// Get and Set GroupFlags
@@ -713,9 +713,9 @@ namespace Opc.Ua.PubSub.Encoding
                 foreach (DataSetReaderDataType dataSetReader in dataSetReaders)
                 {
                     //check Enabled & publisher id
-                    if (dataSetReader.PublisherId.Value == null ||
+                    if (dataSetReader.PublisherId.IsNull ||
                         (PublisherId != null &&
-                            PublisherId.Equals(dataSetReader.PublisherId.Value)))
+                            PublisherId.Equals(dataSetReader.PublisherId.AsBoxedObject()))) // TODO: Make PublisherId field a Variant to avoid boxing
                     {
                         dataSetReadersFiltered.Add(dataSetReader);
                     }

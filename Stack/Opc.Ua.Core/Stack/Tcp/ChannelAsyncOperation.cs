@@ -133,7 +133,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Called when an asynchronous operation completes.
         /// </summary>
-        public bool Fault(uint code, string format, params object[] args)
+        public bool Fault(StatusCode code, string format, params object[] args)
         {
             return InternalComplete(true, ServiceResult.Create(code, format, args));
         }
@@ -141,7 +141,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Called when an asynchronous operation completes.
         /// </summary>
-        public bool Fault(bool doNotBlock, uint code, string format, params object[] args)
+        public bool Fault(bool doNotBlock, StatusCode code, string format, params object[] args)
         {
             return InternalComplete(doNotBlock, ServiceResult.Create(code, format, args));
         }
@@ -149,7 +149,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Called when an asynchronous operation completes.
         /// </summary>
-        public bool Fault(Exception e, uint defaultCode, string format, params object[] args)
+        public bool Fault(Exception e, StatusCode defaultCode, string format, params object[] args)
         {
             return InternalComplete(true, ServiceResult.Create(e, defaultCode, format, args));
         }
@@ -160,7 +160,7 @@ namespace Opc.Ua.Bindings
         public bool Fault(
             bool doNotBlock,
             Exception e,
-            uint defaultCode,
+            StatusCode defaultCode,
             string format,
             params object[] args)
         {

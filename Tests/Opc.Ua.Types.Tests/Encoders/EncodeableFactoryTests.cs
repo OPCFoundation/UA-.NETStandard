@@ -495,7 +495,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             IEncodeableFactoryBuilder builder = factory.Builder;
 
             // Act & Assert - The implementation may handle null NodeIds gracefully rather than throwing
-            NUnit.Framework.Assert.DoesNotThrow(() => builder.AddEncodeableType(null, typeof(TestEncodeable)));
+            NUnit.Framework.Assert.DoesNotThrow(() => builder.AddEncodeableType(default, typeof(TestEncodeable)));
         }
 
         [Test]
@@ -669,7 +669,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             IEncodeableFactory factory = EncodeableFactory.Create();
 
             // Act
-            bool result = factory.TryGetEncodeableType(null, out IEncodeableType encodeableType);
+            bool result = factory.TryGetEncodeableType(default, out IEncodeableType encodeableType);
 
             // Assert
             Assert.False(result);
@@ -957,7 +957,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Act & Assert
             NUnit.Framework.Assert.Throws<ArgumentNullException>(
-                () => builder.AddEncodeableType(null, encodeableType));
+                () => builder.AddEncodeableType(default, encodeableType));
         }
 
         [Test]

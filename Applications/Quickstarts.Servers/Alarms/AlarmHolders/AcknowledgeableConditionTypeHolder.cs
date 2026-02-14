@@ -192,7 +192,7 @@ namespace Alarms
             }
             else
             {
-                alarm.Message.Value = "User Acknowledged Event " + DateTime.Now.ToShortTimeString();
+                alarm.Message.Value = LocalizedText.From("User Acknowledged Event " + DateTime.Now.ToShortTimeString());
                 Log("OnAcknowledge", "Setting Confirmed State to False");
                 alarm.SetConfirmedState(SystemContext, confirmed: false);
             }
@@ -234,7 +234,7 @@ namespace Alarms
 
             m_confirmed.Add(eventIdString);
 
-            alarm.Message.Value = "User Confirmed Event " + DateTime.Now.ToShortTimeString();
+            alarm.Message.Value = LocalizedText.From("User Confirmed Event " + DateTime.Now.ToShortTimeString());
 
             m_alarmController.OnAcknowledge();
 

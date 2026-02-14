@@ -1029,7 +1029,7 @@ namespace Opc.Ua
 
             Array clone;
             // check for list.
-            if (list != null && typeInfo != null)
+            if (list != null && !typeInfo.IsUnknown)
             {
                 clone = TypeInfo.CreateArray(typeInfo.BuiltInType, subLength);
 

@@ -363,11 +363,6 @@ namespace Opc.Ua.Test
 
                 if (value != null)
                 {
-                    if (expectedType == BuiltInType.Guid && value is Guid guidValue)
-                    {
-                        value = new Uuid(guidValue);
-                    }
-
                     output.SetValue(value, indexes);
                 }
             }
@@ -411,7 +406,7 @@ namespace Opc.Ua.Test
                 case BuiltInType.DateTime:
                     return GetRandomDateTime();
                 case BuiltInType.Guid:
-                    return GetRandomUuid();
+                    return GetRandomGuid();
                 case BuiltInType.ByteString:
                     return GetRandomByteString();
                 case BuiltInType.XmlElement:
@@ -827,19 +822,11 @@ namespace Opc.Ua.Test
         }
 
         /// <inheritdoc/>
-        public Guid GetRandomGuid()
+        public Uuid GetRandomGuid()
         {
             byte[] bytes = new byte[16];
             m_random.NextBytes(bytes, 0, bytes.Length);
-            return new Guid(bytes);
-        }
-
-        /// <inheritdoc/>
-        public Uuid GetRandomUuid()
-        {
-            byte[] bytes = new byte[16];
-            m_random.NextBytes(bytes, 0, bytes.Length);
-            return new Uuid(new Guid(bytes));
+            return new Uuid(bytes);
         }
 
         /// <inheritdoc/>
@@ -948,32 +935,12 @@ namespace Opc.Ua.Test
             return new LocalizedText(locale, CreateString(locale, false));
         }
 
-        private readonly List<KeyValuePair<uint, string>> m_knownStatusCodes = [];
-
         /// <inheritdoc/>
         public StatusCode GetRandomStatusCode()
         {
-            if (m_knownStatusCodes.Count == 0)
-            {
-                foreach (FieldInfo field in typeof(StatusCodes).GetFields(
-                    BindingFlags.Public | BindingFlags.Static))
-                {
-                    if (field.FieldType == typeof(uint) &&
-                        (field.Name.StartsWith("Good", StringComparison.Ordinal) ||
-                            field.Name.StartsWith("Uncertain", StringComparison.Ordinal) ||
-                            field.Name.StartsWith("Bad", StringComparison.Ordinal)))
-                    {
-                        uint value = Convert.ToUInt32(
-                            field.GetValue(null),
-                            System.Globalization.CultureInfo.InvariantCulture);
-                        m_knownStatusCodes.Add(
-                            new KeyValuePair<uint, string>(value, field.Name));
-                    }
-                }
-            }
-
-            int index = GetRandomRange(0, m_knownStatusCodes.Count - 1);
-            return m_knownStatusCodes[index].Key;
+            StatusCodeCollection interned = StatusCode.InternedStatusCodes;
+            int index = GetRandomRange(0, interned.Count - 1);
+            return interned[index];
         }
 
         /// <inheritdoc/>
@@ -1088,7 +1055,7 @@ namespace Opc.Ua.Test
         {
             NodeId typeId = GetRandomNodeId();
 
-            if (NodeId.IsNull(typeId))
+            if (typeId.IsNull)
             {
                 return ExtensionObject.Null;
             }
@@ -1254,7 +1221,6 @@ namespace Opc.Ua.Test
                 new DateTime(2039, 4, 4),
                 new DateTime(2001, 9, 11, 9, 15, 0, DateTimeKind.Local)
             ),
-            new(typeof(Guid), Guid.Empty),
             new(typeof(Uuid), Uuid.Empty),
             new(typeof(byte[]), null, Array.Empty<byte>()),
             new(typeof(XmlElement), null),
@@ -1394,14 +1360,7 @@ namespace Opc.Ua.Test
         private object GetRandom(Type expectedType)
         {
             BuiltInType builtInType = TypeInfo.Construct(expectedType).BuiltInType;
-            object value = GetRandom(builtInType);
-
-            if (builtInType == BuiltInType.Guid && expectedType == typeof(Guid))
-            {
-                return (Guid)(Uuid)value;
-            }
-
-            return value;
+            return GetRandom(builtInType);
         }
 
         /// <summary>

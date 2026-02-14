@@ -38,37 +38,37 @@ namespace Opc.Ua.Gds.Server
     public class GdsRole : Role
     {
         /// <summary>
-        /// This Role grants rights to register, update and unregister any OPC UA Application.
+        /// This Role grants rights to register, update and unregister any
+        /// OPC UA Application.
         /// </summary>
-        public static Role DiscoveryAdmin { get; } =
-            new Role(
-                ExpandedNodeId.ToNodeId(
-                    ObjectIds.WellKnownRole_DiscoveryAdmin,
-                    new NamespaceTable([Namespaces.OpcUa, Namespaces.OpcUaGds])
-                ),
-                BrowseNames.WellKnownRole_DiscoveryAdmin);
-
-        public static Role CertificateAuthorityAdmin { get; } =
-            new Role(
-                ExpandedNodeId.ToNodeId(
-                    ObjectIds.WellKnownRole_CertificateAuthorityAdmin,
-                    new NamespaceTable([Namespaces.OpcUa, Namespaces.OpcUaGds])
-                ),
-                BrowseNames.WellKnownRole_CertificateAuthorityAdmin);
-
-        public static Role RegistrationAuthorityAdmin { get; } =
-            new Role(
-                ExpandedNodeId.ToNodeId(
-                    ObjectIds.WellKnownRole_RegistrationAuthorityAdmin,
-                    new NamespaceTable([Namespaces.OpcUa, Namespaces.OpcUaGds])
-                ),
-                BrowseNames.WellKnownRole_RegistrationAuthorityAdmin);
+        public static Role DiscoveryAdmin { get; } = new(
+            ObjectIds.WellKnownRole_DiscoveryAdmin,
+            BrowseNames.WellKnownRole_DiscoveryAdmin);
 
         /// <summary>
-        ///  A privilege to manage the own Certificates and pull trust list
+        /// Certificate authority administration role. This Role grants rights
+        /// to manage the Certificate Authority, e.g. to create and revoke
+        /// certificates, manage trust lists, and configure certificate policies.
         /// </summary>
-        public static Role ApplicationSelfAdmin { get; }
-            = new Role(NodeId.Null, "ApplicationSelfAdmin");
+        public static Role CertificateAuthorityAdmin { get; } = new(
+            ObjectIds.WellKnownRole_CertificateAuthorityAdmin,
+            BrowseNames.WellKnownRole_CertificateAuthorityAdmin);
+
+        /// <summary>
+        /// This role grants rights to manage the Registration Authority, e.g.
+        /// to approve or reject application registration requests, and to manage the
+        /// Registration Authority.
+        /// </summary>
+        public static Role RegistrationAuthorityAdmin { get; } = new(
+            ObjectIds.WellKnownRole_RegistrationAuthorityAdmin,
+            BrowseNames.WellKnownRole_RegistrationAuthorityAdmin);
+
+        /// <summary>
+        /// A privilege to manage the own Certificates and pull trust list
+        /// </summary>
+        public static Role ApplicationSelfAdmin { get; } = new(
+            ExpandedNodeId.Null,
+            "ApplicationSelfAdmin");
 
         public GdsRole(NodeId roleId, string name)
             : base(roleId, name)
@@ -84,14 +84,18 @@ namespace Opc.Ua.Gds.Server
         public GdsRoleBasedIdentity(
             IUserIdentity identity,
             IEnumerable<Role> roles,
-            NodeId applicationId)
-            : base(identity, roles)
+            NodeId applicationId,
+            NamespaceTable namespaces)
+            : base(identity, roles, namespaces)
         {
             ApplicationId = applicationId;
         }
 
-        public GdsRoleBasedIdentity(IUserIdentity identity, IEnumerable<Role> roles)
-            : base(identity, roles)
+        public GdsRoleBasedIdentity(
+            IUserIdentity identity,
+            IEnumerable<Role> roles,
+            NamespaceTable namespaces)
+            : base(identity, roles, namespaces)
         {
         }
 

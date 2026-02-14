@@ -548,7 +548,7 @@ namespace Opc.Ua.Server
             nodeManager = null;
 
             // null node ids have no manager.
-            if (NodeId.IsNull(nodeId))
+            if (nodeId.IsNull)
             {
                 return null;
             }
@@ -603,7 +603,7 @@ namespace Opc.Ua.Server
             object handle;
 
             // null node ids have no manager.
-            if (NodeId.IsNull(nodeId))
+            if (nodeId.IsNull)
             {
                 return (null, null);
             }
@@ -985,12 +985,12 @@ namespace Opc.Ua.Server
             {
                 RelativePathElement element = relativePath.Elements[ii];
 
-                if (element == null || QualifiedName.IsNull(relativePath.Elements[ii].TargetName))
+                if (element == null || relativePath.Elements[ii].TargetName.IsNull)
                 {
                     return StatusCodes.BadBrowseNameInvalid;
                 }
 
-                if (NodeId.IsNull(element.ReferenceTypeId))
+                if (element.ReferenceTypeId.IsNull)
                 {
                     element.ReferenceTypeId = ReferenceTypeIds.References;
                     element.IncludeSubtypes = true;
@@ -1052,13 +1052,13 @@ namespace Opc.Ua.Server
             RelativePathElement element = relativePath.Elements[index];
 
             // check for valid reference type.
-            if (!element.IncludeSubtypes && NodeId.IsNull(element.ReferenceTypeId))
+            if (!element.IncludeSubtypes && element.ReferenceTypeId.IsNull)
             {
                 return;
             }
 
             // check for valid target name.
-            if (QualifiedName.IsNull(element.TargetName))
+            if (element.TargetName.IsNull)
             {
                 throw new ServiceResultException(StatusCodes.BadBrowseNameInvalid);
             }
@@ -1222,7 +1222,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(nodesToBrowse));
             }
 
-            if (view != null && !NodeId.IsNull(view.ViewId))
+            if (view != null && !view.ViewId.IsNull)
             {
                 (object viewHandle, IAsyncNodeManager viewManager) =
                     await GetManagerHandleAsync(view.ViewId, cancellationToken)
@@ -1371,7 +1371,7 @@ namespace Opc.Ua.Server
                     nodeId = (nodesCollection[i] as ReadValueId)?.NodeId ?? default;
                 }
 
-                if (nodeId == null)
+                if (nodeId.IsNull)
                 {
                     throw new ArgumentException(
                         "Provided List<T> nodesCollection is of wrong type, T should be type BrowseDescription, ReadValueId or CallMethodRequest",
@@ -1572,7 +1572,7 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadNodeIdUnknown;
             }
 
-            if (!NodeId.IsNull(nodeToBrowse.ReferenceTypeId) &&
+            if (!nodeToBrowse.ReferenceTypeId.IsNull &&
                 !Server.TypeTree.IsKnown(nodeToBrowse.ReferenceTypeId))
             {
                 return StatusCodes.BadReferenceTypeIdInvalid;
@@ -1615,7 +1615,7 @@ namespace Opc.Ua.Server
             };
 
             // check if reference type left unspecified.
-            if (NodeId.IsNull(cp.ReferenceTypeId))
+            if (cp.ReferenceTypeId.IsNull)
             {
                 cp.ReferenceTypeId = ReferenceTypeIds.References;
                 cp.IncludeSubtypes = true;
@@ -1744,7 +1744,7 @@ namespace Opc.Ua.Server
             ReferenceDescription description,
             CancellationToken cancellationToken = default)
         {
-            if (targetId == null)
+            if (targetId.IsNull)
             {
                 throw new ArgumentNullException(nameof(targetId));
             }
@@ -2636,7 +2636,7 @@ namespace Opc.Ua.Server
                     }
 
                     // the data encoding has no meaning for event subscriptions.
-                    if (!QualifiedName.IsNull(itemToCreate.ItemToMonitor.DataEncoding))
+                    if (!itemToCreate.ItemToMonitor.DataEncoding.IsNull)
                     {
                         errors[ii] = StatusCodes.BadDataEncodingInvalid;
                         continue;
@@ -3553,13 +3553,13 @@ namespace Opc.Ua.Server
             }
 
             // check object id.
-            if (NodeId.IsNull(callMethodRequest.ObjectId))
+            if (callMethodRequest.ObjectId.IsNull)
             {
                 return StatusCodes.BadNodeIdInvalid;
             }
 
             // check method id.
-            if (NodeId.IsNull(callMethodRequest.MethodId))
+            if (callMethodRequest.MethodId.IsNull)
             {
                 return StatusCodes.BadMethodInvalid;
             }

@@ -124,7 +124,7 @@ namespace Opc.Ua.Security
 
             try
             {
-                FileStream reader = File.Open(
+                FileStream iStrm = File.Open(
                     configFilePath,
                     FileMode.Open,
                     FileAccess.Read,
@@ -132,22 +132,23 @@ namespace Opc.Ua.Security
 
                 try
                 {
-                    byte[] data = new byte[reader.Length];
-                    int bytesRead = reader.Read(data, 0, (int)reader.Length);
-                    if (reader.Length != bytesRead)
+                    byte[] data = new byte[iStrm.Length];
+                    int bytesRead = iStrm.Read(data, 0, (int)iStrm.Length);
+                    if (iStrm.Length != bytesRead)
                     {
                         throw ServiceResultException.Create(
                             StatusCodes.BadNotReadable,
                             "Cannot read all bytes of the configuration file: {0}<{1}",
                             bytesRead,
-                            reader.Length);
+                            iStrm.Length);
                     }
 
                     // find the SecuredApplication element in the file.
-                    if (data.ToString().Contains("SecuredApplication", StringComparison.Ordinal))
+                    if (Encoding.UTF8.GetString(data).Contains("SecuredApplication", StringComparison.Ordinal))
                     {
-                        var serializer = new DataContractSerializer(typeof(SecuredApplication));
                         using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
+                        DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<SecuredApplication>();
+                        using var reader = XmlReader.Create(iStrm, Utils.DefaultXmlReaderSettings());
                         application = serializer.ReadObject(reader) as SecuredApplication;
 
                         application.ConfigurationFile = configFilePath;
@@ -156,24 +157,22 @@ namespace Opc.Ua.Security
                     // load the application configuration.
                     else
                     {
-                        reader.Dispose();
-                        reader = File.Open(
+                        iStrm.Dispose();
+                        iStrm = File.Open(
                             configFilePath,
                             FileMode.Open,
                             FileAccess.Read,
                             FileShare.Read);
-                        var serializer = new DataContractSerializer(
-                            typeof(ApplicationConfiguration));
-                        using IDisposable scope =
-                            AmbientMessageContext.SetScopedContext(m_telemetry);
-                        applicationConfiguration = serializer.ReadObject(
-                            reader) as ApplicationConfiguration;
+                        using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
+                        DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<ApplicationConfiguration>();
+                        using var reader = XmlReader.Create(iStrm, Utils.DefaultXmlReaderSettings());
+                        applicationConfiguration = serializer.ReadObject(reader) as ApplicationConfiguration;
                         applicationConfiguration.Initialize(m_telemetry);
                     }
                 }
                 finally
                 {
-                    reader.Dispose();
+                    iStrm.Dispose();
                 }
             }
             catch (Exception e)
@@ -485,13 +484,15 @@ namespace Opc.Ua.Security
         private object GetObject(Type type, XmlNode element)
         {
             using var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(element.InnerXml));
-            var reader = XmlDictionaryReader.CreateTextReader(
+            var txtReader = XmlDictionaryReader.CreateTextReader(
                 memoryStream,
                 Encoding.UTF8,
                 new XmlDictionaryReaderQuotas(),
                 null);
-            var serializer = new DataContractSerializer(type);
             using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
+            DataContractSerializer serializer =
+                CoreUtils.CreateDataContractSerializer(type);
+            using var reader = XmlReader.Create(txtReader, Utils.DefaultXmlReaderSettings());
             return serializer.ReadObject(reader);
         }
 
@@ -501,9 +502,11 @@ namespace Opc.Ua.Security
         private string SetObject(Type type, object value)
         {
             using var memoryStream = new MemoryStream();
-            var serializer = new DataContractSerializer(value?.GetType() ?? type);
             using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
-            serializer.WriteObject(memoryStream, value);
+            DataContractSerializer serializer =
+                CoreUtils.CreateDataContractSerializer(value?.GetType() ?? type);
+            using var writer = XmlWriter.Create(memoryStream, Utils.DefaultXmlWriterSettings());
+            serializer.WriteObject(writer, value);
 
             // must extract the inner xml.
             var document = new XmlDocument();

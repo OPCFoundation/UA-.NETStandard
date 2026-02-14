@@ -254,7 +254,7 @@ namespace Opc.Ua
                             "Unexpected ElementType value: {0}", element.ElementType);
                 }
 
-                if (NodeId.IsNull(parsedElement.ReferenceTypeId))
+                if (parsedElement.ReferenceTypeId.IsNull)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadSyntaxError,
@@ -323,7 +323,7 @@ namespace Opc.Ua
                             "Unexpected ElementType value: {0}", element.ElementType);
                 }
 
-                if (NodeId.IsNull(parsedElement.ReferenceTypeId))
+                if (parsedElement.ReferenceTypeId.IsNull)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadSyntaxError,

@@ -66,12 +66,12 @@ namespace Opc.Ua.Gds.Server
         {
             if (context != null)
             {
-                var allowedRoles = roles.ToList();
+                var allowedRoles = roles.ToHashSet();
                 bool selfAdmin = allowedRoles.Remove(GdsRole.ApplicationSelfAdmin);
 
                 //if true access is allowed
                 IUserIdentity userIdentity = (context as ISessionSystemContext)?.UserIdentity;
-                if (HasRole(userIdentity, allowedRoles))
+                if (HasRole(userIdentity, allowedRoles, context.NamespaceUris))
                 {
                     return;
                 }
@@ -106,7 +106,7 @@ namespace Opc.Ua.Gds.Server
         {
             var roles = new List<Role> { GdsRole.CertificateAuthorityAdmin, Role.SecurityAdmin };
             IUserIdentity userIdentity = (context as ISessionSystemContext)?.UserIdentity;
-            if (HasRole(userIdentity, roles))
+            if (HasRole(userIdentity, roles, context.NamespaceUris))
             {
                 return;
             }
@@ -145,14 +145,15 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        private static bool HasRole(IUserIdentity userIdentity, IEnumerable<Role> roles)
+        private static bool HasRole(IUserIdentity userIdentity, IEnumerable<Role> roles, NamespaceTable namespaces)
         {
             if (userIdentity != null && userIdentity.TokenType != UserTokenType.Anonymous)
             {
                 foreach (Role role in roles)
                 {
-                    if (!NodeId.IsNull(role.RoleId) &&
-                        userIdentity.GrantedRoleIds.Contains(role.RoleId))
+                    if (!role.RoleId.IsNull &&
+                        userIdentity.GrantedRoleIds.Contains(
+                            ExpandedNodeId.ToNodeId(role.RoleId, namespaces)))
                     {
                         return true;
                     }
@@ -165,7 +166,7 @@ namespace Opc.Ua.Gds.Server
             IUserIdentity userIdentity,
             NodeId applicationId)
         {
-            if (applicationId is null || applicationId.IsNullNodeId)
+            if (applicationId.IsNull)
             {
                 return false;
             }

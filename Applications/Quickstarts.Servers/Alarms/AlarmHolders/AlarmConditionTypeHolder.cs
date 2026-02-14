@@ -89,8 +89,8 @@ namespace Alarms
                     alarm.ShelvingState.Create(
                         SystemContext,
                         default,
-                        BrowseNames.ShelvingState,
-                        BrowseNames.ShelvingState,
+                        QualifiedName.From(BrowseNames.ShelvingState),
+                        LocalizedText.From(BrowseNames.ShelvingState),
                         false);
                 }
                 // Off normal does not create MaxTimeShelved.
@@ -101,7 +101,7 @@ namespace Alarms
             base.Initialize(alarmTypeIdentifier, name);
 
             alarm.SetActiveState(SystemContext, active: false);
-            alarm.InputNode.Value = new NodeId(m_trigger.NodeId);
+            alarm.InputNode.Value = m_trigger.NodeId;
 
             if (Optional)
             {
@@ -260,7 +260,7 @@ namespace Alarms
                 shelved = "Unshelved";
             }
 
-            alarm.Message.Value = "The alarm is " + shelved + dueTo;
+            alarm.Message.Value = LocalizedText.From("The alarm is " + shelved + dueTo);
             alarm.SetShelvingState(context, shelving, oneShot, shelvingTime);
 
             return ServiceResult.Good;
@@ -272,7 +272,7 @@ namespace Alarms
         private ServiceResult OnTimedUnshelve(ISystemContext context, AlarmConditionState alarm)
         {
             // update the alarm state and produce and event.
-            alarm.Message.Value = "The timed shelving period expired.";
+            alarm.Message.Value = LocalizedText.From("The timed shelving period expired.");
             alarm.SetShelvingState(context, false, false, 0);
 
             base.SetValue(alarm.Message.Value.Text);

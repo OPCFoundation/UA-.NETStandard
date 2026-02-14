@@ -1,0 +1,52 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <AssemblyName>$(AssemblyPrefix).SourceGeneration.Stack</AssemblyName>
+    <RootNamespace>Opc.Ua.SourceGeneration</RootNamespace>
+    <Description>OPC UA source generation Library</Description>
+  </PropertyGroup>
+  <!-- Package as source generator -->
+  <PropertyGroup>
+    <PackageId>$(PackagePrefix).Opc.Ua.SourceGeneration.Stack</PackageId>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <IsPackable>true</IsPackable>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageLicenseFile></PackageLicenseFile>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <NoPackageAnalysis>true</NoPackageAnalysis>
+  </PropertyGroup>
+  <PropertyGroup>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <AssemblySearchPath_UseOutDir>true</AssemblySearchPath_UseOutDir>
+    <SgfAddModuleInitializerAttribute>false</SgfAddModuleInitializerAttribute>
+  </PropertyGroup>
+  <ItemGroup>
+    <CompilerVisibleProperty Include="SgfAddModuleInitializerAttribute" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.SourceGeneration.Stack.Tests"/>
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <PackageReference Include="SourceGenerator.Foundations" >
+      <!-- Make private asset because assembly name comparer symbol conflict in test -->
+      <PrivateAssets>all</PrivateAssets>
+      <OutputItemType>Analzyer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Update="NETStandard.Library" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.SourceGeneration.Core\Opc.Ua.SourceGeneration.Core.csproj">
+      <PrivateAssets>all</PrivateAssets>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Opc.Ua.SourceGeneration\SourceGeneratorTelemetry.cs" />
+    <Compile Include="..\Opc.Ua.SourceGeneration\CompilationOptions.cs" />
+    <Compile Include="..\Opc.Ua.SourceGeneration\Extensions.cs" />
+  </ItemGroup>
+</Project>

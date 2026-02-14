@@ -1,0 +1,444 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<opc:ModelDesign
+  xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:ua="http://opcfoundation.org/UA/"
+  xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns="urn:opcfoundation.org:2024-01:TestModel"
+  TargetNamespace="urn:opcfoundation.org:2024-01:TestModel"
+  TargetXmlNamespace="urn:opc-foundation.org:2024-01:TestModel"
+  TargetVersion="1.05.07"
+  TargetPublicationDate="2025-12-25T00:00:00Z">
+
+  <opc:Namespaces>
+    <opc:Namespace Name="TestModel" Prefix="TestModel" XmlNamespace="urn:opcfoundation.org:2024-01:TestModelTypes.xsd"  XmlPrefix="Model">urn:opcfoundation.org:2024-01:TestModel</opc:Namespace>
+    <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" Version="1.05.07" PublicationDate="2025-12-25T00:00:00Z" InternalPrefix="Opc.Ua.Server" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd" XmlPrefix="OpcUa">http://opcfoundation.org/UA/</opc:Namespace>
+  </opc:Namespaces>
+
+  <opc:PermissionSets>
+    <opc:PermissionSet Name="AuthenticatedUserOnly" >
+      <opc:RolePermission Role="ua:WellKnownRole_AuthenticatedUser">
+        <opc:Permission>Browse</opc:Permission>
+        <opc:Permission>Read</opc:Permission>
+        <opc:Permission>Write</opc:Permission>
+        <opc:Permission>Call</opc:Permission>
+      </opc:RolePermission>
+    </opc:PermissionSet>
+    <opc:PermissionSet Name="SecurityAdminOnly" >
+      <opc:RolePermission Role="ua:WellKnownRole_SecurityAdmin">
+        <opc:Permission>Browse</opc:Permission>
+        <opc:Permission>Read</opc:Permission>
+        <opc:Permission>Write</opc:Permission>
+        <opc:Permission>Call</opc:Permission>
+      </opc:RolePermission>
+    </opc:PermissionSet>
+    <opc:PermissionSet Name="SeekerOnly" >
+      <opc:RolePermission Role="Seeker">
+        <opc:Permission>Browse</opc:Permission>
+        <opc:Permission>Read</opc:Permission>
+      </opc:RolePermission>
+    </opc:PermissionSet>
+  </opc:PermissionSets>
+
+  <opc:DataType SymbolicName="TestAbstractStructure" BaseType="ua:Structure" IsAbstract="true">
+    <opc:Extensions>
+      <opc:Extension>
+        <tag:Something xmlns:tag="http://tagsrus.net/schemas">TestAbstractStructure</tag:Something>
+      </opc:Extension>
+    </opc:Extensions>
+    <opc:Fields>
+      <opc:Field Name="A" DataType="ua:Int16" />
+      <opc:Field Name="B" DataType="ua:Double" />
+      <opc:Field Name="C" DataType="ua:String" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="TestConcreteStructure" BaseType="TestAbstractStructure">
+    <opc:Extensions>
+      <opc:Extension>
+        <tag:Something xmlns:tag="http://tagsrus.net/schemas">TestConcreteStructure</tag:Something>
+      </opc:Extension>
+    </opc:Extensions>
+    <opc:Fields>
+      <opc:Field Name="D" DataType="ua:Int16" />
+      <opc:Field Name="E" DataType="ua:Double" />
+      <opc:Field Name="F" DataType="ua:String" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="TestUnion" BaseType="ua:Union" IsUnion="true">
+    <opc:Extensions>
+      <opc:Extension>
+        <tag:Something xmlns:tag="http://tagsrus.net/schemas">TestUnion</tag:Something>
+      </opc:Extension>
+    </opc:Extensions>
+    <opc:Fields>
+      <opc:Field Name="A" DataType="ua:Int16" />
+      <opc:Field Name="B" DataType="ua:Double" />
+      <opc:Field Name="C" DataType="ua:String" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="TestOptionalFields" BaseType="ua:Structure">
+    <opc:Extensions>
+      <opc:Extension>
+        <tag:Something xmlns:tag="http://tagsrus.net/schemas">TestOptionalFields</tag:Something>
+      </opc:Extension>
+    </opc:Extensions>
+    <opc:Fields>
+      <opc:Field Name="A" DataType="ua:Int16" IsOptional="true" />
+      <opc:Field Name="B" DataType="ua:Double" IsOptional="true"  />
+      <opc:Field Name="C" DataType="ua:String" IsOptional="true" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="TestEnumeration" BaseType="ua:Enumeration">
+    <opc:Extensions>
+      <opc:Extension>
+        <tag:Something xmlns:tag="http://tagsrus.net/schemas">TestEnumeration</tag:Something>
+      </opc:Extension>
+    </opc:Extensions>
+    <opc:Fields>
+      <opc:Field Name="Invalid" Identifier="0" />
+      <opc:Field Name="Red" Identifier="2" />
+      <opc:Field Name="Green" Identifier="4" />
+      <opc:Field Name="Blue" Identifier="6" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="TestOptionSet" IsOptionSet="true" BaseType="ua:UInt64">
+    <opc:Extensions>
+      <opc:Extension>
+        <tag:Something xmlns:tag="http://tagsrus.net/schemas">TestOptionSet</tag:Something>
+      </opc:Extension>
+    </opc:Extensions>
+    <opc:Fields>
+      <opc:Field Name="A" BitMask="0001" />
+      <opc:Field Name="B" BitMask="0002" />
+      <opc:Field Name="C" BitMask="0004" />
+      <opc:Field Name="D" BitMask="0008" />
+      <opc:Field Name="E" BitMask="0010" />
+      <opc:Field Name="F" BitMask="0020" />
+      <opc:Field Name="G" BitMask="0040" />
+      <opc:Field Name="H" BitMask="0080" />
+      <opc:Field Name="I" BitMask="0100" />
+      <opc:Field Name="J" BitMask="0200" />
+      <opc:Field Name="K" BitMask="0400" />
+      <opc:Field Name="L" BitMask="0800" />
+      <opc:Field Name="M" BitMask="1000" />
+      <opc:Field Name="N" BitMask="2000" />
+      <opc:Field Name="O" BitMask="4000" />
+      <opc:Field Name="P" BitMask="8000" />
+      <opc:Field Name="Q" BitMask="00010000" />
+      <opc:Field Name="R" BitMask="00020000" />
+      <opc:Field Name="S" BitMask="00040000" />
+      <opc:Field Name="T" BitMask="00080000" />
+      <opc:Field Name="U" BitMask="00100000" />
+      <opc:Field Name="V" BitMask="00200000" />
+      <opc:Field Name="W" BitMask="00400000" />
+      <opc:Field Name="X" BitMask="00800000" />
+      <opc:Field Name="Z" BitMask="01000000" />
+      <opc:Field Name="A1" BitMask="02000000" />
+      <opc:Field Name="B1" BitMask="04000000" />
+      <opc:Field Name="C1" BitMask="08000000" />
+      <opc:Field Name="D1" BitMask="10000000" />
+      <opc:Field Name="E1" BitMask="20000000" />
+      <opc:Field Name="F1" BitMask="40000000" />
+      <opc:Field Name="G1" BitMask="0080000000" />
+      <opc:Field Name="H1" BitMask="0100000000" />
+      <opc:Field Name="I1" BitMask="0200000000" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="TestScalarStructure" BaseType="ua:Structure">
+    <opc:Extensions>
+      <opc:Extension>
+        <tag:Something xmlns:tag="http://tagsrus.net/schemas">TestScalarStructure</tag:Something>
+      </opc:Extension>
+    </opc:Extensions>
+    <opc:Fields>
+      <opc:Field Name="A" DataType="ua:Boolean" />
+      <opc:Field Name="B" DataType="ua:SByte" />
+      <opc:Field Name="C" DataType="ua:Byte" />
+      <opc:Field Name="D" DataType="ua:Int16" />
+      <opc:Field Name="E" DataType="ua:UInt16" />
+      <opc:Field Name="F" DataType="ua:Int32" />
+      <opc:Field Name="G" DataType="ua:UInt32" />
+      <opc:Field Name="H" DataType="ua:Int64" />
+      <opc:Field Name="I" DataType="ua:UInt64" />
+      <opc:Field Name="J" DataType="ua:Float" />
+      <opc:Field Name="K" DataType="ua:Double" />
+      <opc:Field Name="L" DataType="ua:Guid" />
+      <opc:Field Name="M" DataType="ua:DateTime" />
+      <opc:Field Name="N" DataType="ua:String" />
+      <opc:Field Name="O" DataType="ua:ByteString" />
+      <opc:Field Name="P" DataType="ua:NodeId" />
+      <opc:Field Name="Q" DataType="ua:ExpandedNodeId" />
+      <opc:Field Name="R" DataType="ua:QualifiedName" />
+      <opc:Field Name="S" DataType="ua:LocalizedText" />
+      <opc:Field Name="T" DataType="ua:StatusCode" />
+      <opc:Field Name="U" DataType="ua:XmlElement" />
+      <opc:Field Name="V" DataType="ua:BaseDataType" />
+      <opc:Field Name="W" DataType="TestAbstractStructure" AllowSubTypes="true" />
+      <opc:Field Name="X" DataType="TestConcreteStructure" />
+      <opc:Field Name="Y" DataType="TestEnumeration" />
+      <opc:Field Name="Z" DataType="TestOptionSet" />
+      <opc:Field Name="A1" DataType="TestUnion" />
+      <opc:Field Name="B1" DataType="TestOptionalFields" />
+      <opc:Field Name="C1" DataType="ua:DataValue" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="TestArrayStructure" BaseType="ua:Structure">
+    <opc:Extensions>
+      <opc:Extension>
+        <tag:Something xmlns:tag="http://tagsrus.net/schemas">TestArrayStructure</tag:Something>
+      </opc:Extension>
+    </opc:Extensions>
+    <opc:Fields>
+      <opc:Field Name="A" DataType="ua:Boolean" ValueRank="Array"  />
+      <opc:Field Name="B" DataType="ua:SByte" ValueRank="Array"  />
+      <opc:Field Name="C" DataType="ua:Byte" ValueRank="Array"  />
+      <opc:Field Name="D" DataType="ua:Int16" ValueRank="Array"  />
+      <opc:Field Name="E" DataType="ua:UInt16" ValueRank="Array"  />
+      <opc:Field Name="F" DataType="ua:Int32" ValueRank="Array"  />
+      <opc:Field Name="G" DataType="ua:UInt32" ValueRank="Array"  />
+      <opc:Field Name="H" DataType="ua:Int64" ValueRank="Array"  />
+      <opc:Field Name="I" DataType="ua:UInt64" ValueRank="Array"  />
+      <opc:Field Name="J" DataType="ua:Float" ValueRank="Array"  />
+      <opc:Field Name="K" DataType="ua:Double" ValueRank="Array"  />
+      <opc:Field Name="L" DataType="ua:Guid" ValueRank="Array"  />
+      <opc:Field Name="M" DataType="ua:DateTime" ValueRank="Array"  />
+      <opc:Field Name="N" DataType="ua:String" ValueRank="Array"  />
+      <opc:Field Name="O" DataType="ua:ByteString" ValueRank="Array"  />
+      <opc:Field Name="P" DataType="ua:NodeId" ValueRank="Array"  />
+      <opc:Field Name="Q" DataType="ua:ExpandedNodeId" ValueRank="Array"  />
+      <opc:Field Name="R" DataType="ua:QualifiedName" ValueRank="Array"  />
+      <opc:Field Name="S" DataType="ua:LocalizedText" ValueRank="Array"  />
+      <opc:Field Name="T" DataType="ua:StatusCode" ValueRank="Array"  />
+      <opc:Field Name="U" DataType="ua:XmlElement" ValueRank="Array"  />
+      <opc:Field Name="V" DataType="ua:BaseDataType" ValueRank="Array"  />
+      <opc:Field Name="W" DataType="TestAbstractStructure" ValueRank="Array" AllowSubTypes="true" />
+      <opc:Field Name="X" DataType="TestConcreteStructure" ValueRank="Array" />
+      <opc:Field Name="Y" DataType="TestEnumeration" ValueRank="Array" />
+      <opc:Field Name="Z" DataType="TestOptionSet" ValueRank="Array" />
+      <opc:Field Name="A1" DataType="TestUnion" ValueRank="Array"  />
+      <opc:Field Name="B1" DataType="TestOptionalFields" ValueRank="Array"  />
+      <opc:Field Name="C1" DataType="ua:DataValue" ValueRank="Array"  />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="TestStructure" BaseType="ua:Structure">
+    <opc:Extensions>
+      <opc:Extension>
+        <tag:Something xmlns:tag="http://tagsrus.net/schemas">TestStructure</tag:Something>
+      </opc:Extension>
+    </opc:Extensions>
+    <opc:Fields>
+      <opc:Field Name="A" DataType="TestScalarStructure" />
+      <opc:Field Name="B" DataType="TestArrayStructure" />
+      <opc:Field Name="C" DataType="TestScalarStructure" ValueRank="Array"  />
+      <opc:Field Name="D" DataType="TestArrayStructure" ValueRank="Array"  />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:Object SymbolicName="Seeker" TypeDefinition="ua:RoleType">
+    <opc:BrowseName>Seeker</opc:BrowseName>
+    <opc:DisplayName>Seeker</opc:DisplayName>
+    <opc:Description>The Role is a test role.</opc:Description>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:HasComponent</opc:ReferenceType>
+        <opc:TargetId>ua:Server_ServerCapabilities_RoleSet</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+    <opc:Extensions>
+      <opc:Extension>
+        <some:Thing xmlns:some="http://tempuri.com/something">Wicked</some:Thing>
+      </opc:Extension>
+    </opc:Extensions>
+  </opc:Object>
+
+  <opc:DataType SymbolicName="EnumUnderscoreTest" BaseType="ua:Enumeration" ForceEnumValues="true">
+    <opc:Fields>
+      <opc:Field Name="x_x" Identifier="1"/>
+      <opc:Field Name="_x" Identifier="2"/>
+      <opc:Field Name="x_" Identifier="3"/>
+      <opc:Field Name="_" Identifier="4"/>
+      <opc:Field Name="Test5" Identifier="-1">
+        <opc:DisplayName>Test_5</opc:DisplayName>
+      </opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:VariableType SymbolicName="RestrictedVariableType" BaseType="ua:BaseDataVariableType" DataType="ua:String" >
+    <opc:Children>
+      <opc:Variable SymbolicName="Yellow" TypeDefinition="ua:PropertyType" DataType="ua:Int32">
+        <opc:DefaultRolePermissions Name="SeekerOnly" />
+        <opc:DefaultAccessRestrictions>SessionWithSigningRequired</opc:DefaultAccessRestrictions>
+      </opc:Variable>
+      <opc:Variable SymbolicName="X" TypeDefinition="ua:PropertyType" DataType="ua:Int32" />
+      <opc:Variable SymbolicName="Y" TypeDefinition="ua:PropertyType" DataType="ua:Int32" />
+      <opc:Variable SymbolicName="Z" TypeDefinition="ua:PropertyType" DataType="ua:Int32" />
+    </opc:Children>
+    <opc:DefaultRolePermissions Name="SecurityAdminOnly" />
+    <opc:DefaultAccessRestrictions>EncryptionRequired</opc:DefaultAccessRestrictions>
+  </opc:VariableType>
+
+  <opc:ObjectType SymbolicName="RestrictedObjectType" BaseType="ua:BaseObjectType">
+    <opc:Children>
+      <opc:Variable SymbolicName="Red" TypeDefinition="RestrictedVariableType" ModellingRule="Mandatory"/>
+      <opc:Variable SymbolicName="Pink_Placeholder" TypeDefinition="RestrictedVariableType" ModellingRule="OptionalPlaceholder">
+        <opc:BrowseName>&lt;Pink&gt;</opc:BrowseName>
+      </opc:Variable>
+      <opc:Method SymbolicName="Blue" ModellingRule="Mandatory">
+        <opc:DefaultRolePermissions Name="SecurityAdminOnly" />
+        <opc:DefaultAccessRestrictions>SessionWithSigningAndApplyToBrowseRequired</opc:DefaultAccessRestrictions>
+      </opc:Method>
+    </opc:Children>
+    <opc:Extensions>
+      <opc:Extension>
+        <some:Thing xmlns:some="http://tempuri.com/something">This way</some:Thing>
+      </opc:Extension>
+      <opc:Extension>
+        <some:World xmlns:some="http://tempuri.com/something">comes</some:World>
+      </opc:Extension>
+    </opc:Extensions>
+  </opc:ObjectType>
+
+  <opc:Object SymbolicName="TestObject" TypeDefinition="RestrictedObjectType">
+    <opc:DefaultRolePermissions Name="AuthenticatedUserOnly" />
+  </opc:Object>
+
+  <opc:Object SymbolicName="Test_Error" TypeDefinition="ua:BaseObjectType" />
+
+  <opc:Object SymbolicName="Test_ErrorComponent" TypeDefinition="ua:BaseObjectType">
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:HasComponent</opc:ReferenceType>
+        <opc:TargetId>Test_Error</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+  <opc:DataType SymbolicName="HeaterStatus" BaseType="ua:Enumeration">
+    <opc:Fields>
+      <opc:Field Name="Off" Identifier="0">
+        <opc:DisplayName>It is really off!</opc:DisplayName>
+      </opc:Field>
+      <opc:Field Name="Heating" Identifier="1">
+        <opc:DisplayName>暖房</opc:DisplayName>
+      </opc:Field>
+      <opc:Field Name="Cooling" Identifier="2">
+        <opc:DisplayName>200_冷房</opc:DisplayName>
+      </opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="Vector" BaseType="ua:Structure">
+    <opc:Extensions>
+      <opc:Extension>
+        <some:Thing xmlns:some="http://tempuri.com/something">This way</some:Thing>
+      </opc:Extension>
+    </opc:Extensions>
+    <opc:Fields>
+      <opc:Field Name="X" DataType="ua:Double" />
+      <opc:Field Name="Y" DataType="ua:Double" />
+      <opc:Field Name="Z" DataType="ua:Double" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="WorkOrderStatusType" BaseType="ua:Structure">
+    <opc:Fields>
+      <opc:Field Name="Actor" DataType="ua:String" />
+      <opc:Field Name="Timestamp" DataType="ua:DateTime" />
+      <opc:Field Name="Comment" DataType="ua:LocalizedText" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="WorkOrderType" BaseType="ua:Structure">
+    <opc:Fields>
+      <opc:Field Name="ID" DataType="ua:Guid" />
+      <opc:Field Name="AssetID" DataType="ua:String" />
+      <opc:Field Name="StartTime" DataType="ua:DateTime" />
+      <opc:Field Name="StatusComments" DataType="WorkOrderStatusType" ValueRank="Array" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="ExtendedWorkOrderType" BaseType="WorkOrderType">
+    <opc:Fields>
+      <opc:Field Name="ContactX" DataType="ua:UInt32" />
+      <opc:Field Name="ContactY" DataType="ua:String" ValueRank="Array" IsOptional="true" />
+      <opc:Field Name="ContactZ" DataType="ua:ByteString" IsOptional="true" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="FinalWorkOrderType" BaseType="ExtendedWorkOrderType">
+    <opc:Fields>
+      <opc:Field Name="Address" DataType="ua:String" />
+      <opc:Field Name="Phone" DataType="ua:String" IsOptional="true" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="SampleUnion" BaseType="ua:Union" IsUnion="true">
+    <opc:Fields>
+      <opc:Field Name="FieldX" DataType="ua:UInt32" />
+      <opc:Field Name="FieldY" DataType="ua:String" ValueRank="Array" />
+      <opc:Field Name="FieldZ" DataType="ua:ByteString" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="SampleStructureWithOptionalFields" BaseType="ua:Structure">
+    <opc:Fields>
+      <opc:Field Name="FieldX" DataType="ua:UInt32" />
+      <opc:Field Name="FieldY" DataType="ua:String" ValueRank="Array" IsOptional="true" />
+      <opc:Field Name="FieldZ" DataType="ua:ByteString" IsOptional="true" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="SampleUnionAllowSubtypes" BaseType="ua:Union" IsUnion="true">
+    <opc:Fields>
+      <opc:Field Name="FieldX" DataType="WorkOrderType" AllowSubTypes="true" />
+      <opc:Field Name="FieldY" DataType="WorkOrderStatusType" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="SampleStructureAllowSubtypes" BaseType="ua:Structure">
+    <opc:Fields>
+      <opc:Field Name="FieldX" DataType="Vector" AllowSubTypes="true" />
+      <opc:Field Name="FieldY" DataType="Vector" ValueRank="Array" AllowSubTypes="true" />
+      <opc:Field Name="FieldZ" DataType="Vector" ValueRank="ScalarOrArray" AllowSubTypes="true" />
+      <opc:Field Name="FieldW" DataType="WorkOrderStatusType" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:ObjectType SymbolicName="WithTwoDimensionalVariableType" BaseType="ua:BaseObjectType">
+    <opc:Children>
+      <opc:Variable SymbolicName="X" DataType="ua:Int32" ValueRank="OneOrMoreDimensions" ArrayDimensions="0,0" ModellingRule="Optional"/>
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:DataType SymbolicName="Person" BaseType="ua:Structure">
+    <opc:Fields>
+      <opc:Field Name="LastName" DataType="ua:String" IsOptional="true" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="Student" BaseType="Person">
+    <opc:Fields>
+      <opc:Field Name="FirstName" DataType="ua:String" IsOptional="true" />
+      <opc:Field Name="University" DataType="ua:String" IsOptional="true" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:Extensions>
+    <opc:Extension>
+      <blue:Something xmlns:blue="http://something.net/schemas">
+        <blue:Begin color="Red">Hello</blue:Begin>
+        <blue:End brightness="Dim">World</blue:End>
+      </blue:Something>
+    </opc:Extension>
+  </opc:Extensions>
+  
+</opc:ModelDesign>

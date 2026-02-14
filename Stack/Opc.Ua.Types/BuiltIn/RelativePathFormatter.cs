@@ -113,7 +113,7 @@ namespace Opc.Ua
                 // check reference type name.
                 QualifiedName qname = element.ReferenceTypeName;
 
-                if (qname != null &&
+                if (!qname.IsNull &&
                     qname.NamespaceIndex > 1 &&
                     qname.NamespaceIndex < mappings.Length &&
                     mappings[qname.NamespaceIndex] == -1)
@@ -125,7 +125,7 @@ namespace Opc.Ua
                 // check target name.
                 qname = element.TargetName;
 
-                if (qname != null &&
+                if (!qname.IsNull &&
                     qname.NamespaceIndex > 1 &&
                     qname.NamespaceIndex < mappings.Length &&
                     mappings[qname.NamespaceIndex] == -1)
@@ -168,7 +168,7 @@ namespace Opc.Ua
             {
                 QualifiedName qname = element.ReferenceTypeName;
 
-                if (qname != null && qname.NamespaceIndex > 0)
+                if (!qname.IsNull && qname.NamespaceIndex > 0)
                 {
                     if (qname.NamespaceIndex < mappings.Length &&
                         mappings[qname.NamespaceIndex] > 0)
@@ -189,7 +189,7 @@ namespace Opc.Ua
 
                 qname = element.TargetName;
 
-                if (qname != null && qname.NamespaceIndex > 0)
+                if (!qname.IsNull && qname.NamespaceIndex > 0)
                 {
                     if (qname.NamespaceIndex < mappings.Length &&
                         mappings[qname.NamespaceIndex] > 0)
@@ -336,7 +336,7 @@ namespace Opc.Ua
                     throw new ArgumentNullException(nameof(typeTree));
                 }
 
-                ReferenceTypeName = null;
+                ReferenceTypeName = default;
                 TargetName = element.TargetName;
                 ElementType = ElementType.ForwardReference;
                 IncludeSubtypes = element.IncludeSubtypes;
@@ -373,9 +373,9 @@ namespace Opc.Ua
             public Element()
             {
                 ElementType = ElementType.AnyHierarchical;
-                ReferenceTypeName = null;
+                ReferenceTypeName = default;
                 IncludeSubtypes = true;
-                TargetName = null;
+                TargetName = default;
             }
 
             /// <summary>
@@ -430,7 +430,7 @@ namespace Opc.Ua
                             break;
                         case ElementType.ForwardReference:
                         case ElementType.InverseReference:
-                            if (ReferenceTypeName != null &&
+                            if (!ReferenceTypeName.IsNull &&
                                 !string.IsNullOrEmpty(ReferenceTypeName.Name))
                             {
                                 path.Append('<');
@@ -464,7 +464,7 @@ namespace Opc.Ua
                     }
 
                     // write the target browse name component.
-                    if (TargetName != null && !string.IsNullOrEmpty(TargetName.Name))
+                    if (!TargetName.IsNull && !string.IsNullOrEmpty(TargetName.Name))
                     {
                         if (TargetName.NamespaceIndex != 0)
                         {
@@ -637,7 +637,7 @@ namespace Opc.Ua
 
                     if (namespaceIndex == 0)
                     {
-                        return null;
+                        return default;
                     }
                 }
 

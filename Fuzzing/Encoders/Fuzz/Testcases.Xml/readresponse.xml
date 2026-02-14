@@ -1,6 +1,6 @@
 <ReadResponse xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
   <ResponseHeader>
-    <Timestamp>2024-05-03T13:00:39.3472074Z</Timestamp>
+    <Timestamp>2026-02-10T12:12:24.9054884Z</Timestamp>
     <RequestHandle>42</RequestHandle>
     <ServiceResult>
       <Code>0</Code>
@@ -57,9 +57,9 @@
       <StatusCode>
         <Code>0</Code>
       </StatusCode>
-      <SourceTimestamp>2024-05-03T13:01:39.3471774Z</SourceTimestamp>
+      <SourceTimestamp>2026-02-10T12:13:24.9054635Z</SourceTimestamp>
       <SourcePicoseconds>10</SourcePicoseconds>
-      <ServerTimestamp>2024-05-03T13:00:39.3471774Z</ServerTimestamp>
+      <ServerTimestamp>2026-02-10T12:12:24.9054635Z</ServerTimestamp>
       <ServerPicoseconds>100</ServerPicoseconds>
     </DataValue>
     <DataValue>
@@ -71,9 +71,9 @@
       <StatusCode>
         <Code>2157772800</Code>
       </StatusCode>
-      <SourceTimestamp>2024-05-03T13:01:39.3471774Z</SourceTimestamp>
+      <SourceTimestamp>2026-02-10T12:13:24.9054635Z</SourceTimestamp>
       <SourcePicoseconds>0</SourcePicoseconds>
-      <ServerTimestamp>2024-05-03T13:00:39.3471774Z</ServerTimestamp>
+      <ServerTimestamp>2026-02-10T12:12:24.9054635Z</ServerTimestamp>
       <ServerPicoseconds>0</ServerPicoseconds>
     </DataValue>
     <DataValue>
@@ -85,9 +85,9 @@
       <StatusCode>
         <Code>0</Code>
       </StatusCode>
-      <SourceTimestamp>2024-05-03T13:01:39.3471774Z</SourceTimestamp>
+      <SourceTimestamp>2026-02-10T12:13:24.9054635Z</SourceTimestamp>
       <SourcePicoseconds>0</SourcePicoseconds>
-      <ServerTimestamp>2024-05-03T13:00:39.3471774Z</ServerTimestamp>
+      <ServerTimestamp>2026-02-10T12:12:24.9054635Z</ServerTimestamp>
       <ServerPicoseconds>0</ServerPicoseconds>
     </DataValue>
     <DataValue>
@@ -99,7 +99,7 @@
       <StatusCode>
         <Code>0</Code>
       </StatusCode>
-      <SourceTimestamp>2024-05-03T13:00:39.3471774Z</SourceTimestamp>
+      <SourceTimestamp>2026-02-10T12:12:24.9054635Z</SourceTimestamp>
       <SourcePicoseconds>0</SourcePicoseconds>
       <ServerTimestamp>0001-01-01T00:00:00</ServerTimestamp>
       <ServerPicoseconds>0</ServerPicoseconds>

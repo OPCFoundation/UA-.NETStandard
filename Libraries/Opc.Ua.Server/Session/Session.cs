@@ -202,6 +202,9 @@ namespace Opc.Ua.Server
                         Utils.SilentDispose(historyCPs[ii].Value);
                     }
                 }
+
+                IdentityToken?.Dispose();
+                IdentityToken = null;
             }
         }
 
@@ -223,7 +226,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The user identity token provided by the client.
         /// </summary>
-        public UserIdentityToken IdentityToken { get; private set; }
+        public IUserIdentityTokenHandler IdentityToken { get; private set; }
 
         /// <summary>
         /// A lock which must be acquired before accessing the diagnostics.
@@ -442,7 +445,7 @@ namespace Opc.Ua.Server
             SignatureData clientSignature,
             ExtensionObject userIdentityToken,
             SignatureData userTokenSignature,
-            out UserIdentityToken identityToken,
+            out IUserIdentityTokenHandler identityToken,
             out UserTokenPolicy userTokenPolicy)
         {
             lock (m_lock)
@@ -548,7 +551,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public bool Activate(
             OperationContext context,
-            UserIdentityToken identityToken,
+            IUserIdentityTokenHandler identityToken,
             IUserIdentity identity,
             IUserIdentity effectiveIdentity,
             StringCollection localeIds,
@@ -823,17 +826,16 @@ namespace Opc.Ua.Server
         /// Validates the identity token supplied by the client.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private UserIdentityToken ValidateUserIdentityToken(
+        private IUserIdentityTokenHandler ValidateUserIdentityToken(
             ExtensionObject identityToken,
             SignatureData userTokenSignature,
             out UserTokenPolicy policy)
         {
             policy = null;
 
-            // check for empty token.
-            if (identityToken == null ||
-                identityToken.Body == null ||
-                identityToken.Body.GetType() == typeof(AnonymousIdentityToken))
+            // check for anonymous (same as empty) token.
+            if (identityToken.IsNull ||
+                identityToken.Body is AnonymousIdentityToken)
             {
                 // check if an anonymous login is permitted.
                 if (EndpointDescription.UserIdentityTokens != null &&
@@ -861,98 +863,99 @@ namespace Opc.Ua.Server
                 }
 
                 // create an anonymous token to use for subsequent validation.
-                return new AnonymousIdentityToken { PolicyId = policy.PolicyId };
+                return AnonymousIdentityTokenHandler.Create(policy);
             }
 
-            UserIdentityToken token;
+            IUserIdentityTokenHandler token;
             // check for unrecognized token.
-            if (!typeof(UserIdentityToken).IsInstanceOfType(identityToken.Body))
+            if (identityToken.Body is UserIdentityToken decodedToken)
+            {
+                // get the token.
+                token = decodedToken.AsTokenHandler();
+            }
+            else
             {
                 //handle the use case when the UserIdentityToken is binary encoded over xml message encoding
-                if (identityToken.Encoding == ExtensionObjectEncoding.Binary &&
-                    typeof(byte[]).IsInstanceOfType(identityToken.Body))
-                {
-                    if (BaseVariableState.DecodeExtensionObject(
-                            null,
-                            typeof(UserIdentityToken),
-                            identityToken,
-                            false)
-                        is not UserIdentityToken newToken)
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadUserAccessDenied,
-                            "Invalid user identity token provided.");
-                    }
-
-                    policy = EndpointDescription.FindUserTokenPolicy(
-                        newToken.PolicyId);
-                    if (policy == null)
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadUserAccessDenied,
-                            "User token policy not supported.",
-                            "Opc.Ua.Server.Session.ValidateUserIdentityToken");
-                    }
-                    switch (policy.TokenType)
-                    {
-                        case UserTokenType.Anonymous:
-                            token =
-                                BaseVariableState.DecodeExtensionObject(
-                                    null,
-                                    typeof(AnonymousIdentityToken),
-                                    identityToken,
-                                    true
-                                ) as AnonymousIdentityToken;
-                            break;
-                        case UserTokenType.UserName:
-                            token =
-                                BaseVariableState.DecodeExtensionObject(
-                                    null,
-                                    typeof(UserNameIdentityToken),
-                                    identityToken,
-                                    true
-                                ) as UserNameIdentityToken;
-                            break;
-                        case UserTokenType.Certificate:
-                            token =
-                                BaseVariableState.DecodeExtensionObject(
-                                    null,
-                                    typeof(X509IdentityToken),
-                                    identityToken,
-                                    true
-                                ) as X509IdentityToken;
-                            break;
-                        case UserTokenType.IssuedToken:
-                            token =
-                                BaseVariableState.DecodeExtensionObject(
-                                    null,
-                                    typeof(IssuedIdentityToken),
-                                    identityToken,
-                                    true
-                                ) as IssuedIdentityToken;
-                            break;
-                        default:
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadUserAccessDenied,
-                                "Invalid user identity token provided.");
-                    }
-                }
-                else
+                if (identityToken.Encoding != ExtensionObjectEncoding.Binary ||
+                    identityToken.Body is not byte[])
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadUserAccessDenied,
                         "Invalid user identity token provided.");
                 }
-            }
-            else
-            {
-                // get the token.
-                token = (UserIdentityToken)identityToken.Body;
+                if (BaseVariableState.DecodeExtensionObject(
+                        null,
+                        typeof(UserIdentityToken),
+                        identityToken,
+                        false)
+                    is not UserIdentityToken newToken)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadUserAccessDenied,
+                        "Invalid user identity token provided.");
+                }
+
+                policy = EndpointDescription.FindUserTokenPolicy(
+                    newToken.PolicyId);
+                if (policy == null)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadUserAccessDenied,
+                        "User token policy not supported.",
+                        "Opc.Ua.Server.Session.ValidateUserIdentityToken");
+                }
+
+                UserIdentityToken userToken;
+                switch (policy.TokenType)
+                {
+                    case UserTokenType.Anonymous:
+                        userToken =
+                            BaseVariableState.DecodeExtensionObject(
+                                null,
+                                typeof(AnonymousIdentityToken),
+                                identityToken,
+                                true
+                            ) as AnonymousIdentityToken;
+                        break;
+                    case UserTokenType.UserName:
+                        userToken =
+                            BaseVariableState.DecodeExtensionObject(
+                                null,
+                                typeof(UserNameIdentityToken),
+                                identityToken,
+                                true
+                            ) as UserNameIdentityToken;
+                        break;
+                    case UserTokenType.Certificate:
+                        userToken =
+                            BaseVariableState.DecodeExtensionObject(
+                                null,
+                                typeof(X509IdentityToken),
+                                identityToken,
+                                true
+                            ) as X509IdentityToken;
+                        break;
+                    case UserTokenType.IssuedToken:
+                        userToken =
+                            BaseVariableState.DecodeExtensionObject(
+                                null,
+                                typeof(IssuedIdentityToken),
+                                identityToken,
+                                true
+                            ) as IssuedIdentityToken;
+                        break;
+                    default:
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadUserAccessDenied,
+                            "Invalid user identity token provided.");
+                }
+
+                token = userToken.AsTokenHandler();
             }
 
             // find the user token policy.
             policy = EndpointDescription.FindUserTokenPolicy(
-                token.PolicyId);
+                token.Token.PolicyId);
 
             if (policy == null)
             {
@@ -961,11 +964,7 @@ namespace Opc.Ua.Server
                     "User token policy not supported.");
             }
 
-            if (token is IssuedIdentityToken issuedToken &&
-                policy.IssuedTokenType == Profiles.JwtUserToken)
-            {
-                issuedToken.IssuedTokenType = IssuedTokenType.JWT;
-            }
+            token.UpdatePolicy(policy);
 
             // determine the security policy uri.
             string securityPolicyUri = policy.SecurityPolicyUri;
@@ -977,19 +976,24 @@ namespace Opc.Ua.Server
 
             if (ServerBase.RequireEncryption(EndpointDescription))
             {
-                X509Certificate2 certificate = m_certificateTypesProvider.GetInstanceCertificate(EndpointDescription.SecurityPolicyUri);
                 // decrypt the token.
-                if (certificate == null)
+                if (m_serverCertificate == null)
                 {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadConfigurationError,
-                        "ApplicationCertificate cannot be found.");
+                    m_serverCertificate = X509CertificateLoader.LoadCertificate(
+                        EndpointDescription.ServerCertificate);
+
+                    // check for valid certificate.
+                    if (m_serverCertificate == null)
+                    {
+                        throw ServiceResultException.ConfigurationError(
+                            "ApplicationCertificate cannot be found.");
+                    }
                 }
 
                 try
                 {
                     token.Decrypt(
-                        certificate,
+                        m_serverCertificate,
                         m_serverNonce,
                         EndpointDescription.SecurityPolicyUri,
                         m_server.MessageContext,
@@ -1012,7 +1016,7 @@ namespace Opc.Ua.Server
                         m_serverCertificate.RawData,
                         m_serverNonce.Data);
 
-                    if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri, m_server.Telemetry))
+                    if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri))
                     {
                         // verify for certificate chain in endpoint.
                         // validate the signature with complete chain if the check with leaf certificate failed.
@@ -1037,7 +1041,7 @@ namespace Opc.Ua.Server
                                 serverCertificateChainData,
                                 m_serverNonce.Data);
 
-                            if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri, m_server.Telemetry))
+                            if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri))
                             {
                                 throw new ServiceResultException(
                                     StatusCodes.BadIdentityTokenRejected,
@@ -1064,7 +1068,7 @@ namespace Opc.Ua.Server
         /// <returns>true if the new identity is different from the old identity.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="identityToken"/> is <c>null</c>.</exception>
         private bool UpdateUserIdentity(
-            UserIdentityToken identityToken,
+            IUserIdentityTokenHandler identityToken,
             IUserIdentity identity,
             IUserIdentity effectiveIdentity)
         {

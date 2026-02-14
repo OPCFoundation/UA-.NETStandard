@@ -40,6 +40,7 @@ using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
+using Quickstarts.ReferenceServer;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Server.Tests
@@ -78,7 +79,7 @@ namespace Opc.Ua.Server.Tests
             m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
 
             // Start a server for testing CreateSession
-            m_serverFixture = new ServerFixture<StandardServer>
+            m_serverFixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t))
             {
                 AutoAccept = true,
                 AllNodeManagers = true,
@@ -168,7 +169,7 @@ namespace Opc.Ua.Server.Tests
             // Attempt to create session - should throw BadCertificateUriInvalid
             ServiceResultException ex = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await CreateSessionWithCustomCertificateAsync(clientCert, kClientApplicationUri).ConfigureAwait(false));
-            Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUriInvalid, (StatusCode)ex.StatusCode);
+            Assert.AreEqual(StatusCodes.BadCertificateUriInvalid, ex.StatusCode);
         }
 
         /// <summary>
@@ -250,7 +251,7 @@ namespace Opc.Ua.Server.Tests
             // Attempt to create session - should throw BadCertificateUriInvalid
             ServiceResultException ex = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await CreateSessionWithCustomCertificateAsync(clientCert, kClientApplicationUri).ConfigureAwait(false));
-            Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUriInvalid, (StatusCode)ex.StatusCode);
+            Assert.AreEqual(StatusCodes.BadCertificateUriInvalid, ex.StatusCode);
         }
 
         #region Helper Methods
@@ -389,8 +390,10 @@ namespace Opc.Ua.Server.Tests
             DateTime notAfter = DateTime.Today.AddYears(1);
 
             // Default to RSA if not specified
-            certificateType ??= ObjectTypeIds.RsaSha256ApplicationCertificateType;
-
+            if (certificateType.IsNull)
+            {
+                certificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType;
+            }
             // Create the SAN extension with multiple URIs
             var subjectAltName = new X509SubjectAltNameExtension(applicationUris, domainNames);
 

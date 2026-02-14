@@ -65,13 +65,11 @@ namespace Opc.Ua.Server
         /// </summary>
         protected override DataValue ComputeValue(TimeSlice slice)
         {
-            uint? id = AggregateId.Identifier as uint?;
-
-            if (id == null)
+            if (!AggregateId.TryGetIdentifier(out uint numericId))
             {
                 return base.ComputeValue(slice);
             }
-            switch (id.Value)
+            switch (numericId)
             {
                 case Objects.AggregateFunction_DurationGood:
                     return ComputeDurationGoodBad(slice, false, false);
@@ -139,7 +137,7 @@ namespace Opc.Ua.Server
                 SourceTimestamp = GetTimestamp(slice),
                 ServerTimestamp = GetTimestamp(slice)
             };
-            value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
+            value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
 
             // return result.
             return value;
@@ -208,12 +206,12 @@ namespace Opc.Ua.Server
                 SourceTimestamp = GetTimestamp(slice),
                 ServerTimestamp = GetTimestamp(slice)
             };
-            value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
+            value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
 
             if ((StatusCode.IsBad(worstQuality) && badQualityCount > 1) ||
                 (StatusCode.IsUncertain(worstQuality) && uncertainQualityCount > 1))
             {
-                value.StatusCode = value.StatusCode.SetAggregateBits(
+                value.StatusCode = value.StatusCode.WithAggregateBits(
                     value.StatusCode.AggregateBits | AggregateBits.MultipleValues);
             }
 

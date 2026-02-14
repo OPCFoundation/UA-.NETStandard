@@ -201,7 +201,7 @@ namespace Opc.Ua.Server
                 }
 
                 // must assign a hard-to-guess id if not secured.
-                if (authenticationToken == null)
+                if (authenticationToken.IsNull)
                 {
                     byte[] token = Nonce.CreateRandomNonceData(32);
                     authenticationToken = new NodeId(token);
@@ -293,7 +293,7 @@ namespace Opc.Ua.Server
             Nonce serverNonceObject = null;
 
             ISession session = null;
-            UserIdentityToken newIdentity = null;
+            IUserIdentityTokenHandler newIdentity = null;
             UserTokenPolicy userTokenPolicy = null;
 
             // fast path no lock

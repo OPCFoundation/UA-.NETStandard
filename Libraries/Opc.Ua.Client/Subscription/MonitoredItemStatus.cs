@@ -160,7 +160,7 @@ namespace Opc.Ua.Client
             FilterResult = null;
             Error = error;
 
-            if (request.RequestedParameters.Filter != null)
+            if (!request.RequestedParameters.Filter.IsNull)
             {
                 Filter = Utils.Clone(request.RequestedParameters.Filter.Body) as MonitoringFilter;
             }
@@ -171,7 +171,7 @@ namespace Opc.Ua.Client
                 SamplingInterval = result.RevisedSamplingInterval;
                 QueueSize = result.RevisedQueueSize;
 
-                if (result.FilterResult != null)
+                if (!result.FilterResult.IsNull)
                 {
                     FilterResult = Utils.Clone(result.FilterResult.Body) as MonitoringFilterResult;
                 }
@@ -240,7 +240,7 @@ namespace Opc.Ua.Client
                 Filter = null;
                 FilterResult = null;
 
-                if (request.RequestedParameters.Filter != null)
+                if (!request.RequestedParameters.Filter.IsNull)
                 {
                     Filter = Utils.Clone(
                         request.RequestedParameters.Filter.Body) as MonitoringFilter;
@@ -249,7 +249,7 @@ namespace Opc.Ua.Client
                 SamplingInterval = result.RevisedSamplingInterval;
                 QueueSize = result.RevisedQueueSize;
 
-                if (result.FilterResult != null)
+                if (!result.FilterResult.IsNull)
                 {
                     FilterResult = Utils.Clone(result.FilterResult.Body) as MonitoringFilterResult;
                 }

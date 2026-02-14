@@ -102,7 +102,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     attributeType.GetProperty("StructureType")
                 ],
                 // values to assign
-                [structureDefinition.DefaultEncodingId?
+                [structureDefinition.DefaultEncodingId
                     .ToString(), baseDataType, structureDefinition.StructureType]);
             typeBuilder.SetCustomAttribute(builder);
         }
@@ -128,8 +128,11 @@ namespace Opc.Ua.Client.ComplexTypes
                     attributeType.GetProperty("XmlEncodingId")
                 ],
                 // values to assign
-                [complexTypeId?.ToString(), binaryEncodingId?.ToString(), xmlEncodingId?
-                    .ToString()]);
+                [
+                    complexTypeId.ToString(),
+                    binaryEncodingId.ToString(),
+                    xmlEncodingId.ToString()
+                ]);
             typeBuilder.SetCustomAttribute(builder);
         }
 
@@ -245,17 +248,14 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <returns>An <see cref="BuiltInType"/> for  <paramref name="datatypeId"/></returns>
         private static BuiltInType GetBuiltInType(NodeId datatypeId)
         {
-            if (datatypeId.IsNullNodeId ||
+            if (datatypeId.IsNull ||
                 datatypeId.NamespaceIndex != 0 ||
-                datatypeId.IdType != IdType.Numeric)
+                !datatypeId.TryGetIdentifier(out uint numericId))
             {
                 return BuiltInType.Null;
             }
 
-            var builtInType = (BuiltInType)Enum.ToObject(
-                typeof(BuiltInType),
-                datatypeId.Identifier);
-
+            var builtInType = (BuiltInType)Enum.ToObject(typeof(BuiltInType), numericId);
             if (builtInType is <= BuiltInType.DiagnosticInfo or BuiltInType.Enumeration)
             {
                 return builtInType;

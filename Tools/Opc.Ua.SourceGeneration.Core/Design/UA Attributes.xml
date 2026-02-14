@@ -1,0 +1,93 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<opc:TypeDictionary
+  xmlns:s0="http://opcfoundation.org/UA/BuiltInTypes/"
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:opc="http://opcfoundation.org/UA/TypeDictionary/"
+  xmlns="http://opcfoundation.org/UA/StatusCodes/"
+  TargetNamespace="http://opcfoundation.org/UA/StatusCodes/"
+  TargetPublicationDate="2018-05-15T00:00:00Z"
+  TargetVersion="1.04"
+>
+  <opc:Constant Name="NodeId">
+    <opc:Documentation>The canonical identifier for the node.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="NodeClass">
+    <opc:Documentation>The class of the node.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="BrowseName">
+    <opc:Documentation>A non-localized, human readable name for the node.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="DisplayName">
+    <opc:Documentation>A localized, human readable name for the node.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Description">
+    <opc:Documentation>A localized description for the node.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="WriteMask">
+    <opc:Documentation>Indicates which attributes are writable.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="UserWriteMask">
+    <opc:Documentation>Indicates which attributes are writable by the current user.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="IsAbstract">
+    <opc:Documentation>Indicates that a type node may not be instantiated.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Symmetric">
+    <opc:Documentation>Indicates that forward and inverse references have the same meaning.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="InverseName">
+    <opc:Documentation>The browse name for an inverse reference.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="ContainsNoLoops">
+    <opc:Documentation>Indicates that following forward references within a view will not cause a loop.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="EventNotifier">
+    <opc:Documentation>Indicates that the node can be used to subscribe to events.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Value">
+    <opc:Documentation>The value of a variable.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="DataType">
+    <opc:Documentation>The node id of the data type for the variable value.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="ValueRank">
+    <opc:Documentation>The number of dimensions in the value.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="ArrayDimensions">
+    <opc:Documentation>The length for each dimension of an array value.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="AccessLevel">
+    <opc:Documentation>How a variable may be accessed.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="UserAccessLevel">
+    <opc:Documentation>How a variable may be accessed after taking the user's access rights into account.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="MinimumSamplingInterval">
+    <opc:Documentation>Specifies (in milliseconds) how fast the server can reasonably sample the value for changes.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Historizing">
+    <opc:Documentation>Specifies whether the server is actively collecting historical data for the variable.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Executable">
+    <opc:Documentation>Whether the method can be called.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="UserExecutable">
+    <opc:Documentation>Whether the method can be called by the current user.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="DataTypeDefinition">
+    <opc:Documentation>Provides the metadata and encoding information for custom DataTypes.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="RolePermissions">
+    <opc:Documentation>The permissions for the node granted to roles.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="UserRolePermissions">
+    <opc:Documentation>The subset of permissions available for the roles available to the current session.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="AccessRestrictions">
+    <opc:Documentation>The access restrictions assigned to the node.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="AccessLevelEx">
+    <opc:Documentation>How a variable may be accessed.</opc:Documentation>
+  </opc:Constant>
+</opc:TypeDictionary>

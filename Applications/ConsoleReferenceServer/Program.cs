@@ -123,7 +123,7 @@ namespace Quickstarts.ReferenceServer
                 var sw = Stopwatch.StartNew();
 
                 // create the UA server
-                var server = new UAServer<ReferenceServer>(telemetry)
+                var server = new UAServer<ReferenceServer>(telemetry, t => new ReferenceServer(t))
                 {
                     AutoAccept = autoAccept,
                     Password = password

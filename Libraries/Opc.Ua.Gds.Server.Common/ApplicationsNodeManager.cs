@@ -158,7 +158,7 @@ namespace Opc.Ua.Gds.Server
 
         private NodeId GetTrustListId(NodeId certificateGroupId)
         {
-            if (NodeId.IsNull(certificateGroupId))
+            if (certificateGroupId.IsNull)
             {
                 certificateGroupId = m_defaultApplicationGroupId;
             }
@@ -179,7 +179,7 @@ namespace Opc.Ua.Gds.Server
                 certificateGroupId,
                 out ICertificateGroup certificateGroup))
             {
-                if (!NodeId.IsNull(certificateTypeId) &&
+                if (!certificateTypeId.IsNull &&
                     !certificateGroup.CertificateTypes.Contains(certificateTypeId))
                 {
                     return null;
@@ -381,13 +381,7 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
-            var predefinedNodes = new NodeStateCollection();
-            predefinedNodes.LoadFromBinaryResource(
-                context,
-                "Opc.Ua.Gds.Server.Model.Opc.Ua.Gds.PredefinedNodes.uanodes",
-                typeof(ApplicationsNodeManager).GetTypeInfo().Assembly,
-                true);
-            return predefinedNodes;
+            return new NodeStateCollection().AddOpcUaGds(context);
         }
 
         /// <summary>
@@ -405,96 +399,88 @@ namespace Opc.Ua.Gds.Server
 
             NodeId typeId = passiveNode.TypeDefinitionId;
 
-            if (!IsNodeIdInNamespace(typeId) || typeId.IdType != IdType.Numeric)
+            if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetIdentifier(out uint numericId))
             {
                 return predefinedNode;
             }
 
-            switch ((uint)typeId.Identifier)
+            switch (numericId)
             {
                 case ObjectTypes.CertificateDirectoryType:
-                    if (passiveNode is CertificateDirectoryState)
+                    if (passiveNode is not CertificateDirectoryState activeNode)
                     {
-                        break;
+                        activeNode = new CertificateDirectoryState(passiveNode.Parent)
+                        {
+                            RevokeCertificate = new RevokeCertificateMethodState(passiveNode),
+                            CheckRevocationStatus = new CheckRevocationStatusMethodState(passiveNode),
+                            GetCertificates = new GetCertificatesMethodState(passiveNode)
+                        };
+
+                        activeNode.Create(context, passiveNode);
+                        // replace the node in the parent.
+                        passiveNode.Parent?.ReplaceChild(context, activeNode);
                     }
 
-                    var activeNode = new CertificateDirectoryState(passiveNode.Parent)
-                    {
-                        RevokeCertificate = new RevokeCertificateMethodState(passiveNode),
-                        CheckRevocationStatus = new CheckRevocationStatusMethodState(passiveNode),
-                        GetCertificates = new GetCertificatesMethodState(passiveNode)
-                    };
+                    activeNode.QueryServers.OnCall = OnQueryServers;
+                    activeNode.QueryApplications.OnCall = OnQueryApplications;
+                    activeNode.RegisterApplication.OnCall = OnRegisterApplication;
+                    activeNode.UpdateApplication.OnCall = OnUpdateApplication;
+                    activeNode.GetApplication.OnCall = OnGetApplication;
 
-                    activeNode.Create(context, passiveNode);
-                    activeNode.QueryServers.OnCall
-                        = new QueryServersMethodStateMethodCallHandler(OnQueryServers);
-                    activeNode.QueryApplications.OnCall
-                        = new QueryApplicationsMethodStateMethodCallHandler(
-                        OnQueryApplications);
-                    activeNode.RegisterApplication.OnCall
-                        = new RegisterApplicationMethodStateMethodCallHandler(
-                        OnRegisterApplication);
-                    activeNode.UpdateApplication.OnCall
-                        = new UpdateApplicationMethodStateMethodCallHandler(
-                        OnUpdateApplication);
-                    activeNode.UnregisterApplication.OnCallAsync
-                        = new UnregisterApplicationMethodStateMethodAsyncCallHandler(
-                        OnUnregisterApplicationAsync);
-                    activeNode.FindApplications.OnCall
-                        = new FindApplicationsMethodStateMethodCallHandler(
-                        OnFindApplications);
-                    activeNode.GetApplication.OnCall
-                        = new GetApplicationMethodStateMethodCallHandler(OnGetApplication);
-                    activeNode.StartNewKeyPairRequest.OnCall
-                        = new StartNewKeyPairRequestMethodStateMethodCallHandler(
-                        OnStartNewKeyPairRequest);
-                    activeNode.FinishRequest.OnCallAsync
-                        = new FinishRequestMethodStateMethodAsyncCallHandler(OnFinishRequestAsync);
-                    activeNode.GetCertificateGroups.OnCall
-                        = new GetCertificateGroupsMethodStateMethodCallHandler(
-                        OnGetCertificateGroups);
-                    activeNode.GetTrustList.OnCall
-                        = new GetTrustListMethodStateMethodCallHandler(OnGetTrustList);
-                    activeNode.GetCertificateStatus.OnCall
-                        = new GetCertificateStatusMethodStateMethodCallHandler(
-                        OnGetCertificateStatus);
-                    activeNode.StartSigningRequest.OnCallAsync
-                        = new StartSigningRequestMethodStateMethodAsyncCallHandler(
-                        OnStartSigningRequestAsync);
-                    activeNode.RevokeCertificate.OnCall
-                        = new RevokeCertificateMethodStateMethodCallHandler(
-                        OnRevokeCertificate);
-                    activeNode.CheckRevocationStatus.OnCallAsync
-                        = new CheckRevocationStatusMethodStateMethodAsyncCallHandler(
-                        OnCheckRevocationStatusAsync);
-                    activeNode.GetCertificates.OnCall
-                        = new GetCertificatesMethodStateMethodCallHandler(
-                        OnGetCertificates);
+                    // These also add self admin role permissions (call)
+                    activeNode.UnregisterApplication.OnCallAsync = OnUnregisterApplicationAsync;
+                    activeNode.UnregisterApplication.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
+                    activeNode.UnregisterApplication.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
+                    activeNode.FindApplications.OnCall = OnFindApplications;
+                    activeNode.FindApplications.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
+                    activeNode.FindApplications.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
+                    activeNode.StartNewKeyPairRequest.OnCall = OnStartNewKeyPairRequest;
+                    activeNode.StartNewKeyPairRequest.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
+                    activeNode.StartNewKeyPairRequest.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
+                    activeNode.FinishRequest.OnCallAsync = OnFinishRequestAsync;
+                    activeNode.FinishRequest.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
+                    activeNode.FinishRequest.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
+                    activeNode.GetCertificateGroups.OnCall = OnGetCertificateGroups;
+                    activeNode.GetCertificateGroups.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
+                    activeNode.GetCertificateGroups.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
+                    activeNode.GetTrustList.OnCall = OnGetTrustList;
+                    activeNode.GetTrustList.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
+                    activeNode.GetTrustList.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
+                    activeNode.GetCertificateStatus.OnCall = OnGetCertificateStatus;
+                    activeNode.GetCertificateStatus.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
+                    activeNode.GetCertificateStatus.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
+                    activeNode.StartSigningRequest.OnCallAsync = OnStartSigningRequestAsync;
+                    activeNode.StartSigningRequest.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
+                    activeNode.StartSigningRequest.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
+                    activeNode.GetCertificates.OnCall = OnGetCertificates;
+                    activeNode.GetCertificates.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
+                    activeNode.GetCertificates.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
+
+                    activeNode.RevokeCertificate.OnCall = OnRevokeCertificate;
+                    activeNode.CheckRevocationStatus.OnCallAsync = OnCheckRevocationStatusAsync;
+
                     if (m_certificateGroups.TryGetValue(
                             m_defaultApplicationGroupId,
                             out ICertificateGroup applicationCertificateGroup))
                     {
-                        activeNode.CertificateGroups.DefaultApplicationGroup.CertificateTypes.Value
-                            =
+                        activeNode.CertificateGroups.DefaultApplicationGroup.CertificateTypes.Value =
                         [
                             .. applicationCertificateGroup.CertificateTypes
                         ];
                     }
                     else
                     {
-                        activeNode.CertificateGroups.DefaultApplicationGroup.CertificateTypes.Value
-                            =
+                        activeNode.CertificateGroups.DefaultApplicationGroup.CertificateTypes.Value =
                         [
                             Ua.ObjectTypeIds.ApplicationCertificateType
                         ];
                     }
-                    activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.LastUpdateTime
-                        .Value =
+                    activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.LastUpdateTime.Value =
                         DateTime.UtcNow;
-                    activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.Writable.Value
-                        = false;
-                    activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.UserWritable
-                        .Value = false;
+                    activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.Writable.Value =
+                        false;
+                    activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.UserWritable.Value =
+                        false;
 
                     if (m_certificateGroups.TryGetValue(
                             m_defaultHttpsGroupId,
@@ -512,11 +498,13 @@ namespace Opc.Ua.Gds.Server
                             Ua.ObjectTypeIds.HttpsCertificateType
                         ];
                     }
-                    activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.LastUpdateTime.Value
-                        = DateTime.UtcNow;
-                    activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.Writable.Value = false;
-                    activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.UserWritable.Value
-                        = false;
+                    activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.LastUpdateTime.Value =
+                        DateTime.UtcNow;
+                    activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.Writable.Value =
+                        false;
+                    activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.UserWritable.Value =
+                        false;
+
                     if (m_certificateGroups.TryGetValue(
                             m_defaultUserTokenGroupId,
                             out ICertificateGroup userTokenCertificateGroup))
@@ -533,20 +521,59 @@ namespace Opc.Ua.Gds.Server
                             Ua.ObjectTypeIds.UserCertificateType
                         ];
                     }
-                    activeNode.CertificateGroups.DefaultUserTokenGroup.TrustList.LastUpdateTime
-                        .Value = DateTime.UtcNow;
-                    activeNode.CertificateGroups.DefaultUserTokenGroup.TrustList.Writable.Value
-                        = false;
-                    activeNode.CertificateGroups.DefaultUserTokenGroup.TrustList.UserWritable.Value
-                        = false;
-
-                    // replace the node in the parent.
-                    passiveNode.Parent?.ReplaceChild(context, activeNode);
+                    activeNode.CertificateGroups.DefaultUserTokenGroup.TrustList.LastUpdateTime.Value =
+                        DateTime.UtcNow;
+                    activeNode.CertificateGroups.DefaultUserTokenGroup.TrustList.Writable.Value =
+                        false;
+                    activeNode.CertificateGroups.DefaultUserTokenGroup.TrustList.UserWritable.Value =
+                        false;
 
                     return activeNode;
             }
 
             return predefinedNode;
+        }
+
+        private ServiceResult OnAddSelfAdminRolePermissions(
+            ISystemContext context,
+            NodeState node,
+            ref RolePermissionTypeCollection value)
+        {
+            if (value == null || value.Count == 0)
+            {
+                return ServiceResult.Good;
+            }
+
+            var selfAdminRole = ExpandedNodeId.ToNodeId(GdsRole.ApplicationSelfAdmin.RoleId, context.NamespaceUris);
+            var selfAdminPermission = new RolePermissionType
+            {
+                RoleId = selfAdminRole,
+                Permissions = (uint)PermissionType.Call
+            };
+            value.Add(selfAdminPermission);
+            return ServiceResult.Good;
+        }
+
+        private ServiceResult OnAddSelfAdminUserRolePermissions(
+            ISystemContext context,
+            NodeState node,
+            ref RolePermissionTypeCollection value)
+        {
+            if (node.RolePermissions == null)
+            {
+                return ServiceResult.Good;
+            }
+
+            var selfAdminRole = ExpandedNodeId.ToNodeId(GdsRole.ApplicationSelfAdmin.RoleId, context.NamespaceUris);
+            IUserIdentity userIdentity = (context as ISessionSystemContext)?.UserIdentity;
+            if (!userIdentity.GrantedRoleIds.Contains(selfAdminRole))
+            {
+                return ServiceResult.Good;
+            }
+
+            // This contains the self admin role and other permissions
+            value = [.. node.RolePermissions];
+            return ServiceResult.Good;
         }
 
         private ServiceResult OnQueryServers(
@@ -619,7 +646,7 @@ namespace Opc.Ua.Gds.Server
 
             applicationId = m_database.RegisterApplication(application);
 
-            if (applicationId != null)
+            if (!applicationId.IsNull)
             {
                 object[] inputArguments = [application, applicationId];
                 Server.ReportApplicationRegistrationChangedAuditEvent(
@@ -649,7 +676,7 @@ namespace Opc.Ua.Gds.Server
             {
                 return new ServiceResult(
                     StatusCodes.BadNotFound,
-                    "The application id does not exist.");
+                    LocalizedText.From("The application id does not exist."));
             }
 
             m_database.RegisterApplication(application);
@@ -673,9 +700,7 @@ namespace Opc.Ua.Gds.Server
             NodeId applicationId,
             CancellationToken cancellationToken)
         {
-            AuthorizationHelper.HasAuthorization(
-                context,
-                AuthorizationHelper.DiscoveryAdminOrSelfAdmin);
+            AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.DiscoveryAdminOrSelfAdmin);
 
             m_logger.LogInformation("OnUnregisterApplication: {ApplicationId}", applicationId.ToString());
 
@@ -721,15 +746,13 @@ namespace Opc.Ua.Gds.Server
             NodeId applicationId,
             byte[] certificate)
         {
-            AuthorizationHelper.HasAuthorization(
-                context,
-                AuthorizationHelper.CertificateAuthorityAdmin);
+            AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.CertificateAuthorityAdmin);
 
             if (m_database.GetApplication(applicationId) == null)
             {
                 return new ServiceResult(
                     StatusCodes.BadNotFound,
-                    "The ApplicationId does not refer to a registered application.");
+                    LocalizedText.From("The ApplicationId does not refer to a registered application."));
             }
             if (certificate == null || certificate.Length == 0)
             {
@@ -915,11 +938,12 @@ namespace Opc.Ua.Gds.Server
             {
                 return new ServiceResult(
                     StatusCodes.BadNotFound,
-                    "The ApplicationId does not refer to a registered application.");
+                    LocalizedText.From("The ApplicationId does not refer to a registered application."));
             }
 
-            //If CertificateGroupId is null, the CertificateManager shall return the Certificates for all CertificateGroups assigned to the Application.
-            if (certificateGroupId == null)
+            // If CertificateGroupId is null, the CertificateManager shall return the Certificates
+            // for all CertificateGroups assigned to the Application.
+            if (certificateGroupId.IsNull)
             {
                 foreach (KeyValuePair<NodeId, string> certType in m_certTypeMap)
                 {
@@ -934,7 +958,7 @@ namespace Opc.Ua.Gds.Server
                     }
                 }
             }
-            //get only Certificate of the provided CertificateGroup
+            // get only Certificate of the provided CertificateGroup
             else
             {
                 if (!m_certificateGroups.TryGetValue(
@@ -943,7 +967,8 @@ namespace Opc.Ua.Gds.Server
                 {
                     return new ServiceResult(
                         StatusCodes.BadInvalidArgument,
-                        "The CertificateGroupId is not recognized or not valid for the Application.");
+                        LocalizedText.From(
+                            "The CertificateGroupId is not recognized or not valid for the Application."));
                 }
                 foreach (NodeId certificateType in certificateGroup.CertificateTypes)
                 {
@@ -975,7 +1000,7 @@ namespace Opc.Ua.Gds.Server
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,
-                    "Cannot issue HTTPS certificates to client applications.");
+                    LocalizedText.From("Cannot issue HTTPS certificates to client applications."));
             }
 
             bool found = false;
@@ -1002,7 +1027,7 @@ namespace Opc.Ua.Gds.Server
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,
-                    "Cannot issue HTTPS certificates to server applications without a matching HTTPS discovery URL.");
+                    LocalizedText.From("Cannot issue HTTPS certificates to server applications without a matching HTTPS discovery URL."));
             }
 
             return ServiceResult.Good;
@@ -1028,7 +1053,7 @@ namespace Opc.Ua.Gds.Server
 
             throw new ServiceResultException(
                 StatusCodes.BadInvalidArgument,
-                "Cannot issue HTTPS certificates to server applications without a HTTPS discovery URL.");
+                LocalizedText.From("Cannot issue HTTPS certificates to server applications without a HTTPS discovery URL."));
         }
 
         private static string GetDefaultUserToken()
@@ -1159,10 +1184,10 @@ namespace Opc.Ua.Gds.Server
             {
                 return new ServiceResult(
                     StatusCodes.BadNotFound,
-                    "The ApplicationId does not refer to a valid application.");
+                    LocalizedText.From("The ApplicationId does not refer to a valid application."));
             }
 
-            if (NodeId.IsNull(certificateGroupId))
+            if (certificateGroupId.IsNull)
             {
                 certificateGroupId = ExpandedNodeId.ToNodeId(
                     ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup,
@@ -1175,17 +1200,17 @@ namespace Opc.Ua.Gds.Server
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,
-                    "The certificateGroup is not supported.");
+                    LocalizedText.From("The certificateGroup is not supported."));
             }
 
-            if (!NodeId.IsNull(certificateTypeId))
+            if (!certificateTypeId.IsNull)
             {
                 if (!certificateGroup.CertificateTypes.Any(certificateType =>
                         Server.TypeTree.IsTypeOf(certificateType, certificateTypeId)))
                 {
                     return new ServiceResult(
                         StatusCodes.BadInvalidArgument,
-                        "The CertificateType is not supported by the certificateGroup.");
+                        LocalizedText.From("The CertificateType is not supported by the certificateGroup."));
                 }
             }
             else
@@ -1197,7 +1222,7 @@ namespace Opc.Ua.Gds.Server
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,
-                    "The CertificateType is invalid.");
+                    LocalizedText.From("The CertificateType is invalid."));
             }
 
             if (!string.IsNullOrEmpty(subjectName))
@@ -1210,7 +1235,7 @@ namespace Opc.Ua.Gds.Server
 
                 buffer.Append("CN=");
 
-                if ((NodeId.IsNull(certificateGroup.Id) ||
+                if ((certificateGroup.Id.IsNull ||
                     (certificateGroup.Id == m_defaultApplicationGroupId)) &&
                     (application.ApplicationNames.Count > 0))
                 {
@@ -1301,11 +1326,11 @@ namespace Opc.Ua.Gds.Server
             {
                 result.ServiceResult = new ServiceResult(
                     StatusCodes.BadNotFound,
-                    "The ApplicationId does not refer to a valid application.");
+                    LocalizedText.From("The ApplicationId does not refer to a valid application."));
                 return result;
             }
 
-            if (NodeId.IsNull(certificateGroupId))
+            if (certificateGroupId.IsNull)
             {
                 certificateGroupId = ExpandedNodeId.ToNodeId(
                     ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup,
@@ -1318,18 +1343,18 @@ namespace Opc.Ua.Gds.Server
             {
                 result.ServiceResult = new ServiceResult(
                     StatusCodes.BadInvalidArgument,
-                    "The CertificateGroupId does not refer to a supported certificateGroup.");
+                    LocalizedText.From("The CertificateGroupId does not refer to a supported certificateGroup."));
                 return result;
             }
 
-            if (!NodeId.IsNull(certificateTypeId))
+            if (!certificateTypeId.IsNull)
             {
                 if (!certificateGroup.CertificateTypes.Any(certificateType =>
                         Server.TypeTree.IsTypeOf(certificateType, certificateTypeId)))
                 {
                     result.ServiceResult = new ServiceResult(
                         StatusCodes.BadInvalidArgument,
-                        "The CertificateTypeId is not supported by the certificateGroup.");
+                        LocalizedText.From("The CertificateTypeId is not supported by the certificateGroup."));
                     return result;
                 }
             }
@@ -1342,7 +1367,7 @@ namespace Opc.Ua.Gds.Server
             {
                 result.ServiceResult = new ServiceResult(
                     StatusCodes.BadInvalidArgument,
-                    "The CertificateType is invalid.");
+                    LocalizedText.From("The CertificateType is invalid."));
                 return result;
             }
 
@@ -1394,7 +1419,7 @@ namespace Opc.Ua.Gds.Server
             {
                 result.ServiceResult = new ServiceResult(
                     StatusCodes.BadNotFound,
-                    "The ApplicationId does not refer to a valid application.");
+                    LocalizedText.From("The ApplicationId does not refer to a valid application."));
                 return result;
             }
 
@@ -1435,7 +1460,7 @@ namespace Opc.Ua.Gds.Server
             {
                 result.ServiceResult = new ServiceResult(
                     StatusCodes.BadInvalidArgument,
-                    "The CertificateGroupId does not refer to a supported certificate group.");
+                    LocalizedText.From("The CertificateGroupId does not refer to a supported certificate group."));
                 return result;
             }
 
@@ -1446,13 +1471,13 @@ namespace Opc.Ua.Gds.Server
                 .Select(pair => pair.Key)
                 .SingleOrDefault();
 
-            if (!NodeId.IsNull(certificateTypeNodeId) &&
+            if (!certificateTypeNodeId.IsNull &&
                 !certificateGroup.CertificateTypes.Any(certificateType =>
                     Server.TypeTree.IsTypeOf(certificateType, certificateTypeNodeId)))
             {
                 result.ServiceResult = new ServiceResult(
                     StatusCodes.BadInvalidArgument,
-                    "The CertificateTypeId is not supported by the certificateGroup.");
+                    LocalizedText.From("The CertificateTypeId is not supported by the certificateGroup."));
                 return result;
             }
 
@@ -1594,7 +1619,7 @@ namespace Opc.Ua.Gds.Server
             {
                 return new ServiceResult(
                     StatusCodes.BadNotFound,
-                    "The ApplicationId does not refer to a valid application.");
+                    LocalizedText.From("The ApplicationId does not refer to a valid application."));
             }
 
             var certificateGroupIdList = new List<NodeId>();
@@ -1627,21 +1652,21 @@ namespace Opc.Ua.Gds.Server
             {
                 return new ServiceResult(
                     StatusCodes.BadNotFound,
-                    "The ApplicationId does not refer to a valid application.");
+                    LocalizedText.From("The ApplicationId does not refer to a valid application."));
             }
 
-            if (NodeId.IsNull(certificateGroupId))
+            if (certificateGroupId.IsNull)
             {
                 certificateGroupId = m_defaultApplicationGroupId;
             }
 
             trustListId = GetTrustListId(certificateGroupId);
 
-            if (trustListId == null)
+            if (trustListId.IsNull)
             {
                 return new ServiceResult(
                     StatusCodes.BadNotFound,
-                    "The CertificateGroupId does not refer to a group that is valid for the application.");
+                    LocalizedText.From("The CertificateGroupId does not refer to a group that is valid for the application."));
             }
 
             return ServiceResult.Good;
@@ -1667,10 +1692,10 @@ namespace Opc.Ua.Gds.Server
             {
                 return new ServiceResult(
                     StatusCodes.BadNotFound,
-                    "The ApplicationId does not refer to a valid application.");
+                    LocalizedText.From("The ApplicationId does not refer to a valid application."));
             }
 
-            if (NodeId.IsNull(certificateGroupId))
+            if (certificateGroupId.IsNull)
             {
                 certificateGroupId = m_defaultApplicationGroupId;
             }
@@ -1682,7 +1707,8 @@ namespace Opc.Ua.Gds.Server
             {
                 return new ServiceResult(
                     StatusCodes.BadNotFound,
-                    "The CertificateGroupId and CertificateTypeId do not refer to a group and type that is valid for the application.");
+                    LocalizedText.From(
+                        "The CertificateGroupId and CertificateTypeId do not refer to a group and type that is valid for the application."));
             }
 
             updateRequired = (bool)updateRequiredResult;
@@ -1882,15 +1908,15 @@ namespace Opc.Ua.Gds.Server
                 case CertificateRequestState.New:
                     return new ServiceResult(
                         StatusCodes.BadNothingToDo,
-                        "The request has not been approved by the administrator.");
+                        LocalizedText.From("The request has not been approved by the administrator."));
                 case CertificateRequestState.Rejected:
                     return new ServiceResult(
                         StatusCodes.BadRequestNotAllowed,
-                        "The request has been rejected by the administrator.");
+                        LocalizedText.From("The request has been rejected by the administrator."));
                 case CertificateRequestState.Accepted:
                     return new ServiceResult(
                         StatusCodes.BadInvalidArgument,
-                        "The request has already been accepted by the application.");
+                        LocalizedText.From("The request has already been accepted by the application."));
                 case CertificateRequestState.Approved:
                     return null;
                 default:

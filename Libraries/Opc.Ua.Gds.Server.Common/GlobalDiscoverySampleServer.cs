@@ -51,9 +51,9 @@ namespace Opc.Ua.Gds.Server
     /// </para>
     /// <para>
     /// This sub-class specifies non-configurable metadata such as Product Name and initializes
-    /// the ApplicationNodeManager which provides access to the data exposed by the Global Discovery Server.
+    /// the ApplicationNodeManager which provides access to the data exposed by the
+    /// Global Discovery Server.
     /// </para>
-    ///
     /// </remarks>
     public class GlobalDiscoverySampleServer : StandardServer
     {
@@ -62,8 +62,9 @@ namespace Opc.Ua.Gds.Server
             ICertificateRequest request,
             ICertificateGroup certificateGroup,
             IUserDatabase userDatabase,
-            bool autoApprove = true
-            )
+            ITelemetryContext telemetry,
+            bool autoApprove = true)
+            : base(telemetry)
         {
             m_database = database;
             m_request = request;
@@ -79,7 +80,8 @@ namespace Opc.Ua.Gds.Server
         {
             base.OnServerStarted(server);
 
-            // request notifications when the user identity is changed. all valid users are accepted by default.
+            // request notifications when the user identity is changed. all valid users
+            // are accepted by default.
             server.SessionManager.ImpersonateUser += SessionManager_ImpersonateUser;
         }
 
@@ -87,8 +89,9 @@ namespace Opc.Ua.Gds.Server
         /// Creates the node managers for the server.
         /// </summary>
         /// <remarks>
-        /// This method allows the sub-class create any additional node managers which it uses. The SDK
-        /// always creates a CoreNodeManager which handles the built-in nodes defined by the specification.
+        /// This method allows the sub-class create any additional node managers which it uses.
+        /// The SDK always creates a CoreNodeManager which handles the built-in nodes defined
+        /// by the specification.
         /// Any additional NodeManagers are expected to handle application specific nodes.
         /// </remarks>
         protected override MasterNodeManager CreateMasterNodeManager(
@@ -158,14 +161,12 @@ namespace Opc.Ua.Gds.Server
                     throw new ServiceResultException(
                         new ServiceResult(
                             Namespaces.OpcUaGds,
-                            new StatusCode(StatusCodes.BadUserAccessDenied, "NoWriteAllowed"),
+                            new StatusCode(StatusCodes.BadUserAccessDenied.Code, "NoWriteAllowed"),
                             new LocalizedText(info)));
                 }
 
-                UserIdentityToken securityToken = context.UserIdentity.GetIdentityToken();
-
                 // check for a user name token.
-                if (securityToken is UserNameIdentityToken)
+                if (context.UserIdentity.TokenType == UserTokenType.UserName)
                 {
                     lock (m_contextLock)
                     {
@@ -178,7 +179,8 @@ namespace Opc.Ua.Gds.Server
         }
 
         /// <summary>
-        /// This method is called in a finally block at the end of request processing (i.e. called even on exception).
+        /// This method is called in a finally block at the end of request processing
+        /// (i.e. called even on exception).
         /// </summary>
         protected override void OnRequestComplete(OperationContext context)
         {
@@ -200,19 +202,20 @@ namespace Opc.Ua.Gds.Server
         private void SessionManager_ImpersonateUser(ISession session, ImpersonateEventArgs args)
         {
             // check for a user name token
-            if (args.NewIdentity is UserNameIdentityToken userNameToken &&
+            if (args.UserIdentityTokenHandler is UserNameIdentityTokenHandler userNameToken &&
                 VerifyPassword(userNameToken))
             {
                 IEnumerable<Role> roles = m_userDatabase.GetUserRoles(userNameToken.UserName);
 
                 args.Identity = new GdsRoleBasedIdentity(
                     new UserIdentity(userNameToken),
-                    roles);
+                    roles,
+                    ServerInternal.MessageContext.NamespaceUris);
                 return;
             }
 
             // check for x509 user token.
-            if (args.NewIdentity is X509IdentityToken x509Token)
+            if (args.UserIdentityTokenHandler is X509IdentityToken x509Token)
             {
                 VerifyX509IdentityToken(x509Token);
 
@@ -225,11 +228,12 @@ namespace Opc.Ua.Gds.Server
                     Role.AuthenticatedUser);
                 args.Identity = new GdsRoleBasedIdentity(
                     new UserIdentity(x509Token),
-                    [Role.AuthenticatedUser]);
+                    [Role.AuthenticatedUser],
+                    ServerInternal.MessageContext.NamespaceUris);
                 return;
             }
 
-            //check if applicable for application self admin privilege
+            // check if applicable for application self admin privilege
             if (session.ClientCertificate != null && VerifiyApplicationRegistered(session))
             {
                 ImpersonateAsApplicationSelfAdmin(session, args);
@@ -249,11 +253,11 @@ namespace Opc.Ua.Gds.Server
                 session.SessionDiagnostics.ClientDescription.ApplicationUri);
             X509Utils.DoesUrlMatchCertificate(applicationInstanceCertificate, applicationUri);
 
-            //get access to GDS configuration section to find out ApplicationCertificatesStorePath
+            // get access to GDS configuration section to find out ApplicationCertificatesStorePath
             GlobalDiscoveryServerConfiguration configuration =
                 Configuration.ParseExtension<GlobalDiscoveryServerConfiguration>()
                 ?? new GlobalDiscoveryServerConfiguration();
-            //check if application certificate is in the Store of the GDS
+            // check if application certificate is in the Store of the GDS
             var certificateStoreIdentifier = new CertificateStoreIdentifier(
                 configuration.ApplicationCertificatesStorePath);
             using (ICertificateStore applicationsStore = certificateStoreIdentifier.OpenStore(MessageContext.Telemetry))
@@ -267,12 +271,12 @@ namespace Opc.Ua.Gds.Server
                     applicationRegistered = true;
                 }
             }
-            //skip revocation check if application is not registered
+            // skip revocation check if application is not registered
             if (!applicationRegistered)
             {
                 return false;
             }
-            //check if application certificate is revoked
+            // check if application certificate is revoked
             certificateStoreIdentifier = new CertificateStoreIdentifier(
                 configuration.AuthoritiesStorePath);
             using (ICertificateStore authoritiesStore = certificateStoreIdentifier.OpenStore(MessageContext.Telemetry))
@@ -294,10 +298,12 @@ namespace Opc.Ua.Gds.Server
         /// <exception cref="ServiceResultException"></exception>
         private void VerifyX509IdentityToken(X509IdentityToken token)
         {
-            X509Certificate2 certificate = token.GetOrCreateCertificate(MessageContext.Telemetry);
+            using var x509TokenHandler = new X509IdentityTokenHandler(token);
             try
             {
-                CertificateValidator.ValidateAsync(certificate, default).GetAwaiter().GetResult();
+                CertificateValidator.ValidateAsync(
+                    x509TokenHandler.Certificate,
+                    default).GetAwaiter().GetResult();
             }
             catch (Exception e)
             {
@@ -310,7 +316,7 @@ namespace Opc.Ua.Gds.Server
                         "InvalidCertificate",
                         "en-US",
                         "'{0}' is an invalid user certificate.",
-                        certificate.Subject);
+                        x509TokenHandler.Certificate.Subject);
 
                     result = StatusCodes.BadIdentityTokenInvalid;
                 }
@@ -321,7 +327,7 @@ namespace Opc.Ua.Gds.Server
                         "UntrustedCertificate",
                         "en-US",
                         "'{0}' is not a trusted user certificate.",
-                        certificate.Subject);
+                        x509TokenHandler.Certificate.Subject);
                 }
 
                 // create an exception with a vendor defined sub-code.
@@ -333,11 +339,11 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        private bool VerifyPassword(UserNameIdentityToken userNameToken)
+        private bool VerifyPassword(UserNameIdentityTokenHandler userTokenHandler)
         {
             return m_userDatabase.CheckCredentials(
-                userNameToken.UserName,
-                userNameToken.DecryptedPassword);
+                userTokenHandler.UserName,
+                userTokenHandler.DecryptedPassword);
         }
 
         /// <summary>
@@ -363,7 +369,8 @@ namespace Opc.Ua.Gds.Server
             args.Identity = new GdsRoleBasedIdentity(
                 new UserIdentity(),
                 [GdsRole.ApplicationSelfAdmin],
-                applicationId);
+                applicationId,
+                ServerInternal.MessageContext.NamespaceUris);
         }
 
         private readonly Dictionary<uint, ImpersonationContext> m_contexts = [];

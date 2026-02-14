@@ -68,7 +68,7 @@ namespace Alarms
 
                 BaseEventState alarm = GetAlarm();
 
-                alarm.EventId.Value = Guid.NewGuid().ToByteArray();
+                alarm.EventId.Value = Uuid.NewUuid().ToByteArray();
                 alarm.EventType.Value = new NodeId(
                     alarmTypeIdentifier,
                     GetNameSpaceIndex(alarmTypeIdentifier));
@@ -76,7 +76,7 @@ namespace Alarms
                 alarm.SourceName.Value = m_trigger.SymbolicName;
                 alarm.Time.Value = DateTime.UtcNow;
                 alarm.ReceiveTime.Value = alarm.Time.Value;
-                alarm.Message.Value = name + " Initialized";
+                alarm.Message.Value = LocalizedText.From(name + " Initialized");
                 alarm.Severity.Value = AlarmDefines.INACTIVE_SEVERITY;
 
                 // TODO Implement for Optionals - Needs to go to all places where Time is set.

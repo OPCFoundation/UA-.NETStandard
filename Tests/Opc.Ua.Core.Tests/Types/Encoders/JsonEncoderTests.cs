@@ -334,7 +334,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Quotes("00000000-0000-0000-0000-000000000000"),
                 true
             },
-            { BuiltInType.Guid, new Uuid(s_nodeIdGuid), Quotes($"{s_nodeIdGuid}"), null },
+            { BuiltInType.Guid, s_nodeIdGuid, Quotes($"{s_nodeIdGuid}"), null },
             { BuiltInType.NodeId, NodeId.Null, null, null, null, Quotes(string.Empty) },
             {
                 BuiltInType.NodeId,
@@ -755,30 +755,30 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 """, // compact
                 null // verbose - null == same as compact
             },
-            { BuiltInType.StatusCode, new StatusCode(StatusCodes.Good), null, null, null, "{}" },
+            { BuiltInType.StatusCode, StatusCodes.Good, null, null, null, "{}" },
             {
                 BuiltInType.StatusCode,
-                new StatusCode(StatusCodes.Good),
-                $"{StatusCodes.Good}",
+                StatusCodes.Good,
+                $"{StatusCodes.Good.Code}",
                 "{}",
                 null,
                 "{}",
                 true },
             {
                 BuiltInType.StatusCode,
-                new StatusCode(StatusCodes.BadBoundNotFound),
-                $"{StatusCodes.BadBoundNotFound}",
-                $$"""{"Code":{{StatusCodes.BadBoundNotFound}}, "Symbol":"{{nameof(StatusCodes.BadBoundNotFound)}}"}""",
-                $$"""{"Code":{{StatusCodes.BadBoundNotFound}}}""",
-                $$"""{"Code":{{StatusCodes.BadBoundNotFound}}, "Symbol":"{{nameof(StatusCodes.BadBoundNotFound)}}"}"""
+                StatusCodes.BadBoundNotFound,
+                $"{StatusCodes.BadBoundNotFound.Code}",
+                $$"""{"Code":{{StatusCodes.BadBoundNotFound.Code}}, "Symbol":"{{nameof(StatusCodes.BadBoundNotFound)}}"}""",
+                $$"""{"Code":{{StatusCodes.BadBoundNotFound.Code}}}""",
+                $$"""{"Code":{{StatusCodes.BadBoundNotFound.Code}}, "Symbol":"{{nameof(StatusCodes.BadBoundNotFound)}}"}"""
             },
             {
                 BuiltInType.StatusCode,
-                new StatusCode(StatusCodes.BadCertificateInvalid),
-                $"{StatusCodes.BadCertificateInvalid}",
-                $$"""{"Code":{{StatusCodes.BadCertificateInvalid}}, "Symbol":"{{nameof(StatusCodes.BadCertificateInvalid)}}"}""",
-                $$"""{"Code":{{StatusCodes.BadCertificateInvalid}}}""",
-                $$"""{"Code":{{StatusCodes.BadCertificateInvalid}}, "Symbol":"{{nameof(StatusCodes.BadCertificateInvalid)}}"}"""
+                StatusCodes.BadCertificateInvalid,
+                $"{StatusCodes.BadCertificateInvalid.Code}",
+                $$"""{"Code":{{StatusCodes.BadCertificateInvalid.Code}}, "Symbol":"{{nameof(StatusCodes.BadCertificateInvalid)}}"}""",
+                $$"""{"Code":{{StatusCodes.BadCertificateInvalid.Code}}}""",
+                $$"""{"Code":{{StatusCodes.BadCertificateInvalid.Code}}, "Symbol":"{{nameof(StatusCodes.BadCertificateInvalid)}}"}"""
             },
             {
                 BuiltInType.StatusCode,
@@ -811,7 +811,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Quotes(string.Empty) },
             {
                 BuiltInType.QualifiedName,
-                new QualifiedName(kQualifiedName),
+                QualifiedName.From(kQualifiedName),
                 $$"""{"Name":"{{kQualifiedName}}"}""",
                 null,
                 $"""
@@ -950,10 +950,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 BuiltInType.DataValue,
                 new DataValue(StatusCodes.BadNotWritable),
-                $$"""{"StatusCode":{{StatusCodes.BadNotWritable}}}""",
-                $$$"""{"StatusCode":{"Code":{{{StatusCodes.BadNotWritable}}}, "Symbol":"{{{nameof(StatusCodes.BadNotWritable)}}}"}}""",
-                $$$"""{"StatusCode":{"Code":{{{StatusCodes.BadNotWritable}}}}}""",
-                $$$"""{"StatusCode":{"Code":{{{StatusCodes.BadNotWritable}}}, "Symbol":"{{{nameof(StatusCodes.BadNotWritable)}}}"}}"""
+                $$"""{"StatusCode":{{StatusCodes.BadNotWritable.Code}}}""",
+                $$$"""{"StatusCode":{"Code":{{{StatusCodes.BadNotWritable.Code}}}, "Symbol":"{{{nameof(StatusCodes.BadNotWritable)}}}"}}""",
+                $$$"""{"StatusCode":{"Code":{{{StatusCodes.BadNotWritable.Code}}}}}""",
+                $$$"""{"StatusCode":{"Code":{{{StatusCodes.BadNotWritable.Code}}}, "Symbol":"{{{nameof(StatusCodes.BadNotWritable)}}}"}}"""
             },
             { BuiltInType.Enumeration, (TestEnumType)0, "0", """
                 "0"

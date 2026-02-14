@@ -225,7 +225,7 @@ namespace Opc.Ua.Client.Tests
 
             // Arrange
             var id = new NodeId("test", 0);
-            var browsePath = new QualifiedNameCollection { new QualifiedName("invalid") };
+            var browsePath = new QualifiedNameCollection { QualifiedName.From("invalid") };
             var context = new Mock<INodeCacheContext>();
 
             context
@@ -262,17 +262,17 @@ namespace Opc.Ua.Client.Tests
             var id = new NodeId("test", 0);
             var expected = new VariableNode
             {
-                BrowseName = new QualifiedName("child"),
+                BrowseName = QualifiedName.From("child"),
                 NodeId = id,
                 NodeClass = NodeClass.Variable
             };
-            var browsePath = new QualifiedNameCollection { new QualifiedName("child") };
+            var browsePath = new QualifiedNameCollection { QualifiedName.From("child") };
             var references = new List<ReferenceDescription>
             {
                 new()
                 {
                     NodeId = new ExpandedNodeId(id),
-                    BrowseName = new QualifiedName("child"),
+                    BrowseName = QualifiedName.From("child"),
                     ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
                     IsForward = true
                 }
@@ -346,14 +346,14 @@ namespace Opc.Ua.Client.Tests
                 new()
                 {
                     NodeId = new ExpandedNodeId(childId),
-                    BrowseName = new QualifiedName("child"),
+                    BrowseName = QualifiedName.From("child"),
                     ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
                     IsForward = true
                 }
             };
             var childNode = new VariableNode
             {
-                BrowseName = new QualifiedName("child"),
+                BrowseName = QualifiedName.From("child"),
                 NodeId = childId,
                 NodeClass = NodeClass.Variable
             };
@@ -362,14 +362,14 @@ namespace Opc.Ua.Client.Tests
                 new()
                 {
                     NodeId = new ExpandedNodeId(grandChildId),
-                    BrowseName = new QualifiedName("grandChild"),
+                    BrowseName = QualifiedName.From("grandChild"),
                     ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
                     IsForward = true
                 }
             };
             var expected = new VariableNode
             {
-                BrowseName = new QualifiedName("grandChild"),
+                BrowseName = QualifiedName.From("grandChild"),
                 NodeId = grandChildId,
                 NodeClass = NodeClass.Variable
             };
@@ -574,7 +574,7 @@ namespace Opc.Ua.Client.Tests
                         new()
                         {
                             ReferenceTypeId = ReferenceTypeIds.HasSubtype,
-                            BrowseName = new QualifiedName("HasSubtype"),
+                            BrowseName = QualifiedName.From("HasSubtype"),
                             NodeId = new ExpandedNodeId(referenceSubTypeId)
                         }
                     ])
@@ -609,7 +609,7 @@ namespace Opc.Ua.Client.Tests
                         {
                             ReferenceTypeId = ReferenceTypeIds.HasSubtype,
                             IsForward = false,
-                            BrowseName = new QualifiedName("HasSuperType"),
+                            BrowseName = QualifiedName.From("HasSuperType"),
                             NodeId = new ExpandedNodeId(referenceTypeId)
                         }
                     ])

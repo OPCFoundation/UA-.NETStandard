@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using Microsoft.Extensions.Logging;
@@ -115,7 +114,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                             .LoadDataTypeSystem(ObjectIds.ObjectAttributes_Encoding_DefaultJson)
                             .ConfigureAwait(false);
                     });
-            Assert.AreEqual((StatusCode)StatusCodes.BadNodeIdInvalid, (StatusCode)sre.StatusCode);
+            Assert.AreEqual(StatusCodes.BadNodeIdInvalid, sre.StatusCode);
             System.Collections.Generic.IReadOnlyDictionary<NodeId, DataDictionary> typeSystem
                 = await nodeResolver
                 .LoadDataTypeSystem()
@@ -164,23 +163,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 // internal API for testing only
                 byte[] dictionary = await nodeResolver.ReadDictionaryAsync(dictionaryId)
                     .ConfigureAwait(false);
-                // TODO: workaround known issues in the Xml type system.
-                // https://mantis.opcfoundation.org/view.php?id=7393
-                if (dataTypeSystem.Equals(ObjectIds.XmlSchema_TypeSystem))
-                {
-                    try
-                    {
-                        dictionaryToLoad.Validate(dictionary, true, logger);
-                    }
-                    catch (Exception ex)
-                    {
-                        NUnit.Framework.Assert.Inconclusive(ex.Message);
-                    }
-                }
-                else
-                {
-                    dictionaryToLoad.Validate(dictionary, true, logger);
-                }
+                dictionaryToLoad.Validate(dictionary, true, logger);
             }
         }
     }

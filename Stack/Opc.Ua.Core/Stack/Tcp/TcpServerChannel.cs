@@ -1291,7 +1291,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void ResetQueuedResponses(Action<object> action)
         {
-            Task.Factory.StartNew(
+            _ = Task.Factory.StartNew(
                 action,
                 m_queuedResponses,
                 default,

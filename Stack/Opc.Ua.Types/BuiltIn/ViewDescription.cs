@@ -160,7 +160,7 @@ namespace Opc.Ua
         {
             var clone = (ViewDescription)base.MemberwiseClone();
 
-            clone.ViewId = CoreUtils.Clone(ViewId);
+            clone.ViewId = ViewId;
             clone.Timestamp = CoreUtils.Clone(Timestamp);
             clone.ViewVersion = CoreUtils.Clone(ViewVersion);
 
@@ -177,7 +177,7 @@ namespace Opc.Ua
                 return true;
             }
 
-            if (NodeId.IsNull(view.ViewId) &&
+            if (view.ViewId.IsNull &&
                 view.ViewVersion == 0 &&
                 view.Timestamp == DateTime.MinValue)
             {
