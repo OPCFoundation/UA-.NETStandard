@@ -71,10 +71,7 @@ namespace Opc.Ua
                 {
                     if (policy.PolicyId == policyId)
                     {
-                        if (policy.SecurityPolicyUri == tokenSecurityPolicyUri)
-                        {
-                            return policy;
-                        }
+                        return policy;
                     }
                 }
                 return null;
