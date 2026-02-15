@@ -60,7 +60,7 @@ namespace Opc.Ua
         /// <param name="browseName">The BrowseName.</param>
         /// <param name="nodeClass">The node class.</param>
         /// <param name="value">The value.</param>
-        public void SetChildValue(QualifiedName browseName, NodeClass nodeClass, object value)
+        public void SetChildValue(QualifiedName browseName, NodeClass nodeClass, Variant value)
         {
             SetChildValue(m_snapshot, browseName, nodeClass, value);
         }
@@ -123,10 +123,10 @@ namespace Opc.Ua
         /// </summary>
         private sealed class ChildNode
         {
-            public NodeClass NodeClass;
-            public QualifiedName BrowseName;
-            public object Value;
-            public List<ChildNode> Children;
+            public NodeClass NodeClass { get; set; }
+            public QualifiedName BrowseName { get; set; }
+            public Variant Value { get; set; }
+            public List<ChildNode> Children { get; set; }
         }
 
         /// <summary>
@@ -140,7 +140,7 @@ namespace Opc.Ua
             ChildNode node,
             QualifiedName browseName,
             NodeClass nodeClass,
-            object value)
+            Variant value)
         {
             ChildNode child = null;
 
@@ -237,7 +237,7 @@ namespace Opc.Ua
         /// <param name="index">The index.</param>
         /// <param name="attributeId">The attribute id.</param>
         /// <returns>The value of the attribute for the specified child.</returns>
-        private static object GetAttributeValue(
+        private static Variant GetAttributeValue(
             ChildNode node,
             IList<QualifiedName> relativePath,
             int index,
@@ -257,7 +257,7 @@ namespace Opc.Ua
 
                 if (attributeId == Attributes.NodeClass)
                 {
-                    return node.NodeClass;
+                    return Variant.From(node.NodeClass);
                 }
 
                 if (attributeId == Attributes.BrowseName)
@@ -265,7 +265,7 @@ namespace Opc.Ua
                     return node.BrowseName;
                 }
 
-                return null;
+                return Variant.Null;
             }
 
             for (int ii = 0; ii < node.Children.Count; ii++)
@@ -280,7 +280,7 @@ namespace Opc.Ua
                 }
             }
 
-            return null;
+            return Variant.Null;
         }
 
         private NodeId m_typeDefinitionId;

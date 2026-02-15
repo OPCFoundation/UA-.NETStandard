@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices.ComTypes;
 using Opc.Ua.Types;
 
 namespace Opc.Ua
@@ -67,9 +66,18 @@ namespace Opc.Ua
                 }
             }
 
-            m_value = ExtractValueFromVariant(context, m_value, false);
-
             base.Initialize(context, source);
+        }
+
+        /// <summary>
+        /// Initialized data type and value rank
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="context"></param>
+        protected virtual void Initialize<T>(ISystemContext context)
+        {
+            DataType = TypeInfo.GetDataTypeId(typeof(T), context.NamespaceUris);
+            ValueRank = TypeInfo.GetValueRank(typeof(T));
         }
 
         /// <summary>
@@ -137,12 +145,12 @@ namespace Opc.Ua
         /// <summary>
         /// The value of the variable.
         /// </summary>
-        public object Value
+        public Variant Value
         {
             get => m_value;
             set
             {
-                if (!ReferenceEquals(m_value, value))
+                if (m_value != value)
                 {
                     ChangeMasks |= NodeStateChangeMasks.Value;
                 }
@@ -156,8 +164,8 @@ namespace Opc.Ua
         /// </summary>
         public Variant WrappedValue
         {
-            get => new(m_value);
-            set => Value = ExtractValueFromVariant(null, value.Value, false);
+            get => Value;
+            set => Value = value;
         }
 
         /// <summary>
@@ -244,12 +252,12 @@ namespace Opc.Ua
         /// <summary>
         /// Raised when the ArrayDimensions attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<IList<uint>> OnReadArrayDimensions;
+        public NodeAttributeEventHandler<uint[]> OnReadArrayDimensions;
 
         /// <summary>
         /// Raised when the ArrayDimensions attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<IList<uint>> OnWriteArrayDimensions;
+        public NodeAttributeEventHandler<uint[]> OnWriteArrayDimensions;
 
         /// <summary>
         /// Exports a copy of the node to a node table.
@@ -285,9 +293,9 @@ namespace Opc.Ua
 
             encoder.PushNamespace(Namespaces.OpcUaXsd);
 
-            if (m_value != null)
+            if (!Value.IsNull)
             {
-                encoder.WriteVariant("Value", WrappedValue);
+                encoder.WriteVariant("Value", Value);
             }
 
             if (!DataType.IsNull)
@@ -323,7 +331,7 @@ namespace Opc.Ua
 
             if (decoder.Peek("Value"))
             {
-                WrappedValue = decoder.ReadVariant("Value");
+                Value = decoder.ReadVariant("Value");
             }
 
             if (decoder.Peek("DataType"))
@@ -354,7 +362,7 @@ namespace Opc.Ua
         {
             AttributesToSave attributesToSave = base.GetAttributesToSave(context);
 
-            if (!WrappedValue.IsNull)
+            if (!Value.IsNull)
             {
                 attributesToSave |= AttributesToSave.Value;
             }
@@ -392,7 +400,7 @@ namespace Opc.Ua
 
             if ((attributesToSave & AttributesToSave.Value) != 0)
             {
-                encoder.WriteVariant(null, WrappedValue);
+                encoder.WriteVariant(null, Value);
             }
 
             if ((attributesToSave & AttributesToSave.DataType) != 0)
@@ -426,7 +434,7 @@ namespace Opc.Ua
 
             if ((attributesToLoad & AttributesToSave.Value) != 0)
             {
-                WrappedValue = decoder.ReadVariant(null);
+                Value = decoder.ReadVariant(null);
             }
 
             if ((attributesToLoad & AttributesToSave.DataType) != 0)
@@ -460,7 +468,7 @@ namespace Opc.Ua
         protected override ServiceResult ReadNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            ref object value)
+            ref Variant value)
         {
             ServiceResult result = null;
 
@@ -499,10 +507,9 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.ArrayDimensions:
-                    IList<uint> arrayDimensions = m_arrayDimensions;
+                    uint[] arrayDimensions = m_arrayDimensions?.ToArray();
 
-                    NodeAttributeEventHandler<IList<uint>> onReadArrayDimensions
-                        = OnReadArrayDimensions;
+                    NodeAttributeEventHandler<uint[]> onReadArrayDimensions = OnReadArrayDimensions;
 
                     if (onReadArrayDimensions != null)
                     {
@@ -527,7 +534,7 @@ namespace Opc.Ua
             ISystemContext context,
             NumericRange indexRange,
             QualifiedName dataEncoding,
-            ref object value,
+            ref Variant value,
             ref DateTime sourceTimestamp)
         {
             value = m_value;
@@ -551,7 +558,7 @@ namespace Opc.Ua
             else
             {
                 // check if a valid value exists.
-                if (value == null)
+                if (value.IsNull)
                 {
                     return StatusCodes.BadAttributeIdInvalid;
                 }
@@ -584,14 +591,14 @@ namespace Opc.Ua
         protected override ServiceResult WriteNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            object value)
+            Variant value)
         {
             ServiceResult result = null;
 
             switch (attributeId)
             {
                 case Attributes.DataType:
-                    if (value is not NodeId dataType)
+                    if (!value.TryGet(out NodeId dataType))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -615,9 +622,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.ValueRank:
-                    int? valueRankRef = value as int?;
-
-                    if (valueRankRef == null)
+                    if (!value.TryGet(out int valueRank))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -626,8 +631,6 @@ namespace Opc.Ua
                     {
                         return StatusCodes.BadNotWritable;
                     }
-
-                    int valueRank = valueRankRef.Value;
 
                     NodeAttributeEventHandler<int> onWriteValueRank = OnWriteValueRank;
 
@@ -643,14 +646,21 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.ArrayDimensions:
-                    var arrayDimensions = value as IList<uint>;
+                    if (!value.TryGet(out uint[] arrayDimensions))
+                    {
+                        if (!value.IsNull)
+                        {
+                            return StatusCodes.BadTypeMismatch;
+                        }
+                        arrayDimensions = [];
+                    }
 
                     if ((WriteMask & AttributeWriteMask.ArrayDimensions) == 0)
                     {
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<IList<uint>> onWriteArrayDimensions
+                    NodeAttributeEventHandler<uint[]> onWriteArrayDimensions
                         = OnWriteArrayDimensions;
 
                     if (onWriteArrayDimensions != null)
@@ -682,7 +692,7 @@ namespace Opc.Ua
         protected override ServiceResult WriteValueAttribute(
             ISystemContext context,
             NumericRange indexRange,
-            object value,
+            Variant value,
             StatusCode statusCode,
             DateTime sourceTimestamp)
         {
@@ -735,7 +745,7 @@ namespace Opc.Ua
             return ServiceResult.Good;
         }
 
-        private object m_value;
+        private Variant m_value;
         private NodeId m_dataType;
         private int m_valueRank;
         private ReadOnlyList<uint> m_arrayDimensions;
@@ -788,7 +798,7 @@ namespace Opc.Ua
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
             IsAbstract = false;
-            Value = null;
+            Value = Variant.Null;
             DataType = NodeId.Create(
                 DataTypes.BaseDataType,
                 Namespaces.OpcUa,
@@ -817,21 +827,7 @@ namespace Opc.Ua
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
-
-            Value = default;
-            DataType = TypeInfo.GetDataTypeId(typeof(T), context.NamespaceUris);
-            ValueRank = TypeInfo.GetValueRank(typeof(T));
-        }
-
-        /// <summary>
-        /// Sets the value to its default value if it is not valid.
-        /// </summary>
-        protected override object ExtractValueFromVariant(
-            ISystemContext context,
-            object value,
-            bool throwOnError)
-        {
-            return BaseVariableState.ExtractValueFromVariant<T>(context, value, throwOnError);
+            base.Initialize<T>(context);
         }
 
         /// <summary>
@@ -840,7 +836,7 @@ namespace Opc.Ua
         public new T Value
         {
             get => BaseVariableState.CheckTypeBeforeCast<T>(base.Value, true);
-            set => base.Value = value;
+            set => base.Value = new Variant(value);
         }
     }
 
@@ -891,7 +887,7 @@ namespace Opc.Ua
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
             IsAbstract = false;
-            Value = null;
+            Value = Variant.Null;
             DataType = NodeId.Create(
                 DataTypes.BaseDataType,
                 Namespaces.OpcUa,
@@ -920,21 +916,7 @@ namespace Opc.Ua
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
-
-            Value = default;
-            DataType = TypeInfo.GetDataTypeId(typeof(T), context.NamespaceUris);
-            ValueRank = TypeInfo.GetValueRank(typeof(T));
-        }
-
-        /// <summary>
-        /// Sets the value to its default value if it is not valid.
-        /// </summary>
-        protected override object ExtractValueFromVariant(
-            ISystemContext context,
-            object value,
-            bool throwOnError)
-        {
-            return BaseVariableState.ExtractValueFromVariant<T>(context, value, throwOnError);
+            base.Initialize<T>(context);
         }
 
         /// <summary>
@@ -943,7 +925,7 @@ namespace Opc.Ua
         public new T Value
         {
             get => BaseVariableState.CheckTypeBeforeCast<T>(base.Value, true);
-            set => base.Value = value;
+            set => base.Value = new Variant(value);
         }
     }
 }

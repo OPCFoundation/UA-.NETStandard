@@ -193,7 +193,7 @@ namespace Opc.Ua
                     e.SetChildValue(
                         context,
                         BrowseNames.InputArguments,
-                        new object[] { selectedResponse },
+                        new Variant[] { selectedResponse },
                         false);
 
                     e.SetChildValue(

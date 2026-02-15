@@ -670,11 +670,11 @@ namespace Opc.Ua.Client
         /// Calls the specified method and returns the output arguments.
         /// </summary>
         [Obsolete("Use CallAsync instead.")]
-        public static IList<object> Call(
+        public static IList<Variant> Call(
             this ISession session,
             NodeId objectId,
             NodeId methodId,
-            params object[] args)
+            params Variant[] args)
         {
             return session.CallAsync(
                 objectId,

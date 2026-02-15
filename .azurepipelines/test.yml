@@ -92,3 +92,8 @@ jobs:
       command: test
       projects: $(file)
       arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }}'
+  - task: PublishBuildArtifacts@1
+    displayName: 'Publish Fuzzing artifacts on failure'
+    condition: and(failed(), ne(variables['fuzzingartifacts.secureFilePath'], ''))
+    inputs:
+      PathtoPublish: '$(Agent.TempDirectory)/FuzzingArtifacts.zip'

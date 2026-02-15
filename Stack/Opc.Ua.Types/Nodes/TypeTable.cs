@@ -40,7 +40,7 @@ namespace Opc.Ua
     public class TypeTable : ITypeTable
     {
         /// <summary>
-        /// Initializes the object with default values.
+        /// Initializes the type table with default values.
         /// </summary>
         /// <param name="namespaceUris">The namespace URIs.</param>
         public TypeTable(NamespaceTable namespaceUris)
@@ -361,10 +361,10 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool IsEncodingFor(NodeId expectedTypeId, object value)
+        public bool IsEncodingFor(NodeId expectedTypeId, Variant value)
         {
             // null actual datatype matches nothing.
-            if (value == null)
+            if (value.IsNull)
             {
                 return false;
             }
@@ -394,14 +394,14 @@ namespace Opc.Ua
 
             // for structure types must try to determine the subtype.
 
-            if (value is ExtensionObject extension)
+            if (value.TryGet(out ExtensionObject extension))
             {
                 return IsEncodingFor(expectedTypeId, extension);
             }
 
             // every element in an array must match.
 
-            if (value is ExtensionObject[] extensions)
+            if (value.TryGet(out ExtensionObject[] extensions))
             {
                 for (int ii = 0; ii < extensions.Length; ii++)
                 {
@@ -792,7 +792,7 @@ namespace Opc.Ua
             }
 
             /// <summary>
-            /// Adds a subtype to the object.
+            /// Adds a subtype to the type table.
             /// </summary>
             /// <param name="subType">The subtype</param>
             public void AddSubType(TypeInfo subType)

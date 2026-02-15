@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Globalization;
 using NUnit.Framework;
 
 namespace Opc.Ua.SourceGeneration.Templating.Tests

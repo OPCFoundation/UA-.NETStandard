@@ -37,17 +37,17 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with value and access level.
         /// </summary>
-        public VariableAttributes(object value, byte accessLevel, NamespaceTable namespaceUris)
+        public VariableAttributes(Variant value, byte accessLevel, NamespaceTable namespaceUris)
         {
             Initialize();
 
-            Value = new Variant(value);
+            Value = value;
             AccessLevel = accessLevel;
             UserAccessLevel = accessLevel;
             MinimumSamplingInterval = MinimumSamplingIntervals.Indeterminate;
             Historizing = false;
 
-            if (value == null)
+            if (value.IsNull)
             {
                 DataType = DataTypeIds.BaseDataType;
                 ValueRank = ValueRanks.Any;
@@ -55,7 +55,7 @@ namespace Opc.Ua
             else
             {
                 DataType = TypeInfo.GetDataTypeId(value, namespaceUris);
-                ValueRank = TypeInfo.GetValueRank(value);
+                ValueRank = value.TypeInfo.ValueRank;
             }
         }
     }
