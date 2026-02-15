@@ -142,6 +142,12 @@ namespace Opc.Ua.Server
         ValueTask DeleteReferencesAsync(NodeId targetId, IList<IReference> references, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Searches the node id in all node managers,
+        /// returns the node state if found (and node Manager supports it), otherwise returns null.
+        /// </summary>
+        ValueTask<NodeState> FindNodeInAddressSpaceAsync(NodeId nodeId);
+
+        /// <summary>
         /// Returns node handle and its node manager.
         /// </summary>
         [Obsolete("Use GetManagerHandleAsync instead.")]

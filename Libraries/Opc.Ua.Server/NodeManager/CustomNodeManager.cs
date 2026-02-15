@@ -48,7 +48,7 @@ namespace Opc.Ua.Server
     /// is not part of the SDK because most real implementations of a INodeManager will need to
     /// modify the behavior of the base class.
     /// </remarks>
-    public partial class CustomNodeManager2 : INodeManager2, INodeIdFactory, IDisposable
+    public partial class CustomNodeManager2 : INodeManager3, INodeIdFactory, IDisposable
     {
         /// <summary>
         /// Initializes the node manager.
@@ -169,7 +169,7 @@ namespace Opc.Ua.Server
             }
             else
             {
-                m_monitoredItemManager = new MonitoredNodeMonitoredItemManager(this);
+                m_monitoredItemManager = new MonitoredNodeMonitoredItemManager(this, server);
             }
 
             PredefinedNodes = [];
@@ -445,22 +445,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Searches the node id in all node managers
         /// </summary>
+        [Obsolete("Use IServerInteral.IMasterNodeManager.FindNodeInAddressSpaceAsync instead.")]
         public NodeState FindNodeInAddressSpace(NodeId nodeId)
         {
-            if (nodeId.IsNull)
-            {
-                return null;
-            }
-            // search node id in all node managers
-            foreach (INodeManager nodeManager in Server.NodeManager.NodeManagers)
-            {
-                if (nodeManager.GetManagerHandle(nodeId) is not NodeHandle handle)
-                {
-                    continue;
-                }
-                return handle.Node;
-            }
-            return null;
+            return Server.NodeManager.FindNodeInAddressSpaceAsync(nodeId).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>

@@ -606,6 +606,38 @@ namespace Opc.Ua.Server
             return default;
         }
 
+        /// <inheritdoc/>
+        public ValueTask<ServiceResult> ValidateEventRolePermissionsAsync(IEventMonitoredItem monitoredItem, IFilterTarget filterTarget)
+        {
+            if (SyncNodeManager is IAsyncNodeManager asyncNodeManager)
+            {
+                return asyncNodeManager.ValidateEventRolePermissionsAsync(monitoredItem, filterTarget);
+            }
+
+            if (SyncNodeManager is INodeManager3 nodeManager2)
+            {
+                return new ValueTask<ServiceResult>(nodeManager2.ValidateEventRolePermissions(monitoredItem, filterTarget));
+            }
+
+            return new ValueTask<ServiceResult>(ServiceResult.Good);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<ServiceResult> ValidateRolePermissionsAsync(OperationContext operationContext, NodeId nodeId, PermissionType requestedPermission)
+        {
+            if (SyncNodeManager is IAsyncNodeManager asyncNodeManager)
+            {
+                return asyncNodeManager.ValidateRolePermissionsAsync(operationContext, nodeId, requestedPermission);
+            }
+
+            if (SyncNodeManager is INodeManager3 nodeManager2)
+            {
+                return new ValueTask<ServiceResult>(nodeManager2.ValidateRolePermissions(operationContext, nodeId, requestedPermission));
+            }
+
+            return new ValueTask<ServiceResult>(ServiceResult.Good);
+        }
+
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>

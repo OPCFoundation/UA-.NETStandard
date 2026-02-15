@@ -1795,6 +1795,26 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        public async ValueTask<NodeState> FindNodeInAddressSpaceAsync(NodeId nodeId)
+        {
+            if (nodeId.IsNull)
+            {
+                return null;
+            }
+            // search node id in all node managers
+            foreach (IAsyncNodeManager nodeManager in AsyncNodeManagers)
+            {
+                if ((await nodeManager.GetManagerHandleAsync(nodeId).ConfigureAwait(false))
+                    is not NodeHandle handle)
+                {
+                    continue;
+                }
+                return handle.Node;
+            }
+            return null;
+        }
+
+        /// <inheritdoc/>
         public virtual async ValueTask<(DataValueCollection values, DiagnosticInfoCollection diagnosticInfos)> ReadAsync(
             OperationContext context,
             double maxAge,
