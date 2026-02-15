@@ -97,7 +97,7 @@ namespace Opc.Ua.Configuration
         public Type ConfigurationType { get; set; }
 
         /// <inheritdoc/>
-        public ServerBase Server { get; private set; }
+        public IServerBase Server { get; private set; }
 
         /// <inheritdoc/>
         public ApplicationConfiguration ApplicationConfiguration { get; set; }
@@ -114,7 +114,7 @@ namespace Opc.Ua.Configuration
         public bool DisableCertificateAutoCreation { get; set; }
 
         /// <inheritdoc/>
-        public async Task StartAsync(ServerBase server)
+        public async Task StartAsync(IServerBase server)
         {
             Server = server;
 

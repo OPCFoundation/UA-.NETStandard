@@ -219,7 +219,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Called when a client sets a subscription as durable.
         /// </summary>
-        public ServiceResult OnSetSubscriptionDurable(
+        protected ServiceResult OnSetSubscriptionDurable(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -237,7 +237,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Called when a client gets the monitored items of a subscription.
         /// </summary>
-        public ServiceResult OnGetMonitoredItems(
+        protected ServiceResult OnGetMonitoredItems(
             ISystemContext context,
             MethodState method,
             IList<object> inputArguments,
@@ -283,7 +283,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Called when a client initiates resending of all data monitored items in a Subscription.
         /// </summary>
-        public ServiceResult OnResendData(
+        protected ServiceResult OnResendData(
             ISystemContext context,
             MethodState method,
             IList<object> inputArguments,
@@ -345,7 +345,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Called when a client locks the server.
         /// </summary>
-        public ServiceResult OnUnlockServer(
+        protected ServiceResult OnUnlockServer(
             ISystemContext context,
             MethodState method,
             IList<object> inputArguments,
@@ -1433,7 +1433,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Set custom role permissions for desired node
         /// </summary>
-        private ServiceResult OnReadUserRolePermissions(
+        protected ServiceResult OnReadUserRolePermissions(
             ISystemContext context,
             NodeState node,
             ref RolePermissionTypeCollection value)
@@ -1485,7 +1485,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Does a scan before the diagnostics are read.
         /// </summary>
-        private void OnBeforeReadDiagnostics(
+        protected void OnBeforeReadDiagnostics(
             ISystemContext context,
             BaseVariableValue variable,
             NodeState component)
@@ -1509,7 +1509,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Does a scan before the diagnostics are read.
         /// </summary>
-        private ServiceResult OnReadDiagnosticsArray(
+        protected ServiceResult OnReadDiagnosticsArray(
             ISystemContext context,
             NodeState node,
             ref object value)
