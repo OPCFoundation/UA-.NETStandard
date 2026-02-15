@@ -195,7 +195,7 @@ namespace Opc.Ua
         /// The value attribute.
         /// </summary>
         /// <value>The value.</value>
-        object Value { get; set; }
+        Variant Value { get; set; }
 
         /// <summary>
         /// The data type for the value attribute.

@@ -103,16 +103,14 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             foreach (Type systemType in nodeStateTypesToScan)
             {
-                var testObject = CreateDefaultNodeStateType(systemType) as NodeState;
-
-                if (testObject == null)
+                if (CreateDefaultNodeStateType(systemType) is not NodeState testObject)
                 {
                     continue;
                 }
 
                 try
                 {
-                    testObject.Create(context, new NodeId(nodeId++), "Name", "DisplayName", true);
+                    testObject.Create(context, new NodeId(nodeId++), QualifiedName.From("Name"), LocalizedText.From("DisplayName"), true);
                     CollectInstantiatedPlaceholders(
                         context,
                         testObject,
@@ -129,8 +127,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Assert.That(
                 placeholders,
                 Is.Empty,
-                "Instantiated placeholder children were found:" + Environment.NewLine +
-                string.Join(Environment.NewLine, placeholders));
+                "Instantiated placeholder children were found:" + Environment.NewLine + string.Join(Environment.NewLine, placeholders));
         }
 
         /// <summary>
@@ -210,11 +207,11 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             foreach (BaseInstanceState child in children)
             {
-                string browseName = child.BrowseName?.Name ?? string.Empty;
+                string browseName = child.BrowseName.Name ?? string.Empty;
                 bool hasPlaceholderName =
                     browseName.Length > 1 &&
                     browseName[0] == '<' &&
-                    browseName[browseName.Length - 1] == '>';
+                    browseName[^1] == '>';
 
                 bool hasPlaceholderModellingRule =
                     child.ModellingRuleId == ObjectIds.ModellingRule_OptionalPlaceholder ||
@@ -222,7 +219,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
                 if (hasPlaceholderName || hasPlaceholderModellingRule)
                 {
-                    string modellingRule = child.ModellingRuleId?.ToString() ?? "<null>";
+                    string modellingRule = child.ModellingRuleId.ToString();
                     placeholders.Add(
                         $"{ownerAssembly}: {ownerType}: {child.GetDisplayPath()} (BrowseName='{browseName}', ModellingRuleId='{modellingRule}')");
                 }

@@ -307,23 +307,21 @@ namespace Quickstarts
 
                 // Define the method parameters
                 // Input argument requires a Float and an UInt32 value
-                object[] inputArguments = [(float)10.5, (uint)10];
-                IList<object> outputArguments = null;
-
                 // Invoke Call service
                 Console.WriteLine($"Calling UAMethod for node {methodId} ...");
-                outputArguments = await session.CallAsync(
+                VariantCollection outputArguments = await session.CallAsync(
                     objectId,
                     methodId,
                     ct,
-                    inputArguments).ConfigureAwait(false);
+                    (float)10.5,
+                    (uint)10).ConfigureAwait(false);
 
                 // Display results
                 Console.WriteLine($"Method call returned {outputArguments.Count} output argument(s):");
 
-                foreach (object outputArgument in outputArguments)
+                foreach (Variant outputArgument in outputArguments)
                 {
-                    Console.WriteLine($"     OutputValue = {outputArgument}");
+                    Console.WriteLine($"     OutputValue = {outputArgument.Value}");
                 }
             }
             catch (Exception ex)
@@ -356,23 +354,20 @@ namespace Quickstarts
 
                 // Define the method parameters
                 // Input argument requires a Float and an UInt32 value
-                object[] inputArguments = [timeToRun];
-                IList<object> outputArguments = null;
-
                 // Invoke Call service
                 Console.WriteLine($"Calling UAMethod for node {methodId} ...");
-                outputArguments = await session.CallAsync(
+                VariantCollection outputArguments = await session.CallAsync(
                     objectId,
                     methodId,
                     ct,
-                    inputArguments).ConfigureAwait(false);
+                    timeToRun).ConfigureAwait(false);
 
                 // Display results
                 Console.WriteLine($"Method call returned {outputArguments.Count} output argument(s):");
 
-                foreach (object outputArgument in outputArguments)
+                foreach (Variant outputArgument in outputArguments)
                 {
-                    Console.WriteLine($"     OutputValue = {outputArgument}");
+                    Console.WriteLine($"     OutputValue = {outputArgument.Value}");
                 }
             }
             catch (Exception ex)

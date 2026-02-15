@@ -195,7 +195,7 @@ namespace Opc.Ua
         /// </returns>
         ValueTask<bool> IsEncodingForAsync(
             NodeId expectedTypeId,
-            object value,
+            Variant value,
             CancellationToken ct = default);
 
         /// <summary>
@@ -366,7 +366,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool IsEncodingFor(NodeId expectedTypeId, object value)
+        public bool IsEncodingFor(NodeId expectedTypeId, Variant value)
         {
             return m_table.IsEncodingForAsync(expectedTypeId, value)
                 .AsTask()

@@ -57,6 +57,24 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
+        /// Ensures the first character is upper case.
+        /// </summary>
+        public static string ToUpperCamelCase(this string name)
+        {
+            if (string.IsNullOrEmpty(name))
+            {
+                return name;
+            }
+
+            if (char.IsUpper(name[0]))
+            {
+                return name;
+            }
+
+            return CoreUtils.Format("{0}{1}", char.ToUpperInvariant(name[0]), name[1..]);
+        }
+
+        /// <summary>
         /// Convert string to a safe symbol for dotnet use
         /// </summary>
         /// <returns></returns>

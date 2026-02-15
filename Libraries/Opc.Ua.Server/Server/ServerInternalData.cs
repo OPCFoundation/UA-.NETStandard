@@ -710,7 +710,7 @@ namespace Opc.Ua.Server
                 BaseVariableState default_PubSubState =
                     DiagnosticsNodeManager.FindPredefinedNode<BaseVariableState>(
                         VariableIds.PublishSubscribe_Status_State);
-                default_PubSubState.Value = pubSubState;
+                default_PubSubState.Value = Variant.From(pubSubState);
 
                 // setup value for SupportedTransportProfiles
                 BaseVariableState default_SupportedTransportProfiles =
@@ -867,7 +867,7 @@ namespace Opc.Ua.Server
         private ServiceResult OnReadNamespaceArray(
             ISystemContext context,
             NodeState node,
-            ref object value)
+            ref Variant value)
         {
             value = NamespaceUris.ToArray();
             return ServiceResult.Good;
@@ -879,7 +879,7 @@ namespace Opc.Ua.Server
         private ServiceResult OnReadServerArray(
             ISystemContext context,
             NodeState node,
-            ref object value)
+            ref Variant value)
         {
             value = ServerUris.ToArray();
             return ServiceResult.Good;
@@ -891,7 +891,7 @@ namespace Opc.Ua.Server
         private ServiceResult OnReadDiagnosticsEnabledFlag(
             ISystemContext context,
             NodeState node,
-            ref object value)
+            ref Variant value)
         {
             value = DiagnosticsNodeManager.DiagnosticsEnabled;
             return ServiceResult.Good;
@@ -903,7 +903,7 @@ namespace Opc.Ua.Server
         private ServiceResult OnWriteDiagnosticsEnabledFlag(
             ISystemContext context,
             NodeState node,
-            ref object value)
+            ref Variant value)
         {
             bool enabled = (bool)value;
             DiagnosticsNodeManager.SetDiagnosticsEnabled(DefaultSystemContext, enabled);
@@ -917,7 +917,7 @@ namespace Opc.Ua.Server
         private ServiceResult OnWriteAuditing(
             ISystemContext context,
             NodeState node,
-            ref object value)
+            ref Variant value)
         {
             Auditing = Convert.ToBoolean(value, CultureInfo.InvariantCulture);
             return ServiceResult.Good;
@@ -929,7 +929,7 @@ namespace Opc.Ua.Server
         private ServiceResult OnReadAuditing(
             ISystemContext context,
             NodeState node,
-            ref object value)
+            ref Variant value)
         {
             value = Auditing;
             return ServiceResult.Good;
@@ -941,11 +941,11 @@ namespace Opc.Ua.Server
         private ServiceResult OnUpdateDiagnostics(
             ISystemContext context,
             NodeState node,
-            ref object value)
+            ref Variant value)
         {
             lock (ServerDiagnostics)
             {
-                value = Utils.Clone(ServerDiagnostics);
+                value = Variant.FromStructure(ServerDiagnostics);
             }
 
             return ServiceResult.Good;

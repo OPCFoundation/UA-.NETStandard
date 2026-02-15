@@ -278,6 +278,68 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Converts a hexadecimal string to a buffer skipping whitespace
+        /// </summary>
+        /// <exception cref="FormatException"></exception>
+        public static byte[] FromHexString(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return [];
+            }
+
+            using var ostrm = new MemoryStream();
+            byte buffer = 0;
+            bool firstByte = false;
+            const string digits = "0123456789ABCDEF";
+
+            for (int ii = 0; ii < text.Length; ii++)
+            {
+                if (!char.IsWhiteSpace(text, ii) && !char.IsLetterOrDigit(text, ii))
+                {
+                    throw new FormatException(
+                        "Invalid character in ByteString. " + text[ii]);
+                }
+
+                if (char.IsWhiteSpace(text, ii))
+                {
+                    continue;
+                }
+
+                int index = digits.IndexOf(
+                    char.ToUpperInvariant(text[ii]),
+                    StringComparison.Ordinal);
+
+                if (index < 0)
+                {
+                    throw new FormatException(
+                        "Invalid character in ByteString." + text[ii]);
+                }
+
+                buffer <<= 4;
+                buffer += (byte)index;
+
+                if (firstByte)
+                {
+                    ostrm.WriteByte(buffer);
+                    firstByte = false;
+                    continue;
+                }
+
+                firstByte = true;
+            }
+
+            if (firstByte)
+            {
+                buffer <<= 4;
+                ostrm.WriteByte(buffer);
+            }
+
+            // you should not access a closed stream, ever.
+            return ostrm.ToArray();
+        }
+
+        /// <summary>
         /// Formats a message using the invariant locale.
         /// </summary>
         public static string Format(string text, params object[] args)

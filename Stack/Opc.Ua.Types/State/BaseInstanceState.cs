@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using Opc.Ua.Export;
 using Opc.Ua.Types;
 
 namespace Opc.Ua
@@ -364,9 +363,9 @@ namespace Opc.Ua
             }
 
             // apply any index range.
-            object value = dataValue.Value;
+            Variant value = dataValue.WrappedValue;
 
-            if (value != null)
+            if (!value.IsNull)
             {
                 result = indexRange.ApplyRange(ref value);
 

@@ -77,7 +77,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public bool Equals(UserTokenPolicy other)
-        {            
+        {
             if (ReferenceEquals(null, other))
             {
                 return false;

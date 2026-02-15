@@ -232,16 +232,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The value attribute.
-        /// </summary>
-        /// <value>The value.</value>
-        object IVariableBase.Value
-        {
-            get => Value.AsBoxedObject();
-            set => Value = new Variant(value);
-        }
-
-        /// <summary>
         /// The number in each dimension of an array value.
         /// </summary>
         /// <value>The number in each dimension of an array value.</value>

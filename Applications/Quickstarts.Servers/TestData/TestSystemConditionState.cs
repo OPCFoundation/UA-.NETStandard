@@ -48,7 +48,7 @@ namespace TestData
         protected virtual ServiceResult OnReadMonitoredNodeCount(
             ISystemContext context,
             NodeState node,
-            ref object value)
+            ref Variant value)
         {
             if (context?.SystemHandle is not TestDataSystem system)
             {
