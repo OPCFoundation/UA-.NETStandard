@@ -44,7 +44,7 @@ namespace Opc.Ua.Server
         public CoreNodeManager2(
             IServerInternal server,
             ApplicationConfiguration configuration)
-            : base(server, configuration)
+            : base(server, configuration, useSamplingGroups: true)
         {
         }
 
@@ -55,7 +55,7 @@ namespace Opc.Ua.Server
             IServerInternal server,
             ApplicationConfiguration configuration,
             ushort dynamicNamespaceIndex)
-            : base(server, configuration, server.NamespaceUris.GetString(dynamicNamespaceIndex))
+            : base(server, configuration, useSamplingGroups: true, server.NamespaceUris.GetString(dynamicNamespaceIndex))
         {
         }
 
