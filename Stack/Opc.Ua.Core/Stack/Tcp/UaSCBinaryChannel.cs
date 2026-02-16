@@ -226,6 +226,8 @@ namespace Opc.Ua.Bindings
             if (disposing)
             {
                 DiscardTokens();
+                Utils.SilentDispose(Socket);
+
                 m_localNonce?.Dispose();
                 m_localNonce = null;
 
