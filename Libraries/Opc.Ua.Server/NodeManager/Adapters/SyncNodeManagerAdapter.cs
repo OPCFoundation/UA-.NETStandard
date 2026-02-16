@@ -42,9 +42,9 @@ namespace Opc.Ua.Server
         /// if the NodeManager does not implement the interface uses the <see cref="SyncNodeManagerAdapter"/>
         /// to create an ISyncNodeManager compatible object
         /// </summary>
-        public static INodeManager3 ToSyncNodeManager(this IAsyncNodeManager nodeManager)
+        public static INodeManager ToSyncNodeManager(this IAsyncNodeManager nodeManager)
         {
-            if (nodeManager is INodeManager3 syncNodeManager)
+            if (nodeManager is INodeManager syncNodeManager)
             {
                 return syncNodeManager;
             }
