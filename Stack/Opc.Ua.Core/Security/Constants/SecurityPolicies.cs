@@ -188,6 +188,24 @@ namespace Opc.Ua
         /// </summary>
         public const string Https = BaseUri + "Https";
 
+        private static bool SupportsAesGcmPolicy()
+        {
+#if NET8_0_OR_GREATER
+            return AesGcm.IsSupported;
+#else
+            return false;
+#endif
+        }
+
+        private static bool SupportsChaCha20Poly1305Policy()
+        {
+#if NET8_0_OR_GREATER
+            return ChaCha20Poly1305.IsSupported;
+#else
+            return false;
+#endif
+        }
+
         private static bool IsPlatformSupportedName(string name)
         {
             // If name contains BaseUri trim the BaseUri part
@@ -201,11 +219,19 @@ namespace Opc.Ua
                 name.Equals(nameof(Basic256), StringComparison.Ordinal) ||
                 name.Equals(nameof(Basic128Rsa15), StringComparison.Ordinal) ||
                 name.Equals(nameof(Basic256Sha256), StringComparison.Ordinal) ||
-                name.Equals(nameof(Aes128_Sha256_RsaOaep), StringComparison.Ordinal) ||
-                name.Equals(nameof(RSA_DH_AesGcm), StringComparison.Ordinal) ||
-                name.Equals(nameof(RSA_DH_ChaChaPoly), StringComparison.Ordinal))
+                name.Equals(nameof(Aes128_Sha256_RsaOaep), StringComparison.Ordinal))
             {
                 return true;
+            }
+
+            if (name.Equals(nameof(RSA_DH_AesGcm), StringComparison.Ordinal))
+            {
+                return SupportsAesGcmPolicy();
+            }
+
+            if (name.Equals(nameof(RSA_DH_ChaChaPoly), StringComparison.Ordinal))
+            {
+                return SupportsChaCha20Poly1305Policy();
             }
 
             if (name.Equals(nameof(Aes256_Sha256_RsaPss), StringComparison.Ordinal) &&
@@ -213,44 +239,86 @@ namespace Opc.Ua
             {
                 return true;
             }
-            if (name.Equals(nameof(ECC_nistP256), StringComparison.Ordinal) ||
-                name.Equals(nameof(ECC_nistP256_AesGcm), StringComparison.Ordinal) ||
-                name.Equals(nameof(ECC_nistP256_ChaChaPoly), StringComparison.Ordinal))
+            if (name.Equals(nameof(ECC_nistP256), StringComparison.Ordinal))
             {
                 return Utils.IsSupportedCertificateType(
                     ObjectTypeIds.EccNistP256ApplicationCertificateType);
             }
-            if (name.Equals(nameof(ECC_nistP384), StringComparison.Ordinal) ||
-                name.Equals(nameof(ECC_nistP384_AesGcm), StringComparison.Ordinal) ||
-                name.Equals(nameof(ECC_nistP384_ChaChaPoly), StringComparison.Ordinal))
+            if (name.Equals(nameof(ECC_nistP256_AesGcm), StringComparison.Ordinal))
+            {
+                return SupportsAesGcmPolicy() &&
+                    Utils.IsSupportedCertificateType(ObjectTypeIds.EccNistP256ApplicationCertificateType);
+            }
+            if (name.Equals(nameof(ECC_nistP256_ChaChaPoly), StringComparison.Ordinal))
+            {
+                return SupportsChaCha20Poly1305Policy() &&
+                    Utils.IsSupportedCertificateType(ObjectTypeIds.EccNistP256ApplicationCertificateType);
+            }
+            if (name.Equals(nameof(ECC_nistP384), StringComparison.Ordinal))
             {
                 return Utils.IsSupportedCertificateType(
                     ObjectTypeIds.EccNistP384ApplicationCertificateType);
             }
-            if (name.Equals(nameof(ECC_brainpoolP256r1), StringComparison.Ordinal) ||
-                name.Equals(nameof(ECC_brainpoolP256r1_AesGcm), StringComparison.Ordinal) ||
-                name.Equals(nameof(ECC_brainpoolP256r1_ChaChaPoly), StringComparison.Ordinal))
+            if (name.Equals(nameof(ECC_nistP384_AesGcm), StringComparison.Ordinal))
+            {
+                return SupportsAesGcmPolicy() &&
+                    Utils.IsSupportedCertificateType(ObjectTypeIds.EccNistP384ApplicationCertificateType);
+            }
+            if (name.Equals(nameof(ECC_nistP384_ChaChaPoly), StringComparison.Ordinal))
+            {
+                return SupportsChaCha20Poly1305Policy() &&
+                    Utils.IsSupportedCertificateType(ObjectTypeIds.EccNistP384ApplicationCertificateType);
+            }
+            if (name.Equals(nameof(ECC_brainpoolP256r1), StringComparison.Ordinal))
             {
                 return Utils.IsSupportedCertificateType(
                     ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType);
             }
-            if (name.Equals(nameof(ECC_brainpoolP384r1), StringComparison.Ordinal) ||
-                name.Equals(nameof(ECC_brainpoolP384r1_AesGcm), StringComparison.Ordinal) ||
-                name.Equals(nameof(ECC_brainpoolP384r1_ChaChaPoly), StringComparison.Ordinal))
+            if (name.Equals(nameof(ECC_brainpoolP256r1_AesGcm), StringComparison.Ordinal))
+            {
+                return SupportsAesGcmPolicy() &&
+                    Utils.IsSupportedCertificateType(ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType);
+            }
+            if (name.Equals(nameof(ECC_brainpoolP256r1_ChaChaPoly), StringComparison.Ordinal))
+            {
+                return SupportsChaCha20Poly1305Policy() &&
+                    Utils.IsSupportedCertificateType(ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType);
+            }
+            if (name.Equals(nameof(ECC_brainpoolP384r1), StringComparison.Ordinal))
             {
                 return Utils.IsSupportedCertificateType(
                     ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType);
             }
+            if (name.Equals(nameof(ECC_brainpoolP384r1_AesGcm), StringComparison.Ordinal))
+            {
+                return SupportsAesGcmPolicy() &&
+                    Utils.IsSupportedCertificateType(ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType);
+            }
+            if (name.Equals(nameof(ECC_brainpoolP384r1_ChaChaPoly), StringComparison.Ordinal))
+            {
+                return SupportsChaCha20Poly1305Policy() &&
+                    Utils.IsSupportedCertificateType(ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType);
+            }
 
             if (name.Equals(nameof(ECC_curve25519), StringComparison.Ordinal) ||
-                name.Equals(nameof(ECC_curve25519_AesGcm), StringComparison.Ordinal) ||
-                name.Equals(nameof(ECC_curve25519_ChaChaPoly), StringComparison.Ordinal) ||
-                name.Equals(nameof(ECC_curve448), StringComparison.Ordinal) ||
-                name.Equals(nameof(ECC_curve448_AesGcm), StringComparison.Ordinal) ||
-                name.Equals(nameof(ECC_curve448_ChaChaPoly), StringComparison.Ordinal))
+                name.Equals(nameof(ECC_curve448), StringComparison.Ordinal))
             {
 #if CURVE25519
                 return true;
+#endif
+            }
+            if (name.Equals(nameof(ECC_curve25519_AesGcm), StringComparison.Ordinal) ||
+                name.Equals(nameof(ECC_curve448_AesGcm), StringComparison.Ordinal))
+            {
+#if CURVE25519
+                return SupportsAesGcmPolicy();
+#endif
+            }
+            if (name.Equals(nameof(ECC_curve25519_ChaChaPoly), StringComparison.Ordinal) ||
+                name.Equals(nameof(ECC_curve448_ChaChaPoly), StringComparison.Ordinal))
+            {
+#if CURVE25519
+                return SupportsChaCha20Poly1305Policy();
 #endif
             }
             return false;
