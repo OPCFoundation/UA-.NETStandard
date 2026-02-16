@@ -85,7 +85,7 @@ namespace Quickstarts.ReferenceServer
         /// always creates a CoreNodeManager which handles the built-in nodes defined by the specification.
         /// Any additional NodeManagers are expected to handle application specific nodes.
         /// </remarks>
-        protected override MasterNodeManager CreateMasterNodeManager(
+        protected override IMasterNodeManager CreateMasterNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration)
         {

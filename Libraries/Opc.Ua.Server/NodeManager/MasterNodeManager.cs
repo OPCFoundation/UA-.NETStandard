@@ -303,15 +303,14 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public CoreNodeManager CoreNodeManager => m_nodeManagers[1].SyncNodeManager as CoreNodeManager;
+        public ICoreNodeManager CoreNodeManager => m_nodeManagers[1].SyncNodeManager as ICoreNodeManager;
 
         /// <inheritdoc/>
-        public DiagnosticsNodeManager DiagnosticsNodeManager
-            => m_nodeManagers[0].SyncNodeManager as DiagnosticsNodeManager;
-
+        public IDiagnosticsNodeManager DiagnosticsNodeManager
+            => m_nodeManagers[0].SyncNodeManager as IDiagnosticsNodeManager;
         /// <inheritdoc/>
-        public ConfigurationNodeManager ConfigurationNodeManager
-            => m_nodeManagers[0].SyncNodeManager as ConfigurationNodeManager;
+        public IConfigurationNodeManager ConfigurationNodeManager
+            => m_nodeManagers[0].SyncNodeManager as IConfigurationNodeManager;
 
         /// <inheritdoc/>
         public virtual async ValueTask StartupAsync(CancellationToken cancellationToken = default)
