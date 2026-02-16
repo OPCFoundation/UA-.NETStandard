@@ -506,22 +506,19 @@ namespace Opc.Ua.Gds.Server
             var initialCrl = await LoadCrlCreateEmptyIfNonExistantAsync(certificate, AuthoritiesStore, m_telemetry, ct: ct).ConfigureAwait(false);
 
             //Update TrustedList Store
-            if (initialCrl != null)
-            {
-                await initialCrl.AddToStoreAsync(AuthoritiesStore, m_telemetry, ct).ConfigureAwait(false);
-                // TODO: make CA trust selectable
-                var certificateStoreIdentifier = new CertificateStoreIdentifier(
-                    Configuration.TrustedListPath);
-                await UpdateAuthorityCertInCertificateStoreAsync(certificateStoreIdentifier, ct)
-                    .ConfigureAwait(false);
+            await initialCrl.AddToStoreAsync(AuthoritiesStore, m_telemetry, ct).ConfigureAwait(false);
+            // TODO: make CA trust selectable
+            var certificateStoreIdentifier = new CertificateStoreIdentifier(
+                Configuration.TrustedListPath);
+            await UpdateAuthorityCertInCertificateStoreAsync(certificateStoreIdentifier, ct)
+                .ConfigureAwait(false);
 
-                // Update TrustedIssuerCertificates Store
-                if (IssuerCertificatesStore != null)
-                {
-                    await UpdateAuthorityCertInCertificateStoreAsync(IssuerCertificatesStore, ct)
-                        .ConfigureAwait(false);
-                }   
-            }
+            // Update TrustedIssuerCertificates Store
+            if (IssuerCertificatesStore != null)
+            {
+                await UpdateAuthorityCertInCertificateStoreAsync(IssuerCertificatesStore, ct)
+                    .ConfigureAwait(false);
+            }   
 
             return Certificates[certificateType];
         }
@@ -625,7 +622,8 @@ namespace Opc.Ua.Gds.Server
                     }
                     result = certCACrl.OrderByDescending(crl => crl.ThisUpdate).FirstOrDefault();
                 }
-                return result;
+                return result ?? throw new ServiceResultException(StatusCodes.BadCertificateIssuerRevocationUnknown,
+                    "Issuer Crl should have been created but it seems it was not!");
             }
             finally
             {
