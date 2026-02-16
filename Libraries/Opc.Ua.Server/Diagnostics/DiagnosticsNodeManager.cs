@@ -151,7 +151,7 @@ namespace Opc.Ua.Server
 
                 // The nodes are now loaded by the DiagnosticsNodeManager from the file
                 // output by the ModelDesigner V2. These nodes are added to the CoreNodeManager
-                // via the ImportNodes() method when the DiagnosticsNodeManager starts.
+                // via the AttachNode() method when the DiagnosticsNodeManager starts.
                 Server.CoreNodeManager.ImportNodes(SystemContext, PredefinedNodes.Values, true);
 
                 // hook up the server GetMonitoredItems method.
