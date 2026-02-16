@@ -665,14 +665,12 @@ namespace Opc.Ua.Gds.Server
                 throw new ArgumentException("Certificate does not contain an Authority Key");
             }
 
-            if (!isCACert)
+            
+            if (serialNumber == certificate.SerialNumber || X509Utils.IsSelfSigned(certificate))
             {
-                if (serialNumber == certificate.SerialNumber || X509Utils.IsSelfSigned(certificate))
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadCertificateInvalid,
-                        "Cannot revoke self signed certificates");
-                }
+                throw new ServiceResultException(
+                    StatusCodes.BadCertificateInvalid,
+                    "Cannot revoke self signed (root) certificates");
             }
 
             ICertificateStore store = storeIdentifier.OpenStore(telemetry);
@@ -698,13 +696,6 @@ namespace Opc.Ua.Gds.Server
                     ?? throw new ServiceResultException(
                         StatusCodes.BadCertificateInvalid,
                         "Cannot find issuer certificate in store.");
-
-                if(certCA.Equals(certificate))
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadCertificateInvalid,
-                        "Cannot revoke 'self-signed' / root CA certificate.");
-                }
 
                 var certCAIdentifier = new CertificateIdentifier(certCA)
                 {
