@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Globalization;
 using System.Xml;
 using NUnit.Framework;
 

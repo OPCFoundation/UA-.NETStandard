@@ -417,7 +417,7 @@ namespace Opc.Ua.Client
         public static bool IsEncodingFor(
             this INodeCache nodeCache,
             NodeId expectedTypeId,
-            object value)
+            Variant value)
         {
             return nodeCache.IsEncodingForAsync(expectedTypeId, value)
                 .AsTask()

@@ -41,7 +41,7 @@ namespace Opc.Ua
     /// <summary>
     /// Stores a collection of nodes.
     /// </summary>
-    public partial class NodeStateCollection : List<NodeState>
+    public class NodeStateCollection : List<NodeState>
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="NodeStateCollection"/> class.

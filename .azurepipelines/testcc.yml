@@ -106,3 +106,8 @@ jobs:
       COMMIT_UUID: '$(Build.SourceVersion)'
     continueOnError: true
     displayName: 'Upload to Codacy'
+  - task: PublishBuildArtifacts@1
+    displayName: 'Publish Fuzzing artifacts on failure'
+    condition: and(failed(), ne(variables['fuzzingartifacts.secureFilePath'], ''))
+    inputs:
+      PathtoPublish: '$(Agent.TempDirectory)/FuzzingArtifacts.zip'

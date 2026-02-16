@@ -536,7 +536,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 mockContext.Object);
 
             // Assert
-            Assert.That(result, Is.EqualTo("global::System.Array.Empty<int>()"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.Variant.From(global::System.Array.Empty<int>())"));
         }
 
         /// <summary>
@@ -1257,7 +1257,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 mockContext.Object);
 
             // Assert
-            Assert.That(result, Is.EqualTo("null"));
+            Assert.That(result, Is.EqualTo("default(string)"));
         }
 
         /// <summary>
@@ -2034,8 +2034,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 mockContext.Object);
 
             // Assert
-            Assert.That(result, Does.StartWith("new "));
-            Assert.That(result, Does.EndWith("()"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.Variant.FromStructure(new global::Test.CustomType())"));
         }
 
         /// <summary>
@@ -2048,7 +2047,9 @@ namespace Opc.Ua.Schema.Model.Tests
             // Arrange
             var mockDataType = new DataTypeDesign
             {
-                BasicDataType = BasicDataType.UserDefined
+                BasicDataType = BasicDataType.UserDefined,
+                SymbolicId = new XmlQualifiedName("CustomType", "http://test.namespace"),
+                SymbolicName = new XmlQualifiedName("CustomType", "http://test.namespace")
             };
             Namespace[] namespaces = [];
             var mockContext = new Mock<IServiceMessageContext>();
@@ -2064,7 +2065,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 mockContext.Object);
 
             // Assert
-            Assert.That(result, Is.EqualTo("default"));
+            Assert.That(result, Is.EqualTo("new CustomType()"));
         }
 
         /// <summary>
@@ -3050,8 +3051,6 @@ namespace Opc.Ua.Schema.Model.Tests
 
         /// <summary>
         /// Tests GetClassName with a VariableDesign with TwoStateDiscreteType.
-        /// Input: VariableDesign with VariableTypeDesign.SymbolicName = TwoStateDiscreteType.
-        /// Expected: Returns "{GetNodeStateClassName(variableType)}State" without template parameter.
         /// </summary>
         [Test]
         public void GetClassName_VariableDesignTwoStateDiscreteType_ReturnsNonTemplatedState()

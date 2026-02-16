@@ -2631,11 +2631,11 @@ namespace Opc.Ua.Server
         private ServiceResult OnUpdateDiagnostics(
             ISystemContext context,
             NodeState node,
-            ref object value)
+            ref Variant value)
         {
             lock (DiagnosticsLock)
             {
-                value = Utils.Clone(Diagnostics);
+                value = Variant.FromStructure(Diagnostics);
             }
 
             return ServiceResult.Good;

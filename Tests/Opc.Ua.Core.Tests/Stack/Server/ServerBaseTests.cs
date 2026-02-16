@@ -468,8 +468,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                                 and not TestConfigurations.DualBaseAddressesWithAlternateHostAndPort
                                 and not TestConfigurations.DualBaseAdressesWithAlternatePort ?
                                     endpointUri.Port == translatedUri.Port :
-                                    endpointUri.Port % 10 == translatedUri.Port % 10)
-                             &&Utils.IsEqual(
+                                    endpointUri.Port % 10 == translatedUri.Port % 10) &&
+                             Utils.IsEqual(
                                  endpoint.UserIdentityTokens,
                                  translatedEndpoint.UserIdentityTokens);
                      })

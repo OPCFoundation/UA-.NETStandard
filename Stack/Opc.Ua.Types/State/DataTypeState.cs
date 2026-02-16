@@ -29,9 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Opc.Ua.Schema.Types;
 using Opc.Ua.Types;
 
 namespace Opc.Ua
@@ -234,7 +231,7 @@ namespace Opc.Ua
         protected override ServiceResult ReadNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            ref object value)
+            ref Variant value)
         {
             ServiceResult result = null;
 
@@ -262,7 +259,7 @@ namespace Opc.Ua
                         value = dataTypeDefinition;
                     }
 
-                    if (value == null && result == null)
+                    if (value.IsNull && result == null)
                     {
                         return StatusCodes.BadAttributeIdInvalid;
                     }
@@ -279,14 +276,17 @@ namespace Opc.Ua
         protected override ServiceResult WriteNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            object value)
+            Variant value)
         {
             ServiceResult result = null;
 
             switch (attributeId)
             {
                 case Attributes.DataTypeDefinition:
-                    ExtensionObject dataTypeDefinition = value is ExtensionObject eo ? eo : default;
+                    if (!value.TryGet(out ExtensionObject dataTypeDefinition))
+                    {
+                        dataTypeDefinition = default;
+                    }
 
                     if ((WriteMask & AttributeWriteMask.DataTypeDefinition) == 0)
                     {

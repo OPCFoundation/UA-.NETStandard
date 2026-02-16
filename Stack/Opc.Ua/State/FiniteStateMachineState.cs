@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
@@ -397,8 +396,8 @@ namespace Opc.Ua
             StateMachineState machine,
             uint transitionId,
             uint causeId,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             if (callback != null)
             {
@@ -474,8 +473,8 @@ namespace Opc.Ua
             ISystemContext context,
             MethodState causeMethod,
             uint causeId,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             ServiceResult result = null;
 
@@ -562,7 +561,7 @@ namespace Opc.Ua
         protected virtual void UpdateAuditEvent(
             ISystemContext context,
             MethodState causeMethod,
-            IList<object> inputArguments,
+            VariantCollection inputArguments,
             uint causeId,
             AuditUpdateStateEventState e,
             ServiceResult result)
@@ -592,7 +591,7 @@ namespace Opc.Ua
 
             // AuditUpdateMethodStateEventType properties
             e.SetChildValue(context, BrowseNames.MethodId, causeMethod.NodeId, false);
-            e.SetChildValue(context, BrowseNames.InputArguments, inputArguments, false);
+            e.SetChildValue(context, BrowseNames.InputArguments, inputArguments.ToArray(), false);
 
             // AuditUpdateStateEventType properties
             e.SetChildValue(context, BrowseNames.OldStateId, LastState, false);
@@ -606,7 +605,7 @@ namespace Opc.Ua
             ISystemContext context,
             MethodState causeMethod,
             uint causeId,
-            IList<object> inputArguments,
+            VariantCollection inputArguments,
             ServiceResult result)
         {
             try
@@ -671,8 +670,8 @@ namespace Opc.Ua
             ISystemContext context,
             uint transitionId,
             uint causeId,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             // check for valid transition.
             uint newState = GetNewStateForTransition(context, transitionId);
@@ -790,6 +789,6 @@ namespace Opc.Ua
         StateMachineState machine,
         uint transitionId,
         uint causeId,
-        IList<object> inputArguments,
-        IList<object> outputArguments);
+        VariantCollection inputArguments,
+        VariantCollection outputArguments);
 }
