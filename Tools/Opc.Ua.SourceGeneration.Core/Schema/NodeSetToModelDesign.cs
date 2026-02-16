@@ -977,7 +977,10 @@ namespace Opc.Ua.Schema.Model
             output.DataTypeNode = dataType;
         }
 
-        private List<Parameter> ImportArguments(MethodDesign method, string sourceNodeSetUri, XmlElement input)
+        private List<Parameter> ImportArguments(
+            MethodDesign method,
+            string sourceNodeSetUri,
+            System.Xml.XmlElement input)
         {
             var output = new List<Parameter>();
 
@@ -1978,7 +1981,7 @@ namespace Opc.Ua.Schema.Model
         /// <summary>
         /// Creates an decoder to restore Variant values.
         /// </summary>
-        private XmlDecoder CreateDecoder(XmlElement source, string sourceNodeSetUri = null)
+        private XmlDecoder CreateDecoder(System.Xml.XmlElement source, string sourceNodeSetUri = null)
         {
             IServiceMessageContext messageContext = new ServiceMessageContext(m_telemetry)
             {
@@ -1986,7 +1989,7 @@ namespace Opc.Ua.Schema.Model
                 ServerUris = m_serverUris
             };
 
-            var decoder = new XmlDecoder(source, messageContext);
+            var decoder = new XmlDecoder((XmlElement)source, messageContext);
 
             var namespaceUris = new NamespaceTable();
 

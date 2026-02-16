@@ -1063,7 +1063,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, true) && MoveToElement(null))
             {
                 var document = new XmlDocument();
-                XmlElement value = document.CreateElement(
+                System.Xml.XmlElement value = document.CreateElement(
                     m_reader.Prefix,
                     m_reader.LocalName,
                     m_reader.NamespaceURI);
@@ -1084,10 +1084,10 @@ namespace Opc.Ua
                 value.InnerXml = m_reader.ReadInnerXml();
 
                 EndField(fieldName);
-                return value;
+                return (XmlElement)value;
             }
 
-            return null;
+            return default;
         }
 
         /// <summary>

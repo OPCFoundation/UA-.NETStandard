@@ -1,0 +1,560 @@
+/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+#nullable enable
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Text;
+
+namespace Opc.Ua
+{
+    /// <summary>
+    /// Adapts typed arrays to flattened variant representation.
+    /// The layout is like a <see cref="ReadOnlyMemory{T}"/>.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    [CollectionBuilder(typeof(ArrayOf), nameof(ArrayOf.Create))]
+    public readonly struct ArrayOf<T> :
+        IEquatable<ArrayOf<T>>,
+        IEquatable<MatrixOf<T>>,
+        IEquatable<IEnumerable<T>>,
+        IEquatable<ReadOnlyMemory<T>>,
+        IEquatable<T[]>
+    {
+        /// <summary>
+        /// Empty array
+        /// </summary>
+        public static readonly ArrayOf<T> Empty = new(ReadOnlyMemory<T>.Empty);
+
+        /// <summary>
+        /// Get values
+        /// </summary>
+#pragma warning disable RCS1085 // Use auto-implemented property
+        public ReadOnlyMemory<T> Memory => m_memory;
+#pragma warning restore RCS1085 // Use auto-implemented property
+
+        /// <summary>
+        /// Array as span
+        /// </summary>
+        public ReadOnlySpan<T> Span => m_memory.Span;
+
+        /// <summary>
+        /// Length
+        /// </summary>
+        public int Count => m_memory.Length;
+
+        /// <summary>
+        /// Is empty array
+        /// </summary>
+        public bool IsEmpty => m_memory.IsEmpty;
+
+        /// <inheritdoc/>
+        internal ArrayOf(ReadOnlyMemory<T> values)
+        {
+            m_memory = values;
+        }
+
+        /// <inheritdoc/>
+        internal ArrayOf(T[] values)
+            : this(values.AsMemory())
+        {
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object? obj)
+        {
+            return obj switch
+            {
+                null => IsEmpty,
+                T[] other => Equals(other),
+                ReadOnlyMemory<T> other => Equals(other),
+                ArrayOf<T> arrayOf => Equals(arrayOf),
+                IEnumerable<T> enumerable => Equals(enumerable),
+                _ => false
+            };
+        }
+
+        /// <inheritdoc/>
+        public override string ToString()
+        {
+            StringBuilder builder = new StringBuilder()
+                .Append(typeof(T).Name)
+                .Append('[')
+                .Append(' ');
+            for (int i = 0; i < m_memory.Length; i++)
+            {
+                builder = builder.Append(m_memory.Span[i]).Append(' ');
+            }
+            return builder.Append(']').ToString();
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return GetHashCode(EqualityComparer<T>.Default);
+        }
+
+        /// <inheritdoc/>
+        public int GetHashCode(IEqualityComparer<T> comparer)
+        {
+            var hashCode = new HashCode();
+            for (int i = 0; i < m_memory.Length; i++)
+            {
+                hashCode.Add(m_memory.Span[i], comparer);
+            }
+            return hashCode.ToHashCode();
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(IEnumerable<T>? other, IEqualityComparer<T> comparer)
+        {
+            if (other == null)
+            {
+                return m_memory.IsEmpty;
+            }
+            IEnumerator<T> enumerator = other.GetEnumerator();
+            for (int i = 0; i < m_memory.Length; i++)
+            {
+                if (!enumerator.MoveNext() ||
+                    !comparer.Equals(enumerator.Current, m_memory.Span[i]))
+                {
+                    return false;
+                }
+            }
+            return !enumerator.MoveNext(); // enumerator should be done too
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(T[]? other, IEqualityComparer<T> comparer)
+        {
+            if (other is null)
+            {
+                return m_memory.IsEmpty;
+            }
+            if (m_memory.IsEmpty)
+            {
+                return other.Length == 0;
+            }
+#if !DEBUG && NET8_0_OR_GREATER
+            return m_memory.Span.SequenceEqual(other.AsSpan(), comparer);
+#else
+            if (Memory.Length != other.Length)
+            {
+                return false;
+            }
+            for (int i = 0; i < m_memory.Length; i++)
+            {
+                if (!comparer.Equals(other[i], m_memory.Span[i]))
+                {
+                    return false;
+                }
+            }
+            return true;
+#endif
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(in MatrixOf<T> other, IEqualityComparer<T> comparer)
+        {
+            return other.Equals(in this, comparer);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(in ArrayOf<T> other, IEqualityComparer<T> comparer)
+        {
+            return IsEmpty ? other.IsEmpty : Equals(other.m_memory.Span, comparer);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(in ReadOnlyMemory<T> other, IEqualityComparer<T> comparer)
+        {
+            return IsEmpty ? other.IsEmpty : Equals(other.Span, comparer);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(ReadOnlySpan<T> other, IEqualityComparer<T> comparer)
+        {
+            if (IsEmpty)
+            {
+                return other.IsEmpty;
+            }
+#if !DEBUG && NET8_0_OR_GREATER
+            return m_memory.Span.SequenceEqual(other, comparer);
+#else
+            if (m_memory.Length != other.Length)
+            {
+                return false;
+            }
+            for (int i = 0; i < m_memory.Length; i++)
+            {
+                if (!comparer.Equals(m_memory.Span[i], other[i]))
+                {
+                    return false;
+                }
+            }
+            return true;
+#endif
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(IEnumerable<T>? other)
+        {
+            return Equals(other, EqualityComparer<T>.Default);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(T[]? other)
+        {
+            return Equals(other, EqualityComparer<T>.Default);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(ReadOnlyMemory<T> other)
+        {
+            return Equals(in other, EqualityComparer<T>.Default);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(ReadOnlySpan<T> other)
+        {
+            return Equals(other, EqualityComparer<T>.Default);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(Span<T> other)
+        {
+            return Equals(other, EqualityComparer<T>.Default);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(ArrayOf<T> other)
+        {
+            return Equals(in other, EqualityComparer<T>.Default);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(MatrixOf<T> other)
+        {
+            return Equals(in other, EqualityComparer<T>.Default);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(in ArrayOf<T> left, T[] right)
+        {
+            return left.Equals(right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(in ArrayOf<T> left, T[] right)
+        {
+            return !(left == right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(in ArrayOf<T> left, in ArrayOf<T> right)
+        {
+            return left.Equals(right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(in ArrayOf<T> left, in ArrayOf<T> right)
+        {
+            return !(left == right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(in ArrayOf<T> left, in MatrixOf<T> right)
+        {
+            return left.Equals(right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(in ArrayOf<T> left, in MatrixOf<T> right)
+        {
+            return !(left == right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(in ArrayOf<T> left, in ReadOnlyMemory<T> right)
+        {
+            return left.Equals(right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(in ArrayOf<T> left, in ReadOnlyMemory<T> right)
+        {
+            return !(left == right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(in ArrayOf<T> left, in ReadOnlySpan<T> right)
+        {
+            return left.Equals(right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(in ArrayOf<T> left, in ReadOnlySpan<T> right)
+        {
+            return !(left == right);
+        }
+
+        /// <inheritdoc/>
+        public ReadOnlySpan<T>.Enumerator GetEnumerator()
+        {
+            return m_memory.Span.GetEnumerator();
+        }
+
+        /// <inheritdoc/>
+        public static implicit operator ArrayOf<T>(T[] array)
+        {
+            return new(array);
+        }
+
+        /// <inheritdoc/>
+        public static implicit operator ArrayOf<T>(List<T> list)
+        {
+            return list.Count == 0 ? [] : new(list.ToArray());
+        }
+
+        /// <inheritdoc/>
+        public static explicit operator T[](ArrayOf<T> array)
+        {
+            return array.ToArray();
+        }
+
+        /// <inheritdoc/>
+        public static explicit operator MatrixOf<T>(ArrayOf<T> array)
+        {
+            return array.ToMatrix();
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<T> Slice(int start, int length)
+        {
+            return new(m_memory.Slice(start, length));
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<T> Slice(int start)
+        {
+            return new(m_memory[start..]);
+        }
+
+        /// <summary>
+        /// Get as typed one dimensional array
+        /// </summary>
+        /// <returns></returns>
+        public T[] ToArray()
+        {
+            return m_memory.ToArray();
+        }
+
+        /// <summary>
+        /// Redimensionate an array of T into a matrix
+        /// </summary>
+        /// <param name="dimensions"></param>
+        /// <returns></returns>
+        public MatrixOf<T> ToMatrix(int[] dimensions)
+        {
+            return new(m_memory, dimensions);
+        }
+
+        /// <summary>
+        /// Convert to one dimensional Matrix of T
+        /// </summary>
+        /// <returns></returns>
+        public MatrixOf<T> ToMatrix()
+        {
+            return new(m_memory, [m_memory.Length]);
+        }
+
+        /// <summary>
+        /// Transform
+        /// </summary>
+        /// <typeparam name="TResult"></typeparam>
+        /// <param name="transform"></param>
+        /// <returns></returns>
+        public ArrayOf<TResult> ConvertAll<TResult>(Func<T, TResult> transform)
+        {
+            var values = new TResult[m_memory.Length];
+            for (int i = 0; i < m_memory.Length; i++)
+            {
+                values[i] = transform(m_memory.Span[i]);
+            }
+            return values.ToArrayOf();
+        }
+
+        /// <summary>
+        /// Find item
+        /// </summary>
+        /// <param name="predicate"></param>
+        /// <returns></returns>
+        public T Find(Func<T, bool> predicate)
+        {
+            foreach (T? item in m_memory.Span)
+            {
+                if (predicate(item))
+                {
+                    return item;
+                }
+            }
+            return default!;
+        }
+
+        /// <summary>
+        /// Call for each value
+        /// </summary>
+        /// <param name="value"></param>
+        public void ForEach(Action<T> value)
+        {
+            for (int i = 0; i < m_memory.Length; i++)
+            {
+                value(m_memory.Span[i]);
+            }
+        }
+
+#pragma warning disable IDE0032 // Use auto property
+        private readonly ReadOnlyMemory<T> m_memory;
+#pragma warning restore IDE0032 // Use auto property
+    }
+
+    /// <summary>
+    /// Collection builder for array of and accessor for dimensions
+    /// </summary>
+    public static class ArrayOf
+    {
+        /// <summary>
+        /// Empty array
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static ArrayOf<T> Empty<T>()
+        {
+            return [];
+        }
+
+        /// <summary>
+        /// Create array
+        /// </summary>
+        /// <param name="memory"></param>
+        /// <returns></returns>
+        /// <typeparam name="T"></typeparam>
+        public static ArrayOf<T> Create<T>(ReadOnlySpan<T> memory)
+        {
+            return Wrapped(memory.ToArray());
+        }
+
+        /// <summary>
+        /// Create array - do not remove - it is used in the test
+        /// code to create mocked array of instances using reflection.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static ArrayOf<T> Wrapped<T>(T[] memory)
+        {
+            return new(memory.AsMemory());
+        }
+
+        /// <summary>
+        /// Create array of T
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static ArrayOf<T> ToArrayOf<T>(this ReadOnlyMemory<T> values)
+        {
+            return values.IsEmpty ? [] : new(values);
+        }
+
+        /// <summary>
+        /// Create array of T
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static ArrayOf<T> ToArrayOf<T>(
+            this System.Collections.IEnumerable values)
+        {
+            return values.Cast<T>().ToArrayOf();
+        }
+
+        /// <summary>
+        /// Create array of T
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static ArrayOf<T> ToArrayOf<T>(this IEnumerable<T> values)
+        {
+            return new([.. values]);
+        }
+
+        /// <summary>
+        /// Create array of T
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <typeparam name="TResult"></typeparam>
+        public static ArrayOf<TResult> ToArrayOf<T, TResult>(
+            this IEnumerable<T> values,
+            Func<T, TResult> predicate)
+        {
+            return new([.. values.Select(predicate)]);
+        }
+
+        /// <summary>
+        /// Create array of T
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static ArrayOf<T> ToArrayOf<T>(this T[] values)
+        {
+            return values.Length == 0 ? [] : new(values);
+        }
+
+        /// <summary>
+        /// Transform
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <typeparam name="TResult"></typeparam>
+        public static ArrayOf<TResult> ToArrayOf<T, TResult>(
+            this ArrayOf<T> value,
+            Func<T, TResult> transform)
+        {
+            var values = new TResult[value.Memory.Length];
+            for (int i = 0; i < value.Memory.Length; i++)
+            {
+                values[i] = transform(value.Memory.Span[i]);
+            }
+            return values.ToArrayOf();
+        }
+
+        /// <summary>
+        /// Check whether count exceeds limit. 0 means unlimitted.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static bool Exceeds<T>(this ArrayOf<T> array, uint limit)
+        {
+            return limit != 0 && array.Count > limit;
+        }
+    }
+}

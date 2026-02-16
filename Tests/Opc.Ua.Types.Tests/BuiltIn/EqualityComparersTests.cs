@@ -666,7 +666,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void XmlElementStringEqualityComparerEqualsSameReference()
         {
-            XmlElement element = CreateXmlElement("test");
+            System.Xml.XmlElement element = CreateXmlElement("test");
             Assert.That(
                 XmlElementStringEqualityComparer.Default.Equals(element, element),
                 Is.True);
@@ -675,8 +675,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void XmlElementStringEqualityComparerEqualsEqualElements()
         {
-            XmlElement element1 = CreateXmlElement("test", "value");
-            XmlElement element2 = CreateXmlElement("test", "value");
+            System.Xml.XmlElement element1 = CreateXmlElement("test", "value");
+            System.Xml.XmlElement element2 = CreateXmlElement("test", "value");
             Assert.That(
                 XmlElementStringEqualityComparer.Default.Equals(element1, element2),
                 Is.True);
@@ -685,8 +685,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void XmlElementStringEqualityComparerEqualsDifferentElements()
         {
-            XmlElement element1 = CreateXmlElement("test", "value1");
-            XmlElement element2 = CreateXmlElement("test", "value2");
+            System.Xml.XmlElement element1 = CreateXmlElement("test", "value1");
+            System.Xml.XmlElement element2 = CreateXmlElement("test", "value2");
             Assert.That(
                 XmlElementStringEqualityComparer.Default.Equals(element1, element2),
                 Is.False);
@@ -695,8 +695,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void XmlElementStringEqualityComparerEqualsDifferentTagNames()
         {
-            XmlElement element1 = CreateXmlElement("test1", "value");
-            XmlElement element2 = CreateXmlElement("test2", "value");
+            System.Xml.XmlElement element1 = CreateXmlElement("test1", "value");
+            System.Xml.XmlElement element2 = CreateXmlElement("test2", "value");
             Assert.That(
                 XmlElementStringEqualityComparer.Default.Equals(element1, element2),
                 Is.False);
@@ -705,7 +705,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void XmlElementStringEqualityComparerEqualsNullFirstElement()
         {
-            XmlElement element = CreateXmlElement("test", "value");
+            System.Xml.XmlElement element = CreateXmlElement("test", "value");
             Assert.That(
                 XmlElementStringEqualityComparer.Default.Equals(null, element),
                 Is.False);
@@ -714,7 +714,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void XmlElementStringEqualityComparerEqualsNullSecondElement()
         {
-            XmlElement element = CreateXmlElement("test", "value");
+            System.Xml.XmlElement element = CreateXmlElement("test", "value");
             Assert.That(
                 XmlElementStringEqualityComparer.Default.Equals(element, null),
                 Is.False);
@@ -729,8 +729,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void XmlElementStringEqualityComparerEqualsWithAttributes()
         {
-            XmlElement element1 = CreateXmlElement("test", "content", "attr", "value");
-            XmlElement element2 = CreateXmlElement("test", "content", "attr", "value");
+            System.Xml.XmlElement element1 = CreateXmlElement("test", "content", "attr", "value");
+            System.Xml.XmlElement element2 = CreateXmlElement("test", "content", "attr", "value");
             Assert.That(
                 XmlElementStringEqualityComparer.Default.Equals(element1, element2),
                 Is.True);
@@ -739,8 +739,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void XmlElementStringEqualityComparerEqualsDifferentAttributes()
         {
-            XmlElement element1 = CreateXmlElement("test", "content", "attr", "value1");
-            XmlElement element2 = CreateXmlElement("test", "content", "attr", "value2");
+            System.Xml.XmlElement element1 = CreateXmlElement("test", "content", "attr", "value1");
+            System.Xml.XmlElement element2 = CreateXmlElement("test", "content", "attr", "value2");
             Assert.That(
                 XmlElementStringEqualityComparer.Default.Equals(element1, element2),
                 Is.False);
@@ -749,7 +749,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void XmlElementStringEqualityComparerGetHashCodeConsistency()
         {
-            XmlElement element = CreateXmlElement("test", "value");
+            System.Xml.XmlElement element = CreateXmlElement("test", "value");
             int hash1 = XmlElementStringEqualityComparer.Default.GetHashCode(element);
             int hash2 = XmlElementStringEqualityComparer.Default.GetHashCode(element);
             Assert.That(hash1, Is.EqualTo(hash2));
@@ -758,8 +758,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void XmlElementStringEqualityComparerGetHashCodeEqualElementsHaveSameHashCode()
         {
-            XmlElement element1 = CreateXmlElement("test", "value");
-            XmlElement element2 = CreateXmlElement("test", "value");
+            System.Xml.XmlElement element1 = CreateXmlElement("test", "value");
+            System.Xml.XmlElement element2 = CreateXmlElement("test", "value");
             Assert.That(
                 XmlElementStringEqualityComparer.Default.GetHashCode(element1),
                 Is.EqualTo(
@@ -777,11 +777,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void XmlElementStringEqualityComparerCanBeUsedInDictionary()
         {
             var dictionary =
-                new Dictionary<XmlElement, string>(XmlElementStringEqualityComparer.Default);
-            XmlElement element1 = CreateXmlElement("test", "value");
+                new Dictionary<System.Xml.XmlElement, string>(XmlElementStringEqualityComparer.Default);
+            System.Xml.XmlElement element1 = CreateXmlElement("test", "value");
             dictionary[element1] = "Test";
 
-            XmlElement element2 = CreateXmlElement("test", "value");
+            System.Xml.XmlElement element2 = CreateXmlElement("test", "value");
             Assert.That(dictionary.ContainsKey(element2), Is.True);
             Assert.That(dictionary[element2], Is.EqualTo("Test"));
         }
@@ -798,7 +798,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void XmlElementArrayStringEqualityComparerEqualsSameReference()
         {
-            XmlElement[] array = [
+            System.Xml.XmlElement[] array = [
                 CreateXmlElement("test1"),
                 CreateXmlElement("test2")
             ];
@@ -810,8 +810,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void XmlElementArrayStringEqualityComparerEqualsEqualArrays()
         {
-            XmlElement[] array1 = [CreateXmlElement("test", "value")];
-            XmlElement[] array2 = [CreateXmlElement("test", "value")];
+            System.Xml.XmlElement[] array1 = [CreateXmlElement("test", "value")];
+            System.Xml.XmlElement[] array2 = [CreateXmlElement("test", "value")];
             Assert.That(
                 XmlElementArrayStringEqualityComparer.Default.Equals(array1, array2),
                 Is.True);
@@ -820,8 +820,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void XmlElementArrayStringEqualityComparerEqualsDifferentArrays()
         {
-            XmlElement[] array1 = [CreateXmlElement("test", "value1")];
-            XmlElement[] array2 = [CreateXmlElement("test", "value2")];
+            System.Xml.XmlElement[] array1 = [CreateXmlElement("test", "value1")];
+            System.Xml.XmlElement[] array2 = [CreateXmlElement("test", "value2")];
             Assert.That(
                 XmlElementArrayStringEqualityComparer.Default.Equals(array1, array2),
                 Is.False);
@@ -830,10 +830,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void XmlElementArrayStringEqualityComparerEqualsDifferentLengths()
         {
-            XmlElement element1 = CreateXmlElement("test", "value");
-            XmlElement element2 = CreateXmlElement("test", "value");
-            XmlElement[] array1 = [element1, element1];
-            XmlElement[] array2 = [element2];
+            System.Xml.XmlElement element1 = CreateXmlElement("test", "value");
+            System.Xml.XmlElement element2 = CreateXmlElement("test", "value");
+            System.Xml.XmlElement[] array1 = [element1, element1];
+            System.Xml.XmlElement[] array2 = [element2];
             Assert.That(
                 XmlElementArrayStringEqualityComparer.Default.Equals(array1, array2),
                 Is.False);
@@ -842,7 +842,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void XmlElementArrayStringEqualityComparerEqualsNullFirstArray()
         {
-            XmlElement[] array = [CreateXmlElement("test", "value")];
+            System.Xml.XmlElement[] array = [CreateXmlElement("test", "value")];
             Assert.That(
                 XmlElementArrayStringEqualityComparer.Default.Equals(null, array),
                 Is.False);
@@ -851,7 +851,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void XmlElementArrayStringEqualityComparerEqualsNullSecondArray()
         {
-            XmlElement[] array = [CreateXmlElement("test", "value")];
+            System.Xml.XmlElement[] array = [CreateXmlElement("test", "value")];
             Assert.That(
                 XmlElementArrayStringEqualityComparer.Default.Equals(array, null),
                 Is.False);
@@ -868,8 +868,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void XmlElementArrayStringEqualityComparerEqualsEmptyArrays()
         {
-            XmlElement[] array1 = [];
-            XmlElement[] array2 = [];
+            System.Xml.XmlElement[] array1 = [];
+            System.Xml.XmlElement[] array2 = [];
             Assert.That(
                 XmlElementArrayStringEqualityComparer.Default.Equals(array1, array2),
                 Is.True);
@@ -878,9 +878,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void XmlElementArrayStringEqualityComparerEqualsWithNullElements()
         {
-            XmlElement element = CreateXmlElement("test", "value");
-            XmlElement[] array1 = [element, null];
-            XmlElement[] array2 = [CreateXmlElement("test", "value"), null];
+            System.Xml.XmlElement element = CreateXmlElement("test", "value");
+            System.Xml.XmlElement[] array1 = [element, null];
+            System.Xml.XmlElement[] array2 = [CreateXmlElement("test", "value"), null];
             Assert.That(
                 XmlElementArrayStringEqualityComparer.Default.Equals(array1, array2),
                 Is.True);
@@ -889,7 +889,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void XmlElementArrayStringEqualityComparerGetHashCodeConsistency()
         {
-            XmlElement[] array = [CreateXmlElement("test", "value")];
+            System.Xml.XmlElement[] array = [CreateXmlElement("test", "value")];
             int hash1 = XmlElementArrayStringEqualityComparer.Default.GetHashCode(array);
             int hash2 = XmlElementArrayStringEqualityComparer.Default.GetHashCode(array);
             Assert.That(hash1, Is.EqualTo(hash2));
@@ -898,8 +898,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void XmlElementArrayStringEqualityComparerGetHashCodeEqualArraysHaveSameHashCode()
         {
-            XmlElement[] array1 = [CreateXmlElement("test", "value")];
-            XmlElement[] array2 = [CreateXmlElement("test", "value")];
+            System.Xml.XmlElement[] array1 = [CreateXmlElement("test", "value")];
+            System.Xml.XmlElement[] array2 = [CreateXmlElement("test", "value")];
             Assert.That(
                 XmlElementArrayStringEqualityComparer.Default.GetHashCode(array1),
                 Is.EqualTo(
@@ -1317,10 +1317,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Is.False);
         }
 
-        private static XmlElement CreateXmlElement(string name, string value = null, string attributeName = null, string attributeValue = null)
+        private static System.Xml.XmlElement CreateXmlElement(string name, string value = null, string attributeName = null, string attributeValue = null)
         {
             var doc = new XmlDocument();
-            XmlElement element = doc.CreateElement(name);
+            System.Xml.XmlElement element = doc.CreateElement(name);
             if (value != null)
             {
                 element.InnerText = value;

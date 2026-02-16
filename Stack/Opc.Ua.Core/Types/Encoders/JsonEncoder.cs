@@ -1229,12 +1229,12 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public void WriteXmlElement(string fieldName, XmlElement value)
         {
-            if (fieldName != null && !IncludeDefaultValues && value == null)
+            if (fieldName != null && !IncludeDefaultValues && value.IsEmpty)
             {
                 return;
             }
 
-            if (value == null)
+            if (value.IsEmpty)
             {
                 WriteSimpleField(fieldName, kNull, EscapeOptions.NoValueEscape);
                 return;

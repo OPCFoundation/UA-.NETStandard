@@ -327,13 +327,14 @@ namespace Opc.Ua
     /// <summary>
     /// Deep comparison of XmlElement array
     /// </summary>
-    public sealed class XmlElementArrayStringEqualityComparer : IEqualityComparer<XmlElement[]>
+    public sealed class XmlElementArrayStringEqualityComparer :
+        IEqualityComparer<System.Xml.XmlElement[]>
     {
         /// <inheritdoc/>
         public static XmlElementArrayStringEqualityComparer Default { get; } = new();
 
         /// <inheritdoc/>
-        public bool Equals(XmlElement[] x, XmlElement[] y)
+        public bool Equals(System.Xml.XmlElement[] x, System.Xml.XmlElement[] y)
         {
             if (ReferenceEquals(x, y))
             {
@@ -354,14 +355,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public int GetHashCode(XmlElement[] obj)
+        public int GetHashCode(System.Xml.XmlElement[] obj)
         {
             if (obj is null)
             {
                 return 0;
             }
             var hash = new HashCode();
-            foreach (XmlElement item in obj)
+            foreach (System.Xml.XmlElement item in obj)
             {
                 hash.Add(XmlElementStringEqualityComparer.Default.GetHashCode(item));
             }
@@ -372,13 +373,14 @@ namespace Opc.Ua
     /// <summary>
     /// String comparison of xml element
     /// </summary>
-    public sealed class XmlElementStringEqualityComparer : IEqualityComparer<XmlElement>
+    public sealed class XmlElementStringEqualityComparer :
+        IEqualityComparer<System.Xml.XmlElement>
     {
         /// <inheritdoc/>
         public static XmlElementStringEqualityComparer Default { get; } = new();
 
         /// <inheritdoc/>
-        public bool Equals(XmlElement x, XmlElement y)
+        public bool Equals(System.Xml.XmlElement x, System.Xml.XmlElement y)
         {
             if (ReferenceEquals(x, y))
             {
@@ -392,7 +394,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public int GetHashCode(XmlElement obj)
+        public int GetHashCode(System.Xml.XmlElement obj)
         {
             return EqualityComparer<string>.Default.GetHashCode(obj?.OuterXml);
         }

@@ -1066,12 +1066,16 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             return values;
         }
 
-        private static TestCaseData CreateConstructorCase(string name, Func<object> valueFactory, TypeInfo typeInfo)
+        private static TestCaseData CreateConstructorCase(
+            string name,
+            Func<object> valueFactory,
+            TypeInfo typeInfo)
         {
             return new TestCaseData(valueFactory, typeInfo);
         }
 
-        private static TestCaseData CreateDescriptorCase(VariantDescriptor descriptor)
+        private static TestCaseData CreateDescriptorCase(
+            VariantDescriptor descriptor)
         {
             return new TestCaseData(descriptor);
         }
@@ -1079,9 +1083,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         private static XmlElement CreateXmlElement(string name)
         {
             var document = new XmlDocument();
-            XmlElement element = document.CreateElement(name);
+            System.Xml.XmlElement element = document.CreateElement(name);
             element.InnerText = name;
-            return element;
+            return (XmlElement)element;
         }
 
         private static object CreateDefaultValue(Type type)

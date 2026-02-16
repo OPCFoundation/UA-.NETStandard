@@ -184,6 +184,64 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void MatrixOfIntSizeOfTests()
+        {
+            var layout = TypeLayout.GetLayout<MatrixOf<int>>();
+            TestContext.Out.WriteLine(layout.ToString(true));
+            Assert.That(Unsafe.SizeOf<MatrixOf<int>>(), Is.EqualTo(40));
+        }
+
+        [Test]
+        public void MatrixByteStringSizeOfTests()
+        {
+            var layout = TypeLayout.GetLayout<MatrixOf<ByteString>>();
+            TestContext.Out.WriteLine(layout.ToString(true));
+            Assert.That(Unsafe.SizeOf<MatrixOf<ByteString>>(), Is.EqualTo(40));
+        }
+
+        [Test]
+        public void MatrixNodeIdSizeOfTests()
+        {
+            var layout = TypeLayout.GetLayout<MatrixOf<NodeId>>();
+            TestContext.Out.WriteLine(layout.ToString(true));
+            Assert.That(Unsafe.SizeOf<MatrixOf<NodeId>>(), Is.EqualTo(40));
+        }
+
+        [Test]
+        public void MatrixVariantSizeOfTests()
+        {
+            var layout = TypeLayout.GetLayout<MatrixOf<Variant>>();
+            TestContext.Out.WriteLine(layout.ToString(true));
+            Assert.That(Unsafe.SizeOf<MatrixOf<Variant>>(), Is.EqualTo(40));
+            Assert.That(Unsafe.SizeOf<Variant>(), Is.EqualTo(Unsafe.SizeOf<MatrixOf<Variant>>()));
+            Assert.That(((FieldLayout)layout.Fields[0]).FieldInfo.FieldType, Is.EqualTo(typeof(ReadOnlyMemory<Variant>)));
+            Assert.That(layout.Fields[0].Offset, Is.EqualTo(0));
+            Assert.That(layout.Fields[0].Size, Is.EqualTo(16));
+            Assert.That(((FieldLayout)layout.Fields[1]).FieldInfo.FieldType, Is.EqualTo(typeof(uint[])));
+            Assert.That(layout.Fields[1].Offset, Is.EqualTo(16));
+            Assert.That(layout.Fields[1].Size, Is.EqualTo(8));
+        }
+
+        [Test]
+        public void ReadOnlyMemoryEqualsSizeOfRomOfTTests()
+        {
+            var layout = TypeLayout.GetLayout<ReadOnlyMemory<Variant>>();
+            TestContext.Out.WriteLine(layout.ToString(true));
+            Assert.That(Unsafe.SizeOf<ReadOnlyMemory<Variant>>(), Is.EqualTo(Unsafe.SizeOf<ReadOnlyMemory>()));
+        }
+
+        [Test]
+        public void ByteStringSizeOfTests()
+        {
+            var layout = TypeLayout.GetLayout<ByteString>();
+            TestContext.Out.WriteLine(layout.ToString(true));
+            Assert.That(Unsafe.SizeOf<ByteString>(), Is.EqualTo(16));
+            Assert.That(((FieldLayout)layout.Fields[0]).FieldInfo.FieldType, Is.EqualTo(typeof(ReadOnlyMemory<byte>)));
+            Assert.That(layout.Fields[0].Offset, Is.EqualTo(0));
+            Assert.That(layout.Fields[0].Size, Is.EqualTo(16));
+        }
+
+        [Test]
         public void LocalizedTextSizeOfTests()
         {
             var layout = TypeLayout.GetLayout<LocalizedText>();
@@ -214,8 +272,48 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(((FieldLayout)layout.Fields[1]).FieldInfo.FieldType, Is.EqualTo(typeof(ushort)));
             Assert.That(layout.Fields[1].Offset, Is.EqualTo(8));
             Assert.That(layout.Fields[1].Size, Is.EqualTo(2));
-
             Assert.That(layout.Fields[2].Size, Is.EqualTo(6));
+        }
+
+        [Test]
+        public void ArrayOfIntSizeOfTests()
+        {
+            var layout = TypeLayout.GetLayout<ArrayOf<int>>();
+            TestContext.Out.WriteLine(layout.ToString(true));
+            Assert.That(Unsafe.SizeOf<ArrayOf<int>>(), Is.EqualTo(16));
+        }
+
+        [Test]
+        public void ArrayOfByteStringSizeOfTests()
+        {
+            var layout = TypeLayout.GetLayout<ArrayOf<ByteString>>();
+            TestContext.Out.WriteLine(layout.ToString(true));
+            Assert.That(Unsafe.SizeOf<ArrayOf<ByteString>>(), Is.EqualTo(16));
+            Assert.That(((FieldLayout)layout.Fields[0]).FieldInfo.FieldType, Is.EqualTo(typeof(ReadOnlyMemory<ByteString>)));
+            Assert.That(layout.Fields[0].Offset, Is.EqualTo(0));
+            Assert.That(layout.Fields[0].Size, Is.EqualTo(16));
+        }
+
+        [Test]
+        public void ArrayOfNodeIdSizeOfTests()
+        {
+            var layout = TypeLayout.GetLayout<ArrayOf<NodeId>>();
+            TestContext.Out.WriteLine(layout.ToString(true));
+            Assert.That(Unsafe.SizeOf<ArrayOf<NodeId>>(), Is.EqualTo(16));
+            Assert.That(((FieldLayout)layout.Fields[0]).FieldInfo.FieldType, Is.EqualTo(typeof(ReadOnlyMemory<NodeId>)));
+            Assert.That(layout.Fields[0].Offset, Is.EqualTo(0));
+            Assert.That(layout.Fields[0].Size, Is.EqualTo(16));
+        }
+
+        [Test]
+        public void ArrayOfVariantSizeOfTests()
+        {
+            var layout = TypeLayout.GetLayout<ArrayOf<Variant>>();
+            TestContext.Out.WriteLine(layout.ToString(true));
+            Assert.That(Unsafe.SizeOf<ArrayOf<Variant>>(), Is.EqualTo(16));
+            Assert.That(((FieldLayout)layout.Fields[0]).FieldInfo.FieldType, Is.EqualTo(typeof(ReadOnlyMemory<Variant>)));
+            Assert.That(layout.Fields[0].Offset, Is.EqualTo(0));
+            Assert.That(layout.Fields[0].Size, Is.EqualTo(16));
         }
     }
 }

@@ -1463,7 +1463,7 @@ namespace Opc.Ua.Schema.Model
             return
                 other is not null &&
                 EqualityComparer<LocalizedText>.Default.Equals(Description, other.Description) &&
-                EqualityComparer<XmlElement>.Default.Equals(DefaultValue, other.DefaultValue) &&
+                EqualityComparer<System.Xml.XmlElement>.Default.Equals(DefaultValue, other.DefaultValue) &&
                 EqualityComparer<LocalizedText>.Default.Equals(DisplayName, other.DisplayName) &&
                 Name == other.Name &&
                 Identifier == other.Identifier &&

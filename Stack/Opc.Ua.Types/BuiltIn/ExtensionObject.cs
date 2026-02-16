@@ -186,7 +186,7 @@ namespace Opc.Ua
             {
                 byte[] b => ByteStringEqualityComparer.Default.GetHashCode(b),
                 string s => StringComparer.Ordinal.GetHashCode(s),
-                XmlElement x => XmlElementStringEqualityComparer.Default.GetHashCode(x),
+                XmlElement x => x.GetHashCode(),
                 IEncodeable e => e.GetHashCode(),
                 _ => 0
             });
@@ -226,9 +226,8 @@ namespace Opc.Ua
                     string s => StringComparer.Ordinal.Equals(
                         s,
                         value.TryGetAsJson(out string s2) ? s2 : default),
-                    XmlElement x => XmlElementStringEqualityComparer.Default.Equals(
-                        x,
-                        value.TryGetAsXml(out XmlElement x2) ? x2 : default),
+                    XmlElement x =>
+                        x == (value.TryGetAsXml(out XmlElement x2) ? x2 : default),
                     IEncodeable e => e.IsEqual(
                         value.TryGetEncodeable(out IEncodeable e2) ? e2 : default),
                     _ => false
@@ -273,7 +272,7 @@ namespace Opc.Ua
                     return string.Format(
                         formatProvider,
                         "<{0}>",
-                        element.Name);
+                        element.OuterXml);
                 }
 
                 if (Body is string json)
@@ -678,27 +677,20 @@ namespace Opc.Ua
                 // check for null.
                 if (Value.IsNull)
                 {
-                    return null;
+                    return XmlElement.Empty;
                 }
 
                 // create encoder.
                 IServiceMessageContext context = AmbientMessageContext.CurrentContext;
                 using var encoder = new XmlEncoder(context);
-
                 // write body.
                 encoder.WriteExtensionObjectBody(Value.Body);
-
-                // create document from encoder.
-                var document = new XmlDocument();
-                document.LoadInnerXml(encoder.CloseAndReturnText());
-
-                // return root element.
-                return document.DocumentElement;
+                return new XmlElement(encoder.CloseAndReturnText());
             }
             set
             {
                 // check null bodies.
-                if (value == null)
+                if (value.IsEmpty)
                 {
                     Value = new ExtensionObject(Value.TypeId);
                     return;

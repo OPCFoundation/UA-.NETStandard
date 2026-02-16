@@ -646,7 +646,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteXmlElement(string fieldName, XmlElement value)
         {
-            if (value == null)
+            if (value.IsEmpty)
             {
                 WriteInt32(null, -1);
                 return;

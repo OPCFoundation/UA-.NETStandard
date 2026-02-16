@@ -764,36 +764,12 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public XmlElement ReadXmlElement(string fieldName)
         {
-            if (!ReadField(fieldName, out object token))
+            if (!ReadField(fieldName, out object token) || token is not string value)
             {
-                return null;
+                return XmlElement.Empty;
             }
 
-            if (token is not string value)
-            {
-                return null;
-            }
-
-            try
-            {
-                var document = new XmlDocument();
-
-                using (var reader = XmlReader.Create(
-                    new StringReader(value),
-                    Utils.DefaultXmlReaderSettings()))
-                {
-                    document.Load(reader);
-                }
-
-                return document.DocumentElement;
-            }
-            catch (XmlException xe)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadDecodingError,
-                    "Unable to decode Xml: {0}",
-                    xe.Message);
-            }
+            return (XmlElement)value;
         }
 
         /// <inheritdoc/>
@@ -1379,7 +1355,7 @@ namespace Opc.Ua
                 if (encoding == ExtensionObjectEncoding.Xml)
                 {
                     XmlElement xml = ReadXmlElement(inlineValues ? "UaBody" : "Body");
-                    if (xml == null)
+                    if (xml.IsEmpty)
                     {
                         return extension;
                     }

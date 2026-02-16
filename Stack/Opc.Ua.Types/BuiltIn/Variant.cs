@@ -2077,7 +2077,7 @@ namespace Opc.Ua
                 return false;
             }
             value = new T[v.Length];
-            for (var ii = 0; ii < v.Length; ii++)
+            for (int ii = 0; ii < v.Length; ii++)
             {
                 if (!v[ii].TryGetEncodeable(out value[ii], context))
                 {
@@ -4093,6 +4093,7 @@ namespace Opc.Ua
         {
             switch (TypeInfo.BuiltInType)
             {
+                // TODO: BitConverter.Int32BitsToSingle
                 case BuiltInType.Float:
                     return this;
                 case BuiltInType.Boolean:
@@ -4659,8 +4660,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public bool Equals(XmlElement value)
         {
-            return TryGet(out XmlElement v) &&
-                XmlElementStringEqualityComparer.Default.Equals(v, value);
+            return TryGet(out XmlElement v) && v == value;
         }
 
         /// <inheritdoc/>

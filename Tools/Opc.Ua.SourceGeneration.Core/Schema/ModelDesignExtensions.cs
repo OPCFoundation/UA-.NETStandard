@@ -105,7 +105,6 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         public static string GetNodeStateClassName(
             this TypeDesign type,
-            string targetNamespace,
             Namespace[] namespaces)
         {
             string className = type.SymbolicName.AsFullyQualifiedTypeSymbol(namespaces);
@@ -679,7 +678,7 @@ namespace Opc.Ua.Schema.Model
         public static string GetValueAsCode(
             this DataTypeDesign dataType,
             ValueRank valueRank,
-            XmlElement defaultValue,
+            System.Xml.XmlElement defaultValue,
             object decodedValue,
             bool valueAsVariant,
             string targetNamespace,
@@ -695,7 +694,7 @@ namespace Opc.Ua.Schema.Model
 
             if (decodedValue == null && defaultValue != null)
             {
-                using var decoder = new XmlDecoder(defaultValue, context);
+                using var decoder = new XmlDecoder((XmlElement)defaultValue, context);
                 decodedValue = decoder.ReadVariantContents(out decodedValueType);
             }
 
@@ -734,7 +733,7 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         internal static string GetScalarValueAsCode(
             this DataTypeDesign dataType,
-            XmlElement defaultValue,
+            System.Xml.XmlElement defaultValue,
             object decodedValue,
             TypeInfo decodedValueType,
             bool valueAsVariant,
@@ -989,7 +988,7 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         internal static string GetArrayValueAsCode(
             this DataTypeDesign dataType,
-            XmlElement defaultValue,
+            System.Xml.XmlElement defaultValue,
             object decodedValue,
             bool valueAsVariant,
             string targetNamespace,
@@ -1038,7 +1037,7 @@ namespace Opc.Ua.Schema.Model
                 case BasicDataType.ByteString:
                     return MakeReturnType("global::System.Array.Empty<byte[]>()");
                 case BasicDataType.XmlElement:
-                    return MakeReturnType("global::System.Array.Empty<global::System.Xml.XmlElement>()");
+                    return MakeReturnType("global::System.Array.Empty<global::Opc.Ua.XmlElement>()");
                 case BasicDataType.NodeId:
                     return MakeReturnType("global::System.Array.Empty<global::Opc.Ua.NodeId>()");
                 case BasicDataType.ExpandedNodeId:
@@ -1245,7 +1244,7 @@ namespace Opc.Ua.Schema.Model
                         "byte[]" :
                         "byte[]?";
                 case BasicDataType.XmlElement:
-                    return "global::System.Xml.XmlElement";
+                    return "global::Opc.Ua.XmlElement";
                 case BasicDataType.NodeId:
                     return "global::Opc.Ua.NodeId";
                 case BasicDataType.ExpandedNodeId:
@@ -2403,7 +2402,7 @@ namespace Opc.Ua.Schema.Model
             }
         }
 
-        private static XmlElement AsXmlElement(object value, IServiceMessageContext context)
+        private static System.Xml.XmlElement AsXmlElement(object value, IServiceMessageContext context)
         {
             if (value != null)
             {

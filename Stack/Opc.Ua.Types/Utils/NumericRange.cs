@@ -932,7 +932,7 @@ namespace Opc.Ua
         public readonly StatusCode ApplyRange(ref Variant value)
         {
             // TODO: Make it work on array types without boxing.
-            var boxed = value.AsBoxedObject();
+            object boxed = value.AsBoxedObject();
             StatusCode result = ApplyRange(ref boxed);
             value = new Variant(boxed);
             return result;

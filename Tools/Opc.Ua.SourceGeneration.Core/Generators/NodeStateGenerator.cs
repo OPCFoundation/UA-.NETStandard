@@ -1743,7 +1743,6 @@ namespace Opc.Ua.SourceGeneration
                     m_messageContext,
                     () => AddXmlInitializerForComplexValue(
                         variableType,
-                        variableType.ValueRank,
                         variableType.DataTypeNode,
                         variableType.DefaultValue)));
             context.Template.AddReplacement(Tokens.ValueRank, valueRank);
@@ -1903,7 +1902,6 @@ namespace Opc.Ua.SourceGeneration
                     m_messageContext,
                     () => AddXmlInitializerForComplexValue(
                         node,
-                        node.ValueRank,
                         node.DataTypeNode,
                         node.DefaultValue))));
             string dataTypeId =
@@ -2021,7 +2019,6 @@ namespace Opc.Ua.SourceGeneration
                         m_messageContext,
                         () => AddXmlInitializerForComplexValue(
                             node,
-                            node.ValueRank,
                             node.DataTypeNode,
                             node.DefaultValue))));
             }
@@ -2857,7 +2854,6 @@ namespace Opc.Ua.SourceGeneration
 
         private string AddXmlInitializerForComplexValue(
             NodeDesign node,
-            ValueRank valueRank,
             DataTypeDesign dataType,
             XmlElement element)
         {

@@ -571,7 +571,7 @@ namespace Opc.Ua
 
         private void WriteXmlElement(string fieldName, XmlElement value, bool isArrayElement)
         {
-            if (BeginField(fieldName, value == null, true, isArrayElement))
+            if (BeginField(fieldName, value.IsEmpty, true, isArrayElement))
             {
                 m_writer.WriteRaw(value.OuterXml);
                 EndField(fieldName);

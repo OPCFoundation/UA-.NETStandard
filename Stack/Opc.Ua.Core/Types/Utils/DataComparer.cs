@@ -362,12 +362,14 @@ namespace Opc.Ua.Test
         /// <summary>
         /// This method compares two XmlElement values.
         /// </summary>
-        /// <param name="value1">First Value.</param>
-        /// <param name="value2">Second Value.</param>
+        /// <param name="xml1">First Value.</param>
+        /// <param name="xml2">Second Value.</param>
         /// <returns>True in case of equal values.
         /// False or ServiceResultException in case of unequal values.</returns>
-        public bool CompareXmlElement(XmlElement value1, XmlElement value2)
+        public bool CompareXmlElement(XmlElement xml1, XmlElement xml2)
         {
+            System.Xml.XmlElement value1 = (System.Xml.XmlElement)xml1;
+            System.Xml.XmlElement value2 = (System.Xml.XmlElement)xml2;
             if (value1 == null || value2 == null)
             {
                 if (value1 != value2)
