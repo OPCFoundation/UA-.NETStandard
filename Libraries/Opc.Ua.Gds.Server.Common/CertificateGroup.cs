@@ -40,8 +40,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
-using Org.BouncyCastle.Asn1.Cmp;
-using Org.BouncyCastle.Tls;
 using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension;
 
 namespace Opc.Ua.Gds.Server
@@ -505,7 +503,7 @@ namespace Opc.Ua.Gds.Server
             Certificates[certificateType] = CertificateFactory.Create(certificate.RawData);
 
             // initialize revocation list
-            var initialCrl = await CreateEmptyCrlAsync(certificate).ConfigureAwait(false);
+            var initialCrl = await LoadCrlCreateEmptyIfNonExistantAsync(certificate, AuthoritiesStore, m_telemetry, ct: ct).ConfigureAwait(false);
 
             //Update TrustedList Store
             if (initialCrl != null)
@@ -702,6 +700,13 @@ namespace Opc.Ua.Gds.Server
                     ?? throw new ServiceResultException(
                         StatusCodes.BadCertificateInvalid,
                         "Cannot find issuer certificate in store.");
+
+                if(certCA.Equals(certificate))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadCertificateInvalid,
+                        "Cannot revoke 'self-signed' / root CA certificate.");
+                }
 
                 var certCAIdentifier = new CertificateIdentifier(certCA)
                 {
