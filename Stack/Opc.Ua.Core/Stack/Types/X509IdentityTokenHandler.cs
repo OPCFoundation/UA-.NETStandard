@@ -189,7 +189,9 @@ namespace Opc.Ua
         {
             return new X509IdentityTokenHandler(Utils.Clone(m_token))
             {
-                // TODO: m_certificate = m_certificate
+                // Keep the in-memory certificate instance so private key operations
+                // continue to work when cloned handlers are used for signing.
+                Certificate = m_certificate
             };
         }
 
