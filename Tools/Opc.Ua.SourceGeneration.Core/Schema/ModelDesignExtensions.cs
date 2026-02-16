@@ -681,7 +681,7 @@ namespace Opc.Ua.Schema.Model
             ValueRank valueRank,
             XmlElement defaultValue,
             object decodedValue,
-            bool useVariantForObject,
+            bool valueAsVariant,
             string targetNamespace,
             Namespace[] namespaces,
             IServiceMessageContext context,
@@ -689,6 +689,9 @@ namespace Opc.Ua.Schema.Model
             bool dataTypeQuirk = false)
         {
             TypeInfo decodedValueType = default;
+            string defaultString = valueAsVariant ?
+                "global::Opc.Ua.Variant.Null" :
+                "default";
 
             if (decodedValue == null && defaultValue != null)
             {
@@ -701,9 +704,11 @@ namespace Opc.Ua.Schema.Model
                 return dataType.GetArrayValueAsCode(
                     defaultValue,
                     decodedValue,
+                    valueAsVariant,
                     targetNamespace,
                     namespaces,
-                    onUnknownElement);
+                    onUnknownElement)
+                    ?? defaultString;
             }
 
             if (valueRank == ValueRank.Scalar &&
@@ -713,14 +718,15 @@ namespace Opc.Ua.Schema.Model
                     defaultValue,
                     decodedValue,
                     decodedValueType,
-                    useVariantForObject,
+                    valueAsVariant,
                     targetNamespace,
                     namespaces,
                     onUnknownElement,
-                    dataTypeQuirk);
+                    dataTypeQuirk)
+                    ?? defaultString;
             }
 
-            return onUnknownElement?.Invoke() ?? "default";
+            return onUnknownElement?.Invoke() ?? defaultString;
         }
 
         /// <summary>
@@ -731,7 +737,7 @@ namespace Opc.Ua.Schema.Model
             XmlElement defaultValue,
             object decodedValue,
             TypeInfo decodedValueType,
-            bool useVariantForObject,
+            bool valueAsVariant,
             string targetNamespace,
             Namespace[] namespaces,
             Func<string> onUnknownElement = null,
@@ -758,88 +764,88 @@ namespace Opc.Ua.Schema.Model
                     {
                         // this is technically a bug but the potential for side effects is
                         // so large that it is better to leave as is.
-                        return boolValue ? "false" : "true";
+                        return MakeReturnType(boolValue ? "false" : "true");
                     }
 
-                    return boolValue ? "true" : "false";
+                    return MakeReturnType(boolValue ? "true" : "false");
                 case BasicDataType.SByte:
                     if (decodedValue is not sbyte sbyteValue)
                     {
                         sbyteValue = 0;
                     }
-                    return CoreUtils.Format("(sbyte){0}", sbyteValue);
+                    return MakeReturnType(CoreUtils.Format("(sbyte){0}", sbyteValue));
                 case BasicDataType.Byte:
                     if (decodedValue is not byte byteValue)
                     {
                         byteValue = 0;
                     }
-                    return CoreUtils.Format("(byte){0}", byteValue);
+                    return MakeReturnType(CoreUtils.Format("(byte){0}", byteValue));
                 case BasicDataType.Int16:
                     if (decodedValue is not short shortValue)
                     {
                         shortValue = 0;
                     }
-                    return CoreUtils.Format("(short){0}", shortValue);
+                    return MakeReturnType(CoreUtils.Format("(short){0}", shortValue));
                 case BasicDataType.UInt16:
                     if (decodedValue is not ushort ushortValue)
                     {
                         ushortValue = 0;
                     }
-                    return CoreUtils.Format("(ushort){0}", ushortValue);
+                    return MakeReturnType(CoreUtils.Format("(ushort){0}", ushortValue));
                 case BasicDataType.Int32:
                     if (decodedValue is not int intValue)
                     {
                         intValue = 0;
                     }
-                    return CoreUtils.Format("(int){0}", intValue);
+                    return MakeReturnType(CoreUtils.Format("(int){0}", intValue));
                 case BasicDataType.UInt32:
                     if (decodedValue is not uint uintValue)
                     {
                         uintValue = 0;
                     }
-                    return CoreUtils.Format("(uint){0}", uintValue);
+                    return MakeReturnType(CoreUtils.Format("(uint){0}", uintValue));
                 case BasicDataType.Integer:
                 case BasicDataType.Int64:
                     if (decodedValue is not long longValue)
                     {
                         longValue = 0;
                     }
-                    return CoreUtils.Format("(long){0}", longValue);
+                    return MakeReturnType(CoreUtils.Format("(long){0}", longValue));
                 case BasicDataType.UInteger:
                 case BasicDataType.UInt64:
                     if (decodedValue is not ulong ulongValue)
                     {
                         ulongValue = 0;
                     }
-                    return CoreUtils.Format("(ulong){0}", ulongValue);
+                    return MakeReturnType(CoreUtils.Format("(ulong){0}", ulongValue));
                 case BasicDataType.Float:
                     if (decodedValue is not float floatValue)
                     {
                         floatValue = 0;
                     }
-                    return CoreUtils.Format("(float){0}", floatValue);
+                    return MakeReturnType(CoreUtils.Format("(float){0}", floatValue));
                 case BasicDataType.Number:
                 case BasicDataType.Double:
                     if (decodedValue is not double doubleValue)
                     {
                         doubleValue = 0;
                     }
-                    return CoreUtils.Format("(double){0}", doubleValue);
+                    return MakeReturnType(CoreUtils.Format("(double){0}", doubleValue));
                 case BasicDataType.String:
                     if (decodedValue is not string stringValue)
                     {
-                        return "null";
+                        return MakeReturnType("default(string)");
                     }
-                    return stringValue.AsStringLiteral();
+                    return MakeReturnType(stringValue.AsStringLiteral());
                 case BasicDataType.DateTime:
                     if (decodedValue is not DateTime dateTimeValue ||
                         dateTimeValue == DateTime.MinValue)
                     {
-                        return "global::System.DateTime.MinValue";
+                        return MakeReturnType("global::System.DateTime.MinValue");
                     }
-                    return CoreUtils.Format(
+                    return MakeReturnType(CoreUtils.Format(
                         "global::System.DateTime.ParseExact(\"{0:yyyy-MM-dd HH:mm:ss}\", \"yyyy-MM-dd HH:mm:ss\", global::System.Globalization.CultureInfo.InvariantCulture)",
-                        dateTimeValue);
+                        dateTimeValue));
                 case BasicDataType.Guid:
                     if (decodedValue is Uuid uuid)
                     {
@@ -848,123 +854,133 @@ namespace Opc.Ua.Schema.Model
                     if (decodedValue is not Guid guidValue ||
                         guidValue == Guid.Empty)
                     {
-                        return "global::Opc.Ua.Uuid.Empty";
+                        return MakeReturnType("global::Opc.Ua.Uuid.Empty");
                     }
-                    return CoreUtils.Format(
+                    return MakeReturnType(CoreUtils.Format(
                         "global::Opc.Ua.Uuid.Parse(\"{0}\")",
-                        guidValue);
+                        guidValue));
                 case BasicDataType.ByteString:
                     if (decodedValue is not byte[] byteStringValue)
                     {
-                        return "default(byte[])";
+                        return MakeReturnType("default(byte[])");
                     }
-                    return CoreUtils.Format(
+                    return MakeReturnType(CoreUtils.Format(
                         "CoreUtils.FromHexString(\"{0}\")",
-                        CoreUtils.ToHexString(byteStringValue));
+                        CoreUtils.ToHexString(byteStringValue)));
                 case BasicDataType.NodeId:
                     if (decodedValue is not NodeId nodeId ||
                         nodeId.IsNull)
                     {
-                        return "global::Opc.Ua.NodeId.Null";
+                        return MakeReturnType("global::Opc.Ua.NodeId.Null");
                     }
                     if (nodeId.NamespaceIndex == 0 ||
                         nodeId.NamespaceIndex >= namespaces.Length)
                     {
-                        return CoreUtils.Format(
+                        return MakeReturnType(CoreUtils.Format(
                             "global::Opc.Ua.NodeId.Parse(\"{0}\")",
-                            nodeId);
+                            nodeId));
                     }
                     var absoluteId = new ExpandedNodeId(
                         nodeId,
                         namespaces[nodeId.NamespaceIndex].Value);
-                    return CoreUtils.Format(
+                    return MakeReturnType(CoreUtils.Format(
                         "ExpandedNodeId.Parse(\"{0}\", context.NamespaceUris)",
-                        absoluteId);
+                        absoluteId));
                 case BasicDataType.ExpandedNodeId:
                     if (decodedValue is not ExpandedNodeId expandedNodeId ||
                         expandedNodeId.IsNull)
                     {
-                        return "global::Opc.Ua.ExpandedNodeId.Null";
+                        return MakeReturnType("global::Opc.Ua.ExpandedNodeId.Null");
                     }
-                    return CoreUtils.Format(
+                    return MakeReturnType(CoreUtils.Format(
                         "global::Opc.Ua.ExpandedNodeId.Parse(\"{0}\")",
-                        expandedNodeId);
+                        expandedNodeId));
                 case BasicDataType.QualifiedName:
                     if (decodedValue is not QualifiedName qualifiedName ||
                         qualifiedName.IsNull)
                     {
-                        return "global::Opc.Ua.QualifiedName.Null";
+                        return MakeReturnType("global::Opc.Ua.QualifiedName.Null");
                     }
-                    return CoreUtils.Format(
+                    return MakeReturnType(CoreUtils.Format(
                         "global::Opc.Ua.QualifiedName.Parse(\"{0}\")",
-                        qualifiedName);
+                        qualifiedName));
                 case BasicDataType.LocalizedText:
                     if (decodedValue is not Ua.LocalizedText localizedText ||
                         localizedText.IsNullOrEmpty)
                     {
-                        return "global::Opc.Ua.LocalizedText.Null";
+                        return MakeReturnType("global::Opc.Ua.LocalizedText.Null");
                     }
-                    return CoreUtils.Format(
+                    return MakeReturnType(CoreUtils.Format(
                         "new global::Opc.Ua.LocalizedText({0}, {1})",
                         localizedText.Locale.AsStringLiteral(),
-                        localizedText.Text.AsStringLiteral());
+                        localizedText.Text.AsStringLiteral()));
                 case BasicDataType.StatusCode:
                     if (decodedValue is not StatusCode statusCode ||
                         statusCode.Code == 0)
                     {
-                        return "default(global::Opc.Ua.StatusCode)";
+                        return MakeReturnType("default(global::Opc.Ua.StatusCode)");
                     }
-                    return CoreUtils.Format(
+                    return MakeReturnType(CoreUtils.Format(
                         "(global::Opc.Ua.StatusCode.StatusCode){0}",
-                        statusCode);
+                        statusCode));
                 case BasicDataType.Enumeration:
                     if (dataType.BaseTypeNode?.SymbolicId ==
                         new XmlQualifiedName("OptionSet", Namespaces.OpcUa))
                     {
-                        return CoreUtils.Format("new {0}()",
-                            dataType.SymbolicName.AsFullyQualifiedTypeSymbol(namespaces));
+                        return MakeReturnType(CoreUtils.Format("new {0}()",
+                            dataType.SymbolicName.AsFullyQualifiedTypeSymbol(namespaces)));
                     }
                     if (!dataType.IsOptionSet && dataType.Fields?.Length > 0)
                     {
                         if (decodedValue is int enumValue)
                         {
-                            return CoreUtils.Format("({0}){1}",
+                            return MakeReturnType(CoreUtils.Format("({0}){1}",
                                 dataType.SymbolicName.AsFullyQualifiedTypeSymbol(namespaces),
-                                enumValue);
+                                enumValue));
                         }
                         if (decodedValue is null)
                         {
                             // Enum type declared - use first field as default
-                            return CoreUtils.Format("{0}.{1}",
+                            return MakeReturnType(CoreUtils.Format("{0}.{1}",
                                 dataType.SymbolicName.AsFullyQualifiedTypeSymbol(namespaces),
-                                dataType.Fields[0].Name);
+                                dataType.Fields[0].Name));
                         }
                         // TODO: change to initialize enum with the value
                         return onUnknownElement?.Invoke() ??
-                            CoreUtils.Format("default({0})",
-                                dataType.SymbolicName.AsFullyQualifiedTypeSymbol(namespaces));
+                            MakeReturnType(CoreUtils.Format("default({0})",
+                                dataType.SymbolicName.AsFullyQualifiedTypeSymbol(namespaces)));
                     }
                     // Default to enum with value 0 which should be "none" for option set
-                    return onUnknownElement?.Invoke() ?? "default";
+                    return onUnknownElement?.Invoke();
                 case BasicDataType.DataValue:
-                    return "new global::Opc.Ua.DataValue()";
+                    return MakeReturnType("new global::Opc.Ua.DataValue()");
                 case BasicDataType.UserDefined:
-                    if (useVariantForObject && defaultValue == null)
+                    if (defaultValue == null)
                     {
-                        // Ensure a variant can be initialized correcty with
-                        // type info
-                        return CoreUtils.Format(
+                        return MakeReturnType(CoreUtils.Format(
                             "new {0}()",
                             GetDotNetTypeName(
                                 dataType,
                                 ValueRank.Scalar,
                                 targetNamespace,
                                 namespaces,
-                                nullable: NullableAnnotation.NonNullable));
+                                nullable: NullableAnnotation.NonNullable)), "Structure");
                     }
-                    return onUnknownElement?.Invoke() ?? "default";
+                    return onUnknownElement?.Invoke();
                 default:
-                    return onUnknownElement?.Invoke() ?? "default";
+                    return onUnknownElement?.Invoke();
+            }
+
+            string MakeReturnType(string value, string prefix = null)
+            {
+                if (valueAsVariant)
+                {
+                    return CoreUtils.Format(
+                        "global::Opc.Ua.Variant.From{0}({1})",
+                        prefix ?? string.Empty,
+                        value);
+                }
+                return value;
             }
         }
 
@@ -975,6 +991,7 @@ namespace Opc.Ua.Schema.Model
             this DataTypeDesign dataType,
             XmlElement defaultValue,
             object decodedValue,
+            bool valueAsVariant,
             string targetNamespace,
             Namespace[] namespaces,
             Func<string> onUnknownElement = null)
@@ -985,76 +1002,90 @@ namespace Opc.Ua.Schema.Model
                 (decodedValue is null && defaultValue is not null))
             {
                 // TODO: change to initialize simple arrays with values
-                return onUnknownElement?.Invoke() ?? "default";
+                return onUnknownElement?.Invoke();
             }
             // Emit Array.Empty<T>() for empty arrays
             switch (dataType.BasicDataType)
             {
                 case BasicDataType.Boolean:
-                    return "global::System.Array.Empty<bool>()";
+                    return MakeReturnType("global::System.Array.Empty<bool>()");
                 case BasicDataType.SByte:
-                    return "global::System.Array.Empty<sbyte>()";
+                    return MakeReturnType("global::System.Array.Empty<sbyte>()");
                 case BasicDataType.Byte:
-                    return "global::System.Array.Empty<byte>()";
+                    return MakeReturnType("global::System.Array.Empty<byte>()");
                 case BasicDataType.Int16:
-                    return "global::System.Array.Empty<short>()";
+                    return MakeReturnType("global::System.Array.Empty<short>()");
                 case BasicDataType.UInt16:
-                    return "global::System.Array.Empty<ushort>()";
+                    return MakeReturnType("global::System.Array.Empty<ushort>()");
                 case BasicDataType.Int32:
-                    return "global::System.Array.Empty<int>()";
+                    return MakeReturnType("global::System.Array.Empty<int>()");
                 case BasicDataType.UInt32:
-                    return "global::System.Array.Empty<uint>()";
+                    return MakeReturnType("global::System.Array.Empty<uint>()");
                 case BasicDataType.Int64:
-                    return "global::System.Array.Empty<long>()";
+                    return MakeReturnType("global::System.Array.Empty<long>()");
                 case BasicDataType.UInt64:
-                    return "global::System.Array.Empty<ulong>()";
+                    return MakeReturnType("global::System.Array.Empty<ulong>()");
                 case BasicDataType.Float:
-                    return "global::System.Array.Empty<float>()";
+                    return MakeReturnType("global::System.Array.Empty<float>()");
                 case BasicDataType.Double:
-                    return "global::System.Array.Empty<double>()";
+                    return MakeReturnType("global::System.Array.Empty<double>()");
                 case BasicDataType.String:
-                    return "global::System.Array.Empty<string>()";
+                    return MakeReturnType("global::System.Array.Empty<string>()");
                 case BasicDataType.Guid:
-                    return "global::System.Array.Empty<global::Opc.Ua.Uuid>()";
+                    return MakeReturnType("global::System.Array.Empty<global::Opc.Ua.Uuid>()");
                 case BasicDataType.DateTime:
-                    return "global::System.Array.Empty<global::System.DateTime>()";
+                    return MakeReturnType("global::System.Array.Empty<global::System.DateTime>()");
                 case BasicDataType.ByteString:
-                    return "global::System.Array.Empty<byte[]>()";
+                    return MakeReturnType("global::System.Array.Empty<byte[]>()");
                 case BasicDataType.XmlElement:
-                    return "global::System.Array.Empty<global::System.Xml.XmlElement>()";
+                    return MakeReturnType("global::System.Array.Empty<global::System.Xml.XmlElement>()");
                 case BasicDataType.NodeId:
-                    return "global::System.Array.Empty<global::Opc.Ua.NodeId>()";
+                    return MakeReturnType("global::System.Array.Empty<global::Opc.Ua.NodeId>()");
                 case BasicDataType.ExpandedNodeId:
-                    return "global::System.Array.Empty<global::Opc.Ua.ExpandedNodeId>()";
+                    return MakeReturnType("global::System.Array.Empty<global::Opc.Ua.ExpandedNodeId>()");
                 case BasicDataType.QualifiedName:
-                    return "global::System.Array.Empty<global::Opc.Ua.QualifiedName>()";
+                    return MakeReturnType("global::System.Array.Empty<global::Opc.Ua.QualifiedName>()");
                 case BasicDataType.LocalizedText:
-                    return "global::System.Array.Empty<global::Opc.Ua.LocalizedText>()";
+                    return MakeReturnType("global::System.Array.Empty<global::Opc.Ua.LocalizedText>()");
                 case BasicDataType.StatusCode:
-                    return "global::System.Array.Empty<global::Opc.Ua.StatusCode>()";
+                    return MakeReturnType("global::System.Array.Empty<global::Opc.Ua.StatusCode>()");
                 case BasicDataType.DataValue:
-                    return "global::System.Array.Empty<global::Opc.Ua.DataValue>()";
+                    return MakeReturnType("global::System.Array.Empty<global::Opc.Ua.DataValue>()");
                 case BasicDataType.Structure:
-                    return "global::System.Array.Empty<global::Opc.Ua.ExtensionObject>()";
+                    return MakeReturnType("global::System.Array.Empty<global::Opc.Ua.ExtensionObject>()");
                 case BasicDataType.Enumeration:
                 case BasicDataType.UserDefined:
-                    return CoreUtils.Format(
-                        "global::System.Array.Empty<{0}>()",
-                        GetDotNetTypeName(
-                            dataType,
-                            ValueRank.Scalar,
-                            targetNamespace,
-                            namespaces,
-                            nullable: NullableAnnotation.NonNullable));
+                    return MakeReturnType(
+                        CoreUtils.Format(
+                            "global::System.Array.Empty<{0}>()",
+                            GetDotNetTypeName(
+                                dataType,
+                                ValueRank.Scalar,
+                                targetNamespace,
+                                namespaces,
+                                nullable: NullableAnnotation.NonNullable)),
+                        dataType.BasicDataType == BasicDataType.UserDefined ? "Structure" : null);
                 case BasicDataType.DiagnosticInfo:
-                    return "global::System.Array.Empty<global::Opc.Ua.DiagnosticInfo>()";
+                    return MakeReturnType("global::System.Array.Empty<global::Opc.Ua.DiagnosticInfo>()");
                 case BasicDataType.Number:
                 case BasicDataType.Integer:
                 case BasicDataType.UInteger:
                 case BasicDataType.BaseDataType:
-                    return "global::System.Array.Empty<global::Opc.Ua.Variant>()";
+                    return MakeReturnType("global::System.Array.Empty<global::Opc.Ua.Variant>()");
                 default:
-                    return "default";
+                    return null;
+            }
+
+            string MakeReturnType(string value, string prefix = null)
+            {
+                if (valueAsVariant)
+                {
+                    return CoreUtils.Format(
+                        "global::Opc.Ua.Variant.From{0}({1})",
+                        prefix ?? string.Empty,
+                        value);
+                }
+                return value;
             }
         }
 
@@ -1062,7 +1093,7 @@ namespace Opc.Ua.Schema.Model
         /// Get code string to load a variant from XML resource stream.
         /// </summary>
         /// <returns></returns>
-        public static string GetVariantFromXmlCode(
+        public static string GetVariantValueFromXmlAsCode(
             this DataTypeDesign dataType,
             ValueRank valueRank,
             string targetNamespace,
@@ -1124,22 +1155,19 @@ namespace Opc.Ua.Schema.Model
             {
                 typeName = "global::Opc.Ua.ExtensionObject";
             }
+            if (typeName is "object" or "object?")
+            {
+                typeName = "global::Opc.Ua.Variant";
+            }
             if (valueRank == ValueRank.Array)
             {
-                if (typeName is "object" or "object?")
-                {
-                    typeName = "global::Opc.Ua.Variant";
-                }
-
                 return typeName + "[]";
             }
-
             if (valueRank == ValueRank.Scalar)
             {
                 return typeName;
             }
-
-            return "object";
+            return "global::Opc.Ua.Variant";
         }
 
         /// <summary>

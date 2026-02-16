@@ -32,14 +32,10 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Resources;
 using System.Xml;
-using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Schema.Model;
-using Opc.Ua.Schema.Types;
 using Opc.Ua.Types;
-using static Opc.Ua.RelativePathFormatter;
 
 namespace Opc.Ua.SourceGeneration
 {
@@ -1188,7 +1184,7 @@ namespace Opc.Ua.SourceGeneration
                 field.ValueRank,
                 field.DefaultValue,
                 null,
-                true,
+                false,
                 m_context.ModelDesign.TargetNamespace.Value,
                 m_context.ModelDesign.Namespaces,
                 m_messageContext,
@@ -1274,7 +1270,7 @@ namespace Opc.Ua.SourceGeneration
                     field.ValueRank,
                     null,
                     null,
-                    true,
+                    false,
                     m_context.ModelDesign.TargetNamespace.Value,
                     m_context.ModelDesign.Namespaces,
                     m_messageContext,
@@ -1422,7 +1418,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     // Get code to create the variant from the XML resource reference
                     // TODO: Need to remove ambient message context usage here
-                    return dataType.GetVariantFromXmlCode(
+                    return dataType.GetVariantValueFromXmlAsCode(
                         valueRank,
                         m_context.ModelDesign.TargetNamespace.Value,
                         m_context.ModelDesign.Namespaces,

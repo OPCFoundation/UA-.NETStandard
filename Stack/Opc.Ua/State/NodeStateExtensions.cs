@@ -56,7 +56,7 @@ namespace Opc.Ua
 
                 if (child is BaseVariableState variableInstance)
                 {
-                    variableInstance.Value = values.EventFields[ii].AsBoxedObject();
+                    variableInstance.Value = values.EventFields[ii];
                     continue;
                 }
 
@@ -165,11 +165,11 @@ namespace Opc.Ua
                         {
                             try
                             {
-                                variable.WrappedValue = e.EventFields[ii];
+                                variable.Value = e.EventFields[ii];
                             }
                             catch (Exception)
                             {
-                                variable.Value = null;
+                                variable.Value = default;
                             }
                         }
 

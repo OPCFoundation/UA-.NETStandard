@@ -648,7 +648,7 @@ namespace Opc.Ua.Gds.Server
 
             if (!applicationId.IsNull)
             {
-                object[] inputArguments = [application, applicationId];
+                VariantCollection inputArguments = [Variant.FromStructure(application), applicationId];
                 Server.ReportApplicationRegistrationChangedAuditEvent(
                     context,
                     objectId,
@@ -681,7 +681,7 @@ namespace Opc.Ua.Gds.Server
 
             m_database.RegisterApplication(application);
 
-            object[] inputArguments = [application];
+            VariantCollection inputArguments = [Variant.FromStructure(application)];
             Server.ReportApplicationRegistrationChangedAuditEvent(
                 context,
                 objectId,
@@ -725,7 +725,7 @@ namespace Opc.Ua.Gds.Server
 
             m_database.UnregisterApplication(applicationId);
 
-            object[] inputArguments = [applicationId];
+            VariantCollection inputArguments = [applicationId];
             Server.ReportApplicationRegistrationChangedAuditEvent(
                 context,
                 objectId,
@@ -1154,7 +1154,7 @@ namespace Opc.Ua.Gds.Server
             string privateKeyPassword,
             ref NodeId requestId)
         {
-            object[] inputArguments =
+            VariantCollection inputArguments =
             [
                 applicationId,
                 certificateGroupId,
@@ -1593,8 +1593,14 @@ namespace Opc.Ua.Gds.Server
 
             m_request.AcceptRequest(requestId, result.Certificate);
 
-            object[] inputArguments
-                = [applicationId, requestId, result.Certificate, result.PrivateKey, result.IssuerCertificates];
+            VariantCollection inputArguments =
+            [
+                applicationId,
+                requestId,
+                result.Certificate,
+                result.PrivateKey,
+                result.IssuerCertificates
+            ];
             Server.ReportCertificateDeliveredAuditEvent(context, objectId, method, inputArguments, m_logger);
 
             result.ServiceResult = ServiceResult.Good;

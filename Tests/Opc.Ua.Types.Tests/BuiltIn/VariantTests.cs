@@ -871,17 +871,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void ImplicitConversionFromObjectArray_WrapsEachElement()
-        {
-            Variant variant = (object[])[1, "two", false];
-            Variant[] stored = variant.GetVariantArray();
-            Assert.That(stored.Length, Is.EqualTo(3));
-            Assert.That(stored[0].GetInt32(), Is.EqualTo(1));
-            Assert.That(stored[1].GetString(), Is.EqualTo("two"));
-            Assert.That(stored[2].GetBoolean(), Is.EqualTo(false));
-        }
-
-        [Test]
         public void ExplicitConversionThrowsOnMismatch()
         {
             var variant = new Variant(5);
@@ -973,18 +962,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             AssertTypeInfo(descriptor.TypeInfo, variant.TypeInfo);
             AssertValueEquality(value, variant.Value);
-        }
-
-        [Test]
-        public void VariantFromObjectArrayCreatesVariantArray()
-        {
-            object[] values = [1, "two"];
-            var variant = Variant.From(values);
-
-            Variant[] stored = variant.GetVariantArray();
-            Assert.That(stored.Length, Is.EqualTo(2));
-            Assert.That(stored[0].GetInt32(), Is.EqualTo(1));
-            Assert.That(stored[1].GetString(), Is.EqualTo("two"));
         }
 
         /// <summary>

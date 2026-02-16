@@ -483,7 +483,7 @@ namespace Opc.Ua
                 e.SetChildValue(
                     context,
                     BrowseNames.InputArguments,
-                    new object[] { eventId, comment },
+                    new Variant[] { eventId, comment },
                     false);
 
                 e.SetChildValue(context, BrowseNames.ConditionEventId, eventId, false);
@@ -550,8 +550,8 @@ namespace Opc.Ua
         protected virtual ServiceResult OnEnableCalled(
             ISystemContext context,
             MethodState method,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             ServiceResult error = ProcessBeforeEnableDisable(context, true);
 
@@ -608,8 +608,8 @@ namespace Opc.Ua
         protected virtual ServiceResult OnDisableCalled(
             ISystemContext context,
             MethodState method,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             // check that method can be called.
             ServiceResult error = ProcessBeforeEnableDisable(context, false);

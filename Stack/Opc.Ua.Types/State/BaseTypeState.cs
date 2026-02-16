@@ -302,7 +302,7 @@ namespace Opc.Ua
         protected override ServiceResult ReadNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            ref object value)
+            ref Variant value)
         {
             ServiceResult result = null;
 
@@ -335,16 +335,14 @@ namespace Opc.Ua
         protected override ServiceResult WriteNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            object value)
+            Variant value)
         {
             ServiceResult result = null;
 
             switch (attributeId)
             {
                 case Attributes.IsAbstract:
-                    bool? isAbstractRef = value as bool?;
-
-                    if (isAbstractRef == null)
+                    if (!value.TryGet(out bool isAbstract))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -353,8 +351,6 @@ namespace Opc.Ua
                     {
                         return StatusCodes.BadNotWritable;
                     }
-
-                    bool isAbstract = isAbstractRef.Value;
 
                     NodeAttributeEventHandler<bool> onWriteIsAbstract = OnWriteIsAbstract;
 

@@ -708,13 +708,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     {
                         for (int ii = 0; ii < dimensions.Length; ii++)
                         {
-                            dimensions[ii] = (DataGenerator.GetRandom<int>(false) & 3) + 1;
+                            dimensions[ii] = (DataGenerator.GetRandomInt32() & 3) + 1;
                         }
                         Array array = TypeInfo.CreateArray(builtInType, dimensions);
                         int[] indices = new int[valueRank];
                         for (int ii = 0; ii < array.Length; ii++)
                         {
-                            array.SetValue(DataGenerator.GetRandom(builtInType), indices);
+                            object rndValue = DataGenerator.GetRandom(builtInType);
+                            array.SetValue(rndValue, indices);
                             Iterate(dimensions, indices);
                         }
                         value = array;

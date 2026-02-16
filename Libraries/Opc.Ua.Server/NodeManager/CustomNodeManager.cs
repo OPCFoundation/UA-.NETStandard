@@ -557,9 +557,9 @@ namespace Opc.Ua.Server
             // assign a default value to any variable in namespace 0
             if (node is BaseVariableState nodeStateVar &&
                 nodeStateVar.NodeId.NamespaceIndex == 0 &&
-                nodeStateVar.Value == null)
+                nodeStateVar.Value.IsNull)
             {
-                nodeStateVar.Value = TypeInfo.GetDefaultValue(
+                nodeStateVar.Value = TypeInfo.GetDefaultVariantValue(
                     nodeStateVar.DataType,
                     nodeStateVar.ValueRank,
                     Server.TypeTree);
@@ -1963,19 +1963,7 @@ namespace Opc.Ua.Server
                         nodeToWrite.IndexRange);
 #endif
                     var propertyState = handle.Node as PropertyState;
-                    object previousPropertyValue = null;
-
-                    if (propertyState != null)
-                    {
-                        if (propertyState.Value is ExtensionObject extension)
-                        {
-                            previousPropertyValue = extension.Body;
-                        }
-                        else
-                        {
-                            previousPropertyValue = propertyState.Value;
-                        }
-                    }
+                    Variant previousPropertyValue = propertyState?.Value ?? default;
 
                     DataValue oldValue = null;
 
@@ -2003,7 +1991,7 @@ namespace Opc.Ua.Server
                     Server.ReportAuditWriteUpdateEvent(
                         systemContext,
                         nodeToWrite,
-                        oldValue?.Value,
+                        oldValue,
                         errors[ii]?.StatusCode ?? StatusCodes.Good,
                         m_logger);
 
@@ -2014,21 +2002,10 @@ namespace Opc.Ua.Server
 
                     if (propertyState != null)
                     {
-                        object propertyValue;
-
-                        if (nodeToWrite.Value.Value is ExtensionObject extension)
-                        {
-                            propertyValue = extension.Body;
-                        }
-                        else
-                        {
-                            propertyValue = nodeToWrite.Value.Value;
-                        }
-
                         CheckIfSemanticsHaveChanged(
                             systemContext,
                             propertyState,
-                            propertyValue,
+                            nodeToWrite.Value,
                             previousPropertyValue);
                     }
 
@@ -2054,8 +2031,8 @@ namespace Opc.Ua.Server
         private void CheckIfSemanticsHaveChanged(
             ServerSystemContext systemContext,
             PropertyState property,
-            object newPropertyValue,
-            object previousPropertyValue)
+            Variant newPropertyValue,
+            Variant previousPropertyValue)
         {
             // check if the changed property is one that can trigger semantic changes
             string propertyName = property.BrowseName.Name;
@@ -4193,9 +4170,7 @@ namespace Opc.Ua.Server
                     return StatusCodes.BadMonitoredItemFilterUnsupported;
                 }
 
-                range = property.Value as Range;
-
-                if (range == null)
+                if (!property.Value.TryGetStructure(out range))
                 {
                     return StatusCodes.BadMonitoredItemFilterUnsupported;
                 }

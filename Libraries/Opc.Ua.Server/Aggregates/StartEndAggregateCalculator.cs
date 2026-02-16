@@ -198,19 +198,12 @@ namespace Opc.Ua.Server
 
             // calculate delta.
             double delta = endValue - startValue;
+            if (originalType.IsUnknown)
+            {
+                originalType = TypeInfo.Scalars.Double;
+            }
 
-            if (!originalType.IsUnknown && originalType.BuiltInType != BuiltInType.Double)
-            {
-                object delta2 = TypeInfo.Cast(
-                    delta,
-                    TypeInfo.Scalars.Double,
-                    originalType.BuiltInType);
-                value.WrappedValue = new Variant(delta2, originalType);
-            }
-            else
-            {
-                value.WrappedValue = new Variant(delta, TypeInfo.Scalars.Double);
-            }
+            value.WrappedValue = new Variant(delta).ConvertTo(originalType.BuiltInType);
 
             // return result.
             return value;
@@ -331,18 +324,12 @@ namespace Opc.Ua.Server
             // calculate delta.
             double delta = endValue - startValue;
 
-            if (!originalType.IsUnknown && originalType.BuiltInType != BuiltInType.Double)
+            if (originalType.IsUnknown)
             {
-                object delta2 = TypeInfo.Cast(
-                    delta,
-                    TypeInfo.Scalars.Double,
-                    originalType.BuiltInType);
-                value.WrappedValue = new Variant(delta2, originalType);
+                originalType = TypeInfo.Scalars.Double;
             }
-            else
-            {
-                value.WrappedValue = new Variant(delta, TypeInfo.Scalars.Double);
-            }
+
+            value.WrappedValue = new Variant(delta).ConvertTo(originalType.BuiltInType);
 
             // return result.
             return value;
