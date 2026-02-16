@@ -37,6 +37,10 @@ namespace Opc.Ua.Types.Buffers.Tests
     /// <summary>
     /// Tests for <see cref="ArrayPoolBufferWriter{T}"/> where T is <see cref="byte"/>.
     /// </summary>
+    [TestFixture]
+    [Category("Buffers")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable(ParallelScope.All)]
     public class ArrayPoolBufferTests
     {

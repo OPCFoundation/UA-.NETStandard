@@ -93,13 +93,23 @@ namespace Opc.Ua.Client
         /// <param name="context">The system context containing namespace information.</param>
         /// <param name="nodes">The list of nodes to export.</param>
         /// <param name="outputStream">The output stream to write the NodeSet2 XML to.</param>
+        /// <param name="version">The version to set in the NodeSet2 XML.</param>
+        /// <param name="lastModified">The last modified date to set in the NodeSet2 XML.</param>
         /// <exception cref="ArgumentNullException"><paramref name="nodes"/> is <c>null</c>.</exception>
         public static void ExportNodesToNodeSet2(
             ISystemContext context,
             IList<INode> nodes,
-            Stream outputStream)
+            Stream outputStream,
+            string? version = null,
+            DateTime? lastModified = null)
         {
-            ExportNodesToNodeSet2(context, nodes, outputStream, NodeSetExportOptions.Default);
+            ExportNodesToNodeSet2(
+                context,
+                nodes,
+                outputStream,
+                NodeSetExportOptions.Default,
+                version,
+                lastModified);
         }
 
         /// <summary>
@@ -109,12 +119,16 @@ namespace Opc.Ua.Client
         /// <param name="nodes">The list of nodes to export.</param>
         /// <param name="outputStream">The output stream to write the NodeSet2 XML to.</param>
         /// <param name="options">Options controlling the export behavior.</param>
+        /// <param name="version">The version to set in the NodeSet2 XML.</param>
+        /// <param name="lastModified">The last modified date to set in the NodeSet2 XML.</param>
         /// <exception cref="ArgumentNullException"><paramref name="nodes"/> is <c>null</c>.</exception>
         public static void ExportNodesToNodeSet2(
             ISystemContext context,
             IList<INode> nodes,
             Stream outputStream,
-            NodeSetExportOptions options)
+            NodeSetExportOptions options,
+            string? version = null,
+            DateTime? lastModified = null)
         {
             if (context == null)
             {
@@ -148,7 +162,7 @@ namespace Opc.Ua.Client
             }
 
             // Use the existing export functionality
-            nodeStates.SaveAsNodeSet2(context, outputStream);
+            nodeStates.SaveAsNodeSet2(context, outputStream, version, lastModified);
         }
 
         /// <summary>

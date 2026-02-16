@@ -139,7 +139,7 @@ namespace Opc.Ua
             ISystemContext context,
             MethodState method,
             NodeId objectId,
-            byte[] eventId,
+            ByteString eventId,
             LocalizedText comment)
         {
             ServiceResult error = ProcessBeforeAcknowledge(context, eventId, comment);
@@ -231,7 +231,7 @@ namespace Opc.Ua
         /// <param name="comment">The comment.</param>
         protected virtual ServiceResult ProcessBeforeAcknowledge(
             ISystemContext context,
-            byte[] eventId,
+            ByteString eventId,
             LocalizedText comment)
         {
             if (eventId == null)
@@ -313,7 +313,7 @@ namespace Opc.Ua
             ISystemContext context,
             MethodState method,
             NodeId objectId,
-            byte[] eventId,
+            ByteString eventId,
             LocalizedText comment)
         {
             ServiceResult error = ProcessBeforeConfirm(context, eventId, comment);
@@ -392,10 +392,10 @@ namespace Opc.Ua
         /// <param name="comment">The comment.</param>
         protected virtual ServiceResult ProcessBeforeConfirm(
             ISystemContext context,
-            byte[] eventId,
+            ByteString eventId,
             LocalizedText comment)
         {
-            if (eventId == null)
+            if (eventId.IsEmpty)
             {
                 return StatusCodes.BadEventIdUnknown;
             }
@@ -525,7 +525,7 @@ namespace Opc.Ua
         /// <returns>
         /// AcknowledgeableConditionState branch if it exists
         /// </returns>
-        private AcknowledgeableConditionState GetAcknowledgeableBranch(byte[] eventId)
+        private AcknowledgeableConditionState GetAcknowledgeableBranch(ByteString eventId)
         {
             AcknowledgeableConditionState acknowledgeableBranch = null;
             ConditionState branch = GetBranch(eventId);

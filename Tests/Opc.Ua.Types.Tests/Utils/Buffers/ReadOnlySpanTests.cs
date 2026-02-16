@@ -31,13 +31,15 @@ using System.Linq;
 using System;
 using NUnit.Framework;
 
-namespace Opc.Ua.Types.Tests.BuiltIn
+#pragma warning disable IDE0301 // Simplify collection initialization
+
+namespace Opc.Ua.Types.Buffers.Tests
 {
     /// <summary>
-    /// Tests for the BuiltIn Types.
+    /// Tests for read only span extensions.
     /// </summary>
     [TestFixture]
-    [Category("BuiltInType")]
+    [Category("Buffers")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]
@@ -102,7 +104,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [TestCase(2050)]
         public void ComputeHash32WithVariousInputsLittleEndianReturnsExpectedHash(int length)
         {
-            byte[] data = Enumerable.Range(0, length).Select(r => (byte)r).ToArray();
+            byte[] data = [.. Enumerable.Range(0, length).Select(r => (byte)r)];
             int hash = ReadOnlySpan.ComputeHash32(data, ReadOnlySpan.DefaultSeed, true);
             int expected = ReadOnlySpan.ComputeHash32(data, ReadOnlySpan.DefaultSeed, true);
             Assert.That(hash, Is.EqualTo(expected)); // Expected hash value
@@ -131,7 +133,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [TestCase(2050)]
         public void ComputeHash32WithVariousInputsBigEndianReturnsExpectedHash(int length)
         {
-            byte[] data = Enumerable.Range(0, length).Select(r => (byte)r).ToArray();
+            byte[] data = [.. Enumerable.Range(0, length).Select(r => (byte)r)];
             int hash = ReadOnlySpan.ComputeHash32(data, ReadOnlySpan.DefaultSeed, false);
             int expected = ReadOnlySpan.ComputeHash32(data, ReadOnlySpan.DefaultSeed, false);
             Assert.That(hash, Is.EqualTo(expected)); // Expected hash value

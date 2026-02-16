@@ -100,7 +100,7 @@ namespace Opc.Ua
         {
             if (DecryptedPassword == null)
             {
-                m_token.Password = null;
+                m_token.Password = default;
                 return;
             }
 
@@ -185,7 +185,7 @@ namespace Opc.Ua
                 securityPolicyUri == SecurityPolicies.None)
             {
                 DecryptedPassword = new byte[m_token.Password.Length];
-                Array.Copy(m_token.Password, DecryptedPassword, m_token.Password.Length);
+                Array.Copy(m_token.Password.ToArray(), DecryptedPassword, m_token.Password.Length);
                 return;
             }
 
@@ -194,7 +194,7 @@ namespace Opc.Ua
             {
                 var encryptedData = new EncryptedData
                 {
-                    Data = m_token.Password,
+                    Data = m_token.Password.ToArray(),
                     Algorithm = m_token.EncryptionAlgorithm
                 };
 
@@ -250,7 +250,7 @@ namespace Opc.Ua
                 DecryptedPassword = secret.Decrypt(
                     DateTime.UtcNow.AddHours(-1),
                     receiverNonce.Data,
-                    m_token.Password,
+                    m_token.Password.ToArray(),
                     0,
                     m_token.Password.Length,
                     context.Telemetry);
@@ -284,8 +284,8 @@ namespace Opc.Ua
             }
             if (m_token.Password != null)
             {
-                Array.Clear(m_token.Password, 0, m_token.Password.Length);
-                m_token.Password = null;
+                // Array.Clear(m_token.Password, 0, m_token.Password.Length);
+                m_token.Password = default;
             }
         }
 

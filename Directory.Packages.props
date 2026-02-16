@@ -8,6 +8,7 @@
     <PackageVersion Include="BouncyCastle.Cryptography" Version="2.6.2" />
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <PackageVersion Include="CsvHelper" Version="33.1.0" />
+    <PackageVersion Include="DotNext" Version="5.26.3" />
     <PackageVersion Include="EmbedIO" Version="3.5.2" />
     <PackageVersion Include="Microsoft.AspNetCore.Http" Version="2.3.9" />
     <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel" Version="2.3.9" />

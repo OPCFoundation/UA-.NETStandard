@@ -1399,7 +1399,7 @@ namespace Opc.Ua
                     case BuiltInType.Guid:
                         return typeof(Uuid);
                     case BuiltInType.ByteString:
-                        return typeof(byte[]);
+                        return typeof(ByteString);
                     case BuiltInType.XmlElement:
                         return typeof(XmlElement);
                     case BuiltInType.NodeId:
@@ -1465,7 +1465,7 @@ namespace Opc.Ua
                     case BuiltInType.Guid:
                         return typeof(Uuid[]);
                     case BuiltInType.ByteString:
-                        return typeof(byte[][]);
+                        return typeof(ByteString[]);
                     case BuiltInType.XmlElement:
                         return typeof(XmlElement[]);
                     case BuiltInType.NodeId:
@@ -1532,7 +1532,7 @@ namespace Opc.Ua
                     case BuiltInType.Guid:
                         return typeof(Uuid).MakeArrayType(valueRank);
                     case BuiltInType.ByteString:
-                        return typeof(byte[]).MakeArrayType(valueRank);
+                        return typeof(ByteString).MakeArrayType(valueRank);
                     case BuiltInType.XmlElement:
                         return typeof(XmlElement).MakeArrayType(valueRank);
                     case BuiltInType.NodeId:
@@ -1814,9 +1814,9 @@ namespace Opc.Ua
                 case BuiltInType.Guid:
                     return Uuid.Empty;
                 case BuiltInType.ByteString:
-                    return (byte[])null;
+                    return ByteString.Empty;
                 case BuiltInType.XmlElement:
-                    return (XmlElement)null;
+                    return XmlElement.Empty;
                 case BuiltInType.StatusCode:
                     return StatusCodes.Good;
                 case BuiltInType.NodeId:
@@ -2192,7 +2192,7 @@ namespace Opc.Ua
                     case BuiltInType.Guid:
                         return new Uuid[length];
                     case BuiltInType.ByteString:
-                        return new byte[length][];
+                        return new ByteString[length];
                     case BuiltInType.XmlElement:
                         return new XmlElement[length];
                     case BuiltInType.StatusCode:
@@ -2262,7 +2262,7 @@ namespace Opc.Ua
                     case BuiltInType.Guid:
                         return Array.CreateInstance(typeof(Uuid), dimensions);
                     case BuiltInType.ByteString:
-                        return Array.CreateInstance(typeof(byte[]), dimensions);
+                        return Array.CreateInstance(typeof(ByteString), dimensions);
                     case BuiltInType.XmlElement:
                         return Array.CreateInstance(typeof(XmlElement), dimensions);
                     case BuiltInType.StatusCode:

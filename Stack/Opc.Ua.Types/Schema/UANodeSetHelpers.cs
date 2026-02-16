@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Xml;
@@ -444,7 +445,7 @@ namespace Opc.Ua.Export
             exportedNode.ReleaseStatus = node.ReleaseStatus;
             exportedNode.WriteMask = (uint)node.WriteMask;
             exportedNode.UserWriteMask = (uint)node.UserWriteMask;
-            exportedNode.Extensions = node.Extensions;
+            exportedNode.Extensions = node.Extensions.Select(x => x.AsXmlElement()).ToArray();
             exportedNode.RolePermissions = null;
             exportedNode.AccessRestrictions = 0;
             exportedNode.AccessRestrictionsSpecified = false;
@@ -581,7 +582,7 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Creates an decoder to restore Variant values.
         /// </summary>
-        private XmlDecoder CreateDecoder(ISystemContext context, XmlElement source)
+        private XmlDecoder CreateDecoder(ISystemContext context, System.Xml.XmlElement source)
         {
             IServiceMessageContext messageContext = context.AsMessageContext();
 
@@ -823,7 +824,7 @@ namespace Opc.Ua.Export
             importedNode.ReleaseStatus = node.ReleaseStatus;
             importedNode.WriteMask = (AttributeWriteMask)node.WriteMask;
             importedNode.UserWriteMask = (AttributeWriteMask)node.UserWriteMask;
-            importedNode.Extensions = node.Extensions;
+            importedNode.Extensions = node.Extensions.Select(x => XmlElement.From(x)).ToArray();
 
             if (node.RolePermissions != null)
             {

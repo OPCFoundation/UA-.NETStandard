@@ -1116,9 +1116,13 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a byte string to the stream.
         /// </summary>
-        public void WriteByteString(string fieldName, byte[] value)
+        public void WriteByteString(string fieldName, ByteString value)
         {
-            WriteByteString(fieldName, value, 0, (value?.Length) ?? 0);
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+            WriteByteString(fieldName, value.Span);
+#else
+            WriteByteString(fieldName, value.ToArray(), 0, value.Length);
+#endif
         }
 
         /// <summary>
@@ -1303,7 +1307,7 @@ namespace Opc.Ua
             {
                 WriteGuid("Id", guidIdentifier);
             }
-            else if (value.TryGetIdentifier(out byte[] opaqueId))
+            else if (value.TryGetIdentifier(out ByteString opaqueId))
             {
                 WriteByteString("Id", opaqueId);
             }
@@ -2346,7 +2350,7 @@ namespace Opc.Ua
         /// Writes a byte string array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteByteStringArray(string fieldName, IList<byte[]> values)
+        public void WriteByteStringArray(string fieldName, IList<ByteString> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2819,7 +2823,7 @@ namespace Opc.Ua
                         WriteGuidArray(fieldName, (Uuid[])array);
                         return;
                     case BuiltInType.ByteString:
-                        WriteByteStringArray(fieldName, (byte[][])array);
+                        WriteByteStringArray(fieldName, (ByteString[])array);
                         return;
                     case BuiltInType.XmlElement:
                         WriteXmlElementArray(fieldName, (XmlElement[])array);

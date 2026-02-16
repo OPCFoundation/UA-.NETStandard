@@ -859,13 +859,17 @@ namespace Opc.Ua.Schema.Model
                         "global::Opc.Ua.Uuid.Parse(\"{0}\")",
                         guidValue));
                 case BasicDataType.ByteString:
-                    if (decodedValue is not byte[] byteStringValue)
+                    if (decodedValue is ByteString byteStringValue)
                     {
-                        return MakeReturnType("default(byte[])");
+                        decodedValue = byteStringValue.ToArray();
+                    }
+                    if (decodedValue is not byte[] byteArray)
+                    {
+                        return MakeReturnType("global::Opc.Ua.ByteString.Empty");
                     }
                     return MakeReturnType(CoreUtils.Format(
-                        "CoreUtils.FromHexString(\"{0}\")",
-                        CoreUtils.ToHexString(byteStringValue)));
+                        "global::Opc.Ua.ByteString.FromHexString(\"{0}\")",
+                        CoreUtils.ToHexString(byteArray)));
                 case BasicDataType.NodeId:
                     if (decodedValue is not NodeId nodeId ||
                         nodeId.IsNull)
@@ -1035,7 +1039,7 @@ namespace Opc.Ua.Schema.Model
                 case BasicDataType.DateTime:
                     return MakeReturnType("global::System.Array.Empty<global::System.DateTime>()");
                 case BasicDataType.ByteString:
-                    return MakeReturnType("global::System.Array.Empty<byte[]>()");
+                    return MakeReturnType("global::System.Array.Empty<global::Opc.Ua.ByteString>()");
                 case BasicDataType.XmlElement:
                     return MakeReturnType("global::System.Array.Empty<global::Opc.Ua.XmlElement>()");
                 case BasicDataType.NodeId:
@@ -1240,9 +1244,7 @@ namespace Opc.Ua.Schema.Model
                 case BasicDataType.Guid:
                     return "global::Opc.Ua.Uuid";
                 case BasicDataType.ByteString:
-                    return nullable == NullableAnnotation.NonNullable ?
-                        "byte[]" :
-                        "byte[]?";
+                    return "global::Opc.Ua.ByteString";
                 case BasicDataType.XmlElement:
                     return "global::Opc.Ua.XmlElement";
                 case BasicDataType.NodeId:

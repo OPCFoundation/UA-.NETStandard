@@ -648,23 +648,26 @@ namespace Opc.Ua
                 // update elements within a byte string.
                 else if (dstTypeInfo.BuiltInType == BuiltInType.ByteString)
                 {
-                    byte[] dstString = (byte[])dst;
-
-                    if (src is not byte[] srcString || srcString.Length != Count)
+                    if (src is not ByteString srcString || srcString.Length != Count)
                     {
                         return StatusCodes.BadIndexRangeInvalid;
                     }
 
-                    if (m_begin >= dstString.Length || (m_end > 0 && m_end >= dstString.Length))
+                    if (dst is not ByteString dstString ||
+                        m_begin >= dstString.Length ||
+                        (m_end > 0 && m_end >= dstString.Length))
                     {
                         return StatusCodes.BadIndexRangeNoData;
                     }
 
+                    byte[] dstCopy = new byte[dstString.Length];
+
                     for (int jj = 0; jj < srcString.Length; jj++)
                     {
-                        dstString[m_begin + jj] = srcString[jj];
+                        dstCopy[m_begin + jj] = srcString.Span[jj];
                     }
 
+                    dst = ByteString.From(dstCopy);
                     return StatusCodes.Good;
                 }
 
@@ -675,30 +678,42 @@ namespace Opc.Ua
             var srcArray = src as Array;
             var dstArray = dst as Array;
 
-            // check for destinations specified as a matrix.
+            // check for destinations specified as a matrix or byte array.
             if (dstArray == null)
             {
-                if (dst is not Matrix matrix ||
+                if (dst is ByteString byteString)
+                {
+                    dstArray = byteString.ToArray();
+                }
+                else if (dst is not Matrix matrix ||
                     SubRanges == null ||
                     matrix.Dimensions.Length != SubRanges.Length)
                 {
                     return StatusCodes.BadIndexRangeInvalid;
                 }
-
-                dstArray = matrix.ToArray();
+                else
+                {
+                    dstArray = matrix.ToArray();
+                }
             }
 
-            // check for input specified as a matrix.
+            // check for input specified as a matrix or byte array.
             if (srcArray == null)
             {
-                if (src is not Matrix matrix ||
+                if (src is ByteString byteString)
+                {
+                    srcArray = byteString.ToArray();
+                }
+                else if (src is not Matrix matrix ||
                     SubRanges == null ||
                     matrix.Dimensions.Length != SubRanges.Length)
                 {
                     return StatusCodes.BadIndexRangeInvalid;
                 }
-
-                srcArray = matrix.ToArray();
+                else
+                {
+                    srcArray = matrix.ToArray();
+                }
             }
 
             var srcTypeInfo = TypeInfo.Construct(srcArray);
@@ -740,6 +755,10 @@ namespace Opc.Ua
                 {
                     // dstArray is a copy of the data of the dst Matrix so create new Matrix with modified data
                     dst = new Matrix(dstArray, dstTypeInfo.BuiltInType);
+                }
+                else if (dst is ByteString)
+                {
+                    dst = ByteString.From((byte[])dstArray);
                 }
 
                 return StatusCodes.Good;
@@ -832,9 +851,9 @@ namespace Opc.Ua
                 // check for subset of byte string.
                 else if (dstTypeInfo.BuiltInType == BuiltInType.ByteString)
                 {
-                    byte[] str = (byte[])element;
+                    ByteString str = element is ByteString bs ? bs : default;
 
-                    if (str == null || last >= str.Length)
+                    if (str.IsEmpty || last >= str.Length)
                     {
                         return StatusCodes.BadIndexRangeNoData;
                     }
@@ -899,16 +918,15 @@ namespace Opc.Ua
                 // update elements within a byte string.
                 else if (dstTypeInfo.BuiltInType == BuiltInType.ByteString)
                 {
-                    byte[] srcString = (byte[])element1;
-                    byte[] dstString = (byte[])element2;
+                    ByteString srcString = element1 is ByteString bs1 ? bs1 : default;
+                    byte[] dstString = new byte[srcString.Length];
 
-                    if (srcString != null)
+                    for (int jj = 0; jj < srcString.Length; jj++)
                     {
-                        for (int jj = 0; jj < srcString.Length; jj++)
-                        {
-                            dstString[finalRange.Value.m_begin + jj] = srcString[jj];
-                        }
+                        dstString[finalRange.Value.m_begin + jj] = srcString.Span[jj];
                     }
+
+                    dstArray.SetValue(ByteString.From(dstString), dstIndexes);
                 }
             }
 

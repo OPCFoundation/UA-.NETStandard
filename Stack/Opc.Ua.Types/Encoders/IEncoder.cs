@@ -162,7 +162,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a byte string to the stream.
         /// </summary>
-        void WriteByteString(string fieldName, byte[] value);
+        void WriteByteString(string fieldName, ByteString value);
 
         /// <summary>
         /// Writes a byte string to the stream with a given index and count.
@@ -309,7 +309,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a byte string array to the stream.
         /// </summary>
-        void WriteByteStringArray(string fieldName, IList<byte[]> values);
+        void WriteByteStringArray(string fieldName, IList<ByteString> values);
 
         /// <summary>
         /// Writes a XmlElement array to the stream.

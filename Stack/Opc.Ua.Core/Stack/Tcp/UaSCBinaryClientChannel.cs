@@ -690,9 +690,9 @@ namespace Opc.Ua.Bindings
 
                 m_requestedToken.TokenId = response.SecurityToken.TokenId;
                 m_requestedToken.Lifetime = (int)response.SecurityToken.RevisedLifetime;
-                m_requestedToken.ServerNonce = response.ServerNonce;
+                m_requestedToken.ServerNonce = response.ServerNonce.ToArray();
 
-                if (!ValidateNonce(ServerCertificate, response.ServerNonce))
+                if (!ValidateNonce(ServerCertificate, response.ServerNonce.ToArray()))
                 {
                     throw new ServiceResultException(StatusCodes.BadNonceInvalid);
                 }

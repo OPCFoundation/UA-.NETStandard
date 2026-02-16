@@ -614,7 +614,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
             Namespace[] namespaces = [];
             var mockContext = new Mock<IServiceMessageContext>();
-            XmlElement mockDefaultValue = new XmlDocument().CreateElement("Root");
+            System.Xml.XmlElement mockDefaultValue = new XmlDocument().CreateElement("Root");
 
             // Act
             string result = mockDataType.GetValueAsCode(
@@ -644,7 +644,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
             Namespace[] namespaces = [];
             var mockContext = new Mock<IServiceMessageContext>();
-            XmlElement mockDefaultValue = new XmlDocument().CreateElement("test");
+            System.Xml.XmlElement mockDefaultValue = new XmlDocument().CreateElement("test");
 
             // Act
             string result = mockDataType.GetValueAsCode(
@@ -1467,7 +1467,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 mockContext.Object);
 
             // Assert
-            Assert.That(result, Is.EqualTo("default(byte[])"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ByteString.Empty"));
         }
 
         /// <summary>
@@ -1497,7 +1497,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 mockContext.Object);
 
             // Assert
-            Assert.That(result, Does.StartWith("CoreUtils.FromHexString("));
+            Assert.That(result, Does.StartWith("global::Opc.Ua.ByteString.FromHexString("));
             Assert.That(result, Does.EndWith(")"));
         }
 
@@ -7953,7 +7953,7 @@ namespace Opc.Ua.Schema.Model.Tests
             string result = dataType.GetDotNetTypeName(targetNamespace, namespaces, NullableAnnotation.NonNullable);
 
             // Assert
-            Assert.That(result, Is.EqualTo("byte[]"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ByteString"));
         }
 
         /// <summary>
@@ -7974,7 +7974,7 @@ namespace Opc.Ua.Schema.Model.Tests
             string result = dataType.GetDotNetTypeName(targetNamespace, namespaces, NullableAnnotation.Nullable);
 
             // Assert
-            Assert.That(result, Is.EqualTo("byte[]?"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ByteString"));
         }
 
         /// <summary>
@@ -7995,7 +7995,7 @@ namespace Opc.Ua.Schema.Model.Tests
             string result = dataType.GetDotNetTypeName(targetNamespace, namespaces);
 
             // Assert
-            Assert.That(result, Is.EqualTo("global::System.Xml.XmlElement"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.XmlElement"));
         }
 
         /// <summary>

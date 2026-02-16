@@ -82,7 +82,7 @@ namespace Opc.Ua
         IEquatable<uint>, IComparable<uint>,
         IEquatable<string>, IComparable<string>,
         IEquatable<Guid>, IComparable<Guid>,
-        IEquatable<byte[]>, IComparable<byte[]>,
+        IEquatable<ByteString>, IComparable<ByteString>,
         IComparable,
         IFormattable
     {
@@ -195,54 +195,32 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a new node whose Id will be a series of <see cref="byte"/>.
+        /// Creates a new node whose Id will be a <see cref="ByteString"/>.
         /// </summary>
-        /// <param name="value">An array of <see cref="byte"/> that will become
+        /// <param name="value">A <see cref="ByteString"/> that will become
         /// this Node's ID</param>
-        public NodeId(byte[] value)
+        public NodeId(ByteString value)
         {
             m_inner.NamespaceIdx = 0;
             m_inner.Type = (byte)IdType.Opaque;
-            if (value?.Length > 0)
-            {
-                byte[] copy = new byte[value.Length];
-                Array.Copy(value, copy, value.Length);
-                m_inner.Numeric =
-                    (uint)ByteStringEqualityComparer.Default.GetHashCode(copy);
-                m_identifier = copy;
-            }
-            else
-            {
-                m_inner.Numeric = 0;
-                m_identifier = value;
-            }
+            m_identifier = value;
+            m_inner.Numeric = (uint)value.GetHashCode();
         }
 
         /// <summary>
-        /// Creates a new node whose Id will be a series of <see cref="byte"/>,
+        /// Creates a new node whose Id will be a series of <see cref="ByteString"/>,
         /// while specifying the index of the namespace that this node belongs to.
         /// </summary>
-        /// <param name="value">An array of <see cref="byte"/> that will become
+        /// <param name="value">A <see cref="ByteString"/> that will become
         /// this Node's ID</param>
         /// <param name="namespaceIndex">The index of the namespace that this
         /// node belongs to</param>
-        public NodeId(byte[] value, ushort namespaceIndex)
+        public NodeId(ByteString value, ushort namespaceIndex)
         {
             m_inner.NamespaceIdx = namespaceIndex;
             m_inner.Type = (byte)IdType.Opaque;
-            if (value?.Length > 0)
-            {
-                byte[] copy = new byte[value.Length];
-                Array.Copy(value, copy, value.Length);
-                m_inner.Numeric =
-                    (uint)ByteStringEqualityComparer.Default.GetHashCode(copy);
-                m_identifier = copy;
-            }
-            else
-            {
-                m_inner.Numeric = 0;
-                m_identifier = value;
-            }
+            m_identifier = value;
+            m_inner.Numeric = (uint)value.GetHashCode();
         }
 
         /// <summary>
@@ -277,7 +255,7 @@ namespace Opc.Ua
                 case Guid:
                     this = SetIdentifier(IdType.Guid, value);
                     break;
-                case byte[]:
+                case ByteString:
                     this = SetIdentifier(IdType.Opaque, value);
                     break;
                 default:
@@ -420,8 +398,7 @@ namespace Opc.Ua
                     case 'b':
                         try
                         {
-                            byte[] bytes = Convert.FromBase64String(text);
-                            value = new NodeId(bytes, (ushort)namespaceIndex);
+                            value = new NodeId(ByteString.FromBase64(text), (ushort)namespaceIndex);
                             return true;
                         }
                         catch
@@ -503,7 +480,7 @@ namespace Opc.Ua
                     break;
                 case IdType.Opaque:
                     buffer.Append("b=")
-                        .Append(Convert.ToBase64String(OpaqueIdentifer));
+                        .Append(OpaqueIdentifer.ToBase64());
                     break;
                 case IdType.String:
                     buffer.Append("s=")
@@ -578,7 +555,7 @@ namespace Opc.Ua
         /// <returns>A local NodeId</returns>
         /// <exception cref="ServiceResultException">Thrown when the namespace cannot be found</exception>
         public static NodeId Create(
-            byte[] identifier,
+            ByteString identifier,
             string namespaceUri,
             NamespaceTable namespaceTable)
         {
@@ -622,7 +599,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a byte array to an opaque node identifier.
         /// </summary>
-        public static explicit operator NodeId(byte[] value)
+        public static explicit operator NodeId(ByteString value)
         {
             return new NodeId(value);
         }
@@ -842,7 +819,7 @@ namespace Opc.Ua
                 {
                     try
                     {
-                        byte[] bytes = Convert.FromBase64String(text[2..]);
+                        ByteString bytes = ByteString.FromBase64(text[2..]);
                         value = new NodeId(bytes, namespaceIndex);
                         return true;
                     }
@@ -1094,7 +1071,7 @@ namespace Opc.Ua
         /// Updates the identifier.
         /// </summary>
         [Pure]
-        public NodeId WithIdentifier(byte[] value)
+        public NodeId WithIdentifier(ByteString value)
         {
             return new NodeId(value, NamespaceIndex);
         }
@@ -1119,7 +1096,7 @@ namespace Opc.Ua
             return value switch
             {
                 uint numeric => WithIdentifier(numeric),
-                byte[] bytes => WithIdentifier(bytes),
+                ByteString bytes => WithIdentifier(bytes),
                 string str => WithIdentifier(str),
                 Guid guid => WithIdentifier(guid),
                 null => new NodeId(idType),
@@ -1157,7 +1134,7 @@ namespace Opc.Ua
                 IdType.Guid =>
                     GuidIdentifier.CompareTo(nodeId.GuidIdentifier),
                 IdType.Opaque =>
-                    OpaqueIdentifer.SequenceCompareTo(nodeId.OpaqueIdentifer),
+                    OpaqueIdentifer.CompareTo(nodeId.OpaqueIdentifer),
                 _ => -1
             };
         }
@@ -1215,17 +1192,17 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public int CompareTo(byte[] obj)
+        public int CompareTo(ByteString obj)
         {
             if (IsNull)
             {
-                return obj == null || obj.Length == 0 ? 0 : 1;
+                return obj.IsEmpty ? 0 : 1;
             }
             if (NamespaceIndex != 0 || IdType != IdType.Opaque)
             {
                 return -1;
             }
-            return OpaqueIdentifer.SequenceCompareTo(obj ?? []);
+            return OpaqueIdentifer.CompareTo(obj);
         }
 
         /// <inheritdoc/>
@@ -1240,7 +1217,7 @@ namespace Opc.Ua
                 Guid g => CompareTo(g),
                 Uuid g => CompareTo(g.Guid),
                 string s => CompareTo(s),
-                byte[] b => CompareTo(b),
+                ByteString b => CompareTo(b),
                 ExpandedNodeId e => CompareTo(e),
                 NodeId nodeId => CompareTo(nodeId),
                 SerializableNodeId s => CompareTo(s.Value),
@@ -1293,7 +1270,7 @@ namespace Opc.Ua
                 int n => n >= 0 && Equals((uint)n),
                 uint n => Equals(n),
                 Guid g => Equals(g),
-                byte[] b => Equals(b),
+                ByteString b => Equals(b),
                 string s => Equals(s),
                 ExpandedNodeId expandedNodeId => Equals(expandedNodeId),
                 NodeId n => Equals(n),
@@ -1332,9 +1309,7 @@ namespace Opc.Ua
                 case IdType.Guid:
                     return GuidIdentifier == other.GuidIdentifier;
                 case IdType.Opaque:
-                    return ByteStringEqualityComparer.Default.Equals(
-                        OpaqueIdentifer,
-                        other.OpaqueIdentifer);
+                    return OpaqueIdentifer == other.OpaqueIdentifer;
             }
             return false;
         }
@@ -1370,19 +1345,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(byte[] other)
+        public bool Equals(ByteString other)
         {
             if (NamespaceIndex != 0 || IdType != IdType.Opaque)
             {
                 return false;
             }
-            if (other == null || other.Length == 0)
-            {
-                return IsNull;
-            }
-            return ByteStringEqualityComparer.Default.Equals(
-                OpaqueIdentifer,
-                other);
+            return OpaqueIdentifer == other;
         }
 
         /// <inheritdoc/>
@@ -1491,13 +1460,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(NodeId value1, byte[] value2)
+        public static bool operator ==(NodeId value1, ByteString value2)
         {
             return value1.Equals(value2);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(NodeId value1, byte[] value2)
+        public static bool operator !=(NodeId value1, ByteString value2)
         {
             return !value1.Equals(value2);
         }
@@ -1529,8 +1498,8 @@ namespace Opc.Ua
         /// <summary>
         /// Identifier as bytes
         /// </summary>
-        internal byte[] OpaqueIdentifer =>
-            (byte[])m_identifier ?? [];
+        internal ByteString OpaqueIdentifer =>
+            m_identifier == null ? ByteString.Empty : (ByteString)m_identifier;
 
         /// <summary>
         /// Identifier as string
@@ -1578,7 +1547,7 @@ namespace Opc.Ua
             IdType.Numeric => NumericIdentifier.ToString(CultureInfo.InvariantCulture),
             IdType.String => StringIdentifier,
             IdType.Guid => GuidIdentifier.ToString(),
-            IdType.Opaque => Convert.ToBase64String(OpaqueIdentifer),
+            IdType.Opaque => OpaqueIdentifer.ToBase64(),
             _ => throw ServiceResultException.Unexpected(
                 $"Unexpected IdType value {IdType}.")
         };
@@ -1600,7 +1569,7 @@ namespace Opc.Ua
         /// <summary>
         /// Try get the opque node identifier.
         /// </summary>
-        public bool TryGetIdentifier(out byte[] identifier)
+        public bool TryGetIdentifier(out ByteString identifier)
         {
             if (IdType == IdType.Opaque)
             {

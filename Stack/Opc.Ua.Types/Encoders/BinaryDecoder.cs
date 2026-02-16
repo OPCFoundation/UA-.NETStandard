@@ -481,7 +481,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public byte[] ReadByteString(string fieldName)
+        public ByteString ReadByteString(string fieldName)
         {
             return ReadByteString(fieldName, Context.MaxByteStringLength);
         }
@@ -490,13 +490,13 @@ namespace Opc.Ua
         /// Reads a byte string from the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public byte[] ReadByteString(string fieldName, int maxByteStringLength)
+        public ByteString ReadByteString(string fieldName, int maxByteStringLength)
         {
             int length = SafeReadInt32();
 
             if (length < 0)
             {
-                return null;
+                return default;
             }
 
             if (maxByteStringLength > 0 && maxByteStringLength < length)
@@ -508,21 +508,20 @@ namespace Opc.Ua
                     length);
             }
 
-            return SafeReadBytes(length);
+            return ByteString.From(SafeReadBytes(length));
         }
 
         /// <inheritdoc/>
         public XmlElement ReadXmlElement(string fieldName)
         {
-            byte[] bytes = ReadByteString(fieldName);
+            byte[] bytes = SafeReadBytes(Context.MaxStringLength);
 
             if (bytes == null || bytes.Length == 0)
             {
-                return null;
+                return default;
             }
 
             var document = new XmlDocument();
-
             try
             {
                 // If 0 terminated, decrease length before converting to string
@@ -538,10 +537,10 @@ namespace Opc.Ua
             }
             catch (XmlException)
             {
-                return null;
+                return default;
             }
 
-            return document.DocumentElement;
+            return XmlElement.From(document.DocumentElement);
         }
 
         /// <inheritdoc/>
@@ -1752,7 +1751,7 @@ namespace Opc.Ua
                 }
                 case BuiltInType.ByteString:
                 {
-                    byte[][] values = new byte[length][];
+                    ByteString[] values = new ByteString[length];
 
                     for (int ii = 0; ii < values.Length; ii++)
                     {
@@ -1780,7 +1779,7 @@ namespace Opc.Ua
                         catch (Exception ex)
                         {
                             m_logger.LogError(ex, "Error reading array of XmlElement.");
-                            values[ii] = null;
+                            values[ii] = default;
                         }
                     }
 
@@ -2029,13 +2028,14 @@ namespace Opc.Ua
                 // attempt to decode a known type.
                 if (systemType != null && extension.Body != null)
                 {
-                    var element = extension.Body as XmlElement;
+                    var element = extension.Body is XmlElement xe ? xe: default;
                     using var xmlDecoder = new XmlDecoder(element, Context);
                     try
                     {
-                        xmlDecoder.PushNamespace(element.NamespaceURI);
+                        var xmlElement = element.AsXmlElement();
+                        xmlDecoder.PushNamespace(xmlElement.NamespaceURI);
                         IEncodeable body = xmlDecoder.ReadEncodeable(
-                            element.LocalName,
+                            xmlElement.LocalName,
                             systemType,
                             extension.TypeId);
                         xmlDecoder.PopNamespace();

@@ -30,8 +30,10 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
@@ -81,7 +83,7 @@ namespace Opc.Ua
         /// Constructs a <see cref="XmlElement" /> from an
         /// <see cref="XmlElementNode" /> of an <see cref="XmlDocument" />.
         /// </summary>
-        public XmlElement(XmlElementNode? xml)
+        internal XmlElement(XmlElementNode? xml)
         {
             m_outerXml = xml?.OuterXml;
         }
@@ -90,7 +92,7 @@ namespace Opc.Ua
         /// Constructs a <see cref="XmlElement" /> from an
         /// <see cref="XElement" />.
         /// </summary>
-        public XmlElement(XElement? xml)
+        internal XmlElement(XElement? xml)
         {
             m_outerXml = xml?.ToString();
         }
@@ -127,6 +129,12 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public static explicit operator XmlElement(string? xml)
+        {
+            return From(xml);
+        }
+
+        /// <inheritdoc/>
+        public static XmlElement From(string? xml)
         {
             return new(xml);
         }
@@ -165,6 +173,12 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public static explicit operator XmlElement(XmlElementNode? xml)
         {
+            return From(xml);
+        }
+
+        /// <inheritdoc/>
+        public static XmlElement From(XmlElementNode? xml)
+        {
             return new(xml);
         }
 
@@ -198,6 +212,12 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public static explicit operator XmlElement(XElement? xml)
+        {
+            return From(xml);
+        }
+
+        /// <inheritdoc/>
+        public static XmlElement From(XElement? xml)
         {
             return new(xml);
         }
@@ -319,5 +339,87 @@ namespace Opc.Ua
 #pragma warning disable IDE0032 // Use auto property
         private readonly string? m_outerXml;
 #pragma warning restore IDE0032 // Use auto property
+    }
+
+    /// <summary>
+    /// A collection of XmlElement values.
+    /// </summary>
+    /// <remarks>
+    /// A strongly-typed collection of XmlElement values.
+    /// </remarks>
+    [CollectionDataContract(
+        Name = "ListOfXmlElement",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "XmlElement")]
+    public class XmlElementCollection : List<XmlElement>, ICloneable
+    {
+        /// <summary>
+        /// Initializes an empty collection.
+        /// </summary>
+        public XmlElementCollection()
+        {
+        }
+
+        /// <summary>
+        /// Initializes the collection with the specified capacity.
+        /// </summary>
+        /// <param name="capacity">Max size of collection</param>
+        public XmlElementCollection(int capacity)
+            : base(capacity)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the collection from another collection.
+        /// </summary>
+        /// <param name="collection">A collection of XmlElement's to add to this collection</param>
+        public XmlElementCollection(IEnumerable<XmlElement> collection)
+            : base(collection)
+        {
+        }
+
+        /// <summary>
+        /// Converts an array to a collection.
+        /// </summary>
+        /// <param name="values">An array of XmlElement's to return as a collection</param>
+        public static XmlElementCollection ToXmlElementCollection(XmlElement[] values)
+        {
+            if (values != null)
+            {
+                return [.. values];
+            }
+
+            return [];
+        }
+
+        /// <summary>
+        /// Converts an array to a collection.
+        /// </summary>
+        /// <param name="values">An array of XmlElement's to return as a collection</param>
+        public static implicit operator XmlElementCollection(XmlElement[] values)
+        {
+            return ToXmlElementCollection(values);
+        }
+
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return MemberwiseClone();
+        }
+
+        /// <summary>
+        /// Creates a deep copy of the collection.
+        /// </summary>
+        public new object MemberwiseClone()
+        {
+            var clone = new XmlElementCollection(Count);
+
+            foreach (XmlElement element in this)
+            {
+                clone.Add(CoreUtils.Clone(element));
+            }
+
+            return clone;
+        }
     }
 }

@@ -78,7 +78,7 @@ namespace Opc.Ua
         IEquatable<string>,
         IEquatable<DateTime>,
         IEquatable<Uuid>,
-        IEquatable<byte[]>,
+        IEquatable<ByteString>,
         IEquatable<XmlElement>,
         IEquatable<NodeId>,
         IEquatable<ExpandedNodeId>,
@@ -89,6 +89,7 @@ namespace Opc.Ua
         IEquatable<DataValue>,
         IEquatable<bool[]>,
         IEquatable<sbyte[]>,
+        IEquatable<byte[]>,
         IEquatable<short[]>,
         IEquatable<ushort[]>,
         IEquatable<int[]>,
@@ -101,7 +102,7 @@ namespace Opc.Ua
         IEquatable<string[]>,
         IEquatable<DateTime[]>,
         IEquatable<Uuid[]>,
-        IEquatable<byte[][]>,
+        IEquatable<ByteString[]>,
         IEquatable<XmlElement[]>,
         IEquatable<NodeId[]>,
         IEquatable<ExpandedNodeId[]>,
@@ -283,10 +284,10 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a new variant with a <see cref="byte"/>-array value
+        /// Creates a new variant with a <see cref="ByteString"/> value
         /// </summary>
-        /// <param name="value">The <see cref="byte"/>-array value of the Variant</param>
-        public Variant(byte[] value)
+        /// <param name="value">The <see cref="ByteString"/> value of the Variant</param>
+        public Variant(ByteString value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Scalars.ByteString;
@@ -391,6 +392,16 @@ namespace Opc.Ua
         {
             m_value = value;
             m_typeInfo = TypeInfo.Arrays.SByte;
+        }
+
+        /// <summary>
+        /// Creates a new variant with a <see cref="byte"/>-arrat value
+        /// </summary>
+        /// <param name="value">The <see cref="byte"/>-array value of the Variant</param>
+        public Variant(byte[] value)
+        {
+            m_value = value;
+            m_typeInfo = TypeInfo.Arrays.Byte;
         }
 
         /// <summary>
@@ -515,10 +526,10 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a new variant with a 2-d <see cref="byte"/>-array value
+        /// Creates a new variant with a 2-d <see cref="ByteString"/>-array value
         /// </summary>
-        /// <param name="value">The 2-d <see cref="byte"/>-array value of the Variant</param>
-        public Variant(byte[][] value)
+        /// <param name="value">The 2-d <see cref="ByteString"/>-array value of the Variant</param>
+        public Variant(ByteString[] value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Arrays.ByteString;
@@ -1204,7 +1215,7 @@ namespace Opc.Ua
                         .GetHashCode(m_value as StatusCode[]),
                     BuiltInType.Guid => SequenceEqualityComparer<Uuid>.Default
                         .GetHashCode(m_value as Uuid[]),
-                    BuiltInType.XmlElement => XmlElementArrayStringEqualityComparer.Default
+                    BuiltInType.XmlElement => ArrayEqualityComparer<XmlElement>.Default
                         .GetHashCode(m_value as XmlElement[]),
                     BuiltInType.String => ArrayEqualityComparer<string>.Default
                         .GetHashCode(m_value as string[]),
@@ -1224,8 +1235,8 @@ namespace Opc.Ua
                         .Default.GetHashCode(m_value as DiagnosticInfo[]),
                     BuiltInType.Variant => ArrayEqualityComparer<Variant>.Default
                         .GetHashCode(m_value as Variant[]),
-                    BuiltInType.ByteString => ByteStringArrayEqualityComparer.Default
-                        .GetHashCode(m_value as byte[][]),
+                    BuiltInType.ByteString => ArrayEqualityComparer<ByteString>.Default
+                        .GetHashCode(m_value as ByteString[]),
                     _ => 0
                 };
             }
@@ -1394,11 +1405,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Converts the variant to a byte[] value or returns the default.
+        /// Converts the variant to a ByteString value or returns the default.
         /// </summary>
-        public byte[] GetByteString(byte[] defaultValue = default)
+        public ByteString GetByteString(ByteString defaultValue = default)
         {
-            return TryGet(out byte[] v) ? v : defaultValue;
+            return TryGet(out ByteString v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1479,6 +1490,14 @@ namespace Opc.Ua
         public sbyte[] GetSByteArray(sbyte[] defaultValue = default)
         {
             return TryGet(out sbyte[] v) ? v : defaultValue;
+        }
+
+        /// <summary>
+        /// Converts the variant to a byte[] value or returns the default.
+        /// </summary>
+        public byte[] GetByteArray(byte[] defaultValue = default)
+        {
+            return TryGet(out byte[] v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1592,9 +1611,9 @@ namespace Opc.Ua
         /// <summary>
         /// Converts the variant to a byte[][] value or returns the default.
         /// </summary>
-        public byte[][] GetByteStringArray(byte[][] defaultValue = default)
+        public ByteString[] GetByteStringArray(ByteString[] defaultValue = default)
         {
-            return TryGet(out byte[][] v) ? v : defaultValue;
+            return TryGet(out ByteString[] v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1909,15 +1928,22 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Try convert the variant to a <see cref="byte"/>-array value.
+        /// Try convert the variant to a <see cref="ByteString"/> value.
         /// </summary>
-        /// <param name="value">The <see cref="byte"/>-array value to get
+        /// <param name="value">The <see cref="ByteString"/>-value to get
         /// </param>
-        public bool TryGet(out byte[] value)
+        public bool TryGet(out ByteString value)
         {
-            return
-                TryGetScalar(out value, BuiltInType.ByteString) ||
-                TryGetArray(out value, BuiltInType.Byte);
+            if (TryGetScalar(out value, BuiltInType.ByteString))
+            {
+                return true;
+            }
+            if (TryGetArray(out byte[] byteArray, BuiltInType.Byte))
+            {
+                value = ByteString.From(byteArray);
+                return true;
+            }
+            return false;
         }
 
         /// <summary>
@@ -2027,6 +2053,25 @@ namespace Opc.Ua
         public bool TryGet(out sbyte[] value)
         {
             return TryGetArray(out value, BuiltInType.SByte);
+        }
+
+        /// <summary>
+        /// Try convert the variant to a <see cref="byte"/>-array value.
+        /// </summary>
+        /// <param name="value">The <see cref="byte"/>-array value to get
+        /// </param>
+        public bool TryGet(out byte[] value)
+        {
+            if (TryGetArray(out value, BuiltInType.Byte))
+            {
+                return true;
+            }
+            if (TryGetScalar(out ByteString byteString, BuiltInType.ByteString))
+            {
+                value = byteString.ToArray();
+                return true;
+            }
+            return false;
         }
 
         /// <summary>
@@ -2195,7 +2240,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The 2-d <see cref="byte"/>-array value to get
         /// </param>
-        public bool TryGet(out byte[][] value)
+        public bool TryGet(out ByteString[] value)
         {
             return TryGetArray(out value, BuiltInType.ByteString);
         }
@@ -2603,11 +2648,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Create a Variant from a <see cref="byte"/>-array value.
+        /// Create a Variant from a <see cref="ByteString"/> value.
         /// </summary>
-        /// <param name="value">The <see cref="byte"/>-array value to set
+        /// <param name="value">The <see cref="ByteString"/> value to set
         /// this Variant to</param>
-        public static Variant From(byte[] value)
+        public static Variant From(ByteString value)
         {
             return new Variant(value);
         }
@@ -2721,6 +2766,16 @@ namespace Opc.Ua
         /// <param name="value">The <see cref="sbyte"/>-array value to set
         /// this Variant to</param>
         public static Variant From(sbyte[] value)
+        {
+            return new Variant(value);
+        }
+
+        /// <summary>
+        /// Create a Variant from a <see cref="byte"/>-array value.
+        /// </summary>
+        /// <param name="value">The <see cref="byte"/>-array value to set
+        /// this Variant to</param>
+        public static Variant From(byte[] value)
         {
             return new Variant(value);
         }
@@ -2847,11 +2902,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Create a Variant from a 2-d <see cref="byte"/>-array value.
+        /// Create a Variant from a <see cref="ByteString"/>-array value.
         /// </summary>
-        /// <param name="value">The 2-d <see cref="byte"/>-array value to set
+        /// <param name="value">The <see cref="ByteString"/>-array value to set
         /// this Variant to</param>
-        public static Variant From(byte[][] value)
+        public static Variant From(ByteString[] value)
         {
             return new Variant(value);
         }
@@ -3072,9 +3127,9 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Converts a byte[] value to an Variant object.
+        /// Converts a ByteString value to an Variant object.
         /// </summary>
-        public static implicit operator Variant(byte[] value)
+        public static implicit operator Variant(ByteString value)
         {
             return From(value);
         }
@@ -3155,6 +3210,14 @@ namespace Opc.Ua
         /// Converts a sbyte[] value to an Variant object.
         /// </summary>
         public static implicit operator Variant(sbyte[] value)
+        {
+            return From(value);
+        }
+
+        /// <summary>
+        /// Converts a byte[] value to an Variant object.
+        /// </summary>
+        public static implicit operator Variant(byte[] value)
         {
             return From(value);
         }
@@ -3248,9 +3311,9 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Converts a byte[][] value to an Variant object.
+        /// Converts a ByteString[] value to an Variant object.
         /// </summary>
-        public static implicit operator Variant(byte[][] value)
+        public static implicit operator Variant(ByteString[] value)
         {
             return From(value);
         }
@@ -3440,11 +3503,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Converts a byte[] value to an Variant object.
+        /// Converts a ByteString value to an Variant object.
         /// </summary>
-        public static explicit operator byte[](Variant value)
+        public static explicit operator ByteString(Variant value)
         {
-            return value.TryGet(out byte[] v) ? v : throw CannotCast<byte[]>();
+            return value.TryGet(out ByteString v) ? v : throw CannotCast<ByteString>();
         }
 
         /// <summary>
@@ -3525,6 +3588,14 @@ namespace Opc.Ua
         public static explicit operator sbyte[](Variant value)
         {
             return value.TryGet(out sbyte[] v) ? v : throw CannotCast<sbyte[]>();
+        }
+
+        /// <summary>
+        /// Converts a byte[] value to an Variant object.
+        /// </summary>
+        public static explicit operator byte[](Variant value)
+        {
+            return value.TryGet(out byte[] v) ? v : throw CannotCast<byte[]>();
         }
 
         /// <summary>
@@ -3616,11 +3687,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Converts a byte[][] value to an Variant object.
+        /// Converts a ByteString[] value to an Variant object.
         /// </summary>
-        public static explicit operator byte[][](Variant value)
+        public static explicit operator ByteString[](Variant value)
         {
-            return value.TryGet(out byte[][] v) ? v : throw CannotCast<byte[][]>();
+            return value.TryGet(out ByteString[] v) ? v : throw CannotCast<ByteString[]>();
         }
 
         /// <summary>
@@ -4293,11 +4364,11 @@ namespace Opc.Ua
                     string text = GetString();
                     if (text == null)
                     {
-                        return new Variant((byte[])null);
+                        return new Variant(ByteString.Empty);
                     }
-                    return CoreUtils.FromHexString(text);
+                    return ByteString.FromHexString(text);
                 case BuiltInType.Guid:
-                    return GetGuid().ToByteArray();
+                    return ByteString.From(GetGuid().ToByteArray());
                 case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                     // conversion not supported.
                     throw new InvalidCastException();
@@ -4319,9 +4390,7 @@ namespace Opc.Ua
                 case BuiltInType.XmlElement:
                     return this;
                 case BuiltInType.String:
-                    var document = new XmlDocument();
-                    document.LoadInnerXml(GetString());
-                    return document.DocumentElement;
+                    return XmlElement.From(GetString());
                 case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                     // conversion not supported.
                     throw new InvalidCastException();
@@ -4413,7 +4482,7 @@ namespace Opc.Ua
                     {
                         return (StatusCode)Convert.ToUInt32(text[2..], 16);
                     }
-                    return (StatusCode)Convert.ToUInt32(GetString(), CultureInfo.InvariantCulture);
+                    return (StatusCode)Convert.ToUInt32(text, CultureInfo.InvariantCulture);
                 case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                     // conversion not supported.
                     throw new InvalidCastException();
@@ -4651,10 +4720,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(byte[] value)
+        public bool Equals(ByteString value)
         {
-            return TryGet(out byte[] v) &&
-                SequenceEqualityComparer<byte>.Default.Equals(v, value);
+            return TryGet(out ByteString v) && v == value;
         }
 
         /// <inheritdoc/>
@@ -4718,6 +4786,13 @@ namespace Opc.Ua
         {
             return TryGet(out sbyte[] v) &&
                 SequenceEqualityComparer<sbyte>.Default.Equals(v, value);
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(byte[] value)
+        {
+            return TryGet(out byte[] v) &&
+                SequenceEqualityComparer<byte>.Default.Equals(v, value);
         }
 
         /// <inheritdoc/>
@@ -4806,17 +4881,17 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(byte[][] value)
+        public bool Equals(ByteString[] value)
         {
-            return TryGet(out byte[][] v) &&
-                ByteStringArrayEqualityComparer.Default.Equals(v, value);
+            return TryGet(out ByteString[] v) &&
+                ArrayEqualityComparer<ByteString>.Default.Equals(v, value);
         }
 
         /// <inheritdoc/>
         public bool Equals(XmlElement[] value)
         {
             return TryGet(out XmlElement[] v) &&
-                XmlElementArrayStringEqualityComparer.Default.Equals(v, value);
+                ArrayEqualityComparer<XmlElement>.Default.Equals(v, value);
         }
 
         /// <inheritdoc/>
@@ -5068,13 +5143,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, byte[] value)
+        public static bool operator ==(Variant a, ByteString value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, byte[] value)
+        public static bool operator !=(Variant a, ByteString value)
         {
             return !a.Equals(value);
         }
@@ -5195,6 +5270,18 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public static bool operator !=(Variant a, sbyte[] value)
+        {
+            return !a.Equals(value);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator ==(Variant a, byte[] value)
+        {
+            return a.Equals(value);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(Variant a, byte[] value)
         {
             return !a.Equals(value);
         }
@@ -5344,13 +5431,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, byte[][] value)
+        public static bool operator ==(Variant a, ByteString[] value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, byte[][] value)
+        public static bool operator !=(Variant a, ByteString[] value)
         {
             return !a.Equals(value);
         }
@@ -5634,6 +5721,7 @@ namespace Opc.Ua
                 double v => Equals(v),
                 string v => Equals(v),
                 Enum v => Equals(v),
+                ByteString v => Equals(v),
                 DateTime v => Equals(v),
                 Uuid v => Equals(v),
                 XmlElement v => Equals(v),
@@ -5659,7 +5747,7 @@ namespace Opc.Ua
                 Enum[] v => Equals(v),
                 DateTime[] v => Equals(v),
                 Uuid[] v => Equals(v),
-                byte[][] v => Equals(v),
+                ByteString[] v => Equals(v),
                 XmlElement[] v => Equals(v),
                 NodeId[] v => Equals(v),
                 ExpandedNodeId[] v => Equals(v),
@@ -5731,7 +5819,7 @@ namespace Opc.Ua
                     case BuiltInType.SByte:
                         return GetSByteArray().Select(v => new Variant(v));
                     case BuiltInType.Byte:
-                        return GetByteString().Select(v => new Variant(v));
+                        return GetByteArray().Select(v => new Variant(v));
                     case BuiltInType.Int16:
                         return GetInt16Array().Select(v => new Variant(v));
                     case BuiltInType.UInt16:
@@ -5916,8 +6004,8 @@ namespace Opc.Ua
             // convert byte string to hexstring.
             if (TypeInfo.BuiltInType == BuiltInType.ByteString && TypeInfo.IsScalar)
             {
-                byte[] bytes = (byte[])value;
-                AppendByteString(buffer, bytes, formatProvider);
+                ByteString bytes = (ByteString)value;
+                buffer.Append(bytes.ToHexString());
                 return;
             }
 
@@ -5925,7 +6013,7 @@ namespace Opc.Ua
             if (TypeInfo.BuiltInType == BuiltInType.XmlElement && TypeInfo.IsScalar)
             {
                 var xml = (XmlElement)value;
-                buffer.AppendFormat(formatProvider, "{0}", xml.OuterXml);
+                buffer.Append(xml.OuterXml);
                 return;
             }
 
@@ -5939,15 +6027,15 @@ namespace Opc.Ua
                 {
                     if (array.Length > 0)
                     {
-                        byte[] bytes = (byte[])array.GetValue(0);
-                        AppendByteString(buffer, bytes, formatProvider);
+                        ByteString bytes = (ByteString)array.GetValue(0);
+                        buffer.Append(bytes.ToHexString());
                     }
 
                     for (int ii = 1; ii < array.Length; ii++)
                     {
                         buffer.Append('|');
-                        byte[] bytes = (byte[])array.GetValue(ii);
-                        AppendByteString(buffer, bytes, formatProvider);
+                        ByteString bytes = (ByteString)array.GetValue(ii);
+                        buffer.Append(bytes.ToHexString());
                     }
                 }
                 else
@@ -6212,7 +6300,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         [DataMember(Name = "Value", Order = 1)]
-        internal XmlElement XmlEncodedValue
+        internal System.Xml.XmlElement XmlEncodedValue
         {
             get
             {
@@ -6223,8 +6311,7 @@ namespace Opc.Ua
                 }
 
                 // create encoder.
-                using var encoder = new XmlEncoder(
-                    AmbientMessageContext.CurrentContext);
+                using var encoder = new XmlEncoder(AmbientMessageContext.CurrentContext);
                 // write value.
                 encoder.WriteVariantContents(Value.Value, Value.TypeInfo);
 
@@ -6245,8 +6332,7 @@ namespace Opc.Ua
                 }
 
                 // create decoder.
-                using var decoder = new XmlDecoder(value,
-                    AmbientMessageContext.CurrentContext);
+                using var decoder = new XmlDecoder(value, AmbientMessageContext.CurrentContext);
                 try
                 {
                     // read value.
@@ -6342,13 +6428,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static explicit operator XmlElement(SerializableVariant value)
+        public static explicit operator System.Xml.XmlElement(SerializableVariant value)
         {
             return value.XmlEncodedValue;
         }
 
         /// <inheritdoc/>
-        public static explicit operator SerializableVariant(XmlElement value)
+        public static explicit operator SerializableVariant(System.Xml.XmlElement value)
         {
             return new SerializableVariant { XmlEncodedValue = value };
         }

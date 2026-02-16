@@ -498,9 +498,13 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a byte string to the stream.
         /// </summary>
-        public void WriteByteString(string fieldName, byte[] value)
+        public void WriteByteString(string fieldName, ByteString value)
         {
-            WriteByteString(fieldName, value, 0, value?.Length ?? 0, false);
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+            WriteByteString(fieldName, value.Span);
+#else
+            WriteByteString(fieldName, value, false);
+#endif
         }
 
         /// <summary>
@@ -508,7 +512,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteByteString(string fieldName, byte[] value, int index, int count)
         {
-            WriteByteString(fieldName, value, index, count, false);
+            WriteByteString(fieldName, value, false);
         }
 
 #if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
@@ -518,9 +522,18 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public void WriteByteString(string fieldName, ReadOnlySpan<byte> value)
         {
+            WriteByteString(fieldName, value, false);
+        }
+
+        /// <summary>
+        /// Writes a byte string to the stream.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void WriteByteString(string fieldName, ReadOnlySpan<byte> value, bool isArrayElement)
+        {
             // == compares memory reference, comparing to empty means we compare to the default
             // If null array is converted to span the span is default
-            if (BeginField(fieldName, value == ReadOnlySpan<byte>.Empty, true, false))
+            if (BeginField(fieldName, value == ReadOnlySpan<byte>.Empty, true, isArrayElement))
             {
                 // check the length.
                 if (Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < value.Length)
@@ -534,6 +547,15 @@ namespace Opc.Ua
             }
         }
 #endif
+
+        private void WriteByteString(string fieldName, ByteString value, bool isArrayElement)
+        {
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+            WriteByteString(fieldName, value.Span, isArrayElement);
+#else
+            WriteByteString(fieldName, value.ToArray(), 0, value.Length, isArrayElement);
+#endif
+        }
 
         private void WriteByteString(
             string fieldName,
@@ -1403,7 +1425,7 @@ namespace Opc.Ua
         /// Writes a byte string array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteByteStringArray(string fieldName, IList<byte[]> values)
+        public void WriteByteStringArray(string fieldName, IList<ByteString> values)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
@@ -1419,7 +1441,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteByteString("ByteString", values[ii], 0, values[ii]?.Length ?? 0, true);
+                        WriteByteString("ByteString", values[ii], true);
                     }
                 }
 
@@ -1992,7 +2014,7 @@ namespace Opc.Ua
                             WriteGuidArray("ListOfGuid", (Uuid[])value);
                             return;
                         case BuiltInType.ByteString:
-                            WriteByteStringArray("ListOfByteString", (byte[][])value);
+                            WriteByteStringArray("ListOfByteString", (ByteString[])value);
                             return;
                         case BuiltInType.XmlElement:
                             WriteXmlElementArray("ListOfXmlElement", (XmlElement[])value);
@@ -2232,7 +2254,7 @@ namespace Opc.Ua
                             WriteGuidArray(fieldName, (Uuid[])array);
                             return;
                         case BuiltInType.ByteString:
-                            WriteByteStringArray(fieldName, (byte[][])array);
+                            WriteByteStringArray(fieldName, (ByteString[])array);
                             return;
                         case BuiltInType.XmlElement:
                             WriteXmlElementArray(fieldName, (XmlElement[])array);

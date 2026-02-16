@@ -236,11 +236,15 @@ namespace Opc.Ua
 
                     if (extension.Encoding == ExtensionObjectEncoding.Binary)
                     {
-                        decoder = new BinaryDecoder(extension.Body as byte[], messageContext);
+                        decoder = new BinaryDecoder(
+                            extension.Body is ByteString b ? b.ToArray() : [],
+                            messageContext);
                     }
                     else if (extension.Encoding == ExtensionObjectEncoding.Xml)
                     {
-                        decoder = new XmlDecoder(extension.Body as XmlElement, messageContext);
+                        decoder = new XmlDecoder(
+                            extension.Body is XmlElement xe ? xe : default,
+                            messageContext);
                     }
 
                     if (decoder != null)

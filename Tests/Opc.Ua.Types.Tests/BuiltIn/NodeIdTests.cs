@@ -55,7 +55,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             NodeId inodeId1 = id1;
             Assert.AreEqual(nodeId1, inodeId1);
 
-            byte[] id2 = [65, 66, 67, 68, 69];
+            ByteString id2 = ByteString.From([65, 66, 67, 68, 69]);
             var nodeId2 = new NodeId(id2);
             // implicit conversion;
             var inodeId2 = (NodeId)id2;
@@ -90,9 +90,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.AreEqual("Test", s3);
             id = new NodeId(id2, 123);
             Assert.AreEqual(123, id.NamespaceIndex);
-            Assert.True(id.TryGetIdentifier(out byte[] o1));
+            Assert.True(id.TryGetIdentifier(out ByteString o1));
             Assert.AreEqual(id2, o1);
-            id = new NodeId((string)null, 0);
+            id = new NodeId(null, 0);
             Assert.True(id.IsNull);
             id = new NodeId(string.Empty, 0);
             Assert.True(id.IsNull);
@@ -110,7 +110,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 _ = NodeId.Create(123, "urn:xyz", new NamespaceTable()));
             Assert.AreEqual(StatusCodes.BadNodeIdInvalid, sre.StatusCode);
 
-            var opaqueId = (NodeId)"!,7B"u8.ToArray();
+            var opaqueId = (NodeId)ByteString.From([33, 44, 55, 66]);
             var stringId1 = NodeId.Parse("ns=1;s=Test");
             var stringId2 = NodeId.Parse("ns=1;s=Test");
             Assert.AreEqual(stringId1, stringId2);
@@ -148,7 +148,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.True(new ExpandedNodeId(NodeId.Null).IsNull);
             Assert.True(new ExpandedNodeId(Guid.Empty).IsNull);
             Assert.True(ExpandedNodeId.Null.IsNull);
-            Assert.True(new ExpandedNodeId([]).IsNull);
+            Assert.True(new ExpandedNodeId(ByteString.Empty).IsNull);
             Assert.True(new ExpandedNodeId(string.Empty, 0).IsNull);
             Assert.True(new ExpandedNodeId(0).IsNull);
             Assert.False(new ExpandedNodeId(1).IsNull);
@@ -184,7 +184,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 new(0),
                 new(Guid.Empty),
                 new(string.Empty, 0),
-                new([])
+                new(ByteString.Empty)
             };
 
             foreach (NodeId nodeId in nodeIds)
@@ -253,7 +253,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                     nodeId = new NodeId(Guid.Empty);
                     break;
                 case IdType.Opaque:
-                    nodeId = new NodeId([]);
+                    nodeId = new NodeId(ByteString.Empty);
                     break;
                 case (IdType)100:
                     nodeId = new NodeId((byte[])null);
@@ -268,14 +268,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.AreEqual(nodeId, NodeId.Null);
             Assert.AreEqual(nodeId, new NodeId(0, 0));
             Assert.AreEqual(nodeId, new NodeId(Guid.Empty));
-            Assert.AreEqual(nodeId, new NodeId([]));
+            Assert.AreEqual(nodeId, new NodeId(ByteString.Empty));
             Assert.AreEqual(nodeId, new NodeId((byte[])null));
             Assert.AreEqual(nodeId, NodeId.Parse(null));
 
             Assert.True(nodeId.Equals(NodeId.Null));
             Assert.True(nodeId.Equals(new NodeId(0, 0)));
             Assert.True(nodeId.Equals(new NodeId(Guid.Empty)));
-            Assert.True(nodeId.Equals(new NodeId([])));
+            Assert.True(nodeId.Equals(new NodeId(ByteString.Empty)));
             Assert.True(nodeId.Equals(new NodeId((byte[])null)));
             Assert.True(nodeId.Equals(NodeId.Parse(null)));
 
@@ -365,14 +365,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             // Test opaque identifiers (b=01020304 is valid base64 that decodes to specific bytes)
             Assert.IsTrue(NodeId.TryParse("b=01020304", out result));
-            byte[] expectedBytes1 = Convert.FromBase64String("01020304");
-            Assert.AreEqual(expectedBytes1, result.TryGetIdentifier(out byte[] b1) ? b1 : null);
+            ByteString expectedBytes1 = ByteString.FromBase64("01020304");
+            Assert.AreEqual(expectedBytes1, result.TryGetIdentifier(out ByteString b1) ? b1 : default);
             Assert.AreEqual(IdType.Opaque, result.IdType);
             Assert.AreEqual(0, result.NamespaceIndex);
 
             Assert.IsTrue(NodeId.TryParse("ns=2;b=04030201", out result));
             byte[] expectedBytes2 = Convert.FromBase64String("04030201");
-            Assert.AreEqual(expectedBytes2, result.TryGetIdentifier(out byte[] b2) ? b2 : null);
+            Assert.AreEqual(expectedBytes2, result.TryGetIdentifier(out ByteString b2) ? b2 : default);
             Assert.AreEqual(IdType.Opaque, result.IdType);
             Assert.AreEqual(2, result.NamespaceIndex);
 

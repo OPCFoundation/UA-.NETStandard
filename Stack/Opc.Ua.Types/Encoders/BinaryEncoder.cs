@@ -550,15 +550,15 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a byte string to the stream.
         /// </summary>
-        public void WriteByteString(string fieldName, byte[] value)
+        public void WriteByteString(string fieldName, ByteString value)
         {
-            if (value == null)
+            if (value.IsEmpty)
             {
                 WriteInt32(null, -1);
                 return;
             }
 
-            WriteByteString(fieldName, value, 0, value.Length);
+            WriteByteString(fieldName, value.Span);
         }
 
         /// <summary>
@@ -1333,7 +1333,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a byte string array to the stream.
         /// </summary>
-        public void WriteByteStringArray(string fieldName, IList<byte[]> values)
+        public void WriteByteStringArray(string fieldName, IList<ByteString> values)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1627,7 +1627,7 @@ namespace Opc.Ua
                         WriteStringArray(null, (string[])array);
                         break;
                     case BuiltInType.ByteString:
-                        WriteByteStringArray(null, (byte[][])array);
+                        WriteByteStringArray(null, (ByteString[])array);
                         break;
                     case BuiltInType.QualifiedName:
                         WriteQualifiedNameArray(null, (QualifiedName[])array);
@@ -2502,7 +2502,7 @@ namespace Opc.Ua
                         WriteGuidArray(null, (Uuid[])valueToEncode);
                         break;
                     case BuiltInType.ByteString:
-                        WriteByteStringArray(null, (byte[][])valueToEncode);
+                        WriteByteStringArray(null, (ByteString[])valueToEncode);
                         break;
                     case BuiltInType.XmlElement:
                         WriteXmlElementArray(null, (XmlElement[])valueToEncode);

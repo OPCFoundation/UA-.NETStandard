@@ -1400,7 +1400,7 @@ namespace Opc.Ua.SourceGeneration
             Parameter field,
             ValueRank valueRank,
             DataTypeDesign dataType,
-            XmlElement element)
+            System.Xml.XmlElement element)
         {
             string xml = element?.OuterXml;
             if (string.IsNullOrEmpty(xml))

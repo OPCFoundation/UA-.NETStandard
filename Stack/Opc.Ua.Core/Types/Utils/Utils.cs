@@ -1447,7 +1447,7 @@ namespace Opc.Ua
             // find the element.
             for (int ii = 0; ii < extensions.Count; ii++)
             {
-                XmlElement element = extensions[ii];
+                System.Xml.XmlElement element = extensions[ii].AsXmlElement();
 
                 if (element.LocalName != elementName.Name ||
                     element.NamespaceURI != elementName.Namespace)

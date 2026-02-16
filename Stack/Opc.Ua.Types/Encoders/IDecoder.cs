@@ -148,7 +148,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads a byte string from the stream.
         /// </summary>
-        byte[] ReadByteString(string fieldName);
+        ByteString ReadByteString(string fieldName);
 
         /// <summary>
         /// Reads an XmlElement from the stream.

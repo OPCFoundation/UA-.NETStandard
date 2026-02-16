@@ -1119,7 +1119,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             if (value is XmlElement xmlElement)
             {
-                return (XmlElement)xmlElement.CloneNode(true);
+                return XmlElement.From((System.Xml.XmlElement)xmlElement.AsXmlElement().CloneNode(true));
             }
 
             if (value is ICloneable cloneable)

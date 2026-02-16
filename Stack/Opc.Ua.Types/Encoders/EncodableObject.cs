@@ -176,7 +176,7 @@ namespace Opc.Ua
             }
             else
             {
-                byte[] body = EncodeBinary(encodeable, context);
+                ByteString body = EncodeBinary(encodeable, context);
                 return new ExtensionObject(encodeable.BinaryEncodingId, body);
             }
         }
@@ -190,23 +190,20 @@ namespace Opc.Ua
             using var encoder = new XmlEncoder(context);
             // write body.
             encoder.WriteExtensionObjectBody(encodeable);
-
-            // create document from encoder.
-            var document = new XmlDocument();
-            document.LoadInnerXml(encoder.CloseAndReturnText());
-
-            // return root element.
-            return document.DocumentElement;
+            // return as xml element
+            return XmlElement.From(encoder.CloseAndReturnText());
         }
 
         /// <summary>
         /// Encodes the object in binary
         /// </summary>
-        public static byte[] EncodeBinary(IEncodeable encodeable, IServiceMessageContext context)
+        public static ByteString EncodeBinary(IEncodeable encodeable, IServiceMessageContext context)
         {
             using var encoder = new BinaryEncoder(context);
+            // Wrute body
             encoder.WriteEncodeable(null, encodeable, null);
-            return encoder.CloseAndReturnBuffer();
+            // Return as byte string
+            return ByteString.From(encoder.CloseAndReturnBuffer());
         }
 
         /// <inheritdoc/>

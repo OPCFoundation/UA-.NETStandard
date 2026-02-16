@@ -734,21 +734,21 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public byte[] ReadByteString(string fieldName)
+        public ByteString ReadByteString(string fieldName)
         {
             if (!ReadField(fieldName, out object token))
             {
-                return null;
+                return default;
             }
 
             if (token is JTokenNullObject)
             {
-                return null;
+                return default;
             }
 
             if (token is not string value)
             {
-                return [];
+                return ByteString.Empty;
             }
 
             byte[] bytes = SafeConvertFromBase64String(value);
@@ -758,7 +758,7 @@ namespace Opc.Ua
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
 
-            return bytes;
+            return ByteString.From(bytes);
         }
 
         /// <inheritdoc/>
@@ -1348,8 +1348,8 @@ namespace Opc.Ua
 
                 if (encoding == ExtensionObjectEncoding.Binary)
                 {
-                    byte[] bytes = ReadByteString(inlineValues ? "UaBody" : "Body");
-                    return new ExtensionObject(typeId, bytes ?? []);
+                    ByteString bytes = ReadByteString(inlineValues ? "UaBody" : "Body");
+                    return new ExtensionObject(typeId, bytes);
                 }
 
                 if (encoding == ExtensionObjectEncoding.Xml)
@@ -3363,7 +3363,7 @@ namespace Opc.Ua
                 case IdType.Numeric:
                     return new NodeId(0U, namespaceIndex);
                 case IdType.Opaque:
-                    return new NodeId([], namespaceIndex);
+                    return new NodeId(ByteString.Empty, namespaceIndex);
                 case IdType.String:
                     return new NodeId(string.Empty, namespaceIndex);
                 case IdType.Guid:

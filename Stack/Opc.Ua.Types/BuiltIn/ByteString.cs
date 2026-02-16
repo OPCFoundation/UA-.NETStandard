@@ -32,8 +32,10 @@
 using System;
 using System.Buffers;
 using System.Buffers.Text;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Runtime.Serialization;
 
 namespace Opc.Ua
 {
@@ -44,9 +46,9 @@ namespace Opc.Ua
     /// memory layout.
     /// </summary>
     public readonly struct ByteString :
-        IEquatable<ByteString>,
-        IEquatable<ReadOnlyMemory<byte>>,
-        IEquatable<byte[]>,
+        IEquatable<ByteString>, IComparable<ByteString>,
+        IEquatable<ReadOnlyMemory<byte>>, IComparable<ReadOnlyMemory<byte>>,
+        IEquatable<byte[]>, IComparable<byte[]>,
         IEquatable<ReadOnlySequence<byte>>
     {
         /// <summary>
@@ -96,9 +98,21 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public int CompareTo(ByteString other)
+        {
+            return CompareTo(other.m_memory.Span);
+        }
+
+        /// <inheritdoc/>
         public bool Equals(ReadOnlyMemory<byte> other)
         {
             return Equals(other.Span);
+        }
+
+        /// <inheritdoc/>
+        public int CompareTo(ReadOnlyMemory<byte> other)
+        {
+            return CompareTo(other.Span);
         }
 
         /// <inheritdoc/>
@@ -107,6 +121,14 @@ namespace Opc.Ua
             return other == null || other.Length == 0 ?
                 IsEmpty :
                 Equals(other.AsSpan());
+        }
+
+        /// <inheritdoc/>
+        public int CompareTo(byte[]? other)
+        {
+            return other == null || other.Length == 0 ?
+                IsEmpty ? 0 : -1 :
+                CompareTo(other.AsSpan());
         }
 
         /// <inheritdoc/>
@@ -142,6 +164,12 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public int CompareTo(ReadOnlySpan<byte> other)
+        {
+            return m_memory.Span.SequenceCompareTo(other);
+        }
+
+        /// <inheritdoc/>
         public bool Equals(ReadOnlySequence<byte> other)
         {
             if (Length != other.Length)
@@ -159,8 +187,9 @@ namespace Opc.Ua
             var enumerator1 = new SequenceReader(
                 new ReadOnlySequence<byte>(m_memory));
             var enumerator2 = new SequenceReader(other);
-            while (enumerator1.TryRead(out byte b1)
-                && enumerator2.TryRead(out byte b2))
+            while (
+                enumerator1.TryRead(out byte b1) &&
+                enumerator2.TryRead(out byte b2))
             {
                 if (b1 != b2)
                 {
@@ -180,7 +209,7 @@ namespace Opc.Ua
                 ReadOnlyMemory<byte> bytes => Equals(bytes),
                 ReadOnlySequence<byte> bytes => Equals(bytes),
                 ByteString b => Equals(b),
-                _ => false,
+                _ => false
             };
         }
 
@@ -209,6 +238,30 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public static bool operator <(ByteString left, ByteString right)
+        {
+            return left.CompareTo(right) < 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator <=(ByteString left, ByteString right)
+        {
+            return left.CompareTo(right) <= 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator >(ByteString left, ByteString right)
+        {
+            return left.CompareTo(right) > 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator >=(ByteString left, ByteString right)
+        {
+            return left.CompareTo(right) >= 0;
+        }
+
+        /// <inheritdoc/>
         public static bool operator ==(ByteString left, ReadOnlyMemory<byte> right)
         {
             return left.Equals(right);
@@ -218,6 +271,30 @@ namespace Opc.Ua
         public static bool operator !=(ByteString left, ReadOnlyMemory<byte> right)
         {
             return !(left == right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator <(ByteString left, ReadOnlyMemory<byte> right)
+        {
+            return left.CompareTo(right) < 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator <=(ByteString left, ReadOnlyMemory<byte> right)
+        {
+            return left.CompareTo(right) <= 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator >(ByteString left, ReadOnlyMemory<byte> right)
+        {
+            return left.CompareTo(right) > 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator >=(ByteString left, ReadOnlyMemory<byte> right)
+        {
+            return left.CompareTo(right) >= 0;
         }
 
         /// <inheritdoc/>
@@ -233,6 +310,30 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public static bool operator <(ByteString left, ReadOnlySpan<byte> right)
+        {
+            return left.CompareTo(right) < 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator <=(ByteString left, ReadOnlySpan<byte> right)
+        {
+            return left.CompareTo(right) <= 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator >(ByteString left, ReadOnlySpan<byte> right)
+        {
+            return left.CompareTo(right) > 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator >=(ByteString left, ReadOnlySpan<byte> right)
+        {
+            return left.CompareTo(right) >= 0;
+        }
+
+        /// <inheritdoc/>
         public static bool operator ==(ByteString left, byte[] right)
         {
             return left.Equals(right);
@@ -242,6 +343,30 @@ namespace Opc.Ua
         public static bool operator !=(ByteString left, byte[] right)
         {
             return !(left == right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator <(ByteString left, byte[] right)
+        {
+            return left.CompareTo(right) < 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator <=(ByteString left, byte[] right)
+        {
+            return left.CompareTo(right) <= 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator >(ByteString left, byte[] right)
+        {
+            return left.CompareTo(right) > 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator >=(ByteString left, byte[] right)
+        {
+            return left.CompareTo(right) >= 0;
         }
 
         /// <inheritdoc/>
@@ -270,19 +395,19 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public static implicit operator ByteString(in ReadOnlySpan<byte> bytes)
         {
-            return new(bytes.ToArray());
+            return From(bytes.ToArray());
         }
 
         /// <inheritdoc/>
         public static implicit operator ByteString(in Span<byte> bytes)
         {
-            return new(bytes.ToArray());
+            return From(bytes.ToArray());
         }
 
         /// <inheritdoc/>
-        public static implicit operator ByteString(byte[] bytes)
+        public static explicit operator ByteString(byte[] bytes)
         {
-            return new(bytes);
+            return From(bytes);
         }
 
         /// <summary>
@@ -290,7 +415,7 @@ namespace Opc.Ua
         /// </summary>
         public static ByteString From(in ReadOnlyMemory<byte> bytes)
         {
-            return new(bytes.ToArray());
+            return From(bytes.ToArray());
         }
 
         /// <summary>
@@ -307,6 +432,14 @@ namespace Opc.Ua
         public static ByteString From(in ReadOnlySequence<byte> bytes)
         {
             return new(bytes.ToArray());
+        }
+
+        /// <summary>
+        /// Copy memory into this byte string
+        /// </summary>
+        public static ByteString From(byte[] bytes)
+        {
+            return new(bytes);
         }
 
         /// <summary>
@@ -366,7 +499,7 @@ namespace Opc.Ua
             int partial = length % padToMultipleOf;
             if (partial != 0)
             {
-                length += (padToMultipleOf - partial);
+                length += padToMultipleOf - partial;
             }
             byte[] buffer = new byte[length];
             Span<byte> dest = buffer.AsSpan();
@@ -403,6 +536,7 @@ namespace Opc.Ua
         /// <summary>
         /// Copies the entire byte array to the writer.
         /// </summary>
+        /// <typeparam name="TWriter"></typeparam>
         public void CopyTo<TWriter>(in TWriter writer)
             where TWriter : IBufferWriter<byte>
         {
@@ -462,11 +596,16 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Convert from base64 string
+        /// </summary>
+        public static ByteString FromBase64(string base64)
+        {
+            return From(Convert.FromBase64String(base64));
+        }
+
+        /// <summary>
         /// Create a byte string from base64 encoded utf16 string
         /// </summary>
-        /// <param name="strUnescaped"></param>
-        /// <param name="bytes"></param>
-        /// <returns></returns>
         public static bool TryFromBase64(string? strUnescaped, out ByteString bytes)
         {
             if (string.IsNullOrEmpty(strUnescaped))
@@ -513,14 +652,11 @@ namespace Opc.Ua
         /// <summary>
         /// Create a byte string from base64 encoded utf8
         /// </summary>
-        /// <param name="utf8Unescaped"></param>
-        /// <param name="bytes"></param>
-        /// <returns></returns>
         public static bool TryFromBase64(ReadOnlySpan<byte> utf8Unescaped, out ByteString bytes)
         {
             if (utf8Unescaped.IsEmpty)
             {
-                bytes = ByteString.Empty;
+                bytes = Empty;
                 return true;
             }
 
@@ -546,10 +682,8 @@ namespace Opc.Ua
         /// <summary>
         /// Create a byte string from base64 encoded utf8
         /// </summary>
-        /// <param name="utf8Unescaped"></param>
-        /// <param name="bytes"></param>
-        /// <returns></returns>
-        public static bool TryFromBase64(in ReadOnlySequence<byte> utf8Unescaped,
+        public static bool TryFromBase64(
+            in ReadOnlySequence<byte> utf8Unescaped,
             out ByteString bytes)
         {
             if (utf8Unescaped.IsSingleSegment)
@@ -562,7 +696,7 @@ namespace Opc.Ua
             }
             if (utf8Unescaped.IsEmpty)
             {
-                bytes = ByteString.Empty;
+                bytes = Empty;
                 return true;
             }
             OperationStatus status;
@@ -586,9 +720,107 @@ namespace Opc.Ua
             return status == OperationStatus.Done;
         }
 
+        /// <summary>
+        /// Convert to hex string
+        /// </summary>
+        /// <returns>A hex representation of this object.</returns>
+        public string ToHexString()
+        {
+#if NET8_0_OR_GREATER
+            return CoreUtils.ToHexString(m_memory.Span);
+#else
+            return CoreUtils.ToHexString(m_memory.ToArray());
+#endif
+        }
+
+        /// <summary>
+        /// Convert from hex string
+        /// </summary>
+        public static ByteString FromHexString(string hexString)
+        {
+            return From(CoreUtils.FromHexString(hexString));
+        }
+
         private const int kStackLimit = 64;
-#pragma warning disable IDE0032 // Use auto property
         private readonly ReadOnlyMemory<byte> m_memory;
-#pragma warning restore IDE0032 // Use auto property
+    }
+
+    /// <summary>
+    /// A collection of ByteString values.
+    /// </summary>
+    [CollectionDataContract(
+        Name = "ListOfByteString",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "ByteString")]
+    public class ByteStringCollection : List<ByteString>, ICloneable
+    {
+        /// <summary>
+        /// Initializes an empty collection.
+        /// </summary>
+        public ByteStringCollection()
+        {
+        }
+
+        /// <summary>
+        /// Initializes the collection with the specified capacity.
+        /// </summary>
+        /// <param name="capacity">Max size of collection</param>
+        public ByteStringCollection(int capacity)
+            : base(capacity)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the collection from another collection.
+        /// </summary>
+        /// <param name="collection">A collection of byte to add to this collection</param>
+        public ByteStringCollection(IEnumerable<ByteString> collection)
+            : base(collection)
+        {
+        }
+
+        /// <summary>
+        /// Converts an array to a collection.
+        /// </summary>
+        /// <param name="values">Array of bytes to return as a collection</param>
+        public static ByteStringCollection ToByteStringCollection(ByteString[] values)
+        {
+            if (values != null)
+            {
+                return [.. values];
+            }
+
+            return [];
+        }
+
+        /// <summary>
+        /// Converts an array to a collection.
+        /// </summary>
+        /// <param name="values">Array of bytes to return as a collection</param>
+        public static implicit operator ByteStringCollection(ByteString[] values)
+        {
+            return ToByteStringCollection(values);
+        }
+
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return MemberwiseClone();
+        }
+
+        /// <summary>
+        /// Creates a deep copy of the collection.
+        /// </summary>
+        public new object MemberwiseClone()
+        {
+            var clone = new ByteStringCollection(Count);
+
+            foreach (ByteString element in this)
+            {
+                clone.Add(CoreUtils.Clone(element));
+            }
+
+            return clone;
+        }
     }
 }

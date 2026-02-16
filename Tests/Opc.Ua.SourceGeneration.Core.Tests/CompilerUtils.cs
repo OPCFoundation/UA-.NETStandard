@@ -320,7 +320,7 @@ namespace Opc.Ua.SourceGeneration
                         beforeAfter = 12;
                         errorCount++;
                         break;
-                    case DiagnosticSeverity.Warning:
+                    case DiagnosticSeverity.Warning when diag.Id != "CS1701":
                         beforeAfter = 2;
                         sev = "WRN";
                         warnCount++;

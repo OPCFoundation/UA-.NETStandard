@@ -2855,7 +2855,7 @@ namespace Opc.Ua.SourceGeneration
         private string AddXmlInitializerForComplexValue(
             NodeDesign node,
             DataTypeDesign dataType,
-            XmlElement element)
+            System.Xml.XmlElement element)
         {
             string xml = element?.OuterXml;
             if (string.IsNullOrEmpty(xml))

@@ -68,6 +68,14 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Create a new guid from a byte array.
+        /// </summary>
+        public Uuid(ByteString byteString)
+        {
+            Guid = new Guid(byteString.ToArray());
+        }
+
+        /// <summary>
         /// Initializes the object with a Guid.
         /// </summary>
         /// <param name="guid">The Guid to wrap</param>

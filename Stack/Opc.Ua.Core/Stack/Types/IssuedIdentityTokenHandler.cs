@@ -183,7 +183,7 @@ namespace Opc.Ua
             if (string.IsNullOrEmpty(securityPolicyUri) ||
                 securityPolicyUri == SecurityPolicies.None)
             {
-                m_token.TokenData = [.. m_decryptedTokenData];
+                m_token.TokenData = ByteString.From([.. m_decryptedTokenData]);
                 m_token.EncryptionAlgorithm = string.Empty;
                 return;
             }
@@ -218,13 +218,13 @@ namespace Opc.Ua
             if (string.IsNullOrEmpty(securityPolicyUri) ||
                 securityPolicyUri == SecurityPolicies.None)
             {
-                DecryptedTokenData = m_token.TokenData;
+                DecryptedTokenData = m_token.TokenData.ToArray();
                 return;
             }
 
             var encryptedData = new EncryptedData
             {
-                Data = m_token.TokenData,
+                Data = m_token.TokenData.ToArray(),
                 Algorithm = m_token.EncryptionAlgorithm
             };
 

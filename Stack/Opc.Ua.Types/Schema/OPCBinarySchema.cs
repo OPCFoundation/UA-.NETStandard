@@ -43,7 +43,7 @@ namespace Opc.Ua.Schema.Binary
     public partial class Documentation
     {
 
-        private XmlElement[] itemsField;
+        private System.Xml.XmlElement[] itemsField;
 
         private string[] textField;
 
@@ -51,7 +51,7 @@ namespace Opc.Ua.Schema.Binary
 
         /// <remarks/>
         [System.Xml.Serialization.XmlAnyElementAttribute()]
-        public XmlElement[] Items
+        public System.Xml.XmlElement[] Items
         {
             get
             {

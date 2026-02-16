@@ -697,7 +697,7 @@ namespace Opc.Ua.Test
             // create the root element.
             var document = new XmlDocument();
 
-            XmlElement element = document.CreateElement(
+            System.Xml.XmlElement element = document.CreateElement(
                 "n0",
                 CreateString(locale1, true),
                 Utils.Format("http://{0}", CreateString(locale1, true)));
@@ -722,7 +722,7 @@ namespace Opc.Ua.Test
             {
                 string elementName = CreateString(locale1, true);
 
-                XmlElement childElement = document.CreateElement(
+                System.Xml.XmlElement childElement = document.CreateElement(
                     element.Prefix,
                     elementName,
                     element.NamespaceURI);
@@ -732,7 +732,7 @@ namespace Opc.Ua.Test
                 element.AppendChild(childElement);
             }
 
-            return element;
+            return XmlElement.From(element);
         }
 
         /// <inheritdoc/>
@@ -1258,18 +1258,18 @@ namespace Opc.Ua.Test
                 new DateTime(2001, 9, 11, 9, 15, 0, DateTimeKind.Local)
             ),
             new(BuiltInType.Guid, Uuid.Empty),
-            new(BuiltInType.ByteString, (byte[])null, Array.Empty<byte>()),
-            new(BuiltInType.XmlElement, (XmlElement)null),
+            new(BuiltInType.ByteString, ByteString.Empty, (byte[])null, Array.Empty<byte>()),
+            new(BuiltInType.XmlElement, XmlElement.Empty),
             new(BuiltInType.NodeId,
                 NodeId.Null,
                 new NodeId(Guid.Empty),
                 new NodeId(string.Empty, 0),
-                new NodeId([])),
+                new NodeId(ByteString.Empty),
             new(BuiltInType.ExpandedNodeId,
                 ExpandedNodeId.Null,
                 new ExpandedNodeId(Guid.Empty),
                 new ExpandedNodeId(string.Empty, 0),
-                new ExpandedNodeId([])
+                new ExpandedNodeId(ByteString.Empty)
             ),
             new(BuiltInType.QualifiedName, QualifiedName.Null),
             new(BuiltInType.LocalizedText, LocalizedText.Null),

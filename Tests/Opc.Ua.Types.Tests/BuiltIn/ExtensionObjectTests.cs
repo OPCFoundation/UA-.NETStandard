@@ -31,6 +31,9 @@ using System;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
+#pragma warning disable IDE0028 // Simplify collection initialization
+#pragma warning disable IDE0305 // Simplify collection initialization
+
 namespace Opc.Ua.Types.Tests.BuiltIn
 {
     /// <summary>

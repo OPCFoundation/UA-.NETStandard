@@ -96,7 +96,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="typeId"></param>
         /// <param name="body"></param>
-        public ExtensionObject(ExpandedNodeId typeId, byte[] body)
+        public ExtensionObject(ExpandedNodeId typeId, ByteString body)
         {
             TypeId = typeId;
             Body = body;
@@ -139,7 +139,7 @@ namespace Opc.Ua
             if (body is
                 not null and
                 not IEncodeable and
-                not byte[] and
+                not ByteString and
                 not string and
                 not XmlElement)
             {
@@ -160,7 +160,7 @@ namespace Opc.Ua
         {
             string => ExtensionObjectEncoding.Json,
             XmlElement => ExtensionObjectEncoding.Xml,
-            byte[] => ExtensionObjectEncoding.Binary,
+            ByteString => ExtensionObjectEncoding.Binary,
             IEncodeable => ExtensionObjectEncoding.EncodeableObject,
             _ => ExtensionObjectEncoding.None
         };
@@ -184,7 +184,7 @@ namespace Opc.Ua
             }
             return HashCode.Combine(TypeId.GetHashCode(), Body switch
             {
-                byte[] b => ByteStringEqualityComparer.Default.GetHashCode(b),
+                ByteString b => b.GetHashCode(),
                 string s => StringComparer.Ordinal.GetHashCode(s),
                 XmlElement x => x.GetHashCode(),
                 IEncodeable e => e.GetHashCode(),
@@ -220,9 +220,8 @@ namespace Opc.Ua
             {
                 return Body switch
                 {
-                    byte[] b => ByteStringEqualityComparer.Default.Equals(
-                        b,
-                        value.TryGetAsBinary(out byte[] b2) ? b2 : default),
+                    ByteString b =>
+                        b == (value.TryGetAsBinary(out ByteString b2) ? b2 : default),
                     string s => StringComparer.Ordinal.Equals(
                         s,
                         value.TryGetAsJson(out string s2) ? s2 : default),
@@ -259,7 +258,7 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                if (Body is byte[] byteString)
+                if (Body is ByteString byteString)
                 {
                     return string.Format(
                         formatProvider,
@@ -446,10 +445,10 @@ namespace Opc.Ua
         /// Try get as binary
         /// </summary>
         public bool TryGetAsBinary(
-            out byte[] binary,
+            out ByteString binary,
             IServiceMessageContext messageContext = null)
         {
-            if (Body is byte[] b)
+            if (Body is ByteString b)
             {
                 binary = b;
                 return true;
@@ -553,7 +552,7 @@ namespace Opc.Ua
         {
             return Body switch
             {
-                byte[] v => new ExtensionObject(typeId, v),
+                ByteString v => new ExtensionObject(typeId, v),
                 string v => new ExtensionObject(typeId, v),
                 XmlElement v => new ExtensionObject(typeId, v),
                 IEncodeable v => new ExtensionObject(typeId, v),
@@ -704,7 +703,7 @@ namespace Opc.Ua
                     case IEncodeable encodeable:
                         Value = new ExtensionObject(encodeable);
                         break;
-                    case byte[] bytes:
+                    case ByteString bytes:
                         Value = new ExtensionObject(Value.TypeId, bytes);
                         break;
                     case XmlElement xml:

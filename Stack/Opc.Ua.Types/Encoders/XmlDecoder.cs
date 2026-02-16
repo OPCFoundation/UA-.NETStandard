@@ -68,6 +68,19 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Initializes the object with an XML element to parse.
+        /// </summary>
+        public XmlDecoder(System.Xml.XmlElement element, IServiceMessageContext context)
+        {
+            Context = context ?? throw new ArgumentNullException(nameof(context));
+            m_logger = context.Telemetry.CreateLogger<XmlDecoder>();
+            m_reader = XmlReader.Create(
+                new StringReader(element.OuterXml),
+                CoreUtils.DefaultXmlReaderSettings());
+            m_nestingLevel = 0;
+        }
+
+        /// <summary>
         /// Initializes the object with a XML reader.
         /// </summary>
         public XmlDecoder(Type systemType, XmlReader reader, IServiceMessageContext context)
@@ -558,7 +571,7 @@ namespace Opc.Ua
             if (m_reader.LocalName == "ByteString" && m_reader.NamespaceURI == Namespaces.OpcUaXsd)
             {
                 PushNamespace(Namespaces.OpcUaXsd);
-                byte[] bytes = ReadByteString("ByteString");
+                ByteString bytes = ReadByteString("ByteString");
                 PopNamespace();
 
                 return bytes;
@@ -573,15 +586,20 @@ namespace Opc.Ua
                 PushNamespace(m_reader.NamespaceURI);
                 IEncodeable encodeable = ReadEncodeable(m_reader.LocalName, systemType, typeId);
                 PopNamespace();
-
                 return encodeable;
             }
 
-            string xmlString;
             try
             {
-                // return undecoded xml body.
-                xmlString = m_reader.ReadOuterXml();
+                var xmlElement = XmlElement.From(m_reader.ReadOuterXml());
+                if (!xmlElement.IsValid)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Invalid xml in extension object body: {0}",
+                        xmlElement);
+                }
+                return xmlElement;
             }
             catch (ArgumentException ae)
             {
@@ -591,16 +609,6 @@ namespace Opc.Ua
                     ae.Message);
             }
 
-            // check for empty body.
-            var document = new XmlDocument();
-
-            using (var stream = new StringReader(xmlString))
-            using (var reader = XmlReader.Create(stream, CoreUtils.DefaultXmlReaderSettings()))
-            {
-                document.Load(reader);
-            }
-
-            return document.DocumentElement;
         }
 
         /// <summary>
@@ -1015,22 +1023,22 @@ namespace Opc.Ua
         /// Reads a byte string from the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public byte[] ReadByteString(string fieldName)
+        public ByteString ReadByteString(string fieldName)
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                byte[] value;
+                ByteString value;
                 try
                 {
                     string xml = m_reader.ReadContentAsString();
 
                     if (!string.IsNullOrEmpty(xml))
                     {
-                        value = SafeConvertFromBase64String(xml);
+                        value = ByteString.From(SafeConvertFromBase64String(xml));
                     }
                     else
                     {
-                        value = [];
+                        value = ByteString.Empty;
                     }
                 }
                 catch (XmlException xe)
@@ -1052,7 +1060,7 @@ namespace Opc.Ua
                 return value;
             }
 
-            return !isNil ? [] : null;
+            return default;
         }
 
         /// <summary>

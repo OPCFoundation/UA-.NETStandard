@@ -207,14 +207,14 @@ namespace Opc.Ua
 
         /// <summary>
         /// Creates a new instance of the class while allowing you to
-        /// specify the byte[] id of the node.
+        /// specify the ByteString id of the node.
         /// </summary>
         /// <param name="value">The id of the node</param>
         /// <param name="namespaceUri">The actual namespace URI that this
         /// node belongs to</param>
         /// <param name="serverIndex">The server index</param>
         public ExpandedNodeId(
-            byte[] value,
+            ByteString value,
             string namespaceUri = null,
             uint serverIndex = 0u)
         {
@@ -234,7 +234,7 @@ namespace Opc.Ua
         /// node belongs to</param>
         /// <param name="serverIndex">The server index</param>
         public ExpandedNodeId(
-            byte[] value,
+            ByteString value,
             ushort namespaceIndex,
             string namespaceUri = null,
             uint serverIndex = 0u)
@@ -319,7 +319,7 @@ namespace Opc.Ua
         /// </summary>
         /// <remarks>
         /// Returns the node id in whatever form, i.e.
-        /// string, Guid, byte[] or uint.
+        /// string, Guid, ByteString or uint.
         /// </remarks>
         [Obsolete("Use TryGetIdentifier<T> to get strongly typed identifier values or " +
             "consider using IdentifierAsString if you want to stringify the identifier.")]
@@ -337,7 +337,7 @@ namespace Opc.Ua
         /// <summary>
         /// Try get the opque node identifier.
         /// </summary>
-        public bool TryGetIdentifier(out byte[] identifier)
+        public bool TryGetIdentifier(out ByteString identifier)
         {
             return m_nodeId.TryGetIdentifier(out identifier);
         }
@@ -658,7 +658,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a byte array to an opaque node identifier.
         /// </summary>
-        public static explicit operator ExpandedNodeId(byte[] value)
+        public static explicit operator ExpandedNodeId(ByteString value)
         {
             return new ExpandedNodeId(value);
         }

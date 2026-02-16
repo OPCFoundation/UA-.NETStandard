@@ -29,13 +29,13 @@
 
 using NUnit.Framework;
 
-namespace Opc.Ua.Types.Tests.BuiltIn
+namespace Opc.Ua.Types.Buffers.Tests
 {
     /// <summary>
-    /// Tests for the BuiltIn Types.
+    /// Tests for the read only memory extensions.
     /// </summary>
     [TestFixture]
-    [Category("BuiltInType")]
+    [Category("Buffers")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]

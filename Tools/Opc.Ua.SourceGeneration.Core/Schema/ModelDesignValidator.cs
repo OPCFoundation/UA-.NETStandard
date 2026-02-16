@@ -5729,13 +5729,6 @@ namespace Opc.Ua.Schema.Model
         private ModelDesign LoadModelDesign(string fileToLoad)
         {
             string fileExtension = Path.GetExtension(fileToLoad);
-            if (string.Equals(fileExtension, "json", StringComparison.OrdinalIgnoreCase))
-            {
-                // Load from json file
-                using Stream stream = OpenRead(fileToLoad);
-                return JsonSerializer.Deserialize<ModelDesignJson>(
-                    stream)?.ToModelDesign();
-            }
             return Load<ModelDesign>(fileToLoad);
         }
 
