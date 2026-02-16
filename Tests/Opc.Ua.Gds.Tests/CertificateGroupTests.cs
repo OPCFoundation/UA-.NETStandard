@@ -322,7 +322,7 @@ namespace Opc.Ua.Gds.Tests
             await trustedStore.AddAsync(signedCACert).ConfigureAwait(false);
             var exc = Assert.ThrowsAsync<ServiceResultException>(async () => await certificateGroup.RevokeCertificateAsync(authCert).ConfigureAwait(false));
             Assert.That(exc.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
-            Assert.That(exc.Message.Contains("Cannot revoke"));
+            Assert.That(exc.Message.Contains("Cannot revoke", StringComparison.Ordinal));
         }
 
         [Test]
