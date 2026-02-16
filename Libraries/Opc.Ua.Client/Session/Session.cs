@@ -1292,7 +1292,7 @@ namespace Opc.Ua.Client
                     dataToSign);
 
                 // select the security policy for the user token.
-                string tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
+                string? tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
                     ? m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None
                     : identityPolicy.SecurityPolicyUri;
 
@@ -1345,7 +1345,7 @@ namespace Opc.Ua.Client
                     m_preferredLocales = [.. preferredLocales];
                 }
 
-                var header = CreateRequestHeaderForActivateSession(securityPolicy, tokenSecurityPolicyUri);
+                var header = CreateRequestHeaderForActivateSession(securityPolicy, tokenSecurityPolicyUri!);
 
                 // activate session.
                 ActivateSessionResponse activateResponse = await ActivateSessionAsync(
@@ -1513,7 +1513,7 @@ namespace Opc.Ua.Client
             }
 
             // select the security policy for the user token.
-            string tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
+            string? tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
                 ? securityPolicyUri
                 : identityPolicy.SecurityPolicyUri;
 
@@ -1576,7 +1576,7 @@ namespace Opc.Ua.Client
 
             RequestHeader? requestHeader = CreateRequestHeaderForActivateSession(
                 securityPolicy,
-                tokenSecurityPolicyUri);
+                tokenSecurityPolicyUri!);
 
             ActivateSessionResponse response = await ActivateSessionAsync(
                 requestHeader,
@@ -2415,7 +2415,7 @@ namespace Opc.Ua.Client
                 }
 
                 // select the security policy for the user token.
-                string tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
+                string? tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
                     ? endpoint.SecurityPolicyUri ?? SecurityPolicies.None
                     : identityPolicy.SecurityPolicyUri;
                 m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
@@ -2565,7 +2565,7 @@ namespace Opc.Ua.Client
 
                 var header = CreateRequestHeaderForActivateSession(
                     securityPolicy,
-                    tokenSecurityPolicyUri);
+                    tokenSecurityPolicyUri!);
 
                 if (header == null)
                 {
