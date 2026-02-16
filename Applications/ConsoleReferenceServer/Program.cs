@@ -62,9 +62,9 @@ namespace Quickstarts.ReferenceServer
 
             // command line options
             bool showHelp = false;
-            bool autoAccept = true;
-            bool logConsole = true;
-            bool appLog = true;
+            bool autoAccept = false;
+            bool logConsole = false;
+            bool appLog = false;
             bool fileLog = false;
             bool renewCertificate = false;
             bool shadowConfig = false;
@@ -160,13 +160,7 @@ namespace Quickstarts.ReferenceServer
                 }
 
                 // setup the logging
-                telemetry.ConfigureLogging(
-                    server.Configuration,
-                    applicationName,
-                    logConsole,
-                    fileLog,
-                    appLog,
-                    LogLevel.Warning);
+                telemetry.ConfigureLogging(server.Configuration, applicationName, logConsole, fileLog, appLog, LogLevel.Information);
 
                 // check or renew the certificate
                 Console.WriteLine("Check the certificate.");
