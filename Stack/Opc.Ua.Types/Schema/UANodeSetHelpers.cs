@@ -300,7 +300,7 @@ namespace Opc.Ua.Export
                         value.ParentNodeId = ExportAlias(o.Parent.NodeId, context.NamespaceUris);
                     }
 
-                    if (o.Value != null)
+                    if (!o.Value.IsNull)
                     {
                         using XmlEncoder encoder = CreateEncoder(context);
                         var variant = new Variant(o.Value);
@@ -366,7 +366,7 @@ namespace Opc.Ua.Export
                         ArrayDimensions = Export(o.ArrayDimensions)
                     };
 
-                    if (o.Value != null)
+                    if (!o.Value.IsNull)
                     {
                         using XmlEncoder encoder = CreateEncoder(context);
                         var variant = new Variant(o.Value);
@@ -719,7 +719,7 @@ namespace Opc.Ua.Export
                     if (o.Value != null)
                     {
                         using XmlDecoder decoder = CreateDecoder(context, o.Value);
-                        value.Value = decoder.ReadVariantContents(out TypeInfo typeInfo);
+                        value.Value = decoder.ReadVariant(null);
                         decoder.Close();
                     }
 
@@ -771,7 +771,7 @@ namespace Opc.Ua.Export
                     if (o.Value != null)
                     {
                         using XmlDecoder decoder = CreateDecoder(context, o.Value);
-                        value.Value = decoder.ReadVariantContents(out TypeInfo typeInfo);
+                        value.Value = decoder.ReadVariant(null);
                         decoder.Close();
                     }
 

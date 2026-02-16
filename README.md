@@ -31,28 +31,19 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 * Sessions and (durable) Subscriptions.
 * A [PubSub](Docs/PubSub.md) library with samples.
 
-### Key Features and Updates in OPC UA 1.05
+#### **New in 1.6**
 
-* **Security Enhancements**: Improved encryption and authentication mechanisms.
-* **CRL Support**: Added Certificate Revocation List support for X509Store on Windows.
-* **Performance Improvements**: Faster binary encoding and decoding, reducing memory usage and latency.
-* **Role-Based Management**: Support for WellKnownRoles and RoleBasedUserManagement [WellKnownRoles & RoleBasedUserManagement](Docs/RoleBasedUserManagement.md).
-* **Improved Logging**: Enhanced logging with `ILogger` and `EventSource`.
-* **ECC Profiles**: Support for NIST & Brainpool [Security Profiles](Docs/EccProfiles.md).
-* **Durable Subscriptions**: Support for Durable Subscriptions [Durable Subscriptions](Docs/DurableSubscription.md).
+* **Type safe built in types**
+* Source generator generated code behind during build
+* See [MigrationGuide](Docs/MigrationGuide.md) for details.
 
-#### Breaking Changes and Heads-Up when upgrading from 1.04 to 1.05
-
-* A few features are still missing to fully comply for 1.05, but certification for V1.04 is still possible with the 1.05 release.
-* **Thread Safety and Locking**: Improved thread safety and reduced locking in secure channel operations.
-* **Audit and Redaction**: New interfaces for auditing and redacting sensitive information.
-
-#### **New in 1.05.378.**
+#### **New in 1.05.378**
 
 * Support for AsyncNodeManagers in the Server Library, see [Server Async (TAP) Support](Docs/AsyncServerSupport.md)
 * Reworked [Observability](Docs/Observability.md) via `ITelemetryContext` in preparation for better DI support. See documentation for breaking changes.
+* Fully async APIs. Deprecated all sync and APM API.
 
-#### **New in 1.05.376.**
+#### **New in 1.05.376**
 
 * Support for [Durable Subscriptions](Docs/DurableSubscription.md)
 
@@ -60,7 +51,7 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 
 * Support for [ECC Certificates](Docs/EccProfiles.md).
 
-#### **New in 1.05.374.70**
+#### **New in 1.05.374**
 
 * CRL Support for the X509Store on Windows
 
@@ -68,6 +59,18 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 
 * 1.05 Nodeset
 * Support for [WellKnownRoles & RoleBasedUserManagement](Docs/RoleBasedUserManagement.md).
+
+### Key Features and Updates in OPC UA 1.05
+
+* **Thread Safety and Locking**: Improved thread safety and reduced locking in secure channel operations.
+* **Audit and Redaction**: New interfaces for auditing and redacting sensitive information.
+* **Security Enhancements**: Improved encryption and authentication mechanisms.
+* **CRL Support**: Added Certificate Revocation List support for X509Store on Windows.
+* **Performance Improvements**: Faster binary encoding and decoding, reducing memory usage and latency.
+* **Role-Based Management**: Support for WellKnownRoles and RoleBasedUserManagement [WellKnownRoles & RoleBasedUserManagement](Docs/RoleBasedUserManagement.md).
+* **Improved Logging**: Enhanced logging with `ILogger` and `EventSource`.
+* **ECC Profiles**: Support for NIST & Brainpool [Security Profiles](Docs/EccProfiles.md).
+* **Durable Subscriptions**: Support for Durable Subscriptions [Durable Subscriptions](Docs/DurableSubscription.md).
 
 #### **New in 1.04.368**
 

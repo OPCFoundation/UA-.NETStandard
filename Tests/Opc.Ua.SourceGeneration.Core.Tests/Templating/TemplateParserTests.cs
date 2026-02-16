@@ -1228,7 +1228,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             string result = parser.GetFormattedText();
 
             // Assert
-            Assert.That(result, Is.EqualTo($"NegInf: -Infinity"));
+            Assert.That(result, Is.EqualTo("NegInf: -Infinity"));
         }
 
         /// <summary>

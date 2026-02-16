@@ -347,8 +347,8 @@ namespace Alarms
         public ServiceResult OnStart(
             ISystemContext context,
             NodeState node,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             // all arguments must be provided.
             uint seconds;
@@ -409,8 +409,8 @@ namespace Alarms
         public ServiceResult OnStartBranch(
             ISystemContext context,
             NodeState node,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             // all arguments must be provided.
             uint seconds;
@@ -473,8 +473,8 @@ namespace Alarms
         public ServiceResult OnEnd(
             ISystemContext context,
             NodeState node,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             ServiceResult result = ServiceResult.Good;
 
@@ -520,7 +520,7 @@ namespace Alarms
             NodeState node,
             NumericRange indexRange,
             QualifiedName dataEncoding,
-            ref object value,
+            ref Variant value,
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {

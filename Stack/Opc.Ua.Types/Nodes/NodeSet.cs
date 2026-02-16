@@ -144,21 +144,21 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Translates all elements in an array value.
+        /// Translates all elements in an array variant.
         /// </summary>
-        /// <param name="array">The array.</param>
+        /// <param name="value">The array variant.</param>
         /// <param name="elementType">Type of the element.</param>
         /// <param name="namespaceUris">The namespace URIs.</param>
         /// <param name="serverUris">The server URIs.</param>
-        private void TranslateArrayValue(
-            Array array,
+        private Variant TranslateArrayValue(
+            Variant value,
             BuiltInType elementType,
             NamespaceTable namespaceUris,
             StringTable serverUris)
         {
-            if (array == null)
+            if (value.AsBoxedObject() is not Array array) // TODO
             {
-                return;
+                return value;
             }
 
             int[] dimensions = new int[array.Rank];
@@ -190,7 +190,7 @@ namespace Opc.Ua
                         element = ((Variant)element).Value;
                     }
 
-                    element = TranslateValue(element, namespaceUris, serverUris);
+                    element = TranslateValue(new Variant(element), namespaceUris, serverUris);
 
                     if (elementType == BuiltInType.Variant)
                     {
@@ -200,6 +200,7 @@ namespace Opc.Ua
                     array.SetValue(element, indexes);
                 }
             }
+            return new Variant(array);
         }
 
         /// <summary>
@@ -209,12 +210,12 @@ namespace Opc.Ua
         /// <param name="namespaceUris">The namespace URIs.</param>
         /// <param name="serverUris">The server URIs.</param>
         /// <returns>Translated value.</returns>
-        private object TranslateValue(
-            object value,
+        private Variant TranslateValue(
+            Variant value,
             NamespaceTable namespaceUris,
             StringTable serverUris)
         {
-            var typeInfo = TypeInfo.Construct(value);
+            TypeInfo typeInfo = value.TypeInfo;
 
             // do nothing for unknown types.
             if (typeInfo.IsUnknown)
@@ -225,8 +226,7 @@ namespace Opc.Ua
             // recursively process array values.
             if (typeInfo.ValueRank > 0)
             {
-                TranslateArrayValue((Array)value, typeInfo.BuiltInType, namespaceUris, serverUris);
-                return value;
+                return TranslateArrayValue(value, typeInfo.BuiltInType, namespaceUris, serverUris);
             }
 
             // check for values containing namespace indexes.
@@ -280,33 +280,32 @@ namespace Opc.Ua
             node.NodeId = Translate(nodeToExport.NodeId, m_namespaceUris, namespaceUris);
             node.BrowseName = Translate(nodeToExport.BrowseName, m_namespaceUris, namespaceUris);
 
-            if (nodeToExport is VariableNode variableToExport)
+            switch (nodeToExport)
             {
-                var variableNode = (VariableNode)node;
+                case VariableNode variableToExport:
+                    var variableNode = (VariableNode)node;
+                    variableNode.Value = TranslateValue(
+                        variableNode.Value,
+                        namespaceUris,
+                        serverUris);
 
-                object value = TranslateValue(variableNode.Value.Value, namespaceUris, serverUris);
-                variableNode.Value = new Variant(value);
+                    variableNode.DataType = Translate(
+                        variableToExport.DataType,
+                        m_namespaceUris,
+                        namespaceUris);
+                    break;
+                case VariableTypeNode variableTypeToExport:
+                    var variableTypeNode = (VariableTypeNode)node;
+                    variableTypeNode.Value = TranslateValue(
+                        variableTypeNode.Value,
+                        namespaceUris,
+                        serverUris);
 
-                variableNode.DataType = Translate(
-                    variableToExport.DataType,
-                    m_namespaceUris,
-                    namespaceUris);
-            }
-
-            if (nodeToExport is VariableTypeNode variableTypeToExport)
-            {
-                var variableTypeNode = (VariableTypeNode)node;
-
-                object value = TranslateValue(
-                    variableTypeNode.Value.Value,
-                    namespaceUris,
-                    serverUris);
-                variableTypeNode.Value = new Variant(value);
-
-                variableTypeNode.DataType = Translate(
-                    variableTypeToExport.DataType,
-                    m_namespaceUris,
-                    namespaceUris);
+                    variableTypeNode.DataType = Translate(
+                        variableTypeToExport.DataType,
+                        m_namespaceUris,
+                        namespaceUris);
+                    break;
             }
 
             foreach (IReference referenceToExport in nodeToExport.References)

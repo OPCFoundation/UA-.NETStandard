@@ -115,28 +115,28 @@ namespace Opc.Ua.Gds.Tests
             ICertificateGroup otherCertGroup = new CertificateGroup(telemetry).Create(
                 m_path + "/authorities",
                 configuration);
-            using var authStore = otherCertGroup.AuthoritiesStore.OpenStore(telemetry);
-            var authStoreCerts = authStore.EnumerateAsync().GetAwaiter().GetResult();    
+            using ICertificateStore authStore = otherCertGroup.AuthoritiesStore.OpenStore(telemetry);
+            X509Certificate2Collection authStoreCerts = authStore.EnumerateAsync().GetAwaiter().GetResult();
 
-            var firstAuthStoreCert = authStoreCerts[0];
+            X509Certificate2 firstAuthStoreCert = authStoreCerts[0];
             var id = new CertificateIdentifier
             {
                 Thumbprint = firstAuthStoreCert.Thumbprint,
                 StorePath = authStore.StorePath,
                 StoreType = authStore.StoreType
             };
-            var authCert = id.LoadPrivateKeyAsync(null).GetAwaiter().GetResult();
+            X509Certificate2 authCert = id.LoadPrivateKeyAsync(null).GetAwaiter().GetResult();
             using ICertificateStore trustedStore = certificateStoreIdentifier.OpenStore(telemetry);
-            var storeCerts = trustedStore.EnumerateAsync().GetAwaiter().GetResult();
+            X509Certificate2Collection storeCerts = trustedStore.EnumerateAsync().GetAwaiter().GetResult();
             X509Certificate2Collection certs = await trustedStore
                 .FindByThumbprintAsync(certificate.Thumbprint)
                 .ConfigureAwait(false);
             Assert.IsTrue(certs.Count >= 1);
-            var signedCert = CertificateBuilder.Create("CN=signedCert")
+            X509Certificate2 signedCert = CertificateBuilder.Create("CN=signedCert")
                .SetIssuer(authCert)
                .CreateForRSA();
             await trustedStore.AddAsync(signedCert).ConfigureAwait(false);
-            var crl = await certificateGroup.RevokeCertificateAsync(signedCert).ConfigureAwait(false);
+            X509CRL crl = await certificateGroup.RevokeCertificateAsync(signedCert).ConfigureAwait(false);
             Assert.NotNull(crl);
             Assert.That(crl.RevokedCertificates.Any(el => el.SerialNumber == signedCert.SerialNumber));
         }

@@ -555,7 +555,7 @@ namespace Opc.Ua.Server
             uint fileHandle,
             CancellationToken cancellationToken)
         {
-            object[] inputParameters = [fileHandle];
+            VariantCollection inputParameters = [fileHandle];
             m_node.ReportTrustListUpdateRequestedAuditEvent(
                 context,
                 objectId,
@@ -724,7 +724,7 @@ namespace Opc.Ua.Server
             bool isTrustedCertificate,
             CancellationToken cancellationToken)
         {
-            object[] inputParameters = [certificate, isTrustedCertificate];
+            VariantCollection inputParameters = [certificate, isTrustedCertificate];
             m_node.ReportTrustListUpdateRequestedAuditEvent(
                 context,
                 objectId,
@@ -831,7 +831,7 @@ namespace Opc.Ua.Server
             bool isTrustedCertificate,
             CancellationToken cancellationToken)
         {
-            object[] inputParameters = [thumbprint, isTrustedCertificate];
+            VariantCollection inputParameters = [thumbprint, isTrustedCertificate];
             m_node.ReportTrustListUpdateRequestedAuditEvent(
                 context,
                 objectId,

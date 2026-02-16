@@ -225,7 +225,7 @@ namespace Opc.Ua.Server
             NodeState node,
             NodeStateChangeMasks changes)
         {
-            //make shure to process Invocations in the order they are received and avoid concurrent processing of value changes for the same node
+            //make sure to process data change notifications in the order they are received and avoid concurrent processing of value changes for the same node
             lock (m_dataChangelock)
             {
                 if (DataChangeMonitoredItems == null)

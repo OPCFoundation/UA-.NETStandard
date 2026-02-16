@@ -211,7 +211,7 @@ namespace Opc.Ua.Client
                     };
 
                     // Export Value only if requested
-                    if (options.ExportValues && variableNode?.Value != null)
+                    if (options.ExportValues && variableNode != null && !variableNode.Value.IsNull)
                     {
                         state.Value = variableNode.Value;
                     }
@@ -326,7 +326,7 @@ namespace Opc.Ua.Client
                     };
 
                     // Export Value only if requested
-                    if (options.ExportValues && variableTypeNode?.Value != null)
+                    if (options.ExportValues && variableTypeNode != null && !variableTypeNode.Value.IsNull)
                     {
                         state.Value = variableTypeNode.Value;
                     }

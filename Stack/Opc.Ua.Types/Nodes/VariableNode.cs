@@ -57,10 +57,12 @@ namespace Opc.Ua
                 MinimumSamplingInterval = variable.MinimumSamplingInterval;
                 Historizing = variable.Historizing;
 
-                object value = variable.Value ??
-                    TypeInfo.GetDefaultValue(variable.DataType, variable.ValueRank);
-
-                Value = new Variant(value);
+                Variant value = variable.Value;
+                if (value.IsNull)
+                {
+                    value = TypeInfo.GetDefaultVariantValue(variable.DataType, variable.ValueRank);
+                }
+                Value = value;
 
                 if (variable.ArrayDimensions != null)
                 {
@@ -299,16 +301,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The value attribute.
-        /// </summary>
-        /// <value>The value.</value>
-        object IVariableBase.Value
-        {
-            get => Value.AsBoxedObject();
-            set => Value = new Variant(value);
-        }
-
-        /// <summary>
         /// The number in each dimension of an array value.
         /// </summary>
         /// <value>The array dimensions.</value>
@@ -427,7 +419,7 @@ namespace Opc.Ua
                     // must ensure the value is of the correct datatype.
                     if (dataType != DataType)
                     {
-                        Value = new Variant(TypeInfo.GetDefaultValue(dataType, ValueRank));
+                        Value = TypeInfo.GetDefaultVariantValue(dataType, ValueRank);
                     }
 
                     DataType = dataType;
@@ -437,7 +429,7 @@ namespace Opc.Ua
 
                     if (valueRank != ValueRank)
                     {
-                        Value = new Variant(TypeInfo.GetDefaultValue(DataType, valueRank));
+                        Value = TypeInfo.GetDefaultVariantValue(DataType, valueRank);
                     }
 
                     ValueRank = valueRank;
@@ -450,7 +442,7 @@ namespace Opc.Ua
                     if (m_arrayDimensions.Count > 0 && m_arrayDimensions.Count != ValueRank)
                     {
                         ValueRank = m_arrayDimensions.Count;
-                        Value = new Variant(TypeInfo.GetDefaultValue(DataType, ValueRank));
+                        Value = TypeInfo.GetDefaultVariantValue(DataType, ValueRank);
                     }
 
                     return ServiceResult.Good;

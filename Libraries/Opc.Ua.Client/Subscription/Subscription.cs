@@ -1869,7 +1869,7 @@ namespace Opc.Ua.Client
             var clientHandles = new UInt32Collection();
             try
             {
-                IList<object> outputArguments = await Session.CallAsync(
+                VariantCollection outputArguments = await Session.CallAsync(
                     ObjectIds.Server,
                     MethodIds.Server_GetMonitoredItems,
                     ct,
@@ -1904,7 +1904,7 @@ namespace Opc.Ua.Client
 
             try
             {
-                IList<object> outputArguments = await Session
+                VariantCollection outputArguments = await Session
                     .CallAsync(
                         ObjectIds.Server,
                         MethodIds.Server_SetSubscriptionDurable,

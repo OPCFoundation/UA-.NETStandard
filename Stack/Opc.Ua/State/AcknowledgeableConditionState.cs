@@ -211,7 +211,7 @@ namespace Opc.Ua
                 e.SetChildValue(
                     context,
                     BrowseNames.InputArguments,
-                    new object[] { eventId, comment },
+                    new Variant[] { eventId, comment },
                     false);
 
                 e.SetChildValue(context, BrowseNames.ConditionEventId, eventId, false);
@@ -372,7 +372,7 @@ namespace Opc.Ua
                 e.SetChildValue(
                     context,
                     BrowseNames.InputArguments,
-                    new object[] { eventId, comment },
+                    new Variant[] { eventId, comment },
                     false);
 
                 e.SetChildValue(context, BrowseNames.ConditionEventId, eventId, false);

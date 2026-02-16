@@ -200,7 +200,7 @@ namespace MemoryBuffer
             NodeState node,
             NumericRange indexRange,
             QualifiedName dataEncoding,
-            ref object value,
+            ref Variant value,
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
@@ -233,7 +233,7 @@ namespace MemoryBuffer
                     return StatusCodes.BadOutOfService;
                 }
 
-                value = GetValueAtOffset(offset).AsBoxedObject();
+                value = GetValueAtOffset(offset);
             }
 
             statusCode = StatusCodes.Good;
@@ -251,7 +251,7 @@ namespace MemoryBuffer
             NodeState node,
             NumericRange indexRange,
             QualifiedName dataEncoding,
-            ref object value,
+            ref Variant value,
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
@@ -301,26 +301,22 @@ namespace MemoryBuffer
                 {
                     case BuiltInType.UInt32:
                     {
-                        uint? valueToWrite = value as uint?;
-
-                        if (valueToWrite == null)
+                        if (!value.TryGet(out uint valueToWrite))
                         {
                             return StatusCodes.BadTypeMismatch;
                         }
 
-                        bytes = BitConverter.GetBytes(valueToWrite.Value);
+                        bytes = BitConverter.GetBytes(valueToWrite);
                         break;
                     }
                     case BuiltInType.Double:
                     {
-                        double? valueToWrite = value as double?;
-
-                        if (valueToWrite == null)
+                        if (!value.TryGet(out double valueToWrite))
                         {
                             return StatusCodes.BadTypeMismatch;
                         }
 
-                        bytes = BitConverter.GetBytes(valueToWrite.Value);
+                        bytes = BitConverter.GetBytes(valueToWrite);
                         break;
                     }
                     case >= BuiltInType.Null and <= BuiltInType.Enumeration:

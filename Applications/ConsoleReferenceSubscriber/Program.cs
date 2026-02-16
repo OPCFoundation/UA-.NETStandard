@@ -446,9 +446,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         TargetNodeId = new NodeId(fieldMetaData.Name, NamespaceIndexSimple),
                         AttributeId = Attributes.Value,
                         OverrideValueHandling = OverrideValueHandling.OverrideValue,
-                        OverrideValue = new Variant(
-                            TypeInfo.GetDefaultValue(fieldMetaData.DataType, ValueRanks.Scalar)
-                        )
+                        OverrideValue = TypeInfo.GetDefaultVariantValue(fieldMetaData.DataType, ValueRanks.Scalar)
                     }
                 );
             }
@@ -501,9 +499,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         TargetNodeId = new NodeId(fieldMetaData.Name, NamespaceIndexAllTypes),
                         AttributeId = Attributes.Value,
                         OverrideValueHandling = OverrideValueHandling.OverrideValue,
-                        OverrideValue = new Variant(
-                            TypeInfo.GetDefaultValue(fieldMetaData.DataType, ValueRanks.Scalar)
-                        )
+                        OverrideValue = TypeInfo.GetDefaultVariantValue(fieldMetaData.DataType, ValueRanks.Scalar)
                     }
                 );
             }
@@ -610,9 +606,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         TargetNodeId = new NodeId(fieldMetaData.Name, NamespaceIndexSimple),
                         AttributeId = Attributes.Value,
                         OverrideValueHandling = OverrideValueHandling.OverrideValue,
-                        OverrideValue = new Variant(
-                            TypeInfo.GetDefaultValue(fieldMetaData.DataType, ValueRanks.Scalar)
-                        )
+                        OverrideValue = TypeInfo.GetDefaultVariantValue(fieldMetaData.DataType, ValueRanks.Scalar)
                     }
                 );
             }
@@ -673,9 +667,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         TargetNodeId = new NodeId(fieldMetaData.Name, NamespaceIndexAllTypes),
                         AttributeId = Attributes.Value,
                         OverrideValueHandling = OverrideValueHandling.OverrideValue,
-                        OverrideValue = new Variant(
-                            TypeInfo.GetDefaultValue(fieldMetaData.DataType, ValueRanks.Scalar)
-                        )
+                        OverrideValue = TypeInfo.GetDefaultVariantValue(fieldMetaData.DataType, ValueRanks.Scalar)
                     }
                 );
             }
@@ -782,9 +774,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         TargetNodeId = new NodeId(fieldMetaData.Name, NamespaceIndexSimple),
                         AttributeId = Attributes.Value,
                         OverrideValueHandling = OverrideValueHandling.OverrideValue,
-                        OverrideValue = new Variant(
-                            TypeInfo.GetDefaultValue(fieldMetaData.DataType, ValueRanks.Scalar)
-                        )
+                        OverrideValue = TypeInfo.GetDefaultVariantValue(fieldMetaData.DataType, ValueRanks.Scalar)
                     }
                 );
             }
@@ -840,9 +830,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         TargetNodeId = new NodeId(fieldMetaData.Name, NamespaceIndexAllTypes),
                         AttributeId = Attributes.Value,
                         OverrideValueHandling = OverrideValueHandling.OverrideValue,
-                        OverrideValue = new Variant(
-                            TypeInfo.GetDefaultValue(fieldMetaData.DataType, ValueRanks.Scalar)
-                        )
+                        OverrideValue = TypeInfo.GetDefaultVariantValue(fieldMetaData.DataType, ValueRanks.Scalar)
                     }
                 );
             }
