@@ -642,6 +642,10 @@ namespace Opc.Ua.Server
                     m_configuration.TransportQuotas.MaxStringLength;
                 serverObject.ServerCapabilities.MaxByteStringLength.Value = (uint)
                     m_configuration.TransportQuotas.MaxByteStringLength;
+                serverObject.ServerCapabilities.MaxSessions.Value = (uint)
+                    m_configuration.ServerConfiguration.MaxSessionCount;
+                serverObject.ServerCapabilities.MaxSubscriptions.Value = (uint)
+                    m_configuration.ServerConfiguration.MaxSubscriptionCount;
 
                 // Any operational limits Property that is provided shall have a non zero value.
                 OperationLimitsState operationLimits = serverObject.ServerCapabilities
