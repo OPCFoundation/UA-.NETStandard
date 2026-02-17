@@ -61,6 +61,7 @@ namespace Opc.Ua.Server.Tests
             _mockServer = new Mock<IServerInternal>();
             _mockLogger = new Mock<ILogger>();
             _mockMasterNodeManager = new Mock<IMasterNodeManager>();
+            var mockConfigurationNodeManager = new Mock<IConfigurationNodeManager>();
 
             _namespaceTable = new NamespaceTable();
             _namespaceTable.Append(_testNamespaceUri);
@@ -70,6 +71,7 @@ namespace Opc.Ua.Server.Tests
             _mockServer.Setup(s => s.TypeTree).Returns(new TypeTable(_namespaceTable));
             _mockServer.Setup(s => s.Factory).Returns(EncodeableFactory.Create());
             _mockServer.Setup(s => s.NodeManager).Returns(_mockMasterNodeManager.Object);
+            _mockMasterNodeManager.Setup(m => m.ConfigurationNodeManager).Returns(mockConfigurationNodeManager.Object);
 
             // Mock Telemetry
             var mockTelemetry = new Mock<ITelemetryContext>();
@@ -97,6 +99,8 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.NamespaceIndexes, Has.Count.EqualTo(1));
             Assert.That(manager.NamespaceUris, Contains.Item(_testNamespaceUri));
             Assert.That(manager.Logger, Is.EqualTo(_mockLogger.Object));
+            Assert.That(manager.SyncNodeManager, Is.Not.Null);
+            Assert.That(manager.SystemContext.NodeIdFactory, Is.SameAs(manager));
         }
 
         [Test]
@@ -120,8 +124,11 @@ namespace Opc.Ua.Server.Tests
 
             // Assert
             Assert.That(resultNodeId, Is.EqualTo(baseObject.NodeId));
-            Assert.That(manager.Find(baseObject.NodeId), Is.Not.Null);
+            var storedNode = manager.Find(baseObject.NodeId);
+            Assert.That(storedNode, Is.Not.Null);
+            Assert.That(storedNode, Is.SameAs(baseObject));
             Assert.That(manager.PredefinedNodes.ContainsKey(baseObject.NodeId), Is.True);
+            Assert.That(baseObject.ReferenceTypeId, Is.EqualTo(ReferenceTypeIds.Organizes));
         }
 
         [Test]
@@ -151,6 +158,8 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result, Is.True);
             Assert.That(manager.Find(baseObject.NodeId), Is.Null);
             Assert.That(manager.PredefinedNodes.ContainsKey(baseObject.NodeId), Is.False);
+            var secondResult = await manager.DeleteNodeAsync(context, baseObject.NodeId).ConfigureAwait(false);
+            Assert.That(secondResult, Is.False);
         }
 
         [Test]
@@ -182,6 +191,8 @@ namespace Opc.Ua.Server.Tests
             Assert.That(nodeHandle.NodeId, Is.EqualTo(baseObject.NodeId));
             Assert.That(nodeHandle.Node, Is.SameAs(baseObject));
             Assert.That(nodeHandle.Validated, Is.True);
+            var invalidHandle = await manager.GetManagerHandleAsync(ObjectIds.Server).ConfigureAwait(false);
+            Assert.That(invalidHandle, Is.Null);
         }
 
         [Test]
@@ -232,6 +243,10 @@ namespace Opc.Ua.Server.Tests
             Assert.That(errors[0], Is.Not.Null);
             Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
             Assert.That(values[0].Value, Is.EqualTo(42));
+            Assert.That(values[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(values[0].ServerTimestamp, Is.Not.EqualTo(DateTime.MinValue));
+            Assert.That(values[0].ServerTimestamp, Is.EqualTo(values[0].SourceTimestamp));
+            Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 
         [Test]
@@ -282,6 +297,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(errors[0], Is.Not.Null);
             Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
             Assert.That(variable.Value, Is.EqualTo(99));
+            Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 
         [Test]
@@ -307,6 +323,8 @@ namespace Opc.Ua.Server.Tests
                 ReferenceTypeIds.Organizes,
                 new QualifiedName("MyVarQueue", nsIdx),
                 variable).ConfigureAwait(false);
+
+            variable.Value = 0;
 
             var itemToCreate = new MonitoredItemCreateRequest
             {
@@ -355,8 +373,8 @@ namespace Opc.Ua.Server.Tests
             Assert.That(variable.Value, Is.EqualTo(123));
 
             // Ensure the monitored item is ready before publishing.
-            var publishReady = SpinWait.SpinUntil(() => monitoredItem.IsReadyToPublish, TimeSpan.FromMilliseconds(500));
-            Assert.That(publishReady, Is.True);
+            //var publishReady = SpinWait.SpinUntil(() => monitoredItem.IsReadyToPublish, TimeSpan.FromMilliseconds(500));
+            Assert.That(monitoredItem.IsReadyToPublish, Is.True);
 
             var notifications = new Queue<MonitoredItemNotification>();
             var diagnostics = new Queue<DiagnosticInfo>();
@@ -369,9 +387,13 @@ namespace Opc.Ua.Server.Tests
                 _mockLogger.Object);
 
             Assert.That(hadMore, Is.False);
-            Assert.That(notifications.Count, Is.EqualTo(1));
+            Assert.That(notifications.Count, Is.EqualTo(2));
             var notification = notifications.Dequeue();
-            Assert.That(notification.Value.Value, Is.EqualTo(123));
+            var notificationAfterWrite = notifications.Dequeue();
+            Assert.That(notification.Value.Value, Is.EqualTo(0));
+            Assert.That(notificationAfterWrite.Value.Value, Is.EqualTo(123));
+            Assert.That(diagnostics.Count, Is.EqualTo(2));
+            Assert.That(monitoredItem.IsReadyToPublish, Is.False);
         }
 
         [Test]
@@ -411,6 +433,11 @@ namespace Opc.Ua.Server.Tests
             var refs = new List<IReference>();
             baseObject.GetReferences(context, refs);
             Assert.That(refs.Exists(r => r.TargetId == targetId && r.ReferenceTypeId == ReferenceTypeIds.HasComponent), Is.True);
+            await manager.AddReferencesAsync(references).ConfigureAwait(false);
+            refs.Clear();
+            baseObject.GetReferences(context, refs);
+            var matchingRefs = refs.FindAll(r => r.TargetId == targetId && r.ReferenceTypeId == ReferenceTypeIds.HasComponent);
+            Assert.That(matchingRefs, Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -463,6 +490,8 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.MonitoredItems[monitoredItems[0].Id], Is.SameAs(monitoredItems[0]));
             Assert.That(manager.MonitoredNodes.ContainsKey(variable.NodeId), Is.True);
             Assert.That(manager.MonitoredNodes[variable.NodeId].DataChangeMonitoredItems.ContainsKey(monitoredItems[0].Id), Is.True);
+            Assert.That(monitoredItems[0].MonitoringMode, Is.EqualTo(MonitoringMode.Reporting));
+            Assert.That(monitoredItems[0].SamplingInterval, Is.EqualTo(100).Within(0.1));
         }
 
         [Test]
@@ -532,6 +561,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ServiceResult.IsGood(modifyErrors[0]), Is.True);
             Assert.That(item.SamplingInterval, Is.EqualTo(500));
             Assert.That(item is ISampledDataChangeMonitoredItem sampledItem && sampledItem.QueueSize == 20, Is.True);
+            Assert.That(item.MonitoringMode, Is.EqualTo(MonitoringMode.Reporting));
         }
 
         [Test]
@@ -591,6 +621,8 @@ namespace Opc.Ua.Server.Tests
             // Assert
             Assert.That(ServiceResult.IsGood(modeErrors[0]), Is.True);
             Assert.That(item.MonitoringMode, Is.EqualTo(MonitoringMode.Reporting));
+            Assert.That(modeErrors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(processedItems[0], Is.True);
         }
 
         [Test]
@@ -635,7 +667,8 @@ namespace Opc.Ua.Server.Tests
                 false,
                 new MonitoredItemIdFactory()).ConfigureAwait(false);
 
-            Assert.That(monitoredItems[0], Is.Not.Null);
+            var monitoredItem = monitoredItems[0];
+            Assert.That(monitoredItem, Is.Not.Null);
 
             // Act
             var processedItems = new List<bool> { false };
@@ -648,6 +681,9 @@ namespace Opc.Ua.Server.Tests
 
             // Assert
             Assert.That(ServiceResult.IsGood(deleteErrors[0]), Is.True);
+            Assert.That(deleteErrors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(processedItems[0], Is.True);
+            Assert.That(manager.MonitoredItems.ContainsKey(monitoredItem.Id), Is.False);
         }
 
         private TestableAsyncCustomNodeManager CreateManager()
