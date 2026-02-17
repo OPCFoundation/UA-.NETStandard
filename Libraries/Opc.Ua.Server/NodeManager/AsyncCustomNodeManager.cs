@@ -2094,8 +2094,8 @@ namespace Opc.Ua.Server
         private void CheckIfSemanticsHaveChanged(
             ServerSystemContext systemContext,
             PropertyState property,
-            object newPropertyValue,
-            object previousPropertyValue)
+            Variant newPropertyValue,
+            Variant previousPropertyValue)
         {
             // check if the changed property is one that can trigger semantic changes
             string propertyName = property.BrowseName.Name;
