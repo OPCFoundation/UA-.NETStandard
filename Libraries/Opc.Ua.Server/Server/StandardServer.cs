@@ -74,6 +74,11 @@ namespace Opc.Ua.Server
                     Utils.SilentDispose(m_serverInternal);
                     m_serverInternal = null;
                 }
+
+                if (CertificateValidator != null)
+                {
+                    CertificateValidator.CertificateUpdate -= OnCertificateUpdateAsync;
+                }
             }
 
             base.Dispose(disposing);
