@@ -410,7 +410,7 @@ namespace Opc.Ua.Server
                     parent.AddChild(instance);
                 }
 
-                instance.Create(contextToUse, default, browseName, default, true);
+                instance.Create(contextToUse, instance.NodeId, browseName, default, true);
                 AddPredefinedNode(contextToUse, instance);
 
                 return instance.NodeId;

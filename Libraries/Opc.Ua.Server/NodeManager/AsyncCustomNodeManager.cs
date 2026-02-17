@@ -417,7 +417,7 @@ namespace Opc.Ua.Server
                 parent.AddChild(instance);
             }
 
-            instance.Create(contextToUse, default, browseName, default, true);
+            instance.Create(contextToUse, instance.NodeId, browseName, default, true);
             await AddPredefinedNodeAsync(contextToUse, instance, cancellationToken).ConfigureAwait(false);
 
             return instance.NodeId;
@@ -568,9 +568,9 @@ namespace Opc.Ua.Server
             // assign a default value to any variable in namespace 0
             if (node is BaseVariableState nodeStateVar &&
                 nodeStateVar.NodeId.NamespaceIndex == 0 &&
-                nodeStateVar.Value == null)
+                nodeStateVar.Value.IsNull)
             {
-                nodeStateVar.Value = TypeInfo.GetDefaultValue(
+                nodeStateVar.Value = TypeInfo.GetDefaultVariantValue(
                     nodeStateVar.DataType,
                     nodeStateVar.ValueRank,
                     Server.TypeTree);
@@ -2022,19 +2022,7 @@ namespace Opc.Ua.Server
                         nodeToWrite.IndexRange);
 #endif
                     var propertyState = handle.Node as PropertyState;
-                    object previousPropertyValue = null;
-
-                    if (propertyState != null)
-                    {
-                        if (propertyState.Value is ExtensionObject extension)
-                        {
-                            previousPropertyValue = extension.Body;
-                        }
-                        else
-                        {
-                            previousPropertyValue = propertyState.Value;
-                        }
-                    }
+                    Variant previousPropertyValue = propertyState?.Value ?? default;
 
                     DataValue oldValue = null;
 
@@ -2062,7 +2050,7 @@ namespace Opc.Ua.Server
                     Server.ReportAuditWriteUpdateEvent(
                         systemContext,
                         nodeToWrite,
-                        oldValue?.Value,
+                        oldValue,
                         errors[ii]?.StatusCode ?? StatusCodes.Good,
                         m_logger);
 
@@ -2073,21 +2061,10 @@ namespace Opc.Ua.Server
 
                     if (propertyState != null)
                     {
-                        object propertyValue;
-
-                        if (nodeToWrite.Value.Value is ExtensionObject extension)
-                        {
-                            propertyValue = extension.Body;
-                        }
-                        else
-                        {
-                            propertyValue = nodeToWrite.Value.Value;
-                        }
-
                         CheckIfSemanticsHaveChanged(
                             systemContext,
                             propertyState,
-                            propertyValue,
+                            nodeToWrite.Value,
                             previousPropertyValue);
                     }
 
@@ -4134,8 +4111,8 @@ namespace Opc.Ua.Server
                 return StatusCodes.Good;
             }
 
-            object nodeHandle = Server.NodeManager
-                .GetManagerHandle(nodeId, out INodeManager nodeManager);
+            (object nodeHandle, IAsyncNodeManager nodeManager) = await Server.NodeManager
+                .GetManagerHandleAsync(nodeId, cancellationToken).ConfigureAwait(false);
 
             if (nodeHandle == null || nodeManager == null)
             {
@@ -4143,10 +4120,11 @@ namespace Opc.Ua.Server
                 return StatusCodes.Good;
             }
 
-            NodeMetadata nodeMetadata = nodeManager.GetNodeMetadata(
+            NodeMetadata nodeMetadata = await nodeManager.GetNodeMetadataAsync(
                 operationContext,
                 nodeHandle,
-                BrowseResultMask.All);
+                BrowseResultMask.All,
+                cancellationToken).ConfigureAwait(false);
 
             return MasterNodeManager.ValidateRolePermissions(
                 operationContext,
@@ -4349,7 +4327,7 @@ namespace Opc.Ua.Server
                     return result;
                 }
 
-                if (property.Value is not Range range)
+                if (!property.Value.TryGetStructure(out Range range))
                 {
                     result.StatusCode = StatusCodes.BadMonitoredItemFilterUnsupported;
                     return result;
@@ -5188,7 +5166,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                m_semaphore.Release();
+                m_componentCacheSemaphore.Release();
             }
         }
 
@@ -5227,7 +5205,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                m_semaphore.Release();
+                m_componentCacheSemaphore.Release();
             }
         }
 
@@ -5290,7 +5268,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                m_semaphore.Release();
+                m_componentCacheSemaphore.Release();
             }
         }
 
