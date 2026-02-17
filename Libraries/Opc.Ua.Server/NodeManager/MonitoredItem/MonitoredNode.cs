@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace Opc.Ua.Server
 {
@@ -47,17 +48,19 @@ namespace Opc.Ua.Server
         /// Initializes a new instance of the <see cref="MonitoredNode2"/> class.
         /// </summary>
         /// <param name="nodeManager">The node manager.</param>
+        /// <param name="server">The server.</param>
         /// <param name="node">The node.</param>
-        public MonitoredNode2(CustomNodeManager2 nodeManager, NodeState node)
+        public MonitoredNode2(INodeManager3 nodeManager, IServerInternal server, NodeState node)
         {
             NodeManager = nodeManager;
+            m_server = server;
             Node = node;
         }
 
         /// <summary>
         /// Gets or sets the NodeManager which the MonitoredNode belongs to.
         /// </summary>
-        public CustomNodeManager2 NodeManager { get; set; }
+        public INodeManager3 NodeManager { get; set; }
 
         /// <summary>
         /// Gets or sets the Node being monitored.
@@ -67,12 +70,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the current list of data change MonitoredItems.
         /// </summary>
-        public List<IDataChangeMonitoredItem2> DataChangeMonitoredItems { get; private set; }
+        public ConcurrentDictionary<uint, IDataChangeMonitoredItem2> DataChangeMonitoredItems { get; } = new();
 
         /// <summary>
         /// Gets the current list of event MonitoredItems.
         /// </summary>
-        public List<IEventMonitoredItem> EventMonitoredItems { get; private set; }
+        public ConcurrentDictionary<uint, IEventMonitoredItem> EventMonitoredItems { get; } = new();
 
         /// <summary>
         /// Gets a value indicating whether this instance has monitored items.
@@ -84,12 +87,12 @@ namespace Opc.Ua.Server
         {
             get
             {
-                if (DataChangeMonitoredItems != null && DataChangeMonitoredItems.Count > 0)
+                if (DataChangeMonitoredItems != null && !DataChangeMonitoredItems.IsEmpty)
                 {
                     return true;
                 }
 
-                if (EventMonitoredItems != null && EventMonitoredItems.Count > 0)
+                if (EventMonitoredItems != null && !EventMonitoredItems.IsEmpty)
                 {
                     return true;
                 }
@@ -104,13 +107,9 @@ namespace Opc.Ua.Server
         /// <param name="datachangeItem">The monitored item.</param>
         public void Add(IDataChangeMonitoredItem2 datachangeItem)
         {
-            if (DataChangeMonitoredItems == null)
-            {
-                DataChangeMonitoredItems = [];
-                Node.OnStateChanged = OnMonitoredNodeChanged;
-            }
+            DataChangeMonitoredItems.TryAdd(datachangeItem.Id, datachangeItem);
 
-            DataChangeMonitoredItems.Add(datachangeItem);
+            Node.OnStateChanged = OnMonitoredNodeChanged;
         }
 
         /// <summary>
@@ -119,22 +118,14 @@ namespace Opc.Ua.Server
         /// <param name="datachangeItem">The monitored item.</param>
         public void Remove(IDataChangeMonitoredItem2 datachangeItem)
         {
-            for (int ii = 0; ii < DataChangeMonitoredItems.Count; ii++)
+            if (DataChangeMonitoredItems.TryRemove(datachangeItem.Id, out _))
             {
-                if (ReferenceEquals(DataChangeMonitoredItems[ii], datachangeItem))
-                {
-                    DataChangeMonitoredItems.RemoveAt(ii);
-
-                    // Remove the cached context for the monitored item
-                    m_contextCache.TryRemove(datachangeItem.Id, out _);
-
-                    break;
-                }
+                // Remove the cached context for the monitored item
+                m_contextCache.TryRemove(datachangeItem.Id, out _);
             }
 
-            if (DataChangeMonitoredItems.Count == 0)
+            if (DataChangeMonitoredItems.IsEmpty)
             {
-                DataChangeMonitoredItems = null;
                 Node.OnStateChanged = null;
             }
         }
@@ -145,13 +136,9 @@ namespace Opc.Ua.Server
         /// <param name="eventItem">The monitored item.</param>
         public void Add(IEventMonitoredItem eventItem)
         {
-            if (EventMonitoredItems == null)
-            {
-                EventMonitoredItems = [];
-                Node.OnReportEvent = OnReportEvent;
-            }
+            EventMonitoredItems.TryAdd(eventItem.Id, eventItem);
 
-            EventMonitoredItems.Add(eventItem);
+            Node.OnReportEvent = OnReportEvent;
         }
 
         /// <summary>
@@ -160,18 +147,10 @@ namespace Opc.Ua.Server
         /// <param name="eventItem">The monitored item.</param>
         public void Remove(IEventMonitoredItem eventItem)
         {
-            for (int ii = 0; ii < EventMonitoredItems.Count; ii++)
-            {
-                if (ReferenceEquals(EventMonitoredItems[ii], eventItem))
-                {
-                    EventMonitoredItems.RemoveAt(ii);
-                    break;
-                }
-            }
+            EventMonitoredItems.TryRemove(eventItem.Id, out _);
 
-            if (EventMonitoredItems.Count == 0)
+            if (EventMonitoredItems.IsEmpty)
             {
-                EventMonitoredItems = null;
                 Node.OnReportEvent = null;
             }
         }
@@ -184,76 +163,53 @@ namespace Opc.Ua.Server
         /// <param name="e">The event.</param>
         public void OnReportEvent(ISystemContext context, NodeState node, IFilterTarget e)
         {
-            var eventMonitoredItems = new List<IEventMonitoredItem>();
-
-            lock (NodeManager.Lock)
+            // make sure to process events in the order they are received and avoid concurrent processing of events for the same node
+            lock (m_eventLock)
             {
-                if (EventMonitoredItems == null)
+                foreach (KeyValuePair<uint, IEventMonitoredItem> kvp in EventMonitoredItems)
                 {
-                    return;
-                }
+                    IEventMonitoredItem monitoredItem = kvp.Value;
 
-                for (int ii = 0; ii < EventMonitoredItems.Count; ii++)
-                {
-                    IEventMonitoredItem monitoredItem = EventMonitoredItems[ii];
-                    // enqueue event for role permission validation
-                    eventMonitoredItems.Add(monitoredItem);
-                }
-            }
-
-            for (int ii = 0; ii < eventMonitoredItems.Count; ii++)
-            {
-                IEventMonitoredItem monitoredItem = eventMonitoredItems[ii];
-
-                if (e is AuditEventState)
-                {
-                    // check Server.Auditing flag and skip if false
-                    if (!NodeManager.Server.Auditing)
+                    if (e is AuditEventState)
                     {
-                        continue;
-                    }
-                    // check if channel is not encrypted and skip if so
-                    if (monitoredItem?.Session?.EndpointDescription?.SecurityMode !=
-                            MessageSecurityMode.SignAndEncrypt &&
-                        monitoredItem?.Session?.EndpointDescription?.TransportProfileUri !=
-                            Profiles.HttpsBinaryTransport)
-                    {
-                        continue;
-                    }
-                }
-
-                // validate if the monitored item has the required role permissions to receive the event
-                ServiceResult validationResult = NodeManager.ValidateEventRolePermissions(
-                    monitoredItem,
-                    e);
-
-                if (ServiceResult.IsBad(validationResult))
-                {
-                    // skip event reporting for EventType without permissions
-                    continue;
-                }
-
-                lock (NodeManager.Lock)
-                {
-                    // enqueue event
-                    if (context is ISessionSystemContext session &&
-                        !session.SessionId.IsNull &&
-                        monitoredItem?.Session != null &&
-                        !monitoredItem.Session.Id.IsNull)
-                    {
-                        if (monitoredItem.Session.Id.Equals(session.SessionId))
+                        // check Server.Auditing flag and skip if false
+                        if (!m_server.Auditing)
                         {
-                            monitoredItem?.QueueEvent(e);
+                            continue;
                         }
-                        else
+                        // check if channel is not encrypted and skip if so
+                        if (monitoredItem?.Session?.EndpointDescription?.SecurityMode !=
+                                MessageSecurityMode.SignAndEncrypt &&
+                            monitoredItem?.Session?.EndpointDescription?.TransportProfileUri !=
+                                Profiles.HttpsBinaryTransport)
                         {
                             continue;
                         }
                     }
-                    else
+
+                    // validate if the monitored item has the required role permissions to receive the event
+                    ServiceResult validationResult = NodeManager.ValidateEventRolePermissions(
+                        monitoredItem,
+                        e);
+
+                    if (ServiceResult.IsBad(validationResult))
                     {
-                        monitoredItem?.QueueEvent(e);
+                        // skip event reporting for EventType without permissions
+                        continue;
                     }
+
+                    // enqueue event
+                    if (context is ISessionSystemContext session &&
+                        !session.SessionId.IsNull &&
+                        monitoredItem?.Session != null &&
+                        !monitoredItem.Session.Id.IsNull &&
+                        !monitoredItem.Session.Id.Equals(session.SessionId))
+                    {
+                        // skip if the event does not belong to the same session as the monitored item
+                        continue;
+                    }
+
+                    monitoredItem?.QueueEvent(e);
                 }
             }
         }
@@ -269,16 +225,17 @@ namespace Opc.Ua.Server
             NodeState node,
             NodeStateChangeMasks changes)
         {
-            lock (NodeManager.Lock)
+            //make sure to process data change notifications in the order they are received and avoid concurrent processing of value changes for the same node
+            lock (m_dataChangelock)
             {
                 if (DataChangeMonitoredItems == null)
                 {
                     return;
                 }
 
-                for (int ii = 0; ii < DataChangeMonitoredItems.Count; ii++)
+                foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in DataChangeMonitoredItems)
                 {
-                    IDataChangeMonitoredItem2 monitoredItem = DataChangeMonitoredItems[ii];
+                    IDataChangeMonitoredItem2 monitoredItem = kvp.Value;
 
                     if (monitoredItem.AttributeId == Attributes.Value &&
                         (changes & NodeStateChangeMasks.Value) != 0)
@@ -391,5 +348,9 @@ namespace Opc.Ua.Server
             new();
 
         private readonly int m_cacheLifetimeTicks = (int)TimeSpan.FromMinutes(5).TotalMilliseconds;
+
+        private readonly Lock m_dataChangelock = new();
+        private readonly Lock m_eventLock = new();
+        private readonly IServerInternal m_server;
     }
 }
