@@ -554,7 +554,7 @@ namespace Opc.Ua
                 ServerError = new ServiceResult(e);
             }
 
-            // close any listeners.
+            // close and dispose any listeners.
             List<ITransportListener> listeners = TransportListeners;
 
             if (listeners != null)
@@ -572,6 +572,8 @@ namespace Opc.Ua
                             "Unexpected error closing a listener {Name}.",
                             listeners[ii].GetType().FullName);
                     }
+
+                    Utils.SilentDispose(listeners[ii]);
                 }
 
                 listeners.Clear();
