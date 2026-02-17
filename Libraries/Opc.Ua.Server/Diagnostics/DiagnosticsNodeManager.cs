@@ -624,7 +624,7 @@ namespace Opc.Ua.Server
                     {
                         for (int ii = 0; ii < m_subscriptions.Count; ii++)
                         {
-                            nodesToDelete.Add(m_sessions[ii].Value.Variable);
+                            nodesToDelete.Add(m_subscriptions[ii].Value.Variable);
                         }
 
                         m_subscriptions.Clear();
