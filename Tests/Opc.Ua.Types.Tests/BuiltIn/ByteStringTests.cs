@@ -65,6 +65,16 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void NullCheckTest()
+        {
+            ByteString nullByteString = default;
+            Assert.That(nullByteString.IsNull, Is.True);
+            Assert.That(nullByteString.IsEmpty, Is.True);
+            Assert.That(ByteString.Empty.IsEmpty, Is.True);
+            Assert.That(ByteString.Empty.IsNull, Is.False);
+        }
+
+        [Test]
         public void CreateFromReadOnlySequnceTest()
         {
             // Arrange
@@ -351,35 +361,35 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void ImplicitConversionFromReadOnlySpanTest()
+        public void ExpicitConversionFromReadOnlySpanTest()
         {
             // Arrange
             // Act
-            ByteString byteString = new ReadOnlySpan<byte>([1, 2, 3]);
+            ByteString byteString = (ByteString)new ReadOnlySpan<byte>([1, 2, 3]);
 
             // Assert
             Assert.That(byteString.Span.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3 }));
         }
 
         [Test]
-        public void ImplicitConversionFromSpanTest()
+        public void ExplicitConversionFromSpanTest()
         {
             // Arrange
             // Act
-            ByteString byteString = new Span<byte>([1, 2, 3]);
+            ByteString byteString = (ByteString)new Span<byte>([1, 2, 3]);
 
             // Assert
             Assert.That(byteString.Span.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3 }));
         }
 
         [Test]
-        public void ImplicitConversionFromByteArrayTest()
+        public void ExplicitConversionFromByteArrayTest()
         {
             // Arrange
             byte[] array = [1, 2, 3];
 
             // Act
-            ByteString byteString = array;
+            ByteString byteString = (ByteString)array;
 
             // Assert
             Assert.That(byteString.Span.ToArray(), Is.EqualTo(array));
@@ -466,7 +476,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void CombineBytesTest()
+        public void FromBytesTest()
         {
             // Arrange
             const byte b1 = 1;
@@ -477,7 +487,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             const byte b6 = 6;
 
             // Act
-            var combinedByteString = ByteString.Combine(b1, b2, b3, b4, b5, b6);
+            var combinedByteString = ByteString.From(b1, b2, b3, b4, b5, b6);
 
             // Assert
             Assert.That(combinedByteString.Span.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3, 4, 5, 6 }));
@@ -491,7 +501,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             byte[] array2 = [4, 5, 6];
 
             // Act
-            var combinedByteString = ByteString.Combine([array1, array2]);
+            var combinedByteString = ByteString.Combine([array1.ToByteString(), array2.ToByteString()]);
 
             // Assert
             Assert.That(combinedByteString.Span.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3, 4, 5, 6 }));
@@ -505,7 +515,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             byte[] array2 = [4, 5, 6];
 
             // Act
-            var combinedByteString = ByteString.Combine(5, [array1, array2]);
+            var combinedByteString = ByteString.Combine(5, [array1.ToByteString(), array2.ToByteString()]);
 
             // Assert
             Assert.That(combinedByteString.Span.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3, 4, 5, 6, 0, 0, 0, 0 }));

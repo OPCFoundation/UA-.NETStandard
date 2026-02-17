@@ -919,7 +919,7 @@ namespace Opc.Ua.Gds.Client
             NodeId applicationId,
             NodeId certificateGroupId,
             out NodeId[] certificateTypeIds,
-            out byte[][] certificates)
+            out ByteString[] certificates)
         {
             (certificateTypeIds, certificates) = GetCertificatesAsync(applicationId, certificateGroupId)
                 .GetAwaiter().GetResult();
@@ -936,13 +936,13 @@ namespace Opc.Ua.Gds.Client
         /// The length of this list is the same as the length as certificates list.
         /// A list of DER encoded Certificates assigned to Application.
         /// This list only includes Certificates that are currently valid.</returns>
-        public async Task<(NodeId[] certificateTypeIds, byte[][] certificates)> GetCertificatesAsync(
+        public async Task<(NodeId[] certificateTypeIds, ByteString[] certificates)> GetCertificatesAsync(
             NodeId applicationId,
             NodeId certificateGroupId,
             CancellationToken ct = default)
         {
             NodeId[] certificateTypeIds = [];
-            byte[][] certificates = [];
+            ByteString[] certificates = [];
 
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
@@ -972,7 +972,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="validityTime">When the result expires and should be rechecked. DateTime.MinValue if this is unknown.</param>
         [Obsolete("Use CheckRevocationStatusAsync instead")]
         public void CheckRevocationStatus(
-            byte[] certificate,
+            ByteString certificate,
             out StatusCode certificateStatus,
             out DateTime validityTime)
         {
@@ -987,7 +987,7 @@ namespace Opc.Ua.Gds.Client
         /// <returns>The first error encountered when validating the Certificate.
         /// When the result expires and should be rechecked. DateTime.MinValue if this is unknown.</returns>
         public async Task<(StatusCode certificateStatus, DateTime validityTime)> CheckRevocationStatusAsync(
-            byte[] certificate,
+            ByteString certificate,
             CancellationToken ct = default)
         {
             StatusCode certificateStatus = StatusCodes.Good;
@@ -1074,7 +1074,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="applicationId">The application id.</param>
         /// <param name="certificate">The certificate to revoke</param>
         [Obsolete("Use RevokeCertificateAsync instead.")]
-        public void RevokeCertificate(NodeId applicationId, byte[] certificate)
+        public void RevokeCertificate(NodeId applicationId, ByteString certificate)
         {
             RevokeCertificateAsync(applicationId, certificate).GetAwaiter().GetResult();
         }
@@ -1085,7 +1085,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="applicationId">The application id.</param>
         /// <param name="certificate">The certificate to revoke</param>
         /// <param name="ct">The cancellationToken</param>
-        public async Task RevokeCertificateAsync(NodeId applicationId, byte[] certificate, CancellationToken ct = default)
+        public async Task RevokeCertificateAsync(NodeId applicationId, ByteString certificate, CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
@@ -1193,7 +1193,7 @@ namespace Opc.Ua.Gds.Client
             NodeId applicationId,
             NodeId certificateGroupId,
             NodeId certificateTypeId,
-            byte[] certificateRequest)
+            ByteString certificateRequest)
         {
             return StartSigningRequestAsync(
                 applicationId,
@@ -1215,7 +1215,7 @@ namespace Opc.Ua.Gds.Client
             NodeId applicationId,
             NodeId certificateGroupId,
             NodeId certificateTypeId,
-            byte[] certificateRequest,
+            ByteString certificateRequest,
             CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
@@ -1248,13 +1248,13 @@ namespace Opc.Ua.Gds.Client
         /// <param name="issuerCertificates">The issuer certificates.</param>
         /// <returns>The public key.</returns>
         [Obsolete("Use FinishRequestAsync instead.")]
-        public byte[] FinishRequest(
+        public ByteString FinishRequest(
             NodeId applicationId,
             NodeId requestId,
-            out byte[] privateKey,
-            out byte[][] issuerCertificates)
+            out ByteString privateKey,
+            out ByteString[] issuerCertificates)
         {
-            (byte[] publicKey, byte[] privateKeyResult, byte[][] issuerCertificatesResult) =
+            (ByteString publicKey, ByteString privateKeyResult, ByteString[] issuerCertificatesResult) =
                 FinishRequestAsync(applicationId, requestId).GetAwaiter().GetResult();
             privateKey = privateKeyResult;
             issuerCertificates = issuerCertificatesResult;
@@ -1268,13 +1268,13 @@ namespace Opc.Ua.Gds.Client
         /// <param name="requestId">The request id.</param>
         /// <param name="ct">The cancellationToken</param>
         /// <returns>The public key.The private key.The issuer certificates.</returns>
-        public async Task<(byte[] publicKey, byte[] privateKey, byte[][] issuerCertificates)> FinishRequestAsync(
+        public async Task<(ByteString publicKey, ByteString privateKey, ByteString[] issuerCertificates)> FinishRequestAsync(
             NodeId applicationId,
             NodeId requestId,
             CancellationToken ct = default)
         {
-            byte[] privateKey = null;
-            byte[][] issuerCertificates = null;
+            ByteString privateKey = default;
+            ByteString[] issuerCertificates = null;
 
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
 
@@ -1285,7 +1285,7 @@ namespace Opc.Ua.Gds.Client
                 applicationId,
                 requestId).ConfigureAwait(false);
 
-            byte[] certificate = null;
+            ByteString certificate = default;
 
             if (outputArguments.Count >= 1)
             {
@@ -1485,7 +1485,7 @@ namespace Opc.Ua.Gds.Client
                         fileHandle,
                         length).ConfigureAwait(false);
 
-                    byte[] bytes = (byte[])outputArguments[0];
+                    ByteString bytes = (ByteString)outputArguments[0];
 
                     // Validate total size before writing
                     totalBytesRead += bytes.Length;
@@ -1497,7 +1497,7 @@ namespace Opc.Ua.Gds.Client
                             maxTrustListSize);
                     }
 
-                    ostrm.Write(bytes, 0, bytes.Length);
+                    ostrm.Write(bytes.ToArray(), 0, bytes.Length);
 
                     if (length != bytes.Length)
                     {

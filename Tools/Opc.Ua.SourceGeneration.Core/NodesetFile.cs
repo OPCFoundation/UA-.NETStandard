@@ -141,6 +141,7 @@ namespace Opc.Ua.SourceGeneration
                         ServerUris = new StringTable()
                     };
                     var nodeset = UANodeSet.Read(istrm);
+#if !SKIP_NODE_STATE_LOADING
                     var collection = new NodeStateCollection();
                     try
                     {
@@ -151,7 +152,7 @@ namespace Opc.Ua.SourceGeneration
                         m_logger.LogError(e, "NodeSet could not be loaded ({File})", file);
                         return;
                     }
-
+#endif
                     if (nodeset.Models == null ||
                         nodeset.Models.Length == 0 ||
                         string.IsNullOrEmpty(nodeset.Models[0].ModelUri))

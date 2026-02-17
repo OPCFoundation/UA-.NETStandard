@@ -814,7 +814,7 @@ namespace Opc.Ua.PubSub.Encoding
                         case BuiltInType.XmlElement:
                             binaryEncoder.WriteXmlElement(
                                 "XmlElement",
-                                valueToEncode as XmlElement);
+                                valueToEncode is XmlElement x ? x : default);
                             break;
                         case BuiltInType.Enumeration:
                             binaryEncoder.WriteInt32(

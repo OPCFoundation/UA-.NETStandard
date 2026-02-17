@@ -105,8 +105,8 @@ namespace Opc.Ua.Server.Tests
                 null,
                 null,
                 sessionName,
-                null,
-                null,
+                default,
+                default,
                 sessionTimeout,
                 maxResponseMessageSize,
                 CancellationToken.None).ConfigureAwait(false);
@@ -278,7 +278,7 @@ namespace Opc.Ua.Server.Tests
             var continuationPoints = new ByteStringCollection();
             foreach (BrowseResult browseResult in browseResultCollection)
             {
-                if (browseResult.ContinuationPoint != null)
+                if (!browseResult.ContinuationPoint.IsEmpty)
                 {
                     continuationPoints.Add(browseResult.ContinuationPoint);
                 }

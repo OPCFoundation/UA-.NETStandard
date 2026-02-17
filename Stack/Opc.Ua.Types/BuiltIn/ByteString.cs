@@ -32,10 +32,10 @@
 using System;
 using System.Buffers;
 using System.Buffers.Text;
+using System.Linq;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
-using System.Runtime.Serialization;
+using System.Text.Json.Serialization;
 
 namespace Opc.Ua
 {
@@ -49,6 +49,7 @@ namespace Opc.Ua
         IEquatable<ByteString>, IComparable<ByteString>,
         IEquatable<ReadOnlyMemory<byte>>, IComparable<ReadOnlyMemory<byte>>,
         IEquatable<byte[]>, IComparable<byte[]>,
+        IEquatable<ArrayOf<byte>>, IComparable<ArrayOf<byte>>,
         IEquatable<ReadOnlySequence<byte>>
     {
         /// <summary>
@@ -62,23 +63,33 @@ namespace Opc.Ua
         /// <summary>
         /// Same as a readonly span
         /// </summary>
+        [JsonIgnore]
         public ReadOnlySpan<byte> Span => m_memory.Span;
 
         /// <summary>
         /// Returns the length of this ByteString in bytes.
         /// </summary>
+        [JsonIgnore]
         public int Length => m_memory.Length;
 
         /// <summary>
         /// Returns <c>true</c> if this byte string is
         /// empty, <c>false</c> otherwise.
         /// </summary>
+        [JsonIgnore]
         public bool IsEmpty => m_memory.IsEmpty;
+
+        /// <summary>
+        /// Is null
+        /// </summary>
+        [JsonIgnore]
+        public bool IsNull => ReadOnlyMemoryHelper.IsNull(in m_memory);
 
         /// <summary>
         /// Intern the memory into this byte string (no copy)
         /// </summary>
-        internal ByteString(ReadOnlyMemory<byte> bytes)
+        [JsonConstructor]
+        public ByteString(ReadOnlyMemory<byte> bytes)
         {
             m_memory = bytes;
         }
@@ -129,6 +140,18 @@ namespace Opc.Ua
             return other == null || other.Length == 0 ?
                 IsEmpty ? 0 : -1 :
                 CompareTo(other.AsSpan());
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(ArrayOf<byte> other)
+        {
+            return Equals(other.Span);
+        }
+
+        /// <inheritdoc/>
+        public int CompareTo(ArrayOf<byte> other)
+        {
+            return CompareTo(other.Span);
         }
 
         /// <inheritdoc/>
@@ -370,6 +393,42 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public static bool operator ==(ByteString left, ArrayOf<byte> right)
+        {
+            return left.Equals(right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator !=(ByteString left, ArrayOf<byte> right)
+        {
+            return !(left == right);
+        }
+
+        /// <inheritdoc/>
+        public static bool operator <(ByteString left, ArrayOf<byte> right)
+        {
+            return left.CompareTo(right) < 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator <=(ByteString left, ArrayOf<byte> right)
+        {
+            return left.CompareTo(right) <= 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator >(ByteString left, ArrayOf<byte> right)
+        {
+            return left.CompareTo(right) > 0;
+        }
+
+        /// <inheritdoc/>
+        public static bool operator >=(ByteString left, ArrayOf<byte> right)
+        {
+            return left.CompareTo(right) >= 0;
+        }
+
+        /// <inheritdoc/>
         public static bool operator ==(ByteString left, ReadOnlySequence<byte> right)
         {
             return left.Equals(right);
@@ -393,15 +452,15 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ByteString(in ReadOnlySpan<byte> bytes)
+        public static explicit operator ByteString(in ReadOnlySpan<byte> bytes)
         {
-            return From(bytes.ToArray());
+            return From(in bytes);
         }
 
         /// <inheritdoc/>
-        public static implicit operator ByteString(in Span<byte> bytes)
+        public static explicit operator ByteString(in Span<byte> bytes)
         {
-            return From(bytes.ToArray());
+            return From(in bytes);
         }
 
         /// <inheritdoc/>
@@ -415,13 +474,29 @@ namespace Opc.Ua
         /// </summary>
         public static ByteString From(in ReadOnlyMemory<byte> bytes)
         {
-            return From(bytes.ToArray());
+            return From(bytes.Span);
         }
 
         /// <summary>
         /// Copy memory into this byte string
         /// </summary>
         public static ByteString From(in Memory<byte> bytes)
+        {
+            return From(bytes.Span);
+        }
+
+        /// <summary>
+        /// Copy memory into this byte string
+        /// </summary>
+        public static ByteString From(in ReadOnlySpan<byte> bytes)
+        {
+            return From(bytes.ToArray());
+        }
+
+        /// <summary>
+        /// Copy memory into this byte string
+        /// </summary>
+        public static ByteString From(in Span<byte> bytes)
         {
             return new(bytes.ToArray());
         }
@@ -437,9 +512,9 @@ namespace Opc.Ua
         /// <summary>
         /// Copy memory into this byte string
         /// </summary>
-        public static ByteString From(byte[] bytes)
+        public static ByteString From(params byte[]? bytes)
         {
-            return new(bytes);
+            return new(bytes ?? []);
         }
 
         /// <summary>
@@ -468,19 +543,18 @@ namespace Opc.Ua
 
         /// <summary>
         /// Constructs a <see cref="ByteString" /> from the given
-        /// array. The contents are copied.
-        /// </summary>
-        public static ByteString Combine(params byte[] bytes)
-        {
-            return new((byte[])bytes.Clone());
-        }
-
-        /// <summary>
-        /// Constructs a <see cref="ByteString" /> from the given
         /// bytes strings. The contents are copied.
         /// </summary>
         public static ByteString Combine(params ByteString[] bytes)
         {
+            if (bytes.Length == 0)
+            {
+                return Empty;
+            }
+            if (bytes.Length == 1)
+            {
+                return bytes[0];
+            }
             return Combine(1, bytes);
         }
 
@@ -488,9 +562,14 @@ namespace Opc.Ua
         /// Constructs a <see cref="ByteString" /> from the given
         /// bytes strings. The contents are copied.
         /// </summary>
-        public static ByteString Combine(int padToMultipleOf,
+        public static ByteString Combine(
+            int padToMultipleOf,
             params ByteString[] bytes)
         {
+            if (bytes.Length == 0)
+            {
+                return Empty;
+            }
             int length = 0;
             foreach (ByteString item in bytes)
             {
@@ -621,7 +700,7 @@ namespace Opc.Ua
             bool success;
             if (Convert.TryFromBase64String(strUnescaped, byteSpan, out int bytesWritten))
             {
-                bytes = byteSpan[..bytesWritten];
+                bytes = From(byteSpan[..bytesWritten]);
                 success = true;
             }
             else
@@ -638,7 +717,7 @@ namespace Opc.Ua
 #else
             try
             {
-                bytes = Convert.FromBase64String(strUnescaped!);
+                bytes = From(Convert.FromBase64String(strUnescaped!));
                 return true;
             }
             catch (FormatException)
@@ -666,14 +745,14 @@ namespace Opc.Ua
                 Span<byte> byteSpan = stackalloc byte[utf8Unescaped.Length];
                 status = Base64.DecodeFromUtf8(utf8Unescaped, byteSpan,
                     out int bytesConsumed, out int bytesWritten);
-                bytes = byteSpan[..bytesWritten];
+                bytes = From(byteSpan[..bytesWritten]);
             }
             else
             {
                 byte[] pooledArray = ArrayPool<byte>.Shared.Rent(utf8Unescaped.Length);
                 status = Base64.DecodeFromUtf8(utf8Unescaped, pooledArray.AsSpan(),
                     out int bytesConsumed, out int bytesWritten);
-                bytes = pooledArray.AsSpan()[..bytesWritten];
+                bytes = From(pooledArray.AsSpan()[..bytesWritten]);
                 ArrayPool<byte>.Shared.Return(pooledArray);
             }
             return status == OperationStatus.Done;
@@ -706,7 +785,7 @@ namespace Opc.Ua
                 Span<byte> inplace = stackalloc byte[len];
                 utf8Unescaped.CopyTo(inplace);
                 status = Base64.DecodeFromUtf8InPlace(inplace, out int bytesWritten);
-                bytes = inplace[..bytesWritten];
+                bytes = From(inplace[..bytesWritten]);
             }
             else
             {
@@ -714,7 +793,7 @@ namespace Opc.Ua
                 utf8Unescaped.CopyTo(pooledArray.AsSpan());
                 status = Base64.DecodeFromUtf8InPlace(pooledArray.AsSpan()[..len],
                     out int bytesWritten);
-                bytes = pooledArray.AsSpan()[..bytesWritten];
+                bytes = From(pooledArray.AsSpan()[..bytesWritten]);
                 ArrayPool<byte>.Shared.Return(pooledArray);
             }
             return status == OperationStatus.Done;
@@ -746,81 +825,64 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// A collection of ByteString values.
+    /// Extensions for ByteString type
     /// </summary>
-    [CollectionDataContract(
-        Name = "ListOfByteString",
-        Namespace = Namespaces.OpcUaXsd,
-        ItemName = "ByteString")]
-    public class ByteStringCollection : List<ByteString>, ICloneable
+    public static class ByteStringExtensions
     {
         /// <summary>
-        /// Initializes an empty collection.
+        /// Convert to byte string
         /// </summary>
-        public ByteStringCollection()
+        public static ByteString ToByteString(this byte[]? bytes)
         {
+            return ByteString.From(bytes);
         }
 
         /// <summary>
-        /// Initializes the collection with the specified capacity.
+        /// Convert to byte string
         /// </summary>
-        /// <param name="capacity">Max size of collection</param>
-        public ByteStringCollection(int capacity)
-            : base(capacity)
+        public static ByteString ToByteString(this Memory<byte> bytes)
         {
+            return ByteString.From(bytes);
         }
 
         /// <summary>
-        /// Initializes the collection from another collection.
+        /// Convert to byte string
         /// </summary>
-        /// <param name="collection">A collection of byte to add to this collection</param>
-        public ByteStringCollection(IEnumerable<ByteString> collection)
-            : base(collection)
+        public static ByteString ToByteString(this ReadOnlyMemory<byte> bytes)
         {
+            return ByteString.From(bytes);
         }
 
         /// <summary>
-        /// Converts an array to a collection.
+        /// Convert to byte string
         /// </summary>
-        /// <param name="values">Array of bytes to return as a collection</param>
-        public static ByteStringCollection ToByteStringCollection(ByteString[] values)
+        public static ByteString ToByteString(this ReadOnlySpan<byte> bytes)
         {
-            if (values != null)
-            {
-                return [.. values];
-            }
-
-            return [];
+            return ByteString.From(bytes);
         }
 
         /// <summary>
-        /// Converts an array to a collection.
+        /// Convert to byte string
         /// </summary>
-        /// <param name="values">Array of bytes to return as a collection</param>
-        public static implicit operator ByteStringCollection(ByteString[] values)
+        public static ByteString ToByteString(this Span<byte> bytes)
         {
-            return ToByteStringCollection(values);
-        }
-
-        /// <inheritdoc/>
-        public virtual object Clone()
-        {
-            return MemberwiseClone();
+            return ByteString.From(bytes);
         }
 
         /// <summary>
-        /// Creates a deep copy of the collection.
+        /// Convert to byte string
         /// </summary>
-        public new object MemberwiseClone()
+        public static ByteString ToByteString(this ArrayOf<byte> bytes)
         {
-            var clone = new ByteStringCollection(Count);
+            return ByteString.From(bytes.Memory);
+        }
 
-            foreach (ByteString element in this)
-            {
-                clone.Add(CoreUtils.Clone(element));
-            }
-
-            return clone;
+        /// <summary>
+        /// Convert to byte string
+        /// </summary>
+        public static ByteString ToByteString(this IEnumerable<byte>? bytes)
+        {
+            return bytes == null ? default : ByteString.From(bytes.ToArray());
         }
     }
 }

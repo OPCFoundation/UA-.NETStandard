@@ -1661,69 +1661,6 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// A collection of NodeIds.
-    /// </summary>
-    /// <remarks>
-    /// Provides a strongly-typed collection of <see cref="NodeId"/>.
-    /// </remarks>
-    [CollectionDataContract(
-        Name = "ListOfNodeId",
-        Namespace = Namespaces.OpcUaXsd,
-        ItemName = "NodeId")]
-    public class NodeIdCollection : List<NodeId>, ICloneable
-    {
-        /// <inheritdoc/>
-        public NodeIdCollection()
-        {
-        }
-
-        /// <inheritdoc/>
-        public NodeIdCollection(IEnumerable<NodeId> collection)
-            : base(collection)
-        {
-        }
-
-        /// <inheritdoc/>
-        public NodeIdCollection(int capacity)
-            : base(capacity)
-        {
-        }
-
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
-        public static NodeIdCollection ToNodeIdCollection(NodeId[] values)
-        {
-            return values != null ? [.. values] : [];
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator NodeIdCollection(NodeId[] values)
-        {
-            return ToNodeIdCollection(values);
-        }
-
-        /// <inheritdoc/>
-        public virtual object Clone()
-        {
-            return MemberwiseClone();
-        }
-
-        /// <inheritdoc/>
-        public new object MemberwiseClone()
-        {
-            var clone = new NodeIdCollection(Count);
-
-            foreach (NodeId element in this)
-            {
-                clone.Add(element);
-            }
-
-            return clone;
-        }
-    }
-
-    /// <summary>
     /// Options that affect how a NodeId string is parsed.
     /// </summary>
     public class NodeIdParsingOptions

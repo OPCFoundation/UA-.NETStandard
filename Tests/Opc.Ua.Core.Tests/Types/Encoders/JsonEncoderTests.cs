@@ -80,8 +80,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         private const ulong kUInt64Value = 123456789123456;
 
         private static readonly Guid s_nodeIdGuid = new("AABA0CFA-674F-40C7-B7FA-339D8EECB61D");
-        private static readonly byte[] s_byteString = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-        private static readonly string s_byteString64 = Convert.ToBase64String(s_byteString);
+        private static readonly ByteString s_byteString = ByteString.From([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        private static readonly string s_byteString64 = s_byteString.ToBase64();
 
         /// <summary>
         /// An array of spec compliant Json encoding test data sets which
@@ -1501,7 +1501,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     new XmlReaderSettings { DtdProcessing = DtdProcessing.Ignore });
                 xmlDoc.Load(r);
 
-                using var decoder = new XmlDecoder(xmlDoc.FirstChild as XmlElement, dynamicContext);
+                using var decoder = new XmlDecoder(xmlDoc.FirstChild as System.Xml.XmlElement, dynamicContext);
                 decoder.PushNamespace(Namespaces.OpcUaXsd);
                 extensionObjectFromXml = decoder.ReadExtensionObject("ExtensionObject");
                 decoder.PopNamespace();

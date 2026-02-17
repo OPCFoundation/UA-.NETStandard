@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -70,7 +71,7 @@ namespace Opc.Ua
             RequestHeader? requestHeader,
             ViewDescription? view,
             uint requestedMaxReferencesPerNode,
-            BrowseDescriptionCollection nodesToBrowse,
+            ArrayOf<BrowseDescription?> nodesToBrowse,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxNodesPerBrowse;
@@ -95,7 +96,7 @@ namespace Opc.Ua
                 RequestHeader? requestHeader,
                 ViewDescription? view,
                 uint requestedMaxReferencesPerNode,
-                BrowseDescriptionCollection nodesToBrowse,
+                ArrayOf<BrowseDescription?> nodesToBrowse,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -108,8 +109,7 @@ namespace Opc.Ua
                     out StringCollection? stringTable,
                     nodesToBrowse.Count,
                     operationLimit);
-                foreach (BrowseDescriptionCollection nodesToBrowseBatch in nodesToBrowse
-                    .Batch<BrowseDescription, BrowseDescriptionCollection>(operationLimit))
+                foreach (ArrayOf<BrowseDescription?> nodesToBrowseBatch in nodesToBrowse.Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
                     response = await base.BrowseAsync(
@@ -119,8 +119,8 @@ namespace Opc.Ua
                         nodesToBrowseBatch,
                         ct).ConfigureAwait(false);
 
-                    BrowseResultCollection batchResults = response.Results;
-                    DiagnosticInfoCollection batchDiagnosticInfos = response.DiagnosticInfos;
+                    var batchResults = response.Results;
+                    var batchDiagnosticInfos = response.DiagnosticInfos;
 
                     ValidateResponse(batchResults, nodesToBrowseBatch);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, nodesToBrowseBatch);
@@ -146,7 +146,7 @@ namespace Opc.Ua
         public override ValueTask<BrowseNextResponse> BrowseNextAsync(
             RequestHeader? requestHeader,
             bool releaseContinuationPoints,
-            ByteStringCollection continuationPoints,
+            ArrayOf<ByteString> continuationPoints,
             CancellationToken ct)
         {
             ushort operationLimit = ServerCapabilities.MaxBrowseContinuationPoints;
@@ -169,7 +169,7 @@ namespace Opc.Ua
             async ValueTask<BrowseNextResponse> BrowseNextBatchedAsync(
                 RequestHeader? requestHeader,
                 bool releaseContinuationPoints,
-                ByteStringCollection continuationPoints,
+                ArrayOf<ByteString> continuationPoints,
                 ushort operationLimit,
                 CancellationToken ct)
             {
@@ -182,8 +182,7 @@ namespace Opc.Ua
                     out StringCollection? stringTable,
                     continuationPoints.Count,
                     operationLimit);
-                foreach (ByteStringCollection continuationPointsBatch in continuationPoints
-                    .Batch<byte[], ByteStringCollection>(operationLimit))
+                foreach (ByteStringCollection continuationPointsBatch in continuationPoints.Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
                     response = await base.BrowseNextAsync(
@@ -192,8 +191,8 @@ namespace Opc.Ua
                         continuationPointsBatch,
                         ct).ConfigureAwait(false);
 
-                    BrowseResultCollection batchResults = response.Results;
-                    DiagnosticInfoCollection batchDiagnosticInfos = response.DiagnosticInfos;
+                    var batchResults = response.Results;
+                    var batchDiagnosticInfos = response.DiagnosticInfos;
 
                     ValidateResponse(batchResults, continuationPointsBatch);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, continuationPointsBatch);
@@ -218,7 +217,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override ValueTask<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
             RequestHeader? requestHeader,
-            BrowsePathCollection browsePaths,
+            ArrayOf<BrowsePath?> browsePaths,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds;
@@ -233,7 +232,7 @@ namespace Opc.Ua
 
             async ValueTask<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsBatchedAsync(
                 RequestHeader? requestHeader,
-                BrowsePathCollection browsePaths,
+                ArrayOf<BrowsePath?> browsePaths,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -246,8 +245,7 @@ namespace Opc.Ua
                     out StringCollection? stringTable,
                     browsePaths.Count,
                     operationLimit);
-                foreach (BrowsePathCollection batchBrowsePaths in browsePaths
-                    .Batch<BrowsePath, BrowsePathCollection>(operationLimit))
+                foreach (ArrayOf<BrowsePath?> batchBrowsePaths in browsePaths.Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
                     response = await base.TranslateBrowsePathsToNodeIdsAsync(
@@ -255,8 +253,8 @@ namespace Opc.Ua
                         batchBrowsePaths,
                         ct).ConfigureAwait(false);
 
-                    BrowsePathResultCollection batchResults = response.Results;
-                    DiagnosticInfoCollection batchDiagnosticInfos = response.DiagnosticInfos;
+                    var batchResults = response.Results;
+                    var batchDiagnosticInfos = response.DiagnosticInfos;
                     ValidateResponse(batchResults, batchBrowsePaths);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, batchBrowsePaths);
 
@@ -280,7 +278,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override ValueTask<RegisterNodesResponse> RegisterNodesAsync(
             RequestHeader? requestHeader,
-            NodeIdCollection nodesToRegister,
+            ArrayOf<NodeId> nodesToRegister,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxNodesPerRegisterNodes;
@@ -295,7 +293,7 @@ namespace Opc.Ua
 
             async ValueTask<RegisterNodesResponse> RegisterNodesBatchedAsync(
                 RequestHeader? requestHeader,
-                NodeIdCollection nodesToRegister,
+                ArrayOf<NodeId> nodesToRegister,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -303,8 +301,7 @@ namespace Opc.Ua
                 requestHeader ??= new RequestHeader();
                 RegisterNodesResponse? response = null;
                 var registeredNodeIds = new NodeIdCollection();
-                foreach (NodeIdCollection batchNodesToRegister in nodesToRegister
-                    .Batch<NodeId, NodeIdCollection>(operationLimit))
+                foreach (ArrayOf<NodeId> batchNodesToRegister in nodesToRegister.Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
                     response = await base.RegisterNodesAsync(
@@ -312,7 +309,7 @@ namespace Opc.Ua
                         batchNodesToRegister,
                         ct).ConfigureAwait(false);
 
-                    NodeIdCollection batchRegisteredNodeIds = response.RegisteredNodeIds;
+                    var batchRegisteredNodeIds = response.RegisteredNodeIds;
                     ValidateResponse(batchRegisteredNodeIds, batchNodesToRegister);
                     registeredNodeIds.AddRange(batchRegisteredNodeIds);
                 }
@@ -326,7 +323,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override ValueTask<UnregisterNodesResponse> UnregisterNodesAsync(
             RequestHeader? requestHeader,
-            NodeIdCollection nodesToUnregister,
+            ArrayOf<NodeId> nodesToUnregister,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxNodesPerRegisterNodes;
@@ -341,15 +338,15 @@ namespace Opc.Ua
 
             async ValueTask<UnregisterNodesResponse> UnregisterNodesBatchedAsync(
                 RequestHeader? requestHeader,
-                NodeIdCollection nodesToUnregister,
+                ArrayOf<NodeId> nodesToUnregister,
                 uint operationLimit,
                 CancellationToken ct)
             {
                 using Activity? activity = m_telemetry.StartActivity();
                 requestHeader ??= new RequestHeader();
                 UnregisterNodesResponse? response = null;
-                foreach (NodeIdCollection batchNodesToUnregister in nodesToUnregister
-                    .Batch<NodeId, NodeIdCollection>(operationLimit))
+                foreach (ArrayOf<NodeId> batchNodesToUnregister in nodesToUnregister
+                    .Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
                     response = await base.UnregisterNodesAsync(
@@ -367,7 +364,7 @@ namespace Opc.Ua
             RequestHeader? requestHeader,
             double maxAge,
             TimestampsToReturn timestampsToReturn,
-            ReadValueIdCollection nodesToRead,
+            ArrayOf<ReadValueId?> nodesToRead,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxNodesPerRead;
@@ -392,7 +389,7 @@ namespace Opc.Ua
                 RequestHeader? requestHeader,
                 double maxAge,
                 TimestampsToReturn timestampsToReturn,
-                ReadValueIdCollection nodesToRead,
+                ArrayOf<ReadValueId?> nodesToRead,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -405,8 +402,8 @@ namespace Opc.Ua
                     out StringCollection? stringTable,
                     nodesToRead.Count,
                     operationLimit);
-                foreach (ReadValueIdCollection batchAttributesToRead in nodesToRead
-                    .Batch<ReadValueId, ReadValueIdCollection>(operationLimit))
+                foreach (ArrayOf<ReadValueId?> batchAttributesToRead in nodesToRead
+                    .Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
                     response = await base.ReadAsync(
@@ -416,8 +413,8 @@ namespace Opc.Ua
                         batchAttributesToRead,
                         ct).ConfigureAwait(false);
 
-                    DataValueCollection batchResults = response.Results;
-                    DiagnosticInfoCollection batchDiagnosticInfos = response.DiagnosticInfos;
+                    var batchResults = response.Results;
+                    var batchDiagnosticInfos = response.DiagnosticInfos;
 
                     ValidateResponse(batchResults, batchAttributesToRead);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, batchAttributesToRead);
@@ -445,7 +442,7 @@ namespace Opc.Ua
             ExtensionObject historyReadDetails,
             TimestampsToReturn timestampsToReturn,
             bool releaseContinuationPoints,
-            HistoryReadValueIdCollection nodesToRead,
+            ArrayOf<HistoryReadValueId?> nodesToRead,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxNodesPerHistoryReadData;
@@ -479,7 +476,7 @@ namespace Opc.Ua
                 ExtensionObject historyReadDetails,
                 TimestampsToReturn timestampsToReturn,
                 bool releaseContinuationPoints,
-                HistoryReadValueIdCollection nodesToRead,
+                ArrayOf<HistoryReadValueId?> nodesToRead,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -492,8 +489,8 @@ namespace Opc.Ua
                     out StringCollection? stringTable,
                     nodesToRead.Count,
                     operationLimit);
-                foreach (HistoryReadValueIdCollection batchNodesToRead in nodesToRead
-                    .Batch<HistoryReadValueId, HistoryReadValueIdCollection>(operationLimit))
+                foreach (ArrayOf<HistoryReadValueId?> batchNodesToRead in nodesToRead
+                    .Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
                     response = await base.HistoryReadAsync(
@@ -504,8 +501,8 @@ namespace Opc.Ua
                         batchNodesToRead,
                         ct).ConfigureAwait(false);
 
-                    HistoryReadResultCollection batchResults = response.Results;
-                    DiagnosticInfoCollection batchDiagnosticInfos = response.DiagnosticInfos;
+                    var batchResults = response.Results;
+                    var batchDiagnosticInfos = response.DiagnosticInfos;
 
                     ValidateResponse(batchResults, batchNodesToRead);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToRead);
@@ -530,7 +527,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override ValueTask<WriteResponse> WriteAsync(
             RequestHeader? requestHeader,
-            WriteValueCollection nodesToWrite,
+            ArrayOf<WriteValue?> nodesToWrite,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxNodesPerWrite;
@@ -545,7 +542,7 @@ namespace Opc.Ua
 
             async ValueTask<WriteResponse> WriteBatchedAsync(
                 RequestHeader? requestHeader,
-                WriteValueCollection nodesToWrite,
+                ArrayOf<WriteValue?> nodesToWrite,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -558,8 +555,8 @@ namespace Opc.Ua
                     out StringCollection? stringTable,
                     nodesToWrite.Count,
                     operationLimit);
-                foreach (WriteValueCollection batchNodesToWrite in nodesToWrite
-                    .Batch<WriteValue, WriteValueCollection>(operationLimit))
+                foreach (ArrayOf<WriteValue?> batchNodesToWrite in nodesToWrite
+                    .Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
                     response = await base.WriteAsync(
@@ -567,8 +564,8 @@ namespace Opc.Ua
                         batchNodesToWrite,
                         ct).ConfigureAwait(false);
 
-                    StatusCodeCollection batchResults = response.Results;
-                    DiagnosticInfoCollection batchDiagnosticInfos = response.DiagnosticInfos;
+                    var batchResults = response.Results;
+                    var batchDiagnosticInfos = response.DiagnosticInfos;
 
                     ValidateResponse(batchResults, batchNodesToWrite);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToWrite);
@@ -593,13 +590,13 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override ValueTask<HistoryUpdateResponse> HistoryUpdateAsync(
             RequestHeader? requestHeader,
-            ExtensionObjectCollection historyUpdateDetails,
+            ArrayOf<ExtensionObject> historyUpdateDetails,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxNodesPerHistoryUpdateData;
             if (historyUpdateDetails.Count > 0 &&
-                (historyUpdateDetails[0].TypeId == DataTypeIds.UpdateEventDetails ||
-                    historyUpdateDetails[0].Body is UpdateEventDetails))
+                (historyUpdateDetails.Span[0].TypeId == DataTypeIds.UpdateEventDetails ||
+                    historyUpdateDetails.Span[0].Body is UpdateEventDetails))
             {
                 operationLimit = OperationLimits.MaxNodesPerHistoryUpdateEvents;
             }
@@ -614,7 +611,7 @@ namespace Opc.Ua
 
             async ValueTask<HistoryUpdateResponse> HistoryUpdateBatchedAsync(
                 RequestHeader? requestHeader,
-                ExtensionObjectCollection historyUpdateDetails,
+                ArrayOf<ExtensionObject> historyUpdateDetails,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -627,8 +624,8 @@ namespace Opc.Ua
                     out StringCollection? stringTable,
                     historyUpdateDetails.Count,
                     operationLimit);
-                foreach (ExtensionObjectCollection batchHistoryUpdateDetails in historyUpdateDetails
-                    .Batch<ExtensionObject, ExtensionObjectCollection>(operationLimit))
+                foreach (ArrayOf<ExtensionObject> batchHistoryUpdateDetails in historyUpdateDetails
+                    .Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
                     response = await base.HistoryUpdateAsync(
@@ -636,8 +633,8 @@ namespace Opc.Ua
                         batchHistoryUpdateDetails,
                         ct).ConfigureAwait(false);
 
-                    HistoryUpdateResultCollection batchResults = response.Results;
-                    DiagnosticInfoCollection batchDiagnosticInfos = response.DiagnosticInfos;
+                    var batchResults = response.Results;
+                    var batchDiagnosticInfos = response.DiagnosticInfos;
 
                     ValidateResponse(batchResults, batchHistoryUpdateDetails);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, batchHistoryUpdateDetails);
@@ -662,7 +659,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override ValueTask<CallResponse> CallAsync(
             RequestHeader? requestHeader,
-            CallMethodRequestCollection methodsToCall,
+            ArrayOf<CallMethodRequest?> methodsToCall,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxNodesPerMethodCall;
@@ -677,7 +674,7 @@ namespace Opc.Ua
 
             async ValueTask<CallResponse> CallBatchedAsync(
                 RequestHeader? requestHeader,
-                CallMethodRequestCollection methodsToCall,
+                ArrayOf<CallMethodRequest?> methodsToCall,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -690,8 +687,8 @@ namespace Opc.Ua
                     out StringCollection? stringTable,
                     methodsToCall.Count,
                     operationLimit);
-                foreach (CallMethodRequestCollection batchMethodsToCall in methodsToCall
-                    .Batch<CallMethodRequest, CallMethodRequestCollection>(operationLimit))
+                foreach (ArrayOf<CallMethodRequest?> batchMethodsToCall in methodsToCall
+                    .Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
                     response = await base.CallAsync(
@@ -699,8 +696,8 @@ namespace Opc.Ua
                         batchMethodsToCall,
                         ct).ConfigureAwait(false);
 
-                    CallMethodResultCollection batchResults = response.Results;
-                    DiagnosticInfoCollection batchDiagnosticInfos = response.DiagnosticInfos;
+                    var batchResults = response.Results;
+                    var batchDiagnosticInfos = response.DiagnosticInfos;
 
                     ValidateResponse(batchResults, batchMethodsToCall);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, batchMethodsToCall);
@@ -727,7 +724,7 @@ namespace Opc.Ua
             RequestHeader? requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
-            MonitoredItemCreateRequestCollection itemsToCreate,
+            ArrayOf<MonitoredItemCreateRequest?> itemsToCreate,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
@@ -753,7 +750,7 @@ namespace Opc.Ua
                 RequestHeader? requestHeader,
                 uint subscriptionId,
                 TimestampsToReturn timestampsToReturn,
-                MonitoredItemCreateRequestCollection itemsToCreate,
+                ArrayOf<MonitoredItemCreateRequest?> itemsToCreate,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -766,8 +763,8 @@ namespace Opc.Ua
                     out StringCollection? stringTable,
                     itemsToCreate.Count,
                     operationLimit);
-                foreach (MonitoredItemCreateRequestCollection batchItemsToCreate in itemsToCreate
-                    .Batch<MonitoredItemCreateRequest, MonitoredItemCreateRequestCollection>(operationLimit))
+                foreach (ArrayOf<MonitoredItemCreateRequest?> batchItemsToCreate in itemsToCreate
+                    .Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
                     response = await base.CreateMonitoredItemsAsync(
@@ -777,8 +774,8 @@ namespace Opc.Ua
                         batchItemsToCreate,
                         ct).ConfigureAwait(false);
 
-                    MonitoredItemCreateResultCollection batchResults = response.Results;
-                    DiagnosticInfoCollection batchDiagnosticInfos = response.DiagnosticInfos;
+                    var batchResults = response.Results;
+                    var batchDiagnosticInfos = response.DiagnosticInfos;
                     ValidateResponse(batchResults, batchItemsToCreate);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, batchItemsToCreate);
 
@@ -804,7 +801,7 @@ namespace Opc.Ua
             RequestHeader? requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
-            MonitoredItemModifyRequestCollection itemsToModify,
+            ArrayOf<MonitoredItemModifyRequest?> itemsToModify,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
@@ -829,7 +826,7 @@ namespace Opc.Ua
                 RequestHeader? requestHeader,
                 uint subscriptionId,
                 TimestampsToReturn timestampsToReturn,
-                MonitoredItemModifyRequestCollection itemsToModify,
+                ArrayOf<MonitoredItemModifyRequest?> itemsToModify,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -842,8 +839,8 @@ namespace Opc.Ua
                     out StringCollection? stringTable,
                     itemsToModify.Count,
                     operationLimit);
-                foreach (MonitoredItemModifyRequestCollection batchItemsToModify in itemsToModify
-                    .Batch<MonitoredItemModifyRequest, MonitoredItemModifyRequestCollection>(operationLimit))
+                foreach (ArrayOf<MonitoredItemModifyRequest?> batchItemsToModify in itemsToModify
+                    .Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
                     response = await base.ModifyMonitoredItemsAsync(
@@ -853,8 +850,8 @@ namespace Opc.Ua
                         batchItemsToModify,
                         ct).ConfigureAwait(false);
 
-                    MonitoredItemModifyResultCollection batchResults = response.Results;
-                    DiagnosticInfoCollection batchDiagnosticInfos = response.DiagnosticInfos;
+                    var batchResults = response.Results;
+                    var batchDiagnosticInfos = response.DiagnosticInfos;
                     ValidateResponse(batchResults, batchItemsToModify);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, batchItemsToModify);
 
@@ -880,7 +877,7 @@ namespace Opc.Ua
             RequestHeader? requestHeader,
             uint subscriptionId,
             MonitoringMode monitoringMode,
-            UInt32Collection monitoredItemIds,
+            ArrayOf<UInt32> monitoredItemIds,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
@@ -906,7 +903,7 @@ namespace Opc.Ua
                 RequestHeader? requestHeader,
                 uint subscriptionId,
                 MonitoringMode monitoringMode,
-                UInt32Collection monitoredItemIds,
+                ArrayOf<UInt32> monitoredItemIds,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -919,8 +916,8 @@ namespace Opc.Ua
                     out StringCollection? stringTable,
                     monitoredItemIds.Count,
                     operationLimit);
-                foreach (UInt32Collection batchMonitoredItemIds in monitoredItemIds
-                    .Batch<uint, UInt32Collection>(operationLimit))
+                foreach (ArrayOf<uint> batchMonitoredItemIds in monitoredItemIds
+                    .Batch<uint>((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
                     response = await base.SetMonitoringModeAsync(
@@ -930,8 +927,8 @@ namespace Opc.Ua
                         batchMonitoredItemIds,
                         ct).ConfigureAwait(false);
 
-                    StatusCodeCollection batchResults = response.Results;
-                    DiagnosticInfoCollection batchDiagnosticInfos = response.DiagnosticInfos;
+                    var batchResults = response.Results;
+                    var batchDiagnosticInfos = response.DiagnosticInfos;
 
                     ValidateResponse(batchResults, batchMonitoredItemIds);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, batchMonitoredItemIds);
@@ -958,8 +955,8 @@ namespace Opc.Ua
             RequestHeader? requestHeader,
             uint subscriptionId,
             uint triggeringItemId,
-            UInt32Collection linksToAdd,
-            UInt32Collection linksToRemove,
+            ArrayOf<UInt32> linksToAdd,
+            ArrayOf<UInt32> linksToRemove,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
@@ -987,8 +984,8 @@ namespace Opc.Ua
                 RequestHeader? requestHeader,
                 uint subscriptionId,
                 uint triggeringItemId,
-                UInt32Collection linksToAdd,
-                UInt32Collection linksToRemove,
+                ArrayOf<UInt32> linksToAdd,
+                ArrayOf<UInt32> linksToRemove,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -1007,8 +1004,8 @@ namespace Opc.Ua
                     out _,
                     linksToRemove.Count,
                     operationLimit);
-                foreach (UInt32Collection batchLinksToAdd in linksToAdd
-                    .Batch<uint, UInt32Collection>(operationLimit))
+                foreach (ArrayOf<uint> batchLinksToAdd in linksToAdd
+                    .Batch<uint>((int)operationLimit))
                 {
                     UInt32Collection batchLinksToRemove;
                     if (operationLimit == 0)
@@ -1064,8 +1061,8 @@ namespace Opc.Ua
 
                 if (linksToRemove.Count > 0)
                 {
-                    foreach (UInt32Collection batchLinksToRemove in linksToRemove
-                        .Batch<uint, UInt32Collection>(operationLimit))
+                    foreach (ArrayOf<uint> batchLinksToRemove in linksToRemove
+                        .Batch<uint>((int)operationLimit))
                     {
                         requestHeader.RequestHandle = 0;
                         var batchLinksToAdd = new UInt32Collection();
@@ -1119,7 +1116,7 @@ namespace Opc.Ua
         public override ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
             RequestHeader? requestHeader,
             uint subscriptionId,
-            UInt32Collection monitoredItemIds,
+            ArrayOf<UInt32> monitoredItemIds,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
@@ -1141,7 +1138,7 @@ namespace Opc.Ua
             async ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsBatchedAsync(
                 RequestHeader? requestHeader,
                 uint subscriptionId,
-                UInt32Collection monitoredItemIds,
+                ArrayOf<UInt32> monitoredItemIds,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -1154,8 +1151,8 @@ namespace Opc.Ua
                     out StringCollection? stringTable,
                     monitoredItemIds.Count,
                     operationLimit);
-                foreach (UInt32Collection batchMonitoredItemIds in monitoredItemIds
-                    .Batch<uint, UInt32Collection>(operationLimit))
+                foreach (ArrayOf<uint> batchMonitoredItemIds in monitoredItemIds
+                    .Batch<uint>((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
                     response = await base.DeleteMonitoredItemsAsync(
@@ -1163,8 +1160,8 @@ namespace Opc.Ua
                         subscriptionId,
                         batchMonitoredItemIds,
                         ct).ConfigureAwait(false);
-                    StatusCodeCollection batchResults = response.Results;
-                    DiagnosticInfoCollection batchDiagnosticInfos = response.DiagnosticInfos;
+                    var batchResults = response.Results;
+                    var batchDiagnosticInfos = response.DiagnosticInfos;
 
                     ValidateResponse(batchResults, batchMonitoredItemIds);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, batchMonitoredItemIds);
@@ -1189,7 +1186,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override ValueTask<AddNodesResponse> AddNodesAsync(
             RequestHeader? requestHeader,
-            AddNodesItemCollection nodesToAdd,
+            ArrayOf<AddNodesItem?> nodesToAdd,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
@@ -1205,7 +1202,7 @@ namespace Opc.Ua
 
             async ValueTask<AddNodesResponse> AddNodesBatchedAsync(
                 RequestHeader? requestHeader,
-                AddNodesItemCollection nodesToAdd,
+                ArrayOf<AddNodesItem?> nodesToAdd,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -1218,14 +1215,14 @@ namespace Opc.Ua
                     out StringCollection? stringTable,
                     nodesToAdd.Count,
                     operationLimit);
-                foreach (AddNodesItemCollection batchNodesToAdd in nodesToAdd
-                    .Batch<AddNodesItem, AddNodesItemCollection>(operationLimit))
+                foreach (ArrayOf<AddNodesItem?> batchNodesToAdd in nodesToAdd
+                    .Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
                     response = await base.AddNodesAsync(requestHeader, batchNodesToAdd,
                         ct).ConfigureAwait(false);
-                    AddNodesResultCollection batchResults = response.Results;
-                    DiagnosticInfoCollection batchDiagnosticInfos = response.DiagnosticInfos;
+                    var batchResults = response.Results;
+                    var batchDiagnosticInfos = response.DiagnosticInfos;
                     ValidateResponse(batchResults, batchNodesToAdd);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToAdd);
 
@@ -1249,7 +1246,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override ValueTask<AddReferencesResponse> AddReferencesAsync(
             RequestHeader? requestHeader,
-            AddReferencesItemCollection referencesToAdd,
+            ArrayOf<AddReferencesItem?> referencesToAdd,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
@@ -1265,7 +1262,7 @@ namespace Opc.Ua
 
             async ValueTask<AddReferencesResponse> AddReferencesBatchedAsync(
                 RequestHeader? requestHeader,
-                AddReferencesItemCollection referencesToAdd,
+                ArrayOf<AddReferencesItem?> referencesToAdd,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -1278,8 +1275,8 @@ namespace Opc.Ua
                     out StringCollection? stringTable,
                     referencesToAdd.Count,
                     operationLimit);
-                foreach (AddReferencesItemCollection batchReferencesToAdd in referencesToAdd
-                    .Batch<AddReferencesItem, AddReferencesItemCollection>(operationLimit))
+                foreach (ArrayOf<AddReferencesItem?> batchReferencesToAdd in referencesToAdd
+                    .Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
                     response = await base.AddReferencesAsync(
@@ -1287,8 +1284,8 @@ namespace Opc.Ua
                         batchReferencesToAdd,
                         ct).ConfigureAwait(false);
 
-                    StatusCodeCollection batchResults = response.Results;
-                    DiagnosticInfoCollection batchDiagnosticInfos = response.DiagnosticInfos;
+                    var batchResults = response.Results;
+                    var batchDiagnosticInfos = response.DiagnosticInfos;
                     ValidateResponse(batchResults, batchReferencesToAdd);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, batchReferencesToAdd);
 
@@ -1312,7 +1309,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override ValueTask<DeleteNodesResponse> DeleteNodesAsync(
             RequestHeader? requestHeader,
-            DeleteNodesItemCollection nodesToDelete,
+            ArrayOf<DeleteNodesItem?> nodesToDelete,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
@@ -1328,7 +1325,7 @@ namespace Opc.Ua
 
             async ValueTask<DeleteNodesResponse> DeleteNodesBatchedAsync(
                 RequestHeader? requestHeader,
-                DeleteNodesItemCollection nodesToDelete,
+                ArrayOf<DeleteNodesItem?> nodesToDelete,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -1341,8 +1338,8 @@ namespace Opc.Ua
                     out StringCollection? stringTable,
                     nodesToDelete.Count,
                     operationLimit);
-                foreach (DeleteNodesItemCollection batchNodesToDelete in nodesToDelete
-                    .Batch<DeleteNodesItem, DeleteNodesItemCollection>(operationLimit))
+                foreach (ArrayOf<DeleteNodesItem?> batchNodesToDelete in nodesToDelete
+                    .Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
                     response = await base.DeleteNodesAsync(
@@ -1350,8 +1347,8 @@ namespace Opc.Ua
                         batchNodesToDelete,
                         ct).ConfigureAwait(false);
 
-                    StatusCodeCollection batchResults = response.Results;
-                    DiagnosticInfoCollection batchDiagnosticInfos = response.DiagnosticInfos;
+                    var batchResults = response.Results;
+                    var batchDiagnosticInfos = response.DiagnosticInfos;
                     ValidateResponse(batchResults, batchNodesToDelete);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToDelete);
 
@@ -1375,7 +1372,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override ValueTask<DeleteReferencesResponse> DeleteReferencesAsync(
             RequestHeader? requestHeader,
-            DeleteReferencesItemCollection referencesToDelete,
+            ArrayOf<DeleteReferencesItem?> referencesToDelete,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
@@ -1391,7 +1388,7 @@ namespace Opc.Ua
 
             async ValueTask<DeleteReferencesResponse> DeleteReferencesBatchedAsync(
                 RequestHeader? requestHeader,
-                DeleteReferencesItemCollection referencesToDelete,
+                ArrayOf<DeleteReferencesItem?> referencesToDelete,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -1404,8 +1401,8 @@ namespace Opc.Ua
                     out StringCollection? stringTable,
                     referencesToDelete.Count,
                     operationLimit);
-                foreach (DeleteReferencesItemCollection batchReferencesToDelete in referencesToDelete
-                    .Batch<DeleteReferencesItem, DeleteReferencesItemCollection>(operationLimit))
+                foreach (ArrayOf<DeleteReferencesItem?> batchReferencesToDelete in referencesToDelete
+                    .Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
                     response = await base.DeleteReferencesAsync(
@@ -1413,8 +1410,8 @@ namespace Opc.Ua
                         batchReferencesToDelete,
                         ct).ConfigureAwait(false);
 
-                    StatusCodeCollection batchResults = response.Results;
-                    DiagnosticInfoCollection batchDiagnosticInfos = response.DiagnosticInfos;
+                    var batchResults = response.Results;
+                    var batchDiagnosticInfos = response.DiagnosticInfos;
                     ValidateResponse(batchResults, batchReferencesToDelete);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, batchReferencesToDelete);
 
@@ -1498,9 +1495,9 @@ namespace Opc.Ua
             ref C results,
             ref DiagnosticInfoCollection diagnosticInfos,
             ref StringCollection stringTable,
-            C batchedResults,
-            DiagnosticInfoCollection batchedDiagnosticInfos,
-            StringCollection batchedStringTable) where C : List<T>
+            ArrayOf<T> batchedResults,
+            ArrayOf<DiagnosticInfo> batchedDiagnosticInfos,
+            ArrayOf<string> batchedStringTable) where C : List<T>
         {
             bool hasDiagnosticInfos = diagnosticInfos.Count > 0;
             bool hasEmptyDiagnosticInfos = diagnosticInfos.Count == 0 && results.Count > 0;
@@ -1531,6 +1528,7 @@ namespace Opc.Ua
                     UpdateDiagnosticInfoIndexes(diagnosticInfo, stringTableOffset);
                 }
             }
+
             results.AddRange(batchedResults);
             diagnosticInfos.AddRange(batchedDiagnosticInfos);
             stringTable.AddRange(batchedStringTable);
@@ -1563,48 +1561,5 @@ namespace Opc.Ua
         }
 
         private readonly ITelemetryContext m_telemetry;
-    }
-
-    /// <summary>
-    /// Extension helpers for client service calls.
-    /// </summary>
-    public static class SessionClientExtensions
-    {
-        /// <summary>
-        /// Returns batches of a collection for processing.
-        /// </summary>
-        /// <remarks>
-        /// Returns the original collection if batchsize is 0 or the collection count is smaller than the batch size.
-        /// </remarks>
-        /// <typeparam name="T">The type of the items in the collection.</typeparam>
-        /// <typeparam name="C">The type of the items in the collection.</typeparam>
-        /// <param name="collection">The collection from which items are batched.</param>
-        /// <param name="batchSize">The size of a batch.</param>
-        /// <returns>The collection.</returns>
-        internal static IEnumerable<C> Batch<T, C>(this C collection, uint batchSize)
-            where C : List<T>, new()
-        {
-            if (collection.Count < batchSize || batchSize == 0)
-            {
-                yield return collection;
-            }
-            else
-            {
-                var nextbatch = new C { Capacity = (int)batchSize };
-                foreach (T item in collection)
-                {
-                    nextbatch.Add(item);
-                    if (nextbatch.Count == batchSize)
-                    {
-                        yield return nextbatch;
-                        nextbatch = new C { Capacity = (int)batchSize };
-                    }
-                }
-                if (nextbatch.Count > 0)
-                {
-                    yield return nextbatch;
-                }
-            }
-        }
     }
 }

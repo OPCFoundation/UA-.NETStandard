@@ -1534,9 +1534,10 @@ namespace Opc.Ua
             {
                 for (int ii = 0; ii < extensions.Count; ii++)
                 {
-                    if (extensions[ii] != null &&
-                        extensions[ii].LocalName == elementName.Name &&
-                        extensions[ii].NamespaceURI == elementName.Namespace)
+                    System.Xml.XmlElement element = extensions[ii].AsXmlElement();
+                    if (element != null &&
+                        element.LocalName == elementName.Name &&
+                        element.NamespaceURI == elementName.Namespace)
                     {
                         // remove the existing value if the value is null.
                         if (value == null)
@@ -1545,7 +1546,7 @@ namespace Opc.Ua
                             return;
                         }
 
-                        extensions[ii] = document.DocumentElement;
+                        extensions[ii] = XmlElement.From(document.DocumentElement);
                         return;
                     }
                 }
@@ -1554,7 +1555,7 @@ namespace Opc.Ua
             // add new element.
             if (value != null)
             {
-                (extensions ??= []).Add(document.DocumentElement);
+                (extensions ??= []).Add(XmlElement.From(document.DocumentElement));
             }
         }
 

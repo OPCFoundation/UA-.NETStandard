@@ -589,17 +589,17 @@ namespace Opc.Ua
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ServiceResultException"></exception>
         public static void ValidateResponse<TRequest, TResponse>(
-            IReadOnlyList<TResponse> response,
-            IReadOnlyList<TRequest> request)
+            ArrayOf<TResponse?> response,
+            ArrayOf<TRequest> request)
         {
-            if (response is DiagnosticInfoCollection)
+            if (response is ArrayOf<DiagnosticInfo>)
             {
                 throw new ArgumentException(
-                    "Must call ValidateDiagnosticInfos() for DiagnosticInfoCollections.",
+                    "Must call ValidateDiagnosticInfos() for ArrayOf<DiagnosticInfo>.",
                     nameof(response));
             }
 
-            if (response == null || request == null || response.Count != request.Count)
+            if (response.IsNull || request.IsNull || response.Count != request.Count)
             {
                 throw ServiceResultException.Unexpected(
                     "The server returned a list without the expected number of elements.");
@@ -607,7 +607,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < response.Count; ii++)
             {
-                if (response[ii] is null)
+                if (response.Span[ii] is null)
                 {
                     throw ServiceResultException.Unexpected(
                         "The server returned a list that contained elements set to null.");
@@ -623,14 +623,11 @@ namespace Opc.Ua
         /// <param name="request">The request.</param>
         /// <exception cref="ServiceResultException"></exception>
         public static void ValidateDiagnosticInfos<TRequest>(
-            DiagnosticInfoCollection response,
-            IReadOnlyList<TRequest> request)
+            ArrayOf<DiagnosticInfo?> response,
+            ArrayOf<TRequest?> request)
         {
             // returning an empty list for diagnostic info arrays is allowed.
-            if (response != null &&
-                response.Count != 0 &&
-                request != null &&
-                response.Count != request.Count)
+            if (!response.IsEmpty && response.Count != request.Count)
             {
                 throw ServiceResultException.Unexpected(
                     "The server failed to fill in the DiagnosticInfos array correctly when returning an operation level error.");
@@ -648,14 +645,14 @@ namespace Opc.Ua
         public static ServiceResult GetResult(
             StatusCode statusCode,
             int index,
-            DiagnosticInfoCollection? diagnosticInfos,
+            ArrayOf<DiagnosticInfo?> diagnosticInfos,
             ResponseHeader? responseHeader)
         {
-            if (diagnosticInfos != null && diagnosticInfos.Count > index)
+            if (!diagnosticInfos.IsEmpty && diagnosticInfos.Count > index)
             {
                 return new ServiceResult(
                     statusCode.Code,
-                    diagnosticInfos[index],
+                    diagnosticInfos.Span[index],
                     responseHeader?.StringTable ?? []);
             }
 
@@ -675,7 +672,7 @@ namespace Opc.Ua
             DataValue value,
             Type expectedType,
             int index,
-            DiagnosticInfoCollection diagnosticInfos,
+            ArrayOf<DiagnosticInfo?> diagnosticInfos,
             ResponseHeader responseHeader)
         {
             // check for null.

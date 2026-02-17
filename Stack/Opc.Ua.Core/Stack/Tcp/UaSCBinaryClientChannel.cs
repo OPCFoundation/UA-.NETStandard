@@ -559,7 +559,7 @@ namespace Opc.Ua.Bindings
                 ? SecurityTokenRequestType.Renew
                 : SecurityTokenRequestType.Issue;
             request.SecurityMode = SecurityMode;
-            request.ClientNonce = token.ClientNonce;
+            request.ClientNonce = token.ClientNonce.ToByteString();
             request.RequestedLifetime = (uint)Quotas.SecurityTokenLifetime;
 
             // encode the request.

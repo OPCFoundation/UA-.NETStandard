@@ -207,7 +207,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             writeValue.Value = new DataValue(
                 new Variant(
                     [
-                        [0x22, 0x21]
+                        ByteString.From([0x22, 0x21])
                     ]));
             Assert.AreEqual(
                 BuiltInType.ByteString,

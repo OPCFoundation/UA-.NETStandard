@@ -878,30 +878,30 @@ namespace Opc.Ua.Gds.Tests
                     {
                         try
                         {
-                            (byte[] certificate, byte[] privateKey, byte[][] issuerCertificates) = await m_gdsClient.GDSClient.FinishRequestAsync(
+                            (ByteString certificate, ByteString privateKey, ByteString[] issuerCertificates) = await m_gdsClient.GDSClient.FinishRequestAsync(
                                 application.ApplicationRecord.ApplicationId,
                                 application.CertificateRequestId).ConfigureAwait(false);
 
-                            if (certificate != null)
+                            if (!certificate.IsEmpty)
                             {
                                 application.CertificateRequestId = default;
 
-                                Assert.NotNull(certificate);
-                                Assert.NotNull(privateKey);
-                                Assert.NotNull(issuerCertificates);
-                                application.Certificate = certificate;
-                                application.PrivateKey = privateKey;
-                                application.IssuerCertificates = issuerCertificates;
+                                Assert.That(certificate.IsEmpty, Is.False);
+                                Assert.That(privateKey.IsEmpty, Is.False);
+                                Assert.That(issuerCertificates, Is.Not.Null);
+                                application.Certificate = certificate.ToArray();
+                                application.PrivateKey = privateKey.ToArray();
+                                application.IssuerCertificates = issuerCertificates.Select(c => c.ToArray()).ToArray();
                                 X509TestUtils.VerifySignedApplicationCert(
                                     application,
-                                    certificate,
-                                    issuerCertificates);
+                                    application.Certificate,
+                                    application.IssuerCertificates);
                                 await X509TestUtils.VerifyApplicationCertIntegrityAsync(
-                                    certificate,
-                                    privateKey,
+                                    application.Certificate,
+                                    application.PrivateKey,
                                     application.PrivateKeyPassword,
                                     application.PrivateKeyFormat,
-                                    issuerCertificates,
+                                    application.IssuerCertificates,
                                     telemetry).ConfigureAwait(false);
                             }
                             else
@@ -993,28 +993,28 @@ namespace Opc.Ua.Gds.Tests
                     {
                         try
                         {
-                            (byte[] certificate, byte[] privateKey, byte[][] issuerCertificates) = await m_gdsClient.GDSClient.FinishRequestAsync(
+                            (ByteString certificate, ByteString privateKey, ByteString[] issuerCertificates) = await m_gdsClient.GDSClient.FinishRequestAsync(
                                 application.ApplicationRecord.ApplicationId,
                                 application.CertificateRequestId).ConfigureAwait(false);
 
-                            if (certificate != null)
+                            if (!certificate.IsEmpty)
                             {
                                 application.CertificateRequestId = default;
 
                                 Assert.Null(privateKey);
                                 Assert.NotNull(issuerCertificates);
-                                application.Certificate = certificate;
-                                application.IssuerCertificates = issuerCertificates;
+                                application.Certificate = certificate.ToArray();
+                                application.IssuerCertificates = issuerCertificates.Select(c => c.ToArray()).ToArray();
                                 X509TestUtils.VerifySignedApplicationCert(
                                     application,
-                                    certificate,
-                                    issuerCertificates);
+                                    application.Certificate,
+                                    application.IssuerCertificates);
                                 await X509TestUtils.VerifyApplicationCertIntegrityAsync(
-                                    certificate,
+                                    application.Certificate,
                                     application.PrivateKey,
                                     application.PrivateKeyPassword,
                                     application.PrivateKeyFormat,
-                                    issuerCertificates,
+                                    application.IssuerCertificates,
                                     telemetry).ConfigureAwait(false);
                             }
                             else
@@ -1062,13 +1062,13 @@ namespace Opc.Ua.Gds.Tests
 
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                (NodeId[] certificateTypeIds, byte[][] certificates) = await m_gdsClient.GDSClient.GetCertificatesAsync(
+                (NodeId[] certificateTypeIds, ByteString[] certificates) = await m_gdsClient.GDSClient.GetCertificatesAsync(
                     application.ApplicationRecord.ApplicationId,
                     default).ConfigureAwait(false);
                 NUnit.Framework.Assert.That(certificateTypeIds.Length == 1);
                 Assert.NotNull(certificates[0]);
                 Assert.AreEqual(certificates[0], application.Certificate);
-                (NodeId[] certificateTypeIds2, byte[][] certificates2) = await m_gdsClient.GDSClient.GetCertificatesAsync(
+                (NodeId[] certificateTypeIds2, ByteString[] certificates2) = await m_gdsClient.GDSClient.GetCertificatesAsync(
                     application.ApplicationRecord.ApplicationId,
                     application.CertificateGroupId).ConfigureAwait(false);
                 NUnit.Framework.Assert.That(certificateTypeIds2.Length == 1);
@@ -1346,28 +1346,28 @@ namespace Opc.Ua.Gds.Tests
                 {
                     try
                     {
-                        (byte[] certificate, byte[] privateKey, byte[][] issuerCertificates) = await m_gdsClient.GDSClient.FinishRequestAsync(
+                        (ByteString certificate, ByteString privateKey, ByteString[] issuerCertificates) = await m_gdsClient.GDSClient.FinishRequestAsync(
                             application.ApplicationRecord.ApplicationId,
                             application.CertificateRequestId).ConfigureAwait(false);
 
-                        if (certificate != null)
+                        if (!certificate.IsEmpty)
                         {
                             application.CertificateRequestId = default;
 
-                            Assert.Null(privateKey);
+                            Assert.False(privateKey.IsEmpty);
                             Assert.NotNull(issuerCertificates);
-                            application.Certificate = certificate;
-                            application.IssuerCertificates = issuerCertificates;
+                            application.Certificate = certificate.ToArray();
+                            application.IssuerCertificates = issuerCertificates.Select(c => c.ToArray()).ToArray();
                             X509TestUtils.VerifySignedApplicationCert(
                                 application,
-                                certificate,
-                                issuerCertificates);
+                                application.Certificate,
+                                application.IssuerCertificates);
                             await X509TestUtils.VerifyApplicationCertIntegrityAsync(
-                                certificate,
+                                application.Certificate,
                                 application.PrivateKey,
                                 application.PrivateKeyPassword,
                                 application.PrivateKeyFormat,
-                                issuerCertificates,
+                                application.IssuerCertificates,
                                 telemetry).ConfigureAwait(false);
                         }
                         else
@@ -1465,27 +1465,27 @@ namespace Opc.Ua.Gds.Tests
                 {
                     try
                     {
-                        (byte[] certificate, byte[] privateKey, byte[][] issuerCertificates) = await m_gdsClient.GDSClient.FinishRequestAsync(
+                        (ByteString certificate, ByteString privateKey, ByteString[] issuerCertificates) = await m_gdsClient.GDSClient.FinishRequestAsync(
                             application.ApplicationRecord.ApplicationId,
                             application.CertificateRequestId).ConfigureAwait(false);
 
-                        if (certificate != null)
+                        if (!certificate.IsEmpty)
                         {
                             application.CertificateRequestId = default;
 
-                            Assert.NotNull(certificate);
-                            Assert.NotNull(privateKey);
+                            Assert.False(certificate.IsEmpty);
+                            Assert.False(privateKey.IsEmpty);
                             Assert.NotNull(issuerCertificates);
                             X509TestUtils.VerifySignedApplicationCert(
                                 application,
-                                certificate,
-                                issuerCertificates);
+                                certificate.ToArray(),
+                                issuerCertificates.Select(c => c.ToArray()).ToArray());
                             await X509TestUtils.VerifyApplicationCertIntegrityAsync(
-                                certificate,
-                                privateKey,
+                                certificate.ToArray(),
+                                privateKey.ToArray(),
                                 application.PrivateKeyPassword,
                                 application.PrivateKeyFormat,
-                                issuerCertificates,
+                                issuerCertificates.Select(c => c.ToArray()).ToArray(),
                                 telemetry).ConfigureAwait(false);
                         }
                         else

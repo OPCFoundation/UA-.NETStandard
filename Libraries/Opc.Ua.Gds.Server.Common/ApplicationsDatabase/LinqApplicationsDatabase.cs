@@ -217,7 +217,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         {
             Guid id = GetNodeIdGuid(applicationId);
 
-            var certificates = new List<byte[]>();
+            var certificates = new List<ByteString>();
 
             lock (Lock)
             {
@@ -645,7 +645,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         public override bool SetApplicationCertificate(
             NodeId applicationId,
             string certificateTypeId,
-            byte[] certificate)
+            ByteString certificate)
         {
             Guid id = GetNodeIdGuid(applicationId);
 
@@ -663,7 +663,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     return false;
                 }
 
-                result.Certificate[certificateTypeId] = certificate;
+                result.Certificate[certificateTypeId] = certificate.ToArray();
 
                 SaveChanges();
             }
@@ -674,9 +674,9 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         public override bool GetApplicationCertificate(
             NodeId applicationId,
             string certificateTypeId,
-            out byte[] certificate)
+            out ByteString certificate)
         {
-            certificate = null;
+            certificate = default;
 
             Guid id = GetNodeIdGuid(applicationId);
 
@@ -689,10 +689,11 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                         "A record with the specified application id does not exist.",
                         nameof(applicationId));
 
-                if (!application.Certificate.TryGetValue(certificateTypeId, out certificate))
+                if (!application.Certificate.TryGetValue(certificateTypeId, out byte[] rawCertificate))
                 {
                     return false;
                 }
+                certificate = ByteString.From(rawCertificate);
             }
             return true;
         }
@@ -748,7 +749,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             NodeId applicationId,
             string certificateGroupId,
             string certificateTypeId,
-            byte[] certificateRequest,
+            ByteString certificateRequest,
             string authorityId)
         {
             Guid id = GetNodeIdGuid(applicationId);
@@ -784,7 +785,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 request.DomainNames = null;
                 request.PrivateKeyFormat = null;
                 request.PrivateKeyPassword = null;
-                request.CertificateSigningRequest = certificateRequest;
+                request.CertificateSigningRequest = certificateRequest.ToArray();
                 request.ApplicationId = id;
 
                 if (isNew)
@@ -882,7 +883,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             }
         }
 
-        public void AcceptRequest(NodeId requestId, byte[] certificate)
+        public void AcceptRequest(NodeId requestId, ByteString certificate)
         {
             Guid id = GetNodeIdGuid(requestId);
 
@@ -896,7 +897,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 request.State = (int)CertificateRequestState.Accepted;
 
                 // save certificate for audit trail
-                request.Certificate = certificate;
+                request.Certificate = certificate.ToArray();
 
                 // erase information which is ot required anymore
                 request.CertificateSigningRequest = null;
@@ -911,13 +912,13 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             NodeId requestId,
             out string certificateGroupId,
             out string certificateTypeId,
-            out byte[] signedCertificate,
-            out byte[] privateKey)
+            out ByteString signedCertificate,
+            out ByteString privateKey)
         {
             certificateGroupId = null;
             certificateTypeId = null;
-            signedCertificate = null;
-            privateKey = null;
+            signedCertificate = default;
+            privateKey = default;
             Guid reqId = GetNodeIdGuid(requestId);
             Guid appId = GetNodeIdGuid(applicationId);
 
@@ -954,7 +955,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             NodeId requestId,
             out string certificateGroupId,
             out string certificateTypeId,
-            out byte[] certificateRequest,
+            out ByteString certificateRequest,
             out string subjectName,
             out string[] domainNames,
             out string privateKeyFormat,
@@ -962,7 +963,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         {
             certificateGroupId = null;
             certificateTypeId = null;
-            certificateRequest = null;
+            certificateRequest = default;
             subjectName = null;
             domainNames = null;
             privateKeyFormat = null;

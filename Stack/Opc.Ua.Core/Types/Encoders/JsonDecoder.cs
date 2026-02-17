@@ -1888,7 +1888,7 @@ namespace Opc.Ua
                 try
                 {
                     m_stack.Push(token[ii]);
-                    byte[] element = ReadByteString(null);
+                    ByteString element = ReadByteString(null);
                     values.Add(element);
                 }
                 finally

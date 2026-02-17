@@ -678,14 +678,14 @@ namespace Opc.Ua.Test
         }
 
         /// <inheritdoc/>
-        public byte[] GetRandomByteString()
+        public ByteString GetRandomByteString()
         {
             int length = m_random.NextInt32(MaxStringLength);
 
             byte[] bytes = new byte[length];
             m_random.NextBytes(bytes, 0, bytes.Length);
 
-            return bytes;
+            return ByteString.From(bytes);
         }
 
         /// <inheritdoc/>
@@ -877,7 +877,7 @@ namespace Opc.Ua.Test
                 case BuiltInType.Guid:
                     return new Variant(GetRandomArray<Uuid>(true, length, true));
                 case BuiltInType.ByteString:
-                    return new Variant(GetRandomArray<byte[]>(true, length, true));
+                    return new Variant(GetRandomArray<ByteString>(true, length, true));
                 case BuiltInType.XmlElement:
                     return new Variant(GetRandomArray<XmlElement>(true, length, true));
                 case BuiltInType.NodeId:
@@ -1160,7 +1160,7 @@ namespace Opc.Ua.Test
                 case BuiltInType.Guid:
                     return GetRandomArray<Uuid>(useBoundaryValues, length, fixedLength);
                 case BuiltInType.ByteString:
-                    return GetRandomArray<byte[]>(useBoundaryValues, length, fixedLength);
+                    return GetRandomArray<ByteString>(useBoundaryValues, length, fixedLength);
                 case BuiltInType.XmlElement:
                     return GetRandomArray<XmlElement>(useBoundaryValues, length, fixedLength);
                 case BuiltInType.NodeId:
@@ -1258,13 +1258,14 @@ namespace Opc.Ua.Test
                 new DateTime(2001, 9, 11, 9, 15, 0, DateTimeKind.Local)
             ),
             new(BuiltInType.Guid, Uuid.Empty),
-            new(BuiltInType.ByteString, ByteString.Empty, (byte[])null, Array.Empty<byte>()),
+            new(BuiltInType.ByteString, ByteString.Empty, (ByteString)default),
             new(BuiltInType.XmlElement, XmlElement.Empty),
             new(BuiltInType.NodeId,
                 NodeId.Null,
                 new NodeId(Guid.Empty),
                 new NodeId(string.Empty, 0),
-                new NodeId(ByteString.Empty),
+                new NodeId(ByteString.Empty)
+            ),
             new(BuiltInType.ExpandedNodeId,
                 ExpandedNodeId.Null,
                 new ExpandedNodeId(Guid.Empty),

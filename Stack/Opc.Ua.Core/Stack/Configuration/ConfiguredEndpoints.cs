@@ -958,8 +958,7 @@ namespace Opc.Ua
         /// </summary>
         public bool NeedUpdateFromServer()
         {
-            bool hasCertificate = Description.ServerCertificate != null &&
-                Description.ServerCertificate.Length > 0;
+            bool hasCertificate = Description.ServerCertificate.Length > 0;
             bool usingUserTokenSecurity =
                 (SelectedUserTokenPolicy.TokenType != UserTokenType.Anonymous) &&
                 (SelectedUserTokenPolicy.SecurityPolicyUri ??

@@ -190,9 +190,9 @@ namespace Opc.Ua.Gds.Server
             return null;
         }
 
-        private ICertificateGroup GetGroupForCertificate(byte[] certificate)
+        private ICertificateGroup GetGroupForCertificate(ByteString certificate)
         {
-            if (certificate != null && certificate.Length > 0)
+            if (certificate.Length > 0)
             {
                 using X509Certificate2 x509 = CertificateFactory.Create(certificate);
                 NodeId certificateType = CertificateIdentifier.GetCertificateType(x509);
@@ -217,10 +217,10 @@ namespace Opc.Ua.Gds.Server
             return null;
         }
 
-        private async Task<bool> RevokeCertificateAsync(byte[] certificate)
+        private async Task<bool> RevokeCertificateAsync(ByteString certificate)
         {
             bool revoked = false;
-            if (certificate != null && certificate.Length > 0)
+            if (certificate.Length > 0)
             {
                 ICertificateGroup certificateGroup = GetGroupForCertificate(certificate);
 
@@ -711,8 +711,8 @@ namespace Opc.Ua.Gds.Server
                     if (m_database.GetApplicationCertificate(
                             applicationId,
                             certType.Value,
-                            out byte[] certificate) &&
-                        certificate != null)
+                            out ByteString certificate) &&
+                        !certificate.IsEmpty)
                     {
                         await RevokeCertificateAsync(certificate).ConfigureAwait(false);
                     }
@@ -744,7 +744,7 @@ namespace Opc.Ua.Gds.Server
             MethodState method,
             NodeId objectId,
             NodeId applicationId,
-            byte[] certificate)
+            ByteString certificate)
         {
             AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.CertificateAuthorityAdmin);
 
@@ -754,7 +754,7 @@ namespace Opc.Ua.Gds.Server
                     StatusCodes.BadNotFound,
                     LocalizedText.From("The ApplicationId does not refer to a registered application."));
             }
-            if (certificate == null || certificate.Length == 0)
+            if (certificate.IsEmpty)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadInvalidArgument,
@@ -767,8 +767,8 @@ namespace Opc.Ua.Gds.Server
                 if (!m_database.GetApplicationCertificate(
                         applicationId,
                         certType.Value,
-                        out byte[] applicationCertificate) ||
-                    applicationCertificate == null ||
+                        out ByteString applicationCertificate) ||
+                    applicationCertificate.IsEmpty ||
                     !Utils.IsEqual(applicationCertificate, certificate))
                 {
                     continue;
@@ -822,7 +822,7 @@ namespace Opc.Ua.Gds.Server
             ISystemContext context,
             MethodState method,
             NodeId objectId,
-            byte[] certificate,
+            ByteString certificate,
             CancellationToken cancellationToken)
         {
             AuthorizationHelper.HasAuthenticatedSecureChannel(context);
@@ -925,14 +925,14 @@ namespace Opc.Ua.Gds.Server
             NodeId applicationId,
             NodeId certificateGroupId,
             ref NodeId[] certificateTypeIds,
-            ref byte[][] certificates)
+            ref ByteString[] certificates)
         {
             AuthorizationHelper.HasAuthorization(
                 context,
                 AuthorizationHelper.CertificateAuthorityAdminOrSelfAdmin);
 
             var certificateTypeIdsList = new List<NodeId>();
-            var certificatesList = new List<byte[]>();
+            var certificatesList = new List<ByteString>();
 
             if (m_database.GetApplication(applicationId) == null)
             {
@@ -950,8 +950,8 @@ namespace Opc.Ua.Gds.Server
                     if (m_database.GetApplicationCertificate(
                             applicationId,
                             certType.Value,
-                            out byte[] certificate) &&
-                        certificate != null)
+                            out ByteString certificate) &&
+                        !certificate.IsEmpty)
                     {
                         certificateTypeIdsList.Add(certType.Key);
                         certificatesList.Add(certificate);
@@ -976,9 +976,9 @@ namespace Opc.Ua.Gds.Server
                         m_database.GetApplicationCertificate(
                             applicationId,
                             certificateTypeId,
-                            out byte[] certificate
+                            out ByteString certificate
                         ) &&
-                        certificate != null)
+                        !certificate.IsEmpty)
                     {
                         certificateTypeIdsList.Add(certificateType);
                         certificatesList.Add(certificate);
@@ -1310,7 +1310,7 @@ namespace Opc.Ua.Gds.Server
             NodeId applicationId,
             NodeId certificateGroupId,
             NodeId certificateTypeId,
-            byte[] certificateRequest,
+            ByteString certificateRequest,
             CancellationToken cancellationToken)
         {
             AuthorizationHelper.HasAuthorization(
@@ -1428,8 +1428,8 @@ namespace Opc.Ua.Gds.Server
                 requestId,
                 out string certificateGroupId,
                 out string certificateTypeId,
-                out byte[] generatedCertificate,
-                out byte[] privateKey);
+                out ByteString generatedCertificate,
+                out ByteString privateKey);
 
             result.Certificate = generatedCertificate;
             result.PrivateKey = privateKey;
@@ -1483,14 +1483,14 @@ namespace Opc.Ua.Gds.Server
 
             // distinguish cert creation at approval/complete time
             X509Certificate2 certificate = null;
-            if (result.Certificate == null)
+            if (result.Certificate.IsEmpty)
             {
                 state = m_request.ReadRequest(
                     applicationId,
                     requestId,
                     out certificateGroupId,
                     out certificateTypeId,
-                    out byte[] certificateRequest,
+                    out ByteString certificateRequest,
                     out string subjectName,
                     out string[] domainNames,
                     out string privateKeyFormat,
@@ -1502,7 +1502,7 @@ namespace Opc.Ua.Gds.Server
                     return result;
                 }
 
-                if (certificateRequest != null)
+                if (!certificateRequest.IsEmpty)
                 {
                     try
                     {
@@ -1567,8 +1567,10 @@ namespace Opc.Ua.Gds.Server
             }
 
             // TODO: return chain, verify issuer chain cert is up to date, otherwise update local chain
-            result.IssuerCertificates = new byte[1][];
-            result.IssuerCertificates[0] = certificateGroup.Certificates[certificateTypeNodeId].RawData;
+            result.IssuerCertificates =
+            [
+                ByteString.From(certificateGroup.Certificates[certificateTypeNodeId].RawData)
+            ];
 
             // store new app certificate
             var certificateStoreIdentifier = new CertificateStoreIdentifier(

@@ -33,7 +33,6 @@ using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Xml;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
 #if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
@@ -1614,8 +1613,7 @@ namespace Opc.Ua
 
         private void WriteVariantIntoObject(string fieldName, Variant value)
         {
-            var boxed = value.AsBoxedObject();
-            if (boxed is null)
+            if (value.Value is null)
             {
                 return;
             }
@@ -1817,7 +1815,7 @@ namespace Opc.Ua
                     }
 
                     WriteByte("UaEncoding", (byte)ExtensionObjectEncoding.Binary);
-                    WriteByteString("UaBody", value.Body as byte[]);
+                    WriteByteString("UaBody", value.Body is ByteString b ? b : default);
                 }
                 else if (value.Encoding == ExtensionObjectEncoding.Xml)
                 {
@@ -1827,7 +1825,7 @@ namespace Opc.Ua
                     }
 
                     WriteByte("UaEncoding", (byte)ExtensionObjectEncoding.Xml);
-                    WriteXmlElement("UaBody", value.Body as XmlElement);
+                    WriteXmlElement("UaBody", value.Body is XmlElement x ? x : default);
                 }
 
                 PopStructure();
@@ -1851,11 +1849,11 @@ namespace Opc.Ua
 
                 if (value.Encoding == ExtensionObjectEncoding.Binary)
                 {
-                    WriteByteString("Body", value.Body as byte[]);
+                    WriteByteString("Body", value.Body is ByteString b ? b : default);
                 }
                 else if (value.Encoding == ExtensionObjectEncoding.Xml)
                 {
-                    WriteXmlElement("Body", value.Body as XmlElement);
+                    WriteXmlElement("Body", value.Body is XmlElement x ? x : default);
                 }
                 else if (value.Encoding == ExtensionObjectEncoding.Json)
                 {
@@ -1965,7 +1963,7 @@ namespace Opc.Ua
         /// Writes a boolean array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteBooleanArray(string fieldName, IList<bool> values)
+        public void WriteBooleanArray(string fieldName, ArrayOf<bool> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -1982,7 +1980,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteBoolean(null, values[ii]);
+                WriteBoolean(null, values.Span[ii]);
             }
 
             PopArray();
@@ -1992,7 +1990,7 @@ namespace Opc.Ua
         /// Writes a sbyte array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteSByteArray(string fieldName, IList<sbyte> values)
+        public void WriteSByteArray(string fieldName, ArrayOf<sbyte> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2009,7 +2007,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteSByte(null, values[ii]);
+                WriteSByte(null, values.Span[ii]);
             }
 
             PopArray();
@@ -2019,7 +2017,7 @@ namespace Opc.Ua
         /// Writes a byte array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteByteArray(string fieldName, IList<byte> values)
+        public void WriteByteArray(string fieldName, ArrayOf<byte> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2036,7 +2034,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteByte(null, values[ii]);
+                WriteByte(null, values.Span[ii]);
             }
 
             PopArray();
@@ -2046,7 +2044,7 @@ namespace Opc.Ua
         /// Writes a short array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteInt16Array(string fieldName, IList<short> values)
+        public void WriteInt16Array(string fieldName, ArrayOf<short> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2063,7 +2061,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteInt16(null, values[ii]);
+                WriteInt16(null, values.Span[ii]);
             }
 
             PopArray();
@@ -2073,7 +2071,7 @@ namespace Opc.Ua
         /// Writes a ushort array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteUInt16Array(string fieldName, IList<ushort> values)
+        public void WriteUInt16Array(string fieldName, ArrayOf<ushort> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2090,7 +2088,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteUInt16(null, values[ii]);
+                WriteUInt16(null, values.Span[ii]);
             }
 
             PopArray();
@@ -2100,7 +2098,7 @@ namespace Opc.Ua
         /// Writes a int array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteInt32Array(string fieldName, IList<int> values)
+        public void WriteInt32Array(string fieldName, ArrayOf<int> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2117,7 +2115,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteInt32(null, values[ii]);
+                WriteInt32(null, values.Span[ii]);
             }
 
             PopArray();
@@ -2127,7 +2125,7 @@ namespace Opc.Ua
         /// Writes a uint array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteUInt32Array(string fieldName, IList<uint> values)
+        public void WriteUInt32Array(string fieldName, ArrayOf<uint> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2144,7 +2142,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteUInt32(null, values[ii]);
+                WriteUInt32(null, values.Span[ii]);
             }
 
             PopArray();
@@ -2154,7 +2152,7 @@ namespace Opc.Ua
         /// Writes a long array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteInt64Array(string fieldName, IList<long> values)
+        public void WriteInt64Array(string fieldName, ArrayOf<long> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2171,7 +2169,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteInt64(null, values[ii]);
+                WriteInt64(null, values.Span[ii]);
             }
 
             PopArray();
@@ -2181,7 +2179,7 @@ namespace Opc.Ua
         /// Writes a ulong array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteUInt64Array(string fieldName, IList<ulong> values)
+        public void WriteUInt64Array(string fieldName, ArrayOf<ulong> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2198,7 +2196,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteUInt64(null, values[ii]);
+                WriteUInt64(null, values.Span[ii]);
             }
 
             PopArray();
@@ -2208,7 +2206,7 @@ namespace Opc.Ua
         /// Writes a float array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteFloatArray(string fieldName, IList<float> values)
+        public void WriteFloatArray(string fieldName, ArrayOf<float> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2225,7 +2223,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteFloat(null, values[ii]);
+                WriteFloat(null, values.Span[ii]);
             }
 
             PopArray();
@@ -2235,7 +2233,7 @@ namespace Opc.Ua
         /// Writes a double array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteDoubleArray(string fieldName, IList<double> values)
+        public void WriteDoubleArray(string fieldName, ArrayOf<double> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2252,7 +2250,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteDouble(null, values[ii]);
+                WriteDouble(null, values.Span[ii]);
             }
 
             PopArray();
@@ -2262,7 +2260,7 @@ namespace Opc.Ua
         /// Writes a string array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteStringArray(string fieldName, IList<string> values)
+        public void WriteStringArray(string fieldName, ArrayOf<string> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2279,7 +2277,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteString(null, values[ii]);
+                WriteString(null, values.Span[ii]);
             }
 
             PopArray();
@@ -2289,7 +2287,7 @@ namespace Opc.Ua
         /// Writes a UTC date/time array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteDateTimeArray(string fieldName, IList<DateTime> values)
+        public void WriteDateTimeArray(string fieldName, ArrayOf<DateTime> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2306,13 +2304,13 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                if (values[ii] <= DateTime.MinValue)
+                if (values.Span[ii] <= DateTime.MinValue)
                 {
                     WriteSimpleFieldNull(null);
                 }
                 else
                 {
-                    WriteDateTime(null, values[ii]);
+                    WriteDateTime(null, values.Span[ii]);
                 }
             }
 
@@ -2323,7 +2321,7 @@ namespace Opc.Ua
         /// Writes a GUID array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteGuidArray(string fieldName, IList<Uuid> values)
+        public void WriteGuidArray(string fieldName, ArrayOf<Uuid> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2340,7 +2338,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteGuid(null, values[ii]);
+                WriteGuid(null, values.Span[ii]);
             }
 
             PopArray();
@@ -2350,7 +2348,7 @@ namespace Opc.Ua
         /// Writes a byte string array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteByteStringArray(string fieldName, IList<ByteString> values)
+        public void WriteByteStringArray(string fieldName, ArrayOf<ByteString> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2367,7 +2365,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteByteString(null, values[ii]);
+                WriteByteString(null, values.Span[ii]);
             }
 
             PopArray();
@@ -2377,7 +2375,7 @@ namespace Opc.Ua
         /// Writes an XmlElement array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteXmlElementArray(string fieldName, IList<XmlElement> values)
+        public void WriteXmlElementArray(string fieldName, ArrayOf<XmlElement> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2394,7 +2392,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteXmlElement(null, values[ii]);
+                WriteXmlElement(null, values.Span[ii]);
             }
 
             PopArray();
@@ -2404,7 +2402,7 @@ namespace Opc.Ua
         /// Writes an NodeId array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteNodeIdArray(string fieldName, IList<NodeId> values)
+        public void WriteNodeIdArray(string fieldName, ArrayOf<NodeId> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2421,7 +2419,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteNodeId(null, values[ii]);
+                WriteNodeId(null, values.Span[ii]);
             }
 
             PopArray();
@@ -2431,7 +2429,7 @@ namespace Opc.Ua
         /// Writes an ExpandedNodeId array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteExpandedNodeIdArray(string fieldName, IList<ExpandedNodeId> values)
+        public void WriteExpandedNodeIdArray(string fieldName, ArrayOf<ExpandedNodeId> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2448,7 +2446,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteExpandedNodeId(null, values[ii]);
+                WriteExpandedNodeId(null, values.Span[ii]);
             }
 
             PopArray();
@@ -2458,7 +2456,7 @@ namespace Opc.Ua
         /// Writes an StatusCode array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteStatusCodeArray(string fieldName, IList<StatusCode> values)
+        public void WriteStatusCodeArray(string fieldName, ArrayOf<StatusCode> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2475,13 +2473,13 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                if (!UseReversibleEncoding && values[ii] == StatusCodes.Good)
+                if (!UseReversibleEncoding && values.Span[ii] == StatusCodes.Good)
                 {
                     WriteSimpleFieldNull(null);
                 }
                 else
                 {
-                    WriteStatusCode(null, values[ii]);
+                    WriteStatusCode(null, values.Span[ii]);
                 }
             }
 
@@ -2492,7 +2490,7 @@ namespace Opc.Ua
         /// Writes an DiagnosticInfo array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteDiagnosticInfoArray(string fieldName, IList<DiagnosticInfo> values)
+        public void WriteDiagnosticInfoArray(string fieldName, ArrayOf<DiagnosticInfo> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2509,7 +2507,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteDiagnosticInfo(null, values[ii]);
+                WriteDiagnosticInfo(null, values.Span[ii]);
             }
 
             PopArray();
@@ -2519,7 +2517,7 @@ namespace Opc.Ua
         /// Writes an QualifiedName array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteQualifiedNameArray(string fieldName, IList<QualifiedName> values)
+        public void WriteQualifiedNameArray(string fieldName, ArrayOf<QualifiedName> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2536,7 +2534,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteQualifiedName(null, values[ii]);
+                WriteQualifiedName(null, values.Span[ii]);
             }
 
             PopArray();
@@ -2546,7 +2544,7 @@ namespace Opc.Ua
         /// Writes an LocalizedText array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteLocalizedTextArray(string fieldName, IList<LocalizedText> values)
+        public void WriteLocalizedTextArray(string fieldName, ArrayOf<LocalizedText> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2563,7 +2561,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteLocalizedText(null, values[ii]);
+                WriteLocalizedText(null, values.Span[ii]);
             }
 
             PopArray();
@@ -2573,7 +2571,7 @@ namespace Opc.Ua
         /// Writes an Variant array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteVariantArray(string fieldName, IList<Variant> values)
+        public void WriteVariantArray(string fieldName, ArrayOf<Variant> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2590,13 +2588,13 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                if (values[ii] == Variant.Null)
+                if (values.Span[ii] == Variant.Null)
                 {
                     WriteSimpleFieldNull(null);
                     continue;
                 }
 
-                WriteVariant(null, values[ii]);
+                WriteVariant(null, values.Span[ii]);
             }
 
             PopArray();
@@ -2606,7 +2604,7 @@ namespace Opc.Ua
         /// Writes an DataValue array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteDataValueArray(string fieldName, IList<DataValue> values)
+        public void WriteDataValueArray(string fieldName, ArrayOf<DataValue> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2623,7 +2621,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteDataValue(null, values[ii]);
+                WriteDataValue(null, values.Span[ii]);
             }
 
             PopArray();
@@ -2633,7 +2631,7 @@ namespace Opc.Ua
         /// Writes an extension object array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteExtensionObjectArray(string fieldName, IList<ExtensionObject> values)
+        public void WriteExtensionObjectArray(string fieldName, ArrayOf<ExtensionObject> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2650,7 +2648,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteExtensionObject(null, values[ii]);
+                WriteExtensionObject(null, values.Span[ii]);
             }
 
             PopArray();
@@ -2662,7 +2660,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public void WriteEncodeableArray(
             string fieldName,
-            IList<IEncodeable> values,
+            ArrayOf<IEncodeable> values,
             Type systemType)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
@@ -2683,7 +2681,7 @@ namespace Opc.Ua
 
                 for (int ii = 0; ii < values.Count; ii++)
                 {
-                    WriteEncodeable(null, values[ii], systemType);
+                    WriteEncodeable(null, values.Span[ii], systemType);
                 }
 
                 PopArray();
@@ -2710,7 +2708,7 @@ namespace Opc.Ua
 
                 for (int ii = 0; ii < values.Count; ii++)
                 {
-                    WriteEncodeable(null, values[ii], systemType);
+                    WriteEncodeable(null, values.Span[ii], systemType);
                 }
 
                 PopArray();
@@ -3286,7 +3284,7 @@ namespace Opc.Ua
                             WriteGuid(null, (Uuid)value);
                             return;
                         case BuiltInType.ByteString:
-                            WriteByteString(null, (byte[])value);
+                            WriteByteString(null, (ByteString)value);
                             return;
                         case BuiltInType.XmlElement:
                             WriteXmlElement(null, (XmlElement)value);
@@ -3353,7 +3351,7 @@ namespace Opc.Ua
         /// Writes a Variant array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteObjectArray(string fieldName, IList<object> values)
+        public void WriteObjectArray(string fieldName, ArrayOf<object> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -3362,18 +3360,18 @@ namespace Opc.Ua
 
             PushArray(fieldName);
 
-            if (values != null &&
+            if (!values.IsNull &&
                 Context.MaxArrayLength > 0 &&
                 Context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
 
-            if (values != null)
+            if (!values.IsNull)
             {
                 for (int ii = 0; ii < values.Count; ii++)
                 {
-                    WriteVariant("Variant", new Variant(values[ii]));
+                    WriteVariant("Variant", new Variant(values.Span[ii]));
                 }
             }
 
@@ -3505,11 +3503,11 @@ namespace Opc.Ua
         /// Returns true if a simple field can be written.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        private bool CheckForSimpleFieldNull<T>(string fieldName, IList<T> values)
+        private bool CheckForSimpleFieldNull<T>(string fieldName, ArrayOf<T> values)
         {
             // always include default values for non reversible/verbose
             // include default values when encoding in a Variant
-            if (values == null ||
+            if (values.IsNull ||
                 (values.Count == 0 && !m_inVariantWithEncoding && !m_includeDefaultValues))
             {
                 WriteSimpleFieldNull(fieldName);

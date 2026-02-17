@@ -447,7 +447,7 @@ namespace TestData
         /// </summary>
         protected virtual HistoryDataReader RestoreDataReader(
             ServerSystemContext context,
-            byte[] continuationPoint)
+            ByteString continuationPoint)
         {
             if (context == null ||
                 context.OperationContext == null ||
@@ -515,7 +515,7 @@ namespace TestData
             var data = new HistoryData();
 
             HistoryDataReader reader;
-            if (nodeToRead.ContinuationPoint != null && nodeToRead.ContinuationPoint.Length > 0)
+            if (nodeToRead.ContinuationPoint.Length > 0)
             {
                 // restore the continuation point.
                 reader = RestoreDataReader(serverContext, nodeToRead.ContinuationPoint);

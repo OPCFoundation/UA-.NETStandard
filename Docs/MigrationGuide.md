@@ -1,25 +1,28 @@
 # Migration Guide
 
 - [Migration Guide](#migration-guide)
-  - [From 1.5.378 to 1.6.x](#from-15378-to-16x)
+  - [Migrating from 1.5.378 to 1.6.x](#migrating-from-15378-to-16x)
     - [Source Generation](#source-generation)
       - [Project Structure](#project-structure)
-    - [Several UA built in types are now immutable](#several-ua-built-in-types-are-now-immutable)
-      - [Variant](#variant)
-        - [Deprecated boxing behavior](#deprecated-boxing-behavior)
-        - [Replacement of all use of System.Object in generated code and API](#replacement-of-all-use-of-systemobject-in-generated-code-and-api)
+    - [Improved Type safety](#improved-type-safety)
+      - [Several built in types are now immutable value types](#several-built-in-types-are-now-immutable-value-types)
+      - [ByteString](#bytestring)
+      - [ArrayOf/MatrixOf](#arrayofmatrixof)
       - [QualifiedName and LocalizedText](#qualifiedname-and-localizedtext)
       - [StatusCode](#statuscode)
       - [NodeId/ExpandedNodeId](#nodeidexpandednodeid)
-      - [ArrayOf/MatrixOf](#arrayofmatrixof)
+      - [Variant and ExtensionObject](#variant-and-extensionobject)
+        - [Deprecated boxing behavior](#deprecated-boxing-behavior)
+        - [Replacement of all use of System.Object in generated code and API](#replacement-of-all-use-of-systemobject-in-generated-code-and-api)
+      - [XmlElement](#xmlelement)
       - [Obsoleted APIs and replacements](#obsoleted-apis-and-replacements)
       - [APIs permanently removed](#apis-permanently-removed)
     - [Node State handling](#node-state-handling)
     - [User Identity Token Handlers](#user-identity-token-handlers)
-  - [From 1.05.377 to 1.05.378](#from-105377-to-105378)
+  - [Migrating from 1.05.377 to 1.05.378](#migrating-from-105377-to-105378)
     - [Asynchronous as default](#asynchronous-as-default)
     - [Observability](#observability)
-  - [From 1.04 to 1.05](#from-104-to-105)
+  - [Migrating from 1.04 to 1.05](#migrating-from-104-to-105)
   - [Support](#support)
 
 This document outlines the breaking changes introduced from version to version.  General principles we follow:
@@ -29,15 +32,17 @@ This document outlines the breaking changes introduced from version to version. 
 3. Bugs or issues found in Obsoleted API are not supported.
 4. We now follow semver, but do not use the major version indicator to denote breaking changes like (1) or (2) as we should if we followed related conventions. We are a small team and cannot afford to maintain previous major versions, therefore we are trying to keep cases of (2) to a minimum and expect you to upgrade to the next minor version within 6 months of release.
 
-## From 1.5.378 to 1.6.x
+> Pro TIP: Point your favorite coding agent at this doc and let them take care of the migration work!
+
+## Migrating from 1.5.378 to 1.6.x
 
 Version 1.6 introduces a major architectural change from pre-generated code files to runtime source generation and more efficient memory use with a several major Breaking Changes requiring changes to your applications.
 
 ### Source Generation
 
-Instead of generating code for OPC UA design files using the [ModelCompiler](https://github.com/OPCFoundation/UA-ModelCompiler), this version of the stack uses [Source Generator](https://learn.microsoft.com/dotnet/csharp/roslyn-sdk/#source-generators)s to generate code behind for your project. Input into the source generator can be NodeSet2.xml files or ModelDesign.xml files (the same that ModelCompiler consumes). Source generators are Roslyn analyzers, that are called by the Roslyn compiler and emit code during the build process.
+Instead of generating code for OPC UA design files using the [ModelCompiler](https://github.com/OPCFoundation/UA-ModelCompiler), this version of the stack uses [Source Generators](https://learn.microsoft.com/dotnet/csharp/roslyn-sdk/#source-generators) to generate code behind for your project. Input into the source generator can be NodeSet2.xml files or ModelDesign.xml files (the same that ModelCompiler consumes). Source generators are Roslyn analyzers, that are called by the Roslyn compiler and emit code during the build process.
 
-**Model compiler generated csharp code** is not supported in this version.
+**Model compiler generated csharp code is not supported in this version!**
 
 To migrate remove all your generated files (ending in `*.Classes.cs`, `*.Constants.cs`, etc.) and only leave the design file(s) (.xml and .csv files) in your project. Add an entry into your `csproj` file similar to the following to provide the location of the design files to the source generation process:
 
@@ -57,7 +62,7 @@ To migrate remove all your generated files (ending in `*.Classes.cs`, `*.Constan
   </ItemGroup>
 ```
 
-The [source generator model](https://devblogs.microsoft.com/dotnet/introducing-c-source-generators/) has several benefits that go beyond custom `msbuild` targets: Among the most important is that the generator ships with the stack and therefore code that is generated conforms to the stack version that ships the analyzer (the source generator is part of Opc.Ua.Core nuget package). Therefore when updating to a newer version the code generated takes automatically advantage of the improvements made across the entire stack. Code generation during compilation also allows not just emitting code ahead of time, but also to generate code while you are developing. We intend to take advantage of this to generate data types and node states from stub code on the fly in future releases including enabling faster migration of code by injecting functionality such as conversion between types.
+The [source generator model](https://devblogs.microsoft.com/dotnet/introducing-c-source-generators/) has several benefits that go beyond custom `msbuild` targets: Among the most important is that the generator ships with the stack and therefore code that is generated conforms to the stack version that ships the analyzer (the source generator is part of Opc.Ua.Core nuget package). Therefore when updating to a newer version the code generated automatically takes advantage of the improvements made across the entire stack. Code generation during compilation also allows not just emitting code ahead of time, but also to generate code while you are developing. We intend to take advantage of this to generate data types and node states from stub code on the fly in future releases including enabling faster migration of code by injecting functionality such as conversion between types.
 
 The stack itself uses source generators to generate the core opc ua code. Therefore all pre-generated code files (`Generated/` folders) have been removed and are now generated at build time. As a result of using source generators to generate the stack code all `*.nodeset2.xml` files previously included as embedded zip have been removed. Also, all `*.Types.xsd` and `*.Types.bsd` files are now included as string resource instead of embedded resources. If you need access to these, use the new `Schemas.XmlAsStream` and `Schemas.BinaryAsStream` APIs in the node manager namespace which produce a utf8 stream. Alternatively you can use the existing ModelCompiler tool to generate these files.
 
@@ -65,32 +70,90 @@ When you encounter slower build times use incremental compilation and avoid chan
 
 #### Project Structure
 
-New `Opc.Ua` project as an intermediate project.
-
-Impact:
+New `Opc.Ua` project as an intermediate project. Impact:
 
 - Most applications using NuGet packages are not affected. Continue linking to Opc.Ua.Core project as it includes the Opc.Ua intermediate assembly
-- Assembly loading order may change
+- Assembly loading order *may* change
 
-### Several UA built in types are now immutable
+### Improved Type safety
 
-The `Variant` and `TypeInfo`, `NodeId`, `ExpandedNodeId`, `ExtensionObject`, `LocalizedText` and `QualifiedName` are now `readonly struct`s. This is a larger breaking change and  affects existing usage:
+#### Several built in types are now immutable value types
+
+The `Variant` and `TypeInfo`, `NodeId`, `ExpandedNodeId`, `ExtensionObject`, `LocalizedText` and `QualifiedName` are now `readonly struct`s. This is a large breaking change and affects existing usage:
 
 1. You cannot compare any of these types against `null`. Use the instance properties: `NodeId.IsNull`, `ExpandedNodeId.IsNull`, `QualifiedName.IsNull`, `LocalizedText.IsNullOrEmpty`, `ExtensionObject.IsNull`.
 2. The default item can be created by assigning `default`, e.g. producing `NodeId.Null` for NodeId and `QualifiedName.Null` for QualifiedName. It is recommended to use the `Null` property on these types for readability and per your coding conventions.
 3. Any API that mutated an instance of one of these built in types must be replaced with methods that return a new value of the type, e.g. `NodeId.WithNamespaceIndex(ushort)` as setters were removed.
 
-#### Variant
+#### ByteString
 
-Previously the `Variant` was a *mutable* struct containing a TypeInfo and Value property allowing setting the inner state and returning `object`.  All value types thus were implicitly boxed to object and landing on the heap. The new Variant only boxes value types > 8 bytes in size (*), and stores the rest in a union.  `TypeInfo`, previously a class, also now is stored as a 4 byte type (with padding).
+Previously the OPC UA built-in type *ByteString* was represented as `byte[]`. This caused ambiguities with regards to it and the byte *array* type. This has changed and `ByteString` is now a type in the Opc.Ua namespace. It is a wrapper around `ReadOnlyMemory<byte>` and while `Variant` handles both still interchangeably, the generated API now simplifies mixing of byte arrays and `ByteString` without confusion.
+
+Note that equality operation compare the content of the byte string. A `ByteString` is a value type while `System.Byte[]` is not. It cannot be compared against `null`. However, it supports checking for empty `IsEmpty` and `IsNull` whereby the first checks whether the ByteString is effectively a `ByteString.Empty` amd the second checks whether `ByteString` was initialized using `default`.
+
+While it was tempting to make `ByteString` implicitly convertable from `byte[]`, an explicit cast is needed to strictly distinguish against `ArrayOf<byte>` which implicit converts to `byte[]`. Prefer the `ByteString.From` or `ToByteString()` calls to cast operators to make your code's intentions explicit. Note that a `byte[]` implicitly converts to `ReadOnlyMemory<byte>` in .net therefore any conversion from `ByteString` is explicit.
+
+To migrate, perform the following general replacements in your code:
+
+**Change code as follows:**
+
+- Replace `byte[]` with `ByteString` in areas flagged as errors, e.g. wherever casting a `Variant` to a `byte[]` change it to `ByteString` or to `ArrayOf<byte>` if it is a byte array.
+- When a `ByteString` is required as input and you have any form of enumerable bytes, try appending `.ToByteString()` to convert.
+- Use `ByteString.Combine` in lieu of `Utils.Append`.
+- Indexing and enumeration of bytes is only supported via the `Span` property. Change your code to replace `[i]` with `.Span[i]` to fix errors.
+- If your code tried to set a byte in the ByteString, create a buffer `byte[]` and after changing convert to `ByteString` using `ByteString.From(buffer)` or `.ToByteString()` extension method
+- Perform changes only where you encounter build breaks. This should be enough to get into a working state. Later adjust the code as needed.
+
+#### ArrayOf/MatrixOf
+
+Similar to `ByteString`, `ArrayOf<T>` and `MatrixOf<T>` are new type safe and sliceable generic value types representing non-scalar values. They are immutable meaning the values at an index inside them cannot be "set" unless they are converted to a `Span<T>` (and then reconverted to a `ArrayOf`/`MatrixOf`).
+
+In addition to slicing and range based access, both types provide the ability to apply a NumericIndex to them.  They are efficiently stored inside a Variant as well and can be used to allocate efficiently from `ArrayPool` providing the ability to built object pooling support at the array level. All *generated* collection types now convert to and from `ArrayOf<T>` to use them in API now taking `ArrayOf<T>` as input instead of the generated type. `IsEmpty` returns true if `IsNull` is true but not necessarily vice versa.
+
+Internally an `ArrayOf`/`MatrixOf` stores a reference to "memory" and a offset and length integer. They have the same layout as `ReadOnlyMemory<T>` although this is not guaranteed to stay so in the future. All generated collection types implicitly convert to and from `ArrayOf<T>` whereby `T` is the member type of the collection type.  E.g. `VariantCollection` is effectively `ArrayOf<Variant>`.
+
+All generated APIs, Encoders/decoders, and the Variant type now use `ArrayOf`/`MatrixOf` instead of the generated/built-in collection types or `System.Array`. (*) Current exception: all data types use the Collection model due to compatibilty with DataContractSerializer.
+
+Note that equality operators and methods now compare the content of the Array and Matrix, not just reference equality as with `T[]`. It supports checking for an empty array or matrix via `IsEmpty` and `IsNull` whereby the first checks whether the array is effecitvely a `ArrayOf.Empty<T>` amd the second is just a check against `ArrayOf<T>` initialized using `default` (since it is not a reference type anymore). `IsEmpty` returns true if `IsNull` is true but not necessarily vice versa.
+
+**Change code as follows:**
+
+- Replace any `T[]` with `ArrayOf<T>` where T is the type of the element in the array. Do this where errors are flagged, e.g. wherever casting a Variant to a `T[]` change it to `ArrayOf<T>` if it is a T array.
+- Indexing and enumeration is only supported via the `Span` property.
+- When trying to set a value in the previous array, create a buffer `T[]` and after mutating convert to `ArrayOf<T>` using `buffer.ToArrayOf()`
+- Perform changes only where you encounter build breaks. This should be enough to get into a working state. Later adjust the code if needed.
+
+#### QualifiedName and LocalizedText
+
+There is no implicit conversion from `string` to `QualifiedName` or `LocalizedText` anymore. For one, it flags areas where null assignment is happening implicitly, and secondly, it makes the API more explicit. E.g. previously it was possible to assign a string to a browse name which landed the browse name accidentally in namespace 0 instead of the owning namespace. If you know what you are doing you can explicitly cast the string, but it is suggested to use the new static `From` API instead.
+
+#### StatusCode
+
+`StatusCode` contains now not only a uint code, but also a symbol.  Symbols are interned strings and using the `StatusCodes` constants therefore come with the symbol string. This removes the need to look up the symbolic id, however, when receiving a uint code it needs to be translated to a StatusCode constant to retain the Symbol. Older API has been obsoleted with proper instructions. Since types are immutable it is important to replace mutation calls with the proper replacement method and store the returned value.
+
+#### NodeId/ExpandedNodeId
+
+`NodeId`s with integer identifiers (the most common case) now do not box the integer identifier anymore into an object, making the entire NodeId heap allocation free (*).  ExpandedNodeId with integer identifiers only contain an allocated namespace Uri, which is mostly a const (interned) string, reducing small allocations across both types. Because both types are now immutable, they must be mutated using the provided `With<X>`. Access to the identifier in boxed form (object) is deprecated. Instead use the `TryGetIdentifier(out uint/string/Guid/byte[])` API. If you need to get the identifier only to "stringify" it, use the `IdentifierAsText` property which avoids boxing integer identifiers.
+
+There is no implicit conversion from `uint`/`Guid`/`string`/`byte[]` to `NodeId`/`ExpandedNodeId` to ensure assignment of null reference types (byte array and string) is not happening implicitly and to prevent accidental conversion of these identifiers into namespace 0. It also removes  hidden behavior such as parsing during assignments and flags areas where a proper Null/default NodeId should be inserted/returned. Use the explicit cast (e.g. `(NodeId)[(byte)3, 2]`) instead. For the previous implicit conversion from `string` to `NodeId` conversion use `NodeId.Parse` and `ExpandedNodeId.Parse`. On the same note, the constructor taking a string and no namespace index has been deprecated as it required a string to parse. Use Parse/TryParse instead.
+
+> (*) Note that NodeId leverages the new `uint` field to cache the HashCode of a "non-uint" "Identifier", which provides faster lookup using NodeId/ExpandedNodeId as key.
+
+#### Variant and ExtensionObject
+
+Previously the `Variant` was a *mutable* struct containing a `TypeInfo` and `Value` property allowing setting the inner state and returning `object`.  All value types thus were implicitly boxed to object and landing on the heap. The new `Variant` only boxes value types > 8 bytes in size (*), and stores the rest in a union.  `TypeInfo`, previously a class, also now is stored as a 4 byte type (with padding).
+
+The `ExtensionObject` was a reference type wrapping a `NodeId` and a body as a reference type of `object`. The `ExtensionObject` is now an immutable value type with type-safe access to its body.
 
 ##### Deprecated boxing behavior
 
-Access to the Value property of Variant is marked as [Obsolete] to discourage use in favor of casting to `<Type>` or `Get<Type>()` (both throw) or preferably `bool TryGet(out <Type> value)` calls. The APIs perform any required conversion between `BuiltInType.Int32` and `BuiltInType.Enumeration` as well as arrays of `BuiltInType.Byte` and `BuiltInType.ByteString`.
+Access to the `Value` property of `Variant` is marked as [Obsolete] to discourage use in favor of casting to `<Type>` or `Get<Type>()` (both throw) or preferably `bool TryGet(out <Type> value)` calls. The APIs perform any required conversion between `BuiltInType.Int32` and `BuiltInType.Enumeration` as well as arrays of `BuiltInType.Byte` and `BuiltInType.ByteString`. This also applies to the `Body` property of `ExtensionObject`. Here prefer the use of `TryGetEncodeable<T>` and `TryGetBinary, TryGetJson, TryGetXml`.
 
-Creating a Variant via the constructor taking a `object` parameter is also marked [Obsolete] to encourage using type safe API to create a Variant (and thus not storing the wrong value in the inner `object` variable that cannot be converted out again or makes the Variant a null variant unexpectedly).
+Creating a `Variant` or `ExtensionObject` via the constructor taking a `object` parameter is also marked [Obsolete] to encourage using type safe API to create a Variant (and thus not storing the wrong value in the inner `object` variable that cannot be converted out again or makes the Variant a null variant unexpectedly).
 
-In some cases it is desirable to gain access to what was returned from the now obsoleted `Value` property. To make the fact that the returned value is likely boxed, the new API is named `AsBoxedValue()`. While the Variant has conversion operators from all supported types and corresponding `From(<Type> value)` APIs, it is sometimes desirable to convert from an object. To perform conversion from `<T>` to a Variant, helper methods are available in `VariantHelper` static class that provide additional overloads of From.
+In some cases it is desirable to gain access to what was returned from the now obsoleted `Value` property. To make the fact that the returned value is likely boxed, the new API is named `AsBoxedObject()`. While the Variant has conversion operators from all supported types and corresponding `From(<Type> value)` APIs, it is sometimes necessary to convert from `System.Object`. Note that `AsBoxedObject()` does not return .net array types but `ArrayOf<T>`, and `ByteString` for - yes - ByteString. `Value` property converts to the old style type expectations.
+
+To perform conversion from `<T>` to a Variant, helper methods are available in `VariantHelper` static class that provide additional overloads of From.
 
 > (*) Note that Enumerations while sized always below or equal 8 bytes are only stored "unboxed" in .net 8 or higher, but boxed in .net framework due to missing APIs.
 > `DateTime` is always stored unboxed.
@@ -112,11 +175,12 @@ To migrate, perform the following general replacements in your code:
 
 **Change code as follows:**
 
-- Generally replace all `IList<object>` with `VariantCollection`
+- If you are setting the `Value` property of Variant, change the code to create a `new Variant` with the value via constructor or `Variant.From` or by casting to `Variant`.
+- Generally replace all `IList<object>` with `IList<Variant>`
 - Generally replace all `ref object` with `ref Variant`.
 - In addition: for all callbacks registered in `BaseVariableState` change the callback signature to use `Variant` instead of `object` and `Variant[]` instead of `object[]`.
-- For all remaining `object[]` instances, replace with `VariantCollection` judiciously.
-- Keep all casts from Variant to object if you intend to preserve throw behavior. For any pattern matching (is/as) use `TryGet` if you need to check the result, or `Get<BuiltInType>` if you do not want to throw but are happy with the default value.
+- For all remaining `object[]` instances, replace with `ArrayOf<Variant>` or `IList<Variant>` judiciously and depending on context.
+- Keep all *casts* from **Variant** (not from its Value property) to the concrete type if you intend to preserve throw behavior. For any pattern matching (is/as) use `TryGet` if you need to check the result, or `Get<BuiltInType>` if you do not want to throw but are happy with the default value.
 
 > IMPORTANT: Care must be taken to not accidentally box a `Variant` value into an `object`.  E.g. current code like `object f = state.Value` will not be flagged by the compiler but must be replaced with `Variant f = state.Value` to remain type safe. Here it is best to use `var` for locals which requires no code changes.
 
@@ -127,25 +191,9 @@ To migrate, perform the following general replacements in your code:
 - For Variable and VariableType node state classes that provide a narrowed "Value" via generic `<T>` any access to `T Value` incurs a heavy type check.  It is recommended to use `WrappedValue` instead when possible for assignment and access.
 - While most assignments work implicitly, use `TypeInfo.GetDefaultVariantValue` instead of `TypeInfo.GetDefaultValue` to initialize a variant value to a default that is `!= Variant.Null`.
 
-#### QualifiedName and LocalizedText
+#### XmlElement
 
-There is no implicit conversion from `string` to `QualifiedName` or `LocalizedText` anymore. For one, it flags areas where null assignment is happening implicitly, and secondly, it makes the API more explicit. E.g. previously it was possible to assign a string to a browse name which landed the browse name accidentally in namespace 0 instead of the owning namespace. If you know what you are doing you can explicitly cast the string, but it is suggested to use the new static `From` API instead.
-
-#### StatusCode
-
-`StatusCode` contains now not only a uint code, but also a symbol.  Symbols are interned strings and using the `StatusCodes` constants therefore come with the symbol string. This removes the need to look up the symbolic id, however, when receiving a uint code it needs to be translated to a StatusCode constant to retain the Symbol. Older API has been obsoleted with proper instructions. Since types are immutable it is important to replace mutation calls with the proper replacement method and store the returned value.
-
-#### NodeId/ExpandedNodeId
-
-`NodeId`s with integer identifiers (the most common case) now do not box the integer identifier anymore into an object, making the entire NodeId heap allocation free (*).  ExpandedNodeId with integer identifiers only contain an allocated namespace Uri, which is mostly a const (interned) string, reducing small allocations across both types. Because both types are now immutable, they must be mutated using the provided `With<X>`. Access to the identifier in boxed form (object) is deprecated. Instead use the `TryGetIdentifier(out uint/string/Guid/byte[])` API. If you need to get the identifier only to "stringify" it, use the `IdentifierAsText` property which avoids boxing integer identifiers.
-
-There is no implicit conversion from `uint`/`Guid`/`string`/`byte[]` to `NodeId`/`ExpandedNodeId` to ensure assignment of null reference types (byte array and string) is not happening implicitly and to prevent accidental conversion of these identifiers into namespace 0. It also removes  hidden behavior such as parsing during assignments and flags areas where a proper Null/default NodeId should be inserted/returned. Use the explicit cast (e.g. `(NodeId)[(byte)3, 2]`) instead. For the previous implicit conversion from `string` to `NodeId` conversion use `NodeId.Parse` and `ExpandedNodeId.Parse`. On the same note, the constructor taking a string and no namespace index has been deprecated as it required a string to parse. Use Parse/TryParse instead.
-
-> (*) Note that NodeId leverages the new `uint` field to cache the HashCode of a "non-uint" "Identifier", which provides faster lookup using NodeId/ExpandedNodeId as key.
-
-#### ArrayOf/MatrixOf
-
-`ArrayOf<T>` and `MatrixOf<T>` are new type safe and sliceable value types. They are immutable meaning the values at an index inside them cannot be "set" unless they are converted to a `Span<T>` (and then reconverted to a `ArrayOf`/`MatrixOf`). In addition to slicing and range based access, both types provide the ability to apply a NumericIndex to them.  They are efficiently stored inside a Variant as well and can be used to allocate efficiently from ArrayPool providing the ability to built object pooling support at the array level. All *generated* collection types now convert to and from `ArrayOf<T>` to use them in API now taking `ArrayOf<T>` as input instead of the generated type. Internally an ArrayOf/MatrixOf stores a reference to "memory" and a offset and length integer. They have the same layout as `ReadOnlyMemory<T>` although this is not guaranteed to stay so in the future.
+Previously `XmlElement` was the `System.Xml.XmlElement` system type. While officially a deprecated built in type, there is now a value type `XmlElement` that merely wraps a string but provides conversion operations to `System.Xml.XmlElement` and `System.Linq.Xml.XNode` as well as validation operations. Normally you just need to remove `using System.Xml` and code continues working as is.  If you need to have access to the `System.Xml.XmlElement` cast or use the `ToXmlElement` method.
 
 #### Obsoleted APIs and replacements
 
@@ -283,7 +331,7 @@ See [NodeStates](./../Stack/Opc.Ua.Types/State/readme.md) document for more info
    - `X509IdentityTokenHandler`
    - `IssuedIdentityTokenHandler`
 
-## From 1.05.377 to 1.05.378
+## Migrating from 1.05.377 to 1.05.378
 
 ### Asynchronous as default
 
@@ -293,7 +341,7 @@ The server now supports AsyncNodeManagers, see [Server Async (TAP) Support](Docs
 
 [Observability](Docs/Observability.md) via `ITelemetryContext` in preparation for better DI support. See documentation for breaking changes.
 
-## From 1.04 to 1.05
+## Migrating from 1.04 to 1.05
 
 - A few features are still missing to fully comply for 1.05, but certification for V1.04 is still possible with the 1.05 release.
 

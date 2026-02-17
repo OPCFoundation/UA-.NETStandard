@@ -92,7 +92,7 @@ namespace Opc.Ua.SourceGeneration
             Assert.That(errors, Is.EqualTo(0));
             TestContext.Out.WriteLine($"Generate run produced {warnings} warnings");
 
-            Assert.That(generatorResult.GeneratedSources.Length, Is.EqualTo(13));
+            Assert.That(generatorResult.GeneratedSources.Length, Is.EqualTo(12));
             Assert.That(generatorResult.Exception, Is.Null);
         }
     }

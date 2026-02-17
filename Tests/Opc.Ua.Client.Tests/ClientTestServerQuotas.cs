@@ -160,7 +160,7 @@ namespace Opc.Ua.Client.Tests
             {
                 NodeId = nodeId,
                 AttributeId = Attributes.Value,
-                Value = new DataValue { WrappedValue = new Variant(chunk) },
+                Value = new DataValue { WrappedValue = new Variant(ByteString.From(chunk)) },
                 IndexRange = null
             };
             var writeValues = new WriteValueCollection { writeValue };

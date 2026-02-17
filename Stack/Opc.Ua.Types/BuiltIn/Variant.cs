@@ -87,62 +87,32 @@ namespace Opc.Ua
         IEquatable<LocalizedText>,
         IEquatable<ExtensionObject>,
         IEquatable<DataValue>,
-        IEquatable<bool[]>,
-        IEquatable<sbyte[]>,
-        IEquatable<byte[]>,
-        IEquatable<short[]>,
-        IEquatable<ushort[]>,
-        IEquatable<int[]>,
-        IEquatable<Enum[]>,
-        IEquatable<uint[]>,
-        IEquatable<long[]>,
-        IEquatable<ulong[]>,
-        IEquatable<float[]>,
-        IEquatable<double[]>,
-        IEquatable<string[]>,
-        IEquatable<DateTime[]>,
-        IEquatable<Uuid[]>,
-        IEquatable<ByteString[]>,
-        IEquatable<XmlElement[]>,
-        IEquatable<NodeId[]>,
-        IEquatable<ExpandedNodeId[]>,
-        IEquatable<StatusCode[]>,
-        IEquatable<QualifiedName[]>,
-        IEquatable<LocalizedText[]>,
-        IEquatable<ExtensionObject[]>,
-        IEquatable<DataValue[]>,
-        IEquatable<Variant[]>
+        IEquatable<ArrayOf<bool>>,
+        IEquatable<ArrayOf<sbyte>>,
+        IEquatable<ArrayOf<byte>>,
+        IEquatable<ArrayOf<short>>,
+        IEquatable<ArrayOf<ushort>>,
+        IEquatable<ArrayOf<int>>,
+        IEquatable<ArrayOf<Enum>>,
+        IEquatable<ArrayOf<uint>>,
+        IEquatable<ArrayOf<long>>,
+        IEquatable<ArrayOf<ulong>>,
+        IEquatable<ArrayOf<float>>,
+        IEquatable<ArrayOf<double>>,
+        IEquatable<ArrayOf<string>>,
+        IEquatable<ArrayOf<DateTime>>,
+        IEquatable<ArrayOf<Uuid>>,
+        IEquatable<ArrayOf<ByteString>>,
+        IEquatable<ArrayOf<XmlElement>>,
+        IEquatable<ArrayOf<NodeId>>,
+        IEquatable<ArrayOf<ExpandedNodeId>>,
+        IEquatable<ArrayOf<StatusCode>>,
+        IEquatable<ArrayOf<QualifiedName>>,
+        IEquatable<ArrayOf<LocalizedText>>,
+        IEquatable<ArrayOf<ExtensionObject>>,
+        IEquatable<ArrayOf<DataValue>>,
+        IEquatable<ArrayOf<Variant>>
     {
-        /// <summary>
-        /// Creates a new variant instance while specifying the value.
-        /// </summary>
-        /// <param name="value">The value to encode within the variant</param>
-        [OverloadResolutionPriority(0)]
-        public Variant(object value)
-        {
-            this = new Variant(value, TypeInfo.Construct(value));
-        }
-
-        /// <summary>
-        /// Initializes the variant with an Array value and the type information.
-        /// </summary>
-        /// <param name="value">The value to store within the variant</param>
-        [OverloadResolutionPriority(0)]
-        public Variant(Array value)
-        {
-            this = new Variant(value, TypeInfo.Construct(value));
-        }
-
-        /// <summary>
-        /// Initializes the variant with matrix.
-        /// </summary>
-        /// <param name="value">The value to store within the variant</param>
-        public Variant(Matrix value)
-        {
-            m_value = value;
-            m_typeInfo = value.TypeInfo;
-        }
-
         /// <summary>
         /// Creates a new Variant with a Boolean value.
         /// </summary>
@@ -378,7 +348,7 @@ namespace Opc.Ua
         /// Creates a new variant with a <see cref="bool"/>-array value
         /// </summary>
         /// <param name="value">The <see cref="bool"/>-array value of the Variant</param>
-        public Variant(bool[] value)
+        public Variant(ArrayOf<bool> value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Arrays.Boolean;
@@ -388,7 +358,7 @@ namespace Opc.Ua
         /// Creates a new variant with a <see cref="sbyte"/>-arrat value
         /// </summary>
         /// <param name="value">The <see cref="sbyte"/>-array value of the Variant</param>
-        public Variant(sbyte[] value)
+        public Variant(ArrayOf<sbyte> value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Arrays.SByte;
@@ -398,7 +368,7 @@ namespace Opc.Ua
         /// Creates a new variant with a <see cref="byte"/>-arrat value
         /// </summary>
         /// <param name="value">The <see cref="byte"/>-array value of the Variant</param>
-        public Variant(byte[] value)
+        public Variant(ArrayOf<byte> value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Arrays.Byte;
@@ -408,7 +378,7 @@ namespace Opc.Ua
         /// Creates a new variant with a <see cref="short"/>-array value
         /// </summary>
         /// <param name="value">The <see cref="short"/>-array value of the Variant</param>
-        public Variant(short[] value)
+        public Variant(ArrayOf<short> value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Arrays.Int16;
@@ -418,7 +388,7 @@ namespace Opc.Ua
         /// Creates a new variant with a <see cref="ushort"/>-array value
         /// </summary>
         /// <param name="value">The <see cref="ushort"/>-array value of the Variant</param>
-        public Variant(ushort[] value)
+        public Variant(ArrayOf<ushort> value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Arrays.UInt16;
@@ -428,7 +398,7 @@ namespace Opc.Ua
         /// Creates a new variant with a <see cref="int"/>-array value
         /// </summary>
         /// <param name="value">The <see cref="int"/>-array value of the Variant</param>
-        public Variant(int[] value)
+        public Variant(ArrayOf<int> value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Arrays.Int32;
@@ -439,7 +409,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="Enum"/>-array value of the Variant</param>
         [OverloadResolutionPriority(1)]
-        public Variant(Enum[] value)
+        public Variant(ArrayOf<Enum> value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Arrays.Enumeration;
@@ -449,7 +419,7 @@ namespace Opc.Ua
         /// Creates a new variant with a <see cref="uint"/>-array value
         /// </summary>
         /// <param name="value">The <see cref="uint"/>-array value of the Variant</param>
-        public Variant(uint[] value)
+        public Variant(ArrayOf<uint> value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Arrays.UInt32;
@@ -459,7 +429,7 @@ namespace Opc.Ua
         /// Creates a new variant with a <see cref="long"/>-array value
         /// </summary>
         /// <param name="value">The <see cref="long"/>-array value of the Variant</param>
-        public Variant(long[] value)
+        public Variant(ArrayOf<long> value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Arrays.Int64;
@@ -469,7 +439,7 @@ namespace Opc.Ua
         /// Creates a new variant with a <see cref="ulong"/>-array value
         /// </summary>
         /// <param name="value">The <see cref="ulong"/>-array value of the Variant</param>
-        public Variant(ulong[] value)
+        public Variant(ArrayOf<ulong> value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Arrays.UInt64;
@@ -479,7 +449,7 @@ namespace Opc.Ua
         /// Creates a new variant with a <see cref="float"/>-array value
         /// </summary>
         /// <param name="value">The <see cref="float"/>-array value of the Variant</param>
-        public Variant(float[] value)
+        public Variant(ArrayOf<float> value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Arrays.Float;
@@ -489,7 +459,7 @@ namespace Opc.Ua
         /// Creates a new variant with a <see cref="double"/>-array value
         /// </summary>
         /// <param name="value">The <see cref="double"/>-array value of the Variant</param>
-        public Variant(double[] value)
+        public Variant(ArrayOf<double> value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Arrays.Double;
@@ -499,7 +469,7 @@ namespace Opc.Ua
         /// Creates a new variant with a <see cref="string"/>-array value
         /// </summary>
         /// <param name="value">The <see cref="string"/>-array value of the Variant</param>
-        public Variant(string[] value)
+        public Variant(ArrayOf<string> value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Arrays.String;
@@ -509,7 +479,7 @@ namespace Opc.Ua
         /// Creates a new variant with a <see cref="DateTime"/>-array value
         /// </summary>
         /// <param name="value">The <see cref="DateTime"/>-array value of the Variant</param>
-        public Variant(DateTime[] value)
+        public Variant(ArrayOf<DateTime> value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Arrays.DateTime;
@@ -519,7 +489,7 @@ namespace Opc.Ua
         /// Creates a new variant with a <see cref="Uuid"/>-array value
         /// </summary>
         /// <param name="value">The <see cref="Uuid"/>-array value of the Variant</param>
-        public Variant(Uuid[] value)
+        public Variant(ArrayOf<Uuid> value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Arrays.Guid;
@@ -529,7 +499,7 @@ namespace Opc.Ua
         /// Creates a new variant with a 2-d <see cref="ByteString"/>-array value
         /// </summary>
         /// <param name="value">The 2-d <see cref="ByteString"/>-array value of the Variant</param>
-        public Variant(ByteString[] value)
+        public Variant(ArrayOf<ByteString> value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Arrays.ByteString;
@@ -539,7 +509,7 @@ namespace Opc.Ua
         /// Creates a new variant with a <see cref="XmlElement"/>-array value
         /// </summary>
         /// <param name="value">The <see cref="XmlElement"/>-array value of the Variant</param>
-        public Variant(XmlElement[] value)
+        public Variant(ArrayOf<XmlElement> value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Arrays.XmlElement;
@@ -549,7 +519,7 @@ namespace Opc.Ua
         /// Creates a new variant with a <see cref="NodeId"/>-array value
         /// </summary>
         /// <param name="value">The <see cref="NodeId"/>-array value of the Variant</param>
-        public Variant(NodeId[] value)
+        public Variant(ArrayOf<NodeId> value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Arrays.NodeId;
@@ -559,7 +529,7 @@ namespace Opc.Ua
         /// Creates a new variant with a <see cref="ExpandedNodeId"/>-array value
         /// </summary>
         /// <param name="value">The <see cref="ExpandedNodeId"/>-array value of the Variant</param>
-        public Variant(ExpandedNodeId[] value)
+        public Variant(ArrayOf<ExpandedNodeId> value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Arrays.ExpandedNodeId;
@@ -569,7 +539,7 @@ namespace Opc.Ua
         /// Creates a new variant with a <see cref="StatusCode"/>-array value
         /// </summary>
         /// <param name="value">The <see cref="StatusCode"/>-array value of the Variant</param>
-        public Variant(StatusCode[] value)
+        public Variant(ArrayOf<StatusCode> value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Arrays.StatusCode;
@@ -579,7 +549,7 @@ namespace Opc.Ua
         /// Creates a new variant with a <see cref="QualifiedName"/>-array value
         /// </summary>
         /// <param name="value">The <see cref="QualifiedName"/>-array value of the Variant</param>
-        public Variant(QualifiedName[] value)
+        public Variant(ArrayOf<QualifiedName> value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Arrays.QualifiedName;
@@ -589,7 +559,7 @@ namespace Opc.Ua
         /// Creates a new variant with a <see cref="LocalizedText"/>-array value
         /// </summary>
         /// <param name="value">The <see cref="LocalizedText"/>-array value of the Variant</param>
-        public Variant(LocalizedText[] value)
+        public Variant(ArrayOf<LocalizedText> value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Arrays.LocalizedText;
@@ -599,7 +569,7 @@ namespace Opc.Ua
         /// Creates a new variant with a <see cref="ExtensionObject"/>-array value
         /// </summary>
         /// <param name="value">The <see cref="ExtensionObject"/>-array value of the Variant</param>
-        public Variant(ExtensionObject[] value)
+        public Variant(ArrayOf<ExtensionObject> value)
         {
             m_value = CoreUtils.Clone(value);
             m_typeInfo = TypeInfo.Arrays.ExtensionObject;
@@ -609,7 +579,7 @@ namespace Opc.Ua
         /// Creates a new variant with a <see cref="DataValue"/>-array value
         /// </summary>
         /// <param name="value">The <see cref="DataValue"/>-array value of the Variant</param>
-        public Variant(DataValue[] value)
+        public Variant(ArrayOf<DataValue> value)
         {
             m_value = CoreUtils.Clone(value);
             m_typeInfo = TypeInfo.Arrays.DataValue;
@@ -619,7 +589,7 @@ namespace Opc.Ua
         /// Creates a new variant with a <see cref="Variant"/>-array value
         /// </summary>
         /// <param name="value">The <see cref="Variant"/>-array value of the Variant</param>
-        public Variant(Variant[] value)
+        public Variant(ArrayOf<Variant> value)
         {
             m_value = value;
             m_typeInfo = TypeInfo.Arrays.Variant;
@@ -1013,23 +983,13 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a new variant with a <see cref="object"/>-array value
+        /// Creates a new variant instance while specifying the value.
         /// </summary>
-        /// <param name="value">The <see cref="object"/>-array value
-        /// of the Variant</param>
-        public Variant(object[] value)
+        /// <param name="value">The value to encode within the variant</param>
+        [OverloadResolutionPriority(0)]
+        public Variant(object value)
         {
-            m_value = null;
-            m_typeInfo = TypeInfo.Arrays.Variant;
-            if (value != null)
-            {
-                var anyValues = new Variant[value.Length];
-                for (int ii = 0; ii < value.Length; ii++)
-                {
-                    anyValues[ii] = new Variant(value[ii]);
-                }
-                m_value = anyValues;
-            }
+            this = new Variant(value, TypeInfo.Construct(value));
         }
 
 #if NET8_0_OR_GREATER
@@ -1048,7 +1008,7 @@ namespace Opc.Ua
         /// Box the value stored in the Variant as object
         /// </summary>
         /// <returns></returns>
-        public object AsBoxedObject()
+        public object AsBoxedObject(bool convertToArray = false)
         {
             if (TypeInfo.IsUnknown)
             {
@@ -1123,6 +1083,10 @@ namespace Opc.Ua
 #endif
                 }
             }
+            if (convertToArray && m_value is IConvertableToArray convertible)
+            {
+                return convertible.ToArray();
+            }
             return m_value;
         }
 
@@ -1138,11 +1102,12 @@ namespace Opc.Ua
         public bool IsNull => TypeInfo.IsUnknown;
 
         /// <summary>
-        /// The value stored -as <see cref="object"/>- within
-        /// the Variant object.
+        /// The value stored -as <see cref="object"/>- within the
+        /// Variant object. All arrays and matrices are returned
+        /// as <see cref="Array"/>.
         /// </summary>
         [JsonPropertyName("Value")]
-        public object Value => AsBoxedObject();
+        public object Value => AsBoxedObject(convertToArray: true);
 
         /// <summary>
         /// The type information for the matrix.
@@ -1243,29 +1208,18 @@ namespace Opc.Ua
             return m_value?.GetHashCode() ?? 0;
         }
 
-        /// <summary>
-        /// Converts the value to a human readable string.
-        /// </summary>
+        /// <inheritdoc/>
         public override string ToString()
         {
-            return ToString(null, null);
+            return ToString(null, CultureInfo.InvariantCulture);
         }
 
-        /// <summary>
-        /// Returns the string representation of the object.
-        /// </summary>
-        /// <exception cref="FormatException">Thrown when the
-        /// 'format' argument is NOT null.</exception>
-        /// <param name="format">(Unused) Always pass a NULL value</param>
-        /// <param name="formatProvider">The format-provider to
-        /// use. If unsure, pass an empty string or null</param>
+        /// <inheritdoc/>
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
             {
-                var buffer = new StringBuilder();
-                AppendFormat(buffer, m_value, formatProvider);
-                return buffer.ToString();
+                return $"{ToStringCore(formatProvider)}|{TypeInfo}";
             }
 
             throw new FormatException(
@@ -1479,213 +1433,213 @@ namespace Opc.Ua
         /// <summary>
         /// Converts the variant to a bool[] value or returns the default.
         /// </summary>
-        public bool[] GetBooleanArray(bool[] defaultValue = default)
+        public ArrayOf<bool> GetBooleanArray(ArrayOf<bool> defaultValue = default)
         {
-            return TryGet(out bool[] v) ? v : defaultValue;
+            return TryGet(out ArrayOf<bool> v) ? v : defaultValue;
         }
 
         /// <summary>
         /// Converts the variant to a sbyte[] value or returns the default.
         /// </summary>
-        public sbyte[] GetSByteArray(sbyte[] defaultValue = default)
+        public ArrayOf<sbyte> GetSByteArray(ArrayOf<sbyte> defaultValue = default)
         {
-            return TryGet(out sbyte[] v) ? v : defaultValue;
+            return TryGet(out ArrayOf<sbyte> v) ? v : defaultValue;
         }
 
         /// <summary>
         /// Converts the variant to a byte[] value or returns the default.
         /// </summary>
-        public byte[] GetByteArray(byte[] defaultValue = default)
+        public ArrayOf<byte> GetByteArray(ArrayOf<byte> defaultValue = default)
         {
-            return TryGet(out byte[] v) ? v : defaultValue;
+            return TryGet(out ArrayOf<byte> v) ? v : defaultValue;
         }
 
         /// <summary>
         /// Converts the variant to a short[] value or returns the default.
         /// </summary>
-        public short[] GetInt16Array(short[] defaultValue = default)
+        public ArrayOf<short> GetInt16Array(ArrayOf<short> defaultValue = default)
         {
-            return TryGet(out short[] v) ? v : defaultValue;
+            return TryGet(out ArrayOf<short> v) ? v : defaultValue;
         }
 
         /// <summary>
         /// Converts the variant to a ushort[] value or returns the default.
         /// </summary>
-        public ushort[] GetUInt16Array(ushort[] defaultValue = default)
+        public ArrayOf<ushort> GetUInt16Array(ArrayOf<ushort> defaultValue = default)
         {
-            return TryGet(out ushort[] v) ? v : defaultValue;
+            return TryGet(out ArrayOf<ushort> v) ? v : defaultValue;
         }
 
         /// <summary>
         /// Converts the variant to a int[] value or returns the default.
         /// </summary>
-        public int[] GetInt32Array(int[] defaultValue = default)
+        public ArrayOf<int> GetInt32Array(ArrayOf<int> defaultValue = default)
         {
-            return TryGet(out int[] v) ? v : defaultValue;
+            return TryGet(out ArrayOf<int> v) ? v : defaultValue;
         }
 
         /// <summary>
         /// Converts the variant to a enum array value or returns the default.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public T[] GetEnumerationArray<T>(T[] defaultValue = default) where T : Enum
+        public ArrayOf<T> GetEnumerationArray<T>(ArrayOf<T> defaultValue = default) where T : Enum
         {
-            return TryGet(out T[] v) ? v : defaultValue;
+            return TryGet(out ArrayOf<T> v) ? v : defaultValue;
         }
 
         /// <summary>
         /// Converts the variant to a structure of type T
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public T[] GetStructureArray<T>(
-            T[] defaultValue = default,
+        public ArrayOf<T> GetStructureArray<T>(
+            ArrayOf<T> defaultValue = default,
             IServiceMessageContext context = null) where T : IEncodeable
         {
-            return TryGet(out T[] v, context) ? v : defaultValue;
+            return TryGet(out ArrayOf<T> v, context) ? v : defaultValue;
         }
 
         /// <summary>
         /// Converts the variant to a uint[] value or returns the default.
         /// </summary>
-        public uint[] GetUInt32Array(uint[] defaultValue = default)
+        public ArrayOf<uint> GetUInt32Array(ArrayOf<uint> defaultValue = default)
         {
-            return TryGet(out uint[] v) ? v : defaultValue;
+            return TryGet(out ArrayOf<uint> v) ? v : defaultValue;
         }
 
         /// <summary>
         /// Converts the variant to a long[] value or returns the default.
         /// </summary>
-        public long[] GetInt64Array(long[] defaultValue = default)
+        public ArrayOf<long> GetInt64Array(ArrayOf<long> defaultValue = default)
         {
-            return TryGet(out long[] v) ? v : defaultValue;
+            return TryGet(out ArrayOf<long> v) ? v : defaultValue;
         }
 
         /// <summary>
         /// Converts the variant to a ulong[] value or returns the default.
         /// </summary>
-        public ulong[] GetUInt64Array(ulong[] defaultValue = default)
+        public ArrayOf<ulong> GetUInt64Array(ArrayOf<ulong> defaultValue = default)
         {
-            return TryGet(out ulong[] v) ? v : defaultValue;
+            return TryGet(out ArrayOf<ulong> v) ? v : defaultValue;
         }
 
         /// <summary>
         /// Converts the variant to a float[] value or returns the default.
         /// </summary>
-        public float[] GetFloatArray(float[] defaultValue = default)
+        public ArrayOf<float> GetFloatArray(ArrayOf<float> defaultValue = default)
         {
-            return TryGet(out float[] v) ? v : defaultValue;
+            return TryGet(out ArrayOf<float> v) ? v : defaultValue;
         }
 
         /// <summary>
         /// Converts the variant to a double[] value or returns the default.
         /// </summary>
-        public double[] GetDoubleArray(double[] defaultValue = default)
+        public ArrayOf<double> GetDoubleArray(ArrayOf<double> defaultValue = default)
         {
-            return TryGet(out double[] v) ? v : defaultValue;
+            return TryGet(out ArrayOf<double> v) ? v : defaultValue;
         }
 
         /// <summary>
         /// Converts the variant to a string []value or returns the default.
         /// </summary>
-        public string[] GetStringArray(string[] defaultValue = default)
+        public ArrayOf<string> GetStringArray(ArrayOf<string> defaultValue = default)
         {
-            return TryGet(out string[] v) ? v : defaultValue;
+            return TryGet(out ArrayOf<string> v) ? v : defaultValue;
         }
 
         /// <summary>
         /// Converts the variant to a DateTime[] value or returns the default.
         /// </summary>
-        public DateTime[] GetDateTimeArray(DateTime[] defaultValue = default)
+        public ArrayOf<DateTime> GetDateTimeArray(ArrayOf<DateTime> defaultValue = default)
         {
-            return TryGet(out DateTime[] v) ? v : defaultValue;
+            return TryGet(out ArrayOf<DateTime> v) ? v : defaultValue;
         }
 
         /// <summary>
         /// Converts the variant to a Uuid[] value or returns the default.
         /// </summary>
-        public Uuid[] GetGuidArray(Uuid[] defaultValue = default)
+        public ArrayOf<Uuid> GetGuidArray(ArrayOf<Uuid> defaultValue = default)
         {
-            return TryGet(out Uuid[] v) ? v : defaultValue;
+            return TryGet(out ArrayOf<Uuid> v) ? v : defaultValue;
         }
 
         /// <summary>
         /// Converts the variant to a byte[][] value or returns the default.
         /// </summary>
-        public ByteString[] GetByteStringArray(ByteString[] defaultValue = default)
+        public ArrayOf<ByteString> GetByteStringArray(ArrayOf<ByteString> defaultValue = default)
         {
-            return TryGet(out ByteString[] v) ? v : defaultValue;
+            return TryGet(out ArrayOf<ByteString> v) ? v : defaultValue;
         }
 
         /// <summary>
         /// Converts the variant to a XmlElement[] value or returns the default.
         /// </summary>
-        public XmlElement[] GetXmlElementArray(XmlElement[] defaultValue = default)
+        public ArrayOf<XmlElement> GetXmlElementArray(ArrayOf<XmlElement> defaultValue = default)
         {
-            return TryGet(out XmlElement[] v) ? v : defaultValue;
+            return TryGet(out ArrayOf<XmlElement> v) ? v : defaultValue;
         }
 
         /// <summary>
         /// Converts the variant to a NodeId[] value or returns the default.
         /// </summary>
-        public NodeId[] GetNodeIdArray(NodeId[] defaultValue = default)
+        public ArrayOf<NodeId> GetNodeIdArray(ArrayOf<NodeId> defaultValue = default)
         {
-            return TryGet(out NodeId[] v) ? v : defaultValue;
+            return TryGet(out ArrayOf<NodeId> v) ? v : defaultValue;
         }
 
         /// <summary>
         /// Converts the variant to a ExpandedNodeId[] value or returns the default.
         /// </summary>
-        public ExpandedNodeId[] GetExpandedNodeIdArray(ExpandedNodeId[] defaultValue = default)
+        public ArrayOf<ExpandedNodeId> GetExpandedNodeIdArray(ArrayOf<ExpandedNodeId> defaultValue = default)
         {
-            return TryGet(out ExpandedNodeId[] v) ? v : defaultValue;
+            return TryGet(out ArrayOf<ExpandedNodeId> v) ? v : defaultValue;
         }
 
         /// <summary>
         /// Converts the variant to a StatusCode[] value or returns the default.
         /// </summary>
-        public StatusCode[] GetStatusCodeArray(StatusCode[] defaultValue = default)
+        public ArrayOf<StatusCode> GetStatusCodeArray(ArrayOf<StatusCode> defaultValue = default)
         {
-            return TryGet(out StatusCode[] v) ? v : defaultValue;
+            return TryGet(out ArrayOf<StatusCode> v) ? v : defaultValue;
         }
 
         /// <summary>
         /// Converts the variant to a QualifiedName[] value or returns the default.
         /// </summary>
-        public QualifiedName[] GetQualifiedNameArray(QualifiedName[] defaultValue = default)
+        public ArrayOf<QualifiedName> GetQualifiedNameArray(ArrayOf<QualifiedName> defaultValue = default)
         {
-            return TryGet(out QualifiedName[] v) ? v : defaultValue;
+            return TryGet(out ArrayOf<QualifiedName> v) ? v : defaultValue;
         }
 
         /// <summary>
         /// Converts the variant to a LocalizedText[] value or returns the default.
         /// </summary>
-        public LocalizedText[] GetLocalizedTextArray(LocalizedText[] defaultValue = default)
+        public ArrayOf<LocalizedText> GetLocalizedTextArray(ArrayOf<LocalizedText> defaultValue = default)
         {
-            return TryGet(out LocalizedText[] v) ? v : defaultValue;
+            return TryGet(out ArrayOf<LocalizedText> v) ? v : defaultValue;
         }
 
         /// <summary>
         /// Converts the variant to a ExtensionObject[] value or returns the default.
         /// </summary>
-        public ExtensionObject[] GetExtensionObjectArray(ExtensionObject[] defaultValue = default)
+        public ArrayOf<ExtensionObject> GetExtensionObjectArray(ArrayOf<ExtensionObject> defaultValue = default)
         {
-            return TryGet(out ExtensionObject[] v) ? v : defaultValue;
+            return TryGet(out ArrayOf<ExtensionObject> v) ? v : defaultValue;
         }
 
         /// <summary>
         /// Converts the variant to a DataValue[] value or returns the default.
         /// </summary>
-        public DataValue[] GetDataValueArray(DataValue[] defaultValue = default)
+        public ArrayOf<DataValue> GetDataValueArray(ArrayOf<DataValue> defaultValue = default)
         {
-            return TryGet(out DataValue[] v) ? v : defaultValue;
+            return TryGet(out ArrayOf<DataValue> v) ? v : defaultValue;
         }
 
         /// <summary>
         /// Converts the variant to a Variant[] value or returns the default.
         /// </summary>
-        public Variant[] GetVariantArray(Variant[] defaultValue = default)
+        public ArrayOf<Variant> GetVariantArray(ArrayOf<Variant> defaultValue = default)
         {
-            return TryGet(out Variant[] v) ? v : defaultValue;
+            return TryGet(out ArrayOf<Variant> v) ? v : defaultValue;
         }
 
         /// <summary>
@@ -1938,9 +1892,9 @@ namespace Opc.Ua
             {
                 return true;
             }
-            if (TryGetArray(out byte[] byteArray, BuiltInType.Byte))
+            if (TryGetArray(out ArrayOf<byte> byteArray, BuiltInType.Byte))
             {
-                value = ByteString.From(byteArray);
+                value = byteArray.ToByteString();
                 return true;
             }
             return false;
@@ -2040,7 +1994,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="bool"/>-array value to get
         /// </param>
-        public bool TryGet(out bool[] value)
+        public bool TryGet(out ArrayOf<bool> value)
         {
             return TryGetArray(out value, BuiltInType.Boolean);
         }
@@ -2050,7 +2004,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="sbyte"/>-array value to get
         /// </param>
-        public bool TryGet(out sbyte[] value)
+        public bool TryGet(out ArrayOf<sbyte> value)
         {
             return TryGetArray(out value, BuiltInType.SByte);
         }
@@ -2060,7 +2014,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="byte"/>-array value to get
         /// </param>
-        public bool TryGet(out byte[] value)
+        public bool TryGet(out ArrayOf<byte> value)
         {
             if (TryGetArray(out value, BuiltInType.Byte))
             {
@@ -2079,7 +2033,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="short"/>-array value to get
         /// </param>
-        public bool TryGet(out short[] value)
+        public bool TryGet(out ArrayOf<short> value)
         {
             return TryGetArray(out value, BuiltInType.Int16);
         }
@@ -2089,7 +2043,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="ushort"/>-array value to get
         /// </param>
-        public bool TryGet(out ushort[] value)
+        public bool TryGet(out ArrayOf<ushort> value)
         {
             return TryGetArray(out value, BuiltInType.UInt16);
         }
@@ -2099,7 +2053,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="int"/>-array value to get
         /// </param>
-        public bool TryGet(out int[] value)
+        public bool TryGet(out ArrayOf<int> value)
         {
             return TryGetArray(out value, BuiltInType.Int32);
         }
@@ -2113,23 +2067,24 @@ namespace Opc.Ua
         /// <param name="value">The structure value to get.</param>
         /// <param name="context">The context to use when decoding the structure.
         /// </param>
-        public bool TryGet<T>(out T[] value, IServiceMessageContext context)
+        public bool TryGet<T>(out ArrayOf<T> value, IServiceMessageContext context)
             where T : IEncodeable
         {
-            if (!TryGet(out ExtensionObject[] v))
+            if (!TryGet(out ArrayOf<ExtensionObject> v))
             {
                 value = default;
                 return false;
             }
-            value = new T[v.Length];
-            for (int ii = 0; ii < v.Length; ii++)
+            var buffer = new T[v.Count];
+            for (int ii = 0; ii < v.Count; ii++)
             {
-                if (!v[ii].TryGetEncodeable(out value[ii], context))
+                if (!v.Span[ii].TryGetEncodeable(out buffer[ii], context))
                 {
                     value = default;
                     return false;
                 }
             }
+            value = buffer;
             return true;
         }
 
@@ -2140,7 +2095,7 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="value">The structure value to get</param>
-        public bool TryGetStructure<T>(out T[] value) where T : IEncodeable
+        public bool TryGetStructure<T>(out ArrayOf<T> value) where T : IEncodeable
         {
             return TryGet(out value, null);
         }
@@ -2150,7 +2105,7 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="value">The value to get</param>
-        public bool TryGet<T>(out T[] value) where T : Enum
+        public bool TryGet<T>(out ArrayOf<T> value) where T : Enum
         {
             return TryGetArray(out value, BuiltInType.Enumeration);
         }
@@ -2160,7 +2115,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="uint"/>-array value to get
         /// </param>
-        public bool TryGet(out uint[] value)
+        public bool TryGet(out ArrayOf<uint> value)
         {
             return TryGetArray(out value, BuiltInType.UInt32);
         }
@@ -2170,7 +2125,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="long"/>-array value to get
         /// </param>
-        public bool TryGet(out long[] value)
+        public bool TryGet(out ArrayOf<long> value)
         {
             return TryGetArray(out value, BuiltInType.Int64);
         }
@@ -2180,7 +2135,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="ulong"/>-array value to get
         /// </param>
-        public bool TryGet(out ulong[] value)
+        public bool TryGet(out ArrayOf<ulong> value)
         {
             return TryGetArray(out value, BuiltInType.UInt64);
         }
@@ -2190,7 +2145,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="float"/>-array value to get
         /// </param>
-        public bool TryGet(out float[] value)
+        public bool TryGet(out ArrayOf<float> value)
         {
             return TryGetArray(out value, BuiltInType.Float);
         }
@@ -2200,7 +2155,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="double"/>-array value to get
         /// </param>
-        public bool TryGet(out double[] value)
+        public bool TryGet(out ArrayOf<double> value)
         {
             return TryGetArray(out value, BuiltInType.Double);
         }
@@ -2210,7 +2165,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="string"/>-array value to get
         /// </param>
-        public bool TryGet(out string[] value)
+        public bool TryGet(out ArrayOf<string> value)
         {
             return TryGetArray(out value, BuiltInType.String);
         }
@@ -2220,7 +2175,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="DateTime"/>-array value to get
         /// </param>
-        public bool TryGet(out DateTime[] value)
+        public bool TryGet(out ArrayOf<DateTime> value)
         {
             return TryGetArray(out value, BuiltInType.DateTime);
         }
@@ -2230,7 +2185,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="Uuid"/>-array value to get
         /// </param>
-        public bool TryGet(out Uuid[] value)
+        public bool TryGet(out ArrayOf<Uuid> value)
         {
             return TryGetArray(out value, BuiltInType.Guid);
         }
@@ -2240,7 +2195,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The 2-d <see cref="byte"/>-array value to get
         /// </param>
-        public bool TryGet(out ByteString[] value)
+        public bool TryGet(out ArrayOf<ByteString> value)
         {
             return TryGetArray(out value, BuiltInType.ByteString);
         }
@@ -2250,7 +2205,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="XmlElement"/>-array value to get
         /// </param>
-        public bool TryGet(out XmlElement[] value)
+        public bool TryGet(out ArrayOf<XmlElement> value)
         {
             return TryGetArray(out value, BuiltInType.XmlElement);
         }
@@ -2260,7 +2215,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="NodeId"/>-array value to get
         /// </param>
-        public bool TryGet(out NodeId[] value)
+        public bool TryGet(out ArrayOf<NodeId> value)
         {
             return TryGetArray(out value, BuiltInType.NodeId);
         }
@@ -2270,7 +2225,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="ExpandedNodeId"/>-array value to
         /// get </param>
-        public bool TryGet(out ExpandedNodeId[] value)
+        public bool TryGet(out ArrayOf<ExpandedNodeId> value)
         {
             return TryGetArray(out value, BuiltInType.ExpandedNodeId);
         }
@@ -2280,7 +2235,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="StatusCode"/>-array value to get
         /// </param>
-        public bool TryGet(out StatusCode[] value)
+        public bool TryGet(out ArrayOf<StatusCode> value)
         {
             return TryGetArray(out value, BuiltInType.StatusCode);
         }
@@ -2290,7 +2245,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="QualifiedName"/>-array value to
         /// get </param>
-        public bool TryGet(out QualifiedName[] value)
+        public bool TryGet(out ArrayOf<QualifiedName> value)
         {
             return TryGetArray(out value, BuiltInType.QualifiedName);
         }
@@ -2300,7 +2255,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="LocalizedText"/>-array value to
         /// get </param>
-        public bool TryGet(out LocalizedText[] value)
+        public bool TryGet(out ArrayOf<LocalizedText> value)
         {
             return TryGetArray(out value, BuiltInType.LocalizedText);
         }
@@ -2310,7 +2265,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="ExtensionObject"/>-array value to
         /// get </param>
-        public bool TryGet(out ExtensionObject[] value)
+        public bool TryGet(out ArrayOf<ExtensionObject> value)
         {
             return TryGetArray(out value, BuiltInType.ExtensionObject);
         }
@@ -2320,7 +2275,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="DataValue"/>-array value to get
         /// </param>
-        public bool TryGet(out DataValue[] value)
+        public bool TryGet(out ArrayOf<DataValue> value)
         {
             return TryGetArray(out value, BuiltInType.DataValue);
         }
@@ -2330,7 +2285,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="Variant"/>-array value to get
         /// </param>
-        public bool TryGet(out Variant[] value)
+        public bool TryGet(out ArrayOf<Variant> value)
         {
             return TryGetArray(out value, BuiltInType.Variant);
         }
@@ -2339,7 +2294,7 @@ namespace Opc.Ua
         /// Try get array of specified type.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public bool TryGetArray<T>(out T[] value, BuiltInType expectedType)
+        public bool TryGetArray<T>(out ArrayOf<T> value, BuiltInType expectedType)
         {
             if (m_value == null)
             {
@@ -2355,7 +2310,7 @@ namespace Opc.Ua
                 }
             }
             // Leave else we need to convert between enum/int array types
-            else if (m_value is T[] variable)
+            else if (m_value is ArrayOf<T> variable)
             {
                 value = variable;
                 return true;
@@ -2372,24 +2327,25 @@ namespace Opc.Ua
             }
             try
             {
-                value = (T[])Array.CreateInstance(typeof(T), array.Length);
+                var buffer = (T[])Array.CreateInstance(typeof(T), array.Length);
                 if (typeof(T).IsEnum)
                 {
                     for (int ii = 0; ii < array.Length; ii++)
                     {
-                        value[ii] = (T)Enum.ToObject(typeof(T), array.GetValue(ii));
+                        buffer[ii] = (T)Enum.ToObject(typeof(T), array.GetValue(ii));
                     }
                 }
                 else
                 {
                     for (int ii = 0; ii < array.Length; ii++)
                     {
-                        value[ii] = (T)Convert.ChangeType(
+                        buffer[ii] = (T)Convert.ChangeType(
                             array.GetValue(ii),
                             typeof(T),
                             CultureInfo.InvariantCulture);
                     }
                 }
+                value = buffer;
                 return true;
             }
             catch
@@ -2464,9 +2420,9 @@ namespace Opc.Ua
                 return true;
             }
 
-            if (TryGetArray(out T[] array, expectedType))
+            if (TryGetArray(out ArrayOf<T> array, expectedType))
             {
-                matrix = new Matrix(array, TypeInfo.BuiltInType);
+                matrix = new Matrix(array.ToArray(), TypeInfo.BuiltInType);
                 return true;
             }
 
@@ -2755,7 +2711,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="bool"/>-array value to set
         /// this Variant to</param>
-        public static Variant From(bool[] value)
+        public static Variant From(ArrayOf<bool> value)
         {
             return new Variant(value);
         }
@@ -2765,7 +2721,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="sbyte"/>-array value to set
         /// this Variant to</param>
-        public static Variant From(sbyte[] value)
+        public static Variant From(ArrayOf<sbyte> value)
         {
             return new Variant(value);
         }
@@ -2775,7 +2731,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="byte"/>-array value to set
         /// this Variant to</param>
-        public static Variant From(byte[] value)
+        public static Variant From(ArrayOf<byte> value)
         {
             return new Variant(value);
         }
@@ -2785,7 +2741,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="short"/>-array value to set
         /// this Variant to</param>
-        public static Variant From(short[] value)
+        public static Variant From(ArrayOf<short> value)
         {
             return new Variant(value);
         }
@@ -2795,7 +2751,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="ushort"/>-array value to set
         /// this Variant to</param>
-        public static Variant From(ushort[] value)
+        public static Variant From(ArrayOf<ushort> value)
         {
             return new Variant(value);
         }
@@ -2805,7 +2761,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="int"/>-array value to set
         /// this Variant to</param>
-        public static Variant From(int[] value)
+        public static Variant From(ArrayOf<int> value)
         {
             return new Variant(value);
         }
@@ -2816,9 +2772,20 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         /// <param name="value">The Enum-array value to set
         /// this Variant to</param>
-        public static Variant From<T>(T[] value) where T : Enum
+        public static Variant From<T>(ArrayOf<T> value) where T : Enum
         {
             return new Variant(value, TypeInfo.Arrays.Enumeration);
+        }
+
+        /// <summary>
+        /// Create a Variant from a Enum-array value.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="value">The Enum-array value to set
+        /// this Variant to</param>
+        public static Variant From<T>(T[] value) where T : Enum
+        {
+            return new Variant(value.ToArrayOf(), TypeInfo.Arrays.Enumeration);
         }
 
         /// <summary>
@@ -2826,7 +2793,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="uint"/>-array value to set
         /// this Variant to</param>
-        public static Variant From(uint[] value)
+        public static Variant From(ArrayOf<uint> value)
         {
             return new Variant(value);
         }
@@ -2836,7 +2803,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="long"/>-array value to set
         /// this Variant to</param>
-        public static Variant From(long[] value)
+        public static Variant From(ArrayOf<long> value)
         {
             return new Variant(value);
         }
@@ -2846,7 +2813,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="ulong"/>-array value to set
         /// this Variant to</param>
-        public static Variant From(ulong[] value)
+        public static Variant From(ArrayOf<ulong> value)
         {
             return new Variant(value);
         }
@@ -2856,7 +2823,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="float"/>-array value to set
         /// this Variant to</param>
-        public static Variant From(float[] value)
+        public static Variant From(ArrayOf<float> value)
         {
             return new Variant(value);
         }
@@ -2866,7 +2833,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="double"/>-array value to set
         /// this Variant to</param>
-        public static Variant From(double[] value)
+        public static Variant From(ArrayOf<double> value)
         {
             return new Variant(value);
         }
@@ -2876,7 +2843,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="string"/>-array value to set
         /// this Variant to</param>
-        public static Variant From(string[] value)
+        public static Variant From(ArrayOf<string> value)
         {
             return new Variant(value);
         }
@@ -2886,7 +2853,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="DateTime"/>-array value to set
         /// this Variant to</param>
-        public static Variant From(DateTime[] value)
+        public static Variant From(ArrayOf<DateTime> value)
         {
             return new Variant(value);
         }
@@ -2896,7 +2863,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="Uuid"/>-array value to set
         /// this Variant to</param>
-        public static Variant From(Uuid[] value)
+        public static Variant From(ArrayOf<Uuid> value)
         {
             return new Variant(value);
         }
@@ -2906,7 +2873,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="ByteString"/>-array value to set
         /// this Variant to</param>
-        public static Variant From(ByteString[] value)
+        public static Variant From(ArrayOf<ByteString> value)
         {
             return new Variant(value);
         }
@@ -2916,7 +2883,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="XmlElement"/>-array value to set
         /// this Variant to</param>
-        public static Variant From(XmlElement[] value)
+        public static Variant From(ArrayOf<XmlElement> value)
         {
             return new Variant(value);
         }
@@ -2926,7 +2893,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="NodeId"/>-array value to set
         /// this Variant to</param>
-        public static Variant From(NodeId[] value)
+        public static Variant From(ArrayOf<NodeId> value)
         {
             return new Variant(value);
         }
@@ -2936,7 +2903,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="ExpandedNodeId"/>-array value to
         /// set this Variant to</param>
-        public static Variant From(ExpandedNodeId[] value)
+        public static Variant From(ArrayOf<ExpandedNodeId> value)
         {
             return new Variant(value);
         }
@@ -2946,7 +2913,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="StatusCode"/>-array value to set
         /// this Variant to</param>
-        public static Variant From(StatusCode[] value)
+        public static Variant From(ArrayOf<StatusCode> value)
         {
             return new Variant(value);
         }
@@ -2956,7 +2923,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="QualifiedName"/>-array value to
         /// set this Variant to</param>
-        public static Variant From(QualifiedName[] value)
+        public static Variant From(ArrayOf<QualifiedName> value)
         {
             return new Variant(value);
         }
@@ -2966,7 +2933,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="LocalizedText"/>-array value to
         /// set this Variant to</param>
-        public static Variant From(LocalizedText[] value)
+        public static Variant From(ArrayOf<LocalizedText> value)
         {
             return new Variant(value);
         }
@@ -2976,7 +2943,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="ExtensionObject"/>-array value to
         /// set this Variant to</param>
-        public static Variant From(ExtensionObject[] value)
+        public static Variant From(ArrayOf<ExtensionObject> value)
         {
             return new Variant(value);
         }
@@ -2988,10 +2955,10 @@ namespace Opc.Ua
         /// <param name="value">The <see cref="IEncodeable"/>-array value to set
         /// this Variant to</param>
         /// <param name="copy">Make a copy of the encodeable</param>
-        public static Variant FromStructure<T>(IEnumerable<T> value, bool copy = false)
+        public static Variant FromStructure<T>(ArrayOf<T> value, bool copy = false)
             where T : IEncodeable
         {
-            return new Variant(value?.Select(b => new ExtensionObject(b, copy)).ToArray());
+            return new Variant(value.ConvertAll(b => new ExtensionObject(b, copy)));
         }
 
         /// <summary>
@@ -2999,7 +2966,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="DataValue"/>-array value to set
         /// this Variant to</param>
-        public static Variant From(DataValue[] value)
+        public static Variant From(ArrayOf<DataValue> value)
         {
             return new Variant(value);
         }
@@ -3009,7 +2976,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The <see cref="Variant"/>-array value to set
         /// this Variant to</param>
-        public static Variant From(Variant[] value)
+        public static Variant From(ArrayOf<Variant> value)
         {
             return new Variant(value);
         }
@@ -3201,7 +3168,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a bool[] value to an Variant object.
         /// </summary>
-        public static implicit operator Variant(bool[] value)
+        public static implicit operator Variant(ArrayOf<bool> value)
         {
             return From(value);
         }
@@ -3209,7 +3176,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a sbyte[] value to an Variant object.
         /// </summary>
-        public static implicit operator Variant(sbyte[] value)
+        public static implicit operator Variant(ArrayOf<sbyte> value)
         {
             return From(value);
         }
@@ -3217,7 +3184,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a byte[] value to an Variant object.
         /// </summary>
-        public static implicit operator Variant(byte[] value)
+        public static implicit operator Variant(ArrayOf<byte> value)
         {
             return From(value);
         }
@@ -3225,7 +3192,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a short[] value to an Variant object.
         /// </summary>
-        public static implicit operator Variant(short[] value)
+        public static implicit operator Variant(ArrayOf<short> value)
         {
             return From(value);
         }
@@ -3233,7 +3200,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a ushort[] value to an Variant object.
         /// </summary>
-        public static implicit operator Variant(ushort[] value)
+        public static implicit operator Variant(ArrayOf<ushort> value)
         {
             return From(value);
         }
@@ -3241,7 +3208,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a int[] value to an Variant object.
         /// </summary>
-        public static implicit operator Variant(int[] value)
+        public static implicit operator Variant(ArrayOf<int> value)
         {
             return From(value);
         }
@@ -3249,7 +3216,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a uint[] value to an Variant object.
         /// </summary>
-        public static implicit operator Variant(uint[] value)
+        public static implicit operator Variant(ArrayOf<uint> value)
         {
             return From(value);
         }
@@ -3257,7 +3224,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a long[] value to an Variant object.
         /// </summary>
-        public static implicit operator Variant(long[] value)
+        public static implicit operator Variant(ArrayOf<long> value)
         {
             return From(value);
         }
@@ -3265,7 +3232,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a ulong[] value to an Variant object.
         /// </summary>
-        public static implicit operator Variant(ulong[] value)
+        public static implicit operator Variant(ArrayOf<ulong> value)
         {
             return From(value);
         }
@@ -3273,7 +3240,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a float[] value to an Variant object.
         /// </summary>
-        public static implicit operator Variant(float[] value)
+        public static implicit operator Variant(ArrayOf<float> value)
         {
             return From(value);
         }
@@ -3281,7 +3248,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a double[] value to an Variant object.
         /// </summary>
-        public static implicit operator Variant(double[] value)
+        public static implicit operator Variant(ArrayOf<double> value)
         {
             return From(value);
         }
@@ -3289,7 +3256,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a string []value to an Variant object.
         /// </summary>
-        public static implicit operator Variant(string[] value)
+        public static implicit operator Variant(ArrayOf<string> value)
         {
             return From(value);
         }
@@ -3297,7 +3264,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a DateTime[] value to an Variant object.
         /// </summary>
-        public static implicit operator Variant(DateTime[] value)
+        public static implicit operator Variant(ArrayOf<DateTime> value)
         {
             return From(value);
         }
@@ -3305,7 +3272,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a Uuid[] value to an Variant object.
         /// </summary>
-        public static implicit operator Variant(Uuid[] value)
+        public static implicit operator Variant(ArrayOf<Uuid> value)
         {
             return From(value);
         }
@@ -3313,7 +3280,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a ByteString[] value to an Variant object.
         /// </summary>
-        public static implicit operator Variant(ByteString[] value)
+        public static implicit operator Variant(ArrayOf<ByteString> value)
         {
             return From(value);
         }
@@ -3321,7 +3288,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a XmlElement[] value to an Variant object.
         /// </summary>
-        public static implicit operator Variant(XmlElement[] value)
+        public static implicit operator Variant(ArrayOf<XmlElement> value)
         {
             return From(value);
         }
@@ -3329,7 +3296,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a NodeId[] value to an Variant object.
         /// </summary>
-        public static implicit operator Variant(NodeId[] value)
+        public static implicit operator Variant(ArrayOf<NodeId> value)
         {
             return From(value);
         }
@@ -3337,7 +3304,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a ExpandedNodeId[] value to an Variant object.
         /// </summary>
-        public static implicit operator Variant(ExpandedNodeId[] value)
+        public static implicit operator Variant(ArrayOf<ExpandedNodeId> value)
         {
             return From(value);
         }
@@ -3345,7 +3312,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a StatusCode[] value to an Variant object.
         /// </summary>
-        public static implicit operator Variant(StatusCode[] value)
+        public static implicit operator Variant(ArrayOf<StatusCode> value)
         {
             return From(value);
         }
@@ -3353,7 +3320,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a QualifiedName[] value to an Variant object.
         /// </summary>
-        public static implicit operator Variant(QualifiedName[] value)
+        public static implicit operator Variant(ArrayOf<QualifiedName> value)
         {
             return From(value);
         }
@@ -3361,7 +3328,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a LocalizedText[] value to an Variant object.
         /// </summary>
-        public static implicit operator Variant(LocalizedText[] value)
+        public static implicit operator Variant(ArrayOf<LocalizedText> value)
         {
             return From(value);
         }
@@ -3369,7 +3336,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a ExtensionObject[] value to an Variant object.
         /// </summary>
-        public static implicit operator Variant(ExtensionObject[] value)
+        public static implicit operator Variant(ArrayOf<ExtensionObject> value)
         {
             return From(value);
         }
@@ -3377,7 +3344,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a DataValue[] value to an Variant object.
         /// </summary>
-        public static implicit operator Variant(DataValue[] value)
+        public static implicit operator Variant(ArrayOf<DataValue> value)
         {
             return From(value);
         }
@@ -3385,7 +3352,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a Variant[] value to an Variant object.
         /// </summary>
-        public static implicit operator Variant(Variant[] value)
+        public static implicit operator Variant(ArrayOf<Variant> value)
         {
             return From(value);
         }
@@ -3577,193 +3544,193 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a bool[] value to an Variant object.
         /// </summary>
-        public static explicit operator bool[](Variant value)
+        public static explicit operator ArrayOf<bool>(Variant value)
         {
-            return value.TryGet(out bool[] v) ? v : throw CannotCast<bool[]>();
+            return value.TryGet(out ArrayOf<bool> v) ? v : throw CannotCast<ArrayOf<bool>>();
         }
 
         /// <summary>
         /// Converts a sbyte[] value to an Variant object.
         /// </summary>
-        public static explicit operator sbyte[](Variant value)
+        public static explicit operator ArrayOf<sbyte>(Variant value)
         {
-            return value.TryGet(out sbyte[] v) ? v : throw CannotCast<sbyte[]>();
+            return value.TryGet(out ArrayOf<sbyte> v) ? v : throw CannotCast<ArrayOf<sbyte>>();
         }
 
         /// <summary>
         /// Converts a byte[] value to an Variant object.
         /// </summary>
-        public static explicit operator byte[](Variant value)
+        public static explicit operator ArrayOf<byte>(Variant value)
         {
-            return value.TryGet(out byte[] v) ? v : throw CannotCast<byte[]>();
+            return value.TryGet(out ArrayOf<byte> v) ? v : throw CannotCast<ArrayOf<byte>>();
         }
 
         /// <summary>
         /// Converts a short[] value to an Variant object.
         /// </summary>
-        public static explicit operator short[](Variant value)
+        public static explicit operator ArrayOf<short>(Variant value)
         {
-            return value.TryGet(out short[] v) ? v : throw CannotCast<short[]>();
+            return value.TryGet(out ArrayOf<short> v) ? v : throw CannotCast<ArrayOf<short>>();
         }
 
         /// <summary>
         /// Converts a ushort[] value to an Variant object.
         /// </summary>
-        public static explicit operator ushort[](Variant value)
+        public static explicit operator ArrayOf<ushort>(Variant value)
         {
-            return value.TryGet(out ushort[] v) ? v : throw CannotCast<ushort[]>();
+            return value.TryGet(out ArrayOf<ushort> v) ? v : throw CannotCast<ArrayOf<ushort>>();
         }
 
         /// <summary>
         /// Converts a int[] value to an Variant object.
         /// </summary>
-        public static explicit operator int[](Variant value)
+        public static explicit operator ArrayOf<int>(Variant value)
         {
-            return value.TryGet(out int[] v) ? v : throw CannotCast<int[]>();
+            return value.TryGet(out ArrayOf<int> v) ? v : throw CannotCast<ArrayOf<int>>();
         }
 
         /// <summary>
         /// Converts a uint[] value to an Variant object.
         /// </summary>
-        public static explicit operator uint[](Variant value)
+        public static explicit operator ArrayOf<uint>(Variant value)
         {
-            return value.TryGet(out uint[] v) ? v : throw CannotCast<uint[]>();
+            return value.TryGet(out ArrayOf<uint> v) ? v : throw CannotCast<ArrayOf<uint>>();
         }
 
         /// <summary>
         /// Converts a long[] value to an Variant object.
         /// </summary>
-        public static explicit operator long[](Variant value)
+        public static explicit operator ArrayOf<long>(Variant value)
         {
-            return value.TryGet(out long[] v) ? v : throw CannotCast<long[]>();
+            return value.TryGet(out ArrayOf<long> v) ? v : throw CannotCast<ArrayOf<long>>();
         }
 
         /// <summary>
         /// Converts a ulong[] value to an Variant object.
         /// </summary>
-        public static explicit operator ulong[](Variant value)
+        public static explicit operator ArrayOf<ulong>(Variant value)
         {
-            return value.TryGet(out ulong[] v) ? v : throw CannotCast<ulong[]>();
+            return value.TryGet(out ArrayOf<ulong> v) ? v : throw CannotCast<ArrayOf<ulong>>();
         }
 
         /// <summary>
         /// Converts a float[] value to an Variant object.
         /// </summary>
-        public static explicit operator float[](Variant value)
+        public static explicit operator ArrayOf<float>(Variant value)
         {
-            return value.TryGet(out float[] v) ? v : throw CannotCast<float[]>();
+            return value.TryGet(out ArrayOf<float> v) ? v : throw CannotCast<ArrayOf<float>>();
         }
 
         /// <summary>
         /// Converts a double[] value to an Variant object.
         /// </summary>
-        public static explicit operator double[](Variant value)
+        public static explicit operator ArrayOf<double>(Variant value)
         {
-            return value.TryGet(out double[] v) ? v : throw CannotCast<double[]>();
+            return value.TryGet(out ArrayOf<double> v) ? v : throw CannotCast<ArrayOf<double>>();
         }
 
         /// <summary>
         /// Converts a string []value to an Variant object.
         /// </summary>
-        public static explicit operator string[](Variant value)
+        public static explicit operator ArrayOf<string>(Variant value)
         {
-            return value.TryGet(out string[] v) ? v : throw CannotCast<string[]>();
+            return value.TryGet(out ArrayOf<string> v) ? v : throw CannotCast<ArrayOf<string>>();
         }
 
         /// <summary>
         /// Converts a DateTime[] value to an Variant object.
         /// </summary>
-        public static explicit operator DateTime[](Variant value)
+        public static explicit operator ArrayOf<DateTime>(Variant value)
         {
-            return value.TryGet(out DateTime[] v) ? v : throw CannotCast<DateTime[]>();
+            return value.TryGet(out ArrayOf<DateTime> v) ? v : throw CannotCast<ArrayOf<DateTime>>();
         }
 
         /// <summary>
         /// Converts a Uuid[] value to an Variant object.
         /// </summary>
-        public static explicit operator Uuid[](Variant value)
+        public static explicit operator ArrayOf<Uuid>(Variant value)
         {
-            return value.TryGet(out Uuid[] v) ? v : throw CannotCast<Uuid[]>();
+            return value.TryGet(out ArrayOf<Uuid> v) ? v : throw CannotCast<ArrayOf<Uuid>>();
         }
 
         /// <summary>
         /// Converts a ByteString[] value to an Variant object.
         /// </summary>
-        public static explicit operator ByteString[](Variant value)
+        public static explicit operator ArrayOf<ByteString>(Variant value)
         {
-            return value.TryGet(out ByteString[] v) ? v : throw CannotCast<ByteString[]>();
+            return value.TryGet(out ArrayOf<ByteString> v) ? v : throw CannotCast<ArrayOf<ByteString>>();
         }
 
         /// <summary>
         /// Converts a XmlElement[] value to an Variant object.
         /// </summary>
-        public static explicit operator XmlElement[](Variant value)
+        public static explicit operator ArrayOf<XmlElement>(Variant value)
         {
-            return value.TryGet(out XmlElement[] v) ? v : throw CannotCast<XmlElement[]>();
+            return value.TryGet(out ArrayOf<XmlElement> v) ? v : throw CannotCast<ArrayOf<XmlElement>>();
         }
 
         /// <summary>
         /// Converts a NodeId[] value to an Variant object.
         /// </summary>
-        public static explicit operator NodeId[](Variant value)
+        public static explicit operator ArrayOf<NodeId>(Variant value)
         {
-            return value.TryGet(out NodeId[] v) ? v : throw CannotCast<NodeId[]>();
+            return value.TryGet(out ArrayOf<NodeId> v) ? v : throw CannotCast<ArrayOf<NodeId>>();
         }
 
         /// <summary>
         /// Converts a ExpandedNodeId[] value to an Variant object.
         /// </summary>
-        public static explicit operator ExpandedNodeId[](Variant value)
+        public static explicit operator ArrayOf<ExpandedNodeId>(Variant value)
         {
-            return value.TryGet(out ExpandedNodeId[] v) ? v : throw CannotCast<ExpandedNodeId[]>();
+            return value.TryGet(out ArrayOf<ExpandedNodeId> v) ? v : throw CannotCast<ArrayOf<ExpandedNodeId>>();
         }
 
         /// <summary>
         /// Converts a StatusCode[] value to an Variant object.
         /// </summary>
-        public static explicit operator StatusCode[](Variant value)
+        public static explicit operator ArrayOf<StatusCode>(Variant value)
         {
-            return value.TryGet(out StatusCode[] v) ? v : throw CannotCast<StatusCode[]>();
+            return value.TryGet(out ArrayOf<StatusCode> v) ? v : throw CannotCast<ArrayOf<StatusCode>>();
         }
 
         /// <summary>
         /// Converts a QualifiedName[] value to an Variant object.
         /// </summary>
-        public static explicit operator QualifiedName[](Variant value)
+        public static explicit operator ArrayOf<QualifiedName>(Variant value)
         {
-            return value.TryGet(out QualifiedName[] v) ? v : throw CannotCast<QualifiedName[]>();
+            return value.TryGet(out ArrayOf<QualifiedName> v) ? v : throw CannotCast<ArrayOf<QualifiedName>>();
         }
 
         /// <summary>
         /// Converts a LocalizedText[] value to an Variant object.
         /// </summary>
-        public static explicit operator LocalizedText[](Variant value)
+        public static explicit operator ArrayOf<LocalizedText>(Variant value)
         {
-            return value.TryGet(out LocalizedText[] v) ? v : throw CannotCast<LocalizedText[]>();
+            return value.TryGet(out ArrayOf<LocalizedText> v) ? v : throw CannotCast<ArrayOf<LocalizedText>>();
         }
 
         /// <summary>
         /// Converts a ExtensionObject[] value to an Variant object.
         /// </summary>
-        public static explicit operator ExtensionObject[](Variant value)
+        public static explicit operator ArrayOf<ExtensionObject>(Variant value)
         {
-            return value.TryGet(out ExtensionObject[] v) ? v : throw CannotCast<ExtensionObject[]>();
+            return value.TryGet(out ArrayOf<ExtensionObject> v) ? v : throw CannotCast<ArrayOf<ExtensionObject>>();
         }
 
         /// <summary>
         /// Converts a DataValue[] value to an Variant object.
         /// </summary>
-        public static explicit operator DataValue[](Variant value)
+        public static explicit operator ArrayOf<DataValue>(Variant value)
         {
-            return value.TryGet(out DataValue[] v) ? v : throw CannotCast<DataValue[]>();
+            return value.TryGet(out ArrayOf<DataValue> v) ? v : throw CannotCast<ArrayOf<DataValue>>();
         }
 
         /// <summary>
         /// Converts a Variant[] value to an Variant object.
         /// </summary>
-        public static explicit operator Variant[](Variant value)
+        public static explicit operator ArrayOf<Variant>(Variant value)
         {
-            return value.TryGet(out Variant[] v) ? v : throw CannotCast<Variant[]>();
+            return value.TryGet(out ArrayOf<Variant> v) ? v : throw CannotCast<ArrayOf<Variant>>();
         }
 
         /// <summary>
@@ -4622,7 +4589,7 @@ namespace Opc.Ua
             }
             if (TypeInfo.IsArray)
             {
-                return Collapse(Expand().Select(v => v.ConvertTo(targetType)));
+                return Collapse(Expand().ToArrayOf(v => v.ConvertTo(targetType)));
             }
             throw new InvalidCastException();
         }
@@ -4775,179 +4742,154 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(bool[] value)
+        public bool Equals(ArrayOf<bool> value)
         {
-            return TryGet(out bool[] v) &&
-                SequenceEqualityComparer<bool>.Default.Equals(v, value);
+            return TryGet(out ArrayOf<bool> v) && v == value;
         }
 
         /// <inheritdoc/>
-        public bool Equals(sbyte[] value)
+        public bool Equals(ArrayOf<sbyte> value)
         {
-            return TryGet(out sbyte[] v) &&
-                SequenceEqualityComparer<sbyte>.Default.Equals(v, value);
+            return TryGet(out ArrayOf<sbyte> v) && v == value;
         }
 
         /// <inheritdoc/>
-        public bool Equals(byte[] value)
+        public bool Equals(ArrayOf<byte> value)
         {
-            return TryGet(out byte[] v) &&
-                SequenceEqualityComparer<byte>.Default.Equals(v, value);
+            return TryGet(out ArrayOf<byte> v) && v == value;
         }
 
         /// <inheritdoc/>
-        public bool Equals(short[] value)
+        public bool Equals(ArrayOf<short> value)
         {
-            return TryGet(out short[] v) &&
-                SequenceEqualityComparer<short>.Default.Equals(v, value);
+            return TryGet(out ArrayOf<short> v) && v == value;
         }
 
         /// <inheritdoc/>
-        public bool Equals(ushort[] value)
+        public bool Equals(ArrayOf<ushort> value)
         {
-            return TryGet(out ushort[] v) &&
-                SequenceEqualityComparer<ushort>.Default.Equals(v, value);
+            return TryGet(out ArrayOf<ushort> v) && v == value;
         }
 
         /// <inheritdoc/>
-        public bool Equals(int[] value)
+        public bool Equals(ArrayOf<int> value)
         {
-            return TryGet(out int[] v) &&
-                SequenceEqualityComparer<int>.Default.Equals(v, value);
+            return TryGet(out ArrayOf<int> v) && v == value;
         }
 
         /// <inheritdoc/>
-        public bool Equals(Enum[] value)
+        public bool Equals(ArrayOf<Enum> value)
         {
-            return TryGet(out int[] v) &&
-                ArrayEqualityComparer<int>.Default.Equals(v,
-                [.. value.Select(e => Convert.ToInt32(e, CultureInfo.InvariantCulture))]);
+            return TryGet(out ArrayOf<int> v) &&
+                value.ToArrayOf(e => Convert.ToInt32(e, CultureInfo.InvariantCulture)) == v;
         }
 
         /// <inheritdoc/>
-        public bool Equals(uint[] value)
+        public bool Equals(ArrayOf<uint> value)
         {
-            return TryGet(out uint[] v) &&
-                SequenceEqualityComparer<uint>.Default.Equals(v, value);
+            return TryGet(out ArrayOf<uint> v) && v == value;
         }
 
         /// <inheritdoc/>
-        public bool Equals(long[] value)
+        public bool Equals(ArrayOf<long> value)
         {
-            return TryGet(out long[] v) &&
-                SequenceEqualityComparer<long>.Default.Equals(v, value);
+            return TryGet(out ArrayOf<long> v) && v == value;
         }
 
         /// <inheritdoc/>
-        public bool Equals(ulong[] value)
+        public bool Equals(ArrayOf<ulong> value)
         {
-            return TryGet(out ulong[] v) &&
-                SequenceEqualityComparer<ulong>.Default.Equals(v, value);
+            return TryGet(out ArrayOf<ulong> v) && v == value;
         }
 
         /// <inheritdoc/>
-        public bool Equals(float[] value)
+        public bool Equals(ArrayOf<float> value)
         {
-            return TryGet(out float[] v) &&
-                SequenceEqualityComparer<float>.Default.Equals(v, value);
+            return TryGet(out ArrayOf<float> v) && v == value;
         }
 
         /// <inheritdoc/>
-        public bool Equals(double[] value)
+        public bool Equals(ArrayOf<double> value)
         {
-            return TryGet(out double[] v) &&
-                SequenceEqualityComparer<double>.Default.Equals(v, value);
+            return TryGet(out ArrayOf<double> v) && v == value;
         }
 
         /// <inheritdoc/>
-        public bool Equals(string[] value)
+        public bool Equals(ArrayOf<string> value)
         {
-            return TryGet(out string[] v) &&
-                ArrayEqualityComparer<string>.Default.Equals(v, value);
+            return TryGet(out ArrayOf<string> v) && v == value;
         }
 
         /// <inheritdoc/>
-        public bool Equals(DateTime[] value)
+        public bool Equals(ArrayOf<DateTime> value)
         {
-            return TryGet(out DateTime[] v) &&
-                DateTimeArrayComparer.Default.Equals(v, value);
+            return TryGet(out ArrayOf<DateTime> v) && v == value;
         }
 
         /// <inheritdoc/>
-        public bool Equals(Uuid[] value)
+        public bool Equals(ArrayOf<Uuid> value)
         {
-            return TryGet(out Uuid[] v) &&
-                SequenceEqualityComparer<Uuid>.Default.Equals(v, value);
+            return TryGet(out ArrayOf<Uuid> v) && v == value;
         }
 
         /// <inheritdoc/>
-        public bool Equals(ByteString[] value)
+        public bool Equals(ArrayOf<ByteString> value)
         {
-            return TryGet(out ByteString[] v) &&
-                ArrayEqualityComparer<ByteString>.Default.Equals(v, value);
+            return TryGet(out ArrayOf<ByteString> v) && v == value;
         }
 
         /// <inheritdoc/>
-        public bool Equals(XmlElement[] value)
+        public bool Equals(ArrayOf<XmlElement> value)
         {
-            return TryGet(out XmlElement[] v) &&
-                ArrayEqualityComparer<XmlElement>.Default.Equals(v, value);
+            return TryGet(out ArrayOf<XmlElement> v) && v == value;
         }
 
         /// <inheritdoc/>
-        public bool Equals(NodeId[] value)
+        public bool Equals(ArrayOf<NodeId> value)
         {
-            return TryGet(out NodeId[] v) &&
-                ArrayEqualityComparer<NodeId>.Default.Equals(v, value);
+            return TryGet(out ArrayOf<NodeId> v) && v == value;
         }
 
         /// <inheritdoc/>
-        public bool Equals(ExpandedNodeId[] value)
+        public bool Equals(ArrayOf<ExpandedNodeId> value)
         {
-            return TryGet(out ExpandedNodeId[] v) &&
-                ArrayEqualityComparer<ExpandedNodeId>.Default.Equals(v, value);
+            return TryGet(out ArrayOf<ExpandedNodeId> v) && v == value;
         }
 
         /// <inheritdoc/>
-        public bool Equals(StatusCode[] value)
+        public bool Equals(ArrayOf<StatusCode> value)
         {
-            return TryGet(out StatusCode[] v) &&
-                ArrayEqualityComparer<StatusCode>.Default.Equals(v, value);
+            return TryGet(out ArrayOf<StatusCode> v) && v == value;
         }
 
         /// <inheritdoc/>
-        public bool Equals(QualifiedName[] value)
+        public bool Equals(ArrayOf<QualifiedName> value)
         {
-            return TryGet(out QualifiedName[] v) &&
-                ArrayEqualityComparer<QualifiedName>.Default.Equals(v, value);
+            return TryGet(out ArrayOf<QualifiedName> v) && v == value;
         }
 
         /// <inheritdoc/>
-        public bool Equals(LocalizedText[] value)
+        public bool Equals(ArrayOf<LocalizedText> value)
         {
-            return TryGet(out LocalizedText[] v) &&
-                ArrayEqualityComparer<LocalizedText>.Default.Equals(v, value);
+            return TryGet(out ArrayOf<LocalizedText> v) && v == value;
         }
 
         /// <inheritdoc/>
-        public bool Equals(ExtensionObject[] value)
+        public bool Equals(ArrayOf<ExtensionObject> value)
         {
-            return TryGet(out ExtensionObject[] v) &&
-                ArrayEqualityComparer<ExtensionObject>.Default.Equals(v, value);
+            return TryGet(out ArrayOf<ExtensionObject> v) && v == value;
         }
 
         /// <inheritdoc/>
-        public bool Equals(DataValue[] value)
+        public bool Equals(ArrayOf<DataValue> value)
         {
-            return TryGet(out DataValue[] v) &&
-                ArrayEqualityComparer<DataValue>.Default.Equals(v, value);
+            return TryGet(out ArrayOf<DataValue> v) && v == value;
         }
 
         /// <inheritdoc/>
-        public bool Equals(Variant[] value)
+        public bool Equals(ArrayOf<Variant> value)
         {
-            return TryGet(out Variant[] v) &&
-                ArrayEqualityComparer<Variant>.Default.Equals(v, value);
+            return TryGet(out ArrayOf<Variant> v) && v == value;
         }
 
         /// <inheritdoc/>
@@ -5251,301 +5193,301 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, bool[] value)
+        public static bool operator ==(Variant a, ArrayOf<bool> value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, bool[] value)
+        public static bool operator !=(Variant a, ArrayOf<bool> value)
         {
             return !a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, sbyte[] value)
+        public static bool operator ==(Variant a, ArrayOf<sbyte> value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, sbyte[] value)
+        public static bool operator !=(Variant a, ArrayOf<sbyte> value)
         {
             return !a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, byte[] value)
+        public static bool operator ==(Variant a, ArrayOf<byte> value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, byte[] value)
+        public static bool operator !=(Variant a, ArrayOf<byte> value)
         {
             return !a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, short[] value)
+        public static bool operator ==(Variant a, ArrayOf<short> value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, short[] value)
+        public static bool operator !=(Variant a, ArrayOf<short> value)
         {
             return !a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, ushort[] value)
+        public static bool operator ==(Variant a, ArrayOf<ushort> value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, ushort[] value)
+        public static bool operator !=(Variant a, ArrayOf<ushort> value)
         {
             return !a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, int[] value)
+        public static bool operator ==(Variant a, ArrayOf<int> value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, int[] value)
+        public static bool operator !=(Variant a, ArrayOf<int> value)
         {
             return !a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, Enum[] value)
+        public static bool operator ==(Variant a, ArrayOf<Enum> value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, Enum[] value)
+        public static bool operator !=(Variant a, ArrayOf<Enum> value)
         {
             return !a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, uint[] value)
+        public static bool operator ==(Variant a, ArrayOf<uint> value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, uint[] value)
+        public static bool operator !=(Variant a, ArrayOf<uint> value)
         {
             return !a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, long[] value)
+        public static bool operator ==(Variant a, ArrayOf<long> value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, long[] value)
+        public static bool operator !=(Variant a, ArrayOf<long> value)
         {
             return !a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, ulong[] value)
+        public static bool operator ==(Variant a, ArrayOf<ulong> value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, ulong[] value)
+        public static bool operator !=(Variant a, ArrayOf<ulong> value)
         {
             return !a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, float[] value)
+        public static bool operator ==(Variant a, ArrayOf<float> value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, float[] value)
+        public static bool operator !=(Variant a, ArrayOf<float> value)
         {
             return !a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, double[] value)
+        public static bool operator ==(Variant a, ArrayOf<double> value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, double[] value)
+        public static bool operator !=(Variant a, ArrayOf<double> value)
         {
             return !a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, string[] value)
+        public static bool operator ==(Variant a, ArrayOf<string> value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, string[] value)
+        public static bool operator !=(Variant a, ArrayOf<string> value)
         {
             return !a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, DateTime[] value)
+        public static bool operator ==(Variant a, ArrayOf<DateTime> value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, DateTime[] value)
+        public static bool operator !=(Variant a, ArrayOf<DateTime> value)
         {
             return !a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, Uuid[] value)
+        public static bool operator ==(Variant a, ArrayOf<Uuid> value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, Uuid[] value)
+        public static bool operator !=(Variant a, ArrayOf<Uuid> value)
         {
             return !a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, ByteString[] value)
+        public static bool operator ==(Variant a, ArrayOf<ByteString> value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, ByteString[] value)
+        public static bool operator !=(Variant a, ArrayOf<ByteString> value)
         {
             return !a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, XmlElement[] value)
+        public static bool operator ==(Variant a, ArrayOf<XmlElement> value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, XmlElement[] value)
+        public static bool operator !=(Variant a, ArrayOf<XmlElement> value)
         {
             return !a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, NodeId[] value)
+        public static bool operator ==(Variant a, ArrayOf<NodeId> value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, NodeId[] value)
+        public static bool operator !=(Variant a, ArrayOf<NodeId> value)
         {
             return !a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, ExpandedNodeId[] value)
+        public static bool operator ==(Variant a, ArrayOf<ExpandedNodeId> value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, ExpandedNodeId[] value)
+        public static bool operator !=(Variant a, ArrayOf<ExpandedNodeId> value)
         {
             return !a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, StatusCode[] value)
+        public static bool operator ==(Variant a, ArrayOf<StatusCode> value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, StatusCode[] value)
+        public static bool operator !=(Variant a, ArrayOf<StatusCode> value)
         {
             return !a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, QualifiedName[] value)
+        public static bool operator ==(Variant a, ArrayOf<QualifiedName> value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, QualifiedName[] value)
+        public static bool operator !=(Variant a, ArrayOf<QualifiedName> value)
         {
             return !a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, LocalizedText[] value)
+        public static bool operator ==(Variant a, ArrayOf<LocalizedText> value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, LocalizedText[] value)
+        public static bool operator !=(Variant a, ArrayOf<LocalizedText> value)
         {
             return !a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, ExtensionObject[] value)
+        public static bool operator ==(Variant a, ArrayOf<ExtensionObject> value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, ExtensionObject[] value)
+        public static bool operator !=(Variant a, ArrayOf<ExtensionObject> value)
         {
             return !a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, DataValue[] value)
+        public static bool operator ==(Variant a, ArrayOf<DataValue> value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, DataValue[] value)
+        public static bool operator !=(Variant a, ArrayOf<DataValue> value)
         {
             return !a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Variant a, Variant[] value)
+        public static bool operator ==(Variant a, ArrayOf<Variant> value)
         {
             return a.Equals(value);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Variant a, Variant[] value)
+        public static bool operator !=(Variant a, ArrayOf<Variant> value)
         {
             return !a.Equals(value);
         }
@@ -5732,31 +5674,31 @@ namespace Opc.Ua
                 LocalizedText v => Equals(v),
                 ExtensionObject v => Equals(v),
                 DataValue v => Equals(v),
-                sbyte[] v => Equals(v),
-                byte[] v => Equals(v),
-                ushort[] v => Equals(v),
-                short[] v => Equals(v),
-                uint[] v => Equals(v),
-                int[] v => Equals(v),
-                ulong[] v => Equals(v),
-                long[] v => Equals(v),
-                bool[] v => Equals(v),
-                float[] v => Equals(v),
-                double[] v => Equals(v),
-                string[] v => Equals(v),
-                Enum[] v => Equals(v),
-                DateTime[] v => Equals(v),
-                Uuid[] v => Equals(v),
-                ByteString[] v => Equals(v),
-                XmlElement[] v => Equals(v),
-                NodeId[] v => Equals(v),
-                ExpandedNodeId[] v => Equals(v),
-                StatusCode[] v => Equals(v),
-                QualifiedName[] v => Equals(v),
-                LocalizedText[] v => Equals(v),
-                ExtensionObject[] v => Equals(v),
-                DataValue[] v => Equals(v),
-                Variant[] v => Equals(v),
+                ArrayOf<sbyte> v => Equals(v),
+                ArrayOf<byte> v => Equals(v),
+                ArrayOf<ushort> v => Equals(v),
+                ArrayOf<short> v => Equals(v),
+                ArrayOf<uint> v => Equals(v),
+                ArrayOf<int> v => Equals(v),
+                ArrayOf<ulong> v => Equals(v),
+                ArrayOf<long> v => Equals(v),
+                ArrayOf<bool> v => Equals(v),
+                ArrayOf<float> v => Equals(v),
+                ArrayOf<double> v => Equals(v),
+                ArrayOf<string> v => Equals(v),
+                ArrayOf<Enum> v => Equals(v),
+                ArrayOf<DateTime> v => Equals(v),
+                ArrayOf<Uuid> v => Equals(v),
+                ArrayOf<ByteString> v => Equals(v),
+                ArrayOf<XmlElement> v => Equals(v),
+                ArrayOf<NodeId> v => Equals(v),
+                ArrayOf<ExpandedNodeId> v => Equals(v),
+                ArrayOf<StatusCode> v => Equals(v),
+                ArrayOf<QualifiedName> v => Equals(v),
+                ArrayOf<LocalizedText> v => Equals(v),
+                ArrayOf<ExtensionObject> v => Equals(v),
+                ArrayOf<DataValue> v => Equals(v),
+                ArrayOf<Variant> v => Equals(v),
                 _ => false
             };
         }
@@ -5804,7 +5746,7 @@ namespace Opc.Ua
         /// variant.
         /// </summary>
         /// <returns></returns>
-        internal IEnumerable<Variant> Expand()
+        internal ArrayOf<Variant> Expand()
         {
             if (TypeInfo.IsScalar)
             {
@@ -5815,51 +5757,51 @@ namespace Opc.Ua
                 switch (TypeInfo.BuiltInType)
                 {
                     case BuiltInType.Boolean:
-                        return GetBooleanArray().Select(v => new Variant(v));
+                        return GetBooleanArray().ToArrayOf(v => new Variant(v));
                     case BuiltInType.SByte:
-                        return GetSByteArray().Select(v => new Variant(v));
+                        return GetSByteArray().ToArrayOf(v => new Variant(v));
                     case BuiltInType.Byte:
-                        return GetByteArray().Select(v => new Variant(v));
+                        return GetByteArray().ToArrayOf(v => new Variant(v));
                     case BuiltInType.Int16:
-                        return GetInt16Array().Select(v => new Variant(v));
+                        return GetInt16Array().ToArrayOf(v => new Variant(v));
                     case BuiltInType.UInt16:
-                        return GetUInt16Array().Select(v => new Variant(v));
+                        return GetUInt16Array().ToArrayOf(v => new Variant(v));
                     case BuiltInType.Int32:
-                        return GetInt32Array().Select(v => new Variant(v));
+                        return GetInt32Array().ToArrayOf(v => new Variant(v));
                     case BuiltInType.UInt32:
-                        return GetUInt32Array().Select(v => new Variant(v));
+                        return GetUInt32Array().ToArrayOf(v => new Variant(v));
                     case BuiltInType.Int64:
-                        return GetInt64Array().Select(v => new Variant(v));
+                        return GetInt64Array().ToArrayOf(v => new Variant(v));
                     case BuiltInType.UInt64:
-                        return GetUInt64Array().Select(v => new Variant(v));
+                        return GetUInt64Array().ToArrayOf(v => new Variant(v));
                     case BuiltInType.Float:
-                        return GetFloatArray().Select(v => new Variant(v));
+                        return GetFloatArray().ToArrayOf(v => new Variant(v));
                     case BuiltInType.Double:
-                        return GetDoubleArray().Select(v => new Variant(v));
+                        return GetDoubleArray().ToArrayOf(v => new Variant(v));
                     case BuiltInType.String:
-                        return GetStringArray().Select(v => new Variant(v));
+                        return GetStringArray().ToArrayOf(v => new Variant(v));
                     case BuiltInType.DateTime:
-                        return GetDateTimeArray().Select(v => new Variant(v));
+                        return GetDateTimeArray().ToArrayOf(v => new Variant(v));
                     case BuiltInType.Guid:
-                        return GetGuidArray().Select(v => new Variant(v));
+                        return GetGuidArray().ToArrayOf(v => new Variant(v));
                     case BuiltInType.ByteString:
-                        return GetByteStringArray().Select(v => new Variant(v));
+                        return GetByteStringArray().ToArrayOf(v => new Variant(v));
                     case BuiltInType.XmlElement:
-                        return GetXmlElementArray().Select(v => new Variant(v));
+                        return GetXmlElementArray().ToArrayOf(v => new Variant(v));
                     case BuiltInType.NodeId:
-                        return GetNodeIdArray().Select(v => new Variant(v));
+                        return GetNodeIdArray().ToArrayOf(v => new Variant(v));
                     case BuiltInType.ExpandedNodeId:
-                        return GetExpandedNodeIdArray().Select(v => new Variant(v));
+                        return GetExpandedNodeIdArray().ToArrayOf(v => new Variant(v));
                     case BuiltInType.StatusCode:
-                        return GetStatusCodeArray().Select(v => new Variant(v));
+                        return GetStatusCodeArray().ToArrayOf(v => new Variant(v));
                     case BuiltInType.QualifiedName:
-                        return GetQualifiedNameArray().Select(v => new Variant(v));
+                        return GetQualifiedNameArray().ToArrayOf(v => new Variant(v));
                     case BuiltInType.LocalizedText:
-                        return GetLocalizedTextArray().Select(v => new Variant(v));
+                        return GetLocalizedTextArray().ToArrayOf(v => new Variant(v));
                     case BuiltInType.ExtensionObject:
-                        return GetExtensionObjectArray().Select(v => new Variant(v));
+                        return GetExtensionObjectArray().ToArrayOf(v => new Variant(v));
                     case BuiltInType.DataValue:
-                        return GetDataValueArray().Select(v => new Variant(v));
+                        return GetDataValueArray().ToArrayOf(v => new Variant(v));
                     case BuiltInType.DiagnosticInfo:
                         return [];
                     case BuiltInType.Number:
@@ -5880,73 +5822,72 @@ namespace Opc.Ua
         /// variant of variants.
         /// </summary>
         /// <returns></returns>
-        internal static Variant Collapse(IEnumerable<Variant> variants)
+        internal static Variant Collapse(ArrayOf<Variant> items)
         {
-            var items = variants.ToList();
             if (items.Count == 0)
             {
                 return default;
             }
             if (items.Count == 1)
             {
-                return items[0];
+                return items.Span[0];
             }
-            TypeInfo typeInfo = items[0].TypeInfo;
-            if (!items.All(v => v.TypeInfo == typeInfo))
+            TypeInfo typeInfo = items.Span[0].TypeInfo;
+            if (!items.ToArray().All(v => v.TypeInfo == typeInfo))
             {
                 // Variant of variants
-                return new Variant(items.ToArray());
+                return new Variant(items);
             }
             if (typeInfo.IsScalar)
             {
                 switch (typeInfo.BuiltInType)
                 {
                     case BuiltInType.Boolean:
-                        return new Variant(items.Select(v => v.GetBoolean()).ToArray());
+                        return new Variant(items.ToArrayOf(v => v.GetBoolean()));
                     case BuiltInType.SByte:
-                        return new Variant(items.Select(v => v.GetSByte()).ToArray());
+                        return new Variant(items.ToArrayOf(v => v.GetSByte()));
                     case BuiltInType.Byte:
-                        return new Variant(items.Select(v => v.GetByte()).ToArray());
+                        return new Variant(items.ToArrayOf(v => v.GetByte()));
                     case BuiltInType.Int16:
-                        return new Variant(items.Select(v => v.GetInt16()).ToArray());
+                        return new Variant(items.ToArrayOf(v => v.GetInt16()));
                     case BuiltInType.UInt16:
-                        return new Variant(items.Select(v => v.GetUInt16()).ToArray());
+                        return new Variant(items.ToArrayOf(v => v.GetUInt16()));
                     case BuiltInType.Int32:
-                        return new Variant(items.Select(v => v.GetInt32()).ToArray());
+                        return new Variant(items.ToArrayOf(v => v.GetInt32()));
                     case BuiltInType.UInt32:
-                        return new Variant(items.Select(v => v.GetUInt32()).ToArray());
+                        return new Variant(items.ToArrayOf(v => v.GetUInt32()));
                     case BuiltInType.Int64:
-                        return new Variant(items.Select(v => v.GetInt64()).ToArray());
+                        return new Variant(items.ToArrayOf(v => v.GetInt64()));
                     case BuiltInType.UInt64:
-                        return new Variant(items.Select(v => v.GetUInt64()).ToArray());
+                        return new Variant(items.ToArrayOf(v => v.GetUInt64()));
                     case BuiltInType.Float:
-                        return new Variant(items.Select(v => v.GetFloat()).ToArray());
+                        return new Variant(items.ToArrayOf(v => v.GetFloat()));
                     case BuiltInType.Double:
-                        return new Variant(items.Select(v => v.GetDouble()).ToArray());
+                        return new Variant(items.ToArrayOf(v => v.GetDouble()));
                     case BuiltInType.String:
-                        return new Variant(items.Select(v => v.GetString()).ToArray());
+                        return new Variant(items.ToArrayOf(v => v.GetString()));
                     case BuiltInType.DateTime:
-                        return new Variant(items.Select(v => v.GetDateTime()).ToArray());
+                        return new Variant(items.ToArrayOf(v => v.GetDateTime()));
                     case BuiltInType.Guid:
-                        return new Variant(items.Select(v => v.GetGuid()).ToArray());
+                        return new Variant(items.ToArrayOf(v => v.GetGuid()));
                     case BuiltInType.ByteString:
-                        return new Variant(items.Select(v => v.GetByteString()).ToArray());
+                        return new Variant(items.ToArrayOf(v => v.GetByteString()));
                     case BuiltInType.XmlElement:
-                        return new Variant(items.Select(v => v.GetXmlElement()).ToArray());
+                        return new Variant(items.ToArrayOf(v => v.GetXmlElement()));
                     case BuiltInType.NodeId:
-                        return new Variant(items.Select(v => v.GetNodeId()).ToArray());
+                        return new Variant(items.ToArrayOf(v => v.GetNodeId()));
                     case BuiltInType.ExpandedNodeId:
-                        return new Variant(items.Select(v => v.GetExpandedNodeId()).ToArray());
+                        return new Variant(items.ToArrayOf(v => v.GetExpandedNodeId()));
                     case BuiltInType.StatusCode:
-                        return new Variant(items.Select(v => v.GetStatusCode()).ToArray());
+                        return new Variant(items.ToArrayOf(v => v.GetStatusCode()));
                     case BuiltInType.QualifiedName:
-                        return new Variant(items.Select(v => v.GetQualifiedName()).ToArray());
+                        return new Variant(items.ToArrayOf(v => v.GetQualifiedName()));
                     case BuiltInType.LocalizedText:
-                        return new Variant(items.Select(v => v.GetLocalizedText()).ToArray());
+                        return new Variant(items.ToArrayOf(v => v.GetLocalizedText()));
                     case BuiltInType.ExtensionObject:
-                        return new Variant(items.Select(v => v.GetExtensionObject()).ToArray());
+                        return new Variant(items.ToArrayOf(v => v.GetExtensionObject()));
                     case BuiltInType.DataValue:
-                        return new Variant(items.Select(v => v.GetDataValue()).ToArray());
+                        return new Variant(items.ToArrayOf(v => v.GetDataValue()));
                     case BuiltInType.DiagnosticInfo:
                         return default;
                     case BuiltInType.Number:
@@ -5954,7 +5895,7 @@ namespace Opc.Ua
                     case BuiltInType.UInteger:
                     case BuiltInType.Enumeration:
                     case BuiltInType.Variant:
-                        return new Variant(items.ToArray());
+                        return new Variant(items);
                 }
             }
             if (typeInfo.IsArray)
@@ -5962,101 +5903,78 @@ namespace Opc.Ua
                 // TODO: Collapse each individual one first
             }
             // TODO: Collapse matrix
-            return new Variant(items.ToArray());
+            return new Variant(items);
         }
 
         /// <summary>
-        /// Append a ByteString as a hex string.
+        /// Format the internal value
         /// </summary>
-        private static void AppendByteString(
-            StringBuilder buffer,
-            byte[] bytes,
-            IFormatProvider formatProvider)
+        private string ToStringCore(IFormatProvider provider)
         {
-            if (bytes != null)
+            if (TypeInfo.IsScalar)
             {
-                for (int ii = 0; ii < bytes.Length; ii++)
+                // Handle built-in type value-types without another check
+                switch (TypeInfo.BuiltInType)
                 {
-                    buffer.AppendFormat(formatProvider, "{0:X2}", bytes[ii]);
+                    case BuiltInType.Boolean:
+                        return m_union.Boolean.ToString();
+                    case BuiltInType.SByte:
+                        return m_union.SByte.ToString(provider);
+                    case BuiltInType.Byte:
+                        return m_union.Byte.ToString(provider);
+                    case BuiltInType.Int16:
+                        return m_union.Int16.ToString(provider);
+                    case BuiltInType.UInt16:
+                        return m_union.UInt16.ToString(provider);
+                    case BuiltInType.Int32:
+                        return m_union.Int32.ToString(provider);
+                    case BuiltInType.UInt32:
+                        return m_union.UInt32.ToString(provider);
+                    case BuiltInType.Int64:
+                        return m_union.Int64.ToString(provider);
+                    case BuiltInType.UInt64:
+                        return m_union.UInt64.ToString(provider);
+                    case BuiltInType.Float:
+                        return m_union.Float.ToString(provider);
+                    case BuiltInType.Double:
+                        return m_union.Double.ToString(provider);
+                    case BuiltInType.DateTime:
+                        return m_union.DateTime.ToString(provider);
+                    case BuiltInType.StatusCode:
+                        return (m_value is string s ?
+                            new StatusCode(m_union.UInt32, s) :
+                            new StatusCode(m_union.UInt32)).ToString(null, provider);
+#if NET8_0_OR_GREATER
+                    case BuiltInType.Enumeration:
+                        if (m_value is Type enumType)
+                        {
+                            Type type = enumType.GetEnumUnderlyingType();
+                            if (type == typeof(int) || type == typeof(uint))
+                            {
+                                return Enum.ToObject(enumType, m_union.Int32).ToString();
+                            }
+                            if (type == typeof(byte) || type == typeof(sbyte))
+                            {
+                                return Enum.ToObject(enumType, m_union.Byte).ToString();
+                            }
+                            if (type == typeof(short) || type == typeof(ushort))
+                            {
+                                return Enum.ToObject(enumType, m_union.Int16).ToString();
+                            }
+                            if (type == typeof(long) || type == typeof(ulong))
+                            {
+                                return Enum.ToObject(enumType, m_union.Int64).ToString();
+                            }
+                        }
+                        return m_union.Int32.ToString(provider);
+#endif
                 }
             }
-            else
+            if (m_value is IFormattable f)
             {
-                buffer.Append("(null)");
+                return f.ToString(null, provider);
             }
-        }
-
-        /// <summary>
-        /// Formats a value as a string.
-        /// </summary>
-        private void AppendFormat(
-            StringBuilder buffer,
-            object value,
-            IFormatProvider formatProvider)
-        {
-            // check for null.
-            if (value == null || TypeInfo.IsUnknown)
-            {
-                buffer.Append("(null)");
-                return;
-            }
-
-            // convert byte string to hexstring.
-            if (TypeInfo.BuiltInType == BuiltInType.ByteString && TypeInfo.IsScalar)
-            {
-                ByteString bytes = (ByteString)value;
-                buffer.Append(bytes.ToHexString());
-                return;
-            }
-
-            // convert XML element to string.
-            if (TypeInfo.BuiltInType == BuiltInType.XmlElement && TypeInfo.IsScalar)
-            {
-                var xml = (XmlElement)value;
-                buffer.Append(xml.OuterXml);
-                return;
-            }
-
-            // recusrively write individual elements of an array.
-
-            if (value is Array array && TypeInfo.IsArray)
-            {
-                buffer.Append('{');
-
-                if (TypeInfo.BuiltInType == BuiltInType.ByteString)
-                {
-                    if (array.Length > 0)
-                    {
-                        ByteString bytes = (ByteString)array.GetValue(0);
-                        buffer.Append(bytes.ToHexString());
-                    }
-
-                    for (int ii = 1; ii < array.Length; ii++)
-                    {
-                        buffer.Append('|');
-                        ByteString bytes = (ByteString)array.GetValue(ii);
-                        buffer.Append(bytes.ToHexString());
-                    }
-                }
-                else
-                {
-                    if (array.Length > 0)
-                    {
-                        AppendFormat(buffer, array.GetValue(0), formatProvider);
-                    }
-
-                    for (int ii = 1; ii < array.Length; ii++)
-                    {
-                        buffer.Append('|');
-                        AppendFormat(buffer, array.GetValue(ii), formatProvider);
-                    }
-                }
-                buffer.Append('}');
-                return;
-            }
-
-            // let the object format itself.
-            buffer.AppendFormat(formatProvider, "{0}", value);
+            return m_value?.ToString() ?? "<null>";
         }
 
         /// <summary>
@@ -6209,58 +6127,6 @@ namespace Opc.Ua
         private readonly Union m_union;
         private readonly TypeInfo m_typeInfo;
 #pragma warning restore IDE0032 // Use auto property
-    }
-
-    /// <summary>
-    /// A collection of Variant objects.
-    /// </summary>
-    [CollectionDataContract(
-        Name = "ListOfVariant",
-        Namespace = Namespaces.OpcUaXsd,
-        ItemName = "Variant")]
-    public class VariantCollection : List<Variant>, ICloneable
-    {
-        /// <inheritdoc/>
-        public VariantCollection()
-        {
-        }
-
-        /// <inheritdoc/>
-        public VariantCollection(IEnumerable<Variant> collection)
-            : base(collection)
-        {
-        }
-
-        /// <inheritdoc/>
-        public VariantCollection(int capacity)
-            : base(capacity)
-        {
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator VariantCollection(Variant[] values)
-        {
-            return values == null ? [] : [.. values];
-        }
-
-        /// <inheritdoc/>
-        public virtual object Clone()
-        {
-            return MemberwiseClone();
-        }
-
-        /// <inheritdoc/>
-        public new object MemberwiseClone()
-        {
-            var clone = new VariantCollection(Count);
-
-            foreach (Variant element in this)
-            {
-                clone.Add(element);
-            }
-
-            return clone;
-        }
     }
 
     /// <summary>

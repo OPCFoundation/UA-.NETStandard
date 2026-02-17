@@ -55,12 +55,12 @@ namespace Opc.Ua.Gds.Server.Database
         bool SetApplicationCertificate(
             NodeId applicationId,
             string certificateTypeId,
-            byte[] certificate);
+            ByteString certificate);
 
         bool GetApplicationCertificate(
             NodeId applicationId,
             string certificateTypeId,
-            out byte[] certificate);
+            out ByteString certificate);
 
         bool SetApplicationTrustLists(
             NodeId applicationId,

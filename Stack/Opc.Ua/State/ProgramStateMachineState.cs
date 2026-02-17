@@ -228,7 +228,7 @@ namespace Opc.Ua
             AuditUpdateStateEventState e,
             ServiceResult result)
         {
-            base.UpdateAuditEvent(context, causeMethod, inputArguments.ToArray(), causeId, e, result);
+            base.UpdateAuditEvent(context, causeMethod, inputArguments, causeId, e, result);
 
             // update program specific event fields.
             if (ServiceResult.IsGood(result) && e is ProgramTransitionAuditEventState e2)

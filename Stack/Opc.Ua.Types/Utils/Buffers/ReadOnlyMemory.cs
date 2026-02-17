@@ -30,6 +30,7 @@
 #nullable enable
 
 #if NET8_0_OR_GREATER
+using System;
 using System.Runtime.CompilerServices;
 #endif
 
@@ -41,18 +42,6 @@ namespace Opc.Ua
     /// </summary>
     internal readonly struct ReadOnlyMemory
     {
-#if NET8_0_OR_GREATER
-        public static ref T ReinterpretAs<T>(scoped ref readonly ReadOnlyMemory m)
-        {
-            return ref Unsafe.As<ReadOnlyMemory, T>(ref Unsafe.AsRef(in m));
-        }
-
-        public static ref ReadOnlyMemory From<T>(scoped ref readonly T r)
-        {
-            return ref Unsafe.As<T, ReadOnlyMemory>(ref Unsafe.AsRef(in r));
-        }
-#endif
-
         /// <summary>
         /// Create read only memory
         /// </summary>
@@ -69,5 +58,32 @@ namespace Opc.Ua
         public readonly object? Object;
         public readonly int Index;
         public readonly int Length;
+    }
+
+    internal static class ReadOnlyMemoryHelper
+    {
+#if NET8_0_OR_GREATER
+        public static ref T ReinterpretAs<T>(this scoped ref readonly ReadOnlyMemory m)
+        {
+            return ref Unsafe.As<ReadOnlyMemory, T>(ref Unsafe.AsRef(in m));
+        }
+
+        public static ref ReadOnlyMemory From<T>(scoped ref readonly T r)
+        {
+            return ref Unsafe.As<T, ReadOnlyMemory>(ref Unsafe.AsRef(in r));
+        }
+
+        public static bool IsNull<T>(scoped in ReadOnlyMemory<T> m)
+        {
+            ref ReadOnlyMemory r = ref Unsafe.As<ReadOnlyMemory<T>, ReadOnlyMemory>(
+                ref Unsafe.AsRef(in m));
+            return r.Object is null;
+        }
+#else
+        public static bool IsNull<T>(in System.ReadOnlyMemory<T> m)
+        {
+            return m.Equals(default);
+        }
+#endif
     }
 }

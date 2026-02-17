@@ -591,7 +591,7 @@ namespace Opc.Ua
 
             // AuditUpdateMethodStateEventType properties
             e.SetChildValue(context, BrowseNames.MethodId, causeMethod.NodeId, false);
-            e.SetChildValue(context, BrowseNames.InputArguments, inputArguments.ToArray(), false);
+            e.SetChildValue(context, BrowseNames.InputArguments, inputArguments.ToArrayOf(), false);
 
             // AuditUpdateStateEventType properties
             e.SetChildValue(context, BrowseNames.OldStateId, LastState, false);

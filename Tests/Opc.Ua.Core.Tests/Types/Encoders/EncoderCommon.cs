@@ -746,7 +746,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         encoder.WriteGuid(fieldName, value is Guid g ? (Uuid)g : (Uuid)value);
                         return;
                     case BuiltInType.ByteString:
-                        encoder.WriteByteString(fieldName, (byte[])value);
+                        encoder.WriteByteString(fieldName, (ByteString)value);
                         return;
                     case BuiltInType.XmlElement:
                         encoder.WriteXmlElement(fieldName, (XmlElement)value);

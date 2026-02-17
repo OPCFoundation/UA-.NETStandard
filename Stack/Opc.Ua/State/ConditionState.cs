@@ -400,7 +400,7 @@ namespace Opc.Ua
             if (AutoReportStateChanges)
             {
                 // create a new event instance.
-                EventId.Value = Uuid.NewUuid().ToByteArray();
+                EventId.Value = Uuid.NewUuid().ToByteString();
                 Time.Value = DateTime.UtcNow;
                 ReceiveTime.Value = Time.Value;
 
@@ -483,7 +483,7 @@ namespace Opc.Ua
                 e.SetChildValue(
                     context,
                     BrowseNames.InputArguments,
-                    new Variant[] { eventId, comment },
+                    Variant.From(new Variant[] { eventId, comment }),
                     false);
 
                 e.SetChildValue(context, BrowseNames.ConditionEventId, eventId, false);
@@ -516,7 +516,7 @@ namespace Opc.Ua
             ByteString eventId,
             LocalizedText comment)
         {
-            if (eventId == null)
+            if (eventId.IsEmpty)
             {
                 return StatusCodes.BadEventIdUnknown;
             }

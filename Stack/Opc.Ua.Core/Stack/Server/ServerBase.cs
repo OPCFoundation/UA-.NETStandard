@@ -129,14 +129,7 @@ namespace Opc.Ua
         /// <returns>Returns a collection of EndpointDescription.</returns>
         public virtual EndpointDescriptionCollection GetEndpoints()
         {
-            ReadOnlyList<EndpointDescription> endpoints = Endpoints;
-
-            if (endpoints != null)
-            {
-                return [.. endpoints];
-            }
-
-            return [];
+            return [.. Endpoints];
         }
 
         /// <summary>
@@ -280,7 +273,7 @@ namespace Opc.Ua
 
             // save discovery information.
             ServerDescription = serverDescription;
-            Endpoints = new ReadOnlyList<EndpointDescription>(endpoints);
+            Endpoints = endpoints.ToArrayOf();
 
             // start the application.
             await StartApplicationAsync(configuration, cancellationToken)
@@ -347,7 +340,7 @@ namespace Opc.Ua
 
             // save discovery information.
             ServerDescription = serverDescription;
-            Endpoints = new ReadOnlyList<EndpointDescription>(endpoints);
+            Endpoints = endpoints.ToArrayOf();
 
             // start the application.
             await StartApplicationAsync(configuration, cancellationToken)
@@ -645,11 +638,11 @@ namespace Opc.Ua
                 if (certificateTypesProvider.SendCertificateChain)
                 {
                     description.ServerCertificate = certificateTypesProvider
-                        .LoadCertificateChainRaw(serverCertificate);
+                        .LoadCertificateChainRaw(serverCertificate).ToByteString();
                 }
                 else
                 {
-                    description.ServerCertificate = serverCertificate.RawData;
+                    description.ServerCertificate = serverCertificate.RawData.ToByteString();
                 }
             }
         }
@@ -688,7 +681,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the list of endpoints supported by the server.
         /// </summary>
-        protected ReadOnlyList<EndpointDescription> Endpoints { get; private set; }
+        protected ArrayOf<EndpointDescription> Endpoints { get; private set; }
 
         /// <summary>
         /// The object used to verify client certificates
@@ -1185,7 +1178,7 @@ namespace Opc.Ua
         protected EndpointDescriptionCollection TranslateEndpointDescriptions(
             Uri clientUrl,
             IList<BaseAddress> baseAddresses,
-            IList<EndpointDescription> endpoints,
+            ArrayOf<EndpointDescription> endpoints,
             ApplicationDescription application)
         {
             var translations = new EndpointDescriptionCollection();

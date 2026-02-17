@@ -681,7 +681,7 @@ namespace Opc.Ua.Bindings
                 token.TokenId = GetNewTokenId();
                 token.ServerNonce = CreateNonce(ServerCertificate);
                 // check the client nonce.
-                token.ClientNonce = request.ClientNonce;
+                token.ClientNonce = request.ClientNonce.ToArray();
                 if (!ValidateNonce(ClientCertificate, token.ClientNonce))
                 {
                     throw ServiceResultException.Create(
@@ -880,7 +880,7 @@ namespace Opc.Ua.Bindings
             response.SecurityToken.TokenId = token.TokenId;
             response.SecurityToken.CreatedAt = token.CreatedAt;
             response.SecurityToken.RevisedLifetime = (uint)token.Lifetime;
-            response.ServerNonce = token.ServerNonce;
+            response.ServerNonce = token.ServerNonce.ToByteString();
 
             byte[] buffer = BinaryEncoder.EncodeMessage(response, Quotas.MessageContext);
 

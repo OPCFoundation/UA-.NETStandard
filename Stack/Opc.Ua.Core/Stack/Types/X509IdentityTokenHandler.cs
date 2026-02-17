@@ -68,7 +68,7 @@ namespace Opc.Ua
             Certificate = certificate;
             m_token = new X509IdentityToken
             {
-                CertificateData = certificate.RawData
+                CertificateData = certificate.RawData.ToByteString()
             };
         }
 
@@ -79,7 +79,7 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_certificate == null && m_token.CertificateData != null)
+                if (m_certificate == null && !m_token.CertificateData.IsEmpty)
                 {
                     m_certificate = CertificateFactory.Create(m_token.CertificateData);
                 }
@@ -142,7 +142,7 @@ namespace Opc.Ua
                 securityPolicyUri,
                 dataToSign);
 
-            m_token.CertificateData = certificate.RawData;
+            m_token.CertificateData = certificate.RawData.ToByteString();
 
             return signatureData;
         }
@@ -164,7 +164,7 @@ namespace Opc.Ua
                     dataToVerify,
                     signatureData);
 
-                m_token.CertificateData = certificate.RawData;
+                m_token.CertificateData = certificate.RawData.ToByteString();
 
                 return valid;
             }

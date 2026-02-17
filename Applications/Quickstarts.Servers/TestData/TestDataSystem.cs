@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using System.Xml;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 
@@ -435,7 +434,7 @@ namespace TestData
                         return m_generator.GetRandomArray<Uuid>(false, 100, false);
                     case Variables.ArrayValueObjectType_ByteStringValue:
                     case Variables.UserArrayValueObjectType_ByteStringValue:
-                        return m_generator.GetRandomArray<byte[]>(false, 100, false);
+                        return m_generator.GetRandomArray<ByteString>(false, 100, false);
                     case Variables.ArrayValueObjectType_XmlElementValue:
                     case Variables.UserArrayValueObjectType_XmlElementValue:
                         return m_generator.GetRandomArray<XmlElement>(false, 100, false);
@@ -717,7 +716,7 @@ namespace TestData
                 StringValue = m_generator.GetRandomArray<string>(false, 10, false),
                 DateTimeValue = m_generator.GetRandomArray<DateTime>(false, 10, false),
                 GuidValue = (UuidCollection)m_generator.GetRandomArray<Uuid>(false, 10, false),
-                ByteStringValue = m_generator.GetRandomArray<byte[]>(false, 10, false),
+                ByteStringValue = m_generator.GetRandomArray<ByteString>(false, 10, false),
                 XmlElementValue = m_generator.GetRandomArray<XmlElement>(false, 10, false),
                 NodeIdValue = m_generator.GetRandomArray<NodeId>(false, 10, false),
                 ExpandedNodeIdValue = m_generator.GetRandomArray<ExpandedNodeId>(false, 10, false),

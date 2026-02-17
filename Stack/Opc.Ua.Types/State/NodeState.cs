@@ -2382,22 +2382,22 @@ namespace Opc.Ua
         /// <summary>
         /// Called when the RolePermissions attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<RolePermissionTypeCollection> OnReadRolePermissions;
+        public NodeAttributeEventHandler<ArrayOf<RolePermissionType>> OnReadRolePermissions;
 
         /// <summary>
         /// Called when the RolePermissions attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<RolePermissionTypeCollection> OnWriteRolePermissions;
+        public NodeAttributeEventHandler<ArrayOf<RolePermissionType>> OnWriteRolePermissions;
 
         /// <summary>
         /// Called when the UserRolePermissions attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<RolePermissionTypeCollection> OnReadUserRolePermissions;
+        public NodeAttributeEventHandler<ArrayOf<RolePermissionType>> OnReadUserRolePermissions;
 
         /// <summary>
         /// Called when the UserRolePermissions attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<RolePermissionTypeCollection> OnWriteUserRolePermissions;
+        public NodeAttributeEventHandler<ArrayOf<RolePermissionType>> OnWriteUserRolePermissions;
 
         /// <summary>
         /// Called when the AccessRestrictions attribute is read.
@@ -3717,9 +3717,9 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.RolePermissions:
-                    RolePermissionTypeCollection rolePermissions = m_rolePermissions;
+                    ArrayOf<RolePermissionType> rolePermissions = m_rolePermissions;
 
-                    NodeAttributeEventHandler<RolePermissionTypeCollection> onReadRolePermissions =
+                    NodeAttributeEventHandler<ArrayOf<RolePermissionType>> onReadRolePermissions =
                         OnReadRolePermissions;
 
                     if (onReadRolePermissions != null)
@@ -3739,9 +3739,9 @@ namespace Opc.Ua
 
                     break;
                 case Attributes.UserRolePermissions:
-                    RolePermissionTypeCollection userRolePermissions = m_userRolePermissions;
+                    ArrayOf<RolePermissionType> userRolePermissions = m_userRolePermissions;
 
-                    NodeAttributeEventHandler<RolePermissionTypeCollection> onReadUserRolePermissions =
+                    NodeAttributeEventHandler<ArrayOf<RolePermissionType>> onReadUserRolePermissions =
                         OnReadUserRolePermissions;
 
                     if (onReadUserRolePermissions != null)
@@ -4097,29 +4097,28 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.RolePermissions:
-                    if (!value.TryGet(out ExtensionObject[] rolePermissionsArray))
+                    if (!value.TryGet(out ArrayOf<ExtensionObject> rolePermissionsArray))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
 
-                    var rolePermissions = new RolePermissionTypeCollection();
-
-                    foreach (ExtensionObject arrayValue in rolePermissionsArray)
+                    var buffer = new RolePermissionType[rolePermissionsArray.Count];
+                    for (int ii = 0; ii < rolePermissionsArray.Count; ii++)
                     {
-                        if (arrayValue.Body is not RolePermissionType rolePermission)
+                        if (rolePermissionsArray.Span[ii].Body is not RolePermissionType rolePermission)
                         {
                             return StatusCodes.BadTypeMismatch;
                         }
-
-                        rolePermissions.Add(rolePermission);
+                        buffer[ii] = rolePermission;
                     }
+                    ArrayOf<RolePermissionType> rolePermissions = buffer.ToArrayOf();
 
                     if ((WriteMask & AttributeWriteMask.RolePermissions) == 0)
                     {
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<RolePermissionTypeCollection> onWriteRolePermissions =
+                    NodeAttributeEventHandler<ArrayOf<RolePermissionType>> onWriteRolePermissions =
                         OnWriteRolePermissions;
 
                     if (onWriteRolePermissions != null)
@@ -4399,7 +4398,7 @@ namespace Opc.Ua
                 Value = default,
                 DataType = dataTypeId,
                 ValueRank = valueRank,
-                ArrayDimensions = null,
+                ArrayDimensions = default,
                 AccessLevel = AccessLevels.CurrentRead,
                 UserAccessLevel = AccessLevels.CurrentRead,
                 MinimumSamplingInterval = MinimumSamplingIntervals.Indeterminate,
@@ -4581,7 +4580,7 @@ namespace Opc.Ua
         public bool SetChildValue<T>(
             ISystemContext context,
             string browseName,
-            T[] value,
+            ArrayOf<T> value,
             bool copy) where T : IEncodeable
         {
             return SetChildValue(context, QualifiedName.From(browseName), value, copy);
@@ -4596,7 +4595,7 @@ namespace Opc.Ua
         public bool SetChildValue<T>(
             ISystemContext context,
             QualifiedName browseName,
-            T[] value,
+            ArrayOf<T> value,
             bool copy) where T : IEncodeable
         {
             if (CreateChild(context, browseName) is not BaseVariableState child)
@@ -4651,7 +4650,8 @@ namespace Opc.Ua
         /// <param name="attributeId">The attribute id.</param>
         /// <param name="dataValue">The data value.</param>
         /// <returns>
-        /// An instance of the <see cref="ServiceResult"/> containing the status code and diagnostic info for the operation.
+        /// An instance of the <see cref="ServiceResult"/> containing the status
+        /// code and diagnostic info for the operation.
         /// ServiceResult.Good if successful. Detailed error information otherwise.
         /// </returns>
         public virtual ServiceResult ReadChildAttribute(
@@ -5085,8 +5085,8 @@ namespace Opc.Ua
         private LocalizedText m_description;
         private AttributeWriteMask m_writeMask;
         private AttributeWriteMask m_userWriteMask;
-        private RolePermissionTypeCollection m_rolePermissions;
-        private RolePermissionTypeCollection m_userRolePermissions;
+        private ArrayOf<RolePermissionType> m_rolePermissions;
+        private ArrayOf<RolePermissionType> m_userRolePermissions;
         private AccessRestrictionType? m_accessRestrictions;
         private ReferenceDictionary<object> m_references;
         private int m_areEventsMonitored;

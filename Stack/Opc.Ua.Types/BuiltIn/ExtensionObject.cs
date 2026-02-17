@@ -562,6 +562,36 @@ namespace Opc.Ua
     }
 
     /// <summary>
+    /// Extension object extension methods
+    /// </summary>
+    public static class ExtensionObjectExtensions
+    {
+        /// <summary>
+        /// Convert encodeables to extension array
+        /// </summary>
+        /// <param name="encodeables"></param>
+        /// <returns></returns>
+        public static ArrayOf<ExtensionObject> ToExtensionObjects(
+            this IEnumerable<IEncodeable> encodeables)
+        {
+            // return null if the input list is null.
+            if (encodeables == null)
+            {
+                return default;
+            }
+
+            // convert each encodeable to an extension object.
+            var extensibles = new ExtensionObjectCollection();
+            foreach (IEncodeable encodeable in encodeables)
+            {
+                extensibles.Add(new ExtensionObject(encodeable));
+            }
+
+            return extensibles;
+        }
+    }
+
+    /// <summary>
     /// The types of encodings that may used with an object.
     /// </summary>
     public enum ExtensionObjectEncoding : byte
@@ -728,88 +758,6 @@ namespace Opc.Ua
                         e);
                 }
             }
-        }
-    }
-
-    /// <summary>
-    /// A strongly-typed collection of ExtensionObjects.
-    /// </summary>
-    [CollectionDataContract(
-        Name = "ListOfExtensionObject",
-        Namespace = Namespaces.OpcUaXsd,
-        ItemName = "ExtensionObject")]
-    public class ExtensionObjectCollection : List<ExtensionObject>, ICloneable
-    {
-        /// <inheritdoc/>
-        public ExtensionObjectCollection()
-        {
-        }
-
-        /// <inheritdoc/>
-        public ExtensionObjectCollection(
-            IEnumerable<ExtensionObject> collection)
-            : base(collection)
-        {
-        }
-
-        /// <inheritdoc/>
-        public ExtensionObjectCollection(int capacity)
-            : base(capacity)
-        {
-        }
-
-        /// <summary>
-        /// Converts an array of ExtensionObjects to a collection.
-        /// </summary>
-        /// <param name="values">An array of ExtensionObjects to
-        /// convert to a collection</param>
-        public static implicit operator ExtensionObjectCollection(
-            ExtensionObject[] values)
-        {
-            return values != null ? [.. values] : [];
-        }
-
-        /// <summary>
-        /// Converts an encodeable object to an extension object.
-        /// </summary>
-        /// <param name="encodeables">An enumerable array of
-        /// ExtensionObjects to convert to a collection</param>
-        public static ExtensionObjectCollection ToExtensionObjects(
-            IEnumerable<IEncodeable> encodeables)
-        {
-            // return null if the input list is null.
-            if (encodeables == null)
-            {
-                return null;
-            }
-
-            // convert each encodeable to an extension object.
-            var extensibles = new ExtensionObjectCollection();
-            foreach (IEncodeable encodeable in encodeables)
-            {
-                extensibles.Add(new ExtensionObject(encodeable));
-            }
-
-            return extensibles;
-        }
-
-        /// <inheritdoc/>
-        public virtual object Clone()
-        {
-            return MemberwiseClone();
-        }
-
-        /// <inheritdoc/>
-        public new object MemberwiseClone()
-        {
-            var clone = new ExtensionObjectCollection(Count);
-
-            foreach (ExtensionObject element in this)
-            {
-                clone.Add(element);
-            }
-
-            return clone;
         }
     }
 }

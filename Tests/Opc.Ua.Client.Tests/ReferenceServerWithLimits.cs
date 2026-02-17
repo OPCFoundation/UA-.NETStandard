@@ -150,7 +150,7 @@ namespace Opc.Ua.Client.Tests
             IServerInternal server,
             X509Certificate2 serverCertificate,
             NodeId authenticationToken,
-            byte[] clientNonce,
+            ByteString clientNonce,
             Nonce serverNonce,
             string sessionName,
             ApplicationDescription clientDescription,
@@ -217,7 +217,7 @@ namespace Opc.Ua.Client.Tests
             IServerInternal server,
             X509Certificate2 serverCertificate,
             NodeId sessionCookie,
-            byte[] clientNonce,
+            ByteString clientNonce,
             Nonce serverNonce,
             string sessionName,
             ApplicationDescription clientDescription,
@@ -343,9 +343,7 @@ namespace Opc.Ua.Client.Tests
                     // release all allocated continuation points.
                     foreach (BrowseResult current in results)
                     {
-                        if (current != null &&
-                            current.ContinuationPoint != null &&
-                            current.ContinuationPoint.Length > 0)
+                        if (current != null && current.ContinuationPoint.Length > 0)
                         {
                             ContinuationPoint cp = context.Session
                                 .RestoreContinuationPoint(current.ContinuationPoint);
@@ -386,7 +384,7 @@ namespace Opc.Ua.Client.Tests
                 }
 
                 // check for continuation point.
-                if (result.ContinuationPoint != null && result.ContinuationPoint.Length > 0)
+                if (result.ContinuationPoint.Length > 0)
                 {
                     continuationPointsAssigned++;
                 }

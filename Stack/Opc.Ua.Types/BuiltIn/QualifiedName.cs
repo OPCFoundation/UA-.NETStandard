@@ -545,61 +545,6 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// A collection of QualifiedName objects.
-    /// </summary>
-    /// <remarks>
-    /// A strongly-typed collection of QualifiedName objects.
-    /// </remarks>
-    [CollectionDataContract(
-        Name = "ListOfQualifiedName",
-        Namespace = Namespaces.OpcUaXsd,
-        ItemName = "QualifiedName")]
-    public class QualifiedNameCollection : List<QualifiedName>, ICloneable
-    {
-        /// <inheritdoc/>
-        public QualifiedNameCollection()
-        {
-        }
-
-        /// <inheritdoc/>
-        public QualifiedNameCollection(IEnumerable<QualifiedName> collection)
-            : base(collection)
-        {
-        }
-
-        /// <inheritdoc/>
-        public QualifiedNameCollection(int capacity)
-            : base(capacity)
-        {
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator QualifiedNameCollection(QualifiedName[] values)
-        {
-            return [.. values ?? []];
-        }
-
-        /// <inheritdoc/>
-        public virtual object Clone()
-        {
-            return MemberwiseClone();
-        }
-
-        /// <inheritdoc/>
-        public new object MemberwiseClone()
-        {
-            var clone = new QualifiedNameCollection(Count);
-
-            foreach (QualifiedName element in this)
-            {
-                clone.Add(element);
-            }
-
-            return clone;
-        }
-    }
-
-    /// <summary>
     /// Serializable representation of a QualifiedName
     /// </summary>
     [DataContract(

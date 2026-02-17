@@ -384,7 +384,7 @@ namespace Opc.Ua
                 Endpoint.EndpointUrl,
                 null,
                 profileUris,
-                out EndpointDescriptionCollection endpoints);
+                out ArrayOf<EndpointDescription> endpoints);
 
             return PatchEndpointUrls(endpoints);
         }
@@ -420,7 +420,7 @@ namespace Opc.Ua
                 Endpoint.EndpointUrl,
                 null,
                 serverUris,
-                out ApplicationDescriptionCollection servers);
+                out ArrayOf<ApplicationDescription> servers);
 
             return servers;
         }
@@ -460,7 +460,7 @@ namespace Opc.Ua
                 maxRecordsToReturn,
                 serverCapabilityFilter,
                 out lastCounterResetTime,
-                out ServerOnNetworkCollection servers);
+                out ArrayOf<ServerOnNetwork> servers);
 
             return servers;
         }

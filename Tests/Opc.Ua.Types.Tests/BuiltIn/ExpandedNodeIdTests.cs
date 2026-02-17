@@ -48,12 +48,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ShouldNotThrow()
         {
             var expandedNodeIds1 = new ExpandedNodeId[] { new(0), new(0) };
-            var expandedNodeIds2 = new ExpandedNodeId[] { new((byte[])null), new((byte[])null) };
-            var dv1 = new DataValue(new Variant(expandedNodeIds1));
-            var dv2 = new DataValue(new Variant(expandedNodeIds2));
+            var expandedNodeIds2 = new ExpandedNodeId[] { new((ByteString)null), new((ByteString)null) };
+            var dv1 = new DataValue(Variant.From(expandedNodeIds1));
+            var dv2 = new DataValue(Variant.From(expandedNodeIds2));
             NUnit.Framework.Assert.DoesNotThrow(() => dv1.Equals(dv2));
 
-            var byteArrayNodeId = new ExpandedNodeId((byte[])null);
+            var byteArrayNodeId = new ExpandedNodeId((ByteString)null);
             var expandedNodeId = new ExpandedNodeId(NodeId.Null);
             NUnit.Framework.Assert.DoesNotThrow(() => byteArrayNodeId.Equals(expandedNodeId));
         }

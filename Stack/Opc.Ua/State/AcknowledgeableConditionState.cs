@@ -211,7 +211,7 @@ namespace Opc.Ua
                 e.SetChildValue(
                     context,
                     BrowseNames.InputArguments,
-                    new Variant[] { eventId, comment },
+                    Variant.From(new Variant[] { eventId, comment }),
                     false);
 
                 e.SetChildValue(context, BrowseNames.ConditionEventId, eventId, false);
@@ -234,7 +234,7 @@ namespace Opc.Ua
             ByteString eventId,
             LocalizedText comment)
         {
-            if (eventId == null)
+            if (eventId.IsEmpty)
             {
                 return StatusCodes.BadEventIdUnknown;
             }
@@ -372,7 +372,7 @@ namespace Opc.Ua
                 e.SetChildValue(
                     context,
                     BrowseNames.InputArguments,
-                    new Variant[] { eventId, comment },
+                    Variant.From(new Variant[] { eventId, comment }),
                     false);
 
                 e.SetChildValue(context, BrowseNames.ConditionEventId, eventId, false);

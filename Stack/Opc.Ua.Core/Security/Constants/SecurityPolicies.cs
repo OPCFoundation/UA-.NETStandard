@@ -480,7 +480,7 @@ namespace Opc.Ua
                         new ArraySegment<byte>(dataToSign),
                         certificate,
                         HashAlgorithmName.SHA1,
-                        RSASignaturePadding.Pkcs1);
+                        RSASignaturePadding.Pkcs1).ToByteString();
                     break;
                 case Aes128_Sha256_RsaOaep:
                 case Basic256Sha256:
@@ -489,7 +489,7 @@ namespace Opc.Ua
                         new ArraySegment<byte>(dataToSign),
                         certificate,
                         HashAlgorithmName.SHA256,
-                        RSASignaturePadding.Pkcs1);
+                        RSASignaturePadding.Pkcs1).ToByteString();
                     break;
                 case Aes256_Sha256_RsaPss:
                     signatureData.Algorithm = SecurityAlgorithms.RsaPssSha256;
@@ -497,7 +497,7 @@ namespace Opc.Ua
                         new ArraySegment<byte>(dataToSign),
                         certificate,
                         HashAlgorithmName.SHA256,
-                        RSASignaturePadding.Pss);
+                        RSASignaturePadding.Pss).ToByteString();
                     break;
                 case ECC_nistP256:
                 case ECC_brainpoolP256r1:
@@ -505,7 +505,7 @@ namespace Opc.Ua
                     signatureData.Signature = EccUtils.Sign(
                         new ArraySegment<byte>(dataToSign),
                         certificate,
-                        HashAlgorithmName.SHA256);
+                        HashAlgorithmName.SHA256).ToByteString();
                     break;
                 case ECC_nistP384:
                 case ECC_brainpoolP384r1:
@@ -513,11 +513,11 @@ namespace Opc.Ua
                     signatureData.Signature = EccUtils.Sign(
                         new ArraySegment<byte>(dataToSign),
                         certificate,
-                        HashAlgorithmName.SHA384);
+                        HashAlgorithmName.SHA384).ToByteString();
                     break;
                 case None:
                     signatureData.Algorithm = null;
-                    signatureData.Signature = null;
+                    signatureData.Signature = default;
                     break;
                 default:
                     throw ServiceResultException.Create(
@@ -560,7 +560,7 @@ namespace Opc.Ua
                     {
                         return RsaUtils.Rsa_Verify(
                             new ArraySegment<byte>(dataToVerify),
-                            signature.Signature,
+                            signature.Signature.ToArray(),
                             certificate,
                             HashAlgorithmName.SHA1,
                             RSASignaturePadding.Pkcs1);
@@ -577,7 +577,7 @@ namespace Opc.Ua
                     {
                         return RsaUtils.Rsa_Verify(
                             new ArraySegment<byte>(dataToVerify),
-                            signature.Signature,
+                            signature.Signature.ToArray(),
                             certificate,
                             HashAlgorithmName.SHA256,
                             RSASignaturePadding.Pkcs1);
@@ -593,7 +593,7 @@ namespace Opc.Ua
                     {
                         return RsaUtils.Rsa_Verify(
                             new ArraySegment<byte>(dataToVerify),
-                            signature.Signature,
+                            signature.Signature.ToArray(),
                             certificate,
                             HashAlgorithmName.SHA256,
                             RSASignaturePadding.Pss);
@@ -608,14 +608,14 @@ namespace Opc.Ua
                 case ECC_brainpoolP256r1:
                     return EccUtils.Verify(
                         new ArraySegment<byte>(dataToVerify),
-                        signature.Signature,
+                        signature.Signature.ToArray(),
                         certificate,
                         HashAlgorithmName.SHA256);
                 case ECC_nistP384:
                 case ECC_brainpoolP384r1:
                     return EccUtils.Verify(
                         new ArraySegment<byte>(dataToVerify),
-                        signature.Signature,
+                        signature.Signature.ToArray(),
                         certificate,
                         HashAlgorithmName.SHA384);
                 // always accept signatures if security is not used.

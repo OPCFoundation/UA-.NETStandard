@@ -473,7 +473,8 @@ namespace Opc.Ua.SourceGeneration
                 ValueRank.Scalar,
                 m_context.ModelDesign.TargetNamespace.Value,
                 m_context.ModelDesign.Namespaces,
-                nullable: NullableAnnotation.NonNullable));
+                nullable: NullableAnnotation.NonNullable,
+                useArrayTypeInsteadOfCollection: true));
 
             context.Template.AddReplacement(
                 Tokens.ListOfChildInitializers,
@@ -561,7 +562,8 @@ namespace Opc.Ua.SourceGeneration
                     field.Value.ValueRank,
                     m_context.ModelDesign.TargetNamespace.Value,
                     m_context.ModelDesign.Namespaces,
-                    nullable: NullableAnnotation.NonNullable));
+                    nullable: NullableAnnotation.NonNullable,
+                    useArrayTypeInsteadOfCollection: true));
 
             return context.Template.Render();
         }
@@ -1982,12 +1984,12 @@ namespace Opc.Ua.SourceGeneration
                     case "XmlSchema_TypeSystem":
                         context.Template.AddReplacement(
                             Tokens.ValueCode,
-                            "state.WrappedValue = global::Opc.Ua.Variant.From(XmlSchemas.TypesXsd.ToArray());");
+                            "state.WrappedValue = global::Opc.Ua.Variant.From(global::Opc.Ua.ByteString.From(XmlSchemas.TypesXsd.ToArray()));");
                         return;
                     case "OPCBinarySchema_TypeSystem":
                         context.Template.AddReplacement(
                             Tokens.ValueCode,
-                            "state.WrappedValue = global::Opc.Ua.Variant.From(XmlSchemas.TypesBsd.ToArray());");
+                            "state.WrappedValue = global::Opc.Ua.Variant.From(global::Opc.Ua.ByteString.From(XmlSchemas.TypesBsd.ToArray()));");
                         return;
                 }
                 // unknown type system
@@ -2001,7 +2003,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 context.Template.AddReplacement(
                     Tokens.ValueCode,
-                    NodeStateTemplates.VariantArrayValue,
+                    NodeStateTemplates.VariantArrayOfValue,
                     [args],
                     WriteTemplate_ArgumentCollection);
             }

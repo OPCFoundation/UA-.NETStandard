@@ -1081,7 +1081,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a boolean array to the stream.
         /// </summary>
-        public void WriteBooleanArray(string fieldName, IList<bool> values)
+        public void WriteBooleanArray(string fieldName, ArrayOf<bool> values)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1092,14 +1092,14 @@ namespace Opc.Ua
             // write contents.
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteBoolean(null, values[ii]);
+                WriteBoolean(null, values.Span[ii]);
             }
         }
 
         /// <summary>
         /// Writes a sbyte array to the stream.
         /// </summary>
-        public void WriteSByteArray(string fieldName, IList<sbyte> values)
+        public void WriteSByteArray(string fieldName, ArrayOf<sbyte> values)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1110,14 +1110,14 @@ namespace Opc.Ua
             // write contents.
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteSByte(null, values[ii]);
+                WriteSByte(null, values.Span[ii]);
             }
         }
 
         /// <summary>
         /// Writes a byte array to the stream.
         /// </summary>
-        public void WriteByteArray(string fieldName, IList<byte> values)
+        public void WriteByteArray(string fieldName, ArrayOf<byte> values)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1128,14 +1128,14 @@ namespace Opc.Ua
             // write contents.
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteByte(null, values[ii]);
+                WriteByte(null, values.Span[ii]);
             }
         }
 
         /// <summary>
         /// Writes a short array to the stream.
         /// </summary>
-        public void WriteInt16Array(string fieldName, IList<short> values)
+        public void WriteInt16Array(string fieldName, ArrayOf<short> values)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1146,14 +1146,14 @@ namespace Opc.Ua
             // write contents.
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteInt16(null, values[ii]);
+                WriteInt16(null, values.Span[ii]);
             }
         }
 
         /// <summary>
         /// Writes a ushort array to the stream.
         /// </summary>
-        public void WriteUInt16Array(string fieldName, IList<ushort> values)
+        public void WriteUInt16Array(string fieldName, ArrayOf<ushort> values)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1164,14 +1164,14 @@ namespace Opc.Ua
             // write contents.
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteUInt16(null, values[ii]);
+                WriteUInt16(null, values.Span[ii]);
             }
         }
 
         /// <summary>
         /// Writes a int array to the stream.
         /// </summary>
-        public void WriteInt32Array(string fieldName, IList<int> values)
+        public void WriteInt32Array(string fieldName, ArrayOf<int> values)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1182,14 +1182,14 @@ namespace Opc.Ua
             // write contents.
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteInt32(null, values[ii]);
+                WriteInt32(null, values.Span[ii]);
             }
         }
 
         /// <summary>
         /// Writes a uint array to the stream.
         /// </summary>
-        public void WriteUInt32Array(string fieldName, IList<uint> values)
+        public void WriteUInt32Array(string fieldName, ArrayOf<uint> values)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1200,14 +1200,14 @@ namespace Opc.Ua
             // write contents.
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteUInt32(null, values[ii]);
+                WriteUInt32(null, values.Span[ii]);
             }
         }
 
         /// <summary>
         /// Writes a long array to the stream.
         /// </summary>
-        public void WriteInt64Array(string fieldName, IList<long> values)
+        public void WriteInt64Array(string fieldName, ArrayOf<long> values)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1218,14 +1218,14 @@ namespace Opc.Ua
             // write contents.
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteInt64(null, values[ii]);
+                WriteInt64(null, values.Span[ii]);
             }
         }
 
         /// <summary>
         /// Writes a ulong array to the stream.
         /// </summary>
-        public void WriteUInt64Array(string fieldName, IList<ulong> values)
+        public void WriteUInt64Array(string fieldName, ArrayOf<ulong> values)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1236,14 +1236,14 @@ namespace Opc.Ua
             // write contents.
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteUInt64(null, values[ii]);
+                WriteUInt64(null, values.Span[ii]);
             }
         }
 
         /// <summary>
         /// Writes a float array to the stream.
         /// </summary>
-        public void WriteFloatArray(string fieldName, IList<float> values)
+        public void WriteFloatArray(string fieldName, ArrayOf<float> values)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1254,14 +1254,14 @@ namespace Opc.Ua
             // write contents.
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteFloat(null, values[ii]);
+                WriteFloat(null, values.Span[ii]);
             }
         }
 
         /// <summary>
         /// Writes a double array to the stream.
         /// </summary>
-        public void WriteDoubleArray(string fieldName, IList<double> values)
+        public void WriteDoubleArray(string fieldName, ArrayOf<double> values)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1272,14 +1272,14 @@ namespace Opc.Ua
             // write contents.
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteDouble(null, values[ii]);
+                WriteDouble(null, values.Span[ii]);
             }
         }
 
         /// <summary>
         /// Writes a string array to the stream.
         /// </summary>
-        public void WriteStringArray(string fieldName, IList<string> values)
+        public void WriteStringArray(string fieldName, ArrayOf<string> values)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1290,14 +1290,14 @@ namespace Opc.Ua
             // write contents.
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteString(null, values[ii]);
+                WriteString(null, values.Span[ii]);
             }
         }
 
         /// <summary>
         /// Writes a UTC date/time array to the stream.
         /// </summary>
-        public void WriteDateTimeArray(string fieldName, IList<DateTime> values)
+        public void WriteDateTimeArray(string fieldName, ArrayOf<DateTime> values)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1308,14 +1308,14 @@ namespace Opc.Ua
             // write contents.
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteDateTime(null, values[ii]);
+                WriteDateTime(null, values.Span[ii]);
             }
         }
 
         /// <summary>
         /// Writes a GUID array to the stream.
         /// </summary>
-        public void WriteGuidArray(string fieldName, IList<Uuid> values)
+        public void WriteGuidArray(string fieldName, ArrayOf<Uuid> values)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1326,14 +1326,14 @@ namespace Opc.Ua
             // write contents.
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteGuid(null, values[ii]);
+                WriteGuid(null, values.Span[ii]);
             }
         }
 
         /// <summary>
         /// Writes a byte string array to the stream.
         /// </summary>
-        public void WriteByteStringArray(string fieldName, IList<ByteString> values)
+        public void WriteByteStringArray(string fieldName, ArrayOf<ByteString> values)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1344,14 +1344,14 @@ namespace Opc.Ua
             // write contents.
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteByteString(null, values[ii]);
+                WriteByteString(null, values.Span[ii]);
             }
         }
 
         /// <summary>
         /// Writes an XmlElement array to the stream.
         /// </summary>
-        public void WriteXmlElementArray(string fieldName, IList<XmlElement> values)
+        public void WriteXmlElementArray(string fieldName, ArrayOf<XmlElement> values)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1362,14 +1362,14 @@ namespace Opc.Ua
             // write contents.
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteXmlElement(null, values[ii]);
+                WriteXmlElement(null, values.Span[ii]);
             }
         }
 
         /// <summary>
         /// Writes an NodeId array to the stream.
         /// </summary>
-        public void WriteNodeIdArray(string fieldName, IList<NodeId> values)
+        public void WriteNodeIdArray(string fieldName, ArrayOf<NodeId> values)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1380,14 +1380,14 @@ namespace Opc.Ua
             // write contents.
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteNodeId(null, values[ii]);
+                WriteNodeId(null, values.Span[ii]);
             }
         }
 
         /// <summary>
         /// Writes an ExpandedNodeId array to the stream.
         /// </summary>
-        public void WriteExpandedNodeIdArray(string fieldName, IList<ExpandedNodeId> values)
+        public void WriteExpandedNodeIdArray(string fieldName, ArrayOf<ExpandedNodeId> values)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1398,14 +1398,14 @@ namespace Opc.Ua
             // write contents.
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteExpandedNodeId(null, values[ii]);
+                WriteExpandedNodeId(null, values.Span[ii]);
             }
         }
 
         /// <summary>
         /// Writes an StatusCode array to the stream.
         /// </summary>
-        public void WriteStatusCodeArray(string fieldName, IList<StatusCode> values)
+        public void WriteStatusCodeArray(string fieldName, ArrayOf<StatusCode> values)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1416,14 +1416,14 @@ namespace Opc.Ua
             // write contents.
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteStatusCode(null, values[ii]);
+                WriteStatusCode(null, values.Span[ii]);
             }
         }
 
         /// <summary>
         /// Writes an DiagnosticInfo array to the stream.
         /// </summary>
-        public void WriteDiagnosticInfoArray(string fieldName, IList<DiagnosticInfo> values)
+        public void WriteDiagnosticInfoArray(string fieldName, ArrayOf<DiagnosticInfo> values)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1434,14 +1434,14 @@ namespace Opc.Ua
             // write contents.
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteDiagnosticInfo(null, values[ii]);
+                WriteDiagnosticInfo(null, values.Span[ii]);
             }
         }
 
         /// <summary>
         /// Writes an QualifiedName array to the stream.
         /// </summary>
-        public void WriteQualifiedNameArray(string fieldName, IList<QualifiedName> values)
+        public void WriteQualifiedNameArray(string fieldName, ArrayOf<QualifiedName> values)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1452,14 +1452,14 @@ namespace Opc.Ua
             // write contents.
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteQualifiedName(null, values[ii]);
+                WriteQualifiedName(null, values.Span[ii]);
             }
         }
 
         /// <summary>
         /// Writes an LocalizedText array to the stream.
         /// </summary>
-        public void WriteLocalizedTextArray(string fieldName, IList<LocalizedText> values)
+        public void WriteLocalizedTextArray(string fieldName, ArrayOf<LocalizedText> values)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1470,14 +1470,14 @@ namespace Opc.Ua
             // write contents.
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteLocalizedText(null, values[ii]);
+                WriteLocalizedText(null, values.Span[ii]);
             }
         }
 
         /// <summary>
         /// Writes an Variant array to the stream.
         /// </summary>
-        public void WriteVariantArray(string fieldName, IList<Variant> values)
+        public void WriteVariantArray(string fieldName, ArrayOf<Variant> values)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1488,14 +1488,14 @@ namespace Opc.Ua
             // write contents.
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteVariant(null, values[ii]);
+                WriteVariant(null, values.Span[ii]);
             }
         }
 
         /// <summary>
         /// Writes an DataValue array to the stream.
         /// </summary>
-        public void WriteDataValueArray(string fieldName, IList<DataValue> values)
+        public void WriteDataValueArray(string fieldName, ArrayOf<DataValue> values)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1506,14 +1506,14 @@ namespace Opc.Ua
             // write contents.
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteDataValue(null, values[ii]);
+                WriteDataValue(null, values.Span[ii]);
             }
         }
 
         /// <summary>
         /// Writes an extension object array to the stream.
         /// </summary>
-        public void WriteExtensionObjectArray(string fieldName, IList<ExtensionObject> values)
+        public void WriteExtensionObjectArray(string fieldName, ArrayOf<ExtensionObject> values)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1524,7 +1524,7 @@ namespace Opc.Ua
             // write contents.
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteExtensionObject(null, values[ii]);
+                WriteExtensionObject(null, values.Span[ii]);
             }
         }
 
@@ -1533,7 +1533,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteEncodeableArray(
             string fieldName,
-            IList<IEncodeable> values,
+            ArrayOf<IEncodeable> values,
             Type systemType)
         {
             // write length.
@@ -1545,7 +1545,7 @@ namespace Opc.Ua
             // write contents.
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteEncodeable(null, values[ii], systemType);
+                WriteEncodeable(null, values.Span[ii], systemType);
             }
         }
 
@@ -2188,10 +2188,10 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <exception cref="ServiceResultException"></exception>
-        private bool WriteArrayLength<T>(ICollection<T> values)
+        private bool WriteArrayLength<T>(ArrayOf<T> values)
         {
             // check for null.
-            if (values == null)
+            if (values.IsNull)
             {
                 WriteInt32(null, -1);
                 return true;

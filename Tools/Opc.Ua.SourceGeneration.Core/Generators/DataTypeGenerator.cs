@@ -428,6 +428,16 @@ namespace Opc.Ua.SourceGeneration
                 return false;
             }
 
+            bool isServiceType = dataType.Service != null;
+            if (isServiceType)
+            {
+                context.Template.AddReplacement(
+                    Tokens.ExtraInterfaces,
+                    dataType.IsServiceResponse ?
+                        "global::Opc.Ua.IServiceResponse, " :
+                        "global::Opc.Ua.IServiceRequest, ");
+            }
+
             Parameter[] fields = GetFields(dataType);
 
             context.Template.AddReplacement(
@@ -660,13 +670,17 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
+            var dataType = (DataTypeDesign)field.Parent;
+            var isServiceType = dataType.Service != null;
+
             context.Out.WriteLine(
                 "private {0} {1};",
                 field.DataTypeNode.GetDotNetTypeName(
                     field.ValueRank,
                     m_context.ModelDesign.TargetNamespace.Value,
                     m_context.ModelDesign.Namespaces,
-                    nullable: NullableAnnotation.NullableExceptDataTypes),
+                    nullable: NullableAnnotation.NullableExceptDataTypes,
+                    useArrayTypeInsteadOfCollection: isServiceType),
                 field.GetChildFieldName());
 
             return null;
@@ -738,6 +752,7 @@ namespace Opc.Ua.SourceGeneration
             }
 
             var dataType = (DataTypeDesign)field.Parent;
+            var isServiceType = dataType.Service != null;
             bool isUnion = dataType.IsUnion;
 
             if (isUnion)
@@ -784,7 +799,8 @@ namespace Opc.Ua.SourceGeneration
                                 ValueRank.Scalar,
                                 m_context.ModelDesign.TargetNamespace.Value,
                                 m_context.ModelDesign.Namespaces,
-                                nullable: NullableAnnotation.NonNullable);
+                                nullable: NullableAnnotation.NonNullable,
+                                useArrayTypeInsteadOfCollection: isServiceType);
                             break;
                         }
 
@@ -801,7 +817,8 @@ namespace Opc.Ua.SourceGeneration
                             ValueRank.Scalar,
                             m_context.ModelDesign.TargetNamespace.Value,
                             m_context.ModelDesign.Namespaces,
-                            nullable: NullableAnnotation.NonNullable);
+                            nullable: NullableAnnotation.NonNullable,
+                            useArrayTypeInsteadOfCollection: isServiceType);
                         context.Out.WriteLine(
                             "encoder.WriteEnumeratedArray({0}, {1}.ToArray(), typeof({2}));",
                             fieldName,
@@ -871,7 +888,8 @@ namespace Opc.Ua.SourceGeneration
                         ValueRank.Scalar,
                         m_context.ModelDesign.TargetNamespace.Value,
                         m_context.ModelDesign.Namespaces,
-                        nullable: NullableAnnotation.NonNullable);
+                        nullable: NullableAnnotation.NonNullable,
+                        useArrayTypeInsteadOfCollection: isServiceType);
                     if (field.ValueRank == ValueRank.Array)
                     {
                         context.Out.WriteLine(
@@ -925,6 +943,8 @@ namespace Opc.Ua.SourceGeneration
             }
 
             var dataType = (DataTypeDesign)field.Parent;
+            var isServiceType = dataType.Service != null;
+
             bool isUnion = dataType.IsUnion;
             if (isUnion)
             {
@@ -972,7 +992,8 @@ namespace Opc.Ua.SourceGeneration
                                 ValueRank.Scalar,
                                 m_context.ModelDesign.TargetNamespace.Value,
                                 m_context.ModelDesign.Namespaces,
-                                nullable: NullableAnnotation.NonNullable);
+                                nullable: NullableAnnotation.NonNullable,
+                                useArrayTypeInsteadOfCollection: isServiceType);
                             break;
                         }
 
@@ -986,7 +1007,8 @@ namespace Opc.Ua.SourceGeneration
                         ValueRank.Scalar,
                         m_context.ModelDesign.TargetNamespace.Value,
                         m_context.ModelDesign.Namespaces,
-                        nullable: NullableAnnotation.NonNullable);
+                        nullable: NullableAnnotation.NonNullable,
+                        useArrayTypeInsteadOfCollection: isServiceType);
                     break;
                 case BasicDataType.UserDefined:
                     if (field.AllowSubTypes)
@@ -996,7 +1018,8 @@ namespace Opc.Ua.SourceGeneration
                             ValueRank.Scalar,
                             m_context.ModelDesign.TargetNamespace.Value,
                             m_context.ModelDesign.Namespaces,
-                            nullable: NullableAnnotation.NonNullable);
+                            nullable: NullableAnnotation.NonNullable,
+                            useArrayTypeInsteadOfCollection: isServiceType);
 
                         if (field.ValueRank == ValueRank.Array)
                         {
@@ -1046,7 +1069,8 @@ namespace Opc.Ua.SourceGeneration
                         ValueRank.Scalar,
                         m_context.ModelDesign.TargetNamespace.Value,
                         m_context.ModelDesign.Namespaces,
-                        nullable: NullableAnnotation.NonNullable);
+                        nullable: NullableAnnotation.NonNullable,
+                        useArrayTypeInsteadOfCollection: isServiceType);
                     break;
             }
 
@@ -1143,6 +1167,7 @@ namespace Opc.Ua.SourceGeneration
             }
 
             var dataType = (DataTypeDesign)field.Parent;
+            bool isServiceType = dataType.Service != null;
 
             if (dataType.IsUnion)
             {
@@ -1162,7 +1187,8 @@ namespace Opc.Ua.SourceGeneration
                     field.ValueRank,
                     m_context.ModelDesign.TargetNamespace.Value,
                     m_context.ModelDesign.Namespaces,
-                    nullable: NullableAnnotation.NullableExceptDataTypes));
+                    nullable: NullableAnnotation.NullableExceptDataTypes,
+                    useArrayTypeInsteadOfCollection: isServiceType));
 
             if (dataType.IsUnion)
             {
@@ -1233,6 +1259,8 @@ namespace Opc.Ua.SourceGeneration
             }
 
             const bool isRequired = false;
+            var dataType = (DataTypeDesign)field.Parent;
+            bool isServiceType = dataType.Service != null;
             bool emitDefaultValue =
                 !field.DataTypeNode.IsDotNetReferenceType(field.ValueRank);
 
@@ -1251,7 +1279,8 @@ namespace Opc.Ua.SourceGeneration
                 field.ValueRank,
                 m_context.ModelDesign.TargetNamespace.Value,
                 m_context.ModelDesign.Namespaces,
-                nullable: NullableAnnotation.NullableExceptDataTypes));
+                nullable: NullableAnnotation.NullableExceptDataTypes,
+                useArrayTypeInsteadOfCollection: isServiceType));
             context.Template.AddReplacement(
                 Tokens.FieldName,
                 field.GetChildFieldName());
@@ -1295,8 +1324,7 @@ namespace Opc.Ua.SourceGeneration
             }
 
             if (field.Name == "NodeId" &&
-                field.Parent is DataTypeDesign dt &&
-                dt.BaseTypeNode.SymbolicName.Name == BrowseNames.HistoryUpdateDetails)
+                dataType.BaseTypeNode.SymbolicName.Name == BrowseNames.HistoryUpdateDetails)
             {
                 context.Template.AddReplacement(
                     Tokens.AccessorSymbol,

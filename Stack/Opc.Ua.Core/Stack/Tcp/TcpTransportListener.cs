@@ -765,20 +765,21 @@ namespace Opc.Ua.Bindings
             foreach (EndpointDescription description in m_descriptions)
             {
                 // TODO: why only if SERVERCERT != null
-                if (description.ServerCertificate != null)
+                if (!description.ServerCertificate.IsEmpty)
                 {
                     X509Certificate2 serverCertificate = serverCertificateTypes
                         .GetInstanceCertificate(
                             description.SecurityPolicyUri);
                     if (serverCertificateTypes.SendCertificateChain)
                     {
-                        description.ServerCertificate = serverCertificateTypes
-                            .LoadCertificateChainRaw(
-                                serverCertificate);
+                        description.ServerCertificate =
+                            serverCertificateTypes.LoadCertificateChainRaw(
+                                serverCertificate).ToByteString();
                     }
                     else
                     {
-                        description.ServerCertificate = serverCertificate.RawData;
+                        description.ServerCertificate =
+                            serverCertificate.RawData.ToByteString();
                     }
                 }
             }

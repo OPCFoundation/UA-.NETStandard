@@ -55,7 +55,7 @@ namespace Opc.Ua.Types.Buffers.Tests
         public void ReinterpretAsReturnsExpectedType()
         {
             var memory = new ReadOnlyMemory("test", 4, 1);
-            ref string str = ref ReadOnlyMemory.ReinterpretAs<string>(ref memory);
+            ref string str = ref ReadOnlyMemoryHelper.ReinterpretAs<string>(ref memory);
             Assert.That(str, Is.EqualTo("test"));
         }
 
@@ -63,7 +63,7 @@ namespace Opc.Ua.Types.Buffers.Tests
         public void FromReturnsExpectedReadOnlyMemory()
         {
             string str = "test";
-            ref var memory = ref ReadOnlyMemory.From(ref str);
+            ref var memory = ref ReadOnlyMemoryHelper.From(ref str);
             Assert.That(memory.Object, Is.EqualTo("test"));
         }
 #endif

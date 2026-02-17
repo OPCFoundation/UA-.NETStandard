@@ -35,6 +35,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Json.Serialization;
 
 namespace Opc.Ua
 {
@@ -45,6 +46,7 @@ namespace Opc.Ua
     /// </summary>
     /// <typeparam name="T"></typeparam>
     public readonly struct MatrixOf<T> :
+        IConvertableToArray,
         IEquatable<MatrixOf<T>>,
         IEquatable<Array>,
         IEquatable<ArrayOf<T>>
@@ -63,11 +65,6 @@ namespace Opc.Ua
 #pragma warning restore RCS1085 // Use auto-implemented property
 
         /// <summary>
-        /// Array as span
-        /// </summary>
-        public ReadOnlySpan<T> Span => m_memory.Span;
-
-        /// <summary>
         /// Dimensions
         /// </summary>
 #pragma warning disable RCS1085 // Use auto-implemented property
@@ -75,14 +72,28 @@ namespace Opc.Ua
 #pragma warning restore RCS1085 // Use auto-implemented property
 
         /// <summary>
+        /// Array as span
+        /// </summary>
+        [JsonIgnore]
+        public ReadOnlySpan<T> Span => m_memory.Span;
+
+        /// <summary>
         /// Length
         /// </summary>
+        [JsonIgnore]
         public int Count => m_memory.Length;
 
         /// <summary>
         /// Is empty array
         /// </summary>
+        [JsonIgnore]
         public bool IsEmpty => m_memory.IsEmpty;
+
+        /// <summary>
+        /// Is null
+        /// </summary>
+        [JsonIgnore]
+        public bool IsNull => ReadOnlyMemoryHelper.IsNull(in m_memory);
 
         /// <summary>
         /// Create array adapter
@@ -132,6 +143,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="values"></param>
         /// <param name="dimensions"></param>
+        [JsonConstructor]
         internal MatrixOf(ReadOnlyMemory<T> values, int[] dimensions)
         {
             m_memory = values;
@@ -433,6 +445,12 @@ namespace Opc.Ua
         public static explicit operator T[,,,,,,,,,](MatrixOf<T> array)
         {
             return (T[,,,,,,,,,])array.CreateArrayInstance();
+        }
+
+        /// <inheritdoc/>
+        Array IConvertableToArray.ToArray()
+        {
+            return CreateArrayInstance();
         }
 
         /// <summary>

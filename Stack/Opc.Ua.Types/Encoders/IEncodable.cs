@@ -79,69 +79,6 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// A collection of encodeable objects.
-    /// </summary>
-    [CollectionDataContract(
-        Name = "ListOfEncodeable",
-        Namespace = Namespaces.OpcUaXsd,
-        ItemName = "Encodeable")]
-    public class IEncodeableCollection : List<IEncodeable>
-    {
-        /// <summary>
-        /// Initializes an empty collection.
-        /// </summary>
-        public IEncodeableCollection()
-        {
-        }
-
-        /// <summary>
-        /// Initializes the collection from another collection.
-        /// </summary>
-        /// <param name="collection">The collection whose elements are copied to the new list.</param>
-        /// <exception cref="ArgumentNullException">
-        /// 	<paramref name="collection"/> is null.
-        /// </exception>
-        public IEncodeableCollection(IEnumerable<IEncodeable> collection)
-            : base(collection)
-        {
-        }
-
-        /// <summary>
-        /// Initializes the collection with the specified capacity.
-        /// </summary>
-        /// <param name="capacity">The initial capacity of the collection.</param>
-        public IEncodeableCollection(int capacity)
-            : base(capacity)
-        {
-        }
-
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
-        /// <param name="values">The values to be converted to an instance of <see cref="IEncodeableCollection"/>.</param>
-        /// <returns>Instance of the <see cref="IEncodeableCollection"/> containing <paramref name="values"/></returns>
-        public static IEncodeableCollection ToIEncodeableCollection(IEncodeable[] values)
-        {
-            if (values != null)
-            {
-                return [.. values];
-            }
-
-            return [];
-        }
-
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
-        /// <param name="values">The values to be converted to new instance of <see cref="IEncodeableCollection"/>.</param>
-        /// <returns>The result of the conversion.</returns>
-        public static implicit operator IEncodeableCollection(IEncodeable[] values)
-        {
-            return ToIEncodeableCollection(values);
-        }
-    }
-
-    /// <summary>
     /// Defines extensions to support the JSON encoding.
     /// </summary>
     public interface IJsonEncodeable

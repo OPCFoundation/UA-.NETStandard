@@ -85,7 +85,7 @@ namespace Opc.Ua.Gds.Server
             NodeId applicationId,
             string certificateGroupId,
             string certificateTypeId,
-            byte[] certificateRequest,
+            ByteString certificateRequest,
             string authorityId);
 
         /// <summary>
@@ -122,7 +122,7 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         /// <param name="requestId">The request id.</param>
         /// <param name="certificate">The accepted certificate.</param>
-        void AcceptRequest(NodeId requestId, byte[] certificate);
+        void AcceptRequest(NodeId requestId, ByteString certificate);
 
         /// <summary>
         /// Finish the request.
@@ -138,8 +138,8 @@ namespace Opc.Ua.Gds.Server
             NodeId requestId,
             out string certificateGroupId,
             out string certificateTypeId,
-            out byte[] signedCertificate,
-            out byte[] privateKey);
+            out ByteString signedCertificate,
+            out ByteString privateKey);
 
         /// <summary>
         /// Read a certificate request.
@@ -158,7 +158,7 @@ namespace Opc.Ua.Gds.Server
             NodeId requestId,
             out string certificateGroupId,
             out string certificateTypeId,
-            out byte[] certificateRequest,
+            out ByteString certificateRequest,
             out string subjectName,
             out string[] domainNames,
             out string privateKeyFormat,

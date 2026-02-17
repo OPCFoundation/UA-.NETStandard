@@ -103,18 +103,13 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Returns the thumbprint as a uppercase string.
         /// </summary>
-        protected static string GetThumbprintString(byte[] thumbprint)
+        protected static string GetThumbprintString(ByteString thumbprint)
         {
-            if (thumbprint == null)
-            {
-                return null;
-            }
-
             var builder = new StringBuilder(thumbprint.Length * 2);
 
             for (int ii = 0; ii < thumbprint.Length; ii++)
             {
-                builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", thumbprint[ii]);
+                builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", thumbprint.Span[ii]);
             }
 
             return builder.ToString();
@@ -801,16 +796,17 @@ namespace Opc.Ua.Bindings
             _ = decoder.ReadUInt32(null);
 
             // decode security header.
-            byte[] certificateData;
-
-            byte[] thumbprintData;
+            ByteString certificateData;
+            ByteString thumbprintData;
             try
             {
                 secureChannelId = decoder.ReadUInt32(null);
                 securityPolicyUri = decoder.ReadString(
                     null,
                     TcpMessageLimits.MaxSecurityPolicyUriSize);
-                certificateData = decoder.ReadByteString(null, TcpMessageLimits.MaxCertificateSize);
+                certificateData = decoder.ReadByteString(
+                    null,
+                    TcpMessageLimits.MaxCertificateSize);
                 thumbprintData = decoder.ReadByteString(
                     null,
                     TcpMessageLimits.CertificateThumbprintSize);
@@ -824,7 +820,7 @@ namespace Opc.Ua.Bindings
             }
 
             // verify sender certificate chain.
-            if (certificateData != null && certificateData.Length > 0)
+            if (certificateData.Length > 0)
             {
                 senderCertificateChain = Utils.ParseCertificateChainBlob(
                     certificateData,
@@ -854,7 +850,7 @@ namespace Opc.Ua.Bindings
             }
 
             // verify receiver thumbprint.
-            if (thumbprintData != null && thumbprintData.Length > 0)
+            if (thumbprintData.Length > 0)
             {
                 bool loadChain = false;
                 // TODO: client should use the proider too!

@@ -79,14 +79,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         internal static readonly Guid GuidId3 = new("C141B9D1-F1FD-4D15-9918-E37FD697EA1D");
         internal static readonly Guid[] GuidIds = [GuidId1, GuidId2, GuidId3];
 
-        internal static readonly byte[] OpaqueId1 = Utils.FromHexString(
+        internal static readonly ByteString OpaqueId1 = ByteString.FromHexString(
             "138DAA907373409AB6A4A36322063745");
 
-        internal static readonly byte[] OpaqueId2 = Utils.FromHexString(
+        internal static readonly ByteString OpaqueId2 = ByteString.FromHexString(
             "E41047609A9248318EB907991A66B7BEE6B60CB5114828");
 
-        internal static readonly byte[] OpaqueId3 = Utils.FromHexString("FBD8F0DE652A479B");
-        internal static readonly byte[][] OpaqueIds = [OpaqueId1, OpaqueId2, OpaqueId3];
+        internal static readonly ByteString OpaqueId3 = ByteString.FromHexString("FBD8F0DE652A479B");
+        internal static readonly ByteString[] OpaqueIds = [OpaqueId1, OpaqueId2, OpaqueId3];
         internal static readonly string[] Body = ["opc.tcp://localhost/"];
         internal static readonly string[] BodyArray = ["opc.tcp://localhost/"];
 
@@ -151,8 +151,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 (int)n4.NamespaceIndex,
                 context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3)));
             Assert.AreEqual(
-                Utils.ToHexString(Get(OpaqueIds, index)),
-                Utils.ToHexString(n4.TryGetIdentifier(out byte[] id5) ? id5 : []));
+                Get(OpaqueIds, index).ToHexString(),
+                (n4.TryGetIdentifier(out ByteString id5) ? id5 : ByteString.Empty).ToHexString());
         }
 
         private static void CheckDecodedExpandedNodeIds(
@@ -232,8 +232,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             Assert.AreEqual(
-                Utils.ToHexString(Get(OpaqueIds, index)),
-                Utils.ToHexString(n4.TryGetIdentifier(out byte[] id4) ? id4 : null));
+                Get(OpaqueIds, index).ToHexString(),
+                (n4.TryGetIdentifier(out ByteString id4) ? id4 : default).ToHexString());
 
             ExpandedNodeId n5 = decoder.ReadExpandedNodeId("D5");
             Assert.AreEqual(
@@ -312,8 +312,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             Assert.AreEqual(
-                Utils.ToHexString(Get(OpaqueIds, index)),
-                Utils.ToHexString(n8.TryGetIdentifier(out byte[] id8) ? id8 : null));
+                Get(OpaqueIds, index).ToHexString(),
+                (n8.TryGetIdentifier(out ByteString id8) ? id8 : default).ToHexString());
         }
 
         private static void CheckDecodedQualfiiedNames(

@@ -58,7 +58,7 @@ namespace Opc.Ua
             m_token = new UserNameIdentityToken
             {
                 UserName = username,
-                Password = password.ToArray()
+                Password = password.ToByteString()
             };
         }
 
@@ -108,7 +108,7 @@ namespace Opc.Ua
             if (string.IsNullOrEmpty(securityPolicyUri) ||
                 securityPolicyUri == SecurityPolicies.None)
             {
-                m_token.Password = DecryptedPassword;
+                m_token.Password = DecryptedPassword.ToByteString();
                 m_token.EncryptionAlgorithm = null;
                 return;
             }
@@ -125,7 +125,7 @@ namespace Opc.Ua
                     dataToEncrypt,
                     logger);
 
-                m_token.Password = encryptedData.Data;
+                m_token.Password = encryptedData.Data.ToByteString();
                 m_token.EncryptionAlgorithm = encryptedData.Algorithm;
                 Array.Clear(dataToEncrypt, 0, dataToEncrypt.Length);
             }
@@ -158,7 +158,7 @@ namespace Opc.Ua
                     null,
                     doNotEncodeSenderCertificate);
 
-                m_token.Password = secret.Encrypt(DecryptedPassword, receiverNonce);
+                m_token.Password = secret.Encrypt(DecryptedPassword, receiverNonce).ToByteString();
                 m_token.EncryptionAlgorithm = null;
             }
         }
@@ -282,11 +282,9 @@ namespace Opc.Ua
                 Array.Clear(DecryptedPassword, 0, DecryptedPassword.Length);
                 DecryptedPassword = null;
             }
-            if (m_token.Password != null)
-            {
-                // Array.Clear(m_token.Password, 0, m_token.Password.Length);
-                m_token.Password = default;
-            }
+
+            // Array.Clear(m_token.Password, 0, m_token.Password.Length);
+            m_token.Password = default;
         }
 
         /// <inheritdoc/>

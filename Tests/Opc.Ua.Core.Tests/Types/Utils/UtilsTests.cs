@@ -199,17 +199,17 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             var user1 = new UserNameIdentityToken
             {
                 UserName = "user1",
-                Password = Encoding.ASCII.GetBytes("pass1".ToCharArray())
+                Password = Encoding.ASCII.GetBytes("pass1".ToCharArray()).ToByteString()
             };
             var user1_dupe = new UserNameIdentityToken
             {
                 UserName = "user1",
-                Password = Encoding.ASCII.GetBytes("pass1".ToCharArray())
+                Password = Encoding.ASCII.GetBytes("pass1".ToCharArray()).ToByteString()
             };
             var user2 = new UserNameIdentityToken
             {
                 UserName = "user2",
-                Password = Encoding.ASCII.GetBytes("pass2".ToCharArray())
+                Password = Encoding.ASCII.GetBytes("pass2".ToCharArray()).ToByteString()
             };
             Assert.True(Utils.IsEqualUserIdentity(user1, user1_dupe));
             Assert.True(Utils.IsEqualUserIdentity(user1, user1));

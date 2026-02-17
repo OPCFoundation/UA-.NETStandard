@@ -34,6 +34,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Json.Serialization;
 
 namespace Opc.Ua
 {
@@ -44,6 +45,7 @@ namespace Opc.Ua
     /// <typeparam name="T"></typeparam>
     [CollectionBuilder(typeof(ArrayOf), nameof(ArrayOf.Create))]
     public readonly struct ArrayOf<T> :
+        IConvertableToArray,
         IEquatable<ArrayOf<T>>,
         IEquatable<MatrixOf<T>>,
         IEquatable<IEnumerable<T>>,
@@ -65,20 +67,30 @@ namespace Opc.Ua
         /// <summary>
         /// Array as span
         /// </summary>
+        [JsonIgnore]
         public ReadOnlySpan<T> Span => m_memory.Span;
 
         /// <summary>
         /// Length
         /// </summary>
+        [JsonIgnore]
         public int Count => m_memory.Length;
 
         /// <summary>
         /// Is empty array
         /// </summary>
+        [JsonIgnore]
         public bool IsEmpty => m_memory.IsEmpty;
 
+        /// <summary>
+        /// Is null
+        /// </summary>
+        [JsonIgnore]
+        public bool IsNull => ReadOnlyMemoryHelper.IsNull(in m_memory);
+
         /// <inheritdoc/>
-        internal ArrayOf(ReadOnlyMemory<T> values)
+        [JsonConstructor]
+        public ArrayOf(ReadOnlyMemory<T> values)
         {
             m_memory = values;
         }
@@ -340,7 +352,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ArrayOf<T>(List<T> list)
+        public static explicit operator ArrayOf<T>(List<T> list)
         {
             return list.Count == 0 ? [] : new(list.ToArray());
         }
@@ -367,6 +379,12 @@ namespace Opc.Ua
         public ArrayOf<T> Slice(int start)
         {
             return new(m_memory[start..]);
+        }
+
+        /// <inheritdoc/>
+        Array IConvertableToArray.ToArray()
+        {
+            return ToArray();
         }
 
         /// <summary>
@@ -448,6 +466,18 @@ namespace Opc.Ua
     }
 
     /// <summary>
+    /// Marks types as convertable to <see cref="System.Array"/>
+    /// </summary>
+    public interface IConvertableToArray
+    {
+        /// <summary>
+        /// Convert to array
+        /// </summary>
+        /// <returns></returns>
+        Array ToArray();
+    }
+
+    /// <summary>
     /// Collection builder for array of and accessor for dimensions
     /// </summary>
     public static class ArrayOf
@@ -496,18 +526,18 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T"></typeparam>
         public static ArrayOf<T> ToArrayOf<T>(
-            this System.Collections.IEnumerable values)
+            this System.Collections.IEnumerable? values)
         {
-            return values.Cast<T>().ToArrayOf();
+            return (values?.Cast<T>()).ToArrayOf();
         }
 
         /// <summary>
         /// Create array of T
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public static ArrayOf<T> ToArrayOf<T>(this IEnumerable<T> values)
+        public static ArrayOf<T> ToArrayOf<T>(this IEnumerable<T>? values)
         {
-            return new([.. values]);
+            return new(values == null ? [] : [.. values]);
         }
 
         /// <summary>
@@ -529,6 +559,52 @@ namespace Opc.Ua
         public static ArrayOf<T> ToArrayOf<T>(this T[] values)
         {
             return values.Length == 0 ? [] : new(values);
+        }
+
+        /// <summary>
+        /// Add array as range to list
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static void AddRange<T>(this IList<T> list, ArrayOf<T> values)
+        {
+            if (list == null)
+            {
+                throw new ArgumentNullException(nameof(list));
+            }
+            for (var i = 0; i < values.Count; i++)
+            {
+                list.Add(values.Span[i]);
+            }
+        }
+
+        /// <summary>
+        /// Returns batches of a arrays
+        /// </summary>
+        /// <typeparam name="T">The type of the items in the arrays.</typeparam>
+        /// <param name="collection">The arrays from which items are batched.</param>
+        /// <param name="batchSize">The size of a batch.</param>
+        /// <returns>The arrays.</returns>
+        public static IEnumerable<ArrayOf<T>> Batch<T>(this ArrayOf<T> collection, int batchSize)
+        {
+            if (collection.Count <= batchSize)
+            {
+                yield return collection;
+            }
+            else // Slice the array
+            {
+                for (int ii = 0; ii < collection.Count; ii += batchSize)
+                {
+                    if (batchSize >= collection.Count - ii)
+                    {
+                        // Return remaining slice
+                        yield return collection.Slice(ii);
+                    }
+                    else
+                    {
+                        yield return collection.Slice(ii, batchSize);
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -555,6 +631,35 @@ namespace Opc.Ua
         public static bool Exceeds<T>(this ArrayOf<T> array, uint limit)
         {
             return limit != 0 && array.Count > limit;
+        }
+
+        /// <summary>
+        /// Combine to new array
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static ArrayOf<T> Combine<T>(params ArrayOf<T>[] arrays)
+        {
+            if (arrays.Length == 0)
+            {
+                return Empty<T>();
+            }
+            int length = 0;
+            foreach (ArrayOf<T> item in arrays)
+            {
+                length += item.Count;
+            }
+            T[] buffer = new T[length];
+            Span<T> dest = buffer.AsSpan();
+            foreach (ArrayOf<T> item in arrays)
+            {
+                item.Span.CopyTo(dest[..item.Count]);
+                if (dest.Length == item.Count)
+                {
+                    break;
+                }
+                dest = dest[item.Count..];
+            }
+            return buffer.ToArrayOf();
         }
     }
 }

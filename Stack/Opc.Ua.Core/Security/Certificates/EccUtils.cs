@@ -1113,9 +1113,9 @@ namespace Opc.Ua
             }
 
             // extract the send certificate and any chain.
-            byte[] senderCertificate = decoder.ReadByteString(null);
+            ByteString senderCertificate = decoder.ReadByteString(null);
 
-            if (senderCertificate == null || senderCertificate.Length == 0)
+            if (senderCertificate.Length == 0)
             {
                 if (SenderCertificate == null)
                 {
@@ -1157,8 +1157,8 @@ namespace Opc.Ua
             }
 
             // read the policy header.
-            byte[] senderPublicKey = decoder.ReadByteString(null);
-            byte[] receiverPublicKey = decoder.ReadByteString(null);
+            ByteString senderPublicKey = decoder.ReadByteString(null);
+            ByteString receiverPublicKey = decoder.ReadByteString(null);
 
             if (headerLength != senderPublicKey.Length + receiverPublicKey.Length + 8)
             {
@@ -1169,7 +1169,7 @@ namespace Opc.Ua
 
             int startOfEncryption = decoder.Position;
 
-            SenderNonce = Nonce.CreateNonce(SecurityPolicyUri, senderPublicKey);
+            SenderNonce = Nonce.CreateNonce(SecurityPolicyUri, senderPublicKey.ToArray());
 
             if (!Utils.IsEqual(receiverPublicKey, ReceiverNonce.Data))
             {
@@ -1257,7 +1257,7 @@ namespace Opc.Ua
                 plainText.Offset,
                 plainText.Count,
                 Context);
-            byte[] actualNonce = decoder.ReadByteString(null);
+            ByteString actualNonce = decoder.ReadByteString(null);
 
             if (expectedNonce != null && expectedNonce.Length > 0)
             {
@@ -1265,7 +1265,7 @@ namespace Opc.Ua
 
                 for (int ii = 0; ii < expectedNonce.Length && ii < actualNonce.Length; ii++)
                 {
-                    notvalid |= expectedNonce[ii] ^ actualNonce[ii];
+                    notvalid |= expectedNonce[ii] ^ actualNonce.Span[ii];
                 }
 
                 if (notvalid != 0)
@@ -1274,7 +1274,7 @@ namespace Opc.Ua
                 }
             }
 
-            return decoder.ReadByteString(null);
+            return decoder.ReadByteString(null).ToArray();
         }
     }
 }

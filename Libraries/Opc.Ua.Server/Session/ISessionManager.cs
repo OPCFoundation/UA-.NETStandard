@@ -107,7 +107,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             X509Certificate2 serverCertificate,
             string sessionName,
-            byte[] clientNonce,
+            ByteString clientNonce,
             ApplicationDescription clientDescription,
             string endpointUrl,
             X509Certificate2 clientCertificate,
@@ -119,7 +119,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Activates an existing session
         /// </summary>
-        ValueTask<(bool IdentityContextChanged, byte[] ServerNonce)> ActivateSessionAsync(
+        ValueTask<(bool IdentityContextChanged, ByteString ServerNonce)> ActivateSessionAsync(
             OperationContext context,
             NodeId authenticationToken,
             SignatureData clientSignature,
@@ -175,7 +175,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The server nonce of the session.
         /// </summary>
-        public required byte[] ServerNonce { get; init; }
+        public required ByteString ServerNonce { get; init; }
 
         /// <summary>
         /// The revised session timeout.

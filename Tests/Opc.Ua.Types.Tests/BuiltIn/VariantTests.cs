@@ -131,65 +131,65 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             get
             {
                 yield return CreateConstructorCase("ArrayBoolean",
-                    () => ArrayOf(true, false), TypeInfo.Arrays.Boolean);
+                    () => Array(true, false), TypeInfo.Arrays.Boolean);
                 yield return CreateConstructorCase("ArraySByte",
-                    () => ArrayOf((sbyte)-1, (sbyte)1), TypeInfo.Arrays.SByte);
+                    () => Array((sbyte)-1, (sbyte)1), TypeInfo.Arrays.SByte);
                 yield return CreateConstructorCase("ArrayInt16",
-                    () => ArrayOf((short)-2, (short)2), TypeInfo.Arrays.Int16);
+                    () => Array((short)-2, (short)2), TypeInfo.Arrays.Int16);
                 yield return CreateConstructorCase("ArrayUInt16",
-                    () => ArrayOf((ushort)2, (ushort)4), TypeInfo.Arrays.UInt16);
+                    () => Array((ushort)2, (ushort)4), TypeInfo.Arrays.UInt16);
                 yield return CreateConstructorCase("ArrayInt32",
-                    () => ArrayOf(-3, 3), TypeInfo.Arrays.Int32);
+                    () => Array(-3, 3), TypeInfo.Arrays.Int32);
                 yield return CreateConstructorCase("ArrayUInt32",
-                    () => ArrayOf(3u, 4u), TypeInfo.Arrays.UInt32);
+                    () => Array(3u, 4u), TypeInfo.Arrays.UInt32);
                 yield return CreateConstructorCase("ArrayInt64",
-                    () => ArrayOf(-4L, 4L), TypeInfo.Arrays.Int64);
+                    () => Array(-4L, 4L), TypeInfo.Arrays.Int64);
                 yield return CreateConstructorCase("ArrayUInt64",
-                    () => ArrayOf(4UL, 5UL), TypeInfo.Arrays.UInt64);
+                    () => Array(4UL, 5UL), TypeInfo.Arrays.UInt64);
                 yield return CreateConstructorCase("ArrayFloat",
-                    () => ArrayOf(1.0f, 2.0f), TypeInfo.Arrays.Float);
+                    () => Array(1.0f, 2.0f), TypeInfo.Arrays.Float);
                 yield return CreateConstructorCase("ArrayDouble",
-                    () => ArrayOf(1.0d, 2.0d), TypeInfo.Arrays.Double);
+                    () => Array(1.0d, 2.0d), TypeInfo.Arrays.Double);
                 yield return CreateConstructorCase("ArrayString",
-                    () => ArrayOf("a", "b"), TypeInfo.Arrays.String);
+                    () => Array("a", "b"), TypeInfo.Arrays.String);
                 yield return CreateConstructorCase("ArrayDateTime",
-                    () => ArrayOf(
+                    () => Array(
                         DateTime.SpecifyKind(new DateTime(2024, 2, 1), DateTimeKind.Utc),
                         DateTime.SpecifyKind(new DateTime(2025, 2, 1), DateTimeKind.Utc)), TypeInfo.Arrays.DateTime);
                 yield return CreateConstructorCase("ArrayGuid",
-                    () => ArrayOf(
+                    () => Array(
                         new Uuid(Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeee1")),
                         new Uuid(Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeee2"))), TypeInfo.Arrays.Guid);
                 yield return CreateConstructorCase("ArrayByteString",
-                    () => ArrayOf(Bytes(1), Bytes(2, 3)), TypeInfo.Arrays.ByteString);
+                    () => Array(Bytes(1), Bytes(2, 3)), TypeInfo.Arrays.ByteString);
                 yield return CreateConstructorCase("ArrayXmlElement",
-                    () => ArrayOf(CreateXmlElement("A"), CreateXmlElement("B")), TypeInfo.Arrays.XmlElement);
+                    () => Array(CreateXmlElement("A"), CreateXmlElement("B")), TypeInfo.Arrays.XmlElement);
                 yield return CreateConstructorCase("ArrayNodeId",
-                    () => ArrayOf(new NodeId(1), new NodeId(2, 1)), TypeInfo.Arrays.NodeId);
+                    () => Array(new NodeId(1), new NodeId(2, 1)), TypeInfo.Arrays.NodeId);
                 yield return CreateConstructorCase("ArrayExpandedNodeId",
-                    () => ArrayOf(
+                    () => Array(
                         ExpandedNodeId.Parse("nsu=Test;s=One"),
                         ExpandedNodeId.Parse("nsu=Test;s=Two")), TypeInfo.Arrays.ExpandedNodeId);
                 yield return CreateConstructorCase("ArrayStatusCode",
-                    () => ArrayOf(
+                    () => Array(
                         new StatusCode(1u),
                         new StatusCode(2u)), TypeInfo.Arrays.StatusCode);
                 yield return CreateConstructorCase("ArrayQualifiedName",
-                    () => ArrayOf(
+                    () => Array(
                         new QualifiedName("q1", 1),
                         new QualifiedName("q2", 2)), TypeInfo.Arrays.QualifiedName);
                 yield return CreateConstructorCase("ArrayLocalizedText",
-                    () => ArrayOf(
+                    () => Array(
                         new LocalizedText("en", "a"),
                         new LocalizedText("de", "b")), TypeInfo.Arrays.LocalizedText);
                 yield return CreateConstructorCase("ArrayExtensionObject",
-                    () => ArrayOf(
+                    () => Array(
                         new ExtensionObject(new Argument()),
                         new ExtensionObject(new Argument())), TypeInfo.Arrays.ExtensionObject);
                 yield return CreateConstructorCase("ArrayDataValue",
-                    () => ArrayOf(new DataValue(1), new DataValue(2)), TypeInfo.Arrays.DataValue);
+                    () => Array(new DataValue(1), new DataValue(2)), TypeInfo.Arrays.DataValue);
                 yield return CreateConstructorCase("ArrayVariant",
-                    () => ArrayOf(new Variant(1), new Variant("two")), TypeInfo.Arrays.Variant);
+                    () => Array(new Variant(1), new Variant("two")), TypeInfo.Arrays.Variant);
             }
         }
 
@@ -368,84 +368,84 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 yield return CreateDescriptorCase(
                     new VariantDescriptor(
                         "ArrayBoolean",
-                        () => ArrayOf(true, false),
+                        () => Array(true, false),
                         typeof(bool[]),
                         TypeInfo.Arrays.Boolean,
                         nameof(Variant.GetBooleanArray)));
                 yield return CreateDescriptorCase(
                     new VariantDescriptor(
                         "ArraySByte",
-                        () => ArrayOf((sbyte)-1, (sbyte)1),
+                        () => Array((sbyte)-1, (sbyte)1),
                         typeof(sbyte[]),
                         TypeInfo.Arrays.SByte,
                         nameof(Variant.GetSByteArray)));
                 yield return CreateDescriptorCase(
                     new VariantDescriptor(
                         "ArrayInt16",
-                        () => ArrayOf((short)-2, (short)2),
+                        () => Array((short)-2, (short)2),
                         typeof(short[]),
                         TypeInfo.Arrays.Int16,
                         nameof(Variant.GetInt16Array)));
                 yield return CreateDescriptorCase(
                     new VariantDescriptor(
                         "ArrayUInt16",
-                        () => ArrayOf((ushort)2, (ushort)3),
+                        () => Array((ushort)2, (ushort)3),
                         typeof(ushort[]),
                         TypeInfo.Arrays.UInt16,
                         nameof(Variant.GetUInt16Array)));
                 yield return CreateDescriptorCase(
                     new VariantDescriptor(
                         "ArrayInt32",
-                        () => ArrayOf(-3, 3),
+                        () => Array(-3, 3),
                         typeof(int[]),
                         TypeInfo.Arrays.Int32,
                         nameof(Variant.GetInt32Array)));
                 yield return CreateDescriptorCase(
                     new VariantDescriptor(
                         "ArrayUInt32",
-                        () => ArrayOf(3u, 4u),
+                        () => Array(3u, 4u),
                         typeof(uint[]),
                         TypeInfo.Arrays.UInt32,
                         nameof(Variant.GetUInt32Array)));
                 yield return CreateDescriptorCase(
                     new VariantDescriptor(
                         "ArrayInt64",
-                        () => ArrayOf(-4L, 4L),
+                        () => Array(-4L, 4L),
                         typeof(long[]),
                         TypeInfo.Arrays.Int64,
                         nameof(Variant.GetInt64Array)));
                 yield return CreateDescriptorCase(
                     new VariantDescriptor(
                         "ArrayUInt64",
-                        () => ArrayOf(4UL, 5UL),
+                        () => Array(4UL, 5UL),
                         typeof(ulong[]),
                         TypeInfo.Arrays.UInt64,
                         nameof(Variant.GetUInt64Array)));
                 yield return CreateDescriptorCase(
                     new VariantDescriptor(
                         "ArrayFloat",
-                        () => ArrayOf(1.0f, 2.0f),
+                        () => Array(1.0f, 2.0f),
                         typeof(float[]),
                         TypeInfo.Arrays.Float,
                         nameof(Variant.GetFloatArray)));
                 yield return CreateDescriptorCase(
                     new VariantDescriptor(
                         "ArrayDouble",
-                        () => ArrayOf(1.0d, 2.0d),
+                        () => Array(1.0d, 2.0d),
                         typeof(double[]),
                         TypeInfo.Arrays.Double,
                         nameof(Variant.GetDoubleArray)));
                 yield return CreateDescriptorCase(
                     new VariantDescriptor(
                         "ArrayString",
-                        () => ArrayOf("a", "b"),
+                        () => Array("a", "b"),
                         typeof(string[]),
                         TypeInfo.Arrays.String,
                         nameof(Variant.GetStringArray)));
                 yield return CreateDescriptorCase(
                     new VariantDescriptor(
                         "ArrayDateTime",
-                        () => ArrayOf(
+                        () => Array(
                             DateTime.SpecifyKind(new DateTime(2024, 2, 1), DateTimeKind.Utc),
                             DateTime.SpecifyKind(new DateTime(2025, 2, 1), DateTimeKind.Utc)),
                         typeof(DateTime[]),
@@ -454,7 +454,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 yield return CreateDescriptorCase(
                     new VariantDescriptor(
                         "ArrayGuid",
-                        () => ArrayOf(
+                        () => Array(
                             new Uuid(Guid.Parse("bbbbbbbb-cccc-dddd-eeee-fffffffffff1")),
                             new Uuid(Guid.Parse("bbbbbbbb-cccc-dddd-eeee-fffffffffff2"))),
                         typeof(Uuid[]),
@@ -463,70 +463,70 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 yield return CreateDescriptorCase(
                     new VariantDescriptor(
                         "ArrayByteString",
-                        () => ArrayOf(Bytes(1), Bytes(2)),
+                        () => Array(Bytes(1), Bytes(2)),
                         typeof(byte[][]),
                         TypeInfo.Arrays.ByteString,
                         nameof(Variant.GetByteStringArray)));
                 yield return CreateDescriptorCase(
                     new VariantDescriptor(
                         "ArrayXmlElement",
-                        () => ArrayOf(CreateXmlElement("A"), CreateXmlElement("B")),
+                        () => Array(CreateXmlElement("A"), CreateXmlElement("B")),
                         typeof(XmlElement[]),
                         TypeInfo.Arrays.XmlElement,
                         nameof(Variant.GetXmlElementArray)));
                 yield return CreateDescriptorCase(
                     new VariantDescriptor(
                         "ArrayNodeId",
-                        () => ArrayOf(new NodeId(1), new NodeId(2, 1)),
+                        () => Array(new NodeId(1), new NodeId(2, 1)),
                         typeof(NodeId[]),
                         TypeInfo.Arrays.NodeId,
                         nameof(Variant.GetNodeIdArray)));
                 yield return CreateDescriptorCase(
                     new VariantDescriptor(
                         "ArrayExpandedNodeId",
-                        () => ArrayOf(ExpandedNodeId.Parse("nsu=Test;s=One"), ExpandedNodeId.Parse("nsu=Test;s=Two")),
+                        () => Array(ExpandedNodeId.Parse("nsu=Test;s=One"), ExpandedNodeId.Parse("nsu=Test;s=Two")),
                         typeof(ExpandedNodeId[]),
                         TypeInfo.Arrays.ExpandedNodeId,
                         nameof(Variant.GetExpandedNodeIdArray)));
                 yield return CreateDescriptorCase(
                     new VariantDescriptor(
                         "ArrayStatusCode",
-                        () => ArrayOf(new StatusCode(1u), new StatusCode(2u)),
+                        () => Array(new StatusCode(1u), new StatusCode(2u)),
                         typeof(StatusCode[]),
                         TypeInfo.Arrays.StatusCode,
                         nameof(Variant.GetStatusCodeArray)));
                 yield return CreateDescriptorCase(
                     new VariantDescriptor(
                         "ArrayQualifiedName",
-                        () => ArrayOf(new QualifiedName("q1", 1), new QualifiedName("q2", 2)),
+                        () => Array(new QualifiedName("q1", 1), new QualifiedName("q2", 2)),
                         typeof(QualifiedName[]),
                         TypeInfo.Arrays.QualifiedName,
                         nameof(Variant.GetQualifiedNameArray)));
                 yield return CreateDescriptorCase(
                     new VariantDescriptor(
                         "ArrayLocalizedText",
-                        () => ArrayOf(new LocalizedText("en", "a"), new LocalizedText("de", "b")),
+                        () => Array(new LocalizedText("en", "a"), new LocalizedText("de", "b")),
                         typeof(LocalizedText[]),
                         TypeInfo.Arrays.LocalizedText,
                         nameof(Variant.GetLocalizedTextArray)));
                 yield return CreateDescriptorCase(
                     new VariantDescriptor(
                         "ArrayExtensionObject",
-                        () => ArrayOf(new ExtensionObject(new Argument()), new ExtensionObject(new Argument())),
+                        () => Array(new ExtensionObject(new Argument()), new ExtensionObject(new Argument())),
                         typeof(ExtensionObject[]),
                         TypeInfo.Arrays.ExtensionObject,
                         nameof(Variant.GetExtensionObjectArray)));
                 yield return CreateDescriptorCase(
                     new VariantDescriptor(
                         "ArrayDataValue",
-                        () => ArrayOf(new DataValue(1), new DataValue(2)),
+                        () => Array(new DataValue(1), new DataValue(2)),
                         typeof(DataValue[]),
                         TypeInfo.Arrays.DataValue,
                         nameof(Variant.GetDataValueArray)));
                 yield return CreateDescriptorCase(
                     new VariantDescriptor(
                         "ArrayVariant",
-                        () => ArrayOf(new Variant(1), new Variant("two")),
+                        () => Array(new Variant(1), new Variant("two")),
                         typeof(Variant[]),
                         TypeInfo.Arrays.Variant,
                         nameof(Variant.GetVariantArray)));
@@ -573,7 +573,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void MatrixConstructor_PreservesMatrixTypeInfo()
         {
-            var matrix = new Matrix(ArrayOf(1, 2, 3, 4), BuiltInType.Int32, 2, 2);
+            var matrix = new Matrix(Array(1, 2, 3, 4), BuiltInType.Int32, 2, 2);
             var variant = new Variant(matrix);
 
             AssertTypeInfo(matrix.TypeInfo, variant.TypeInfo);
@@ -632,21 +632,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void ObjectArrayConstructorWrapsElementsInVariants()
-        {
-            object[] values = [1, "two", true];
-            var variant = new Variant(values);
-
-            Assert.That(variant.TypeInfo.ValueRank, Is.EqualTo(ValueRanks.OneDimension));
-            Assert.That(variant.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Variant));
-            Variant[] stored = variant.GetVariantArray();
-            Assert.That(stored.Length, Is.EqualTo(values.Length));
-            Assert.That(stored[0].GetInt32(), Is.EqualTo(values[0]));
-            Assert.That(stored[1].GetString(), Is.EqualTo(values[1]));
-            Assert.That(stored[2].GetBoolean(), Is.EqualTo(values[2]));
-        }
-
-        [Test]
         public void VariantConstructsArrayFromEnumerable()
         {
             IList source = new List<int> { 1, 2, 3 };
@@ -663,8 +648,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var values = (Array)descriptor.CreateValue();
             var variant = new Variant(values);
-            MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGet), ArrayOf(descriptor.ValueType.MakeByRefType()));
-            object[] args = ArrayOf(CreateDefaultValue(descriptor.ValueType));
+            MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGet), Array(descriptor.ValueType.MakeByRefType()));
+            object[] args = Array(CreateDefaultValue(descriptor.ValueType));
 
             Assert.That(method, Is.Not.Null, $"TryGet overload for {descriptor.Name} should exist");
             bool success = (bool)method.Invoke(variant, args);
@@ -679,8 +664,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             object value = descriptor.CreateValue();
             var variant = new Variant(value);
-            MethodInfo method = typeof(Variant).GetMethod(descriptor.GetMethodName, ArrayOf(descriptor.ValueType));
-            object[] args = ArrayOf(CreateDefaultValue(descriptor.ValueType));
+            MethodInfo method = typeof(Variant).GetMethod(descriptor.GetMethodName, Array(descriptor.ValueType));
+            object[] args = Array(CreateDefaultValue(descriptor.ValueType));
 
             Assert.That(method, Is.Not.Null, $"Get method {descriptor.GetMethodName} should exist");
             object result = method.Invoke(variant, args);
@@ -693,8 +678,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var values = (Array)descriptor.CreateValue();
             var variant = new Variant(values);
-            MethodInfo method = typeof(Variant).GetMethod(descriptor.GetMethodName, ArrayOf(descriptor.ValueType));
-            object[] args = ArrayOf(CreateDefaultValue(descriptor.ValueType));
+            MethodInfo method = typeof(Variant).GetMethod(descriptor.GetMethodName, Array(descriptor.ValueType));
+            object[] args = Array(CreateDefaultValue(descriptor.ValueType));
 
             Assert.That(method, Is.Not.Null, $"Get method {descriptor.GetMethodName} should exist");
             object result = method.Invoke(variant, args);
@@ -707,8 +692,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             object defaultValue = descriptor.CreateValue();
             var variant = new Variant(true);
-            MethodInfo method = typeof(Variant).GetMethod(descriptor.GetMethodName, ArrayOf(descriptor.ValueType));
-            object[] args = ArrayOf(CloneValue(defaultValue));
+            MethodInfo method = typeof(Variant).GetMethod(descriptor.GetMethodName, Array(descriptor.ValueType));
+            object[] args = Array(CloneValue(defaultValue));
 
             object result = method.Invoke(variant, args);
             AssertValueEquality(defaultValue, result);
@@ -720,8 +705,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             object defaultValue = descriptor.CreateValue();
             var variant = new Variant(true);
-            MethodInfo method = typeof(Variant).GetMethod(descriptor.GetMethodName, ArrayOf(descriptor.ValueType));
-            object[] args = ArrayOf(CloneValue(defaultValue));
+            MethodInfo method = typeof(Variant).GetMethod(descriptor.GetMethodName, Array(descriptor.ValueType));
+            object[] args = Array(CloneValue(defaultValue));
 
             object result = method.Invoke(variant, args);
             AssertValueEquality(defaultValue, result);
@@ -769,7 +754,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Type elementType = descriptor.ValueType.GetElementType() ?? descriptor.ValueType;
             MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGetArray))
                 .MakeGenericMethod(elementType);
-            object[] args = ArrayOf(CreateDefaultValue(descriptor.ValueType), descriptor.TypeInfo.BuiltInType);
+            object[] args = Array(CreateDefaultValue(descriptor.ValueType), descriptor.TypeInfo.BuiltInType);
 
             bool success = (bool)method.Invoke(variant, args);
             Assert.That(success, Is.True);
@@ -786,10 +771,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void GenericTryGetArray_FailsForWrongBuiltInType()
         {
-            var variant = new Variant(ArrayOf(1, 2));
+            var variant = new Variant(Array(1, 2));
             MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGetArray))
                 .MakeGenericMethod(typeof(int));
-            object[] args = ArrayOf<object>(null, BuiltInType.String);
+            object[] args = Array<object>(null, BuiltInType.String);
 
             bool success = (bool)method.Invoke(variant, args);
             Assert.That(success, Is.False);
@@ -798,9 +783,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryGetMatrix_ReturnsMatrix()
         {
-            var matrix = new Matrix(ArrayOf(1f, 2f, 3f, 4f), BuiltInType.Float, 2, 2);
+            var matrix = new Matrix(Array(1f, 2f, 3f, 4f), BuiltInType.Float, 2, 2);
             var variant = new Variant(matrix);
-            object[] args = ArrayOf<object>(null, BuiltInType.Float);
+            object[] args = Array<object>(null, BuiltInType.Float);
             MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGetMatrix))
                 .MakeGenericMethod(typeof(float));
 
@@ -818,7 +803,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 { 2.0 }
             };
             var variant = new Variant(data);
-            object[] args = ArrayOf<object>(null, BuiltInType.Double);
+            object[] args = Array<object>(null, BuiltInType.Double);
             MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGetMatrix))
                 .MakeGenericMethod(typeof(double));
 
@@ -830,9 +815,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void VariantEqualsVariant_UsesValueSemantics()
         {
-            var first = new Variant(ArrayOf(1, 2));
-            var second = new Variant(ArrayOf(1, 2));
-            var third = new Variant(ArrayOf(1, 3));
+            var first = new Variant(Array(1, 2));
+            var second = new Variant(Array(1, 2));
+            var third = new Variant(Array(1, 3));
 
             Assert.That(first.Equals(second), Is.True);
             Assert.That(first.Equals(third), Is.False);
@@ -860,9 +845,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualityOperatorWithVariantOperands()
         {
-            var left = new Variant(ArrayOf(true, false));
-            var identical = new Variant(ArrayOf(true, false));
-            var different = new Variant(ArrayOf(false, false));
+            var left = new Variant(Array(true, false));
+            var identical = new Variant(Array(true, false));
+            var different = new Variant(Array(false, false));
 
             Assert.That(left == identical, Is.True);
             Assert.That(left != identical, Is.False);
@@ -914,7 +899,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ToStringFormatsByteStringAsHex()
         {
-            var variant = new Variant(Bytes(0x0A, 0xFF));
+            var variant = new Variant(ByteString.From(Bytes(0x0A, 0xFF)));
 
             Assert.That(variant.ToString(), Is.EqualTo("0AFF"));
         }
@@ -931,7 +916,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ToStringFormatsArraysWithSeparators()
         {
-            var variant = new Variant(ArrayOf(1, 2, 3));
+            var variant = new Variant(Array(1, 2, 3));
 
             Assert.That(variant.ToString(), Is.EqualTo("{1|2|3}"));
         }
@@ -1052,11 +1037,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
         private static Variant InvokeVariantFrom(object value)
         {
-            MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.From), ArrayOf(value.GetType()));
-            return (Variant)method.Invoke(null, ArrayOf(value));
+            MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.From), [value.GetType()]);
+            return (Variant)method.Invoke(null, [value]);
         }
 
-        private static T[] ArrayOf<T>(params T[] items)
+        private static T[] Array<T>(params T[] items)
         {
             return items;
         }
@@ -1108,7 +1093,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             if (value is Array array)
             {
-                var clone = Array.CreateInstance(array.GetType().GetElementType(), array.Length);
+                var clone = System.Array.CreateInstance(array.GetType().GetElementType(), array.Length);
                 for (int i = 0; i < array.Length; i++)
                 {
                     clone.SetValue(CloneValue(array.GetValue(i)), i);

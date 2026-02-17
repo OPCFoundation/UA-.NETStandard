@@ -377,7 +377,7 @@ namespace Opc.Ua
         /// or 'qst' as the first entry.</param>
         /// <returns>A LocalizedText containing translations as specified by the rules.</returns>
         [Pure]
-        public LocalizedText FilterByPreferredLocales(IList<string> preferredLocales)
+        public LocalizedText FilterByPreferredLocales(ArrayOf<string> preferredLocales)
         {
             return m_translation == null
                 ? this
@@ -651,9 +651,9 @@ namespace Opc.Ua
         [Pure]
         public LocalizedText FilterByPreferredLocales(
             LocalizedText localizedText,
-            IList<string> preferredLocales)
+            ArrayOf<string> preferredLocales)
         {
-            if (preferredLocales == null || preferredLocales.Count == 0)
+            if (preferredLocales.Count == 0)
             {
                 return localizedText;
             }
@@ -661,7 +661,7 @@ namespace Opc.Ua
             // TODO: Match case insensitive
 
             // Handle if mul or qst are requested as per Part 4 rules
-            if (preferredLocales[0].ToLowerInvariant() is kMulLocale or kQstLocale)
+            if (preferredLocales.Span[0].ToLowerInvariant() is kMulLocale or kQstLocale)
             {
                 // If there are no further entries, return all languages available.
                 // If there are more languages included after ‘mul’ or ‘qst’, return
@@ -671,9 +671,9 @@ namespace Opc.Ua
                     var filtered = new Dictionary<string, string>();
                     for (int i = 1; i < preferredLocales.Count; i++)
                     {
-                        if (Translations.TryGetValue(preferredLocales[i], out string t))
+                        if (Translations.TryGetValue(preferredLocales.Span[i], out string t))
                         {
-                            filtered.Add(preferredLocales[i], t);
+                            filtered.Add(preferredLocales.Span[i], t);
                         }
                     }
                     if (filtered.Count > 0)
@@ -829,75 +829,6 @@ namespace Opc.Ua
         private const string kMulLocale = "mul";
         private const string kQstLocale = "qst";
         private const string kMulLocaleDictionaryKey = "t";
-    }
-
-    /// <summary>
-    /// A strongly-typed collection of LocalizedText objects.
-    /// </summary>
-    [CollectionDataContract(
-        Name = "ListOfLocalizedText",
-        Namespace = Namespaces.OpcUaXsd,
-        ItemName = "LocalizedText")]
-    public class LocalizedTextCollection : List<LocalizedText>, ICloneable
-    {
-        /// <inheritdoc/>
-        public LocalizedTextCollection()
-        {
-        }
-
-        /// <inheritdoc/>
-        public LocalizedTextCollection(IEnumerable<LocalizedText> collection)
-            : base(collection)
-        {
-        }
-
-        /// <inheritdoc/>
-        public LocalizedTextCollection(int capacity)
-            : base(capacity)
-        {
-        }
-
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
-        /// <param name="values">Array of localized text values to convert to a collection</param>
-        public static LocalizedTextCollection ToLocalizedTextCollection(LocalizedText[] values)
-        {
-            if (values != null)
-            {
-                return [.. values];
-            }
-
-            return [];
-        }
-
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
-        /// <param name="values">Array of localized text values to convert to a collection</param>
-        public static implicit operator LocalizedTextCollection(LocalizedText[] values)
-        {
-            return ToLocalizedTextCollection(values);
-        }
-
-        /// <inheritdoc/>
-        public virtual object Clone()
-        {
-            return MemberwiseClone();
-        }
-
-        /// <inheritdoc/>
-        public new object MemberwiseClone()
-        {
-            var clone = new LocalizedTextCollection(Count);
-
-            foreach (LocalizedText element in this)
-            {
-                clone.Add(element);
-            }
-
-            return clone;
-        }
     }
 
     /// <summary>

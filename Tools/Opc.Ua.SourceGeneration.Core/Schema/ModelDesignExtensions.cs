@@ -1011,56 +1011,56 @@ namespace Opc.Ua.Schema.Model
             switch (dataType.BasicDataType)
             {
                 case BasicDataType.Boolean:
-                    return MakeReturnType("global::System.Array.Empty<bool>()");
+                    return MakeReturnType("global::Opc.Ua.ArrayOf.Empty<bool>()");
                 case BasicDataType.SByte:
-                    return MakeReturnType("global::System.Array.Empty<sbyte>()");
+                    return MakeReturnType("global::Opc.Ua.ArrayOf.Empty<sbyte>()");
                 case BasicDataType.Byte:
-                    return MakeReturnType("global::System.Array.Empty<byte>()");
+                    return MakeReturnType("global::Opc.Ua.ArrayOf.Empty<byte>()");
                 case BasicDataType.Int16:
-                    return MakeReturnType("global::System.Array.Empty<short>()");
+                    return MakeReturnType("global::Opc.Ua.ArrayOf.Empty<short>()");
                 case BasicDataType.UInt16:
-                    return MakeReturnType("global::System.Array.Empty<ushort>()");
+                    return MakeReturnType("global::Opc.Ua.ArrayOf.Empty<ushort>()");
                 case BasicDataType.Int32:
-                    return MakeReturnType("global::System.Array.Empty<int>()");
+                    return MakeReturnType("global::Opc.Ua.ArrayOf.Empty<int>()");
                 case BasicDataType.UInt32:
-                    return MakeReturnType("global::System.Array.Empty<uint>()");
+                    return MakeReturnType("global::Opc.Ua.ArrayOf.Empty<uint>()");
                 case BasicDataType.Int64:
-                    return MakeReturnType("global::System.Array.Empty<long>()");
+                    return MakeReturnType("global::Opc.Ua.ArrayOf.Empty<long>()");
                 case BasicDataType.UInt64:
-                    return MakeReturnType("global::System.Array.Empty<ulong>()");
+                    return MakeReturnType("global::Opc.Ua.ArrayOf.Empty<ulong>()");
                 case BasicDataType.Float:
-                    return MakeReturnType("global::System.Array.Empty<float>()");
+                    return MakeReturnType("global::Opc.Ua.ArrayOf.Empty<float>()");
                 case BasicDataType.Double:
-                    return MakeReturnType("global::System.Array.Empty<double>()");
+                    return MakeReturnType("global::Opc.Ua.ArrayOf.Empty<double>()");
                 case BasicDataType.String:
-                    return MakeReturnType("global::System.Array.Empty<string>()");
+                    return MakeReturnType("global::Opc.Ua.ArrayOf.Empty<string>()");
                 case BasicDataType.Guid:
-                    return MakeReturnType("global::System.Array.Empty<global::Opc.Ua.Uuid>()");
+                    return MakeReturnType("global::Opc.Ua.ArrayOf.Empty<global::Opc.Ua.Uuid>()");
                 case BasicDataType.DateTime:
-                    return MakeReturnType("global::System.Array.Empty<global::System.DateTime>()");
+                    return MakeReturnType("global::Opc.Ua.ArrayOf.Empty<global::System.DateTime>()");
                 case BasicDataType.ByteString:
-                    return MakeReturnType("global::System.Array.Empty<global::Opc.Ua.ByteString>()");
+                    return MakeReturnType("global::Opc.Ua.ArrayOf.Empty<global::Opc.Ua.ByteString>()");
                 case BasicDataType.XmlElement:
-                    return MakeReturnType("global::System.Array.Empty<global::Opc.Ua.XmlElement>()");
+                    return MakeReturnType("global::Opc.Ua.ArrayOf.Empty<global::Opc.Ua.XmlElement>()");
                 case BasicDataType.NodeId:
-                    return MakeReturnType("global::System.Array.Empty<global::Opc.Ua.NodeId>()");
+                    return MakeReturnType("global::Opc.Ua.ArrayOf.Empty<global::Opc.Ua.NodeId>()");
                 case BasicDataType.ExpandedNodeId:
-                    return MakeReturnType("global::System.Array.Empty<global::Opc.Ua.ExpandedNodeId>()");
+                    return MakeReturnType("global::Opc.Ua.ArrayOf.Empty<global::Opc.Ua.ExpandedNodeId>()");
                 case BasicDataType.QualifiedName:
-                    return MakeReturnType("global::System.Array.Empty<global::Opc.Ua.QualifiedName>()");
+                    return MakeReturnType("global::Opc.Ua.ArrayOf.Empty<global::Opc.Ua.QualifiedName>()");
                 case BasicDataType.LocalizedText:
-                    return MakeReturnType("global::System.Array.Empty<global::Opc.Ua.LocalizedText>()");
+                    return MakeReturnType("global::Opc.Ua.ArrayOf.Empty<global::Opc.Ua.LocalizedText>()");
                 case BasicDataType.StatusCode:
-                    return MakeReturnType("global::System.Array.Empty<global::Opc.Ua.StatusCode>()");
+                    return MakeReturnType("global::Opc.Ua.ArrayOf.Empty<global::Opc.Ua.StatusCode>()");
                 case BasicDataType.DataValue:
-                    return MakeReturnType("global::System.Array.Empty<global::Opc.Ua.DataValue>()");
+                    return MakeReturnType("global::Opc.Ua.ArrayOf.Empty<global::Opc.Ua.DataValue>()");
                 case BasicDataType.Structure:
-                    return MakeReturnType("global::System.Array.Empty<global::Opc.Ua.ExtensionObject>()");
+                    return MakeReturnType("global::Opc.Ua.ArrayOf.Empty<global::Opc.Ua.ExtensionObject>()");
                 case BasicDataType.Enumeration:
                 case BasicDataType.UserDefined:
                     return MakeReturnType(
                         CoreUtils.Format(
-                            "global::System.Array.Empty<{0}>()",
+                            "global::Opc.Ua.ArrayOf.Empty<{0}>()",
                             GetDotNetTypeName(
                                 dataType,
                                 ValueRank.Scalar,
@@ -1069,12 +1069,12 @@ namespace Opc.Ua.Schema.Model
                                 nullable: NullableAnnotation.NonNullable)),
                         dataType.BasicDataType == BasicDataType.UserDefined ? "Structure" : null);
                 case BasicDataType.DiagnosticInfo:
-                    return MakeReturnType("global::System.Array.Empty<global::Opc.Ua.DiagnosticInfo>()");
+                    return MakeReturnType("global::Opc.Ua.ArrayOf.Empty<global::Opc.Ua.DiagnosticInfo>()");
                 case BasicDataType.Number:
                 case BasicDataType.Integer:
                 case BasicDataType.UInteger:
                 case BasicDataType.BaseDataType:
-                    return MakeReturnType("global::System.Array.Empty<global::Opc.Ua.Variant>()");
+                    return MakeReturnType("global::Opc.Ua.ArrayOf.Empty<global::Opc.Ua.Variant>()");
                 default:
                     return null;
             }
@@ -1164,7 +1164,7 @@ namespace Opc.Ua.Schema.Model
             }
             if (valueRank == ValueRank.Array)
             {
-                return typeName + "[]";
+                return CoreUtils.Format("global::Opc.Ua.ArrayOf<{0}>", typeName);
             }
             if (valueRank == ValueRank.Scalar)
             {
@@ -1334,6 +1334,9 @@ namespace Opc.Ua.Schema.Model
                 // return !nullable ? typeName : typeName + "?";
                 if (!useArrayTypeInsteadOfCollection)
                 {
+                    // TODO: For now we use collection types as they are serializable
+                    // using data contract serializer, but remove this to replace
+                    // in the future with ArrayOf<T>.
                     string collectionType = GetCollectionType();
                     if (collectionType != null)
                     {
@@ -1348,7 +1351,7 @@ namespace Opc.Ua.Schema.Model
                     true);
                 if (typeName != null)
                 {
-                    return CoreUtils.Format("{0}[]", typeName);
+                    return CoreUtils.Format("global::Opc.Ua.ArrayOf<{0}>", typeName);
                 }
             }
 
@@ -1427,7 +1430,8 @@ namespace Opc.Ua.Schema.Model
                                 valueRank,
                                 targetNamespace,
                                 namespaces,
-                                nullable: NullableAnnotation.NonNullable);
+                                nullable: NullableAnnotation.NonNullable,
+                                useArrayTypeInsteadOfCollection: false);
                         }
                         goto case BasicDataType.UserDefined;
                     case BasicDataType.UserDefined:

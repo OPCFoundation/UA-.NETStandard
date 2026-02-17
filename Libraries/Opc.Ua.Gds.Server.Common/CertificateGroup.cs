@@ -274,12 +274,12 @@ namespace Opc.Ua.Gds.Server
                 ? builder.SetECCurve(curve).CreateForECDsa()
                 : builder.CreateForRSA();
 
-            byte[] privateKey;
+            ByteString privateKey;
             if (privateKeyFormat == "PFX")
             {
                 if (privateKeyPassword == null || privateKeyPassword.Length == 0)
                 {
-                    privateKey = certificate.Export(X509ContentType.Pfx);
+                    privateKey = ByteString.From(certificate.Export(X509ContentType.Pfx));
                 }
                 else
                 {
@@ -289,12 +289,13 @@ namespace Opc.Ua.Gds.Server
                         passwordString.AppendChar(c);
                     }
                     passwordString.MakeReadOnly();
-                    privateKey = certificate.Export(X509ContentType.Pfx, passwordString);
+                    privateKey = ByteString.From(certificate.Export(X509ContentType.Pfx, passwordString));
                 }
             }
             else if (privateKeyFormat == "PEM")
             {
-                privateKey = PEMWriter.ExportPrivateKeyAsPEM(certificate, privateKeyPassword);
+                privateKey = ByteString.From(
+                    PEMWriter.ExportPrivateKeyAsPEM(certificate, privateKeyPassword));
             }
             else
             {
@@ -337,12 +338,12 @@ namespace Opc.Ua.Gds.Server
 
         public virtual Task VerifySigningRequestAsync(
             ApplicationRecordDataType application,
-            byte[] certificateRequest,
+            ByteString certificateRequest,
             CancellationToken ct = default)
         {
             try
             {
-                var pkcs10CertificationRequest = new Pkcs10CertificationRequest(certificateRequest);
+                var pkcs10CertificationRequest = new Pkcs10CertificationRequest(certificateRequest.ToArray());
 
                 if (!pkcs10CertificationRequest.Verify())
                 {
@@ -373,12 +374,12 @@ namespace Opc.Ua.Gds.Server
             ApplicationRecordDataType application,
             NodeId certificateType,
             string[] domainNames,
-            byte[] certificateRequest,
+            ByteString certificateRequest,
             CancellationToken ct = default)
         {
             try
             {
-                var pkcs10CertificationRequest = new Pkcs10CertificationRequest(certificateRequest);
+                var pkcs10CertificationRequest = new Pkcs10CertificationRequest(certificateRequest.ToArray());
 
                 if (!pkcs10CertificationRequest.Verify())
                 {

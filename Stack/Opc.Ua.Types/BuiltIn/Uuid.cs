@@ -122,6 +122,14 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Converts Uuid to a byte string
+        /// </summary>
+        public ByteString ToByteString()
+        {
+            return ToByteArray().ToByteString();
+        }
+
+        /// <summary>
         /// Create new random guid
         /// </summary>
         public static Uuid NewUuid()
@@ -258,69 +266,6 @@ namespace Opc.Ua
         public string ToString(string format, IFormatProvider formatProvider)
         {
             return Guid.ToString(format);
-        }
-    }
-
-    /// <summary>
-    /// A collection of Uuids.
-    /// </summary>
-    [CollectionDataContract(
-        Name = "ListOfGuid",
-        Namespace = Namespaces.OpcUaXsd,
-        ItemName = "Guid")]
-    public class UuidCollection : List<Uuid>, ICloneable
-    {
-        /// <inheritdoc/>
-        public UuidCollection()
-        {
-        }
-
-        /// <inheritdoc/>
-        public UuidCollection(IEnumerable<Uuid> collection)
-            : base(collection)
-        {
-        }
-
-        /// <inheritdoc/>
-        public UuidCollection(int capacity)
-            : base(capacity)
-        {
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator UuidCollection(Guid[] values)
-        {
-            return values != null ? [.. values.Select(g => new Uuid(g))] : [];
-        }
-
-        /// <inheritdoc/>
-        public static explicit operator Guid[](UuidCollection values)
-        {
-            return values != null ? [.. values.Select(g => g.Guid)] : [];
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator UuidCollection(Uuid[] values)
-        {
-            return values != null ? [.. values] : [];
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator Uuid[](UuidCollection values)
-        {
-            return values != null ? [.. values] : [];
-        }
-
-        /// <inheritdoc/>
-        public virtual object Clone()
-        {
-            return MemberwiseClone();
-        }
-
-        /// <inheritdoc/>
-        public new object MemberwiseClone()
-        {
-            return new UuidCollection(this);
         }
     }
 

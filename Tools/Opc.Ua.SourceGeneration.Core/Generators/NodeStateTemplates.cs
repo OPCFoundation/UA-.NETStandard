@@ -2013,12 +2013,13 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Template for value assignment
         /// </summary>
-        public static readonly TemplateString VariantArrayValue = TemplateString.Parse(
+        public static readonly TemplateString VariantArrayOfValue = TemplateString.Parse(
             $$"""
-            state.WrappedValue = global::Opc.Ua.Variant.FromStructure(new {{Tokens.DataType}}[]
-            {
-                {{Tokens.ListOfValues}}
-            });
+            state.WrappedValue = global::Opc.Ua.Variant.FromStructure(
+                global::Opc.Ua.ArrayOf.ToArrayOf(new {{Tokens.DataType}}[]
+                {
+                    {{Tokens.ListOfValues}}
+                }));
             """);
 
         /// <summary>

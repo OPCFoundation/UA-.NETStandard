@@ -215,7 +215,8 @@ namespace Opc.Ua.SourceGeneration
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
             [global::System.Runtime.Serialization.DataContract(Namespace = {{Tokens.XmlNamespaceUri}})]
-            public partial class {{Tokens.ClassName}} : global::Opc.Ua.IEncodeable, global::Opc.Ua.IJsonEncodeable
+            public partial class {{Tokens.ClassName}} :
+                global::Opc.Ua.IEncodeable, global::Opc.Ua.IJsonEncodeable
             {
                 /// <summary>
                 /// The default constructor.
@@ -520,7 +521,8 @@ namespace Opc.Ua.SourceGeneration
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
             [global::System.Runtime.Serialization.DataContract(Namespace = {{Tokens.XmlNamespaceUri}})]
-            public partial class {{Tokens.ClassName}} : global::Opc.Ua.IEncodeable, global::Opc.Ua.IJsonEncodeable
+            public partial class {{Tokens.ClassName}} :
+                global::Opc.Ua.IEncodeable, global::Opc.Ua.IJsonEncodeable
             {
                 /// <summary>
                 /// The default constructor.
@@ -644,7 +646,8 @@ namespace Opc.Ua.SourceGeneration
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
             [global::System.Runtime.Serialization.DataContract(Namespace = {{Tokens.XmlNamespaceUri}})]
-            public {{Tokens.IsAbstract}}partial class {{Tokens.ClassName}} : global::Opc.Ua.IEncodeable, global::Opc.Ua.IJsonEncodeable
+            public {{Tokens.IsAbstract}}partial class {{Tokens.ClassName}} :
+                {{Tokens.ExtraInterfaces}}global::Opc.Ua.IEncodeable, global::Opc.Ua.IJsonEncodeable
             {
                 /// <summary>
                 /// The default constructor.
@@ -905,35 +908,45 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 /// <inheritdoc/>
-                public static implicit operator {{Tokens.ClassName}}Collection({{Tokens.ClassName}}[]? values)
+                private {{Tokens.ClassName}}Collection(
+                    global::Opc.Ua.ArrayOf<{{Tokens.ClassName}}> values)
+                    : base(values.ToArray())
+                {
+                }
+
+                /// <inheritdoc/>
+                public static implicit operator {{Tokens.ClassName}}Collection(
+                    {{Tokens.ClassName}}[]? values)
                 {
                     return To{{Tokens.ClassName}}Collection(values);
                 }
 
                 /// <inheritdoc/>
-                public static {{Tokens.ClassName}}Collection To{{Tokens.ClassName}}Collection({{Tokens.ClassName}}[]? values)
+                public static implicit operator {{Tokens.ClassName}}Collection(
+                    global::Opc.Ua.ArrayOf<{{Tokens.ClassName}}> values)
                 {
-                    if (values != null)
-                    {
-                        return new {{Tokens.ClassName}}Collection(values);
-                    }
-                    return new {{Tokens.ClassName}}Collection();
+                    return To{{Tokens.ClassName}}Collection(values);
                 }
 
                 /// <inheritdoc/>
-                public static explicit operator {{Tokens.ClassName}}[]?({{Tokens.ClassName}}Collection? values)
+                public static {{Tokens.ClassName}}Collection To{{Tokens.ClassName}}Collection(
+                    global::Opc.Ua.ArrayOf<{{Tokens.ClassName}}> values)
                 {
-                    return From{{Tokens.ClassName}}Collection(values);
+                    return new {{Tokens.ClassName}}Collection(values);
                 }
 
                 /// <inheritdoc/>
-                public static {{Tokens.ClassName}}[]? From{{Tokens.ClassName}}Collection({{Tokens.ClassName}}Collection? values)
+                public static implicit operator global::Opc.Ua.ArrayOf<{{Tokens.ClassName}}>(
+                    {{Tokens.ClassName}}Collection? values)
                 {
-                    if (values != null)
-                    {
-                        return values.ToArray();
-                    }
-                    return null;
+                    return global::Opc.Ua.ArrayOf.ToArrayOf(values);
+                }
+
+                /// <inheritdoc/>
+                public static implicit operator {{Tokens.ClassName}}[](
+                    {{Tokens.ClassName}}Collection? values)
+                {
+                    return values == null ? global::System.Array.Empty<{{Tokens.ClassName}}>() : values.ToArray();
                 }
 
                 /// <inheritdoc/>

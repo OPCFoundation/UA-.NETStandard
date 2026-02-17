@@ -65,6 +65,7 @@ namespace Opc.Ua.SourceGeneration
         public static string EnumerationName => nameof(EnumerationName);
         public static string EventNotifier => nameof(EventNotifier);
         public static string FieldIndex => nameof(FieldIndex);
+        public static string ExtraInterfaces => nameof(ExtraInterfaces);
         public static string FieldName => nameof(FieldName);
         public static string ListOfChildOperations => nameof(ListOfChildOperations);
         public static string Historizing => nameof(Historizing);

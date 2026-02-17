@@ -2261,7 +2261,7 @@ namespace Opc.Ua.Server
                     HistoryReadResult result = results[ii] = new HistoryReadResult();
 
                     result.HistoryData = default;
-                    result.ContinuationPoint = null;
+                    result.ContinuationPoint = default;
                     result.StatusCode = StatusCodes.Good;
 
                     // check if the node is a area in memory.

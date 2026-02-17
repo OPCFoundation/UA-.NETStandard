@@ -237,7 +237,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                 "ByteString",
                 NamespaceIndexAllTypes,
                 new DataValue(
-                    new Variant(new byte[] { 1, 2, 3 }),
+                    new Variant(ByteString.From([1, 2, 3])),
                     StatusCodes.Good,
                     DateTime.UtcNow)
             );

@@ -2562,7 +2562,7 @@ namespace Quickstarts.ReferenceServer
                         "Int16Opaque",
                         DataTypeIds.Int16,
                         ValueRanks.Scalar);
-                    opaqueNodeId.NodeId = new NodeId([9, 2, 0, 5], NamespaceIndex);
+                    opaqueNodeId.NodeId = new NodeId(ByteString.From([9, 2, 0, 5]), NamespaceIndex);
                     variables.Add(opaqueNodeId);
 
                     ResetRandomGenerator(17);

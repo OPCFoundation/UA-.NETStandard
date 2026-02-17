@@ -528,7 +528,7 @@ namespace Opc.Ua.Gds.Client
                             )
                             .ConfigureAwait(false);
 
-                        byte[] bytes = (byte[])outputArguments[0];
+                        ByteString bytes = (ByteString)outputArguments[0];
 
                         // Validate total size before reading
                         totalBytesRead += bytes.Length;
@@ -540,7 +540,7 @@ namespace Opc.Ua.Gds.Client
                                 maxTrustListSize);
                         }
 
-                        ostrm.Write(bytes, 0, bytes.Length);
+                        ostrm.Write(bytes.ToArray(), 0, bytes.Length);
 
                         if (length != bytes.Length)
                         {
@@ -828,7 +828,7 @@ namespace Opc.Ua.Gds.Client
         public void GetCertificates(
             NodeId certificateGroupId,
             out NodeId[] certificateTypeIds,
-            out byte[][] certificates)
+            out ByteString[] certificates)
         {
             (certificateTypeIds, certificates) = GetCertificatesAsync(
                 certificateGroupId,
@@ -847,12 +847,12 @@ namespace Opc.Ua.Gds.Client
         ///A list of DER encoded Certificates assigned to CertificateGroup.
         ///The certificateType for the Certificate is specified by the corresponding element in the certificateTypes parameter.
         /// </returns>
-        public async Task<(NodeId[] certificateTypeIds, byte[][] certificates)> GetCertificatesAsync(
+        public async Task<(NodeId[] certificateTypeIds, ByteString[] certificates)> GetCertificatesAsync(
             NodeId certificateGroupId,
             CancellationToken ct = default)
         {
             NodeId[] certificateTypeIds = [];
-            byte[][] certificates = [];
+            ByteString[] certificates = [];
 
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             IUserIdentity oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
@@ -890,12 +890,12 @@ namespace Opc.Ua.Gds.Client
         /// <param name="regeneratePrivateKey">if set to <c>true</c> [regenerate private key].</param>
         /// <param name="nonce">The nonce.</param>
         [Obsolete("Use CreateSigningRequestAsync instead.")]
-        public byte[] CreateSigningRequest(
+        public ByteString CreateSigningRequest(
             NodeId certificateGroupId,
             NodeId certificateTypeId,
             string subjectName,
             bool regeneratePrivateKey,
-            byte[] nonce)
+            ByteString nonce)
         {
             return CreateSigningRequestAsync(
                 certificateGroupId,
@@ -914,12 +914,12 @@ namespace Opc.Ua.Gds.Client
         /// <param name="regeneratePrivateKey">if set to <c>true</c> [regenerate private key].</param>
         /// <param name="nonce">The nonce.</param>
         /// <param name="ct">The cancellationtoken</param>
-        public async Task<byte[]> CreateSigningRequestAsync(
+        public async Task<ByteString> CreateSigningRequestAsync(
             NodeId certificateGroupId,
             NodeId certificateTypeId,
             string subjectName,
             bool regeneratePrivateKey,
-            byte[] nonce,
+            ByteString nonce,
             CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
@@ -944,10 +944,10 @@ namespace Opc.Ua.Gds.Client
 
                 if (outputArguments.Count > 0)
                 {
-                    return (byte[])outputArguments[0];
+                    return (ByteString)outputArguments[0];
                 }
 
-                return null;
+                return default;
             }
             finally
             {
@@ -968,10 +968,10 @@ namespace Opc.Ua.Gds.Client
         public bool UpdateCertificate(
             NodeId certificateGroupId,
             NodeId certificateTypeId,
-            byte[] certificate,
+            ByteString certificate,
             string privateKeyFormat,
-            byte[] privateKey,
-            byte[][] issuerCertificates)
+            ByteString privateKey,
+            ByteString[] issuerCertificates)
         {
             return UpdateCertificateAsync(
                 certificateGroupId,
@@ -995,10 +995,10 @@ namespace Opc.Ua.Gds.Client
         public async Task<bool> UpdateCertificateAsync(
             NodeId certificateGroupId,
             NodeId certificateTypeId,
-            byte[] certificate,
+            ByteString certificate,
             string privateKeyFormat,
-            byte[] privateKey,
-            byte[][] issuerCertificates,
+            ByteString privateKey,
+            ByteString[] issuerCertificates,
             CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
@@ -1062,9 +1062,9 @@ namespace Opc.Ua.Gds.Client
                         session.NamespaceUris),
                     ct).ConfigureAwait(false);
 
-                byte[][] rawCertificates = (byte[][])outputArguments[0];
+                ByteString[] rawCertificates = (ByteString[])outputArguments[0];
                 var collection = new X509Certificate2Collection();
-                foreach (byte[] rawCertificate in rawCertificates)
+                foreach (ByteString rawCertificate in rawCertificates)
                 {
                     collection.Add(CertificateFactory.Create(rawCertificate));
                 }

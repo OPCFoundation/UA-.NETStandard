@@ -1083,7 +1083,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<IServiceResponse>(new ActivateSessionResponse
                 {
-                    ServerNonce = null,
+                    ServerNonce = default,
                     Results = [],
                     DiagnosticInfos = []
                 }))
@@ -1530,7 +1530,7 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<IServiceResponse>(new CreateSessionResponse
                 {
-                    ServerNonce = null,
+                    ServerNonce = default,
                     SessionId = NodeId.Parse("s=connected")
                 }))
                 .Verifiable(Times.Once);

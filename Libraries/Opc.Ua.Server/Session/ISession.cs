@@ -55,7 +55,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The client Nonce associated with the session.
         /// </summary>
-        byte[] ClientNonce { get; }
+        ByteString ClientNonce { get; }
 
         /// <summary>
         /// A lock which must be acquired before accessing the diagnostics.
@@ -140,14 +140,14 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// The caller is responsible for disposing the continuation point returned.
         /// </remarks>
-        ContinuationPoint RestoreContinuationPoint(byte[] continuationPoint);
+        ContinuationPoint RestoreContinuationPoint(ByteString continuationPoint);
 
         /// <summary>
         /// Restores a previously saves history continuation point.
         /// </summary>
         /// <param name="continuationPoint">The identifier for the continuation point.</param>
         /// <returns>The save continuation point. null if not found.</returns>
-        object RestoreHistoryContinuationPoint(byte[] continuationPoint);
+        object RestoreHistoryContinuationPoint(ByteString continuationPoint);
 
         /// <summary>
         /// Saves a continuation point for a session.

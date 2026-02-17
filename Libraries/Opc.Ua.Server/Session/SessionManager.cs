@@ -152,7 +152,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             X509Certificate2 serverCertificate,
             string sessionName,
-            byte[] clientNonce,
+            ByteString clientNonce,
             ApplicationDescription clientDescription,
             string endpointUrl,
             X509Certificate2 clientCertificate,
@@ -163,7 +163,7 @@ namespace Opc.Ua.Server
         {
             NodeId sessionId = 0;
             NodeId authenticationToken;
-            byte[] serverNonce;
+            ByteString serverNonce;
             double revisedSessionTimeout = requestedSessionTimeout;
 
             ISession session;
@@ -178,13 +178,14 @@ namespace Opc.Ua.Server
                 }
 
                 // check for same Nonce in another session
-                if (clientNonce != null)
+                if (!clientNonce.IsEmpty)
                 {
                     // iterate over key/value pairs in the dictionary with a thread safe iterator
                     foreach (KeyValuePair<NodeId, ISession> sessionKeyValueIterator in m_sessions)
                     {
-                        byte[] sessionClientNonce = sessionKeyValueIterator.Value?.ClientNonce;
-                        if (Nonce.CompareNonce(sessionClientNonce, clientNonce))
+                        ByteString sessionClientNonce =
+                            sessionKeyValueIterator.Value?.ClientNonce ?? default;
+                        if (sessionClientNonce == clientNonce)
                         {
                             throw new ServiceResultException(StatusCodes.BadNonceInvalid);
                         }
@@ -280,7 +281,7 @@ namespace Opc.Ua.Server
         /// Activates an existing session
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public virtual async ValueTask<(bool IdentityContextChanged, byte[] ServerNonce)> ActivateSessionAsync(
+        public virtual async ValueTask<(bool IdentityContextChanged, ByteString ServerNonce)> ActivateSessionAsync(
             OperationContext context,
             NodeId authenticationToken,
             SignatureData clientSignature,
@@ -289,7 +290,7 @@ namespace Opc.Ua.Server
             StringCollection localeIds,
             CancellationToken cancellationToken = default)
         {
-            byte[] serverNonce = null;
+            ByteString serverNonce = default;
 
             Nonce serverNonceObject = null;
 
@@ -571,7 +572,7 @@ namespace Opc.Ua.Server
             IServerInternal server,
             X509Certificate2 serverCertificate,
             NodeId sessionCookie,
-            byte[] clientNonce,
+            ByteString clientNonce,
             Nonce serverNonce,
             string sessionName,
             ApplicationDescription clientDescription,

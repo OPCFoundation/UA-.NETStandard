@@ -201,7 +201,7 @@ namespace Opc.Ua.Gds.Server.Database
         public virtual bool SetApplicationCertificate(
             NodeId applicationId,
             string certificateTypeId,
-            byte[] certificate)
+            ByteString certificate)
         {
             ValidateApplicationNodeId(applicationId);
             return false;
@@ -210,9 +210,9 @@ namespace Opc.Ua.Gds.Server.Database
         public virtual bool GetApplicationCertificate(
             NodeId applicationId,
             string certificateTypeId,
-            out byte[] certificate)
+            out ByteString certificate)
         {
-            certificate = null;
+            certificate = default;
             ValidateApplicationNodeId(applicationId);
             return false;
         }

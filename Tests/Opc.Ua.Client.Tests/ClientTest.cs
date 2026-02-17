@@ -166,7 +166,7 @@ namespace Opc.Ua.Client.Tests
                     endpoint.SecurityMode,
                     endpoint.SecurityPolicyUri);
 
-                if (endpoint.ServerCertificate != null)
+                if (!endpoint.ServerCertificate.IsEmpty)
                 {
                     using X509Certificate2 cert = CertificateFactory.Create(
                         endpoint.ServerCertificate);

@@ -89,7 +89,7 @@ namespace Opc.Ua.Fuzzing
                     },
                     new DataValue
                     {
-                        Value = new Variant(new byte[] { 0, 1, 2, 3, 4, 5, 6 }),
+                        Value = new Variant(ByteString.From([0, 1, 2, 3, 4, 5, 6])),
                         ServerTimestamp = now,
                         SourceTimestamp = now.AddMinutes(1),
                         StatusCode = StatusCodes.Good

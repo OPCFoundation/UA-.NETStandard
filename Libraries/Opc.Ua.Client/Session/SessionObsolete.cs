@@ -243,7 +243,7 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <returns></returns>
         [Obsolete("Use ReadByteStringInChunksAsync instead.")]
-        public static byte[] ReadByteStringInChunks(
+        public static ByteString ReadByteStringInChunks(
             this ISession session,
             NodeId nodeId)
         {
@@ -563,7 +563,7 @@ namespace Opc.Ua.Client
             NodeId referenceTypeId,
             bool includeSubtypes,
             uint nodeClassMask,
-            out byte[] continuationPoint,
+            out ByteString continuationPoint,
             out ReferenceDescriptionCollection references)
         {
             ResponseHeader responseHeader;
@@ -606,8 +606,8 @@ namespace Opc.Ua.Client
             this ISession session,
             RequestHeader requestHeader,
             bool releaseContinuationPoint,
-            byte[] continuationPoint,
-            out byte[] revisedContinuationPoint,
+            ByteString continuationPoint,
+            out ByteString revisedContinuationPoint,
             out ReferenceDescriptionCollection references)
         {
             ResponseHeader responseHeader;

@@ -512,7 +512,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteByteString(string fieldName, byte[] value, int index, int count)
         {
-            WriteByteString(fieldName, value, false);
+            WriteByteString(fieldName, value.ToByteString(), false);
         }
 
 #if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
@@ -1005,9 +1005,9 @@ namespace Opc.Ua
         /// Writes a boolean array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteBooleanArray(string fieldName, IList<bool> values)
+        public void WriteBooleanArray(string fieldName, ArrayOf<bool> values)
         {
-            if (BeginField(fieldName, values == null, true, true))
+            if (BeginField(fieldName, values.IsNull, true, true))
             {
                 // check the length.
                 if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
@@ -1017,11 +1017,11 @@ namespace Opc.Ua
 
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                if (values != null)
+                if (!values.IsNull)
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteBoolean("Boolean", values[ii]);
+                        WriteBoolean("Boolean", values.Span[ii]);
                     }
                 }
 
@@ -1035,9 +1035,9 @@ namespace Opc.Ua
         /// Writes a sbyte array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteSByteArray(string fieldName, IList<sbyte> values)
+        public void WriteSByteArray(string fieldName, ArrayOf<sbyte> values)
         {
-            if (BeginField(fieldName, values == null, true, true))
+            if (BeginField(fieldName, values.IsNull, true, true))
             {
                 // check the length.
                 if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
@@ -1047,11 +1047,11 @@ namespace Opc.Ua
 
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                if (values != null)
+                if (!values.IsNull)
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteSByte("SByte", values[ii]);
+                        WriteSByte("SByte", values.Span[ii]);
                     }
                 }
 
@@ -1065,9 +1065,9 @@ namespace Opc.Ua
         /// Writes a byte array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteByteArray(string fieldName, IList<byte> values)
+        public void WriteByteArray(string fieldName, ArrayOf<byte> values)
         {
-            if (BeginField(fieldName, values == null, true, true))
+            if (BeginField(fieldName, values.IsNull, true, true))
             {
                 // check the length.
                 if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
@@ -1077,11 +1077,11 @@ namespace Opc.Ua
 
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                if (values != null)
+                if (!values.IsNull)
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteByte("Byte", values[ii]);
+                        WriteByte("Byte", values.Span[ii]);
                     }
                 }
 
@@ -1095,9 +1095,9 @@ namespace Opc.Ua
         /// Writes a short array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteInt16Array(string fieldName, IList<short> values)
+        public void WriteInt16Array(string fieldName, ArrayOf<short> values)
         {
-            if (BeginField(fieldName, values == null, true, true))
+            if (BeginField(fieldName, values.IsNull, true, true))
             {
                 // check the length.
                 if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
@@ -1107,11 +1107,11 @@ namespace Opc.Ua
 
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                if (values != null)
+                if (!values.IsNull)
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteInt16("Int16", values[ii]);
+                        WriteInt16("Int16", values.Span[ii]);
                     }
                 }
 
@@ -1125,9 +1125,9 @@ namespace Opc.Ua
         /// Writes a ushort array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteUInt16Array(string fieldName, IList<ushort> values)
+        public void WriteUInt16Array(string fieldName, ArrayOf<ushort> values)
         {
-            if (BeginField(fieldName, values == null, true, true))
+            if (BeginField(fieldName, values.IsNull, true, true))
             {
                 // check the length.
                 if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
@@ -1137,11 +1137,11 @@ namespace Opc.Ua
 
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                if (values != null)
+                if (!values.IsNull)
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteUInt16("UInt16", values[ii]);
+                        WriteUInt16("UInt16", values.Span[ii]);
                     }
                 }
 
@@ -1155,9 +1155,9 @@ namespace Opc.Ua
         /// Writes a int array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteInt32Array(string fieldName, IList<int> values)
+        public void WriteInt32Array(string fieldName, ArrayOf<int> values)
         {
-            if (BeginField(fieldName, values == null, true, true))
+            if (BeginField(fieldName, values.IsNull, true, true))
             {
                 // check the length.
                 if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
@@ -1167,11 +1167,11 @@ namespace Opc.Ua
 
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                if (values != null)
+                if (!values.IsNull)
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteInt32("Int32", values[ii]);
+                        WriteInt32("Int32", values.Span[ii]);
                     }
                 }
 
@@ -1185,9 +1185,9 @@ namespace Opc.Ua
         /// Writes a uint array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteUInt32Array(string fieldName, IList<uint> values)
+        public void WriteUInt32Array(string fieldName, ArrayOf<uint> values)
         {
-            if (BeginField(fieldName, values == null, true, true))
+            if (BeginField(fieldName, values.IsNull, true, true))
             {
                 // check the length.
                 if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
@@ -1197,11 +1197,11 @@ namespace Opc.Ua
 
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                if (values != null)
+                if (!values.IsNull)
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteUInt32("UInt32", values[ii]);
+                        WriteUInt32("UInt32", values.Span[ii]);
                     }
                 }
 
@@ -1215,9 +1215,9 @@ namespace Opc.Ua
         /// Writes a long array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteInt64Array(string fieldName, IList<long> values)
+        public void WriteInt64Array(string fieldName, ArrayOf<long> values)
         {
-            if (BeginField(fieldName, values == null, true, true))
+            if (BeginField(fieldName, values.IsNull, true, true))
             {
                 // check the length.
                 if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
@@ -1227,11 +1227,11 @@ namespace Opc.Ua
 
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                if (values != null)
+                if (!values.IsNull)
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteInt64("Int64", values[ii]);
+                        WriteInt64("Int64", values.Span[ii]);
                     }
                 }
 
@@ -1245,9 +1245,9 @@ namespace Opc.Ua
         /// Writes a ulong array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteUInt64Array(string fieldName, IList<ulong> values)
+        public void WriteUInt64Array(string fieldName, ArrayOf<ulong> values)
         {
-            if (BeginField(fieldName, values == null, true, true))
+            if (BeginField(fieldName, values.IsNull, true, true))
             {
                 // check the length.
                 if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
@@ -1257,11 +1257,11 @@ namespace Opc.Ua
 
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                if (values != null)
+                if (!values.IsNull)
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteUInt64("UInt64", values[ii]);
+                        WriteUInt64("UInt64", values.Span[ii]);
                     }
                 }
 
@@ -1275,9 +1275,9 @@ namespace Opc.Ua
         /// Writes a float array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteFloatArray(string fieldName, IList<float> values)
+        public void WriteFloatArray(string fieldName, ArrayOf<float> values)
         {
-            if (BeginField(fieldName, values == null, true, true))
+            if (BeginField(fieldName, values.IsNull, true, true))
             {
                 // check the length.
                 if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
@@ -1287,11 +1287,11 @@ namespace Opc.Ua
 
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                if (values != null)
+                if (!values.IsNull)
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteFloat("Float", values[ii]);
+                        WriteFloat("Float", values.Span[ii]);
                     }
                 }
 
@@ -1305,9 +1305,9 @@ namespace Opc.Ua
         /// Writes a double array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteDoubleArray(string fieldName, IList<double> values)
+        public void WriteDoubleArray(string fieldName, ArrayOf<double> values)
         {
-            if (BeginField(fieldName, values == null, true, true))
+            if (BeginField(fieldName, values.IsNull, true, true))
             {
                 // check the length.
                 if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
@@ -1317,11 +1317,11 @@ namespace Opc.Ua
 
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                if (values != null)
+                if (!values.IsNull)
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteDouble("Double", values[ii]);
+                        WriteDouble("Double", values.Span[ii]);
                     }
                 }
 
@@ -1335,9 +1335,9 @@ namespace Opc.Ua
         /// Writes a string array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteStringArray(string fieldName, IList<string> values)
+        public void WriteStringArray(string fieldName, ArrayOf<string> values)
         {
-            if (BeginField(fieldName, values == null, true, true))
+            if (BeginField(fieldName, values.IsNull, true, true))
             {
                 // check the length.
                 if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
@@ -1347,11 +1347,11 @@ namespace Opc.Ua
 
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                if (values != null)
+                if (!values.IsNull)
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteString("String", values[ii], true);
+                        WriteString("String", values.Span[ii], true);
                     }
                 }
 
@@ -1365,9 +1365,9 @@ namespace Opc.Ua
         /// Writes a UTC date/time array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteDateTimeArray(string fieldName, IList<DateTime> values)
+        public void WriteDateTimeArray(string fieldName, ArrayOf<DateTime> values)
         {
-            if (BeginField(fieldName, values == null, true, true))
+            if (BeginField(fieldName, values.IsNull, true, true))
             {
                 // check the length.
                 if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
@@ -1377,11 +1377,11 @@ namespace Opc.Ua
 
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                if (values != null)
+                if (!values.IsNull)
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteDateTime("DateTime", values[ii]);
+                        WriteDateTime("DateTime", values.Span[ii]);
                     }
                 }
 
@@ -1395,9 +1395,9 @@ namespace Opc.Ua
         /// Writes a GUID array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteGuidArray(string fieldName, IList<Uuid> values)
+        public void WriteGuidArray(string fieldName, ArrayOf<Uuid> values)
         {
-            if (BeginField(fieldName, values == null, true, true))
+            if (BeginField(fieldName, values.IsNull, true, true))
             {
                 // check the length.
                 if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
@@ -1407,11 +1407,11 @@ namespace Opc.Ua
 
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                if (values != null)
+                if (!values.IsNull)
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteGuid("Guid", values[ii]);
+                        WriteGuid("Guid", values.Span[ii]);
                     }
                 }
 
@@ -1425,9 +1425,9 @@ namespace Opc.Ua
         /// Writes a byte string array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteByteStringArray(string fieldName, IList<ByteString> values)
+        public void WriteByteStringArray(string fieldName, ArrayOf<ByteString> values)
         {
-            if (BeginField(fieldName, values == null, true, true))
+            if (BeginField(fieldName, values.IsNull, true, true))
             {
                 // check the length.
                 if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
@@ -1437,11 +1437,11 @@ namespace Opc.Ua
 
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                if (values != null)
+                if (!values.IsNull)
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteByteString("ByteString", values[ii], true);
+                        WriteByteString("ByteString", values.Span[ii], true);
                     }
                 }
 
@@ -1455,9 +1455,9 @@ namespace Opc.Ua
         /// Writes an XmlElement array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteXmlElementArray(string fieldName, IList<XmlElement> values)
+        public void WriteXmlElementArray(string fieldName, ArrayOf<XmlElement> values)
         {
-            if (BeginField(fieldName, values == null, true, true))
+            if (BeginField(fieldName, values.IsNull, true, true))
             {
                 // check the length.
                 if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
@@ -1467,11 +1467,11 @@ namespace Opc.Ua
 
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                if (values != null)
+                if (!values.IsNull)
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteXmlElement("XmlElement", values[ii], true);
+                        WriteXmlElement("XmlElement", values.Span[ii], true);
                     }
                 }
 
@@ -1485,9 +1485,9 @@ namespace Opc.Ua
         /// Writes an NodeId array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteNodeIdArray(string fieldName, IList<NodeId> values)
+        public void WriteNodeIdArray(string fieldName, ArrayOf<NodeId> values)
         {
-            if (BeginField(fieldName, values == null, true, true))
+            if (BeginField(fieldName, values.IsNull, true, true))
             {
                 // check the length.
                 if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
@@ -1497,11 +1497,11 @@ namespace Opc.Ua
 
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                if (values != null)
+                if (!values.IsNull)
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteNodeId("NodeId", values[ii], true);
+                        WriteNodeId("NodeId", values.Span[ii], true);
                     }
                 }
 
@@ -1515,9 +1515,9 @@ namespace Opc.Ua
         /// Writes an ExpandedNodeId array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteExpandedNodeIdArray(string fieldName, IList<ExpandedNodeId> values)
+        public void WriteExpandedNodeIdArray(string fieldName, ArrayOf<ExpandedNodeId> values)
         {
-            if (BeginField(fieldName, values == null, true, true))
+            if (BeginField(fieldName, values.IsNull, true, true))
             {
                 // check the length.
                 if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
@@ -1527,11 +1527,11 @@ namespace Opc.Ua
 
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                if (values != null)
+                if (!values.IsNull)
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteExpandedNodeId("ExpandedNodeId", values[ii], true);
+                        WriteExpandedNodeId("ExpandedNodeId", values.Span[ii], true);
                     }
                 }
 
@@ -1545,9 +1545,9 @@ namespace Opc.Ua
         /// Writes an StatusCode array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteStatusCodeArray(string fieldName, IList<StatusCode> values)
+        public void WriteStatusCodeArray(string fieldName, ArrayOf<StatusCode> values)
         {
-            if (BeginField(fieldName, values == null, true, true))
+            if (BeginField(fieldName, values.IsNull, true, true))
             {
                 // check the length.
                 if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
@@ -1557,11 +1557,11 @@ namespace Opc.Ua
 
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                if (values != null)
+                if (!values.IsNull)
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteStatusCode("StatusCode", values[ii]);
+                        WriteStatusCode("StatusCode", values.Span[ii]);
                     }
                 }
 
@@ -1575,9 +1575,9 @@ namespace Opc.Ua
         /// Writes an DiagnosticInfo array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteDiagnosticInfoArray(string fieldName, IList<DiagnosticInfo> values)
+        public void WriteDiagnosticInfoArray(string fieldName, ArrayOf<DiagnosticInfo> values)
         {
-            if (BeginField(fieldName, values == null, true, true))
+            if (BeginField(fieldName, values.IsNull, true, true))
             {
                 // check the length.
                 if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
@@ -1587,11 +1587,11 @@ namespace Opc.Ua
 
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                if (values != null)
+                if (!values.IsNull)
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteDiagnosticInfo("DiagnosticInfo", values[ii]);
+                        WriteDiagnosticInfo("DiagnosticInfo", values.Span[ii]);
                     }
                 }
 
@@ -1605,9 +1605,9 @@ namespace Opc.Ua
         /// Writes an QualifiedName array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteQualifiedNameArray(string fieldName, IList<QualifiedName> values)
+        public void WriteQualifiedNameArray(string fieldName, ArrayOf<QualifiedName> values)
         {
-            if (BeginField(fieldName, values == null, true, true))
+            if (BeginField(fieldName, values.IsNull, true, true))
             {
                 // check the length.
                 if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
@@ -1617,11 +1617,11 @@ namespace Opc.Ua
 
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                if (values != null)
+                if (!values.IsNull)
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteQualifiedName("QualifiedName", values[ii], true);
+                        WriteQualifiedName("QualifiedName", values.Span[ii], true);
                     }
                 }
 
@@ -1635,9 +1635,9 @@ namespace Opc.Ua
         /// Writes an LocalizedText array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteLocalizedTextArray(string fieldName, IList<LocalizedText> values)
+        public void WriteLocalizedTextArray(string fieldName, ArrayOf<LocalizedText> values)
         {
-            if (BeginField(fieldName, values == null, true, true))
+            if (BeginField(fieldName, values.IsNull, true, true))
             {
                 // check the length.
                 if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
@@ -1647,11 +1647,11 @@ namespace Opc.Ua
 
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                if (values != null)
+                if (!values.IsNull)
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteLocalizedText("LocalizedText", values[ii], true);
+                        WriteLocalizedText("LocalizedText", values.Span[ii], true);
                     }
                 }
 
@@ -1665,9 +1665,9 @@ namespace Opc.Ua
         /// Writes an Variant array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteVariantArray(string fieldName, IList<Variant> values)
+        public void WriteVariantArray(string fieldName, ArrayOf<Variant> values)
         {
-            if (BeginField(fieldName, values == null, true, true))
+            if (BeginField(fieldName, values.IsNull, true, true))
             {
                 // check the length.
                 if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
@@ -1677,11 +1677,11 @@ namespace Opc.Ua
 
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                if (values != null)
+                if (!values.IsNull)
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteVariant("Variant", values[ii]);
+                        WriteVariant("Variant", values.Span[ii]);
                     }
                 }
 
@@ -1695,9 +1695,9 @@ namespace Opc.Ua
         /// Writes an DataValue array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteDataValueArray(string fieldName, IList<DataValue> values)
+        public void WriteDataValueArray(string fieldName, ArrayOf<DataValue> values)
         {
-            if (BeginField(fieldName, values == null, true, true))
+            if (BeginField(fieldName, values.IsNull, true, true))
             {
                 // check the length.
                 if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
@@ -1707,11 +1707,11 @@ namespace Opc.Ua
 
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                if (values != null)
+                if (!values.IsNull)
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteDataValue("DataValue", values[ii]);
+                        WriteDataValue("DataValue", values.Span[ii]);
                     }
                 }
 
@@ -1725,9 +1725,9 @@ namespace Opc.Ua
         /// Writes an extension object array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteExtensionObjectArray(string fieldName, IList<ExtensionObject> values)
+        public void WriteExtensionObjectArray(string fieldName, ArrayOf<ExtensionObject> values)
         {
-            if (BeginField(fieldName, values == null, true, true))
+            if (BeginField(fieldName, values.IsNull, true, true))
             {
                 // check the length.
                 if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
@@ -1737,11 +1737,11 @@ namespace Opc.Ua
 
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                if (values != null)
+                if (!values.IsNull)
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteExtensionObject("ExtensionObject", values[ii], true);
+                        WriteExtensionObject("ExtensionObject", values.Span[ii], true);
                     }
                 }
 
@@ -1757,10 +1757,10 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public void WriteEncodeableArray(
             string fieldName,
-            IList<IEncodeable> values,
+            ArrayOf<IEncodeable> values,
             Type systemType)
         {
-            if (BeginField(fieldName, values == null, true, true))
+            if (BeginField(fieldName, values.IsNull, true, true))
             {
                 // check the length.
                 if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
@@ -1781,7 +1781,7 @@ namespace Opc.Ua
                 // encode each element in the array.
                 for (int ii = 0; ii < values.Count; ii++)
                 {
-                    IEncodeable value = values[ii];
+                    IEncodeable value = values.Span[ii];
 
                     if (systemType != null)
                     {
@@ -1921,7 +1921,7 @@ namespace Opc.Ua
                             WriteGuid("Guid", (Uuid)value);
                             return;
                         case BuiltInType.ByteString:
-                            WriteByteString("ByteString", (byte[])value);
+                            WriteByteString("ByteString", (ByteString)value);
                             return;
                         case BuiltInType.XmlElement:
                             WriteXmlElement("XmlElement", (XmlElement)value);
@@ -2161,12 +2161,12 @@ namespace Opc.Ua
         /// Writes an Variant array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteObjectArray(string fieldName, IList<object> values)
+        public void WriteObjectArray(string fieldName, ArrayOf<object> values)
         {
-            if (BeginField(fieldName, values == null, true, true))
+            if (BeginField(fieldName, values.IsNull, true, true))
             {
                 // check the length.
-                if (values != null &&
+                if (!values.IsNull &&
                     Context.MaxArrayLength > 0 &&
                     Context.MaxArrayLength < values.Count)
                 {
@@ -2175,11 +2175,11 @@ namespace Opc.Ua
 
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                if (values != null)
+                if (!values.IsNull)
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteVariant("Variant", new Variant(values[ii]));
+                        WriteVariant("Variant", new Variant(values.Span[ii]));
                     }
                 }
 

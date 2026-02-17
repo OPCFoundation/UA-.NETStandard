@@ -297,13 +297,13 @@ namespace Opc.Ua.Client
             }
 
             // fetch initial set of references.
-            byte[]? continuationPoint = results[0].ContinuationPoint;
+            ByteString continuationPoint = results[0].ContinuationPoint;
             ReferenceDescriptionCollection references = results[0].References;
 
             try
             {
                 // process any continuation point.
-                while (continuationPoint != null)
+                while (!continuationPoint.IsEmpty)
                 {
                     ReferenceDescriptionCollection additionalReferences;
 
@@ -352,7 +352,7 @@ namespace Opc.Ua.Client
                     }
                 }
             }
-            catch (OperationCanceledException) when (continuationPoint?.Length > 0)
+            catch (OperationCanceledException) when (!continuationPoint.IsEmpty)
             {
                 session = Session;
                 if (session != null)
@@ -612,7 +612,7 @@ namespace Opc.Ua.Client
 
             for (int ii = 0; ii < nodeIds.Count; ii++)
             {
-                if (continuationPoints[ii] != null &&
+                if (!continuationPoints[ii].IsEmpty &&
                     !StatusCode.IsBad(previousErrors[ii].Reference.StatusCode))
                 {
                     nextContinuationPoints.Add(continuationPoints[ii]);
@@ -649,7 +649,7 @@ namespace Opc.Ua.Client
 
                 for (int ii = 0; ii < revisedContinuationPoints.Count; ii++)
                 {
-                    if (revisedContinuationPoints[ii] != null &&
+                    if (!revisedContinuationPoints[ii].IsEmpty &&
                         !StatusCode.IsBad(browseNextErrors[ii].StatusCode))
                     {
                         nextContinuationPoints.Add(revisedContinuationPoints[ii]);
@@ -676,9 +676,9 @@ namespace Opc.Ua.Client
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The next batch of references</returns>
         /// <exception cref="ServiceResultException"></exception>
-        private static async ValueTask<(ReferenceDescriptionCollection, byte[]?)> BrowseNextAsync(
+        private static async ValueTask<(ReferenceDescriptionCollection, ByteString)> BrowseNextAsync(
             ISessionClient session,
-            byte[] continuationPoint,
+            ByteString continuationPoint,
             bool cancel,
             CancellationToken ct = default)
         {

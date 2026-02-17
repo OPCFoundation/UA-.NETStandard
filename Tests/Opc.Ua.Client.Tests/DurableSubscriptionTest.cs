@@ -675,7 +675,7 @@ namespace Opc.Ua.Client.Tests
                 {
                     (
                         _,
-                        byte[] anotherContinuationPoint,
+                        ByteString anotherContinuationPoint,
                         ReferenceDescriptionCollection desiredReferences
                     ) = await Session.BrowseAsync(
                         null,

@@ -94,10 +94,10 @@ namespace Alarms
             return alarm;
         }
 
-        protected bool IsEvent(byte[] eventId)
+        protected bool IsEvent(ByteString eventId)
         {
             bool isEvent = false;
-            if (GetAlarm().EventId.Value.SequenceEqual(eventId))
+            if (GetAlarm().EventId.Value == eventId)
             {
                 isEvent = true;
             }

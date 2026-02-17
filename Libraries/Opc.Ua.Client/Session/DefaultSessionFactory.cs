@@ -243,9 +243,7 @@ namespace Opc.Ua.Client
             }
 
             // checks the domains in the certificate.
-            if (checkDomain &&
-                endpoint.Description.ServerCertificate != null &&
-                endpoint.Description.ServerCertificate.Length > 0)
+            if (checkDomain && endpoint.Description.ServerCertificate.Length > 0)
             {
                 configuration.CertificateValidator?.ValidateDomains(
                     CertificateFactory.Create(endpoint.Description.ServerCertificate),

@@ -905,9 +905,9 @@ namespace Alarms
 
                 if (holder != null && holder.HasBranches())
                 {
-                    byte[] eventId = GetEventIdFromAckConfirmMethod(methodToCall);
+                    ByteString eventId = GetEventIdFromAckConfirmMethod(methodToCall);
 
-                    if (eventId != null)
+                    if (!eventId.IsEmpty)
                     {
                         BaseEventState state = holder.GetBranch(eventId);
 
@@ -947,16 +947,16 @@ namespace Alarms
             return isAckConfirm;
         }
 
-        private static byte[] GetEventIdFromAckConfirmMethod(CallMethodRequest request)
+        private static ByteString GetEventIdFromAckConfirmMethod(CallMethodRequest request)
         {
-            byte[] eventId = null;
+            ByteString eventId = default;
 
             // Bad magic Numbers hereStart
             if (request.InputArguments != null &&
                 request.InputArguments.Count == 2 &&
-                request.InputArguments[0].TryGet(out byte[] byteArray))
+                request.InputArguments[0].TryGet(out ByteString byteString))
             {
-                eventId = byteArray;
+                eventId = byteString;
             }
             return eventId;
         }

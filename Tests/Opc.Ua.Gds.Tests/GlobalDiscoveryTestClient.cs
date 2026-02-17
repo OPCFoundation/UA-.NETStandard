@@ -228,17 +228,17 @@ namespace Opc.Ua.Gds.Tests
 
                 OwnApplicationTestData.CertificateRequestId = req_id;
                 //Finish KeyPairRequest
-                (byte[] certificate, byte[] privateKey) = await FinishKeyPairAsync(
+                (ByteString certificate, ByteString privateKey) = await FinishKeyPairAsync(
                     OwnApplicationTestData).ConfigureAwait(false);
-                if (certificate == null || privateKey == null)
+                if (certificate.IsEmpty || privateKey.IsEmpty)
                 {
                     return false;
                 }
                 //apply cert
                 await ApplyNewApplicationInstanceCertificateAsync(certificate, privateKey)
                     .ConfigureAwait(false);
-                OwnApplicationTestData.Certificate = certificate;
-                OwnApplicationTestData.PrivateKey = privateKey;
+                OwnApplicationTestData.Certificate = certificate.ToArray();
+                OwnApplicationTestData.PrivateKey = privateKey.ToArray();
                 OwnApplicationTestData.CertificateRequestId = default;
             }
             catch (ArgumentException e)
@@ -276,14 +276,14 @@ namespace Opc.Ua.Gds.Tests
         }
 
         private async Task ApplyNewApplicationInstanceCertificateAsync(
-            byte[] certificate,
-            byte[] privateKey)
+            ByteString certificate,
+            ByteString privateKey)
         {
-            using X509Certificate2 x509 = CertificateFactory.Create(certificate);
+            using X509Certificate2 x509 = CertificateFactory.Create(certificate.ToArray());
             X509Certificate2 certWithPrivateKey = CertificateFactory
                 .CreateCertificateWithPEMPrivateKey(
                     x509,
-                    privateKey);
+                    privateKey.ToArray());
             GDSClient.Configuration.SecurityConfiguration.ApplicationCertificate
                 = new CertificateIdentifier(
                 certWithPrivateKey);
@@ -293,12 +293,12 @@ namespace Opc.Ua.Gds.Tests
             await store.AddAsync(certWithPrivateKey).ConfigureAwait(false);
         }
 
-        private async Task<(byte[] certificate, byte[] privateKey)> FinishKeyPairAsync(
+        private async Task<(ByteString certificate, ByteString privateKey)> FinishKeyPairAsync(
             ApplicationTestData ownApplicationTestData)
         {
             GDSClient.ConnectAsync().GetAwaiter().GetResult();
             //get cert
-            (byte[] certificate, byte[] privateKey, _) = await GDSClient.FinishRequestAsync(
+            (ByteString certificate, ByteString privateKey, _) = await GDSClient.FinishRequestAsync(
                 ownApplicationTestData.ApplicationRecord.ApplicationId,
                 ownApplicationTestData.CertificateRequestId).ConfigureAwait(false);
             await GDSClient.DisconnectAsync().ConfigureAwait(false);

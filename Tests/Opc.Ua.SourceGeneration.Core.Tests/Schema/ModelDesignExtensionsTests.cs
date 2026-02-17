@@ -508,7 +508,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 mockContext.Object);
 
             // Assert
-            Assert.That(result, Is.EqualTo("global::System.Array.Empty<int>()"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.ArrayOf.Empty<int>()"));
         }
 
         /// <summary>
@@ -536,7 +536,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 mockContext.Object);
 
             // Assert
-            Assert.That(result, Is.EqualTo("global::Opc.Ua.Variant.From(global::System.Array.Empty<int>())"));
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.Variant.From(global::Opc.Ua.ArrayOf.Empty<int>())"));
         }
 
         /// <summary>

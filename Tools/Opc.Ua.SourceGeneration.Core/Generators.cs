@@ -208,8 +208,6 @@ namespace Opc.Ua.SourceGeneration
 
             if ((generatorType & StackGenerationType.Models) != 0)
             {
-                var messagesGenerator = new MessagesGenerator(generatorContext);
-                messagesGenerator.Emit();
                 var attributesGenerator = new AttributesGenerator(generatorContext);
                 attributesGenerator.Emit();
                 var statusCodesGenerator = new StatusCodesGenerator(generatorContext);

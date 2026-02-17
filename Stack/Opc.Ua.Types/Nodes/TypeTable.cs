@@ -401,11 +401,11 @@ namespace Opc.Ua
 
             // every element in an array must match.
 
-            if (value.TryGet(out ExtensionObject[] extensions))
+            if (value.TryGet(out ArrayOf<ExtensionObject> extensions))
             {
-                for (int ii = 0; ii < extensions.Length; ii++)
+                for (int ii = 0; ii < extensions.Count; ii++)
                 {
-                    if (!IsEncodingFor(expectedTypeId, extensions[ii]))
+                    if (!IsEncodingFor(expectedTypeId, extensions.Span[ii]))
                     {
                         return false;
                     }

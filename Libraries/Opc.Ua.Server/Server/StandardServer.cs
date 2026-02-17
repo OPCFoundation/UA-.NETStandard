@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -85,8 +84,8 @@ namespace Opc.Ua.Server
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             string endpointUrl,
-            StringCollection localeIds,
-            StringCollection serverUris,
+            ArrayOf<string> localeIds,
+            ArrayOf<string> serverUris,
             CancellationToken ct)
         {
             ApplicationDescriptionCollection servers = [];
@@ -131,9 +130,8 @@ namespace Opc.Ua.Server
                     }
 
                     // check client is filtering by server uri.
-                    if (serverUris != null &&
-                        serverUris.Count > 0 &&
-                        !serverUris.Contains(server.ApplicationUri))
+                    if (serverUris.Count > 0 &&
+                        serverUris.Find(f => f == server.ApplicationUri) == null)
                     {
                         continue;
                     }
@@ -141,7 +139,7 @@ namespace Opc.Ua.Server
                     // localize the application name if requested.
                     LocalizedText applicationName = server.ApplicationName;
 
-                    if (localeIds != null && localeIds.Count > 0)
+                    if (localeIds.Count > 0)
                     {
                         applicationName = m_serverInternal.ResourceManager
                             .Translate(localeIds, applicationName);
@@ -177,8 +175,8 @@ namespace Opc.Ua.Server
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             string endpointUrl,
-            StringCollection localeIds,
-            StringCollection profileUris,
+            ArrayOf<string> localeIds,
+            ArrayOf<string> profileUris,
             CancellationToken ct)
         {
             EndpointDescriptionCollection endpoints = null;
@@ -212,7 +210,7 @@ namespace Opc.Ua.Server
         protected EndpointDescriptionCollection GetEndpointDescriptions(
             string endpointUrl,
             IList<BaseAddress> baseAddresses,
-            StringCollection localeIds)
+            ArrayOf<string> localeIds)
         {
             EndpointDescriptionCollection endpoints = null;
 
@@ -230,7 +228,7 @@ namespace Opc.Ua.Server
                 // localize the application name if requested.
                 LocalizedText applicationName = ServerDescription.ApplicationName;
 
-                if (localeIds != null && localeIds.Count > 0)
+                if (localeIds.Count > 0)
                 {
                     applicationName = m_serverInternal.ResourceManager
                         .Translate(localeIds, applicationName);
@@ -295,8 +293,8 @@ namespace Opc.Ua.Server
             string serverUri,
             string endpointUrl,
             string sessionName,
-            byte[] clientNonce,
-            byte[] clientCertificate,
+            ByteString clientNonce,
+            ByteString clientCertificate,
             double requestedSessionTimeout,
             uint maxResponseMessageSize,
             CancellationToken ct)
@@ -304,8 +302,8 @@ namespace Opc.Ua.Server
             NodeId sessionId;
             NodeId authenticationToken;
             double revisedSessionTimeout = 0;
-            byte[] serverNonce;
-            byte[] serverCertificate = null;
+            ByteString serverNonce;
+            ByteString serverCertificate = default;
             EndpointDescriptionCollection serverEndpoints = null;
             SignatureData serverSignature = null;
             uint maxRequestMessageSize = (uint)MessageContext.MaxMessageSize;
@@ -323,7 +321,7 @@ namespace Opc.Ua.Server
                 bool requireEncryption = RequireEncryption(
                     context?.ChannelContext?.EndpointDescription);
 
-                if (!requireEncryption && clientCertificate != null)
+                if (!requireEncryption && !clientCertificate.IsEmpty)
                 {
                     requireEncryption = true;
                 }
@@ -333,7 +331,7 @@ namespace Opc.Ua.Server
                 // validate client application instance certificate.
                 X509Certificate2 parsedClientCertificate = null;
 
-                if (requireEncryption && clientCertificate != null && clientCertificate.Length > 0)
+                if (requireEncryption && clientCertificate.Length > 0)
                 {
                     try
                     {
@@ -387,7 +385,7 @@ namespace Opc.Ua.Server
                 }
 
                 // verify the nonce provided by the client.
-                if (clientNonce != null)
+                if (!clientNonce.IsEmpty)
                 {
                     if (clientNonce.Length < m_minNonceLength)
                     {
@@ -397,7 +395,7 @@ namespace Opc.Ua.Server
                     // ignore nonce if security policy set to none
                     if (context.SecurityPolicyUri == SecurityPolicies.None)
                     {
-                        clientNonce = null;
+                        clientNonce = default;
                     }
                 }
 
@@ -476,12 +474,11 @@ namespace Opc.Ua.Server
                         if (InstanceCertificateTypesProvider.SendCertificateChain)
                         {
                             serverCertificate = InstanceCertificateTypesProvider
-                                .LoadCertificateChainRaw(
-                                    instanceCertificate);
+                                .LoadCertificateChainRaw(instanceCertificate).ToByteString();
                         }
                         else
                         {
-                            serverCertificate = instanceCertificate.RawData;
+                            serverCertificate = instanceCertificate.RawData.ToByteString();
                         }
                     }
 
@@ -492,13 +489,14 @@ namespace Opc.Ua.Server
                     serverSignature = null;
 
                     //  sign the client nonce (if provided).
-                    if (parsedClientCertificate != null && clientNonce != null)
+                    if (parsedClientCertificate != null && !clientNonce.IsEmpty)
                     {
-                        byte[] dataToSign = Utils.Append(parsedClientCertificate.RawData, clientNonce);
+                        var dataToSign = ByteString.Combine(
+                            parsedClientCertificate.RawData.ToByteString(), clientNonce);
                         serverSignature = SecurityPolicies.Sign(
                             instanceCertificate,
                             context.SecurityPolicyUri,
-                            dataToSign);
+                            dataToSign.ToArray());
                     }
                 }
                 finally
@@ -659,13 +657,13 @@ namespace Opc.Ua.Server
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             SignatureData clientSignature,
-            SignedSoftwareCertificateCollection clientSoftwareCertificates,
-            StringCollection localeIds,
+            ArrayOf<SignedSoftwareCertificate> clientSoftwareCertificates,
+            ArrayOf<string> localeIds,
             ExtensionObject userIdentityToken,
             SignatureData userTokenSignature,
             CancellationToken ct)
         {
-            byte[] serverNonce;
+            ByteString serverNonce;
             StatusCodeCollection results = null;
             DiagnosticInfoCollection diagnosticInfos = null;
 
@@ -913,7 +911,7 @@ namespace Opc.Ua.Server
             RequestHeader requestHeader,
             ViewDescription view,
             uint requestedMaxReferencesPerNode,
-            BrowseDescriptionCollection nodesToBrowse,
+            ArrayOf<BrowseDescription> nodesToBrowse,
             CancellationToken ct)
         {
             OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Browse);
@@ -963,7 +961,7 @@ namespace Opc.Ua.Server
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             bool releaseContinuationPoints,
-            ByteStringCollection continuationPoints,
+            ArrayOf<ByteString> continuationPoints,
             CancellationToken ct)
         {
             OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.BrowseNext);
@@ -1011,7 +1009,7 @@ namespace Opc.Ua.Server
         public override ValueTask<RegisterNodesResponse> RegisterNodesAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
-            NodeIdCollection nodesToRegister,
+            ArrayOf<NodeId> nodesToRegister,
             CancellationToken ct)
         {
             OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.RegisterNodes);
@@ -1054,7 +1052,7 @@ namespace Opc.Ua.Server
         public override ValueTask<UnregisterNodesResponse> UnregisterNodesAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
-            NodeIdCollection nodesToUnregister,
+            ArrayOf<NodeId> nodesToUnregister,
             CancellationToken ct)
         {
             OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.UnregisterNodes);
@@ -1097,7 +1095,7 @@ namespace Opc.Ua.Server
         public override async ValueTask<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
-            BrowsePathCollection browsePaths,
+            ArrayOf<BrowsePath> browsePaths,
             CancellationToken ct)
         {
             OperationContext context = ValidateRequest(
@@ -1158,7 +1156,7 @@ namespace Opc.Ua.Server
             RequestHeader requestHeader,
             double maxAge,
             TimestampsToReturn timestampsToReturn,
-            ReadValueIdCollection nodesToRead,
+            ArrayOf<ReadValueId> nodesToRead,
             CancellationToken ct)
         {
             OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Read);
@@ -1211,7 +1209,7 @@ namespace Opc.Ua.Server
             ExtensionObject historyReadDetails,
             TimestampsToReturn timestampsToReturn,
             bool releaseContinuationPoints,
-            HistoryReadValueIdCollection nodesToRead,
+            ArrayOf<HistoryReadValueId> nodesToRead,
             CancellationToken ct)
         {
             OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.HistoryRead);
@@ -1274,7 +1272,7 @@ namespace Opc.Ua.Server
         public override async ValueTask<WriteResponse> WriteAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
-            WriteValueCollection nodesToWrite,
+            ArrayOf<WriteValue> nodesToWrite,
             CancellationToken ct)
         {
             OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Write);
@@ -1319,7 +1317,7 @@ namespace Opc.Ua.Server
         public override async ValueTask<HistoryUpdateResponse> HistoryUpdateAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
-            ExtensionObjectCollection historyUpdateDetails,
+            ArrayOf<ExtensionObject> historyUpdateDetails,
             CancellationToken ct)
         {
             OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.HistoryUpdate);
@@ -1418,7 +1416,7 @@ namespace Opc.Ua.Server
         public override async ValueTask<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
-            UInt32Collection subscriptionIds,
+            ArrayOf<uint> subscriptionIds,
             bool sendInitialValues,
             CancellationToken ct)
         {
@@ -1465,7 +1463,7 @@ namespace Opc.Ua.Server
         public override async ValueTask<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
-            UInt32Collection subscriptionIds,
+            ArrayOf<uint> subscriptionIds,
             CancellationToken ct)
         {
             OperationContext context = ValidateRequest(
@@ -1510,7 +1508,7 @@ namespace Opc.Ua.Server
         public override async ValueTask<PublishResponse> PublishAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
-            SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
+            ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements,
             CancellationToken ct)
         {
             OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Publish);
@@ -1683,7 +1681,7 @@ namespace Opc.Ua.Server
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             bool publishingEnabled,
-            UInt32Collection subscriptionIds,
+            ArrayOf<uint> subscriptionIds,
             CancellationToken ct)
         {
             OperationContext context = ValidateRequest(
@@ -1736,23 +1734,22 @@ namespace Opc.Ua.Server
             RequestHeader requestHeader,
             uint subscriptionId,
             uint triggeringItemId,
-            UInt32Collection linksToAdd,
-            UInt32Collection linksToRemove,
+            ArrayOf<uint> linksToAdd,
+            ArrayOf<uint> linksToRemove,
             CancellationToken ct)
         {
             OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.SetTriggering);
             SetTriggeringResponse response;
             try
             {
-                if ((linksToAdd == null || linksToAdd.Count == 0) &&
-                    (linksToRemove == null || linksToRemove.Count == 0))
+                if (linksToAdd.Count == 0 && linksToRemove.Count == 0)
                 {
                     throw new ServiceResultException(StatusCodes.BadNothingToDo);
                 }
 
                 int monitoredItemsCount = 0;
-                monitoredItemsCount += (linksToAdd?.Count) ?? 0;
-                monitoredItemsCount += (linksToRemove?.Count) ?? 0;
+                monitoredItemsCount += linksToAdd.Count;
+                monitoredItemsCount += linksToRemove.Count;
                 ValidateOperationLimits(
                     monitoredItemsCount,
                     OperationLimits.MaxMonitoredItemsPerCall);
@@ -1804,7 +1801,7 @@ namespace Opc.Ua.Server
             RequestHeader requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
-            MonitoredItemCreateRequestCollection itemsToCreate,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             CancellationToken ct)
         {
             OperationContext context = ValidateRequest(
@@ -1853,7 +1850,7 @@ namespace Opc.Ua.Server
             RequestHeader requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
-            MonitoredItemModifyRequestCollection itemsToModify,
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             CancellationToken ct)
         {
             OperationContext context = ValidateRequest(
@@ -1901,7 +1898,7 @@ namespace Opc.Ua.Server
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
             uint subscriptionId,
-            UInt32Collection monitoredItemIds,
+            ArrayOf<uint> monitoredItemIds,
             CancellationToken ct)
         {
             OperationContext context = ValidateRequest(
@@ -1949,7 +1946,7 @@ namespace Opc.Ua.Server
             RequestHeader requestHeader,
             uint subscriptionId,
             MonitoringMode monitoringMode,
-            UInt32Collection monitoredItemIds,
+            ArrayOf<uint> monitoredItemIds,
             CancellationToken ct)
         {
             OperationContext context = ValidateRequest(
@@ -2001,7 +1998,7 @@ namespace Opc.Ua.Server
         public override async ValueTask<CallResponse> CallAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
-            CallMethodRequestCollection methodsToCall,
+            ArrayOf<CallMethodRequest> methodsToCall,
             CancellationToken ct)
         {
             OperationContext context = ValidateRequest(secureChannelContext, requestHeader, RequestType.Call);
@@ -2388,7 +2385,7 @@ namespace Opc.Ua.Server
         /// <param name="result">The result.</param>
         /// <exception cref="ServiceResultException"></exception>
         protected virtual void OnApplicationCertificateError(
-            byte[] clientCertificate,
+            ByteString clientCertificate,
             ServiceResult result)
         {
             throw new ServiceResultException(result);
@@ -2436,15 +2433,16 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validate operation limits.
         /// </summary>
+        /// <typeparam name="T"></typeparam>
         /// <param name="operation">A list of operations.</param>
         /// <param name="operationLimit">The operation limit property.</param>
         /// <exception cref="ServiceResultException">BadNothingToDo if list is null or empty.</exception>
         /// <exception cref="ServiceResultException">BadTooManyOperations if list is larger than operation limit property.</exception>
-        protected void ValidateOperationLimits(
-            IList operation,
+        protected void ValidateOperationLimits<T>(
+            ArrayOf<T> operation,
             PropertyState<uint> operationLimit = null)
         {
-            if (operation == null || operation.Count == 0)
+            if (operation.IsEmpty)
             {
                 throw new ServiceResultException(StatusCodes.BadNothingToDo);
             }
@@ -2476,7 +2474,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             ServiceResultException e)
         {
-            IList<string> preferredLocales = null;
+            ArrayOf<string> preferredLocales = default;
 
             if (context != null && context.Session != null)
             {
@@ -2495,7 +2493,7 @@ namespace Opc.Ua.Server
         /// <returns>Returns an exception thrown when a UA defined error occurs, the return type is <seealso cref="ServiceResultException"/>.</returns>
         protected virtual ServiceResultException TranslateException(
             DiagnosticsMasks diagnosticsMasks,
-            IList<string> preferredLocales,
+            ArrayOf<string> preferredLocales,
             ServiceResultException e)
         {
             if (e == null)
@@ -2545,7 +2543,7 @@ namespace Opc.Ua.Server
         /// <returns>Returns a class that combines the status code and diagnostic info structures.</returns>
         protected virtual ServiceResult TranslateResult(
             DiagnosticsMasks diagnosticsMasks,
-            IList<string> preferredLocales,
+            ArrayOf<string> preferredLocales,
             ServiceResult result)
         {
             if (result == null)
@@ -2722,10 +2720,10 @@ namespace Opc.Ua.Server
             endpoints = [];
             IList<EndpointDescription> endpointsForHost = null;
 
-            StringCollection baseAddresses = configuration.ServerConfiguration.BaseAddresses;
+            ArrayOf<string> baseAddresses = configuration.ServerConfiguration.BaseAddresses;
             foreach (
                 string scheme in Utils.DefaultUriSchemes.Where(scheme =>
-                    baseAddresses.Any(a => a.StartsWith(scheme, StringComparison.Ordinal))))
+                    baseAddresses.Find(a => a.StartsWith(scheme, StringComparison.Ordinal)) != null))
             {
                 ITransportListenerFactory binding = bindingFactory.GetBinding(scheme, MessageContext.Telemetry);
                 if (binding != null)

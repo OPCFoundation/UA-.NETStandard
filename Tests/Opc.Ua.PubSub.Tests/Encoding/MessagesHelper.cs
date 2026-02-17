@@ -2646,15 +2646,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 new NodeId("Guid", namespaceIndexAllTypes),
                 Attributes.Value,
                 guidValue);
-            var byteStringValue = new DataValue(new Variant(new byte[] { 1, 2, 3 }));
+            var byteStringValue = new DataValue(new Variant(ByteString.From([1, 2, 3])));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ByteString", namespaceIndexAllTypes),
                 Attributes.Value,
                 byteStringValue);
             var document = new XmlDocument();
-            XmlElement xmlElement = document.CreateElement("test");
+            System.Xml.XmlElement xmlElement = document.CreateElement("test");
             xmlElement.InnerText = "Text";
-            var xmlElementValue = new DataValue(new Variant(xmlElement));
+            var xmlElementValue = new DataValue(new Variant(XmlElement.From(xmlElement)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("XmlElement", namespaceIndexAllTypes),
                 Attributes.Value,
@@ -2679,7 +2679,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 new NodeId("NodeIdString", namespaceIndexAllTypes),
                 Attributes.Value,
                 nodeIdValue);
-            nodeIdValue = new DataValue(new Variant(new NodeId([1, 2, 3], 0)));
+            nodeIdValue = new DataValue(new Variant(new NodeId(ByteString.From([1, 2, 3]), 0)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("NodeIdOpaque", namespaceIndexAllTypes),
                 Attributes.Value,
@@ -2704,7 +2704,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 new NodeId("ExpandedNodeIdString", namespaceIndexAllTypes),
                 Attributes.Value,
                 expandedNodeId);
-            expandedNodeId = new DataValue(new Variant(new ExpandedNodeId([1, 2, 3], 0)));
+            expandedNodeId = new DataValue(new Variant(new ExpandedNodeId(ByteString.From([1, 2, 3]), 0)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ExpandedNodeIdOpaque", namespaceIndexAllTypes),
                 Attributes.Value,
@@ -2766,7 +2766,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 new NodeId("BoolToggleArray", namespaceIndexAllTypes),
                 Attributes.Value,
                 boolToggleArray);
-            var byteValueArray = new DataValue(new Variant(new byte[] { 127, 101, 1 }));
+            var byteValueArray = new DataValue(new Variant(new byte[] { 127, 101, 1 }.ToArrayOf()));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ByteArray", namespaceIndexAllTypes),
                 Attributes.Value,
@@ -2847,21 +2847,25 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 new NodeId("GuidArray", namespaceIndexAllTypes),
                 Attributes.Value,
                 guidValueArray);
-            var byteStringValueArray = new DataValue(
-                new Variant(
-                    new ByteStringCollection { new byte[] { 1, 2, 3 }, new byte[] { 5, 6, 7 } }));
+            var byteStringValueArray = new DataValue(new Variant(new ByteStringCollection
+            {
+                ByteString.From(new byte[] { 1, 2, 3 }),
+                ByteString.From(new byte[] { 5, 6, 7 })
+            }));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ByteStringArray", namespaceIndexAllTypes),
                 Attributes.Value,
                 byteStringValueArray);
 
-            XmlElement xmlElement1 = document.CreateElement("test1");
+            System.Xml.XmlElement xmlElement1 = document.CreateElement("test1");
             xmlElement1.InnerText = "Text_2";
-
-            XmlElement xmlElement2 = document.CreateElement("test2");
+            System.Xml.XmlElement xmlElement2 = document.CreateElement("test2");
             xmlElement2.InnerText = "Text_2";
-            var xmlElementValueArray = new DataValue(
-                new Variant(new XmlElementCollection { xmlElement1, xmlElement2 }));
+            var xmlElementValueArray = new DataValue(new Variant(new XmlElementCollection
+            {
+                XmlElement.From(xmlElement1),
+                XmlElement.From(xmlElement2)
+            }));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("XmlElementArray", namespaceIndexAllTypes),
                 Attributes.Value,
@@ -3029,7 +3033,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var guidValueMatrix = new DataValue(
                 new Variant(
                     new Matrix(
-                        new Uuid[] {
+                        new Uuid[]
+                        {
                             new(),
                             new(),
                             new(),
@@ -3054,22 +3059,28 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Attributes.Value,
                 byteStringValueMatrix);
 
-            XmlElement xmlElement1m = document.CreateElement("test1m");
+            System.Xml.XmlElement xmlElement1m = document.CreateElement("test1m");
             xmlElement1m.InnerText = "Text_1m";
 
-            XmlElement xmlElement2m = document.CreateElement("test2m");
+            System.Xml.XmlElement xmlElement2m = document.CreateElement("test2m");
             xmlElement2m.InnerText = "Text_2m";
 
-            XmlElement xmlElement3m = document.CreateElement("test3m");
+            System.Xml.XmlElement xmlElement3m = document.CreateElement("test3m");
             xmlElement3m.InnerText = "Text_3m";
 
-            XmlElement xmlElement4m = document.CreateElement("test4m");
+            System.Xml.XmlElement xmlElement4m = document.CreateElement("test4m");
             xmlElement4m.InnerText = "Text_4m";
 
             var xmlElementValueMatrix = new DataValue(
                 new Variant(
                     new Matrix(
-                        new XmlElement[] { xmlElement1m, xmlElement2m, xmlElement3m, xmlElement4m },
+                        new XmlElement[]
+                        {
+                            XmlElement.From(xmlElement1m),
+                            XmlElement.From(xmlElement2m),
+                            XmlElement.From(xmlElement3m),
+                            XmlElement.From(xmlElement4m)
+                        },
                         BuiltInType.XmlElement,
                         2,
                         2)));

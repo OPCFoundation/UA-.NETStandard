@@ -131,7 +131,7 @@ namespace Opc.Ua.Client
         /// <exception cref="ServiceResultException"></exception>
         public static async ValueTask<(
             ResponseHeader,
-            byte[],
+            ByteString,
             ReferenceDescriptionCollection
             )> BrowseAsync(
                 this ISessionClient session,
@@ -178,13 +178,13 @@ namespace Opc.Ua.Client
         /// <exception cref="ServiceResultException"></exception>
         public static async ValueTask<(
             ResponseHeader,
-            byte[],
+            ByteString,
             ReferenceDescriptionCollection
             )> BrowseNextAsync(
                 this ISessionClient session,
                 RequestHeader? requestHeader,
                 bool releaseContinuationPoint,
-                byte[]? continuationPoint,
+                ByteString continuationPoint,
                 CancellationToken ct = default)
         {
             ResponseHeader responseHeader;
@@ -810,7 +810,7 @@ namespace Opc.Ua.Client
                         throw new ServiceResultException(serviceResult);
                     }
 
-                    if (results[0].Value is not byte[] chunk || chunk.Length == 0)
+                    if (!results[0].WrappedValue.TryGet(out ByteString chunk) || chunk.Length == 0)
                     {
                         // End of stream - fast path (no stream allocated yet)
                         // will return empty array constant.
@@ -823,9 +823,9 @@ namespace Opc.Ua.Client
                     }
                     stream ??= new MemoryStream();
 #if NET8_0_OR_GREATER
-                    await stream.WriteAsync(chunk, ct).ConfigureAwait(false);
+                    await stream.WriteAsync(chunk.Memory, ct).ConfigureAwait(false);
 #else
-                    stream.Write(chunk, 0, chunk.Length);
+                    stream.Write(chunk.ToArray(), 0, chunk.Length);
 #endif
                     if (chunk.Length < maxByteStringLength)
                     {

@@ -906,7 +906,7 @@ namespace Quickstarts
                     NodeClassMask = 0,
                     ResultMask = (uint)BrowseResultMask.All
                 };
-            BrowseDescriptionCollection browseDescriptionCollection
+            var browseDescriptionCollection
                 = CreateBrowseDescriptionCollectionFromNodeId(
                 [.. new NodeId[] { startingNode.IsNull ? ObjectIds.RootFolder : startingNode }],
                 browseTemplate);
@@ -927,9 +927,9 @@ namespace Quickstarts
 
                 var allBrowseResults = new BrowseResultCollection();
                 bool repeatBrowse;
-                var browseResultCollection = new BrowseResultCollection();
+                ArrayOf<BrowseResult> browseResultCollection = default;
                 var unprocessedOperations = new BrowseDescriptionCollection();
-                DiagnosticInfoCollection diagnosticsInfoCollection;
+                ArrayOf<DiagnosticInfo> diagnosticsInfoCollection;
                 do
                 {
                     if (m_quitEvent?.WaitOne(0) == true)
@@ -938,10 +938,10 @@ namespace Quickstarts
                         break;
                     }
 
-                    BrowseDescriptionCollection browseCollection =
+                    var browseCollection =
                         maxNodesPerBrowse == 0
                             ? browseDescriptionCollection
-                            : browseDescriptionCollection.Take((int)maxNodesPerBrowse).ToArray();
+                            : browseDescriptionCollection.Slice(0, (int)maxNodesPerBrowse);
                     repeatBrowse = false;
                     try
                     {
@@ -962,7 +962,7 @@ namespace Quickstarts
 
                         // separate unprocessed nodes for later
                         int ii = 0;
-                        foreach (BrowseResult browseResult in browseResultCollection)
+                        foreach (BrowseResult browseResult in browseResultCollection.Span)
                         {
                             // check for error.
                             StatusCode statusCode = browseResult.StatusCode;
@@ -973,7 +973,7 @@ namespace Quickstarts
                                 // have been completed and their continuation points released.
                                 if (statusCode == StatusCodes.BadNoContinuationPoints)
                                 {
-                                    unprocessedOperations.Add(browseCollection[ii++]);
+                                    unprocessedOperations.Add(browseCollection.Span[ii++]);
                                     continue;
                                 }
                             }
@@ -1005,17 +1005,16 @@ namespace Quickstarts
 
                 if (maxNodesPerBrowse == 0)
                 {
-                    browseDescriptionCollection.Clear();
+                    browseDescriptionCollection = ArrayOf<BrowseDescription>.Empty;
                 }
                 else
                 {
                     browseDescriptionCollection = browseDescriptionCollection
-                        .Skip(browseResultCollection.Count)
-                        .ToArray();
+                        .Slice(browseResultCollection.Count);
                 }
 
                 // Browse next
-                ByteStringCollection continuationPoints = PrepareBrowseNext(browseResultCollection);
+                var continuationPoints = PrepareBrowseNext(browseResultCollection);
                 while (continuationPoints.Count > 0)
                 {
                     if (m_quitEvent?.WaitOne(0) == true)
@@ -1027,7 +1026,7 @@ namespace Quickstarts
                     BrowseNextResponse browseNextResult = await uaClient
                         .Session.BrowseNextAsync(null, false, continuationPoints, ct)
                         .ConfigureAwait(false);
-                    BrowseResultCollection browseNextResultCollection = browseNextResult.Results;
+                    var browseNextResultCollection = browseNextResult.Results;
                     diagnosticsInfoCollection = browseNextResult.DiagnosticInfos;
                     ClientBase.ValidateResponse(browseNextResultCollection, continuationPoints);
                     ClientBase.ValidateDiagnosticInfos(
@@ -1065,11 +1064,10 @@ namespace Quickstarts
                 {
                     m_logger.LogInformation("Browse Result {Count} duplicate nodes were ignored.", duplicates);
                 }
-                browseDescriptionCollection.AddRange(
-                    CreateBrowseDescriptionCollectionFromNodeId(browseTable, browseTemplate));
-
-                // add unprocessed nodes if any
-                browseDescriptionCollection.AddRange(unprocessedOperations);
+                browseDescriptionCollection = ArrayOf.Combine(
+                    browseDescriptionCollection,
+                    CreateBrowseDescriptionCollectionFromNodeId(browseTable, browseTemplate),
+                    unprocessedOperations); // add unprocessed nodes if any
             }
 
             stopWatch.Stop();
@@ -1560,8 +1558,8 @@ namespace Quickstarts
         /// </summary>
         /// <param name="nodeIdCollection">The node id collection.</param>
         /// <param name="template">The template for the browse description for each node id.</param>
-        private static BrowseDescriptionCollection CreateBrowseDescriptionCollectionFromNodeId(
-            NodeIdCollection nodeIdCollection,
+        private static ArrayOf<BrowseDescription> CreateBrowseDescriptionCollectionFromNodeId(
+            ArrayOf<NodeId> nodeIdCollection,
             BrowseDescription template)
         {
             var browseDescriptionCollection = new BrowseDescriptionCollection();
@@ -1750,13 +1748,13 @@ namespace Quickstarts
         /// </summary>
         /// <param name="browseResultCollection">The browse result collection to use.</param>
         /// <returns>The collection of continuation points for the BrowseNext service.</returns>
-        private static ByteStringCollection PrepareBrowseNext(
-            BrowseResultCollection browseResultCollection)
+        private static ArrayOf<ByteString> PrepareBrowseNext(
+            ArrayOf<BrowseResult> browseResultCollection)
         {
             var continuationPoints = new ByteStringCollection();
-            foreach (BrowseResult browseResult in browseResultCollection)
+            foreach (BrowseResult browseResult in browseResultCollection.Span)
             {
-                if (browseResult.ContinuationPoint != null)
+                if (!browseResult.ContinuationPoint.IsEmpty)
                 {
                     continuationPoints.Add(browseResult.ContinuationPoint);
                 }
@@ -1765,12 +1763,12 @@ namespace Quickstarts
         }
 
         private void ValidateResponse<TRequest, TResponse>(
-            IReadOnlyList<TRequest> requests,
-            IReadOnlyList<TResponse> responses)
+            ArrayOf<TRequest> requests,
+            ArrayOf<TResponse> responses)
         {
             if (m_validate != null)
             {
-                m_validate(requests?.ToList(), responses?.ToList());
+                m_validate(requests.ToArray(), responses.ToArray());
             }
             else
             {

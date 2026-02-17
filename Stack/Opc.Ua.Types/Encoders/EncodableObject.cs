@@ -100,20 +100,20 @@ namespace Opc.Ua
                 IEncodeable[] encodeables = null;
 
                 // check for array of extension objects.
-                if (value.TryGet(out ExtensionObject[] extensions))
+                if (value.TryGet(out ArrayOf<ExtensionObject> extensions))
                 {
                     // convert extension objects to encodeables.
-                    encodeables = new IEncodeable[extensions.Length];
+                    encodeables = new IEncodeable[extensions.Count];
 
                     for (int ii = 0; ii < encodeables.Length; ii++)
                     {
-                        if (ExtensionObject.IsNull(extensions[ii]))
+                        if (ExtensionObject.IsNull(extensions.Span[ii]))
                         {
                             encodeables[ii] = null;
                             continue;
                         }
 
-                        if (extensions[ii].Body is not IEncodeable element)
+                        if (extensions.Span[ii].Body is not IEncodeable element)
                         {
                             return StatusCodes.BadTypeMismatch;
                         }
@@ -125,13 +125,13 @@ namespace Opc.Ua
                 // apply data encoding to the array.
                 if (encodeables != null)
                 {
-                    extensions = new ExtensionObject[encodeables.Length];
-                    for (int ii = 0; ii < extensions.Length; ii++)
+                    var buffer = new ExtensionObject[encodeables.Length];
+                    for (int ii = 0; ii < buffer.Length; ii++)
                     {
-                        extensions[ii] = Encode(context, encodeables[ii], useXml);
+                        buffer[ii] = Encode(context, encodeables[ii], useXml);
                     }
 
-                    value = extensions;
+                    value = buffer.ToArrayOf();
                     return ServiceResult.Good;
                 }
 

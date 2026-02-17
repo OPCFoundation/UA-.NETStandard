@@ -548,7 +548,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
 
                 // return as a byte array.
-                return values[0].Value as byte[];
+                return values[0].WrappedValue.GetByteString().ToArray();
             }
             catch (ServiceResultException ex) when
                 (ex.StatusCode == StatusCodes.BadEncodingLimitsExceeded)

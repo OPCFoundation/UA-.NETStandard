@@ -35,7 +35,7 @@ namespace Opc.Ua
     /// <summary>
     /// NodeId Obsoleted static methods
     /// </summary>
-    public static class NodeIdStaticExtensions
+    public static class NodeIdStaticObsolete
     {
         extension(NodeId)
         {
@@ -70,7 +70,7 @@ namespace Opc.Ua
     /// <summary>
     /// Obsoleted members
     /// </summary>
-    public static class NodeIdExtensions
+    public static class NodeIdObsolete
     {
         extension(NodeId nodeId)
         {
@@ -85,7 +85,7 @@ namespace Opc.Ua
     /// <summary>
     /// QualifiedName obsolete static methods
     /// </summary>
-    public static class QualifiedNameStaticExtensions
+    public static class QualifiedNameStaticObsolete
     {
         extension(QualifiedName)
         {
@@ -103,7 +103,7 @@ namespace Opc.Ua
     /// <summary>
     /// QualifiedName obsolete members
     /// </summary>
-    public static class QualifiedNameExtensions
+    public static class QualifiedNameObsolete
     {
         extension(QualifiedName qualifiedName)
         {
@@ -118,7 +118,7 @@ namespace Opc.Ua
     /// <summary>
     /// LocalizedText extensions
     /// </summary>
-    public static class LocalizedTextExtensions
+    public static class LocalizedTextObsolete
     {
         extension(LocalizedText)
         {
@@ -136,7 +136,7 @@ namespace Opc.Ua
     /// <summary>
     /// Extension object extensions
     /// </summary>
-    public static class ExtensionObjectExtensions
+    public static class ExtensionObjectObsolete
     {
         extension(ExtensionObject)
         {
@@ -158,7 +158,7 @@ namespace Opc.Ua
     /// <summary>
     /// Status code extensions
     /// </summary>
-    public static class StatusCodeExtensions
+    public static class StatusCodeObsolete
     {
         extension(StatusCode statusCode)
         {

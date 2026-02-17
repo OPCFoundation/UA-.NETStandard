@@ -46,7 +46,10 @@ namespace Opc.Ua
             EventSeverity severity,
             LocalizedText message)
         {
-            m_eventId = new PropertyState<ByteString>(this) { Value = Uuid.NewUuid().ToByteArray() };
+            m_eventId = new PropertyState<ByteString>(this)
+            {
+                Value = Uuid.NewUuid().ToByteString()
+            };
 
             m_eventType = new PropertyState<NodeId>(this)
             {

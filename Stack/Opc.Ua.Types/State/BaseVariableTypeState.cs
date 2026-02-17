@@ -58,12 +58,7 @@ namespace Opc.Ua
                 m_value = CoreUtils.Clone(type.m_value);
                 m_dataType = type.m_dataType;
                 m_valueRank = type.m_valueRank;
-                m_arrayDimensions = null;
-
-                if (type.m_arrayDimensions != null)
-                {
-                    m_arrayDimensions = new ReadOnlyList<uint>(type.m_arrayDimensions, true);
-                }
+                m_arrayDimensions = type.m_arrayDimensions;
             }
 
             base.Initialize(context, source);
@@ -111,8 +106,7 @@ namespace Opc.Ua
                 EqualityComparer<object>.Default.Equals(state.Value, Value) &&
                 state.DataType == DataType &&
                 state.ValueRank == ValueRank &&
-                ArrayEqualityComparer<uint>.Default.Equals(
-                    state.ArrayDimensions?.ToArray(), ArrayDimensions?.ToArray())
+                state.ArrayDimensions == ArrayDimensions
                 ;
         }
 
@@ -124,8 +118,7 @@ namespace Opc.Ua
             hash.Add(Value);
             hash.Add(DataType);
             hash.Add(ValueRank);
-            hash.Add(ArrayEqualityComparer<uint>.Default.GetHashCode(
-                ArrayDimensions?.ToArray()));
+            hash.Add(ArrayDimensions);
             return hash.ToHashCode();
         }
 
@@ -205,12 +198,12 @@ namespace Opc.Ua
         /// <summary>
         /// The number of dimensions for an array values with one or more fixed dimensions.
         /// </summary>
-        public ReadOnlyList<uint> ArrayDimensions
+        public ArrayOf<uint> ArrayDimensions
         {
             get => m_arrayDimensions;
             set
             {
-                if (!ReferenceEquals(m_arrayDimensions, value))
+                if (m_arrayDimensions != value)
                 {
                     ChangeMasks |= NodeStateChangeMasks.NonValue;
                 }
@@ -252,12 +245,12 @@ namespace Opc.Ua
         /// <summary>
         /// Raised when the ArrayDimensions attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<uint[]> OnReadArrayDimensions;
+        public NodeAttributeEventHandler<ArrayOf<uint>> OnReadArrayDimensions;
 
         /// <summary>
         /// Raised when the ArrayDimensions attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<uint[]> OnWriteArrayDimensions;
+        public NodeAttributeEventHandler<ArrayOf<uint>> OnWriteArrayDimensions;
 
         /// <summary>
         /// Exports a copy of the node to a node table.
@@ -273,12 +266,7 @@ namespace Opc.Ua
                 variableTypeNode.Value = new Variant(CoreUtils.Clone(Value));
                 variableTypeNode.DataType = DataType;
                 variableTypeNode.ValueRank = ValueRank;
-                variableTypeNode.ArrayDimensions = null;
-
-                if (ArrayDimensions != null)
-                {
-                    variableTypeNode.ArrayDimensions = [.. ArrayDimensions];
-                }
+                variableTypeNode.ArrayDimensions = ArrayDimensions;
             }
         }
 
@@ -308,7 +296,7 @@ namespace Opc.Ua
                 encoder.WriteInt32("ValueRank", ValueRank);
             }
 
-            if (ArrayDimensions != null)
+            if (!ArrayDimensions.IsEmpty)
             {
                 encoder.WriteString(
                     "ArrayDimensions",
@@ -377,7 +365,7 @@ namespace Opc.Ua
                 attributesToSave |= AttributesToSave.ValueRank;
             }
 
-            if (m_arrayDimensions != null)
+            if (!m_arrayDimensions.IsEmpty)
             {
                 attributesToSave |= AttributesToSave.ArrayDimensions;
             }
@@ -415,7 +403,7 @@ namespace Opc.Ua
 
             if ((attributesToSave & AttributesToSave.ArrayDimensions) != 0)
             {
-                encoder.WriteUInt32Array(null, m_arrayDimensions);
+                encoder.WriteUInt32Array(null, m_arrayDimensions.ToArray());
             }
         }
 
@@ -449,16 +437,7 @@ namespace Opc.Ua
 
             if ((attributesToLoad & AttributesToSave.ArrayDimensions) != 0)
             {
-                UInt32Collection arrayDimensions = decoder.ReadUInt32Array(null);
-
-                if (arrayDimensions != null && arrayDimensions.Count > 0)
-                {
-                    m_arrayDimensions = new ReadOnlyList<uint>(arrayDimensions);
-                }
-                else
-                {
-                    m_arrayDimensions = null;
-                }
+                m_arrayDimensions = decoder.ReadUInt32Array(null);
             }
         }
 
@@ -507,9 +486,9 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.ArrayDimensions:
-                    uint[] arrayDimensions = m_arrayDimensions?.ToArray();
+                    ArrayOf<uint> arrayDimensions = m_arrayDimensions;
 
-                    NodeAttributeEventHandler<uint[]> onReadArrayDimensions = OnReadArrayDimensions;
+                    NodeAttributeEventHandler<ArrayOf<uint>> onReadArrayDimensions = OnReadArrayDimensions;
 
                     if (onReadArrayDimensions != null)
                     {
@@ -646,7 +625,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.ArrayDimensions:
-                    if (!value.TryGet(out uint[] arrayDimensions))
+                    if (!value.TryGet(out ArrayOf<uint> arrayDimensions))
                     {
                         if (!value.IsNull)
                         {
@@ -660,7 +639,7 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<uint[]> onWriteArrayDimensions
+                    NodeAttributeEventHandler<ArrayOf<uint>> onWriteArrayDimensions
                         = OnWriteArrayDimensions;
 
                     if (onWriteArrayDimensions != null)
@@ -670,14 +649,7 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        if (arrayDimensions != null)
-                        {
-                            m_arrayDimensions = new ReadOnlyList<uint>(arrayDimensions);
-                        }
-                        else
-                        {
-                            ArrayDimensions = null;
-                        }
+                        ArrayDimensions = arrayDimensions;
                     }
 
                     return result;
@@ -748,7 +720,7 @@ namespace Opc.Ua
         private Variant m_value;
         private NodeId m_dataType;
         private int m_valueRank;
-        private ReadOnlyList<uint> m_arrayDimensions;
+        private ArrayOf<uint> m_arrayDimensions;
     }
 
     /// <summary>
@@ -804,7 +776,7 @@ namespace Opc.Ua
                 Namespaces.OpcUa,
                 context.NamespaceUris);
             ValueRank = ValueRanks.Any;
-            ArrayDimensions = null;
+            ArrayDimensions = default;
         }
     }
 
@@ -893,7 +865,7 @@ namespace Opc.Ua
                 Namespaces.OpcUa,
                 context.NamespaceUris);
             ValueRank = ValueRanks.Any;
-            ArrayDimensions = null;
+            ArrayDimensions = default;
         }
     }
 

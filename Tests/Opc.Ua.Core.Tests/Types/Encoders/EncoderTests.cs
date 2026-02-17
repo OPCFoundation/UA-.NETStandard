@@ -482,7 +482,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         private static string WriteByteStringData(IEncoder encoder)
         {
             encoder.WriteByteString("ByteString1", [0, 1, 2, 3, 4, 5], 1, 3);
-            encoder.WriteByteString("ByteString2", null);
+            encoder.WriteByteString("ByteString2", (ByteString)default);
             encoder.WriteByteString("ByteString3", null, 1, 2);
 #if SPAN_SUPPORT
             var span = new ReadOnlySpan<byte>([0, 1, 2, 3, 4, 5], 1, 3);
@@ -510,21 +510,21 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         private static void ReadByteStringData(IDecoder decoder)
         {
-            byte[] result = decoder.ReadByteString("ByteString1");
-            Assert.AreEqual(new byte[] { 1, 2, 3 }, result);
+            ByteString result = decoder.ReadByteString("ByteString1");
+            Assert.AreEqual(ByteString.From(new byte[] { 1, 2, 3 }), result);
             result = decoder.ReadByteString("ByteString2");
-            Assert.AreEqual(null, result);
+            Assert.AreEqual(ByteString.Empty, result);
             result = decoder.ReadByteString("ByteString3");
-            Assert.AreEqual(null, result);
+            Assert.AreEqual(ByteString.Empty, result);
 #if SPAN_SUPPORT
             result = decoder.ReadByteString("ByteString4");
             Assert.AreEqual(new byte[] { 1, 2, 3 }, result);
             result = decoder.ReadByteString("ByteString5");
-            Assert.AreEqual(null, result);
+            Assert.AreEqual(ByteString.Empty, result);
             result = decoder.ReadByteString("ByteString6");
-            Assert.AreEqual(null, result);
+            Assert.AreEqual(ByteString.Empty, result);
             result = decoder.ReadByteString("ByteString7");
-            Assert.AreEqual(Array.Empty<byte>(), result);
+            Assert.AreEqual(ByteString.Empty, result);
 #endif
         }
 

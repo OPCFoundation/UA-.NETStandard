@@ -824,7 +824,7 @@ namespace Opc.Ua.Export
             importedNode.ReleaseStatus = node.ReleaseStatus;
             importedNode.WriteMask = (AttributeWriteMask)node.WriteMask;
             importedNode.UserWriteMask = (AttributeWriteMask)node.UserWriteMask;
-            importedNode.Extensions = node.Extensions.Select(x => XmlElement.From(x)).ToArray();
+            importedNode.Extensions = node.Extensions?.Select(x => XmlElement.From(x)).ToArray();
 
             if (node.RolePermissions != null)
             {
@@ -1320,7 +1320,7 @@ namespace Opc.Ua.Export
                             fields.Add(output);
                         }
 
-                        sd.Fields = fields.ToArray();
+                        sd.Fields = (StructureFieldCollection)fields.ToArray();
                     }
 
                     definition = sd;
@@ -1346,7 +1346,7 @@ namespace Opc.Ua.Export
                             fields.Add(output);
                         }
 
-                        ed.Fields = fields.ToArray();
+                        ed.Fields = (EnumFieldCollection)fields.ToArray();
                     }
 
                     definition = ed;
@@ -1380,9 +1380,9 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Exports the array dimensions.
         /// </summary>
-        private static string Export(ReadOnlyList<uint> arrayDimensions)
+        private static string Export(ArrayOf<uint> arrayDimensions)
         {
-            if (arrayDimensions == null)
+            if (arrayDimensions.IsEmpty)
             {
                 return string.Empty;
             }
@@ -1396,7 +1396,7 @@ namespace Opc.Ua.Export
                     buffer.Append(',');
                 }
 
-                buffer.Append(arrayDimensions[ii]);
+                buffer.Append(arrayDimensions.Span[ii]);
             }
 
             return buffer.ToString();

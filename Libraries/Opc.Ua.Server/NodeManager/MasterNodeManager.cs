@@ -1276,9 +1276,7 @@ namespace Opc.Ua.Server
                     // release all allocated continuation points.
                     foreach (BrowseResult current in results)
                     {
-                        if (current != null &&
-                            current.ContinuationPoint != null &&
-                            current.ContinuationPoint.Length > 0)
+                        if (current != null && current.ContinuationPoint.Length > 0)
                         {
                             ContinuationPoint cp = context.Session
                                 .RestoreContinuationPoint(current.ContinuationPoint);
@@ -1318,7 +1316,7 @@ namespace Opc.Ua.Server
                 }
 
                 // check for continuation point.
-                if (result.ContinuationPoint != null && result.ContinuationPoint.Length > 0)
+                if (result.ContinuationPoint.Length > 0)
                 {
                     continuationPointsAssigned++;
                 }
@@ -1422,9 +1420,7 @@ namespace Opc.Ua.Server
                     // release all allocated continuation points.
                     foreach (BrowseResult current in results)
                     {
-                        if (current != null &&
-                            current.ContinuationPoint != null &&
-                            current.ContinuationPoint.Length > 0)
+                        if (current != null && current.ContinuationPoint.Length > 0)
                         {
                             cp = context.Session
                                 .RestoreContinuationPoint(current.ContinuationPoint);
@@ -1507,7 +1503,7 @@ namespace Opc.Ua.Server
                     }
 
                     // check for continuation point.
-                    if (result.ContinuationPoint != null && result.ContinuationPoint.Length > 0)
+                    if (result.ContinuationPoint.Length > 0)
                     {
                         continuationPointsAssigned++;
                     }
@@ -1537,7 +1533,7 @@ namespace Opc.Ua.Server
                 if (cp != null)
                 {
                     result.StatusCode = StatusCodes.Good;
-                    result.ContinuationPoint = cp.Id.ToByteArray();
+                    result.ContinuationPoint = cp.Id.ToByteArray().ToByteString();
                 }
             }
 
@@ -1640,7 +1636,7 @@ namespace Opc.Ua.Server
             if (cp != null)
             {
                 result.StatusCode = StatusCodes.Good;
-                result.ContinuationPoint = cp.Id.ToByteArray();
+                result.ContinuationPoint = cp.Id.ToByteArray().ToByteString();
             }
 
             // all is good.

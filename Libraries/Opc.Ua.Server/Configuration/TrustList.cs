@@ -324,7 +324,7 @@ namespace Opc.Ua.Server
             NodeId objectId,
             uint fileHandle,
             int length,
-            ref byte[] data)
+            ref ByteString data)
         {
             ReadMethodStateResult result = ReadAsync(
                 context,
@@ -347,7 +347,7 @@ namespace Opc.Ua.Server
         {
             HasSecureReadAccess(context);
 
-            byte[] data;
+            ByteString data;
 
             lock (m_lock)
             {
@@ -359,7 +359,7 @@ namespace Opc.Ua.Server
                         ServiceResult = ServiceResult.Create(
                             StatusCodes.BadUserAccessDenied,
                             "Session not authorized"),
-                        Data = null
+                        Data = default
                     });
                 }
 
@@ -370,7 +370,7 @@ namespace Opc.Ua.Server
                         ServiceResult = ServiceResult.Create(
                             StatusCodes.BadInvalidArgument,
                             "Invalid file handle"),
-                        Data = null
+                        Data = default
                     });
                 }
 
@@ -383,23 +383,16 @@ namespace Opc.Ua.Server
                             StatusCodes.BadEncodingLimitsExceeded,
                             "Trust list size exceeds maximum allowed size of {0} bytes",
                             m_maxTrustListSize),
-                        Data = null
+                        Data = default
                     });
                 }
 
-                data = new byte[length];
-
-                int bytesRead = m_strm.Read(data, 0, length);
+                byte[] buffer = new byte[length];
+                int bytesRead = m_strm.Read(buffer, 0, length);
                 Debug.Assert(bytesRead >= 0);
+                data = ByteString.From(buffer)[..bytesRead];
 
                 m_totalBytesProcessed += bytesRead;
-
-                if (bytesRead < length)
-                {
-                    byte[] bytes = new byte[bytesRead];
-                    Array.Copy(data, bytes, bytesRead);
-                    data = bytes;
-                }
             }
 
             return new ValueTask<ReadMethodStateResult>(new ReadMethodStateResult
@@ -414,7 +407,7 @@ namespace Opc.Ua.Server
             MethodState method,
             NodeId objectId,
             uint fileHandle,
-            byte[] data)
+            ByteString data)
         {
             WriteMethodStateResult result = WriteAsync(
                 context,
@@ -431,7 +424,7 @@ namespace Opc.Ua.Server
             MethodState method,
             NodeId objectId,
             uint fileHandle,
-            byte[] data,
+            ByteString data,
             CancellationToken cancellationToken)
         {
             HasSecureWriteAccess(context);
@@ -467,7 +460,7 @@ namespace Opc.Ua.Server
                     });
                 }
 
-                m_strm.Write(data, 0, data.Length);
+                m_strm.Write(data.ToArray(), 0, data.Length);
                 m_totalBytesProcessed += data.Length;
             }
 
@@ -607,23 +600,23 @@ namespace Opc.Ua.Server
                 if ((masks & (int)TrustListMasks.IssuerCertificates) != 0)
                 {
                     issuerCertificates = [];
-                    foreach (byte[] cert in trustList.IssuerCertificates)
+                    foreach (ByteString cert in trustList.IssuerCertificates)
                     {
-                        issuerCertificates.Add(X509CertificateLoader.LoadCertificate(cert));
+                        issuerCertificates.Add(X509CertificateLoader.LoadCertificate(cert.ToArray()));
                     }
                 }
                 if ((masks & (int)TrustListMasks.IssuerCrls) != 0)
                 {
                     issuerCrls = [];
-                    foreach (byte[] crl in trustList.IssuerCrls)
+                    foreach (ByteString crl in trustList.IssuerCrls)
                     {
-                        issuerCrls.Add(new X509CRL(crl));
+                        issuerCrls.Add(new X509CRL(crl.ToArray()));
                     }
                 }
                 if ((masks & (int)TrustListMasks.TrustedCertificates) != 0)
                 {
                     trustedCertificates = [];
-                    foreach (byte[] cert in trustList.TrustedCertificates)
+                    foreach (ByteString cert in trustList.TrustedCertificates)
                     {
                         trustedCertificates.Add(CertificateFactory.Create(cert));
                     }
@@ -631,9 +624,9 @@ namespace Opc.Ua.Server
                 if ((masks & (int)TrustListMasks.TrustedCrls) != 0)
                 {
                     trustedCrls = [];
-                    foreach (byte[] crl in trustList.TrustedCrls)
+                    foreach (ByteString crl in trustList.TrustedCrls)
                     {
-                        trustedCrls.Add(new X509CRL(crl));
+                        trustedCrls.Add(new X509CRL(crl.ToArray()));
                     }
                 }
 
@@ -703,7 +696,7 @@ namespace Opc.Ua.Server
             ISystemContext context,
             MethodState method,
             NodeId objectId,
-            byte[] certificate,
+            ByteString certificate,
             bool isTrustedCertificate)
         {
             AddCertificateMethodStateResult result = AddCertificateAsync(
@@ -720,7 +713,7 @@ namespace Opc.Ua.Server
             ISystemContext context,
             MethodState method,
             NodeId objectId,
-            byte[] certificate,
+            ByteString certificate,
             bool isTrustedCertificate,
             CancellationToken cancellationToken)
         {
@@ -746,7 +739,7 @@ namespace Opc.Ua.Server
             {
                 result = StatusCodes.BadInvalidState;
             }
-            else if (certificate == null)
+            else if (certificate.IsEmpty)
             {
                 result = StatusCodes.BadInvalidArgument;
             }

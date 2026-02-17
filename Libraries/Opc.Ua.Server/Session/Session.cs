@@ -62,7 +62,7 @@ namespace Opc.Ua.Server
             IServerInternal server,
             X509Certificate2 serverCertificate,
             NodeId authenticationToken,
-            byte[] clientNonce,
+            ByteString clientNonce,
             Nonce serverNonce,
             string sessionName,
             ApplicationDescription clientDescription,
@@ -239,7 +239,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The client Nonce associated with the session.
         /// </summary>
-        public byte[] ClientNonce { get; }
+        public ByteString ClientNonce { get; }
 
         /// <summary>
         /// The application instance certificate associated with the client.
@@ -316,7 +316,7 @@ namespace Opc.Ua.Server
                 var key = new EphemeralKeyType { PublicKey = m_eccUserTokenNonce.Data };
 
                 key.Signature = EccUtils.Sign(
-                    new ArraySegment<byte>(key.PublicKey),
+                    new ArraySegment<byte>(key.PublicKey.ToArray()),
                     m_serverCertificate,
                     m_eccUserTokenSecurityPolicyUri);
 
@@ -468,20 +468,18 @@ namespace Opc.Ua.Server
                 {
                     if (EndpointDescription.SecurityPolicyUri != SecurityPolicies.None &&
                         clientSignature != null &&
-                        clientSignature.Signature == null)
+                        clientSignature.Signature.IsEmpty)
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadApplicationSignatureInvalid);
                     }
 
-                    byte[] dataToSign = Utils.Append(
-                        m_serverCertificate.RawData,
-                        m_serverNonce.Data);
+                    ByteString dataToSign = ByteString.Combine(m_serverCertificate.RawData, m_serverNonce.Data);
 
                     if (!SecurityPolicies.Verify(
                             ClientCertificate,
                             EndpointDescription.SecurityPolicyUri,
-                            dataToSign,
+                            dataToSign.ToArray(),
                             clientSignature))
                     {
                         // verify for certificate chain in endpoint.
@@ -503,14 +501,12 @@ namespace Opc.Ua.Server
 
                             byte[] serverCertificateChainData = [.. serverCertificateChainList];
 
-                            dataToSign = Utils.Append(
-                                serverCertificateChainData,
-                                m_serverNonce.Data);
+                            dataToSign = ByteString.Combine(serverCertificateChainData, m_serverNonce.Data);
 
                             if (!SecurityPolicies.Verify(
                                     ClientCertificate,
                                     EndpointDescription.SecurityPolicyUri,
-                                    dataToSign,
+                                    dataToSign.ToArray(),
                                     clientSignature))
                             {
                                 throw new ServiceResultException(
@@ -649,7 +645,7 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// The caller is responsible for disposing the continuation point returned.
         /// </remarks>
-        public ContinuationPoint RestoreContinuationPoint(byte[] continuationPoint)
+        public ContinuationPoint RestoreContinuationPoint(ByteString continuationPoint)
         {
             lock (m_lock)
             {
@@ -658,12 +654,12 @@ namespace Opc.Ua.Server
                     return null;
                 }
 
-                if (continuationPoint == null || continuationPoint.Length != 16)
+                if (continuationPoint.Length != 16)
                 {
                     return null;
                 }
 
-                var id = new Guid(continuationPoint);
+                var id = new Guid(continuationPoint.ToArray());
 
                 for (int ii = 0; ii < m_browseContinuationPoints.Count; ii++)
                 {
@@ -725,7 +721,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="continuationPoint">The identifier for the continuation point.</param>
         /// <returns>The save continuation point. null if not found.</returns>
-        public object RestoreHistoryContinuationPoint(byte[] continuationPoint)
+        public object RestoreHistoryContinuationPoint(ByteString continuationPoint)
         {
             lock (m_lock)
             {
@@ -734,12 +730,12 @@ namespace Opc.Ua.Server
                     return null;
                 }
 
-                if (continuationPoint == null || continuationPoint.Length != 16)
+                if (continuationPoint.Length != 16)
                 {
                     return null;
                 }
 
-                var id = new Guid(continuationPoint);
+                var id = new Guid(continuationPoint.ToArray());
 
                 for (int ii = 0; ii < m_historyContinuationPoints.Count; ii++)
                 {
@@ -980,7 +976,7 @@ namespace Opc.Ua.Server
                 if (m_serverCertificate == null)
                 {
                     m_serverCertificate = X509CertificateLoader.LoadCertificate(
-                        EndpointDescription.ServerCertificate);
+                        EndpointDescription.ServerCertificate.ToArray());
 
                     // check for valid certificate.
                     if (m_serverCertificate == null)
@@ -1012,11 +1008,9 @@ namespace Opc.Ua.Server
                 // verify the signature.
                 if (securityPolicyUri != SecurityPolicies.None)
                 {
-                    byte[] dataToSign = Utils.Append(
-                        m_serverCertificate.RawData,
-                        m_serverNonce.Data);
+                    ByteString dataToSign = ByteString.Combine(m_serverCertificate.RawData, m_serverNonce.Data);
 
-                    if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri))
+                    if (!token.Verify(dataToSign.ToArray(), userTokenSignature, securityPolicyUri))
                     {
                         // verify for certificate chain in endpoint.
                         // validate the signature with complete chain if the check with leaf certificate failed.
@@ -1035,13 +1029,10 @@ namespace Opc.Ua.Server
                                     serverCertificateChain[i].RawData);
                             }
 
-                            byte[] serverCertificateChainData = [.. serverCertificateChainList];
+                            dataToSign = ByteString.Combine(
+                                ByteString.From([.. serverCertificateChainList]), m_serverNonce.Data);
 
-                            dataToSign = Utils.Append(
-                                serverCertificateChainData,
-                                m_serverNonce.Data);
-
-                            if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri))
+                            if (!token.Verify(dataToSign.ToArray(), userTokenSignature, securityPolicyUri))
                             {
                                 throw new ServiceResultException(
                                     StatusCodes.BadIdentityTokenRejected,

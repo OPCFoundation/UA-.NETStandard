@@ -256,7 +256,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                     nodeId = new NodeId(ByteString.Empty);
                     break;
                 case (IdType)100:
-                    nodeId = new NodeId((byte[])null);
+                    nodeId = new NodeId((ByteString)null);
                     break;
                 default:
                     nodeId = NodeId.Null;
@@ -269,14 +269,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.AreEqual(nodeId, new NodeId(0, 0));
             Assert.AreEqual(nodeId, new NodeId(Guid.Empty));
             Assert.AreEqual(nodeId, new NodeId(ByteString.Empty));
-            Assert.AreEqual(nodeId, new NodeId((byte[])null));
+            Assert.AreEqual(nodeId, new NodeId((ByteString)null));
             Assert.AreEqual(nodeId, NodeId.Parse(null));
 
             Assert.True(nodeId.Equals(NodeId.Null));
             Assert.True(nodeId.Equals(new NodeId(0, 0)));
             Assert.True(nodeId.Equals(new NodeId(Guid.Empty)));
             Assert.True(nodeId.Equals(new NodeId(ByteString.Empty)));
-            Assert.True(nodeId.Equals(new NodeId((byte[])null)));
+            Assert.True(nodeId.Equals(new NodeId((ByteString)null)));
             Assert.True(nodeId.Equals(NodeId.Parse(null)));
 
             var nodeIdBasedDataValue = new DataValue(new Variant(nodeId));

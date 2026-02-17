@@ -357,24 +357,22 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Append a property to the value string.
         /// </summary>
-        private static void AppendPropertyValue(
+        private static StringBuilder AppendPropertyValue(
             IFormatProvider formatProvider,
             StringBuilder body,
             object value)
         {
             if (value is byte[] x)
             {
-                _ = body.AppendFormat(formatProvider, "Byte[{0}]", x.Length);
-                return;
+                return body.AppendFormat(formatProvider, "Byte[{0}]", x.Length);
             }
 
             if (value is XmlElement xmlElements)
             {
-                _ = body.AppendFormat(formatProvider, "<{0}>", xmlElements.Name);
-                return;
+                return body.AppendFormat(formatProvider, "<{0}>", xmlElements.AsXmlElement().Name);
             }
 
-            _ = body.AppendFormat(formatProvider, "{0}", value);
+            return body.AppendFormat(formatProvider, "{0}", value);
         }
 
         /// <summary>

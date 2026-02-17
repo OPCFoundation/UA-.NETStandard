@@ -157,14 +157,15 @@ namespace Opc.Ua.Bindings
                     X509Certificate2 instanceCertificate = instanceCertificateTypesProvider
                         .GetInstanceCertificate(
                             bestPolicy.SecurityPolicyUri);
-                    description.ServerCertificate = instanceCertificate.RawData;
+                    description.ServerCertificate =
+                        instanceCertificate.RawData.ToByteString();
 
                     // check if complete chain should be sent.
                     if (instanceCertificateTypesProvider.SendCertificateChain)
                     {
-                        description.ServerCertificate = instanceCertificateTypesProvider
-                            .LoadCertificateChainRaw(
-                                instanceCertificate);
+                        description.ServerCertificate =
+                            instanceCertificateTypesProvider.LoadCertificateChainRaw(
+                                instanceCertificate).ToByteString();
                     }
                 }
 

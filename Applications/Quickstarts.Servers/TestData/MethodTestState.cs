@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Xml;
 using Opc.Ua;
 
 namespace TestData
@@ -103,7 +102,7 @@ namespace TestData
             string stringIn,
             DateTime dateTimeIn,
             Uuid guidIn,
-            byte[] byteStringIn,
+            ByteString byteStringIn,
             XmlElement xmlElementIn,
             NodeId nodeIdIn,
             ExpandedNodeId expandedNodeIdIn,
@@ -113,7 +112,7 @@ namespace TestData
             ref string stringOut,
             ref DateTime dateTimeOut,
             ref Uuid guidOut,
-            ref byte[] byteStringOut,
+            ref ByteString byteStringOut,
             ref XmlElement xmlElementOut,
             ref NodeId nodeIdOut,
             ref ExpandedNodeId expandedNodeIdOut,
@@ -202,7 +201,7 @@ namespace TestData
             string[] stringIn,
             DateTime[] dateTimeIn,
             Uuid[] guidIn,
-            byte[][] byteStringIn,
+            ByteString[] byteStringIn,
             XmlElement[] xmlElementIn,
             NodeId[] nodeIdIn,
             ExpandedNodeId[] expandedNodeIdIn,
@@ -212,7 +211,7 @@ namespace TestData
             ref string[] stringOut,
             ref DateTime[] dateTimeOut,
             ref Uuid[] guidOut,
-            ref byte[][] byteStringOut,
+            ref ByteString[] byteStringOut,
             ref XmlElement[] xmlElementOut,
             ref NodeId[] nodeIdOut,
             ref ExpandedNodeId[] expandedNodeIdOut,
@@ -303,7 +302,7 @@ namespace TestData
             NodeId objectId,
             DateTime dateTimeIn,
             Uuid guidIn,
-            byte[] byteStringIn,
+            ByteString byteStringIn,
             XmlElement xmlElementIn,
             NodeId nodeIdIn,
             ExpandedNodeId expandedNodeIdIn,
@@ -313,7 +312,7 @@ namespace TestData
             Variant variantIn,
             ref DateTime dateTimeOut,
             ref Uuid guidOut,
-            ref byte[] byteStringOut,
+            ref ByteString byteStringOut,
             ref XmlElement xmlElementOut,
             ref NodeId nodeIdOut,
             ref ExpandedNodeId expandedNodeIdOut,
@@ -387,7 +386,7 @@ namespace TestData
             NodeId objectId,
             DateTime[] dateTimeIn,
             Uuid[] guidIn,
-            byte[][] byteStringIn,
+            ByteString[] byteStringIn,
             XmlElement[] xmlElementIn,
             NodeId[] nodeIdIn,
             ExpandedNodeId[] expandedNodeIdIn,
@@ -397,7 +396,7 @@ namespace TestData
             Variant[] variantIn,
             ref DateTime[] dateTimeOut,
             ref Uuid[] guidOut,
-            ref byte[][] byteStringOut,
+            ref ByteString[] byteStringOut,
             ref XmlElement[] xmlElementOut,
             ref NodeId[] nodeIdOut,
             ref ExpandedNodeId[] expandedNodeIdOut,

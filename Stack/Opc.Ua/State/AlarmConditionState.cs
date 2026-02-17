@@ -640,7 +640,7 @@ namespace Opc.Ua
                     e.SetChildValue(
                         context,
                         BrowseNames.InputArguments,
-                        new Variant[] { shelvingTime },
+                        Variant.From(new Variant[] { shelvingTime }),
                         false);
 
                     e.SetChildValue(context, BrowseNames.ShelvingTime, shelvingTime, false);
