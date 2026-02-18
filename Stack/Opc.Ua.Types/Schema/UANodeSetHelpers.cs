@@ -1396,7 +1396,7 @@ namespace Opc.Ua.Export
                     buffer.Append(',');
                 }
 
-                buffer.Append(arrayDimensions.Span[ii]);
+                buffer.Append(arrayDimensions[ii]);
             }
 
             return buffer.ToString();

@@ -166,7 +166,7 @@ namespace Opc.Ua.Server
 
                 if (getMonitoredItemsOutputArguments != null)
                 {
-                    if (getMonitoredItemsOutputArguments.Value.TryGetStructure(out Argument[] outputArgumentsValue))
+                    if (getMonitoredItemsOutputArguments.Value.TryGetStructure(out ArrayOf<Argument> outputArgumentsValue))
                     {
                         foreach (Argument argument in outputArgumentsValue)
                         {
@@ -263,8 +263,8 @@ namespace Opc.Ua.Server
                     }
 
                     subscription.GetMonitoredItems(
-                        out uint[] serverHandles,
-                        out uint[] clientHandles);
+                        out ArrayOf<uint> serverHandles,
+                        out ArrayOf<uint> clientHandles);
 
                     outputArguments[0] = serverHandles;
                     outputArguments[1] = clientHandles;
@@ -1430,7 +1430,7 @@ namespace Opc.Ua.Server
         private ServiceResult OnReadUserRolePermissions(
             ISystemContext context,
             NodeState node,
-            ref RolePermissionTypeCollection value)
+            ref ArrayOf<RolePermissionType> value)
         {
             bool adminUser;
 
@@ -1533,9 +1533,8 @@ namespace Opc.Ua.Server
                         SessionDiagnosticsData diagnostics = m_sessions[ii];
                         UpdateSessionDiagnostics(context, diagnostics, sessionArray, ii);
                     }
-                    sessionArray = [.. sessionArray.Where(s => s != null)];
 
-                    value = Variant.FromStructure(sessionArray);
+                    value = Variant.FromStructure(sessionArray.Where(s => s != null).ToArrayOf());
                 }
                 else if (node.NodeId ==
                     VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionSecurityDiagnosticsArray)
@@ -1552,9 +1551,7 @@ namespace Opc.Ua.Server
                             sessionSecurityArray,
                             ii);
                     }
-                    sessionSecurityArray = [.. sessionSecurityArray.Where(s => s != null)];
-
-                    value = Variant.FromStructure(sessionSecurityArray);
+                    value = Variant.FromStructure(sessionSecurityArray.Where(s => s != null).ToArrayOf());
                 }
                 else if (node.NodeId == VariableIds
                     .Server_ServerDiagnostics_SubscriptionDiagnosticsArray)
@@ -1571,9 +1568,7 @@ namespace Opc.Ua.Server
                             subscriptionArray,
                             ii);
                     }
-                    subscriptionArray = [.. subscriptionArray.Where(s => s != null)];
-
-                    value = Variant.FromStructure(subscriptionArray);
+                    value = Variant.FromStructure(subscriptionArray.Where(s => s != null).ToArrayOf());
                 }
 
                 return ServiceResult.Good;

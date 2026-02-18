@@ -183,7 +183,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the monitored items for the subscription.
         /// </summary>
-        void GetMonitoredItems(out uint[] serverHandles, out uint[] clientHandles);
+        void GetMonitoredItems(
+            out ArrayOf<uint> serverHandles,
+            out ArrayOf<uint> clientHandles);
 
         /// <summary>
         /// Sets the subscription to durable mode.

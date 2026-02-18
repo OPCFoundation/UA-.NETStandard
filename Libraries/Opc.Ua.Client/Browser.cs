@@ -247,7 +247,7 @@ namespace Opc.Ua.Client
         /// Browses the specified node.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public async ValueTask<ReferenceDescriptionCollection> BrowseAsync(
+        public async ValueTask<ArrayOf<ReferenceDescription>> BrowseAsync(
             NodeId nodeId,
             CancellationToken ct = default)
         {
@@ -268,7 +268,7 @@ namespace Opc.Ua.Client
                 ResultMask = state.ResultMask
             };
 
-            var nodesToBrowse = new BrowseDescriptionCollection { nodeToBrowse };
+            ArrayOf<BrowseDescription> nodesToBrowse = [nodeToBrowse];
 
             // make the call to the server.
             BrowseResponse browseResponse = await session.BrowseAsync(
@@ -278,8 +278,8 @@ namespace Opc.Ua.Client
                 nodesToBrowse,
                 ct).ConfigureAwait(false);
 
-            BrowseResultCollection results = browseResponse.Results;
-            DiagnosticInfoCollection diagnosticInfos = browseResponse.DiagnosticInfos;
+            var results = browseResponse.Results;
+            var diagnosticInfos = browseResponse.DiagnosticInfos;
             ResponseHeader responseHeader = browseResponse.ResponseHeader;
 
             // ensure that the server returned valid results.
@@ -298,7 +298,7 @@ namespace Opc.Ua.Client
 
             // fetch initial set of references.
             ByteString continuationPoint = results[0].ContinuationPoint;
-            ReferenceDescriptionCollection references = results[0].References;
+            var references = results[0].References;
 
             try
             {
@@ -397,8 +397,8 @@ namespace Opc.Ua.Client
         /// <param name="ct">Cancellation token to use</param>
         /// <returns></returns>
         /// <exception cref="ServiceResultException"></exception>
-        public async ValueTask<ResultSet<ReferenceDescriptionCollection>> BrowseAsync(
-            IReadOnlyList<NodeId> nodesToBrowse,
+        public async ValueTask<ResultSet<ArrayOf<ReferenceDescription>>> BrowseAsync(
+            ArrayOf<NodeId> nodesToBrowse,
             CancellationToken ct = default)
         {
             BrowserOptions state = State;
@@ -676,13 +676,13 @@ namespace Opc.Ua.Client
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The next batch of references</returns>
         /// <exception cref="ServiceResultException"></exception>
-        private static async ValueTask<(ReferenceDescriptionCollection, ByteString)> BrowseNextAsync(
+        private static async ValueTask<(ArrayOf<ReferenceDescription>, ByteString)> BrowseNextAsync(
             ISessionClient session,
             ByteString continuationPoint,
             bool cancel,
             CancellationToken ct = default)
         {
-            var continuationPoints = new ByteStringCollection { continuationPoint };
+            ArrayOf<ByteString> continuationPoints = [continuationPoint];
 
             // make the call to the server.
             BrowseNextResponse browseResponse = await session.BrowseNextAsync(
@@ -692,9 +692,9 @@ namespace Opc.Ua.Client
                 ct)
                 .ConfigureAwait(false);
 
-            BrowseResultCollection results = browseResponse.Results;
-            DiagnosticInfoCollection diagnosticInfos = browseResponse.DiagnosticInfos;
-            ResponseHeader responseHeader = browseResponse.ResponseHeader;
+            var results = browseResponse.Results;
+            var diagnosticInfos = browseResponse.DiagnosticInfos;
+            var responseHeader = browseResponse.ResponseHeader;
 
             // ensure that the server returned valid results.
             ClientBase.ValidateResponse(results, continuationPoints);

@@ -41,7 +41,7 @@ namespace Opc.Ua
         /// The locales to use if available.
         /// </summary>
         /// <value>The preferred locales.</value>
-        IList<string> PreferredLocales { get; }
+        ArrayOf<string> PreferredLocales { get; }
 
         /// <summary>
         /// The mask to use when collecting any diagnostic information.

@@ -121,8 +121,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotEmpty(
                 m_publisherConfiguration.Connections,
                 "m_publisherConfiguration.Connections should not be empty");
-            m_udpPublisherConnection = m_uaPublisherApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
+            m_udpPublisherConnection =
+                m_uaPublisherApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(
                 m_udpPublisherConnection,
                 "m_uadpPublisherConnection should not be null");

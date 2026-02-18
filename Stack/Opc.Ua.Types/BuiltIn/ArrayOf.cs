@@ -89,8 +89,11 @@ namespace Opc.Ua
         public bool IsNull => ReadOnlyMemoryHelper.IsNull(in m_memory);
 
         /// <inheritdoc/>
+        public T this[int index] => m_memory.Span[index];
+
+        /// <inheritdoc/>
         [JsonConstructor]
-        public ArrayOf(ReadOnlyMemory<T> values)
+        internal ArrayOf(ReadOnlyMemory<T> values)
         {
             m_memory = values;
         }
@@ -98,6 +101,12 @@ namespace Opc.Ua
         /// <inheritdoc/>
         internal ArrayOf(T[] values)
             : this(values.AsMemory())
+        {
+        }
+
+        /// <inheritdoc/>
+        internal ArrayOf(IEnumerable<T> values)
+            : this (values is T[] t ? t : [.. values])
         {
         }
 
@@ -537,7 +546,7 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         public static ArrayOf<T> ToArrayOf<T>(this IEnumerable<T>? values)
         {
-            return new(values == null ? [] : [.. values]);
+            return values == null ? default : new(values);
         }
 
         /// <summary>
@@ -546,19 +555,19 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         /// <typeparam name="TResult"></typeparam>
         public static ArrayOf<TResult> ToArrayOf<T, TResult>(
-            this IEnumerable<T> values,
+            this IEnumerable<T>? values,
             Func<T, TResult> predicate)
         {
-            return new([.. values.Select(predicate)]);
+            return values == null ? default : new(values.Select(predicate));
         }
 
         /// <summary>
         /// Create array of T
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public static ArrayOf<T> ToArrayOf<T>(this T[] values)
+        public static ArrayOf<T> ToArrayOf<T>(this T[]? values)
         {
-            return values.Length == 0 ? [] : new(values);
+            return values == null ? default : values.Length == 0 ? [] : new(values);
         }
 
         /// <summary>
@@ -584,7 +593,9 @@ namespace Opc.Ua
         /// <param name="collection">The arrays from which items are batched.</param>
         /// <param name="batchSize">The size of a batch.</param>
         /// <returns>The arrays.</returns>
-        public static IEnumerable<ArrayOf<T>> Batch<T>(this ArrayOf<T> collection, int batchSize)
+        public static IEnumerable<ArrayOf<T>> Batch<T>(
+            this ArrayOf<T> collection,
+            int batchSize)
         {
             if (collection.Count <= batchSize)
             {

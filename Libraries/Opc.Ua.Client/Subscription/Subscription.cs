@@ -708,7 +708,7 @@ namespace Opc.Ua.Client
                 lock (m_cache)
                 {
                     return m_availableSequenceNumbers != null
-                        ? new ReadOnlyList<uint>(m_availableSequenceNumbers)
+                        ? m_availableSequenceNumbers.ToArray()
                         : [];
                 }
             }

@@ -33,7 +33,7 @@ namespace Opc.Ua.Client
         public StringTable ServerUris => m_session.MessageContext.ServerUris;
 
         /// <inheritdoc/>
-        public async ValueTask<ReferenceDescriptionCollection> FetchReferencesAsync(
+        public async ValueTask<ArrayOf<ReferenceDescription>> FetchReferencesAsync(
             RequestHeader? requestHeader,
             NodeId nodeId,
             CancellationToken ct = default)
@@ -46,21 +46,21 @@ namespace Opc.Ua.Client
                 IncludeSubtypes = true,
                 NodeClassMask = 0
             });
-            ResultSet<ReferenceDescriptionCollection> results =
+            ResultSet<ArrayOf<ReferenceDescription>> results =
                 await browser.BrowseAsync([nodeId], ct).ConfigureAwait(false);
             return results.Results[0];
         }
 
         /// <inheritdoc/>
-        public ValueTask<ResultSet<ReferenceDescriptionCollection>> FetchReferencesAsync(
+        public ValueTask<ResultSet<ArrayOf<ReferenceDescription>>> FetchReferencesAsync(
             RequestHeader? requestHeader,
-            IReadOnlyList<NodeId> nodeIds,
+            ArrayOf<NodeId> nodeIds,
             CancellationToken ct = default)
         {
             if (nodeIds.Count == 0)
             {
-                return new ValueTask<ResultSet<ReferenceDescriptionCollection>>(
-                    ResultSet<ReferenceDescriptionCollection>.Empty);
+                return new ValueTask<ResultSet<ArrayOf<ReferenceDescription>>>(
+                    ResultSet<ArrayOf<ReferenceDescription>>.Empty);
             }
             var browser = new Browser(m_session, new BrowserOptions
             {
@@ -76,7 +76,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async ValueTask<ResultSet<Node>> FetchNodesAsync(
             RequestHeader? requestHeader,
-            IReadOnlyList<NodeId> nodeIds,
+            ArrayOf<NodeId> nodeIds,
             bool skipOptionalAttributes = false,
             CancellationToken ct = default)
         {
@@ -86,15 +86,14 @@ namespace Opc.Ua.Client
             }
 
             var nodeCollection = new NodeCollection(nodeIds.Count);
-            var itemsToRead = new ReadValueIdCollection(nodeIds.Count);
 
             // first read only nodeclasses for nodes from server.
-            itemsToRead =
-            [
-                .. nodeIds.Select(nodeId => new ReadValueId {
+            ArrayOf<ReadValueId> itemsToRead = nodeIds
+                .ConvertAll(nodeId => new ReadValueId
+                {
                     NodeId = nodeId,
-                    AttributeId = Attributes.NodeClass })
-            ];
+                    AttributeId = Attributes.NodeClass
+                });
 
             ReadResponse readResponse = await m_session.ReadAsync(
                 null,
@@ -104,8 +103,8 @@ namespace Opc.Ua.Client
                 ct)
                 .ConfigureAwait(false);
 
-            DataValueCollection nodeClassValues = readResponse.Results;
-            DiagnosticInfoCollection diagnosticInfos = readResponse.DiagnosticInfos;
+            var nodeClassValues = readResponse.Results;
+            var diagnosticInfos = readResponse.DiagnosticInfos;
 
             ClientBase.ValidateResponse(nodeClassValues, itemsToRead);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
@@ -113,7 +112,7 @@ namespace Opc.Ua.Client
             // second determine attributes to read per nodeclass
             var attributesPerNodeId = new List<IDictionary<uint, DataValue?>?>(nodeIds.Count);
             var serviceResults = new List<ServiceResult>(nodeIds.Count);
-            var attributesToRead = new ReadValueIdCollection();
+            var attributesToRead = new List<ReadValueId>();
 
             CreateAttributesReadNodesRequest(
                 readResponse.ResponseHeader,
@@ -128,23 +127,24 @@ namespace Opc.Ua.Client
 
             if (attributesToRead.Count > 0)
             {
+                itemsToRead = attributesToRead.ToArrayOf();
                 readResponse = await m_session.ReadAsync(
                     null,
                     0,
                     TimestampsToReturn.Neither,
-                    attributesToRead,
+                    itemsToRead,
                     ct)
                     .ConfigureAwait(false);
 
-                DataValueCollection values = readResponse.Results;
+                var values = readResponse.Results;
                 diagnosticInfos = readResponse.DiagnosticInfos;
 
-                ClientBase.ValidateResponse(values, attributesToRead);
-                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
+                ClientBase.ValidateResponse(values, itemsToRead);
+                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
 
                 ProcessAttributesReadNodesResponse(
                     readResponse.ResponseHeader,
-                    attributesToRead,
+                    itemsToRead,
                     attributesPerNodeId,
                     values,
                     diagnosticInfos,
@@ -158,7 +158,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async ValueTask<ResultSet<Node>> FetchNodesAsync(
             RequestHeader? requestHeader,
-            IReadOnlyList<NodeId> nodeIds,
+            ArrayOf<NodeId> nodeIds,
             NodeClass nodeClass,
             bool skipOptionalAttributes = false,
             CancellationToken ct = default)
@@ -176,11 +176,10 @@ namespace Opc.Ua.Client
                     skipOptionalAttributes, ct).ConfigureAwait(false);
             }
 
-            var nodeCollection = new NodeCollection(nodeIds.Count);
-
+            var nodeCollection = new List<Node>(nodeIds.Count);
             // determine attributes to read for nodeclass
             var attributesPerNodeId = new List<IDictionary<uint, DataValue?>?>(nodeIds.Count);
-            var attributesToRead = new ReadValueIdCollection();
+            var attributesToRead = new List<ReadValueId>();
 
             CreateNodeClassAttributesReadNodesRequest(
                 nodeIds,
@@ -190,24 +189,25 @@ namespace Opc.Ua.Client
                 nodeCollection,
                 skipOptionalAttributes);
 
+            var itemsToRead = attributesToRead.ToArrayOf();
             ReadResponse readResponse = await m_session.ReadAsync(
                 requestHeader,
                 0,
                 TimestampsToReturn.Neither,
-                attributesToRead,
+                itemsToRead,
                 ct)
                 .ConfigureAwait(false);
 
-            DataValueCollection values = readResponse.Results;
-            DiagnosticInfoCollection diagnosticInfos = readResponse.DiagnosticInfos;
+            var values = readResponse.Results;
+            var diagnosticInfos = readResponse.DiagnosticInfos;
 
-            ClientBase.ValidateResponse(values, attributesToRead);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
+            ClientBase.ValidateResponse(values, itemsToRead);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
 
             List<ServiceResult> serviceResults = new ServiceResult[nodeIds.Count].ToList();
             ProcessAttributesReadNodesResponse(
                 readResponse.ResponseHeader,
-                attributesToRead,
+                itemsToRead,
                 attributesPerNodeId,
                 values,
                 diagnosticInfos,
@@ -231,12 +231,12 @@ namespace Opc.Ua.Client
                 skipOptionalAttributes);
 
             // build list of values to read.
-            var itemsToRead = new ReadValueIdCollection();
-            foreach (uint attributeId in attributes.Keys)
-            {
-                var itemToRead = new ReadValueId { NodeId = nodeId, AttributeId = attributeId };
-                itemsToRead.Add(itemToRead);
-            }
+            var itemsToRead = attributes.Keys
+                .Select(attributeId => new ReadValueId
+                {
+                    NodeId = nodeId,
+                    AttributeId = attributeId
+                }).ToArrayOf();
 
             // read from server.
             ReadResponse readResponse = await m_session.ReadAsync(
@@ -247,8 +247,8 @@ namespace Opc.Ua.Client
                 ct)
                 .ConfigureAwait(false);
 
-            DataValueCollection values = readResponse.Results;
-            DiagnosticInfoCollection diagnosticInfos = readResponse.DiagnosticInfos;
+            var values = readResponse.Results;
+            var diagnosticInfos = readResponse.DiagnosticInfos;
 
             ClientBase.ValidateResponse(values, itemsToRead);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
@@ -267,12 +267,14 @@ namespace Opc.Ua.Client
             NodeId nodeId,
             CancellationToken ct = default)
         {
-            var itemToRead = new ReadValueId
-            {
-                NodeId = nodeId,
-                AttributeId = Attributes.Value
-            };
-            var itemsToRead = new ReadValueIdCollection { itemToRead };
+            ArrayOf<ReadValueId> itemsToRead =
+            [
+                new ReadValueId
+                {
+                    NodeId = nodeId,
+                    AttributeId = Attributes.Value
+                }
+            ];
 
             // read from server.
             ReadResponse readResponse = await m_session.ReadAsync(
@@ -283,8 +285,8 @@ namespace Opc.Ua.Client
                 ct)
                 .ConfigureAwait(false);
 
-            DataValueCollection values = readResponse.Results;
-            DiagnosticInfoCollection diagnosticInfos = readResponse.DiagnosticInfos;
+            var values = readResponse.Results;
+            var diagnosticInfos = readResponse.DiagnosticInfos;
 
             ClientBase.ValidateResponse(values, itemsToRead);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
@@ -305,7 +307,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async ValueTask<ResultSet<DataValue>> FetchValuesAsync(
             RequestHeader? requestHeader,
-            IReadOnlyList<NodeId> nodeIds,
+            ArrayOf<NodeId> nodeIds,
             CancellationToken ct = default)
         {
             if (nodeIds.Count == 0)
@@ -314,12 +316,15 @@ namespace Opc.Ua.Client
             }
 
             // read all values from server.
-            var itemsToRead = new ReadValueIdCollection(
-                nodeIds.Select(
-                    nodeId => new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }));
+            var itemsToRead = nodeIds
+                .ConvertAll(nodeId => new ReadValueId
+                {
+                    NodeId = nodeId,
+                    AttributeId = Attributes.Value
+                });
 
             // read from server.
-            var errors = new List<ServiceResult>(itemsToRead.Count);
+            var errors = new ServiceResult[itemsToRead.Count];
 
             ReadResponse readResponse = await m_session.ReadAsync(
                 null,
@@ -329,24 +334,24 @@ namespace Opc.Ua.Client
                 ct)
                 .ConfigureAwait(false);
 
-            DataValueCollection values = readResponse.Results;
-            DiagnosticInfoCollection diagnosticInfos = readResponse.DiagnosticInfos;
+            var values = readResponse.Results;
+            var diagnosticInfos = readResponse.DiagnosticInfos;
 
             ClientBase.ValidateResponse(values, itemsToRead);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
 
-            foreach (DataValue value in values)
+            for (var ii = 0; ii < values.Count; ii++)
             {
                 ServiceResult result = ServiceResult.Good;
-                if (StatusCode.IsBad(value.StatusCode))
+                if (StatusCode.IsBad(values[ii].StatusCode))
                 {
                     result = ClientBase.GetResult(
-                        values[0].StatusCode,
-                        0,
+                        values[ii].StatusCode,
+                        ii,
                         diagnosticInfos,
                         readResponse.ResponseHeader);
                 }
-                errors.Add(result);
+                errors[ii] = result;
             }
 
             return ResultSet.From(values, errors);
@@ -357,10 +362,10 @@ namespace Opc.Ua.Client
         /// </summary>
         private static void CreateAttributesReadNodesRequest(
             ResponseHeader responseHeader,
-            ReadValueIdCollection itemsToRead,
-            DataValueCollection nodeClassValues,
-            DiagnosticInfoCollection diagnosticInfos,
-            ReadValueIdCollection attributesToRead,
+            ArrayOf<ReadValueId> itemsToRead,
+            ArrayOf<DataValue> nodeClassValues,
+            ArrayOf<DiagnosticInfo> diagnosticInfos,
+            List<ReadValueId> attributesToRead,
             List<IDictionary<uint, DataValue?>?> attributesPerNodeId,
             NodeCollection nodeCollection,
             List<ServiceResult> errors,
@@ -438,10 +443,10 @@ namespace Opc.Ua.Client
         /// <param name="errors">The service results for each node.</param>
         private static void ProcessAttributesReadNodesResponse(
             ResponseHeader responseHeader,
-            ReadValueIdCollection attributesToRead,
+            ArrayOf<ReadValueId> attributesToRead,
             List<IDictionary<uint, DataValue?>?> attributesPerNodeId,
-            DataValueCollection values,
-            DiagnosticInfoCollection diagnosticInfos,
+            ArrayOf<DataValue> values,
+            ArrayOf<DiagnosticInfo> diagnosticInfos,
             NodeCollection nodeCollection,
             List<ServiceResult> errors)
         {
@@ -455,12 +460,11 @@ namespace Opc.Ua.Client
                 }
 
                 int readCount = attributes.Count;
-                var subRangeAttributes = new ReadValueIdCollection(
-                    attributesToRead.GetRange(readIndex, readCount));
-                var subRangeValues = new DataValueCollection(values.GetRange(readIndex, readCount));
-                DiagnosticInfoCollection subRangeDiagnostics =
+                var subRangeAttributes = attributesToRead.Slice(readIndex, readCount);
+                var subRangeValues = values.Slice(readIndex, readCount);
+                var subRangeDiagnostics =
                     diagnosticInfos.Count > 0
-                        ? [.. diagnosticInfos.GetRange(readIndex, readCount)]
+                        ? diagnosticInfos.Slice(readIndex, readCount)
                         : diagnosticInfos;
                 try
                 {
@@ -487,12 +491,12 @@ namespace Opc.Ua.Client
         private static Node ProcessReadResponse(
             ResponseHeader responseHeader,
             IDictionary<uint, DataValue?> attributes,
-            ReadValueIdCollection itemsToRead,
-            DataValueCollection values,
-            DiagnosticInfoCollection diagnosticInfos)
+            ArrayOf<ReadValueId> itemsToRead,
+            ArrayOf<DataValue> values,
+            ArrayOf<DiagnosticInfo> diagnosticInfos)
         {
             // process results.
-            NodeClass? nodeClass = null;
+            NodeClass nodeClass = default;
 
             for (int ii = 0; ii < itemsToRead.Count; ii++)
             {
@@ -511,19 +515,11 @@ namespace Opc.Ua.Client
                     }
 
                     // check for valid node class.
-                    nodeClass = values[ii].Value as NodeClass?;
-                    if (nodeClass == null)
+                    if (!values[ii].WrappedValue.TryGet(out nodeClass))
                     {
-                        if (values[ii].Value is int nc)
-                        {
-                            nodeClass = (NodeClass)nc;
-                        }
-                        else
-                        {
-                            throw ServiceResultException.Unexpected(
-                                "Node does not have a valid value for NodeClass: {0}.",
-                                values[ii].Value);
-                        }
+                        throw ServiceResultException.Unexpected(
+                            "Node does not have a valid value for NodeClass: {0}.",
+                            values[ii]);
                     }
                 }
                 else if (!DataValue.IsGood(values[ii]))
@@ -855,7 +851,7 @@ namespace Opc.Ua.Client
                 case NodeClass.Unspecified:
                     throw ServiceResultException.Unexpected(
                         "Node does not have a valid value for NodeClass: {0}.",
-                        nodeClass.Value);
+                        nodeClass);
                 default:
                     throw ServiceResultException.Unexpected(
                         $"Unexpected NodeClass: {nodeClass}.");
@@ -871,7 +867,7 @@ namespace Opc.Ua.Client
             }
 
             node.NodeId = (NodeId)value.GetValue(typeof(NodeId));
-            node.NodeClass = nodeClass.Value;
+            node.NodeClass = nodeClass;
 
             // BrowseName Attribute
             value = attributes[Attributes.BrowseName];
@@ -1053,11 +1049,11 @@ namespace Opc.Ua.Client
         /// Creates a read request with attributes determined by the NodeClass.
         /// </summary>
         private static void CreateNodeClassAttributesReadNodesRequest(
-            IReadOnlyList<NodeId> nodeIds,
+            ArrayOf<NodeId> nodeIds,
             NodeClass nodeClass,
-            ReadValueIdCollection attributesToRead,
+            List<ReadValueId> attributesToRead,
             List<IDictionary<uint, DataValue?>?> attributesPerNodeId,
-            NodeCollection nodeCollection,
+            List<Node> nodeCollection,
             bool skipOptionalAttributes)
         {
             for (int ii = 0; ii < nodeIds.Count; ii++)

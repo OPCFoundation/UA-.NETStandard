@@ -664,7 +664,7 @@ namespace Opc.Ua
 
                     for (int jj = 0; jj < srcString.Length; jj++)
                     {
-                        dstCopy[m_begin + jj] = srcString.Span[jj];
+                        dstCopy[m_begin + jj] = srcString[jj];
                     }
 
                     dst = ByteString.From(dstCopy);
@@ -923,7 +923,7 @@ namespace Opc.Ua
 
                     for (int jj = 0; jj < srcString.Length; jj++)
                     {
-                        dstString[finalRange.Value.m_begin + jj] = srcString.Span[jj];
+                        dstString[finalRange.Value.m_begin + jj] = srcString[jj];
                     }
 
                     dstArray.SetValue(ByteString.From(dstString), dstIndexes);

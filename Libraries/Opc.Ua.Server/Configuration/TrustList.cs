@@ -226,7 +226,7 @@ namespace Opc.Ua.Server
                             .ConfigureAwait(false);
                         foreach (X509Certificate2 certificate in certificates)
                         {
-                            trustList.TrustedCertificates.Add(certificate.RawData);
+                            trustList.TrustedCertificates.Add(certificate.RawData.ToByteString());
                         }
                     }
 
@@ -236,7 +236,7 @@ namespace Opc.Ua.Server
                             .ConfigureAwait(false);
                         foreach (X509CRL crl in crls)
                         {
-                            trustList.TrustedCrls.Add(crl.RawData);
+                            trustList.TrustedCrls.Add(crl.RawData.ToByteString());
                         }
                     }
                 }
@@ -260,7 +260,7 @@ namespace Opc.Ua.Server
                             .ConfigureAwait(false);
                         foreach (X509Certificate2 certificate in certificates)
                         {
-                            trustList.IssuerCertificates.Add(certificate.RawData);
+                            trustList.IssuerCertificates.Add(certificate.RawData.ToByteString());
                         }
                     }
 
@@ -270,7 +270,7 @@ namespace Opc.Ua.Server
                             .ConfigureAwait(false);
                         foreach (X509CRL crl in crls)
                         {
-                            trustList.IssuerCrls.Add(crl.RawData);
+                            trustList.IssuerCrls.Add(crl.RawData.ToByteString());
                         }
                     }
                 }

@@ -41,7 +41,7 @@ namespace Opc.Ua.Client
         /// <returns>The node collection and associated errors.</returns>
         ValueTask<ResultSet<Node>> FetchNodesAsync(
             RequestHeader? requestHeader,
-            IReadOnlyList<NodeId> nodeIds,
+            ArrayOf<NodeId> nodeIds,
             bool skipOptionalAttributes = false,
             CancellationToken ct = default);
 
@@ -64,7 +64,7 @@ namespace Opc.Ua.Client
         /// <returns>The node collection and associated errors.</returns>
         ValueTask<ResultSet<Node>> FetchNodesAsync(
             RequestHeader? requestHeader,
-            IReadOnlyList<NodeId> nodeIds,
+            ArrayOf<NodeId> nodeIds,
             NodeClass nodeClass,
             bool skipOptionalAttributes = false,
             CancellationToken ct = default);
@@ -94,7 +94,7 @@ namespace Opc.Ua.Client
         /// <param name="requestHeader">Request header to use</param>
         /// <param name="nodeId">The node id.</param>
         /// <param name="ct"></param>
-        ValueTask<ReferenceDescriptionCollection> FetchReferencesAsync(
+        ValueTask<ArrayOf<ReferenceDescription>> FetchReferencesAsync(
             RequestHeader? requestHeader,
             NodeId nodeId,
             CancellationToken ct = default);
@@ -107,9 +107,9 @@ namespace Opc.Ua.Client
         /// <param name="ct"></param>
         /// <returns>A list of reference collections and the errors reported by the
         /// server.</returns>
-        ValueTask<ResultSet<ReferenceDescriptionCollection>> FetchReferencesAsync(
+        ValueTask<ResultSet<ArrayOf<ReferenceDescription>>> FetchReferencesAsync(
             RequestHeader? requestHeader,
-            IReadOnlyList<NodeId> nodeIds,
+            ArrayOf<NodeId> nodeIds,
             CancellationToken ct = default);
 
         /// <summary>
@@ -131,7 +131,7 @@ namespace Opc.Ua.Client
         /// <param name="ct">The cancellation token for the request.</param>
         ValueTask<ResultSet<DataValue>> FetchValuesAsync(
             RequestHeader? requestHeader,
-            IReadOnlyList<NodeId> nodeIds,
+            ArrayOf<NodeId> nodeIds,
             CancellationToken ct = default);
     }
 }

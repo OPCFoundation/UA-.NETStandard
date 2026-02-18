@@ -330,8 +330,12 @@ namespace Opc.Ua.SourceGeneration
                         sev = "INF";
                         break;
                 }
-                output.WriteLine();
-                output.WriteLine(diag.ToString());
+                if (diag.Id != "CS1701")
+                {
+                    // TODO: See how we can remove this diagnostic warning to be emitted
+                    output.WriteLine();
+                    output.WriteLine(diag.ToString());
+                }
                 TextLineCollection lines = diag.Location.SourceTree?.GetText().Lines;
                 if (lines == null)
                 {

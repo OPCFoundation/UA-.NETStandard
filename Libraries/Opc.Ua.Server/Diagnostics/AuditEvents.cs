@@ -275,9 +275,9 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.NewValues,
-                    updateDataDetails.UpdateValues.ToArray(),
+                    updateDataDetails.UpdateValues.ToArrayOf(),
                     false);
-                e.SetChildValue(systemContext, BrowseNames.OldValues, oldValues, false);
+                e.SetChildValue(systemContext, BrowseNames.OldValues, oldValues.ToArrayOf(), false);
 
                 server.ReportAuditEvent(systemContext, e);
             }
@@ -300,7 +300,7 @@ namespace Opc.Ua.Server
             this IAuditEventServer server,
             ISystemContext systemContext,
             UpdateStructureDataDetails updateStructureDataDetails,
-            DataValue[] oldValues,
+            ArrayOf<DataValue> oldValues,
             StatusCode statusCode,
             ILogger logger)
         {
@@ -329,7 +329,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.NewValues,
-                    updateStructureDataDetails.UpdateValues?.ToArray(),
+                    updateStructureDataDetails.UpdateValues?.ToArrayOf() ?? default,
                     false);
                 e.SetChildValue(systemContext, BrowseNames.OldValues, oldValues, false);
 
@@ -354,7 +354,7 @@ namespace Opc.Ua.Server
             this IAuditEventServer server,
             ISystemContext systemContext,
             UpdateEventDetails updateEventDetails,
-            HistoryEventFieldList[] oldValues,
+            ArrayOf<HistoryEventFieldList> oldValues,
             StatusCode statusCode,
             ILogger logger)
         {
@@ -393,7 +393,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.NewValues,
-                    updateEventDetails.EventData.ToArray(),
+                    updateEventDetails.EventData.ToArrayOf(),
                     false);
                 e.SetChildValue(systemContext, BrowseNames.OldValues, oldValues, false);
 
@@ -418,7 +418,7 @@ namespace Opc.Ua.Server
             this IAuditEventServer server,
             ISystemContext systemContext,
             DeleteRawModifiedDetails deleteRawModifiedDetails,
-            DataValue[] oldValues,
+            ArrayOf<DataValue> oldValues,
             StatusCode statusCode,
             ILogger logger)
         {
@@ -513,9 +513,9 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ReqTimes,
-                    deleteAtTimeDetails.ReqTimes.ToArray(),
+                    deleteAtTimeDetails.ReqTimes.ToArrayOf(),
                     false);
-                e.SetChildValue(systemContext, BrowseNames.OldValues, oldValues, false);
+                e.SetChildValue(systemContext, BrowseNames.OldValues, Variant.From(oldValues), false);
 
                 server.ReportAuditEvent(systemContext, e);
             }
@@ -568,9 +568,9 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.EventIds,
-                    deleteEventDetails.EventIds.ToArray(),
+                    Variant.From(deleteEventDetails.EventIds.ToArrayOf()),
                     false);
-                e.SetChildValue(systemContext, BrowseNames.OldValues, oldValues, false);
+                e.SetChildValue(systemContext, BrowseNames.OldValues, Variant.From(oldValues), false);
 
                 server.ReportAuditEvent(systemContext, e);
             }
@@ -710,7 +710,7 @@ namespace Opc.Ua.Server
                     auditCertificateEventState.SetChildValue(
                         systemContext,
                         BrowseNames.Certificate,
-                        clientCertificate?.RawData,
+                        clientCertificate?.RawData.ToByteString() ?? default,
                         false);
 
                     server.ReportAuditEvent(systemContext, auditCertificateEventState);
@@ -783,7 +783,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.Certificate,
-                    clientCertificate?.RawData,
+                    Variant.From(ByteString.From(clientCertificate?.RawData)),
                     false);
                 // set AuditCertificateDataMismatchEventState fields
                 e.SetChildValue(systemContext, BrowseNames.InvalidUri, invalidUri, false);
@@ -874,7 +874,7 @@ namespace Opc.Ua.Server
             ISystemContext systemContext,
             NodeId roleStateObjectId,
             MethodState method,
-            VariantCollection inputArguments,
+            ArrayOf<Variant> inputArguments,
             bool status,
             ILogger logger)
         {
@@ -908,7 +908,7 @@ namespace Opc.Ua.Server
 
                 // set AuditUpdateMethodEventType fields
                 e.SetChildValue(systemContext, BrowseNames.MethodId, method?.NodeId ?? default, false);
-                e.SetChildValue(systemContext, BrowseNames.InputArguments, inputArguments.ToArray(), false);
+                e.SetChildValue(systemContext, BrowseNames.InputArguments, inputArguments, false);
 
                 server.ReportAuditEvent(systemContext, e);
             }
@@ -989,7 +989,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ClientCertificate,
-                    session?.ClientCertificate?.RawData,
+                    ByteString.From(session?.ClientCertificate?.RawData),
                     false);
                 e.SetChildValue(
                     systemContext,
@@ -1143,7 +1143,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ClientCertificate,
-                    session?.ClientCertificate?.RawData,
+                    ByteString.From(session?.ClientCertificate?.RawData),
                     false);
                 e.SetChildValue(
                     systemContext,
@@ -1296,7 +1296,7 @@ namespace Opc.Ua.Server
             ISystemContext systemContext,
             NodeId objectId,
             MethodState method,
-            VariantCollection inputArguments,
+            ArrayOf<Variant> inputArguments,
             NodeId certificateGroupId,
             NodeId certificateTypeId,
             ILogger logger,
@@ -1344,7 +1344,7 @@ namespace Opc.Ua.Server
                     false);
 
                 e.SetChildValue(systemContext, BrowseNames.MethodId, method.NodeId, false);
-                e.SetChildValue(systemContext, BrowseNames.InputArguments, inputArguments.ToArray(), false);
+                e.SetChildValue(systemContext, BrowseNames.InputArguments, inputArguments, false);
 
                 e.SetChildValue(
                     systemContext,
@@ -1381,7 +1381,7 @@ namespace Opc.Ua.Server
             ISystemContext systemContext,
             NodeId objectId,
             MethodState method,
-            VariantCollection inputArguments,
+            ArrayOf<Variant> inputArguments,
             ILogger logger)
         {
             try
@@ -1408,7 +1408,7 @@ namespace Opc.Ua.Server
                     false);
 
                 e.SetChildValue(systemContext, BrowseNames.MethodId, method?.NodeId ?? default, false);
-                e.SetChildValue(systemContext, BrowseNames.InputArguments, inputArguments.ToArray(), false);
+                e.SetChildValue(systemContext, BrowseNames.InputArguments, inputArguments, false);
 
                 server?.ReportAuditEvent(systemContext, e);
             }
@@ -1432,7 +1432,7 @@ namespace Opc.Ua.Server
         public static void ReportAuditAddNodesEvent(
             this IAuditEventServer server,
             ISystemContext systemContext,
-            AddNodesItem[] addNodesItems,
+            ArrayOf<AddNodesItem> addNodesItems,
             string customMessage,
             StatusCode statusCode,
             ILogger logger)
@@ -1495,7 +1495,7 @@ namespace Opc.Ua.Server
         public static void ReportAuditDeleteNodesEvent(
             this IAuditEventServer server,
             ISystemContext systemContext,
-            DeleteNodesItem[] nodesToDelete,
+            ArrayOf<DeleteNodesItem> nodesToDelete,
             string customMessage,
             StatusCode statusCode,
             ILogger logger)
@@ -1655,7 +1655,7 @@ namespace Opc.Ua.Server
                     e.SetChildValue(
                         systemContext,
                         BrowseNames.ClientCertificate,
-                        clientCertificate.RawData,
+                        clientCertificate.RawData.ToByteString(),
                         false);
                     e.SetChildValue(
                         systemContext,
@@ -1803,7 +1803,7 @@ namespace Opc.Ua.Server
             ISystemContext systemContext,
             NodeId objectId,
             NodeId methodId,
-            VariantCollection inputArgs,
+            ArrayOf<Variant> inputArgs,
             string customMessage,
             StatusCode statusCode,
             ILogger logger)
@@ -1851,7 +1851,7 @@ namespace Opc.Ua.Server
                     false);
 
                 e.SetChildValue(systemContext, BrowseNames.MethodId, methodId, false);
-                e.SetChildValue(systemContext, BrowseNames.InputArguments, inputArgs.ToArray(), false);
+                e.SetChildValue(systemContext, BrowseNames.InputArguments, inputArgs, false);
 
                 server.ReportAuditEvent(systemContext, e);
             }
@@ -1878,7 +1878,7 @@ namespace Opc.Ua.Server
             NodeId objectId,
             string sourceName,
             NodeId methodId,
-            VariantCollection inputParameters,
+            ArrayOf<Variant> inputParameters,
             StatusCode statusCode,
             ILogger logger)
         {
@@ -1909,7 +1909,7 @@ namespace Opc.Ua.Server
                     false);
 
                 e.SetChildValue(systemContext, BrowseNames.MethodId, methodId, false);
-                e.SetChildValue(systemContext, BrowseNames.InputArguments, inputParameters.ToArray(), false);
+                e.SetChildValue(systemContext, BrowseNames.InputArguments, inputParameters, false);
 
                 node?.ReportEvent(systemContext, e);
             }
@@ -1935,7 +1935,7 @@ namespace Opc.Ua.Server
             NodeId objectId,
             string sourceName,
             NodeId methodId,
-            VariantCollection inputParameters,
+            ArrayOf<Variant> inputParameters,
             ILogger logger)
         {
             try
@@ -1958,7 +1958,7 @@ namespace Opc.Ua.Server
                     false);
 
                 e.SetChildValue(systemContext, BrowseNames.MethodId, methodId, false);
-                e.SetChildValue(systemContext, BrowseNames.InputArguments, inputParameters.ToArray(), false);
+                e.SetChildValue(systemContext, BrowseNames.InputArguments, inputParameters, false);
 
                 node?.ReportEvent(systemContext, e);
             }

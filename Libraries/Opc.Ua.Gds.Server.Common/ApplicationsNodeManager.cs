@@ -537,27 +537,29 @@ namespace Opc.Ua.Gds.Server
         private ServiceResult OnAddSelfAdminRolePermissions(
             ISystemContext context,
             NodeState node,
-            ref RolePermissionTypeCollection value)
+            ref ArrayOf<RolePermissionType> value)
         {
-            if (value == null || value.Count == 0)
+            if (value.IsEmpty)
             {
                 return ServiceResult.Good;
             }
 
-            var selfAdminRole = ExpandedNodeId.ToNodeId(GdsRole.ApplicationSelfAdmin.RoleId, context.NamespaceUris);
+            var selfAdminRole = ExpandedNodeId.ToNodeId(
+                GdsRole.ApplicationSelfAdmin.RoleId,
+                context.NamespaceUris);
             var selfAdminPermission = new RolePermissionType
             {
                 RoleId = selfAdminRole,
                 Permissions = (uint)PermissionType.Call
             };
-            value.Add(selfAdminPermission);
+            value = ArrayOf.Combine(value, [selfAdminPermission]);
             return ServiceResult.Good;
         }
 
         private ServiceResult OnAddSelfAdminUserRolePermissions(
             ISystemContext context,
             NodeState node,
-            ref RolePermissionTypeCollection value)
+            ref ArrayOf<RolePermissionType> value)
         {
             if (node.RolePermissions == null)
             {
@@ -585,9 +587,9 @@ namespace Opc.Ua.Gds.Server
             string applicationName,
             string applicationUri,
             string productUri,
-            string[] serverCapabilities,
+            ArrayOf<string> serverCapabilities,
             ref DateTime lastCounterResetTime,
-            ref ServerOnNetwork[] servers)
+            ref ArrayOf<ServerOnNetwork> servers)
         {
             m_logger.LogInformation("QueryServers: {ApplicationUri} {ApplicationName}", applicationUri, applicationName);
 
@@ -613,10 +615,10 @@ namespace Opc.Ua.Gds.Server
             string applicationUri,
             uint applicationType,
             string productUri,
-            string[] serverCapabilities,
+            ArrayOf<string> serverCapabilities,
             ref DateTime lastCounterResetTime,
             ref uint nextRecordId,
-            ref ApplicationDescription[] applications)
+            ref ArrayOf<ApplicationDescription> applications)
         {
             m_logger.LogInformation("QueryApplications: {ApplicationUri} {ApplicationName}", applicationUri, applicationName);
 
@@ -794,7 +796,7 @@ namespace Opc.Ua.Gds.Server
             MethodState method,
             NodeId objectId,
             string applicationUri,
-            ref ApplicationRecordDataType[] applications)
+            ref ArrayOf<ApplicationRecordDataType> applications)
         {
             AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.AuthenticatedUser);
             m_logger.LogInformation("OnFindApplications: {ApplicationUri}", applicationUri);
@@ -924,8 +926,8 @@ namespace Opc.Ua.Gds.Server
             NodeId objectId,
             NodeId applicationId,
             NodeId certificateGroupId,
-            ref NodeId[] certificateTypeIds,
-            ref ByteString[] certificates)
+            ref ArrayOf<NodeId> certificateTypeIds,
+            ref ArrayOf<ByteString> certificates)
         {
             AuthorizationHelper.HasAuthorization(
                 context,
@@ -1149,12 +1151,12 @@ namespace Opc.Ua.Gds.Server
             NodeId certificateGroupId,
             NodeId certificateTypeId,
             string subjectName,
-            string[] domainNames,
+            ArrayOf<string> domainNames,
             string privateKeyFormat,
             string privateKeyPassword,
             ref NodeId requestId)
         {
-            VariantCollection inputArguments =
+            ArrayOf<Variant> inputArguments =
             [
                 applicationId,
                 certificateGroupId,
@@ -1259,7 +1261,7 @@ namespace Opc.Ua.Gds.Server
                 subjectName = buffer.ToString();
             }
 
-            if (domainNames != null && domainNames.Length > 0)
+            if (domainNames.Count > 0)
             {
                 foreach (string domainName in domainNames)
                 {
@@ -1559,7 +1561,7 @@ namespace Opc.Ua.Gds.Server
                     result.PrivateKey = newKeyPair.PrivateKey;
                 }
 
-                result.Certificate = certificate.RawData;
+                result.Certificate = certificate.RawData.ToByteString();
             }
             else
             {
@@ -1614,7 +1616,7 @@ namespace Opc.Ua.Gds.Server
             MethodState method,
             NodeId objectId,
             NodeId applicationId,
-            ref NodeId[] certificateGroupIds)
+            ref ArrayOf<NodeId> certificateGroupIds)
         {
             AuthorizationHelper.HasAuthorization(
                 context,

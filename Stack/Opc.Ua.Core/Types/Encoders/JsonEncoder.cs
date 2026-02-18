@@ -1980,7 +1980,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteBoolean(null, values.Span[ii]);
+                WriteBoolean(null, values[ii]);
             }
 
             PopArray();
@@ -2007,7 +2007,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteSByte(null, values.Span[ii]);
+                WriteSByte(null, values[ii]);
             }
 
             PopArray();
@@ -2034,7 +2034,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteByte(null, values.Span[ii]);
+                WriteByte(null, values[ii]);
             }
 
             PopArray();
@@ -2061,7 +2061,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteInt16(null, values.Span[ii]);
+                WriteInt16(null, values[ii]);
             }
 
             PopArray();
@@ -2088,7 +2088,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteUInt16(null, values.Span[ii]);
+                WriteUInt16(null, values[ii]);
             }
 
             PopArray();
@@ -2115,7 +2115,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteInt32(null, values.Span[ii]);
+                WriteInt32(null, values[ii]);
             }
 
             PopArray();
@@ -2142,7 +2142,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteUInt32(null, values.Span[ii]);
+                WriteUInt32(null, values[ii]);
             }
 
             PopArray();
@@ -2169,7 +2169,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteInt64(null, values.Span[ii]);
+                WriteInt64(null, values[ii]);
             }
 
             PopArray();
@@ -2196,7 +2196,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteUInt64(null, values.Span[ii]);
+                WriteUInt64(null, values[ii]);
             }
 
             PopArray();
@@ -2223,7 +2223,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteFloat(null, values.Span[ii]);
+                WriteFloat(null, values[ii]);
             }
 
             PopArray();
@@ -2250,7 +2250,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteDouble(null, values.Span[ii]);
+                WriteDouble(null, values[ii]);
             }
 
             PopArray();
@@ -2277,7 +2277,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteString(null, values.Span[ii]);
+                WriteString(null, values[ii]);
             }
 
             PopArray();
@@ -2304,13 +2304,13 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                if (values.Span[ii] <= DateTime.MinValue)
+                if (values[ii] <= DateTime.MinValue)
                 {
                     WriteSimpleFieldNull(null);
                 }
                 else
                 {
-                    WriteDateTime(null, values.Span[ii]);
+                    WriteDateTime(null, values[ii]);
                 }
             }
 
@@ -2338,7 +2338,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteGuid(null, values.Span[ii]);
+                WriteGuid(null, values[ii]);
             }
 
             PopArray();
@@ -2365,7 +2365,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteByteString(null, values.Span[ii]);
+                WriteByteString(null, values[ii]);
             }
 
             PopArray();
@@ -2392,7 +2392,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteXmlElement(null, values.Span[ii]);
+                WriteXmlElement(null, values[ii]);
             }
 
             PopArray();
@@ -2419,7 +2419,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteNodeId(null, values.Span[ii]);
+                WriteNodeId(null, values[ii]);
             }
 
             PopArray();
@@ -2446,7 +2446,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteExpandedNodeId(null, values.Span[ii]);
+                WriteExpandedNodeId(null, values[ii]);
             }
 
             PopArray();
@@ -2473,13 +2473,13 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                if (!UseReversibleEncoding && values.Span[ii] == StatusCodes.Good)
+                if (!UseReversibleEncoding && values[ii] == StatusCodes.Good)
                 {
                     WriteSimpleFieldNull(null);
                 }
                 else
                 {
-                    WriteStatusCode(null, values.Span[ii]);
+                    WriteStatusCode(null, values[ii]);
                 }
             }
 
@@ -2507,7 +2507,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteDiagnosticInfo(null, values.Span[ii]);
+                WriteDiagnosticInfo(null, values[ii]);
             }
 
             PopArray();
@@ -2534,7 +2534,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteQualifiedName(null, values.Span[ii]);
+                WriteQualifiedName(null, values[ii]);
             }
 
             PopArray();
@@ -2561,7 +2561,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteLocalizedText(null, values.Span[ii]);
+                WriteLocalizedText(null, values[ii]);
             }
 
             PopArray();
@@ -2588,13 +2588,13 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                if (values.Span[ii] == Variant.Null)
+                if (values[ii] == Variant.Null)
                 {
                     WriteSimpleFieldNull(null);
                     continue;
                 }
 
-                WriteVariant(null, values.Span[ii]);
+                WriteVariant(null, values[ii]);
             }
 
             PopArray();
@@ -2621,7 +2621,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteDataValue(null, values.Span[ii]);
+                WriteDataValue(null, values[ii]);
             }
 
             PopArray();
@@ -2648,7 +2648,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteExtensionObject(null, values.Span[ii]);
+                WriteExtensionObject(null, values[ii]);
             }
 
             PopArray();
@@ -2681,7 +2681,7 @@ namespace Opc.Ua
 
                 for (int ii = 0; ii < values.Count; ii++)
                 {
-                    WriteEncodeable(null, values.Span[ii], systemType);
+                    WriteEncodeable(null, values[ii], systemType);
                 }
 
                 PopArray();
@@ -2708,7 +2708,7 @@ namespace Opc.Ua
 
                 for (int ii = 0; ii < values.Count; ii++)
                 {
-                    WriteEncodeable(null, values.Span[ii], systemType);
+                    WriteEncodeable(null, values[ii], systemType);
                 }
 
                 PopArray();
@@ -3371,7 +3371,7 @@ namespace Opc.Ua
             {
                 for (int ii = 0; ii < values.Count; ii++)
                 {
-                    WriteVariant("Variant", new Variant(values.Span[ii]));
+                    WriteVariant("Variant", new Variant(values[ii]));
                 }
             }
 

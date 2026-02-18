@@ -137,7 +137,7 @@ namespace Opc.Ua.Server
 
             if (clientCertificate != null)
             {
-                m_securityDiagnostics.ClientCertificate = clientCertificate.RawData;
+                m_securityDiagnostics.ClientCertificate = clientCertificate.RawData.ToByteString();
             }
 
             ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(context);
@@ -313,12 +313,12 @@ namespace Opc.Ua.Server
 
                 m_eccUserTokenNonce = Nonce.CreateNonce(m_eccUserTokenSecurityPolicyUri);
 
-                var key = new EphemeralKeyType { PublicKey = m_eccUserTokenNonce.Data };
+                var key = new EphemeralKeyType { PublicKey = m_eccUserTokenNonce.Data.ToByteString() };
 
                 key.Signature = EccUtils.Sign(
                     new ArraySegment<byte>(key.PublicKey.ToArray()),
                     m_serverCertificate,
-                    m_eccUserTokenSecurityPolicyUri);
+                    m_eccUserTokenSecurityPolicyUri).ToByteString();
 
                 return key;
             }
@@ -474,7 +474,9 @@ namespace Opc.Ua.Server
                             StatusCodes.BadApplicationSignatureInvalid);
                     }
 
-                    ByteString dataToSign = ByteString.Combine(m_serverCertificate.RawData, m_serverNonce.Data);
+                    ByteString dataToSign = ByteString.Combine(
+                        m_serverCertificate.RawData.ToByteString(),
+                        m_serverNonce.Data.ToByteString());
 
                     if (!SecurityPolicies.Verify(
                             ClientCertificate,
@@ -501,7 +503,9 @@ namespace Opc.Ua.Server
 
                             byte[] serverCertificateChainData = [.. serverCertificateChainList];
 
-                            dataToSign = ByteString.Combine(serverCertificateChainData, m_serverNonce.Data);
+                            dataToSign = ByteString.Combine(
+                                serverCertificateChainData.ToByteString(),
+                                m_serverNonce.Data.ToByteString());
 
                             if (!SecurityPolicies.Verify(
                                     ClientCertificate,
@@ -1008,7 +1012,9 @@ namespace Opc.Ua.Server
                 // verify the signature.
                 if (securityPolicyUri != SecurityPolicies.None)
                 {
-                    ByteString dataToSign = ByteString.Combine(m_serverCertificate.RawData, m_serverNonce.Data);
+                    ByteString dataToSign = ByteString.Combine(
+                        m_serverCertificate.RawData.ToByteString(),
+                        m_serverNonce.Data.ToByteString());
 
                     if (!token.Verify(dataToSign.ToArray(), userTokenSignature, securityPolicyUri))
                     {
@@ -1030,7 +1036,7 @@ namespace Opc.Ua.Server
                             }
 
                             dataToSign = ByteString.Combine(
-                                ByteString.From([.. serverCertificateChainList]), m_serverNonce.Data);
+                                serverCertificateChainList.ToByteString(), m_serverNonce.Data.ToByteString());
 
                             if (!token.Verify(dataToSign.ToArray(), userTokenSignature, securityPolicyUri))
                             {

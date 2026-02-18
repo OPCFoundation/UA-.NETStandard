@@ -962,7 +962,7 @@ namespace Quickstarts
 
                         // separate unprocessed nodes for later
                         int ii = 0;
-                        foreach (BrowseResult browseResult in browseResultCollection.Span)
+                        foreach (BrowseResult browseResult in browseResultCollection)
                         {
                             // check for error.
                             StatusCode statusCode = browseResult.StatusCode;
@@ -973,7 +973,7 @@ namespace Quickstarts
                                 // have been completed and their continuation points released.
                                 if (statusCode == StatusCodes.BadNoContinuationPoints)
                                 {
-                                    unprocessedOperations.Add(browseCollection.Span[ii++]);
+                                    unprocessedOperations.Add(browseCollection[ii++]);
                                     continue;
                                 }
                             }
@@ -1752,7 +1752,7 @@ namespace Quickstarts
             ArrayOf<BrowseResult> browseResultCollection)
         {
             var continuationPoints = new ByteStringCollection();
-            foreach (BrowseResult browseResult in browseResultCollection.Span)
+            foreach (BrowseResult browseResult in browseResultCollection)
             {
                 if (!browseResult.ContinuationPoint.IsEmpty)
                 {

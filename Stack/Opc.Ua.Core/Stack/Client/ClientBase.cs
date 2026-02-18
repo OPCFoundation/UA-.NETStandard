@@ -33,6 +33,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Metrics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -589,7 +590,23 @@ namespace Opc.Ua
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ServiceResultException"></exception>
         public static void ValidateResponse<TRequest, TResponse>(
-            ArrayOf<TResponse?> response,
+            IReadOnlyList<TResponse> response,
+            IReadOnlyList<TRequest> request)
+        {
+            ValidateResponse(response.ToArrayOf(), request.ToArrayOf());
+        }
+
+        /// <summary>
+        /// Validates a response returned by the server.
+        /// </summary>
+        /// <typeparam name="TRequest"></typeparam>
+        /// <typeparam name="TResponse"></typeparam>
+        /// <param name="response">The response.</param>
+        /// <param name="request">The request.</param>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public static void ValidateResponse<TRequest, TResponse>(
+            ArrayOf<TResponse> response,
             ArrayOf<TRequest> request)
         {
             if (response is ArrayOf<DiagnosticInfo>)
@@ -607,7 +624,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < response.Count; ii++)
             {
-                if (response.Span[ii] is null)
+                if (response[ii] is null)
                 {
                     throw ServiceResultException.Unexpected(
                         "The server returned a list that contained elements set to null.");
@@ -623,8 +640,27 @@ namespace Opc.Ua
         /// <param name="request">The request.</param>
         /// <exception cref="ServiceResultException"></exception>
         public static void ValidateDiagnosticInfos<TRequest>(
-            ArrayOf<DiagnosticInfo?> response,
-            ArrayOf<TRequest?> request)
+            DiagnosticInfoCollection response,
+            IReadOnlyList<TRequest> request)
+        {
+            // returning an empty list for diagnostic info arrays is allowed.
+            if (response != null && response.Count != request.Count)
+            {
+                throw ServiceResultException.Unexpected(
+                    "The server failed to fill in the DiagnosticInfos array correctly when returning an operation level error.");
+            }
+        }
+
+        /// <summary>
+        /// Validates a response returned by the server.
+        /// </summary>
+        /// <typeparam name="TRequest"></typeparam>
+        /// <param name="response">The response.</param>
+        /// <param name="request">The request.</param>
+        /// <exception cref="ServiceResultException"></exception>
+        public static void ValidateDiagnosticInfos<TRequest>(
+            ArrayOf<DiagnosticInfo> response,
+            ArrayOf<TRequest> request)
         {
             // returning an empty list for diagnostic info arrays is allowed.
             if (!response.IsEmpty && response.Count != request.Count)
@@ -645,14 +681,14 @@ namespace Opc.Ua
         public static ServiceResult GetResult(
             StatusCode statusCode,
             int index,
-            ArrayOf<DiagnosticInfo?> diagnosticInfos,
+            ArrayOf<DiagnosticInfo> diagnosticInfos,
             ResponseHeader? responseHeader)
         {
             if (!diagnosticInfos.IsEmpty && diagnosticInfos.Count > index)
             {
                 return new ServiceResult(
                     statusCode.Code,
-                    diagnosticInfos.Span[index],
+                    diagnosticInfos[index],
                     responseHeader?.StringTable ?? []);
             }
 
@@ -672,7 +708,7 @@ namespace Opc.Ua
             DataValue value,
             Type expectedType,
             int index,
-            ArrayOf<DiagnosticInfo?> diagnosticInfos,
+            ArrayOf<DiagnosticInfo> diagnosticInfos,
             ResponseHeader responseHeader)
         {
             // check for null.

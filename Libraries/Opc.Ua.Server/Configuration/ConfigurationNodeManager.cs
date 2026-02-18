@@ -261,16 +261,14 @@ namespace Opc.Ua.Server
                 .. configuration.ServerConfiguration.ServerCapabilities
             ];
             m_serverConfigurationNode.ServerCapabilities.ValueRank = ValueRanks.OneDimension;
-            m_serverConfigurationNode.ServerCapabilities.ArrayDimensions
-                = new ReadOnlyList<uint>([0]);
+            m_serverConfigurationNode.ServerCapabilities.ArrayDimensions = [0];
             m_serverConfigurationNode.SupportedPrivateKeyFormats.Value =
             [
                 .. configuration.ServerConfiguration.SupportedPrivateKeyFormats
             ];
             m_serverConfigurationNode.SupportedPrivateKeyFormats.ValueRank = ValueRanks
                 .OneDimension;
-            m_serverConfigurationNode.SupportedPrivateKeyFormats.ArrayDimensions
-                = new ReadOnlyList<uint>([0]);
+            m_serverConfigurationNode.SupportedPrivateKeyFormats.ArrayDimensions = [0];
             m_serverConfigurationNode.MaxTrustListSize.Value = (uint)configuration
                 .ServerConfiguration
                 .MaxTrustListSize;
@@ -425,7 +423,7 @@ namespace Opc.Ua.Server
             NodeId certificateGroupId,
             NodeId certificateTypeId,
             ByteString certificate,
-            ByteString[] issuerCertificates,
+            ArrayOf<ByteString> issuerCertificates,
             string privateKeyFormat,
             ByteString privateKey,
             CancellationToken ct)
@@ -433,7 +431,7 @@ namespace Opc.Ua.Server
             bool applyChangesRequired = false;
             HasApplicationSecureAdminAccess(context);
 
-            VariantCollection inputArguments =
+            ArrayOf<Variant> inputArguments =
             [
                 certificateGroupId,
                 certificateTypeId,
@@ -511,12 +509,9 @@ namespace Opc.Ua.Server
                 try
                 {
                     // build issuer chain
-                    if (issuerCertificates != null)
+                    foreach (ByteString issuerRawCert in issuerCertificates)
                     {
-                        foreach (ByteString issuerRawCert in issuerCertificates)
-                        {
-                            newIssuerCollection.Add(CertificateFactory.Create(issuerRawCert));
-                        }
+                        newIssuerCollection.Add(CertificateFactory.Create(issuerRawCert));
                     }
                 }
                 catch
@@ -1053,7 +1048,7 @@ namespace Opc.Ua.Server
             ISystemContext context,
             MethodState method,
             NodeId objectId,
-            ref ByteString[] certificates)
+            ref ArrayOf<ByteString> certificates)
         {
             HasApplicationSecureAdminAccess(context);
 
@@ -1073,9 +1068,9 @@ namespace Opc.Ua.Server
                     var rawList = new List<ByteString>();
                     foreach (X509Certificate2 cert in collection)
                     {
-                        rawList.Add(cert.RawData);
+                        rawList.Add(cert.RawData.ToByteString());
                     }
-                    certificates = [.. rawList];
+                    certificates = rawList.ToArrayOf();
                 }
             }
             finally
@@ -1091,8 +1086,8 @@ namespace Opc.Ua.Server
             MethodState method,
             NodeId objectId,
             NodeId certificateGroupId,
-            ref NodeId[] certificateTypeIds,
-            ref ByteString[] certificates)
+            ref ArrayOf<NodeId> certificateTypeIds,
+            ref ArrayOf<ByteString> certificates)
         {
             HasApplicationSecureAdminAccess(context);
 
@@ -1104,8 +1099,9 @@ namespace Opc.Ua.Server
                     "Certificate group invalid.");
 
             certificateTypeIds = certificateGroup.CertificateTypes;
-            certificates = [.. certificateGroup.ApplicationCertificates
-                .Select(s => s.Certificate?.RawData)];
+            certificates = certificateGroup.ApplicationCertificates
+                .Select(s => s.Certificate?.RawData.ToByteString() ?? default)
+                .ToArrayOf();
 
             return ServiceResult.Good;
         }

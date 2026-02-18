@@ -71,7 +71,7 @@ namespace Opc.Ua
             RequestHeader? requestHeader,
             ViewDescription? view,
             uint requestedMaxReferencesPerNode,
-            ArrayOf<BrowseDescription?> nodesToBrowse,
+            ArrayOf<BrowseDescription> nodesToBrowse,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxNodesPerBrowse;
@@ -96,7 +96,7 @@ namespace Opc.Ua
                 RequestHeader? requestHeader,
                 ViewDescription? view,
                 uint requestedMaxReferencesPerNode,
-                ArrayOf<BrowseDescription?> nodesToBrowse,
+                ArrayOf<BrowseDescription> nodesToBrowse,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -109,7 +109,7 @@ namespace Opc.Ua
                     out StringCollection? stringTable,
                     nodesToBrowse.Count,
                     operationLimit);
-                foreach (ArrayOf<BrowseDescription?> nodesToBrowseBatch in nodesToBrowse.Batch((int)operationLimit))
+                foreach (ArrayOf<BrowseDescription> nodesToBrowseBatch in nodesToBrowse.Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
                     response = await base.BrowseAsync(
@@ -217,7 +217,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override ValueTask<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
             RequestHeader? requestHeader,
-            ArrayOf<BrowsePath?> browsePaths,
+            ArrayOf<BrowsePath> browsePaths,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds;
@@ -232,7 +232,7 @@ namespace Opc.Ua
 
             async ValueTask<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsBatchedAsync(
                 RequestHeader? requestHeader,
-                ArrayOf<BrowsePath?> browsePaths,
+                ArrayOf<BrowsePath> browsePaths,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -245,7 +245,7 @@ namespace Opc.Ua
                     out StringCollection? stringTable,
                     browsePaths.Count,
                     operationLimit);
-                foreach (ArrayOf<BrowsePath?> batchBrowsePaths in browsePaths.Batch((int)operationLimit))
+                foreach (ArrayOf<BrowsePath> batchBrowsePaths in browsePaths.Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
                     response = await base.TranslateBrowsePathsToNodeIdsAsync(
@@ -364,7 +364,7 @@ namespace Opc.Ua
             RequestHeader? requestHeader,
             double maxAge,
             TimestampsToReturn timestampsToReturn,
-            ArrayOf<ReadValueId?> nodesToRead,
+            ArrayOf<ReadValueId> nodesToRead,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxNodesPerRead;
@@ -389,7 +389,7 @@ namespace Opc.Ua
                 RequestHeader? requestHeader,
                 double maxAge,
                 TimestampsToReturn timestampsToReturn,
-                ArrayOf<ReadValueId?> nodesToRead,
+                ArrayOf<ReadValueId> nodesToRead,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -402,7 +402,7 @@ namespace Opc.Ua
                     out StringCollection? stringTable,
                     nodesToRead.Count,
                     operationLimit);
-                foreach (ArrayOf<ReadValueId?> batchAttributesToRead in nodesToRead
+                foreach (ArrayOf<ReadValueId> batchAttributesToRead in nodesToRead
                     .Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
@@ -442,7 +442,7 @@ namespace Opc.Ua
             ExtensionObject historyReadDetails,
             TimestampsToReturn timestampsToReturn,
             bool releaseContinuationPoints,
-            ArrayOf<HistoryReadValueId?> nodesToRead,
+            ArrayOf<HistoryReadValueId> nodesToRead,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxNodesPerHistoryReadData;
@@ -476,7 +476,7 @@ namespace Opc.Ua
                 ExtensionObject historyReadDetails,
                 TimestampsToReturn timestampsToReturn,
                 bool releaseContinuationPoints,
-                ArrayOf<HistoryReadValueId?> nodesToRead,
+                ArrayOf<HistoryReadValueId> nodesToRead,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -489,7 +489,7 @@ namespace Opc.Ua
                     out StringCollection? stringTable,
                     nodesToRead.Count,
                     operationLimit);
-                foreach (ArrayOf<HistoryReadValueId?> batchNodesToRead in nodesToRead
+                foreach (ArrayOf<HistoryReadValueId> batchNodesToRead in nodesToRead
                     .Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
@@ -527,7 +527,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override ValueTask<WriteResponse> WriteAsync(
             RequestHeader? requestHeader,
-            ArrayOf<WriteValue?> nodesToWrite,
+            ArrayOf<WriteValue> nodesToWrite,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxNodesPerWrite;
@@ -542,7 +542,7 @@ namespace Opc.Ua
 
             async ValueTask<WriteResponse> WriteBatchedAsync(
                 RequestHeader? requestHeader,
-                ArrayOf<WriteValue?> nodesToWrite,
+                ArrayOf<WriteValue> nodesToWrite,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -555,7 +555,7 @@ namespace Opc.Ua
                     out StringCollection? stringTable,
                     nodesToWrite.Count,
                     operationLimit);
-                foreach (ArrayOf<WriteValue?> batchNodesToWrite in nodesToWrite
+                foreach (ArrayOf<WriteValue> batchNodesToWrite in nodesToWrite
                     .Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
@@ -595,8 +595,8 @@ namespace Opc.Ua
         {
             uint operationLimit = OperationLimits.MaxNodesPerHistoryUpdateData;
             if (historyUpdateDetails.Count > 0 &&
-                (historyUpdateDetails.Span[0].TypeId == DataTypeIds.UpdateEventDetails ||
-                    historyUpdateDetails.Span[0].Body is UpdateEventDetails))
+                (historyUpdateDetails[0].TypeId == DataTypeIds.UpdateEventDetails ||
+                    historyUpdateDetails[0].Body is UpdateEventDetails))
             {
                 operationLimit = OperationLimits.MaxNodesPerHistoryUpdateEvents;
             }
@@ -659,7 +659,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override ValueTask<CallResponse> CallAsync(
             RequestHeader? requestHeader,
-            ArrayOf<CallMethodRequest?> methodsToCall,
+            ArrayOf<CallMethodRequest> methodsToCall,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxNodesPerMethodCall;
@@ -674,7 +674,7 @@ namespace Opc.Ua
 
             async ValueTask<CallResponse> CallBatchedAsync(
                 RequestHeader? requestHeader,
-                ArrayOf<CallMethodRequest?> methodsToCall,
+                ArrayOf<CallMethodRequest> methodsToCall,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -687,7 +687,7 @@ namespace Opc.Ua
                     out StringCollection? stringTable,
                     methodsToCall.Count,
                     operationLimit);
-                foreach (ArrayOf<CallMethodRequest?> batchMethodsToCall in methodsToCall
+                foreach (ArrayOf<CallMethodRequest> batchMethodsToCall in methodsToCall
                     .Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
@@ -724,7 +724,7 @@ namespace Opc.Ua
             RequestHeader? requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
-            ArrayOf<MonitoredItemCreateRequest?> itemsToCreate,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
@@ -750,7 +750,7 @@ namespace Opc.Ua
                 RequestHeader? requestHeader,
                 uint subscriptionId,
                 TimestampsToReturn timestampsToReturn,
-                ArrayOf<MonitoredItemCreateRequest?> itemsToCreate,
+                ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -763,7 +763,7 @@ namespace Opc.Ua
                     out StringCollection? stringTable,
                     itemsToCreate.Count,
                     operationLimit);
-                foreach (ArrayOf<MonitoredItemCreateRequest?> batchItemsToCreate in itemsToCreate
+                foreach (ArrayOf<MonitoredItemCreateRequest> batchItemsToCreate in itemsToCreate
                     .Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
@@ -801,7 +801,7 @@ namespace Opc.Ua
             RequestHeader? requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
-            ArrayOf<MonitoredItemModifyRequest?> itemsToModify,
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
@@ -826,7 +826,7 @@ namespace Opc.Ua
                 RequestHeader? requestHeader,
                 uint subscriptionId,
                 TimestampsToReturn timestampsToReturn,
-                ArrayOf<MonitoredItemModifyRequest?> itemsToModify,
+                ArrayOf<MonitoredItemModifyRequest> itemsToModify,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -839,7 +839,7 @@ namespace Opc.Ua
                     out StringCollection? stringTable,
                     itemsToModify.Count,
                     operationLimit);
-                foreach (ArrayOf<MonitoredItemModifyRequest?> batchItemsToModify in itemsToModify
+                foreach (ArrayOf<MonitoredItemModifyRequest> batchItemsToModify in itemsToModify
                     .Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
@@ -1186,7 +1186,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override ValueTask<AddNodesResponse> AddNodesAsync(
             RequestHeader? requestHeader,
-            ArrayOf<AddNodesItem?> nodesToAdd,
+            ArrayOf<AddNodesItem> nodesToAdd,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
@@ -1202,7 +1202,7 @@ namespace Opc.Ua
 
             async ValueTask<AddNodesResponse> AddNodesBatchedAsync(
                 RequestHeader? requestHeader,
-                ArrayOf<AddNodesItem?> nodesToAdd,
+                ArrayOf<AddNodesItem> nodesToAdd,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -1215,7 +1215,7 @@ namespace Opc.Ua
                     out StringCollection? stringTable,
                     nodesToAdd.Count,
                     operationLimit);
-                foreach (ArrayOf<AddNodesItem?> batchNodesToAdd in nodesToAdd
+                foreach (ArrayOf<AddNodesItem> batchNodesToAdd in nodesToAdd
                     .Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
@@ -1246,7 +1246,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override ValueTask<AddReferencesResponse> AddReferencesAsync(
             RequestHeader? requestHeader,
-            ArrayOf<AddReferencesItem?> referencesToAdd,
+            ArrayOf<AddReferencesItem> referencesToAdd,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
@@ -1262,7 +1262,7 @@ namespace Opc.Ua
 
             async ValueTask<AddReferencesResponse> AddReferencesBatchedAsync(
                 RequestHeader? requestHeader,
-                ArrayOf<AddReferencesItem?> referencesToAdd,
+                ArrayOf<AddReferencesItem> referencesToAdd,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -1275,7 +1275,7 @@ namespace Opc.Ua
                     out StringCollection? stringTable,
                     referencesToAdd.Count,
                     operationLimit);
-                foreach (ArrayOf<AddReferencesItem?> batchReferencesToAdd in referencesToAdd
+                foreach (ArrayOf<AddReferencesItem> batchReferencesToAdd in referencesToAdd
                     .Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
@@ -1309,7 +1309,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override ValueTask<DeleteNodesResponse> DeleteNodesAsync(
             RequestHeader? requestHeader,
-            ArrayOf<DeleteNodesItem?> nodesToDelete,
+            ArrayOf<DeleteNodesItem> nodesToDelete,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
@@ -1325,7 +1325,7 @@ namespace Opc.Ua
 
             async ValueTask<DeleteNodesResponse> DeleteNodesBatchedAsync(
                 RequestHeader? requestHeader,
-                ArrayOf<DeleteNodesItem?> nodesToDelete,
+                ArrayOf<DeleteNodesItem> nodesToDelete,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -1338,7 +1338,7 @@ namespace Opc.Ua
                     out StringCollection? stringTable,
                     nodesToDelete.Count,
                     operationLimit);
-                foreach (ArrayOf<DeleteNodesItem?> batchNodesToDelete in nodesToDelete
+                foreach (ArrayOf<DeleteNodesItem> batchNodesToDelete in nodesToDelete
                     .Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
@@ -1372,7 +1372,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override ValueTask<DeleteReferencesResponse> DeleteReferencesAsync(
             RequestHeader? requestHeader,
-            ArrayOf<DeleteReferencesItem?> referencesToDelete,
+            ArrayOf<DeleteReferencesItem> referencesToDelete,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
@@ -1388,7 +1388,7 @@ namespace Opc.Ua
 
             async ValueTask<DeleteReferencesResponse> DeleteReferencesBatchedAsync(
                 RequestHeader? requestHeader,
-                ArrayOf<DeleteReferencesItem?> referencesToDelete,
+                ArrayOf<DeleteReferencesItem> referencesToDelete,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -1401,7 +1401,7 @@ namespace Opc.Ua
                     out StringCollection? stringTable,
                     referencesToDelete.Count,
                     operationLimit);
-                foreach (ArrayOf<DeleteReferencesItem?> batchReferencesToDelete in referencesToDelete
+                foreach (ArrayOf<DeleteReferencesItem> batchReferencesToDelete in referencesToDelete
                     .Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;

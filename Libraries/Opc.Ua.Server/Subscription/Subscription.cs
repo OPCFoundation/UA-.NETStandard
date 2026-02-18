@@ -2529,21 +2529,24 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the monitored items for the subscription.
         /// </summary>
-        public void GetMonitoredItems(out uint[] serverHandles, out uint[] clientHandles)
+        public void GetMonitoredItems(out ArrayOf<uint> serverHandles, out ArrayOf<uint> clientHandles)
         {
             lock (m_lock)
             {
-                serverHandles = new uint[m_monitoredItems.Count];
-                clientHandles = new uint[m_monitoredItems.Count];
+                var serverHandleList = new uint[m_monitoredItems.Count];
+                var clientHandleList = new uint[m_monitoredItems.Count];
 
                 int ii = 0;
 
                 foreach (KeyValuePair<uint, LinkedListNode<IMonitoredItem>> entry in m_monitoredItems)
                 {
-                    serverHandles[ii] = entry.Key;
-                    clientHandles[ii] = entry.Value.Value.ClientHandle;
+                    serverHandleList[ii] = entry.Key;
+                    clientHandleList[ii] = entry.Value.Value.ClientHandle;
                     ii++;
                 }
+
+                serverHandles = serverHandleList.ToArrayOf();
+                clientHandles = clientHandleList.ToArrayOf();
             }
         }
 

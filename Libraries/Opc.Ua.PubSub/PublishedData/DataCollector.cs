@@ -235,14 +235,14 @@ namespace Opc.Ua.PubSub.PublishedData
                                                 for (int idx = 0; idx < valueArray.Count; idx++)
                                                 {
                                                     if (ShouldBringToConstraints(
-                                                        (uint)valueArray.Span[idx].Length))
+                                                        (uint)valueArray[idx].Length))
                                                     {
-                                                        buffer[idx] = valueArray.Span[idx][
+                                                        buffer[idx] = valueArray[idx][
                                                             ..(int)field.FieldMetaData.MaxStringLength
                                                         ];
                                                         continue;
                                                     }
-                                                    buffer[idx] = valueArray.Span[idx];
+                                                    buffer[idx] = valueArray[idx];
                                                 }
                                                 valueArray = buffer.ToArrayOf();
                                             }
@@ -269,9 +269,9 @@ namespace Opc.Ua.PubSub.PublishedData
                                                 var buffer = new ByteString[valueArray.Count];
                                                 for (int idx = 0; idx < valueArray.Count; idx++)
                                                 {
-                                                    if (ShouldBringToConstraints((uint)valueArray.Span[idx].Length))
+                                                    if (ShouldBringToConstraints((uint)valueArray[idx].Length))
                                                     {
-                                                        byte[] byteArray = valueArray.Span[idx].ToArray();
+                                                        byte[] byteArray = valueArray[idx].ToArray();
                                                         Array.Resize(
                                                             ref byteArray,
                                                             (int)field.FieldMetaData

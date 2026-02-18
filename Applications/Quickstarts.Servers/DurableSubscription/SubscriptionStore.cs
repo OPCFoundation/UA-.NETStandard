@@ -202,11 +202,11 @@ namespace Quickstarts.Servers
                 s_storage_path);
         }
 
-        public void OnSubscriptionRestoreComplete(Dictionary<uint, uint[]> createdSubscriptions)
+        public void OnSubscriptionRestoreComplete(Dictionary<uint, ArrayOf<uint>> createdSubscriptions)
         {
             string filePath = Path.Combine(s_storage_path, kFilename);
 
-            //remove old file
+            // remove old file
             if (File.Exists(filePath))
             {
                 try
@@ -221,7 +221,7 @@ namespace Quickstarts.Servers
             //remove old batches & queues
             if (m_durableMonitoredItemQueueFactory != null)
             {
-                IEnumerable<uint> ids = createdSubscriptions.SelectMany(s => s.Value);
+                IEnumerable<uint> ids = createdSubscriptions.SelectMany(s => s.Value.ToArray());
                 m_durableMonitoredItemQueueFactory.CleanStoredQueues(s_storage_path, ids);
             }
         }

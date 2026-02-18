@@ -107,13 +107,13 @@ namespace Opc.Ua
 
                     for (int ii = 0; ii < encodeables.Length; ii++)
                     {
-                        if (ExtensionObject.IsNull(extensions.Span[ii]))
+                        if (ExtensionObject.IsNull(extensions[ii]))
                         {
                             encodeables[ii] = null;
                             continue;
                         }
 
-                        if (extensions.Span[ii].Body is not IEncodeable element)
+                        if (extensions[ii].Body is not IEncodeable element)
                         {
                             return StatusCodes.BadTypeMismatch;
                         }

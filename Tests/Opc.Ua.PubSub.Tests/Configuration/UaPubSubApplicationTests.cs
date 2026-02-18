@@ -85,7 +85,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             // Assert
             Assert.IsTrue(
-                uaPubSubApplication.PubSubConnections != null,
+                !uaPubSubApplication.PubSubConnections.IsNull,
                 "uaPubSubApplication.PubSubConnections collection is null");
             Assert.AreEqual(
                 3,

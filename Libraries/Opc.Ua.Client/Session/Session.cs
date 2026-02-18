@@ -1601,7 +1601,7 @@ namespace Opc.Ua.Client
         {
             ThrowIfDisposed();
             using Activity? activity = m_telemetry.StartActivity();
-            UInt32Collection subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
+            var subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
             int failedSubscriptions = 0;
 
             if (subscriptionIds.Count > 0)
@@ -1678,7 +1678,7 @@ namespace Opc.Ua.Client
             CancellationToken ct)
         {
             using Activity? activity = m_telemetry.StartActivity();
-            UInt32Collection subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
+            var subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
             int failedSubscriptions = 0;
 
             if (subscriptionIds.Count > 0)
@@ -1696,8 +1696,8 @@ namespace Opc.Ua.Client
                             sendInitialValues,
                             ct)
                         .ConfigureAwait(false);
-                    TransferResultCollection results = response.Results;
-                    DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+                    var results = response.Results;
+                    var diagnosticInfos = response.DiagnosticInfos;
                     ResponseHeader responseHeader = response.ResponseHeader;
 
                     if (!StatusCode.IsGood(responseHeader.ServiceResult))
@@ -1798,8 +1798,8 @@ namespace Opc.Ua.Client
                 ct)
                 .ConfigureAwait(false);
 
-            DataValueCollection values = response.Results;
-            DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+            var values = response.Results;
+            var diagnosticInfos = response.DiagnosticInfos;
             ResponseHeader responseHeader = response.ResponseHeader;
 
             ValidateResponse(values, nodesToRead);
@@ -1875,7 +1875,8 @@ namespace Opc.Ua.Client
                 return default;
             }
 
-            // Apply operation limit logic: if client value is 0, use server value; otherwise use min(client, server)
+            // Apply operation limit logic: if client value is 0, use server value;
+            // otherwise use min(client, server)
             static uint ApplyOperationLimit(uint clientLimit, uint serverLimit)
             {
                 if (clientLimit == 0)
@@ -4698,10 +4699,10 @@ namespace Opc.Ua.Client
         /// <param name="subscriptions">The subscriptions to transfer.</param>
         /// <returns>The subscription ids for the transfer.</returns>
         /// <exception cref="ServiceResultException">Thrown if a subscription is in invalid state.</exception>
-        private UInt32Collection CreateSubscriptionIdsForTransfer(
+        private ArrayOf<uint> CreateSubscriptionIdsForTransfer(
             SubscriptionCollection subscriptions)
         {
-            var subscriptionIds = new UInt32Collection();
+            var subscriptionIds = new List<uint>();
             lock (m_lock)
             {
                 foreach (Subscription subscription in subscriptions)

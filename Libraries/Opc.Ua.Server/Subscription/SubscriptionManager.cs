@@ -372,7 +372,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            var createdSubscriptions = new Dictionary<uint, uint[]>();
+            var createdSubscriptions = new Dictionary<uint, ArrayOf<uint>>();
 
             foreach (IStoredSubscription storedSubscription in restoreResult.Subscriptions)
             {
@@ -392,7 +392,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                subscription.GetMonitoredItems(out uint[] monitoredItemsIds, out _);
+                subscription.GetMonitoredItems(out ArrayOf<uint> monitoredItemsIds, out _);
                 createdSubscriptions.Add(subscription.Id, monitoredItemsIds);
             }
 

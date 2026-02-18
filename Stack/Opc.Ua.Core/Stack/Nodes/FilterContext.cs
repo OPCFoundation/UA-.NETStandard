@@ -67,7 +67,7 @@ namespace Opc.Ua
         public FilterContext(
             NamespaceTable namespaceUris,
             ITypeTable typeTree,
-            IList<string> preferredLocales)
+            ArrayOf<string> preferredLocales)
             : this(namespaceUris, typeTree, preferredLocales, null)
         {
         }
@@ -101,7 +101,7 @@ namespace Opc.Ua
             NamespaceTable namespaceUris,
             ITypeTable typeTree,
             ITelemetryContext telemetry)
-            : this(namespaceUris, typeTree, (IList<string>)null, telemetry)
+            : this(namespaceUris, typeTree, (ArrayOf<string>)default, telemetry)
         {
         }
 
@@ -115,7 +115,7 @@ namespace Opc.Ua
         public FilterContext(
             NamespaceTable namespaceUris,
             ITypeTable typeTree,
-            IList<string> preferredLocales,
+            ArrayOf<string> preferredLocales,
             ITelemetryContext telemetry)
         {
             NamespaceUris = namespaceUris ?? throw new ArgumentNullException(nameof(namespaceUris));
@@ -175,7 +175,7 @@ namespace Opc.Ua
         /// The locales to use if available.
         /// </summary>
         /// <value>The preferred locales.</value>
-        public IList<string> PreferredLocales
+        public ArrayOf<string> PreferredLocales
         {
             get
             {
@@ -279,6 +279,6 @@ namespace Opc.Ua
         public ITelemetryContext Telemetry { get; }
 
         private readonly IOperationContext m_context;
-        private readonly IList<string> m_preferredLocales;
+        private readonly ArrayOf<string> m_preferredLocales;
     }
 }

@@ -407,7 +407,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             string applicationUri,
             uint applicationType,
             string productUri,
-            string[] serverCapabilities,
+            ArrayOf<string> serverCapabilities,
             out DateTime lastCounterResetTime,
             out uint nextRecordId)
         {
@@ -450,11 +450,11 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                         capabilities = result.ServerCapabilities.Split(',');
                     }
 
-                    if (serverCapabilities != null && serverCapabilities.Length > 0)
+                    if (serverCapabilities.Count > 0)
                     {
                         bool match = true;
 
-                        for (int ii = 0; ii < serverCapabilities.Length; ii++)
+                        for (int ii = 0; ii < serverCapabilities.Count; ii++)
                         {
                             if (capabilities == null ||
                                 !capabilities.Contains(serverCapabilities[ii]))
@@ -549,7 +549,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             string applicationName,
             string applicationUri,
             string productUri,
-            string[] serverCapabilities,
+            ArrayOf<string> serverCapabilities,
             out DateTime lastCounterResetTime)
         {
             lock (Lock)
@@ -599,11 +599,11 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                         capabilities = result.ServerCapabilities.Split(',');
                     }
 
-                    if (serverCapabilities != null && serverCapabilities.Length > 0)
+                    if (serverCapabilities.Count > 0)
                     {
                         bool match = true;
 
-                        for (int ii = 0; ii < serverCapabilities.Length; ii++)
+                        for (int ii = 0; ii < serverCapabilities.Count; ii++)
                         {
                             if (capabilities == null ||
                                 !capabilities.Contains(serverCapabilities[ii]))
@@ -804,7 +804,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             string certificateGroupId,
             string certificateTypeId,
             string subjectName,
-            string[] domainNames,
+            ArrayOf<string> domainNames,
             string privateKeyFormat,
             ReadOnlySpan<char> privateKeyPassword,
             string authorityId)
@@ -839,7 +839,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 request.CertificateGroupId = certificateGroupId;
                 request.CertificateTypeId = certificateTypeId;
                 request.SubjectName = subjectName;
-                request.DomainNames = domainNames;
+                request.DomainNames = domainNames.ToArray();
                 request.PrivateKeyFormat = privateKeyFormat;
                 request.PrivateKeyPassword = privateKeyPassword.ToArray();
                 request.CertificateSigningRequest = null;
@@ -994,7 +994,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
                 certificateGroupId = request.CertificateGroupId;
                 certificateTypeId = request.CertificateTypeId;
-                certificateRequest = request.CertificateSigningRequest;
+                certificateRequest = request.CertificateSigningRequest.ToByteString();
                 subjectName = request.SubjectName;
                 domainNames = request.DomainNames;
                 privateKeyFormat = request.PrivateKeyFormat;

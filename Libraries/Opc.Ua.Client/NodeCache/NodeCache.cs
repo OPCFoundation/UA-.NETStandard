@@ -442,10 +442,10 @@ namespace Opc.Ua.Client
                 nodeIds.Select(nodeId => ExpandedNodeId.ToNodeId(nodeId, m_context.NamespaceUris)));
 
             // fetch nodes and references from server.
-            (IReadOnlyList<Node> sourceNodes, IReadOnlyList<ServiceResult> readErrors) = await m_context
+            (ArrayOf<Node> sourceNodes, ArrayOf<ServiceResult> readErrors) = await m_context
                 .FetchNodesAsync(null, localIds, NodeClass.Unspecified, ct: ct)
                 .ConfigureAwait(false);
-            (IReadOnlyList<ReferenceDescriptionCollection> referenceCollectionList, IReadOnlyList<ServiceResult> fetchErrors) =
+            (ArrayOf<ReferenceDescriptionCollection> referenceCollectionList, ArrayOf<ServiceResult> fetchErrors) =
                 await m_context.FetchReferencesAsync(null, localIds, ct).ConfigureAwait(false);
 
             int ii = 0;
@@ -987,9 +987,9 @@ namespace Opc.Ua.Client
 
             // every element in an array must match.
 
-            if (value.TryGet(out ExtensionObject[] extensions))
+            if (value.TryGet(out ArrayOf<ExtensionObject> extensions))
             {
-                for (int ii = 0; ii < extensions.Length; ii++)
+                for (int ii = 0; ii < extensions.Count; ii++)
                 {
                     if (!await IsEncodingForAsync(
                         expectedTypeId,

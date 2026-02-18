@@ -88,8 +88,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
-            var publisherConnection = publisherApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
+            var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
             // will signal that the uadp message was received from local ip
@@ -184,8 +183,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
-            var publisherConnection = publisherApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
+            var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
             // will signal that the uadp message was received from local ip
@@ -284,8 +282,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
-            var publisherConnection = publisherApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
+            var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
             // will signal that the uadp message was received from local ip
@@ -386,8 +383,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
-            var publisherConnection = publisherApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
+            var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
             // will signal that the uadp message was received from local ip
@@ -492,8 +488,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
-            var publisherConnection = publisherApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
+            var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
             // will signal that the uadp message was received from local ip
@@ -593,8 +588,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
-            var publisherConnection = publisherApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
+            var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
             // will signal that the uadp message was received from local ip

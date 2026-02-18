@@ -213,8 +213,8 @@ namespace Opc.Ua.Client
         /// Managed browsing using browser
         /// </summary>
         public static async Task<(
-            IList<ReferenceDescriptionCollection>,
-            IList<ServiceResult>
+            ArrayOf<ReferenceDescriptionCollection>,
+            ArrayOf<ServiceResult>
             )> ManagedBrowseAsync(
                 this ISessionClient session,
                 RequestHeader? requestHeader,
@@ -239,7 +239,7 @@ namespace Opc.Ua.Client
             });
             ResultSet<ReferenceDescriptionCollection> result =
                 await browser.BrowseAsync([.. nodesToBrowse], ct).ConfigureAwait(false);
-            return (result.Results.ToList(), result.Errors.ToList());
+            return (result.Results, result.Errors);
         }
 
         /// <summary>
@@ -253,7 +253,7 @@ namespace Opc.Ua.Client
             NodeId nodeId,
             CancellationToken ct = default)
         {
-            (IList<ReferenceDescriptionCollection> descriptions, _) =
+            (ArrayOf<ReferenceDescriptionCollection> descriptions, _) =
                 await session.ManagedBrowseAsync(
                     null,
                     null,
@@ -277,8 +277,8 @@ namespace Opc.Ua.Client
         /// <returns>A list of reference collections and the errors reported
         /// by the server.</returns>
         public static Task<(
-            IList<ReferenceDescriptionCollection>,
-            IList<ServiceResult>
+            ArrayOf<ReferenceDescriptionCollection>,
+            ArrayOf<ServiceResult>
             )> FetchReferencesAsync(
                 this ISessionClient session,
                 IList<NodeId> nodeIds,
@@ -312,9 +312,9 @@ namespace Opc.Ua.Client
         /// should not be omitted.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The node collection and associated errors.</returns>
-        public static async Task<(IList<Node>, IList<ServiceResult>)> ReadNodesAsync(
+        public static async Task<(ArrayOf<Node>, ArrayOf<ServiceResult>)> ReadNodesAsync(
             this ISessionClient session,
-            IList<NodeId> nodeIds,
+            ArrayOf<NodeId> nodeIds,
             NodeClass nodeClass,
             bool optionalAttributes = false,
             CancellationToken ct = default)
@@ -326,7 +326,7 @@ namespace Opc.Ua.Client
                 nodeClass,
                 !optionalAttributes,
                 ct).ConfigureAwait(false);
-            return (result.Results.ToList(), result.Errors.ToList());
+            return (result.Results, result.Errors);
         }
 
         /// <summary>
@@ -338,7 +338,7 @@ namespace Opc.Ua.Client
         /// <param name="nodeIds">The nodeId collection.</param>
         /// <param name="optionalAttributes">If optional attributes to read.</param>
         /// <param name="ct">The cancellation token.</param>
-        public static async Task<(IList<Node>, IList<ServiceResult>)> ReadNodesAsync(
+        public static async Task<(ArrayOf<Node>, ArrayOf<ServiceResult>)> ReadNodesAsync(
             this ISessionClient session,
             IList<NodeId> nodeIds,
             bool optionalAttributes = false,
@@ -350,7 +350,7 @@ namespace Opc.Ua.Client
                 [.. nodeIds],
                 !optionalAttributes,
                 ct).ConfigureAwait(false);
-            return (result.Results.ToList(), result.Errors.ToList());
+            return (result.Results, result.Errors);
         }
 
         /// <summary>
@@ -401,9 +401,9 @@ namespace Opc.Ua.Client
         /// <param name="nodeIds">node for which to read display name</param>
         /// <param name="ct">Cancellation token to use to cancel the operation</param>
         /// <returns>Paired list of displaynames and potential errors per node</returns>
-        public static async Task<(IList<string>, IList<ServiceResult>)> ReadDisplayNameAsync(
+        public static async Task<(ArrayOf<string>, ArrayOf<ServiceResult>)> ReadDisplayNameAsync(
             this ISessionClient session,
-            IList<NodeId> nodeIds,
+            ArrayOf<NodeId> nodeIds,
             CancellationToken ct = default)
         {
             var displayNames = new List<string>();
@@ -434,8 +434,8 @@ namespace Opc.Ua.Client
                 valuesToRead,
                 ct).ConfigureAwait(false);
 
-            DataValueCollection results = response.Results;
-            DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+            var results = response.Results;
+            var diagnosticInfos = response.DiagnosticInfos;
             ResponseHeader responseHeader = response.ResponseHeader;
 
             // verify that the server returned the correct number of results.
@@ -467,7 +467,7 @@ namespace Opc.Ua.Client
                 }
             }
 
-            return (displayNames, errors);
+            return (displayNames.ToArrayOf(), errors.ToArrayOf());
         }
 
         /// <summary>
@@ -559,7 +559,7 @@ namespace Opc.Ua.Client
         /// <param name="session">The session to use</param>
         /// <param name="nodeIds">The node Id.</param>
         /// <param name="ct">The cancellation token for the request.</param>
-        public static async Task<(DataValueCollection, IList<ServiceResult>)> ReadValuesAsync(
+        public static async Task<(ArrayOf<DataValue>, ArrayOf<ServiceResult>)> ReadValuesAsync(
             this ISessionClient session,
             IList<NodeId> nodeIds,
             CancellationToken ct = default)
@@ -569,7 +569,7 @@ namespace Opc.Ua.Client
                 null,
                 [.. nodeIds],
                 ct).ConfigureAwait(false);
-            return (new DataValueCollection(result.Results), result.Errors.ToList());
+            return (result.Results, result.Errors);
         }
 
         /// <summary>

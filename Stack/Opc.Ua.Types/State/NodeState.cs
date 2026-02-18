@@ -4105,7 +4105,7 @@ namespace Opc.Ua
                     var buffer = new RolePermissionType[rolePermissionsArray.Count];
                     for (int ii = 0; ii < rolePermissionsArray.Count; ii++)
                     {
-                        if (rolePermissionsArray.Span[ii].Body is not RolePermissionType rolePermission)
+                        if (!rolePermissionsArray[ii].TryGetEncodeable(out RolePermissionType rolePermission))
                         {
                             return StatusCodes.BadTypeMismatch;
                         }

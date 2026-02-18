@@ -49,7 +49,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             ISystemContext systemContext,
             NodeId objectId,
             MethodState method,
-            VariantCollection inputArguments,
+            ArrayOf<Variant> inputArguments,
             ILogger logger)
         {
             try
@@ -79,7 +79,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                 e.SetChildValue(
                     systemContext,
                     Ua.BrowseNames.InputArguments,
-                    inputArguments.ToArray(),
+                    inputArguments,
                     false);
 
                 server?.ReportAuditEvent(systemContext, e);
@@ -109,7 +109,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             ISystemContext systemContext,
             NodeId objectId,
             MethodState method,
-            VariantCollection inputArguments,
+            ArrayOf<Variant> inputArguments,
             NodeId certificateGroupId,
             NodeId certificateTypeId,
             ILogger logger,
@@ -160,7 +160,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                 e.SetChildValue(
                     systemContext,
                     Ua.BrowseNames.InputArguments,
-                    inputArguments.ToArray(),
+                    inputArguments,
                     false);
 
                 e.SetChildValue(
@@ -198,7 +198,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             ISystemContext systemContext,
             NodeId objectId,
             MethodState method,
-            VariantCollection inputArguments,
+            ArrayOf<Variant> inputArguments,
             ILogger logger)
         {
             try
@@ -228,7 +228,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                 e.SetChildValue(
                     systemContext,
                     Ua.BrowseNames.InputArguments,
-                    inputArguments.ToArray(),
+                    inputArguments,
                     false);
 
                 server?.ReportAuditEvent(systemContext, e);

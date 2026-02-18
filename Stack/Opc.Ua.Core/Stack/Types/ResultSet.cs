@@ -41,8 +41,8 @@ namespace Opc.Ua
     /// <param name="Results"></param>
     /// <param name="Errors"></param>
     public readonly record struct ResultSet<T>(
-        IReadOnlyList<T> Results,
-        IReadOnlyList<ServiceResult> Errors)
+        ArrayOf<T> Results,
+        ArrayOf<ServiceResult> Errors)
     {
         /// <summary>
         /// Empty result set
@@ -61,7 +61,7 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         /// <param name="results"></param>
         /// <returns></returns>
-        public static ResultSet<T> From<T>(IReadOnlyList<T> results)
+        public static ResultSet<T> From<T>(ArrayOf<T> results)
         {
             return results.Count == 0 ?
                 ResultSet<T>.Empty :
@@ -87,8 +87,8 @@ namespace Opc.Ua
         /// <param name="errors"></param>
         /// <returns></returns>
         public static ResultSet<T> From<T>(
-            IReadOnlyList<T> results,
-            IReadOnlyList<ServiceResult> errors)
+            ArrayOf<T> results,
+            ArrayOf<ServiceResult> errors)
         {
             return results.Count == 0 ?
                 ResultSet<T>.Empty :

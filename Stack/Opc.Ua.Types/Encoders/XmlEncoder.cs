@@ -1021,7 +1021,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteBoolean("Boolean", values.Span[ii]);
+                        WriteBoolean("Boolean", values[ii]);
                     }
                 }
 
@@ -1051,7 +1051,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteSByte("SByte", values.Span[ii]);
+                        WriteSByte("SByte", values[ii]);
                     }
                 }
 
@@ -1081,7 +1081,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteByte("Byte", values.Span[ii]);
+                        WriteByte("Byte", values[ii]);
                     }
                 }
 
@@ -1111,7 +1111,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteInt16("Int16", values.Span[ii]);
+                        WriteInt16("Int16", values[ii]);
                     }
                 }
 
@@ -1141,7 +1141,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteUInt16("UInt16", values.Span[ii]);
+                        WriteUInt16("UInt16", values[ii]);
                     }
                 }
 
@@ -1171,7 +1171,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteInt32("Int32", values.Span[ii]);
+                        WriteInt32("Int32", values[ii]);
                     }
                 }
 
@@ -1201,7 +1201,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteUInt32("UInt32", values.Span[ii]);
+                        WriteUInt32("UInt32", values[ii]);
                     }
                 }
 
@@ -1231,7 +1231,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteInt64("Int64", values.Span[ii]);
+                        WriteInt64("Int64", values[ii]);
                     }
                 }
 
@@ -1261,7 +1261,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteUInt64("UInt64", values.Span[ii]);
+                        WriteUInt64("UInt64", values[ii]);
                     }
                 }
 
@@ -1291,7 +1291,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteFloat("Float", values.Span[ii]);
+                        WriteFloat("Float", values[ii]);
                     }
                 }
 
@@ -1321,7 +1321,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteDouble("Double", values.Span[ii]);
+                        WriteDouble("Double", values[ii]);
                     }
                 }
 
@@ -1351,7 +1351,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteString("String", values.Span[ii], true);
+                        WriteString("String", values[ii], true);
                     }
                 }
 
@@ -1381,7 +1381,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteDateTime("DateTime", values.Span[ii]);
+                        WriteDateTime("DateTime", values[ii]);
                     }
                 }
 
@@ -1411,7 +1411,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteGuid("Guid", values.Span[ii]);
+                        WriteGuid("Guid", values[ii]);
                     }
                 }
 
@@ -1441,7 +1441,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteByteString("ByteString", values.Span[ii], true);
+                        WriteByteString("ByteString", values[ii], true);
                     }
                 }
 
@@ -1471,7 +1471,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteXmlElement("XmlElement", values.Span[ii], true);
+                        WriteXmlElement("XmlElement", values[ii], true);
                     }
                 }
 
@@ -1501,7 +1501,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteNodeId("NodeId", values.Span[ii], true);
+                        WriteNodeId("NodeId", values[ii], true);
                     }
                 }
 
@@ -1531,7 +1531,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteExpandedNodeId("ExpandedNodeId", values.Span[ii], true);
+                        WriteExpandedNodeId("ExpandedNodeId", values[ii], true);
                     }
                 }
 
@@ -1561,7 +1561,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteStatusCode("StatusCode", values.Span[ii]);
+                        WriteStatusCode("StatusCode", values[ii]);
                     }
                 }
 
@@ -1591,7 +1591,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteDiagnosticInfo("DiagnosticInfo", values.Span[ii]);
+                        WriteDiagnosticInfo("DiagnosticInfo", values[ii]);
                     }
                 }
 
@@ -1621,7 +1621,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteQualifiedName("QualifiedName", values.Span[ii], true);
+                        WriteQualifiedName("QualifiedName", values[ii], true);
                     }
                 }
 
@@ -1651,7 +1651,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteLocalizedText("LocalizedText", values.Span[ii], true);
+                        WriteLocalizedText("LocalizedText", values[ii], true);
                     }
                 }
 
@@ -1681,7 +1681,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteVariant("Variant", values.Span[ii]);
+                        WriteVariant("Variant", values[ii]);
                     }
                 }
 
@@ -1711,7 +1711,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteDataValue("DataValue", values.Span[ii]);
+                        WriteDataValue("DataValue", values[ii]);
                     }
                 }
 
@@ -1741,7 +1741,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteExtensionObject("ExtensionObject", values.Span[ii], true);
+                        WriteExtensionObject("ExtensionObject", values[ii], true);
                     }
                 }
 
@@ -1781,7 +1781,7 @@ namespace Opc.Ua
                 // encode each element in the array.
                 for (int ii = 0; ii < values.Count; ii++)
                 {
-                    IEncodeable value = values.Span[ii];
+                    IEncodeable value = values[ii];
 
                     if (systemType != null)
                     {
@@ -2179,7 +2179,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteVariant("Variant", new Variant(values.Span[ii]));
+                        WriteVariant("Variant", new Variant(values[ii]));
                     }
                 }
 

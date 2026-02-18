@@ -242,9 +242,9 @@ namespace Opc.Ua.Client
                         }
                     }
 
-                    if (variableNode?.ArrayDimensions != null && variableNode.ArrayDimensions.Count > 0)
+                    if (variableNode != null && variableNode.ArrayDimensions.Count > 0)
                     {
-                        state.ArrayDimensions = new ReadOnlyList<uint>(variableNode.ArrayDimensions);
+                        state.ArrayDimensions = variableNode.ArrayDimensions;
                     }
 
                     if (node is ILocalNode localNode)
@@ -347,7 +347,7 @@ namespace Opc.Ua.Client
 
                     if (variableTypeNode?.ArrayDimensions != null && variableTypeNode.ArrayDimensions.Count > 0)
                     {
-                        state.ArrayDimensions = new ReadOnlyList<uint>(variableTypeNode.ArrayDimensions);
+                        state.ArrayDimensions = variableTypeNode.ArrayDimensions;
                     }
 
                     if (node is ILocalNode localNode)

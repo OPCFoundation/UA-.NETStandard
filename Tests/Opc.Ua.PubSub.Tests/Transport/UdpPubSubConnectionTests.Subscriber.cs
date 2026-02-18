@@ -83,8 +83,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_messageContext.Telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
 
-            var subscriberConnection = subscriberApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
+            var subscriberConnection = subscriberApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(subscriberConnection, "subscriberConnection is null");
 
             subscriberApplication.RawDataReceived += RawDataReceived;
@@ -112,8 +111,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_messageContext.Telemetry);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
-            var publisherConnection = publisherApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
+            var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
             //Act
@@ -189,8 +187,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_messageContext.Telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
 
-            var subscriberConnection = subscriberApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
+            var subscriberConnection = subscriberApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(subscriberConnection, "subscriberConnection is null");
 
             subscriberApplication.RawDataReceived += RawDataReceived;
@@ -221,8 +218,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_messageContext.Telemetry);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
-            var publisherConnection = publisherApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
+            var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
             //Act
@@ -301,8 +297,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_messageContext.Telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
 
-            var subscriberConnection = subscriberApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
+            var subscriberConnection = subscriberApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(subscriberConnection, "subscriberConnection is null");
 
             subscriberApplication.RawDataReceived += RawDataReceived;
@@ -330,8 +325,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_messageContext.Telemetry);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
-            var publisherConnection = publisherApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
+            var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
             //Act
@@ -415,8 +409,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_messageContext.Telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
 
-            var subscriberConnection = subscriberApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
+            var subscriberConnection = subscriberApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(subscriberConnection, "subscriberConnection is null");
 
             //subscribe to event handlers
@@ -448,8 +441,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_messageContext.Telemetry);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
-            var publisherConnection = publisherApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
+            var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
             //start subscriber and prepare the message
@@ -563,8 +555,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_messageContext.Telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
 
-            var subscriberConnection = subscriberApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
+            var subscriberConnection = subscriberApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(subscriberConnection, "subscriberConnection is null");
 
             //subscribe the event handlers
@@ -596,8 +587,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_messageContext.Telemetry);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
-            var publisherConnection = publisherApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
+            var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
             //start the subscriber and prepare message
@@ -683,8 +673,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_messageContext.Telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
 
-            var subscriberConnection = subscriberApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
+            var subscriberConnection = subscriberApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(subscriberConnection, "subscriberConnection is null");
 
             subscriberApplication.DataSetWriterConfigurationReceived
@@ -713,8 +702,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_messageContext.Telemetry);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
-            var publisherConnection = publisherApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
+            var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
             m_shutdownEvent = new ManualResetEvent(false);
@@ -792,8 +780,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_messageContext.Telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
 
-            var subscriberConnection = subscriberApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
+            var subscriberConnection = subscriberApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(subscriberConnection, "subscriberConnection is null");
 
             subscriberApplication.PublisherEndpointsReceived += PublisherEndpointsReceived;
@@ -821,8 +808,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_messageContext.Telemetry);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
-            var publisherConnection = publisherApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
+            var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
             m_shutdownEvent = new ManualResetEvent(false);
@@ -898,8 +884,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_messageContext.Telemetry);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
 
-            var subscriberConnection = subscriberApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
+            var subscriberConnection = subscriberApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(subscriberConnection, "subscriberConnection is null");
 
             subscriberApplication.PublisherEndpointsReceived += PublisherEndpointsReceived;
@@ -927,8 +912,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_messageContext.Telemetry);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
-            var publisherConnection = publisherApplication.PubSubConnections[
-                0] as UdpPubSubConnection;
+            var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
             //Act

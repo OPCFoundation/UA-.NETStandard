@@ -105,7 +105,7 @@ namespace Opc.Ua.Gds.Server
             string certificateGroupId,
             string certificateTypeId,
             string subjectName,
-            string[] domainNames,
+            ArrayOf<string> domainNames,
             string privateKeyFormat,
             ReadOnlySpan<char> privateKeyPassword,
             string authorityId);

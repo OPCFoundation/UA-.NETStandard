@@ -85,6 +85,9 @@ namespace Opc.Ua
         [JsonIgnore]
         public bool IsNull => ReadOnlyMemoryHelper.IsNull(in m_memory);
 
+        /// <inheritdoc/>
+        public byte this[int index] => m_memory.Span[index];
+
         /// <summary>
         /// Intern the memory into this byte string (no copy)
         /// </summary>
@@ -246,6 +249,12 @@ namespace Opc.Ua
         public override int GetHashCode()
         {
             return ReadOnlySpan.ComputeHash32(m_memory.Span);
+        }
+
+        /// <inheritdoc/>
+        public ReadOnlySpan<byte>.Enumerator GetEnumerator()
+        {
+            return m_memory.Span.GetEnumerator();
         }
 
         /// <inheritdoc/>

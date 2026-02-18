@@ -540,7 +540,7 @@ namespace Opc.Ua.Client
 
             // fetch nodes and references from server.
             var localIds = new NodeIdCollection(remainingIds);
-            (IReadOnlyList<Node>? nodes, IReadOnlyList<ServiceResult>? readErrors) =
+            (ArrayOf<Node> nodes, ArrayOf<ServiceResult> readErrors) =
                 await m_context.FetchNodesAsync(null, localIds, ct: ct)
                     .ConfigureAwait(false);
 
@@ -575,8 +575,8 @@ namespace Opc.Ua.Client
             Debug.Assert(result.Count(r => r == null) == remainingIds.Count);
 
             // fetch nodes and references from server.
-            (IReadOnlyList<DataValue>? values, IReadOnlyList<ServiceResult>? readErrors) =
-                await m_context.FetchValuesAsync(null, remainingIds, ct: ct)
+            (ArrayOf<DataValue> values, ArrayOf<ServiceResult> readErrors) =
+                await m_context.FetchValuesAsync(null, remainingIds.ToArrayOf(), ct: ct)
                 .ConfigureAwait(false);
 
             Debug.Assert(values.Count == remainingIds.Count);

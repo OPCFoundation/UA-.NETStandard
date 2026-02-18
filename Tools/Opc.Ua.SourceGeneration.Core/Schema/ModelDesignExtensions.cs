@@ -1151,8 +1151,13 @@ namespace Opc.Ua.Schema.Model
                 datatype,
                 targetNamespace,
                 namespaces,
-                nullable: isOptional ? NullableAnnotation.Nullable : NullableAnnotation.NonNullable,
-                false); // Use raw arguments
+                // Make scalar optional nullable, but array/matrix elements non nullable
+                // TODO: Revisit this and make input non nullable but output parameter T
+                // nullable when we get rid of collections
+                nullable: isOptional && valueRank == ValueRank.Scalar ?
+                    NullableAnnotation.Nullable : NullableAnnotation.NonNullable,
+                // Use raw arguments
+                false);
 
             if (typeName is "global::Opc.Ua.IEncodeable" or "global::Opc.Ua.IEncodeable?")
             {
@@ -1162,15 +1167,17 @@ namespace Opc.Ua.Schema.Model
             {
                 typeName = "global::Opc.Ua.Variant";
             }
-            if (valueRank == ValueRank.Array)
+            switch (valueRank)
             {
-                return CoreUtils.Format("global::Opc.Ua.ArrayOf<{0}>", typeName);
+                case ValueRank.Scalar:
+                    return typeName;
+                case ValueRank.Array:
+                    return CoreUtils.Format("global::Opc.Ua.ArrayOf<{0}>", typeName);
+                case ValueRank.OneOrMoreDimensions:
+                    return CoreUtils.Format("global::Opc.Ua.MatrixOf<{0}>", typeName);
+                default:
+                    return "global::Opc.Ua.Variant";
             }
-            if (valueRank == ValueRank.Scalar)
-            {
-                return typeName;
-            }
-            return "global::Opc.Ua.Variant";
         }
 
         /// <summary>
@@ -1316,45 +1323,35 @@ namespace Opc.Ua.Schema.Model
             NullableAnnotation nullable = NullableAnnotation.NonNullable,
             bool useArrayTypeInsteadOfCollection = false)
         {
-            if (valueRank == ValueRank.Scalar)
+            string typeName = dataType.GetDotNetTypeName(
+                targetNamespace,
+                namespaces,
+                // Make scalar optional nullable, but array/matrix elements non nullable
+                // TODO: Revisit this when we get rid of generated collections
+                valueRank == ValueRank.Scalar ? nullable : NullableAnnotation.NonNullable,
+                true);
+            if (typeName != null)
             {
-                return GetDotNetTypeName(
-                    dataType,
-                    targetNamespace,
-                    namespaces,
-                    nullable,
-                    true);
-            }
-
-            if (valueRank == ValueRank.Array)
-            {
-                // Leave collections always non nullable even though they can
-                // serialized as null value. But properties are always init
-                // as collection never null
-                // return !nullable ? typeName : typeName + "?";
-                if (!useArrayTypeInsteadOfCollection)
+                switch (valueRank)
                 {
-                    // TODO: For now we use collection types as they are serializable
-                    // using data contract serializer, but remove this to replace
-                    // in the future with ArrayOf<T>.
-                    string collectionType = GetCollectionType();
-                    if (collectionType != null)
-                    {
-                        return collectionType;
-                    }
-                }
-                string typeName = GetDotNetTypeName(
-                    dataType,
-                    targetNamespace,
-                    namespaces,
-                    nullable,
-                    true);
-                if (typeName != null)
-                {
-                    return CoreUtils.Format("global::Opc.Ua.ArrayOf<{0}>", typeName);
+                    case ValueRank.Scalar:
+                        return typeName;
+                    case ValueRank.Array when useArrayTypeInsteadOfCollection:
+                        return CoreUtils.Format("global::Opc.Ua.ArrayOf<{0}>", typeName);
+                    case ValueRank.Array:
+                        // TODO: For now we use collection types as they are serializable
+                        // using data contract serializer, but remove this when collections
+                        // are gone.
+                        string collectionType = GetCollectionType();
+                        if (collectionType != null)
+                        {
+                            return collectionType;
+                        }
+                        break;
+                    case ValueRank.OneOrMoreDimensions when useArrayTypeInsteadOfCollection:
+                        return CoreUtils.Format("global::Opc.Ua.MatrixOf<{0}>", typeName);
                 }
             }
-
             return "global::Opc.Ua.Variant";
 
             string GetCollectionType()

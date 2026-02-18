@@ -317,14 +317,14 @@ namespace Opc.Ua.Server
             defaultText = defaultText.WithTranslationInfo(info);
             bool isMultilanguageRequested =
                 preferredLocales.Count > 0 &&
-                preferredLocales.Span[0].ToLowerInvariant() is "mul" or "qst";
+                preferredLocales[0].ToLowerInvariant() is "mul" or "qst";
 
             // check for exact match.
             if (preferredLocales.Count > 0)
             {
                 if (!defaultText.IsNullOrEmpty &&
                     !isMultilanguageRequested &&
-                    preferredLocales.Span[0] == defaultText.Locale)
+                    preferredLocales[0] == defaultText.Locale)
                 {
                     return defaultText;
                 }
@@ -337,7 +337,7 @@ namespace Opc.Ua.Server
                     return defaultText.AsMultiLanguage();
                 }
 
-                if (preferredLocales.Span[0] == info.Locale)
+                if (preferredLocales[0] == info.Locale)
                 {
                     return new LocalizedText(info);
                 }
@@ -386,7 +386,7 @@ namespace Opc.Ua.Server
                                 out CultureInfo culture);
                             if (translation != null)
                             {
-                                translations[preferredLocales.Span[i]] = translation;
+                                translations[preferredLocales[i]] = translation;
                             }
                         }
                     }
@@ -476,7 +476,7 @@ namespace Opc.Ua.Server
             for (int jj = 0; jj < preferredLocales.Count; jj++)
             {
                 // parse the locale.
-                string language = preferredLocales.Span[jj];
+                string language = preferredLocales[jj];
 
                 if (language == null)
                 {
@@ -498,7 +498,7 @@ namespace Opc.Ua.Server
                     TranslationTable translationTable = m_translationTables[ii];
 
                     // all done if exact match found.
-                    if (translationTable.Locale.Name == preferredLocales.Span[jj] &&
+                    if (translationTable.Locale.Name == preferredLocales[jj] &&
                         translationTable.Translations.TryGetValue(key, out translatedText))
                     {
                         culture = translationTable.Locale;

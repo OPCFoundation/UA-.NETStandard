@@ -661,7 +661,7 @@ namespace Opc.Ua
             // TODO: Match case insensitive
 
             // Handle if mul or qst are requested as per Part 4 rules
-            if (preferredLocales.Span[0].ToLowerInvariant() is kMulLocale or kQstLocale)
+            if (preferredLocales[0].ToLowerInvariant() is kMulLocale or kQstLocale)
             {
                 // If there are no further entries, return all languages available.
                 // If there are more languages included after ‘mul’ or ‘qst’, return
@@ -671,9 +671,9 @@ namespace Opc.Ua
                     var filtered = new Dictionary<string, string>();
                     for (int i = 1; i < preferredLocales.Count; i++)
                     {
-                        if (Translations.TryGetValue(preferredLocales.Span[i], out string t))
+                        if (Translations.TryGetValue(preferredLocales[i], out string t))
                         {
-                            filtered.Add(preferredLocales.Span[i], t);
+                            filtered.Add(preferredLocales[i], t);
                         }
                     }
                     if (filtered.Count > 0)

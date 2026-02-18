@@ -869,7 +869,7 @@ namespace Opc.Ua.Server
             NodeState node,
             ref Variant value)
         {
-            value = NamespaceUris.ToArray();
+            value = NamespaceUris.ToArrayOf();
             return ServiceResult.Good;
         }
 
@@ -881,7 +881,7 @@ namespace Opc.Ua.Server
             NodeState node,
             ref Variant value)
         {
-            value = ServerUris.ToArray();
+            value = ServerUris.ToArrayOf();
             return ServiceResult.Good;
         }
 

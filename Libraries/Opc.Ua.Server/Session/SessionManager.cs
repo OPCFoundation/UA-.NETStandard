@@ -206,7 +206,7 @@ namespace Opc.Ua.Server
                 if (authenticationToken.IsNull)
                 {
                     byte[] token = Nonce.CreateRandomNonceData(32);
-                    authenticationToken = new NodeId(token);
+                    authenticationToken = new NodeId(token.ToByteString());
                 }
 
                 // determine session timeout.
@@ -250,7 +250,7 @@ namespace Opc.Ua.Server
 
                 // get the session id.
                 sessionId = session.Id;
-                serverNonce = serverNonceObject.Data;
+                serverNonce = serverNonceObject.Data.ToByteString();
 
                 // save session.
                 if (!m_sessions.TryAdd(authenticationToken, session))
@@ -354,7 +354,7 @@ namespace Opc.Ua.Server
                     out newIdentity,
                     out userTokenPolicy);
 
-                serverNonce = serverNonceObject.Data;
+                serverNonce = serverNonceObject.Data.ToByteString();
             }
             catch (ServiceResultException)
             {
