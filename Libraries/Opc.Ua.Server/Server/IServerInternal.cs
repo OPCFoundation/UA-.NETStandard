@@ -96,25 +96,25 @@ namespace Opc.Ua.Server
         /// The master node manager for the server.
         /// </summary>
         /// <value>The node manager.</value>
-        MasterNodeManager NodeManager { get; }
+        IMasterNodeManager NodeManager { get; }
 
         /// <summary>
         /// The internal node manager for the servers.
         /// </summary>
         /// <value>The core node manager.</value>
-        CoreNodeManager CoreNodeManager { get; }
+        ICoreNodeManager CoreNodeManager { get; }
 
         /// <summary>
         /// Returns the node manager that managers the server diagnostics.
         /// </summary>
         /// <value>The diagnostics node manager.</value>
-        DiagnosticsNodeManager DiagnosticsNodeManager { get; }
+        IDiagnosticsNodeManager DiagnosticsNodeManager { get; }
 
         /// <summary>
         /// Returns the node manager that managers the server configuration.
         /// </summary>
         /// <value>The configuration node manager.</value>
-        ConfigurationNodeManager ConfigurationNodeManager { get; }
+        IConfigurationNodeManager ConfigurationNodeManager { get; }
 
         /// <summary>
         /// The manager for events that all components use to queue events that occur.
@@ -298,7 +298,7 @@ namespace Opc.Ua.Server
         /// Stores the MasterNodeManager and the CoreNodeManager
         /// </summary>
         /// <param name="nodeManager">The node manager.</param>
-        void SetNodeManager(MasterNodeManager nodeManager);
+        void SetNodeManager(IMasterNodeManager nodeManager);
 
         /// <summary>
         /// Stores the MainNodeManagerFactory

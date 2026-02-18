@@ -32,7 +32,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// The Server Configuration Node Manager.
     /// </summary>
-    public interface IConfigurationNodeManager : INodeManager2
+    public interface IConfigurationNodeManager : INodeManager3
     {
         /// <summary>
         /// Gets or creates the <see cref="NamespaceMetadataState"/> node for the specified NamespaceUri.

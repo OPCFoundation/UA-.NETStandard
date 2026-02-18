@@ -148,7 +148,7 @@ namespace Opc.Ua.Server
         /// Stores the MasterNodeManager, the DiagnosticsNodeManager and the CoreNodeManager
         /// </summary>
         /// <param name="nodeManager">The node manager.</param>
-        public void SetNodeManager(MasterNodeManager nodeManager)
+        public void SetNodeManager(IMasterNodeManager nodeManager)
         {
             NodeManager = nodeManager;
             DiagnosticsNodeManager = nodeManager.DiagnosticsNodeManager;
@@ -285,7 +285,7 @@ namespace Opc.Ua.Server
         /// The master node manager for the server.
         /// </summary>
         /// <value>The node manager.</value>
-        public MasterNodeManager NodeManager { get; private set; }
+        public IMasterNodeManager NodeManager { get; private set; }
 
         /// <inheritdoc/>
         public IMainNodeManagerFactory MainNodeManagerFactory { get; private set; }
@@ -294,16 +294,16 @@ namespace Opc.Ua.Server
         /// The internal node manager for the servers.
         /// </summary>
         /// <value>The core node manager.</value>
-        public CoreNodeManager CoreNodeManager { get; private set; }
+        public ICoreNodeManager CoreNodeManager { get; private set; }
 
         /// <summary>
         /// Returns the node manager that managers the server diagnostics.
         /// </summary>
         /// <value>The diagnostics node manager.</value>
-        public DiagnosticsNodeManager DiagnosticsNodeManager { get; private set; }
+        public IDiagnosticsNodeManager DiagnosticsNodeManager { get; private set; }
 
         /// <inheritdoc/>
-        public ConfigurationNodeManager ConfigurationNodeManager { get; private set; }
+        public IConfigurationNodeManager ConfigurationNodeManager { get; private set; }
 
         /// <summary>
         /// The manager for events that all components use to queue events that occur.
@@ -642,6 +642,10 @@ namespace Opc.Ua.Server
                     m_configuration.TransportQuotas.MaxStringLength;
                 serverObject.ServerCapabilities.MaxByteStringLength.Value = (uint)
                     m_configuration.TransportQuotas.MaxByteStringLength;
+                serverObject.ServerCapabilities.MaxSessions.Value = (uint)
+                    m_configuration.ServerConfiguration.MaxSessionCount;
+                serverObject.ServerCapabilities.MaxSubscriptions.Value = (uint)
+                    m_configuration.ServerConfiguration.MaxSubscriptionCount;
 
                 // Any operational limits Property that is provided shall have a non zero value.
                 OperationLimitsState operationLimits = serverObject.ServerCapabilities

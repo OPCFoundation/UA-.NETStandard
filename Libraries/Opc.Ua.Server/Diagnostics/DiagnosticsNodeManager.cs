@@ -151,7 +151,7 @@ namespace Opc.Ua.Server
 
                 // The nodes are now loaded by the DiagnosticsNodeManager from the file
                 // output by the ModelDesigner V2. These nodes are added to the CoreNodeManager
-                // via the AttachNode() method when the DiagnosticsNodeManager starts.
+                // via the ImportNodes() method when the DiagnosticsNodeManager starts.
                 Server.CoreNodeManager.ImportNodes(SystemContext, PredefinedNodes.Values, true);
 
                 // hook up the server GetMonitoredItems method.
@@ -215,7 +215,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Called when a client sets a subscription as durable.
         /// </summary>
-        public ServiceResult OnSetSubscriptionDurable(
+        protected ServiceResult OnSetSubscriptionDurable(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -233,7 +233,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Called when a client gets the monitored items of a subscription.
         /// </summary>
-        public ServiceResult OnGetMonitoredItems(
+        protected ServiceResult OnGetMonitoredItems(
             ISystemContext context,
             MethodState method,
             VariantCollection inputArguments,
@@ -277,7 +277,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Called when a client initiates resending of all data monitored items in a Subscription.
         /// </summary>
-        public ServiceResult OnResendData(
+        protected ServiceResult OnResendData(
             ISystemContext context,
             MethodState method,
             VariantCollection inputArguments,
@@ -337,7 +337,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Called when a client locks the server.
         /// </summary>
-        public ServiceResult OnUnlockServer(
+        protected ServiceResult OnUnlockServer(
             ISystemContext context,
             MethodState method,
             VariantCollection inputArguments,
@@ -610,7 +610,7 @@ namespace Opc.Ua.Server
                     {
                         for (int ii = 0; ii < m_subscriptions.Count; ii++)
                         {
-                            nodesToDelete.Add(m_sessions[ii].Value.Variable);
+                            nodesToDelete.Add(m_subscriptions[ii].Value.Variable);
                         }
 
                         m_subscriptions.Clear();
@@ -1425,7 +1425,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Set custom role permissions for desired node
         /// </summary>
-        private ServiceResult OnReadUserRolePermissions(
+        protected ServiceResult OnReadUserRolePermissions(
             ISystemContext context,
             NodeState node,
             ref ArrayOf<RolePermissionType> value)
@@ -1477,7 +1477,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Does a scan before the diagnostics are read.
         /// </summary>
-        private void OnBeforeReadDiagnostics(
+        protected void OnBeforeReadDiagnostics(
             ISystemContext context,
             BaseVariableValue variable,
             NodeState component)
@@ -1501,7 +1501,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Does a scan before the diagnostics are read.
         /// </summary>
-        private ServiceResult OnReadDiagnosticsArray(
+        protected ServiceResult OnReadDiagnosticsArray(
             ISystemContext context,
             NodeState node,
             ref Variant value)

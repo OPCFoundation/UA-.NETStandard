@@ -52,7 +52,7 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// The application instance used to build the configuration.
         /// </summary>
-        public ApplicationInstance ApplicationInstance { get; }
+        public IApplicationInstance ApplicationInstance { get; }
 
         /// <summary>
         /// The application configuration.

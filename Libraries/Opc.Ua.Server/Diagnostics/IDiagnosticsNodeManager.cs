@@ -32,7 +32,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A node manager the diagnostic information exposed by the server.
     /// </summary>
-    public interface IDiagnosticsNodeManager : INodeManager2, INodeIdFactory
+    public interface IDiagnosticsNodeManager : INodeManager3, INodeIdFactory
     {
         /// <summary>
         /// True if diagnostics are currently enabled.
