@@ -245,7 +245,17 @@ namespace Opc.Ua
                 case CertificateKeyAlgorithm.BrainpoolP384r1:
                     return CreateNonce(ECCurve.NamedCurves.brainpoolP384r1);
                 default:
-                    return new Nonce { Data = CreateRandomNonceData(securityPolicy.SecureChannelNonceLength) };
+                    // Basic128Rsa15 keeps the legacy 16-byte nonce for compatibility.
+                    bool enforceMinimumLength = !string.Equals(
+                        securityPolicy.Uri,
+                        SecurityPolicies.Basic128Rsa15,
+                        StringComparison.Ordinal);
+                    return new Nonce
+                    {
+                        Data = CreateRandomNonceData(
+                            securityPolicy.SecureChannelNonceLength,
+                            enforceMinimumLength)
+                    };
             }
         }
 
