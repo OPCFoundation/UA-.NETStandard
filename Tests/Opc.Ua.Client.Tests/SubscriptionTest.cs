@@ -498,7 +498,7 @@ namespace Opc.Ua.Client.Tests
             bool sequentialPublishing,
             bool sendInitialValues)
         {
-            IgnoreIfPolicyNotAdvertised(securityPolicy);
+            await IgnoreIfPolicyNotAdvertisedAsync(securityPolicy).ConfigureAwait(false);
 
             const int kTestSubscriptions = 5;
             const int kDelay = 2_000;
@@ -1633,16 +1633,27 @@ namespace Opc.Ua.Client.Tests
             await subscription.DeleteAsync(true, CancellationToken.None).ConfigureAwait(false);
         }
 
-        private void IgnoreIfPolicyNotAdvertised(string securityPolicyUri)
+        private async Task IgnoreIfPolicyNotAdvertisedAsync(string securityPolicyUri)
         {
+            Endpoints ??= await ClientFixture.GetEndpointsAsync(ServerUrl).ConfigureAwait(false);
             if (Endpoints?.Any(endpoint =>
                     string.Equals(
                         endpoint.SecurityPolicyUri,
                         securityPolicyUri,
                         StringComparison.Ordinal)) != true)
             {
+                string advertisedPolicies = Endpoints == null
+                    ? "<none>"
+                    : string.Join(
+                        ", ",
+                        Endpoints
+                            .Select(endpoint => endpoint.SecurityPolicyUri)
+                            .Where(policy => !string.IsNullOrEmpty(policy))
+                            .Distinct()
+                            .OrderBy(policy => policy, StringComparer.Ordinal));
                 NUnit.Framework.Assert.Ignore(
-                    $"SecurityPolicy '{securityPolicyUri}' is not advertised by the server.");
+                    $"SecurityPolicy '{securityPolicyUri}' is not advertised by the server. " +
+                    $"Advertised: {advertisedPolicies}");
             }
         }
     }

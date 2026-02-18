@@ -875,7 +875,7 @@ namespace Opc.Ua.Client.Tests
             string securityPolicy,
             bool anonymous)
         {
-            IgnoreIfPolicyNotAdvertised(securityPolicy);
+            await IgnoreIfPolicyNotAdvertisedAsync(securityPolicy).ConfigureAwait(false);
 
             ServiceResultException sre;
 
@@ -1857,7 +1857,7 @@ namespace Opc.Ua.Client.Tests
             [ValueSource(nameof(SupportedEccPolicies))] string securityPolicy)
         {
             IgnoreUnsupportedBrainpoolOnMacOs(securityPolicy);
-            IgnoreIfPolicyNotAdvertised(securityPolicy);
+            await IgnoreIfPolicyNotAdvertisedAsync(securityPolicy).ConfigureAwait(false);
 
             var userIdentity = new UserIdentity("user1", "password"u8);
 
@@ -1899,7 +1899,7 @@ namespace Opc.Ua.Client.Tests
             [ValueSource(nameof(SupportedEccPolicies))] string securityPolicy)
         {
             IgnoreUnsupportedBrainpoolOnMacOs(securityPolicy);
-            IgnoreIfPolicyNotAdvertised(securityPolicy);
+            await IgnoreIfPolicyNotAdvertisedAsync(securityPolicy).ConfigureAwait(false);
 
             const string identityToken = "fakeTokenString";
 
@@ -1946,7 +1946,7 @@ namespace Opc.Ua.Client.Tests
             [ValueSource(nameof(SupportedEccX509Policies))] string securityPolicy)
         {
             IgnoreUnsupportedBrainpoolOnMacOs(securityPolicy);
-            IgnoreIfPolicyNotAdvertised(securityPolicy);
+            await IgnoreIfPolicyNotAdvertisedAsync(securityPolicy).ConfigureAwait(false);
 
             var eccCurveHashPairs = new ECCurveHashPairCollection
             {
@@ -2334,16 +2334,27 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
-        private void IgnoreIfPolicyNotAdvertised(string securityPolicyUri)
+        private async Task IgnoreIfPolicyNotAdvertisedAsync(string securityPolicyUri)
         {
+            Endpoints ??= await ClientFixture.GetEndpointsAsync(ServerUrl).ConfigureAwait(false);
             if (Endpoints?.Any(endpoint =>
                     string.Equals(
                         endpoint.SecurityPolicyUri,
                         securityPolicyUri,
                         StringComparison.Ordinal)) != true)
             {
+                string advertisedPolicies = Endpoints == null
+                    ? "<none>"
+                    : string.Join(
+                        ", ",
+                        Endpoints
+                            .Select(endpoint => endpoint.SecurityPolicyUri)
+                            .Where(policy => !string.IsNullOrEmpty(policy))
+                            .Distinct()
+                            .OrderBy(policy => policy, StringComparer.Ordinal));
                 NUnit.Framework.Assert.Ignore(
-                    $"SecurityPolicy '{securityPolicyUri}' is not advertised by the server.");
+                    $"SecurityPolicy '{securityPolicyUri}' is not advertised by the server. " +
+                    $"Advertised: {advertisedPolicies}");
             }
         }
 
