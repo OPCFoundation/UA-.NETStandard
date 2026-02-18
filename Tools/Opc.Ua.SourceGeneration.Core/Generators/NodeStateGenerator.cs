@@ -2276,7 +2276,7 @@ namespace Opc.Ua.SourceGeneration
             return false;
         }
 
-        private bool IsInAddressSpace(NodeToGenerate node)
+        private static bool IsInAddressSpace(NodeToGenerate node)
         {
             bool isInAddressSpace = !node.Design.NotInAddressSpace;
             if (node.Design is InstanceDesign instanceDesign &&

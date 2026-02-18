@@ -205,10 +205,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
 
             // Test with ByteString array
             writeValue.Value = new DataValue(
-                new Variant(
-                    [
-                        ByteString.From([0x22, 0x21])
-                    ]));
+                new Variant([ByteString.From([0x22, 0x21])]));
             Assert.AreEqual(
                 BuiltInType.ByteString,
                 writeValue.Value.WrappedValue.TypeInfo.BuiltInType);

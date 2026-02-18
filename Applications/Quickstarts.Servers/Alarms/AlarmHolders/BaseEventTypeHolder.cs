@@ -68,7 +68,7 @@ namespace Alarms
 
                 BaseEventState alarm = GetAlarm();
 
-                alarm.EventId.Value = Uuid.NewUuid().ToByteArray();
+                alarm.EventId.Value = Uuid.NewUuid().ToByteString();
                 alarm.EventType.Value = new NodeId(
                     alarmTypeIdentifier,
                     GetNameSpaceIndex(alarmTypeIdentifier));

@@ -110,7 +110,7 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Gets or sets the preferred locales.
         /// </summary>
-        public string[] PreferredLocales { get; set; }
+        public ArrayOf<string> PreferredLocales { get; set; }
 
         /// <summary>
         /// Gets a value indicating whether the session is connected.
@@ -430,8 +430,8 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                var nodesToRead = new ReadValueIdCollection
-                {
+                ArrayOf<ReadValueId> nodesToRead =
+                [
                     new ReadValueId
                     {
                         NodeId = ExpandedNodeId.ToNodeId(
@@ -440,7 +440,7 @@ namespace Opc.Ua.Gds.Client
                         ),
                         AttributeId = Attributes.Value
                     }
-                };
+                ];
 
                 ReadResponse result = await session.ReadAsync(
                     null,
@@ -482,7 +482,7 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                VariantCollection outputArguments = await session.CallAsync(
+                ArrayOf<Variant> outputArguments = await session.CallAsync(
                     ExpandedNodeId.ToNodeId(
                         Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList,
                         session.NamespaceUris
@@ -651,7 +651,7 @@ namespace Opc.Ua.Gds.Client
                         maxTrustListSize);
                 }
 
-                VariantCollection outputArguments = await session.CallAsync(
+                ArrayOf<Variant> outputArguments = await session.CallAsync(
                     ExpandedNodeId.ToNodeId(
                         Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList,
                         session.NamespaceUris
@@ -694,7 +694,7 @@ namespace Opc.Ua.Gds.Client
                             ),
                             ct,
                             fileHandle,
-                            buffer).ConfigureAwait(false);
+                            buffer.ToByteString()).ConfigureAwait(false);
                     }
 
                     outputArguments = await session.CallAsync(
@@ -768,7 +768,7 @@ namespace Opc.Ua.Gds.Client
                         session.NamespaceUris
                     ),
                     ct,
-                    certificate.RawData,
+                    certificate.RawData.ToByteString(),
                     isTrustedCertificate).ConfigureAwait(false);
             }
             finally
@@ -827,8 +827,8 @@ namespace Opc.Ua.Gds.Client
         [Obsolete("Use GetCertificatesAsync instead.")]
         public void GetCertificates(
             NodeId certificateGroupId,
-            out NodeId[] certificateTypeIds,
-            out ByteString[] certificates)
+            out ArrayOf<NodeId> certificateTypeIds,
+            out ArrayOf<ByteString> certificates)
         {
             (certificateTypeIds, certificates) = GetCertificatesAsync(
                 certificateGroupId,
@@ -847,18 +847,18 @@ namespace Opc.Ua.Gds.Client
         ///A list of DER encoded Certificates assigned to CertificateGroup.
         ///The certificateType for the Certificate is specified by the corresponding element in the certificateTypes parameter.
         /// </returns>
-        public async Task<(NodeId[] certificateTypeIds, ByteString[] certificates)> GetCertificatesAsync(
+        public async Task<(ArrayOf<NodeId> certificateTypeIds, ArrayOf<ByteString> certificates)> GetCertificatesAsync(
             NodeId certificateGroupId,
             CancellationToken ct = default)
         {
-            NodeId[] certificateTypeIds = [];
-            ByteString[] certificates = [];
+            ArrayOf<NodeId> certificateTypeIds = [];
+            ArrayOf<ByteString> certificates = [];
 
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             IUserIdentity oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
             try
             {
-                VariantCollection outputArguments = await session.CallAsync(
+                ArrayOf<Variant> outputArguments = await session.CallAsync(
                     ExpandedNodeId.ToNodeId(
                         Ua.ObjectIds.ServerConfiguration,
                         session.NamespaceUris),
@@ -927,7 +927,7 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                VariantCollection outputArguments = await session.CallAsync(
+                ArrayOf<Variant> outputArguments = await session.CallAsync(
                     ExpandedNodeId.ToNodeId(
                         Ua.ObjectIds.ServerConfiguration,
                         session.NamespaceUris),
@@ -971,7 +971,7 @@ namespace Opc.Ua.Gds.Client
             ByteString certificate,
             string privateKeyFormat,
             ByteString privateKey,
-            ByteString[] issuerCertificates)
+            ArrayOf<ByteString> issuerCertificates)
         {
             return UpdateCertificateAsync(
                 certificateGroupId,
@@ -998,7 +998,7 @@ namespace Opc.Ua.Gds.Client
             ByteString certificate,
             string privateKeyFormat,
             ByteString privateKey,
-            ByteString[] issuerCertificates,
+            ArrayOf<ByteString> issuerCertificates,
             CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
@@ -1006,7 +1006,7 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                VariantCollection outputArguments = await session.CallAsync(
+                ArrayOf<Variant> outputArguments = await session.CallAsync(
                     ExpandedNodeId.ToNodeId(
                         Ua.ObjectIds.ServerConfiguration,
                         session.NamespaceUris),
@@ -1053,7 +1053,7 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                VariantCollection outputArguments = await session.CallAsync(
+                ArrayOf<Variant> outputArguments = await session.CallAsync(
                     ExpandedNodeId.ToNodeId(
                         Ua.ObjectIds.ServerConfiguration,
                         session.NamespaceUris),
@@ -1062,7 +1062,7 @@ namespace Opc.Ua.Gds.Client
                         session.NamespaceUris),
                     ct).ConfigureAwait(false);
 
-                ByteString[] rawCertificates = (ByteString[])outputArguments[0];
+                var rawCertificates = (ArrayOf<ByteString>)outputArguments[0];
                 var collection = new X509Certificate2Collection();
                 foreach (ByteString rawCertificate in rawCertificates)
                 {

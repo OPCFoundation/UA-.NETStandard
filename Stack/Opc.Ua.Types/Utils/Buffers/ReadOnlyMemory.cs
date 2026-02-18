@@ -63,7 +63,7 @@ namespace Opc.Ua
     internal static class ReadOnlyMemoryHelper
     {
 #if NET8_0_OR_GREATER
-        public static ref T ReinterpretAs<T>(this scoped ref readonly ReadOnlyMemory m)
+        public static ref T ReinterpretAs<T>(scoped ref readonly ReadOnlyMemory m)
         {
             return ref Unsafe.As<ReadOnlyMemory, T>(ref Unsafe.AsRef(in m));
         }

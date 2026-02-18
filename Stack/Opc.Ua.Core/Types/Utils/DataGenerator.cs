@@ -379,7 +379,7 @@ namespace Opc.Ua.Test
             }
 
             // return array value.
-            return new Variant((object)output);
+            return new Variant(output);
         }
 
         /// <summary>

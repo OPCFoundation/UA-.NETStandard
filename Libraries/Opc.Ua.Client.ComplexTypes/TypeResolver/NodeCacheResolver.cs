@@ -556,8 +556,9 @@ namespace Opc.Ua.Client.ComplexTypes
                 // Fall back to reading the byte string in chunks.
                 try
                 {
-                    return await m_session.ReadByteStringInChunksAsync(dictionaryId, ct)
+                    ByteString result = await m_session.ReadByteStringInChunksAsync(dictionaryId, ct)
                         .ConfigureAwait(false);
+                    return result.ToArray();
                 }
                 catch
                 {
@@ -623,13 +624,14 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
 
                     // Fall back to reading the byte string in chunks.
-                    result[nodeId] = await m_session.ReadByteStringInChunksAsync(nodeId, ct)
+                    ByteString chunkedReadResult = await m_session.ReadByteStringInChunksAsync(nodeId, ct)
                         .ConfigureAwait(false);
+                    result[nodeId] = chunkedReadResult.ToArray();
                 }
                 else
                 {
                     // return as a byte array.
-                    result[nodeId] = values[ii].Value as byte[];
+                    result[nodeId] = values[ii].WrappedValue.GetByteString().ToArray();
                 }
                 ii++;
             }
@@ -791,45 +793,50 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Get values for a collection of node Ids.
         /// </summary>
-        private ValueTask<IReadOnlyList<DataValue>> GetValuesAsync(
+        private async ValueTask<IReadOnlyList<DataValue>> GetValuesAsync(
             IEnumerable<ExpandedNodeId> nodeIds,
             CancellationToken ct)
         {
-            return m_lruNodeCache.GetValuesAsync(nodeIds.ToList(), ct);
+            ArrayOf<DataValue> values = await m_lruNodeCache.GetValuesAsync(
+                nodeIds.ToArrayOf(),
+                ct).ConfigureAwait(false);
+            return values.ToArray();
         }
 
         /// <summary>
         /// Returns the references of the specified node that meet the criteria specified.
         /// </summary>
-        private ValueTask<IReadOnlyList<INode>> FindReferencesAsync(
+        private async ValueTask<IReadOnlyList<INode>> FindReferencesAsync(
             ExpandedNodeId nodeIds,
             NodeId referenceTypeId,
             bool isInverse,
             CancellationToken ct)
         {
-            return m_lruNodeCache.GetReferencesAsync(
+            ArrayOf<INode> references = await m_lruNodeCache.GetReferencesAsync(
                 nodeIds,
                 referenceTypeId,
                 isInverse,
                 false,
-                ct);
+                ct).ConfigureAwait(false);
+            return references.ToArray();
         }
 
         /// <summary>
         /// Returns the references of the specified nodes that meet the criteria specified.
         /// </summary>
-        private ValueTask<IReadOnlyList<INode>> FindReferencesAsync(
+        private async ValueTask<IReadOnlyList<INode>> FindReferencesAsync(
             IEnumerable<ExpandedNodeId> nodeIds,
             NodeId referenceTypeId,
             bool isInverse,
             CancellationToken ct)
         {
-            return m_lruNodeCache.GetReferencesAsync(
-                nodeIds.ToList(),
+            ArrayOf<INode> nodes = await m_lruNodeCache.GetReferencesAsync(
+                nodeIds.ToArrayOf(),
                 [referenceTypeId],
                 isInverse,
                 false,
-                ct);
+                ct).ConfigureAwait(false);
+            return nodes.ToArray();
         }
 #else
         /// <summary>
@@ -864,15 +871,16 @@ namespace Opc.Ua.Client.ComplexTypes
             IEnumerable<ExpandedNodeId> expandedNodeIds,
             CancellationToken ct)
         {
-            var nodeIds = expandedNodeIds.Select(n => ExpandedNodeId.ToNodeId(n, NamespaceUris))
-                .ToList();
-            (DataValueCollection values, IList<ServiceResult> errors) = await m_session
+            var nodeIds = expandedNodeIds
+                .Select(n => ExpandedNodeId.ToNodeId(n, NamespaceUris))
+                .ToArrayOf();
+            (var values, var errors) = await m_session
                 .ReadValuesAsync(nodeIds, ct)
                 .ConfigureAwait(false);
             return
             [
-                .. values.Zip(
-                    errors,
+                .. values.ToArray().Zip(
+                    errors.ToArray(),
                     (first, second) => StatusCode.IsNotBad(second.StatusCode)
                         ? first
                         : new DataValue(second.StatusCode))

@@ -314,7 +314,7 @@ namespace Opc.Ua.Schema.Model.Tests
         public void Equals_OneNullDefaultValue_ReturnsFalse()
         {
             // Arrange
-            var xmlDoc = new System.Xml.XmlDocument();
+            var xmlDoc = new XmlDocument();
             System.Xml.XmlElement defaultValue = xmlDoc.CreateElement("DefaultValue");
             defaultValue.InnerText = "TestValue";
 

@@ -203,7 +203,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the locales that the server should use when returning localized text.
         /// </summary>
-        StringCollection PreferredLocales { get; }
+        ArrayOf<string> PreferredLocales { get; }
 
         /// <summary>
         /// Gets the subscriptions owned by the session.
@@ -425,7 +425,7 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string>? preferredLocales,
+            ArrayOf<string> preferredLocales,
             bool checkDomain,
             bool closeChannel,
             CancellationToken ct = default);
@@ -438,7 +438,7 @@ namespace Opc.Ua.Client
         /// <param name="ct">The cancellation token.</param>
         Task UpdateSessionAsync(
             IUserIdentity identity,
-            StringCollection preferredLocales,
+            ArrayOf<string> preferredLocales,
             CancellationToken ct = default);
 
         /// <summary>
@@ -447,7 +447,7 @@ namespace Opc.Ua.Client
         /// <param name="preferredLocales">The preferred locales.</param>
         /// <param name="ct">The cancellation token.</param>
         Task ChangePreferredLocalesAsync(
-            StringCollection preferredLocales,
+            ArrayOf<string> preferredLocales,
             CancellationToken ct = default);
 
         /// <summary>

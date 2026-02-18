@@ -939,7 +939,7 @@ namespace Opc.Ua
                 case DataTypes.Guid:
                     return typeof(Uuid);
                 case DataTypes.ByteString:
-                    return typeof(byte[]);
+                    return typeof(ByteString);
                 case DataTypes.XmlElement:
                     return typeof(XmlElement);
                 case DataTypes.NodeId:

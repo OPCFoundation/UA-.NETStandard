@@ -931,7 +931,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The ArrayDimensions for the Value attribute for Variable or VariableType nodes.
         /// </summary>
-        public IList<uint> ArrayDimensions { get; set; }
+        public ArrayOf<uint> ArrayDimensions { get; set; }
 
         /// <summary>
         /// Specifies the AccessRestrictions that apply to a Node.

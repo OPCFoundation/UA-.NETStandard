@@ -485,11 +485,11 @@ namespace Opc.Ua.Bindings
                         }
                     }
 
-                    encoder.WriteByteString(null, [.. senderCertificateList]);
+                    encoder.WriteByteString(null, senderCertificateList.ToByteString());
                 }
                 else
                 {
-                    encoder.WriteByteString(null, senderCertificate.RawData);
+                    encoder.WriteByteString(null, senderCertificate.RawData.ToByteString());
                 }
 
                 encoder.WriteByteString(null, GetThumbprintBytes(receiverCertificate.Thumbprint));

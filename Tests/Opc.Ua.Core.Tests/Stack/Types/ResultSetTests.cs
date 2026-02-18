@@ -46,15 +46,15 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         public void ResultSetConstructorShouldInitializeProperties()
         {
             // Arrange
-            var results = new List<int> { 1, 2, 3 };
-            var errors = new List<ServiceResult> { ServiceResult.Good };
+            ArrayOf<int> results = [1, 2, 3];
+            ArrayOf<ServiceResult> errors = [ServiceResult.Good];
 
             // Act
             var resultSet = new ResultSet<int>(results, errors);
 
             // Assert
-            Assert.That(resultSet.Results, Is.EquivalentTo(results));
-            Assert.That(resultSet.Errors, Is.EquivalentTo(errors));
+            Assert.That(resultSet.Results, Is.EqualTo(results));
+            Assert.That(resultSet.Errors, Is.EqualTo(errors));
         }
 
         [Test]

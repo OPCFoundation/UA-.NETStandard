@@ -471,7 +471,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     encoder.WriteGuid(name, (Uuid)property.GetValue(this));
                     break;
                 case BuiltInType.ByteString:
-                    encoder.WriteByteString(name, (byte[])property.GetValue(this));
+                    encoder.WriteByteString(name, (ByteString)property.GetValue(this));
                     break;
                 case BuiltInType.XmlElement:
                     encoder.WriteXmlElement(name, (XmlElement)property.GetValue(this));

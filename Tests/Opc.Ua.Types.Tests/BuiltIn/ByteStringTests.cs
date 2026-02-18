@@ -365,7 +365,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             // Arrange
             // Act
-            ByteString byteString = (ByteString)new ReadOnlySpan<byte>([1, 2, 3]);
+            var byteString = (ByteString)new ReadOnlySpan<byte>([1, 2, 3]);
 
             // Assert
             Assert.That(byteString.Span.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3 }));
@@ -376,7 +376,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             // Arrange
             // Act
-            ByteString byteString = (ByteString)new Span<byte>([1, 2, 3]);
+            var byteString = (ByteString)new Span<byte>([1, 2, 3]);
 
             // Assert
             Assert.That(byteString.Span.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3 }));
@@ -389,7 +389,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             byte[] array = [1, 2, 3];
 
             // Act
-            ByteString byteString = (ByteString)array;
+            var byteString = (ByteString)array;
 
             // Assert
             Assert.That(byteString.Span.ToArray(), Is.EqualTo(array));

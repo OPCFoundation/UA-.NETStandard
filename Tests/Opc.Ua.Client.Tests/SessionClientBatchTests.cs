@@ -1390,8 +1390,9 @@ namespace Opc.Ua.Client.Tests
         {
             const bool releaseContinuationPoints = true;
 
-            var continuationPoints = new ByteStringCollection(
-                [.. Enumerable.Repeat(Array.Empty<byte>(), 15)]);
+            var continuationPoints = Enumerable
+                .Repeat(ByteString.Empty, 15)
+                .ToArrayOf();
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -1433,8 +1434,9 @@ namespace Opc.Ua.Client.Tests
         {
             const bool releaseContinuationPoints = true;
 
-            var continuationPoints = new ByteStringCollection(
-                [.. Enumerable.Repeat(Array.Empty<byte>(), 15)]);
+            var continuationPoints = Enumerable
+                .Repeat(ByteString.Empty, 15)
+                .ToArrayOf();
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -3874,7 +3876,7 @@ namespace Opc.Ua.Client.Tests
             RequestHeader requestHeader)
         {
             const bool releaseContinuationPoint = true;
-            byte[] continuationPoint = [];
+            ByteString continuationPoint = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -3904,7 +3906,7 @@ namespace Opc.Ua.Client.Tests
             RequestHeader requestHeader)
         {
             const bool releaseContinuationPoint = true;
-            byte[] continuationPoint = [];
+            ByteString continuationPoint = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 
@@ -3936,7 +3938,7 @@ namespace Opc.Ua.Client.Tests
             RequestHeader requestHeader)
         {
             const bool releaseContinuationPoint = true;
-            byte[] continuationPoint = [];
+            ByteString continuationPoint = [];
             CancellationToken ct = CancellationToken.None;
             var sessionMock = SessionMock.Create();
 

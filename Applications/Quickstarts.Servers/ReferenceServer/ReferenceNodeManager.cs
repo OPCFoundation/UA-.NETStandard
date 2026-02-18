@@ -399,7 +399,7 @@ namespace Quickstarts.ReferenceServer
                     decimalVariable.Value = Variant.FromStructure(new DecimalDataType
                     {
                         Scale = 100,
-                        Value = largeInteger.ToByteArray()
+                        Value = largeInteger.ToByteString()
                     });
                     variables.Add(decimalVariable);
 
@@ -446,11 +446,12 @@ namespace Quickstarts.ReferenceServer
                         DataTypeIds.Double,
                         ValueRanks.OneDimension);
                     // Set the first elements of the array to a smaller value.
-                    double[] doubleArrayVal = (double[])doubleArrayVar.Value;
+                    double[] doubleArrayVal = ((ArrayOf<double>)doubleArrayVar.Value).ToArray();
                     doubleArrayVal[0] %= 10E+10;
                     doubleArrayVal[1] %= 10E+10;
                     doubleArrayVal[2] %= 10E+10;
                     doubleArrayVal[3] %= 10E+10;
+                    doubleArrayVar.Value = Variant.From(doubleArrayVal.ToArrayOf());
                     variables.Add(doubleArrayVar);
 
                     variables.Add(
@@ -468,11 +469,12 @@ namespace Quickstarts.ReferenceServer
                         DataTypeIds.Float,
                         ValueRanks.OneDimension);
                     // Set the first elements of the array to a smaller value.
-                    float[] floatArrayVal = (float[])floatArrayVar.Value;
+                    float[] floatArrayVal = ((ArrayOf<float>)floatArrayVar.Value).ToArray();
                     floatArrayVal[0] %= 0xf10E + 4;
                     floatArrayVal[1] %= 0xf10E + 4;
                     floatArrayVal[2] %= 0xf10E + 4;
                     floatArrayVal[3] %= 0xf10E + 4;
+                    floatArrayVar.Value = Variant.From(floatArrayVal.ToArrayOf());
                     variables.Add(floatArrayVar);
 
                     variables.Add(
@@ -559,8 +561,8 @@ namespace Quickstarts.ReferenceServer
                         "String",
                         DataTypeIds.String,
                         ValueRanks.OneDimension);
-                    stringArrayVar.Value = new string[]
-                    {
+                    ArrayOf<string> strings =
+                    [
                         "Лошадь_ Пурпурово( Змейка( Слон",
                         "猪 绿色 绵羊 大象~ 狗 菠萝 猪鼠",
                         "Лошадь Овцы Голубика Овцы Змейка",
@@ -571,7 +573,8 @@ namespace Quickstarts.ReferenceServer
                         "Yellow Sheep Peach Elephant Cow",
                         "Крыса Корова Свинья Собака Кот",
                         "龙_ 绵羊 大象 芒果; 猫'"
-                    };
+                    ];
+                    stringArrayVar.Value = strings;
                     variables.Add(stringArrayVar);
 
                     variables.Add(
@@ -1829,7 +1832,7 @@ namespace Quickstarts.ReferenceServer
                         "Byte",
                         BuiltInType.Byte,
                         ValueRanks.OneDimension,
-                        new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 });
+                        new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }.ToArrayOf());
                     CreateAnalogItemVariable(
                         analogArrayFolder,
                         daAnalogArray + "Double",
@@ -1858,7 +1861,7 @@ namespace Quickstarts.ReferenceServer
                         "Int16",
                         BuiltInType.Int16,
                         ValueRanks.OneDimension,
-                        new short[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 });
+                        s_shortArray);
                     CreateAnalogItemVariable(
                         analogArrayFolder,
                         daAnalogArray + "Int32",
@@ -1872,56 +1875,56 @@ namespace Quickstarts.ReferenceServer
                         "Int64",
                         BuiltInType.Int64,
                         ValueRanks.OneDimension,
-                        new long[] { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 });
+                        new long[] { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 }.ToArrayOf());
                     CreateAnalogItemVariable(
                         analogArrayFolder,
                         daAnalogArray + "Integer",
                         "Integer",
                         BuiltInType.Integer,
                         ValueRanks.OneDimension,
-                        new long[] { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 });
+                        new long[] { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 }.ToArrayOf());
                     CreateAnalogItemVariable(
                         analogArrayFolder,
                         daAnalogArray + "Number",
                         "Number",
                         BuiltInType.Number,
                         ValueRanks.OneDimension,
-                        new short[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
+                        s_shortArray);
                     CreateAnalogItemVariable(
                         analogArrayFolder,
                         daAnalogArray + "SByte",
                         "SByte",
                         BuiltInType.SByte,
                         ValueRanks.OneDimension,
-                        new sbyte[] { 10, 20, 30, 40, 50, 60, 70, 80, 90 });
+                        new sbyte[] { 10, 20, 30, 40, 50, 60, 70, 80, 90 }.ToArrayOf());
                     CreateAnalogItemVariable(
                         analogArrayFolder,
                         daAnalogArray + "UInt16",
                         "UInt16",
                         BuiltInType.UInt16,
                         ValueRanks.OneDimension,
-                        new ushort[] { 20, 21, 22, 23, 24, 25, 26, 27, 28, 29 });
+                        new ushort[] { 20, 21, 22, 23, 24, 25, 26, 27, 28, 29 }.ToArrayOf());
                     CreateAnalogItemVariable(
                         analogArrayFolder,
                         daAnalogArray + "UInt32",
                         "UInt32",
                         BuiltInType.UInt32,
                         ValueRanks.OneDimension,
-                        new uint[] { 30, 31, 32, 33, 34, 35, 36, 37, 38, 39 });
+                        new uint[] { 30, 31, 32, 33, 34, 35, 36, 37, 38, 39 }.ToArrayOf());
                     CreateAnalogItemVariable(
                         analogArrayFolder,
                         daAnalogArray + "UInt64",
                         "UInt64",
                         BuiltInType.UInt64,
                         ValueRanks.OneDimension,
-                        new ulong[] { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 });
+                        new ulong[] { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 }.ToArrayOf());
                     CreateAnalogItemVariable(
                         analogArrayFolder,
                         daAnalogArray + "UInteger",
                         "UInteger",
                         BuiltInType.UInteger,
                         ValueRanks.OneDimension,
-                        new ulong[] { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 });
+                        new ulong[] { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 }.ToArrayOf());
                     var doc1 = new XmlDocument();
 
                     ResetRandomGenerator(12);
@@ -3860,11 +3863,11 @@ namespace Quickstarts.ReferenceServer
 
             if (valueRank == ValueRanks.OneDimension)
             {
-                variable.ArrayDimensions = new ReadOnlyList<uint>([0]);
+                variable.ArrayDimensions = [0];
             }
             else if (valueRank == ValueRanks.TwoDimensions)
             {
-                variable.ArrayDimensions = new ReadOnlyList<uint>([0, 0]);
+                variable.ArrayDimensions = [0, 0];
             }
 
             variable.ValuePrecision.Value = 2;
@@ -3966,11 +3969,11 @@ namespace Quickstarts.ReferenceServer
 
             if (valueRank == ValueRanks.OneDimension)
             {
-                variable.ArrayDimensions = new ReadOnlyList<uint>([0]);
+                variable.ArrayDimensions = [0];
             }
             else if (valueRank == ValueRanks.TwoDimensions)
             {
-                variable.ArrayDimensions = new ReadOnlyList<uint>([0, 0]);
+                variable.ArrayDimensions = [0, 0];
             }
 
             BuiltInType builtInType = TypeInfo.GetBuiltInType(dataType, Server.TypeTree);
@@ -4120,7 +4123,7 @@ namespace Quickstarts.ReferenceServer
             NodeState parent,
             string path,
             string name,
-            params string[] enumNames)
+            ArrayOf<string> enumNames)
         {
             return CreateMultiStateValueDiscreteItemVariable(parent, path, name, default, enumNames);
         }
@@ -4133,7 +4136,7 @@ namespace Quickstarts.ReferenceServer
             string path,
             string name,
             NodeId nodeId,
-            params string[] enumNames)
+            ArrayOf<string> enumNames)
         {
             var variable = new MultiStateValueDiscreteState(parent)
             {
@@ -4162,14 +4165,14 @@ namespace Quickstarts.ReferenceServer
             // ValueAsText = the actual enumerated value
 
             // set the enumerated strings
-            var strings = new LocalizedText[enumNames.Length];
+            var strings = new LocalizedText[enumNames.Count];
             for (int ii = 0; ii < strings.Length; ii++)
             {
                 strings[ii] = LocalizedText.From(enumNames[ii]);
             }
 
             // set the enumerated values
-            var values = new EnumValueType[enumNames.Length];
+            var values = new EnumValueType[enumNames.Count];
             for (int ii = 0; ii < values.Length; ii++)
             {
                 values[ii] = new EnumValueType
@@ -4418,11 +4421,11 @@ namespace Quickstarts.ReferenceServer
 
             if (valueRank == ValueRanks.OneDimension)
             {
-                variable.ArrayDimensions = new ReadOnlyList<uint>([0]);
+                variable.ArrayDimensions = [0];
             }
             else if (valueRank == ValueRanks.TwoDimensions)
             {
-                variable.ArrayDimensions = new ReadOnlyList<uint>([0, 0]);
+                variable.ArrayDimensions = [0, 0];
             }
 
             parent?.AddChild(variable);
@@ -4928,7 +4931,7 @@ namespace Quickstarts.ReferenceServer
         private int m_simulationsRunning;
         private readonly List<BaseDataVariableState> m_dynamicNodes = [];
 
-        private static readonly double[] s_doubleArray =
+        private static readonly ArrayOf<double> s_doubleArray =
         [
             9.00001d,
             9.0002d,
@@ -4941,20 +4944,20 @@ namespace Quickstarts.ReferenceServer
             9.0009d
         ];
 
-        private static readonly float[] s_singleArray
+        private static readonly ArrayOf<float> s_singleArray
             = [0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 1.1f, 2.2f, 3.3f, 4.4f, 5.5f];
+        private static readonly ArrayOf<short> s_shortArray = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+        private static readonly ArrayOf<int> s_int32Array = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
 
-        private static readonly int[] s_int32Array = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
-
-        private static readonly string[] s_stringArray1 = ["open", "closed", "jammed"];
-        private static readonly string[] s_stringArray2 = ["red", "green", "blue", "cyan"];
-        private static readonly string[] s_stringArray3 = ["lolo", "lo", "normal", "hi", "hihi"];
-        private static readonly string[] s_stringArray4 = ["left", "right", "center"];
-        private static readonly string[] s_stringArray5 = ["circle", "cross", "triangle"];
-        private static readonly string[] s_stringArray6 = ["open", "closed", "jammed"];
-        private static readonly string[] s_stringArray7 = ["red", "green", "blue", "cyan"];
-        private static readonly string[] s_stringArray8 = ["lolo", "lo", "normal", "hi", "hihi"];
-        private static readonly string[] s_stringArray9 = ["left", "right", "center"];
+        private static readonly ArrayOf<string> s_stringArray1 = ["open", "closed", "jammed"];
+        private static readonly ArrayOf<string> s_stringArray2 = ["red", "green", "blue", "cyan"];
+        private static readonly ArrayOf<string> s_stringArray3 = ["lolo", "lo", "normal", "hi", "hihi"];
+        private static readonly ArrayOf<string> s_stringArray4 = ["left", "right", "center"];
+        private static readonly ArrayOf<string> s_stringArray5 = ["circle", "cross", "triangle"];
+        private static readonly ArrayOf<string> s_stringArray6 = ["open", "closed", "jammed"];
+        private static readonly ArrayOf<string> s_stringArray7 = ["red", "green", "blue", "cyan"];
+        private static readonly ArrayOf<string> s_stringArray8 = ["lolo", "lo", "normal", "hi", "hihi"];
+        private static readonly ArrayOf<string> s_stringArray9 = ["left", "right", "center"];
     }
 
     public static class VariableExtensions

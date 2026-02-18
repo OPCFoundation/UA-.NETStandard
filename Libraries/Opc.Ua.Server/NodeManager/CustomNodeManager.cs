@@ -1104,7 +1104,7 @@ namespace Opc.Ua.Server
                     metadata.ValueRank = (int)values[3];
                 }
 
-                metadata.ArrayDimensions = (IList<uint>)values[4];
+                metadata.ArrayDimensions = (ArrayOf<uint>)values[4];
 
                 if (values[5] != null && values[6] != null)
                 {

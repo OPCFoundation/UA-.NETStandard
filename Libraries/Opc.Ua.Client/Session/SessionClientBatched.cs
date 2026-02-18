@@ -119,13 +119,13 @@ namespace Opc.Ua
                         nodesToBrowseBatch,
                         ct).ConfigureAwait(false);
 
-                    var batchResults = response.Results;
-                    var batchDiagnosticInfos = response.DiagnosticInfos;
+                    ArrayOf<BrowseResult> batchResults = response.Results;
+                    ArrayOf<DiagnosticInfo> batchDiagnosticInfos = response.DiagnosticInfos;
 
                     ValidateResponse(batchResults, nodesToBrowseBatch);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, nodesToBrowseBatch);
 
-                    AddResponses<BrowseResult, BrowseResultCollection>(
+                    AddResponses(
                         ref results,
                         ref diagnosticInfos,
                         ref stringTable,
@@ -182,7 +182,7 @@ namespace Opc.Ua
                     out StringCollection? stringTable,
                     continuationPoints.Count,
                     operationLimit);
-                foreach (ByteStringCollection continuationPointsBatch in continuationPoints.Batch((int)operationLimit))
+                foreach (ArrayOf<ByteString> continuationPointsBatch in continuationPoints.Batch(operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
                     response = await base.BrowseNextAsync(
@@ -191,13 +191,13 @@ namespace Opc.Ua
                         continuationPointsBatch,
                         ct).ConfigureAwait(false);
 
-                    var batchResults = response.Results;
-                    var batchDiagnosticInfos = response.DiagnosticInfos;
+                    ArrayOf<BrowseResult> batchResults = response.Results;
+                    ArrayOf<DiagnosticInfo> batchDiagnosticInfos = response.DiagnosticInfos;
 
                     ValidateResponse(batchResults, continuationPointsBatch);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, continuationPointsBatch);
 
-                    AddResponses<BrowseResult, BrowseResultCollection>(
+                    AddResponses(
                         ref results,
                         ref diagnosticInfos,
                         ref stringTable,
@@ -253,12 +253,12 @@ namespace Opc.Ua
                         batchBrowsePaths,
                         ct).ConfigureAwait(false);
 
-                    var batchResults = response.Results;
-                    var batchDiagnosticInfos = response.DiagnosticInfos;
+                    ArrayOf<BrowsePathResult> batchResults = response.Results;
+                    ArrayOf<DiagnosticInfo> batchDiagnosticInfos = response.DiagnosticInfos;
                     ValidateResponse(batchResults, batchBrowsePaths);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, batchBrowsePaths);
 
-                    AddResponses<BrowsePathResult, BrowsePathResultCollection>(
+                    AddResponses(
                         ref results,
                         ref diagnosticInfos,
                         ref stringTable,
@@ -309,7 +309,7 @@ namespace Opc.Ua
                         batchNodesToRegister,
                         ct).ConfigureAwait(false);
 
-                    var batchRegisteredNodeIds = response.RegisteredNodeIds;
+                    ArrayOf<NodeId> batchRegisteredNodeIds = response.RegisteredNodeIds;
                     ValidateResponse(batchRegisteredNodeIds, batchNodesToRegister);
                     registeredNodeIds.AddRange(batchRegisteredNodeIds);
                 }
@@ -413,13 +413,13 @@ namespace Opc.Ua
                         batchAttributesToRead,
                         ct).ConfigureAwait(false);
 
-                    var batchResults = response.Results;
-                    var batchDiagnosticInfos = response.DiagnosticInfos;
+                    ArrayOf<DataValue> batchResults = response.Results;
+                    ArrayOf<DiagnosticInfo> batchDiagnosticInfos = response.DiagnosticInfos;
 
                     ValidateResponse(batchResults, batchAttributesToRead);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, batchAttributesToRead);
 
-                    AddResponses<DataValue, DataValueCollection>(
+                    AddResponses(
                         ref results,
                         ref diagnosticInfos,
                         ref stringTable,
@@ -501,13 +501,13 @@ namespace Opc.Ua
                         batchNodesToRead,
                         ct).ConfigureAwait(false);
 
-                    var batchResults = response.Results;
-                    var batchDiagnosticInfos = response.DiagnosticInfos;
+                    ArrayOf<HistoryReadResult> batchResults = response.Results;
+                    ArrayOf<DiagnosticInfo> batchDiagnosticInfos = response.DiagnosticInfos;
 
                     ValidateResponse(batchResults, batchNodesToRead);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToRead);
 
-                    AddResponses<HistoryReadResult, HistoryReadResultCollection>(
+                    AddResponses(
                         ref results,
                         ref diagnosticInfos,
                         ref stringTable,
@@ -564,13 +564,13 @@ namespace Opc.Ua
                         batchNodesToWrite,
                         ct).ConfigureAwait(false);
 
-                    var batchResults = response.Results;
-                    var batchDiagnosticInfos = response.DiagnosticInfos;
+                    ArrayOf<StatusCode> batchResults = response.Results;
+                    ArrayOf<DiagnosticInfo> batchDiagnosticInfos = response.DiagnosticInfos;
 
                     ValidateResponse(batchResults, batchNodesToWrite);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToWrite);
 
-                    AddResponses<StatusCode, StatusCodeCollection>(
+                    AddResponses(
                         ref results,
                         ref diagnosticInfos,
                         ref stringTable,
@@ -633,13 +633,13 @@ namespace Opc.Ua
                         batchHistoryUpdateDetails,
                         ct).ConfigureAwait(false);
 
-                    var batchResults = response.Results;
-                    var batchDiagnosticInfos = response.DiagnosticInfos;
+                    ArrayOf<HistoryUpdateResult> batchResults = response.Results;
+                    ArrayOf<DiagnosticInfo> batchDiagnosticInfos = response.DiagnosticInfos;
 
                     ValidateResponse(batchResults, batchHistoryUpdateDetails);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, batchHistoryUpdateDetails);
 
-                    AddResponses<HistoryUpdateResult, HistoryUpdateResultCollection>(
+                    AddResponses(
                         ref results,
                         ref diagnosticInfos,
                         ref stringTable,
@@ -696,13 +696,13 @@ namespace Opc.Ua
                         batchMethodsToCall,
                         ct).ConfigureAwait(false);
 
-                    var batchResults = response.Results;
-                    var batchDiagnosticInfos = response.DiagnosticInfos;
+                    ArrayOf<CallMethodResult> batchResults = response.Results;
+                    ArrayOf<DiagnosticInfo> batchDiagnosticInfos = response.DiagnosticInfos;
 
                     ValidateResponse(batchResults, batchMethodsToCall);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, batchMethodsToCall);
 
-                    AddResponses<CallMethodResult, CallMethodResultCollection>(
+                    AddResponses(
                         ref results,
                         ref diagnosticInfos,
                         ref stringTable,
@@ -774,12 +774,12 @@ namespace Opc.Ua
                         batchItemsToCreate,
                         ct).ConfigureAwait(false);
 
-                    var batchResults = response.Results;
-                    var batchDiagnosticInfos = response.DiagnosticInfos;
+                    ArrayOf<MonitoredItemCreateResult> batchResults = response.Results;
+                    ArrayOf<DiagnosticInfo> batchDiagnosticInfos = response.DiagnosticInfos;
                     ValidateResponse(batchResults, batchItemsToCreate);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, batchItemsToCreate);
 
-                    AddResponses<MonitoredItemCreateResult, MonitoredItemCreateResultCollection>(
+                    AddResponses(
                         ref results,
                         ref diagnosticInfos,
                         ref stringTable,
@@ -850,12 +850,12 @@ namespace Opc.Ua
                         batchItemsToModify,
                         ct).ConfigureAwait(false);
 
-                    var batchResults = response.Results;
-                    var batchDiagnosticInfos = response.DiagnosticInfos;
+                    ArrayOf<MonitoredItemModifyResult> batchResults = response.Results;
+                    ArrayOf<DiagnosticInfo> batchDiagnosticInfos = response.DiagnosticInfos;
                     ValidateResponse(batchResults, batchItemsToModify);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, batchItemsToModify);
 
-                    AddResponses<MonitoredItemModifyResult, MonitoredItemModifyResultCollection>(
+                    AddResponses(
                         ref results,
                         ref diagnosticInfos,
                         ref stringTable,
@@ -877,7 +877,7 @@ namespace Opc.Ua
             RequestHeader? requestHeader,
             uint subscriptionId,
             MonitoringMode monitoringMode,
-            ArrayOf<UInt32> monitoredItemIds,
+            ArrayOf<uint> monitoredItemIds,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
@@ -903,7 +903,7 @@ namespace Opc.Ua
                 RequestHeader? requestHeader,
                 uint subscriptionId,
                 MonitoringMode monitoringMode,
-                ArrayOf<UInt32> monitoredItemIds,
+                ArrayOf<uint> monitoredItemIds,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -917,7 +917,7 @@ namespace Opc.Ua
                     monitoredItemIds.Count,
                     operationLimit);
                 foreach (ArrayOf<uint> batchMonitoredItemIds in monitoredItemIds
-                    .Batch<uint>((int)operationLimit))
+                    .Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
                     response = await base.SetMonitoringModeAsync(
@@ -927,13 +927,13 @@ namespace Opc.Ua
                         batchMonitoredItemIds,
                         ct).ConfigureAwait(false);
 
-                    var batchResults = response.Results;
-                    var batchDiagnosticInfos = response.DiagnosticInfos;
+                    ArrayOf<StatusCode> batchResults = response.Results;
+                    ArrayOf<DiagnosticInfo> batchDiagnosticInfos = response.DiagnosticInfos;
 
                     ValidateResponse(batchResults, batchMonitoredItemIds);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, batchMonitoredItemIds);
 
-                    AddResponses<StatusCode, StatusCodeCollection>(
+                    AddResponses(
                         ref results,
                         ref diagnosticInfos,
                         ref stringTable,
@@ -955,8 +955,8 @@ namespace Opc.Ua
             RequestHeader? requestHeader,
             uint subscriptionId,
             uint triggeringItemId,
-            ArrayOf<UInt32> linksToAdd,
-            ArrayOf<UInt32> linksToRemove,
+            ArrayOf<uint> linksToAdd,
+            ArrayOf<uint> linksToRemove,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
@@ -984,8 +984,8 @@ namespace Opc.Ua
                 RequestHeader? requestHeader,
                 uint subscriptionId,
                 uint triggeringItemId,
-                ArrayOf<UInt32> linksToAdd,
-                ArrayOf<UInt32> linksToRemove,
+                ArrayOf<uint> linksToAdd,
+                ArrayOf<uint> linksToRemove,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -1005,9 +1005,9 @@ namespace Opc.Ua
                     linksToRemove.Count,
                     operationLimit);
                 foreach (ArrayOf<uint> batchLinksToAdd in linksToAdd
-                    .Batch<uint>((int)operationLimit))
+                    .Batch((int)operationLimit))
                 {
-                    UInt32Collection batchLinksToRemove;
+                    ArrayOf<uint> batchLinksToRemove;
                     if (operationLimit == 0)
                     {
                         batchLinksToRemove = linksToRemove;
@@ -1015,8 +1015,8 @@ namespace Opc.Ua
                     }
                     else if (batchLinksToAdd.Count < operationLimit)
                     {
-                        batchLinksToRemove = [.. linksToRemove.Take((int)operationLimit - batchLinksToAdd.Count)];
-                        linksToRemove = [.. linksToRemove.Skip(batchLinksToRemove.Count)];
+                        batchLinksToRemove = linksToRemove.Slice(0, (int)operationLimit - batchLinksToAdd.Count);
+                        linksToRemove = linksToRemove.Slice(batchLinksToRemove.Count);
                     }
                     else
                     {
@@ -1032,17 +1032,17 @@ namespace Opc.Ua
                         batchLinksToRemove,
                         ct).ConfigureAwait(false);
 
-                    StatusCodeCollection batchAddResults = response.AddResults;
-                    DiagnosticInfoCollection batchAddDiagnosticInfos = response.AddDiagnosticInfos;
-                    StatusCodeCollection batchRemoveResults = response.RemoveResults;
-                    DiagnosticInfoCollection batchRemoveDiagnosticInfos = response.RemoveDiagnosticInfos;
+                    ArrayOf<StatusCode> batchAddResults = response.AddResults;
+                    ArrayOf<DiagnosticInfo> batchAddDiagnosticInfos = response.AddDiagnosticInfos;
+                    ArrayOf<StatusCode> batchRemoveResults = response.RemoveResults;
+                    ArrayOf<DiagnosticInfo> batchRemoveDiagnosticInfos = response.RemoveDiagnosticInfos;
 
                     ValidateResponse(batchAddResults, batchLinksToAdd);
                     ValidateDiagnosticInfos(batchAddDiagnosticInfos, batchLinksToAdd);
                     ValidateResponse(batchRemoveResults, batchLinksToRemove);
                     ValidateDiagnosticInfos(batchRemoveDiagnosticInfos, batchLinksToRemove);
 
-                    AddResponses<StatusCode, StatusCodeCollection>(
+                    AddResponses(
                         ref addResults,
                         ref addDiagnosticInfos,
                         ref stringTable,
@@ -1050,7 +1050,7 @@ namespace Opc.Ua
                         batchAddDiagnosticInfos,
                         response.ResponseHeader.StringTable);
 
-                    AddResponses<StatusCode, StatusCodeCollection>(
+                    AddResponses(
                         ref removeResults,
                         ref removeDiagnosticInfos,
                         ref stringTable,
@@ -1062,10 +1062,10 @@ namespace Opc.Ua
                 if (linksToRemove.Count > 0)
                 {
                     foreach (ArrayOf<uint> batchLinksToRemove in linksToRemove
-                        .Batch<uint>((int)operationLimit))
+                        .Batch((int)operationLimit))
                     {
                         requestHeader.RequestHandle = 0;
-                        var batchLinksToAdd = new UInt32Collection();
+                        var batchLinksToAdd = ArrayOf.Empty<uint>();
                         response = await base.SetTriggeringAsync(
                             requestHeader,
                             subscriptionId,
@@ -1074,17 +1074,17 @@ namespace Opc.Ua
                             batchLinksToRemove,
                             ct).ConfigureAwait(false);
 
-                        StatusCodeCollection batchAddResults = response.AddResults;
-                        DiagnosticInfoCollection batchAddDiagnosticInfos = response.AddDiagnosticInfos;
-                        StatusCodeCollection batchRemoveResults = response.RemoveResults;
-                        DiagnosticInfoCollection batchRemoveDiagnosticInfos = response.RemoveDiagnosticInfos;
+                        ArrayOf<StatusCode> batchAddResults = response.AddResults;
+                        ArrayOf<DiagnosticInfo> batchAddDiagnosticInfos = response.AddDiagnosticInfos;
+                        ArrayOf<StatusCode> batchRemoveResults = response.RemoveResults;
+                        ArrayOf<DiagnosticInfo> batchRemoveDiagnosticInfos = response.RemoveDiagnosticInfos;
 
                         ValidateResponse(batchAddResults, batchLinksToAdd);
                         ValidateDiagnosticInfos(batchAddDiagnosticInfos, batchLinksToAdd);
                         ValidateResponse(batchRemoveResults, batchLinksToRemove);
                         ValidateDiagnosticInfos(batchRemoveDiagnosticInfos, batchLinksToRemove);
 
-                        AddResponses<StatusCode, StatusCodeCollection>(
+                        AddResponses(
                             ref addResults,
                             ref addDiagnosticInfos,
                             ref stringTable,
@@ -1092,7 +1092,7 @@ namespace Opc.Ua
                             batchAddDiagnosticInfos,
                             response.ResponseHeader.StringTable);
 
-                        AddResponses<StatusCode, StatusCodeCollection>(
+                        AddResponses(
                             ref removeResults,
                             ref removeDiagnosticInfos,
                             ref stringTable,
@@ -1116,7 +1116,7 @@ namespace Opc.Ua
         public override ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
             RequestHeader? requestHeader,
             uint subscriptionId,
-            ArrayOf<UInt32> monitoredItemIds,
+            ArrayOf<uint> monitoredItemIds,
             CancellationToken ct)
         {
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
@@ -1138,7 +1138,7 @@ namespace Opc.Ua
             async ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsBatchedAsync(
                 RequestHeader? requestHeader,
                 uint subscriptionId,
-                ArrayOf<UInt32> monitoredItemIds,
+                ArrayOf<uint> monitoredItemIds,
                 uint operationLimit,
                 CancellationToken ct)
             {
@@ -1152,7 +1152,7 @@ namespace Opc.Ua
                     monitoredItemIds.Count,
                     operationLimit);
                 foreach (ArrayOf<uint> batchMonitoredItemIds in monitoredItemIds
-                    .Batch<uint>((int)operationLimit))
+                    .Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
                     response = await base.DeleteMonitoredItemsAsync(
@@ -1160,13 +1160,13 @@ namespace Opc.Ua
                         subscriptionId,
                         batchMonitoredItemIds,
                         ct).ConfigureAwait(false);
-                    var batchResults = response.Results;
-                    var batchDiagnosticInfos = response.DiagnosticInfos;
+                    ArrayOf<StatusCode> batchResults = response.Results;
+                    ArrayOf<DiagnosticInfo> batchDiagnosticInfos = response.DiagnosticInfos;
 
                     ValidateResponse(batchResults, batchMonitoredItemIds);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, batchMonitoredItemIds);
 
-                    AddResponses<StatusCode, StatusCodeCollection>(
+                    AddResponses(
                         ref results,
                         ref diagnosticInfos,
                         ref stringTable,
@@ -1221,12 +1221,12 @@ namespace Opc.Ua
                     requestHeader.RequestHandle = 0;
                     response = await base.AddNodesAsync(requestHeader, batchNodesToAdd,
                         ct).ConfigureAwait(false);
-                    var batchResults = response.Results;
-                    var batchDiagnosticInfos = response.DiagnosticInfos;
+                    ArrayOf<AddNodesResult> batchResults = response.Results;
+                    ArrayOf<DiagnosticInfo> batchDiagnosticInfos = response.DiagnosticInfos;
                     ValidateResponse(batchResults, batchNodesToAdd);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToAdd);
 
-                    AddResponses<AddNodesResult, AddNodesResultCollection>(
+                    AddResponses(
                         ref results,
                         ref diagnosticInfos,
                         ref stringTable,
@@ -1284,12 +1284,12 @@ namespace Opc.Ua
                         batchReferencesToAdd,
                         ct).ConfigureAwait(false);
 
-                    var batchResults = response.Results;
-                    var batchDiagnosticInfos = response.DiagnosticInfos;
+                    ArrayOf<StatusCode> batchResults = response.Results;
+                    ArrayOf<DiagnosticInfo> batchDiagnosticInfos = response.DiagnosticInfos;
                     ValidateResponse(batchResults, batchReferencesToAdd);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, batchReferencesToAdd);
 
-                    AddResponses<StatusCode, StatusCodeCollection>(
+                    AddResponses(
                         ref results,
                         ref diagnosticInfos,
                         ref stringTable,
@@ -1347,12 +1347,12 @@ namespace Opc.Ua
                         batchNodesToDelete,
                         ct).ConfigureAwait(false);
 
-                    var batchResults = response.Results;
-                    var batchDiagnosticInfos = response.DiagnosticInfos;
+                    ArrayOf<StatusCode> batchResults = response.Results;
+                    ArrayOf<DiagnosticInfo> batchDiagnosticInfos = response.DiagnosticInfos;
                     ValidateResponse(batchResults, batchNodesToDelete);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToDelete);
 
-                    AddResponses<StatusCode, StatusCodeCollection>(
+                    AddResponses(
                         ref results,
                         ref diagnosticInfos,
                         ref stringTable,
@@ -1410,12 +1410,12 @@ namespace Opc.Ua
                         batchReferencesToDelete,
                         ct).ConfigureAwait(false);
 
-                    var batchResults = response.Results;
-                    var batchDiagnosticInfos = response.DiagnosticInfos;
+                    ArrayOf<StatusCode> batchResults = response.Results;
+                    ArrayOf<DiagnosticInfo> batchDiagnosticInfos = response.DiagnosticInfos;
                     ValidateResponse(batchResults, batchReferencesToDelete);
                     ValidateDiagnosticInfos(batchDiagnosticInfos, batchReferencesToDelete);
 
-                    AddResponses<StatusCode, StatusCodeCollection>(
+                    AddResponses(
                         ref results,
                         ref diagnosticInfos,
                         ref stringTable,

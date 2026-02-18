@@ -222,11 +222,11 @@ namespace Opc.Ua
             if (isLittleEndian)
             {
                 // make some room for the 0x80 byte
-                partialResult >>= 8; 
+                partialResult >>= 8;
                 // put the 0x80 byte at the beginning
                 partialResult |= 0x8000_0000u;
                 // shift out all previously consumed bytes
-                partialResult >>= (int)count & 0x1F; 
+                partialResult >>= (int)count & 0x1F;
             }
             else
             {
@@ -235,7 +235,7 @@ namespace Opc.Ua
                 // put the 0x80 byte at the end
                 partialResult |= 0x80u;
                 // shift out all previously consumed bytes
-                partialResult <<= (int)count & 0x1F; 
+                partialResult <<= (int)count & 0x1F;
             }
 
         DoFinalRoundsAndReturn:

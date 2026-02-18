@@ -54,7 +54,7 @@ namespace Opc.Ua.Client
             IUserIdentity identity,
             CancellationToken ct = default)
         {
-            return session.OpenAsync(sessionName, 0, identity, null, ct);
+            return session.OpenAsync(sessionName, 0, identity, default, ct);
         }
 
         /// <summary>
@@ -71,7 +71,7 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string>? preferredLocales,
+            ArrayOf<string> preferredLocales,
             CancellationToken ct = default)
         {
             return session.OpenAsync(
@@ -99,7 +99,7 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string>? preferredLocales,
+            ArrayOf<string> preferredLocales,
             bool checkDomain,
             CancellationToken ct = default)
         {
@@ -225,7 +225,7 @@ namespace Opc.Ua.Client
         /// <param name="nodeId">The node id of a byte string variable</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <exception cref="ServiceResultException"></exception>
-        public static async Task<byte[]> ReadByteStringInChunksAsync(
+        public static async Task<ByteString> ReadByteStringInChunksAsync(
             this ISession session,
             NodeId nodeId,
             CancellationToken ct = default)
@@ -237,13 +237,10 @@ namespace Opc.Ua.Client
                     StatusCodes.BadIndexRangeNoData,
                     "The MaxByteStringLength is not known or too small for reading data in chunks.");
             }
-
-            ReadOnlyMemory<byte> buffer = await session.ReadBytesAsync(
+            return await session.ReadBytesAsync(
                 nodeId,
                 maxByteStringLength,
                 ct).ConfigureAwait(false);
-
-            return buffer.ToArray();
         }
 
         /// <summary>

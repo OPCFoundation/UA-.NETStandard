@@ -32,9 +32,11 @@
 using System;
 using System.Buffers;
 using System.Buffers.Text;
-using System.Linq;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
+using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 
 namespace Opc.Ua
@@ -45,6 +47,7 @@ namespace Opc.Ua
     /// ByteString can be re-interpreted as <see cref="ReadOnlyMemory{T}"/>
     /// memory layout.
     /// </summary>
+    [CollectionBuilder(typeof(ByteString), nameof(Create))]
     public readonly struct ByteString :
         IEquatable<ByteString>, IComparable<ByteString>,
         IEquatable<ReadOnlyMemory<byte>>, IComparable<ReadOnlyMemory<byte>>,
@@ -829,6 +832,14 @@ namespace Opc.Ua
             return From(CoreUtils.FromHexString(hexString));
         }
 
+        /// <summary>
+        /// Creates a byte string for collection builder attribute
+        /// </summary>
+        public static ByteString Create(ReadOnlySpan<byte> bytes)
+        {
+            return ByteString.From(bytes);
+        }
+
         private const int kStackLimit = 64;
         private readonly ReadOnlyMemory<byte> m_memory;
     }
@@ -884,6 +895,22 @@ namespace Opc.Ua
         public static ByteString ToByteString(this ArrayOf<byte> bytes)
         {
             return ByteString.From(bytes.Memory);
+        }
+
+        /// <summary>
+        /// Convert to byte string
+        /// </summary>
+        public static ByteString ToByteString(this Guid guid)
+        {
+            return ByteString.From(guid.ToByteArray());
+        }
+
+        /// <summary>
+        /// Convert to byte string
+        /// </summary>
+        public static ByteString ToByteString(this BigInteger bigInt)
+        {
+            return ByteString.From(bigInt.ToByteArray());
         }
 
         /// <summary>

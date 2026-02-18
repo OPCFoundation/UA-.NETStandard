@@ -871,7 +871,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "{}" },
             {
                 BuiltInType.ExtensionObject,
-                new ExtensionObject((IEncodeable)null),
+                new ExtensionObject(null),
                 null,
                 null,
                 null,
@@ -1766,7 +1766,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             _ = PrettifyAndValidateJson(expected);
 
             using var encodeable = new FooBarEncodeable(fieldname, foo);
-            var list = new List<IEncodeable> { encodeable, encodeable };
+            ArrayOf<IEncodeable> list = [encodeable, encodeable];
             using var encoder = new JsonEncoder(Context, true);
             encoder.WriteEncodeableArray(encodeable.FieldName, list, typeof(FooBarEncodeable));
 

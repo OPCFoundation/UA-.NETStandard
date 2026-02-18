@@ -35,7 +35,7 @@ namespace Opc.Ua.Client.Tests
             context
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
-                    It.IsAny<IReadOnlyList<NodeId>>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
                     false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<Node>
@@ -47,7 +47,7 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             // Act
-            IReadOnlyList<INode> result = await nodeCache.GetNodesAsync([id], default)
+            ArrayOf<INode> result = await nodeCache.GetNodesAsync([id], default)
                 .ConfigureAwait(false);
 
             // Assert
@@ -117,11 +117,11 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             // Act
-            IReadOnlyList<INode> result = await nodeCache.GetNodesAsync([], default)
+            ArrayOf<INode> result = await nodeCache.GetNodesAsync([], default)
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.IsEmpty(result);
+            Assert.True(result.IsEmpty);
         }
 
         [Test]
@@ -298,7 +298,7 @@ namespace Opc.Ua.Client.Tests
             context
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == id),
+                    It.Is<ArrayOf<NodeId>>(n => n.Count == 1 && n[0] == id),
                     false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<Node>
@@ -402,7 +402,7 @@ namespace Opc.Ua.Client.Tests
             context
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == childId),
+                    It.Is<ArrayOf<NodeId>>(n => n.Count == 1 && n[0] == childId),
                     false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<Node>
@@ -414,7 +414,7 @@ namespace Opc.Ua.Client.Tests
             context
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == grandChildId),
+                    It.Is<ArrayOf<NodeId>>(n => n.Count == 1 && n[0] == grandChildId),
                     false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<Node>
@@ -453,12 +453,12 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             // Act
-            IReadOnlyList<INode> result = await nodeCache
+            ArrayOf<INode> result = await nodeCache
                 .GetReferencesAsync([], [], false, false, default)
                 .ConfigureAwait(false);
 
             // Assert
-            Assert.IsEmpty(result);
+            Assert.True(result.IsEmpty);
         }
 
         [Test]
@@ -495,7 +495,7 @@ namespace Opc.Ua.Client.Tests
             context
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == targetNodeId),
+                    It.Is<ArrayOf<NodeId>>(n => n.Count == 1 && n[0] == targetNodeId),
                     false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<Node>
@@ -515,16 +515,16 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             // Act
-            IReadOnlyList<INode> result1 = await nodeCache
+            ArrayOf<INode> result1 = await nodeCache
                 .GetReferencesAsync(id, referenceTypeId, true, false, default)
                 .ConfigureAwait(false);
-            IReadOnlyList<INode> result2 = await nodeCache
+            ArrayOf<INode> result2 = await nodeCache
                 .GetReferencesAsync(id, referenceTypeId, false, false, default)
                 .ConfigureAwait(false);
 
             // Assert
             Assert.AreEqual(1, result1.Count);
-            Assert.IsEmpty(result2);
+            Assert.True(result2.IsEmpty);
             // Act
             result1 = await nodeCache
                 .GetReferencesAsync(id, referenceTypeId, true, false, default)
@@ -535,7 +535,7 @@ namespace Opc.Ua.Client.Tests
 
             // Assert
             Assert.AreEqual(1, result1.Count);
-            Assert.IsEmpty(result2);
+            Assert.True(result2.IsEmpty);
             context.Verify();
         }
 
@@ -582,7 +582,7 @@ namespace Opc.Ua.Client.Tests
             context
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == referenceSubTypeId),
+                    It.Is<ArrayOf<NodeId>>(n => n.Count == 1 && n[0] == referenceSubTypeId),
                     false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<Node>
@@ -624,7 +624,7 @@ namespace Opc.Ua.Client.Tests
             context
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == targetNodeId),
+                    It.Is<ArrayOf<NodeId>>(n => n.Count == 1 && n[0] == targetNodeId),
                     false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<Node>
@@ -644,16 +644,16 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             // Act
-            IReadOnlyList<INode> result1 = await nodeCache
+            ArrayOf<INode> result1 = await nodeCache
                 .GetReferencesAsync(id, referenceTypeId, true, true, default)
                 .ConfigureAwait(false);
-            IReadOnlyList<INode> result2 = await nodeCache
+            ArrayOf<INode> result2 = await nodeCache
                 .GetReferencesAsync(id, referenceTypeId, false, true, default)
                 .ConfigureAwait(false);
 
             // Assert
             Assert.AreEqual(1, result1.Count);
-            Assert.IsEmpty(result2);
+            Assert.True(result2.IsEmpty);
             // Act
             result1 = await nodeCache
                 .GetReferencesAsync(id, referenceTypeId, true, true, default)
@@ -664,7 +664,7 @@ namespace Opc.Ua.Client.Tests
 
             // Assert
             Assert.AreEqual(1, result1.Count);
-            Assert.IsEmpty(result2);
+            Assert.True(result2.IsEmpty);
             context.Verify();
         }
 
@@ -709,7 +709,7 @@ namespace Opc.Ua.Client.Tests
             context
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == targetNodeId),
+                    It.Is<ArrayOf<NodeId>>(n => n.Count == 1 && n[0] == targetNodeId),
                     false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<Node>
@@ -729,16 +729,16 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             // Act
-            IReadOnlyList<INode> result1 = await nodeCache
+            ArrayOf<INode> result1 = await nodeCache
                 .GetReferencesAsync(id, referenceTypeId, true, true, default)
                 .ConfigureAwait(false);
-            IReadOnlyList<INode> result2 = await nodeCache
+            ArrayOf<INode> result2 = await nodeCache
                 .GetReferencesAsync(id, referenceTypeId, false, true, default)
                 .ConfigureAwait(false);
 
             // Assert
             Assert.AreEqual(1, result1.Count);
-            Assert.IsEmpty(result2);
+            Assert.True(result2.IsEmpty);
             // Act
             result1 = await nodeCache
                 .GetReferencesAsync(id, referenceTypeId, true, true, default)
@@ -749,7 +749,7 @@ namespace Opc.Ua.Client.Tests
 
             // Assert
             Assert.AreEqual(1, result1.Count);
-            Assert.IsEmpty(result2);
+            Assert.True(result2.IsEmpty);
             context.Verify();
         }
 
@@ -885,13 +885,13 @@ namespace Opc.Ua.Client.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Arrange
-            var ids = new List<NodeId> { new("test1", 0), new("test2", 0) };
+            ArrayOf<NodeId> ids = [new("test1", 0), new("test2", 0)];
             var context = new Mock<INodeCacheContext>();
 
             context
                 .Setup(c => c.FetchValuesAsync(
                     It.IsAny<RequestHeader>(),
-                    It.IsAny<IReadOnlyList<NodeId>>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
                         It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<DataValue>
                 {
@@ -902,7 +902,7 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             // Act
-            IReadOnlyList<DataValue> result = await nodeCache.GetValuesAsync(ids, default)
+            ArrayOf<DataValue> result = await nodeCache.GetValuesAsync(ids, default)
                 .ConfigureAwait(false);
 
             // Assert
@@ -918,18 +918,18 @@ namespace Opc.Ua.Client.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Arrange
-            var expected = new List<DataValue>
-            {
+            ArrayOf<DataValue> expected =
+            [
                 new(new Variant(123), StatusCodes.Good, DateTime.UtcNow),
                 new(new Variant(456), StatusCodes.Good, DateTime.UtcNow)
-            };
-            var ids = new List<NodeId> { new("test1", 0), new("test2", 0) };
+            ];
+            ArrayOf<NodeId> ids = [new("test1", 0), new("test2", 0)];
             var context = new Mock<INodeCacheContext>();
 
             context
                 .Setup(c => c.FetchValuesAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<IReadOnlyList<NodeId>>(i => i.ToHashSet().SetEquals(ids)),
+                    It.Is<ArrayOf<NodeId>>(i => i.ToList().ToHashSet().SetEquals(ids.ToList().ToHashSet())),
                         It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<DataValue>
                 {
@@ -940,7 +940,7 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             // Act
-            IReadOnlyList<DataValue> result = await nodeCache.GetValuesAsync(ids, default)
+            ArrayOf<DataValue> result = await nodeCache.GetValuesAsync(ids, default)
                 .ConfigureAwait(false);
 
             // Assert
@@ -957,18 +957,18 @@ namespace Opc.Ua.Client.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Arrange
-            var expected = new List<DataValue>
-            {
+            ArrayOf<DataValue> expected =
+            [
                 new(new Variant(123), StatusCodes.Good, DateTime.UtcNow),
                 new(new Variant(456), StatusCodes.Good, DateTime.UtcNow)
-            };
-            var ids = new List<NodeId> { new("test1", 0), new("test2", 0) };
+            ];
+            ArrayOf<NodeId> ids = [new("test1", 0), new("test2", 0)];
             var context = new Mock<INodeCacheContext>();
 
             context
                 .Setup(c => c.FetchValuesAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<IReadOnlyList<NodeId>>(i => i.ToHashSet().SetEquals(ids)),
+                    It.Is<ArrayOf<NodeId>>(i => i.ToList().ToHashSet().SetEquals(ids.ToList().ToHashSet())),
                         It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<DataValue>
                 {
@@ -979,7 +979,7 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             // Act
-            IReadOnlyList<DataValue> result = await nodeCache.GetValuesAsync(ids, default)
+            ArrayOf<DataValue> result = await nodeCache.GetValuesAsync(ids, default)
                 .ConfigureAwait(false);
 
             // Assert
@@ -990,7 +990,7 @@ namespace Opc.Ua.Client.Tests
             context
                 .Setup(c => c.FetchValuesAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<IReadOnlyList<NodeId>>(i => i.Count == 1 && i[0] == ids[1]),
+                    It.Is<ArrayOf<NodeId>>(i => i.Count == 1 && i[0] == ids[1]),
                         It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<DataValue>
                 {
@@ -1143,7 +1143,7 @@ namespace Opc.Ua.Client.Tests
             context
                 .Setup(c => c.FetchNodesAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<IReadOnlyList<NodeId>>(n => n.Count == 1 && n[0] == subTypeId),
+                    It.Is<ArrayOf<NodeId>>(n => n.Count == 1 && n[0] == subTypeId),
                     false,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ResultSet<Node>

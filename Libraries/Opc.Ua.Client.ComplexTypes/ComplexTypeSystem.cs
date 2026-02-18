@@ -1397,9 +1397,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 if (!superType.IsNull)
                 {
                     field.DataType = superType;
-#pragma warning disable EPC30 // Method calls itself recursively
                     return await GetFieldTypeAsync(field, allowSubTypes, ct).ConfigureAwait(false);
-#pragma warning restore EPC30 // Method calls itself recursively
                 }
                 return null;
             }

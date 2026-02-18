@@ -66,29 +66,33 @@ namespace Opc.Ua.Client
             m_context = context;
             cacheExpiry ??= TimeSpan.FromMinutes(5);
 
-            BitFaster.Caching.Lru.Builder.AtomicAsyncConcurrentLruBuilder<NodeId, INode> nodesBuilder =
-                new ConcurrentLruBuilder<NodeId, INode>()
-                    .WithAtomicGetOrAdd()
-                    .AsAsyncCache()
-                    .WithCapacity(capacity)
-                    .WithKeyComparer(NodeIdComparer.Default)
-                    .WithExpireAfterAccess(cacheExpiry.Value);
             BitFaster.Caching.Lru.Builder.AtomicAsyncConcurrentLruBuilder<
                 NodeId,
-                List<ReferenceDescription>
-            > refsBuilder = new ConcurrentLruBuilder<NodeId, List<ReferenceDescription>>()
+                INode
+            > nodesBuilder = new ConcurrentLruBuilder<NodeId, INode>()
                 .WithAtomicGetOrAdd()
                 .AsAsyncCache()
                 .WithCapacity(capacity)
                 .WithKeyComparer(NodeIdComparer.Default)
                 .WithExpireAfterAccess(cacheExpiry.Value);
-            BitFaster.Caching.Lru.Builder.AtomicAsyncConcurrentLruBuilder<NodeId, DataValue> valuesBuilder =
-                new ConcurrentLruBuilder<NodeId, DataValue>()
-                    .WithAtomicGetOrAdd()
-                    .AsAsyncCache()
-                    .WithCapacity(capacity)
-                    .WithKeyComparer(NodeIdComparer.Default)
-                    .WithExpireAfterAccess(cacheExpiry.Value);
+            BitFaster.Caching.Lru.Builder.AtomicAsyncConcurrentLruBuilder<
+                NodeId,
+                ArrayOf<ReferenceDescription>
+            > refsBuilder = new ConcurrentLruBuilder<NodeId, ArrayOf<ReferenceDescription>>()
+                .WithAtomicGetOrAdd()
+                .AsAsyncCache()
+                .WithCapacity(capacity)
+                .WithKeyComparer(NodeIdComparer.Default)
+                .WithExpireAfterAccess(cacheExpiry.Value);
+            BitFaster.Caching.Lru.Builder.AtomicAsyncConcurrentLruBuilder<
+                NodeId,
+                DataValue
+            > valuesBuilder = new ConcurrentLruBuilder<NodeId, DataValue>()
+                .WithAtomicGetOrAdd()
+                .AsAsyncCache()
+                .WithCapacity(capacity)
+                .WithKeyComparer(NodeIdComparer.Default)
+                .WithExpireAfterAccess(cacheExpiry.Value);
             if (withMetrics)
             {
                 nodesBuilder = nodesBuilder.WithMetrics();
@@ -139,8 +143,8 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public ValueTask<IReadOnlyList<INode>> GetNodesAsync(
-            IReadOnlyList<NodeId> nodeIds,
+        public ValueTask<ArrayOf<INode>> GetNodesAsync(
+            ArrayOf<NodeId> nodeIds,
             CancellationToken ct)
         {
             int count = nodeIds.Count;
@@ -164,7 +168,7 @@ namespace Opc.Ua.Client
                 }
             }
             Debug.Assert(!result.Any(r => r == null)); // None now should be null
-            return ValueTask.FromResult<IReadOnlyList<INode>>(result!);
+            return ValueTask.FromResult<ArrayOf<INode>>(result.ToArrayOf()!);
         }
 
         /// <inheritdoc/>
@@ -185,8 +189,8 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public ValueTask<IReadOnlyList<DataValue>> GetValuesAsync(
-            IReadOnlyList<NodeId> nodeIds,
+        public ValueTask<ArrayOf<DataValue>> GetValuesAsync(
+            ArrayOf<NodeId> nodeIds,
             CancellationToken ct)
         {
             int count = nodeIds.Count;
@@ -210,11 +214,11 @@ namespace Opc.Ua.Client
                 }
             }
             Debug.Assert(!result.Any(r => r == null)); // None now should be null
-            return ValueTask.FromResult<IReadOnlyList<DataValue>>(result!);
+            return ValueTask.FromResult<ArrayOf<DataValue>>(result.ToArrayOf()!);
         }
 
         /// <inheritdoc/>
-        public ValueTask<IReadOnlyList<INode>> GetReferencesAsync(
+        public ValueTask<ArrayOf<INode>> GetReferencesAsync(
             NodeId nodeId,
             NodeId referenceTypeId,
             bool isInverse,
@@ -223,13 +227,13 @@ namespace Opc.Ua.Client
         {
             return
                 (!includeSubtypes || IsTypeHierarchyLoaded([referenceTypeId])) &&
-                m_refs.TryGet(nodeId, out List<ReferenceDescription>? references)
+                m_refs.TryGet(nodeId, out ArrayOf<ReferenceDescription> references)
                 ? GetNodesAsync(
                     FilterNodes(references, isInverse, referenceTypeId, includeSubtypes),
                     ct)
                 : FindReferencesAsyncCore(nodeId, referenceTypeId, isInverse, includeSubtypes, ct);
 
-            async ValueTask<IReadOnlyList<INode>> FindReferencesAsyncCore(
+            async ValueTask<ArrayOf<INode>> FindReferencesAsyncCore(
                 NodeId nodeId,
                 NodeId referenceTypeId,
                 bool isInverse,
@@ -240,7 +244,7 @@ namespace Opc.Ua.Client
                 {
                     await LoadTypeHierarchyAsync([referenceTypeId], ct).ConfigureAwait(false);
                 }
-                List<ReferenceDescription> references = await GetOrAddReferencesAsync(nodeId, ct)
+                ArrayOf<ReferenceDescription> references = await GetOrAddReferencesAsync(nodeId, ct)
                     .ConfigureAwait(false);
                 return await GetNodesAsync(
                     FilterNodes(references, isInverse, referenceTypeId, includeSubtypes),
@@ -248,30 +252,27 @@ namespace Opc.Ua.Client
                     .ConfigureAwait(false);
             }
 
-            List<NodeId> FilterNodes(
-                IEnumerable<ReferenceDescription> references,
+            ArrayOf<NodeId> FilterNodes(
+                ArrayOf<ReferenceDescription> references,
                 bool isInverse,
                 NodeId refTypeId,
                 bool includeSubtypes)
             {
-                return
-                [
-                    .. references
-                        .Where(r =>
-                            r.IsForward == !isInverse &&
-                            (
-                                r.ReferenceTypeId == refTypeId ||
-                                (includeSubtypes && IsTypeOf(r.ReferenceTypeId, refTypeId))))
-                        .Select(r => ToNodeId(r.NodeId))
-                        .Where(n => !n.IsNull)
-                ];
+                return references
+                    .Filter(r =>
+                        r.IsForward == !isInverse &&
+                        (
+                            r.ReferenceTypeId == refTypeId ||
+                            (includeSubtypes && IsTypeOf(r.ReferenceTypeId, refTypeId))))
+                    .ConvertAll(r => ToNodeId(r.NodeId))
+                    .Filter(n => !n.IsNull);
             }
         }
 
         /// <inheritdoc/>
-        public ValueTask<IReadOnlyList<INode>> GetReferencesAsync(
-            IReadOnlyList<NodeId> nodeIds,
-            IReadOnlyList<NodeId> referenceTypeIds,
+        public ValueTask<ArrayOf<INode>> GetReferencesAsync(
+            ArrayOf<NodeId> nodeIds,
+            ArrayOf<NodeId> referenceTypeIds,
             bool isInverse,
             bool includeSubtypes,
             CancellationToken ct)
@@ -294,7 +295,7 @@ namespace Opc.Ua.Client
                 {
                     continue;
                 }
-                if (m_refs.TryGet(nodeId, out List<ReferenceDescription>? references))
+                if (m_refs.TryGet(nodeId, out ArrayOf<ReferenceDescription> references))
                 {
                     targetIds.AddRange(
                         FilterNodes(references, isInverse, referenceTypeIds, includeSubtypes));
@@ -312,11 +313,11 @@ namespace Opc.Ua.Client
                     includeSubtypes,
                     targetIds,
                     ct)
-                : GetNodesAsync(targetIds, ct);
+                : GetNodesAsync(targetIds.ToArrayOf(), ct);
 
-            async ValueTask<IReadOnlyList<INode>> FindReferencesAsyncCore(
-                IReadOnlyList<NodeId> nodeIds,
-                IReadOnlyList<NodeId> referenceTypeIds,
+            async ValueTask<ArrayOf<INode>> FindReferencesAsyncCore(
+                List<NodeId> nodeIds,
+                ArrayOf<NodeId> referenceTypeIds,
                 bool isInverse,
                 bool includeSubtypes,
                 List<NodeId> targetIds,
@@ -328,54 +329,47 @@ namespace Opc.Ua.Client
                 }
                 foreach (NodeId nodeId in nodeIds)
                 {
-                    List<ReferenceDescription> references = await GetOrAddReferencesAsync(
+                    ArrayOf<ReferenceDescription> references = await GetOrAddReferencesAsync(
                         nodeId,
                         ct)
                         .ConfigureAwait(false);
                     targetIds.AddRange(
                         FilterNodes(references, isInverse, referenceTypeIds, includeSubtypes));
                 }
-                return await GetNodesAsync(targetIds, ct).ConfigureAwait(false);
+                return await GetNodesAsync(targetIds.ToArrayOf(), ct).ConfigureAwait(false);
             }
-            List<NodeId> FilterNodes(
-                IEnumerable<ReferenceDescription> references,
+            ArrayOf<NodeId> FilterNodes(
+                ArrayOf<ReferenceDescription> references,
                 bool isInverse,
-                IReadOnlyList<NodeId> referenceTypeIds,
+                ArrayOf<NodeId> referenceTypeIds,
                 bool includeSubtypes)
             {
-                return
-                [
-                    .. references
-                        .Where(r =>
-                            r.IsForward == !isInverse &&
-                            referenceTypeIds.Any(refTypeId =>
-                                r.ReferenceTypeId == refTypeId ||
-                                (includeSubtypes && IsTypeOf(r.ReferenceTypeId, refTypeId))))
-                        .Select(r => ToNodeId(r.NodeId))
-                        .Where(n => !n.IsNull)
-                ];
+                return references
+                    .Filter(r =>
+                        r.IsForward == !isInverse &&
+                        !referenceTypeIds.Find(refTypeId =>
+                            r.ReferenceTypeId == refTypeId ||
+                            (includeSubtypes && IsTypeOf(r.ReferenceTypeId, refTypeId))).IsNull)
+                    .ConvertAll(r => ToNodeId(r.NodeId))
+                    .Filter(n => !n.IsNull);
             }
         }
 
         /// <inheritdoc/>
         public async ValueTask LoadTypeHierarchyAsync(
-            IReadOnlyList<NodeId> typeIds,
+            ArrayOf<NodeId> typeIds,
             CancellationToken ct)
         {
-            IReadOnlyList<INode> nodes = await GetReferencesAsync(
-                    typeIds,
-                    [ReferenceTypeIds.HasSubtype],
-                    false,
-                    false,
-                    ct)
-                .ConfigureAwait(false);
+            ArrayOf<INode> nodes = await GetReferencesAsync(
+                typeIds,
+                [ReferenceTypeIds.HasSubtype],
+                false,
+                false,
+                ct)
+            .ConfigureAwait(false);
             if (nodes.Count > 0)
             {
-                if (nodes is not List<INode> subTypes)
-                {
-                    subTypes = [.. nodes];
-                }
-                await LoadTypeHierarchyAsync(subTypes.ConvertAll(n => ToNodeId(n.NodeId)), ct)
+                await LoadTypeHierarchyAsync(nodes.ConvertAll(n => ToNodeId(n.NodeId)), ct)
                     .ConfigureAwait(false);
             }
         }
@@ -387,28 +381,26 @@ namespace Opc.Ua.Client
             {
                 return true;
             }
-            if (!m_refs.TryGet(subTypeId, out List<ReferenceDescription>? references))
+            if (!m_refs.TryGet(subTypeId, out ArrayOf<ReferenceDescription> references))
             {
                 // block - we can throw here but user should load
                 references = GetOrAddReferencesAsync(subTypeId, default).AsTask().GetAwaiter()
                     .GetResult();
             }
             subTypeId = GetSuperTypeFromReferences(references);
-#pragma warning disable EPC30 // Method calls itself recursively
             return !subTypeId.IsNull && IsTypeOf(subTypeId, superTypeId);
-#pragma warning restore EPC30 // Method calls itself recursively
         }
 
         /// <inheritdoc/>
         public ValueTask<NodeId> GetSuperTypeAsync(NodeId typeId, CancellationToken ct)
         {
-            return m_refs.TryGet(typeId, out List<ReferenceDescription>? references)
+            return m_refs.TryGet(typeId, out ArrayOf<ReferenceDescription> references)
                 ? ValueTask.FromResult(GetSuperTypeFromReferences(references))
                 : FindSuperTypeAsyncCore(typeId, ct);
 
             async ValueTask<NodeId> FindSuperTypeAsyncCore(NodeId typeId, CancellationToken ct)
             {
-                List<ReferenceDescription> references = await GetOrAddReferencesAsync(typeId, ct)
+                ArrayOf<ReferenceDescription> references = await GetOrAddReferencesAsync(typeId, ct)
                     .ConfigureAwait(false);
                 return GetSuperTypeFromReferences(references);
             }
@@ -457,7 +449,7 @@ namespace Opc.Ua.Client
                     // Get all hierarchical references of the node and
                     // match browse name
                     //
-                    IReadOnlyList<INode> references = await GetReferencesAsync(
+                    ArrayOf<INode> references = await GetReferencesAsync(
                             nodeId,
                             ReferenceTypeIds.HierarchicalReferences,
                             false,
@@ -500,7 +492,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Get or add references to cache
         /// </summary>
-        private ValueTask<List<ReferenceDescription>> GetOrAddReferencesAsync(
+        private ValueTask<ArrayOf<ReferenceDescription>> GetOrAddReferencesAsync(
             NodeId nodeId,
             CancellationToken ct)
         {
@@ -509,10 +501,9 @@ namespace Opc.Ua.Client
                 nodeId,
                 static async (nodeId, context) =>
                 {
-                    ReferenceDescriptionCollection references =
+                    ArrayOf<ReferenceDescription> references =
                         await context.ctx.FetchReferencesAsync(null, nodeId, context.ct)
-                            .ConfigureAwait(false) ??
-                        [];
+                            .ConfigureAwait(false);
                     foreach (ReferenceDescription? reference in references)
                     {
                         // transform absolute identifiers.
@@ -531,7 +522,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Fetch remaining nodes not yet in the result list
         /// </summary>
-        private async ValueTask<IReadOnlyList<INode>> FetchRemainingAsync(
+        private async ValueTask<ArrayOf<INode>> FetchRemainingAsync(
             List<NodeId> remainingIds,
             List<INode?> result,
             CancellationToken ct)
@@ -561,13 +552,13 @@ namespace Opc.Ua.Client
                 result[resultMissingIndex] = nodes[index];
             }
             Debug.Assert(!result.Any(r => r == null)); // None now should be null
-            return result!;
+            return result.ToArrayOf()!;
         }
 
         /// <summary>
         /// Fetch remaining nodes not yet in the result list
         /// </summary>
-        private async ValueTask<IReadOnlyList<DataValue>> FetchRemainingAsync(
+        private async ValueTask<ArrayOf<DataValue>> FetchRemainingAsync(
             List<NodeId> remainingIds,
             List<DataValue?> result,
             CancellationToken ct)
@@ -602,18 +593,18 @@ namespace Opc.Ua.Client
                 result[resultMissingIndex] = values[index];
             }
             Debug.Assert(!result.Any(r => r == null)); // None now should be null
-            return result!;
+            return result.ToArrayOf()!;
         }
 
         /// <summary>
         /// Check whether type hierarchy is loaded
         /// </summary>
-        private bool IsTypeHierarchyLoaded(IEnumerable<NodeId> typeIds)
+        private bool IsTypeHierarchyLoaded(ArrayOf<NodeId> typeIds)
         {
-            var types = new Queue<NodeId>(typeIds.Where(nodeId => !nodeId.IsNull));
+            var types = new Queue<NodeId>(typeIds.ToArray().Where(nodeId => !nodeId.IsNull));
             while (types.TryDequeue(out NodeId typeId))
             {
-                if (!m_refs.TryGet(typeId, out List<ReferenceDescription>? references))
+                if (!m_refs.TryGet(typeId, out ArrayOf<ReferenceDescription> references))
                 {
                     return false;
                 }
@@ -633,13 +624,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Get supertype from references
         /// </summary>
-        private NodeId GetSuperTypeFromReferences(List<ReferenceDescription> references)
+        private NodeId GetSuperTypeFromReferences(ArrayOf<ReferenceDescription> references)
         {
-            return references
-                .Where(r => !r.IsForward && r.ReferenceTypeId == ReferenceTypeIds.HasSubtype)
-                .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, NamespaceUris))
-                .DefaultIfEmpty(NodeId.Null)
-                .First();
+            ArrayOf<NodeId> superTypes = references
+                .Filter(r => !r.IsForward && r.ReferenceTypeId == ReferenceTypeIds.HasSubtype)
+                .ConvertAll(r => ExpandedNodeId.ToNodeId(r.NodeId, NamespaceUris));
+            return superTypes.IsEmpty ? NodeId.Null : superTypes.Span[0];
         }
 
         /// <summary>
@@ -654,7 +644,7 @@ namespace Opc.Ua.Client
         }
 
         private readonly IAsyncCache<NodeId, INode> m_nodes;
-        private readonly IAsyncCache<NodeId, List<ReferenceDescription>> m_refs;
+        private readonly IAsyncCache<NodeId, ArrayOf<ReferenceDescription>> m_refs;
         private readonly IAsyncCache<NodeId, DataValue> m_values;
         private readonly INodeCacheContext m_context;
     }

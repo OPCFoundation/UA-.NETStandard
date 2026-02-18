@@ -89,7 +89,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        public async Task Test_Ca_Signed_Cert_Can_Be_Revoked()
+        public async Task Test_Ca_Signed_Cert_Can_Be_RevokedAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 

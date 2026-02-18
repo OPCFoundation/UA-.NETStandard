@@ -258,8 +258,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsReadOnlySpanTest()
         {
-            ArrayOf<int> arrayOf = (ArrayOf<int>)new List<int> { 1, 2, 3 };
-            ArrayOf<int> emptyArrayOf = (ArrayOf<int>)new List<int>();
+            var arrayOf = (ArrayOf<int>)new List<int> { 1, 2, 3 };
+            var emptyArrayOf = (ArrayOf<int>)new List<int>();
             ReadOnlySpan<int> emptyReadOnlySpan = ReadOnlySpan<int>.Empty;
             int[] values = [1, 2, 3];
             Span<int> readOnlySpan = values.AsSpan();
@@ -427,7 +427,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ImplicitConversionFromListTest()
         {
-            ArrayOf<int> arrayOf = (ArrayOf<int>)new List<int> { 1, 2, 3 };
+            var arrayOf = (ArrayOf<int>)new List<int> { 1, 2, 3 };
             int[] expected = [1, 2, 3];
             Assert.That(arrayOf.Span.ToArray(), Is.EquivalentTo(expected));
         }

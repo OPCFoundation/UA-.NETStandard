@@ -174,7 +174,7 @@ namespace Opc.Ua.Client.Tests
                 NUnit.Framework.Assert.Fail($"Write failed with status code {results[0]}");
             }
 
-            byte[] readData = await theSession.ReadByteStringInChunksAsync(nodeId, default)
+            ByteString readData = await theSession.ReadByteStringInChunksAsync(nodeId, default)
                 .ConfigureAwait(false);
             Assert.IsTrue(Utils.IsEqual(chunk, readData));
         }

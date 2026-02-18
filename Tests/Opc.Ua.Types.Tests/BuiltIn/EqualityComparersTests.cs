@@ -124,7 +124,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void NodeIdComparerEqualsOpaqueNodeIds()
         {
-            ByteString opaque = ByteString.From([1, 2, 3, 4]);
+            ByteString opaque = [1, 2, 3, 4];
             var nodeId1 = new NodeId(opaque, 1);
             var nodeId2 = new NodeId(opaque, 1);
             Assert.That(NodeIdComparer.Default.Equals(nodeId1, nodeId2), Is.True);
@@ -133,8 +133,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void NodeIdComparerEqualsDifferentOpaqueNodeIds()
         {
-            var nodeId1 = new NodeId(ByteString.From([1, 2, 3, 4]), 1);
-            var nodeId2 = new NodeId(ByteString.From([5, 6, 7, 8]), 1);
+            var nodeId1 = new NodeId([1, 2, 3, 4], 1);
+            var nodeId2 = new NodeId([5, 6, 7, 8], 1);
             Assert.That(NodeIdComparer.Default.Equals(nodeId1, nodeId2), Is.False);
         }
 

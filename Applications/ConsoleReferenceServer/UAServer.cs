@@ -134,18 +134,15 @@ namespace Quickstarts
         /// Create server instance and add node managers.
         /// </summary>
         /// <exception cref="ErrorExitException"></exception>
-        public void Create(IList<INodeManagerFactory> nodeManagerFactories)
+        public void Create(ArrayOf<INodeManagerFactory> nodeManagerFactories)
         {
             try
             {
                 // create the server.
                 Server = m_factory(m_telemetry);
-                if (nodeManagerFactories != null)
+                foreach (INodeManagerFactory factory in nodeManagerFactories)
                 {
-                    foreach (INodeManagerFactory factory in nodeManagerFactories)
-                    {
-                        Server.AddNodeManager(factory);
-                    }
+                    Server.AddNodeManager(factory);
                 }
             }
             catch (Exception ex)

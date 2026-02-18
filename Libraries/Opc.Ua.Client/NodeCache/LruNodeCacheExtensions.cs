@@ -55,16 +55,15 @@ namespace Opc.Ua
         /// <summary>
         /// Get nodes from cache
         /// </summary>
-        public static ValueTask<IReadOnlyList<INode>> GetNodesAsync(
+        public static ValueTask<ArrayOf<INode>> GetNodesAsync(
             this ILruNodeCache cache,
-            IReadOnlyList<ExpandedNodeId> expandedNodeIds,
+            ArrayOf<ExpandedNodeId> expandedNodeIds,
             CancellationToken ct = default)
         {
-            var nodeIds = expandedNodeIds
-                .Select(expandedNodeId => ExpandedNodeId.ToNodeId(
+            ArrayOf<NodeId> nodeIds = expandedNodeIds
+                .ConvertAll(expandedNodeId => ExpandedNodeId.ToNodeId(
                     expandedNodeId,
-                    cache.NamespaceUris))
-                .ToList();
+                    cache.NamespaceUris));
             return cache.GetNodesAsync(nodeIds, ct);
         }
 
@@ -83,23 +82,22 @@ namespace Opc.Ua
         /// <summary>
         /// Get nodes from cache
         /// </summary>
-        public static ValueTask<IReadOnlyList<DataValue>> GetValuesAsync(
+        public static ValueTask<ArrayOf<DataValue>> GetValuesAsync(
             this ILruNodeCache cache,
-            IReadOnlyList<ExpandedNodeId> expandedNodeIds,
+            ArrayOf<ExpandedNodeId> expandedNodeIds,
             CancellationToken ct = default)
         {
-            var nodeIds = expandedNodeIds
-                .Select(expandedNodeId => ExpandedNodeId.ToNodeId(
+            ArrayOf<NodeId> nodeIds = expandedNodeIds
+                .ConvertAll(expandedNodeId => ExpandedNodeId.ToNodeId(
                     expandedNodeId,
-                    cache.NamespaceUris))
-                .ToList();
+                    cache.NamespaceUris));
             return cache.GetValuesAsync(nodeIds, ct);
         }
 
         /// <summary>
         /// Get references from cache
         /// </summary>
-        public static ValueTask<IReadOnlyList<INode>> GetReferencesAsync(
+        public static ValueTask<ArrayOf<INode>> GetReferencesAsync(
             this ILruNodeCache cache,
             ExpandedNodeId expandedNodeId,
             NodeId referenceTypeId,
@@ -119,19 +117,18 @@ namespace Opc.Ua
         /// <summary>
         /// Get references from cache
         /// </summary>
-        public static ValueTask<IReadOnlyList<INode>> GetReferencesAsync(
+        public static ValueTask<ArrayOf<INode>> GetReferencesAsync(
             this ILruNodeCache cache,
-            IReadOnlyList<ExpandedNodeId> expandedNodeIds,
-            IReadOnlyList<NodeId> referenceTypeIds,
+            ArrayOf<ExpandedNodeId> expandedNodeIds,
+            ArrayOf<NodeId> referenceTypeIds,
             bool isInverse,
             bool includeSubtypes = true,
             CancellationToken ct = default)
         {
-            var nodeIds = expandedNodeIds
-                .Select(expandedNodeId => ExpandedNodeId.ToNodeId(
+            ArrayOf<NodeId> nodeIds = expandedNodeIds
+                .ConvertAll(expandedNodeId => ExpandedNodeId.ToNodeId(
                     expandedNodeId,
-                    cache.NamespaceUris))
-                .ToList();
+                    cache.NamespaceUris));
             return cache.GetReferencesAsync(
                 nodeIds,
                 referenceTypeIds,
@@ -143,19 +140,18 @@ namespace Opc.Ua
         /// <summary>
         /// Get references from cache
         /// </summary>
-        public static ValueTask<IReadOnlyList<INode>> GetReferencesAsync(
+        public static ValueTask<ArrayOf<INode>> GetReferencesAsync(
             this ILruNodeCache cache,
-            IReadOnlyList<ExpandedNodeId> expandedNodeIds,
+            ArrayOf<ExpandedNodeId> expandedNodeIds,
             NodeId referenceTypeId,
             bool isInverse,
             bool includeSubtypes = true,
             CancellationToken ct = default)
         {
-            var nodeIds = expandedNodeIds
-                .Select(expandedNodeId => ExpandedNodeId.ToNodeId(
+            ArrayOf<NodeId> nodeIds = expandedNodeIds
+                .ConvertAll(expandedNodeId => ExpandedNodeId.ToNodeId(
                     expandedNodeId,
-                    cache.NamespaceUris))
-                .ToList();
+                    cache.NamespaceUris));
             return cache.GetReferencesAsync(
                 nodeIds,
                 [referenceTypeId],

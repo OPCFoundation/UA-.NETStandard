@@ -224,8 +224,8 @@ namespace Opc.Ua
         public static ServiceResultException Create(
             StatusCode code,
             int index,
-            DiagnosticInfoCollection diagnosticInfos,
-            IList<string> stringTable)
+            ArrayOf<DiagnosticInfo> diagnosticInfos,
+            ArrayOf<string> stringTable)
         {
             return new ServiceResultException(
                 new ServiceResult(code, index, diagnosticInfos, stringTable));

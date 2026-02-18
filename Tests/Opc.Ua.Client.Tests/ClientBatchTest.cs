@@ -276,7 +276,7 @@ namespace Opc.Ua.Client.Tests
             var requestHeader = new RequestHeader();
             var referenceDescriptions = new ReferenceDescriptionCollection();
 
-            BrowseDescriptionCollection browseDescriptionCollection =
+            ArrayOf<BrowseDescription> browseDescriptionCollection =
                 ServerFixtureUtils.CreateBrowseDescriptionCollectionFromNodeId(
                     [.. new NodeId[] { Objects.RootFolder }],
                     browseTemplate);
@@ -293,12 +293,12 @@ namespace Opc.Ua.Client.Tests
                         CancellationToken.None)
                     .ConfigureAwait(false);
 
-                BrowseResultCollection results = response.Results;
-                DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+                ArrayOf<BrowseResult> results = response.Results;
+                ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
                 allResults.AddRange(results);
 
-                ByteStringCollection continuationPoints = ServerFixtureUtils.PrepareBrowseNext(
+                ArrayOf<ByteString> continuationPoints = ServerFixtureUtils.PrepareBrowseNext(
                     results);
                 while (continuationPoints.Count > 0)
                 {
@@ -310,7 +310,7 @@ namespace Opc.Ua.Client.Tests
                             continuationPoints,
                             CancellationToken.None)
                         .ConfigureAwait(false);
-                    BrowseResultCollection browseNextResultCollection = nextResponse.Results;
+                    ArrayOf<BrowseResult> browseNextResultCollection = nextResponse.Results;
                     diagnosticInfos = nextResponse.DiagnosticInfos;
                     ServerFixtureUtils.ValidateResponse(
                         response.ResponseHeader,
@@ -420,7 +420,7 @@ namespace Opc.Ua.Client.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ILogger logger = telemetry.CreateLogger<ClientBatchTest>();
 
-            var browsePaths = new BrowsePathCollection();
+            var browsePathList = new BrowsePathCollection();
             var browsePath = new BrowsePath
             {
                 StartingNode = ObjectIds.RootFolder,
@@ -429,8 +429,9 @@ namespace Opc.Ua.Client.Tests
 
             for (int ii = 0; ii < kOperationLimit * 2; ii++)
             {
-                browsePaths.Add(browsePath);
+                browsePathList.Add(browsePath);
             }
+            var browsePaths = browsePathList.ToArrayOf();
 
             var requestHeader = new RequestHeader();
             TranslateBrowsePathsToNodeIdsResponse response = await Session
@@ -439,8 +440,8 @@ namespace Opc.Ua.Client.Tests
                     browsePaths,
                     CancellationToken.None)
                 .ConfigureAwait(false);
-            BrowsePathResultCollection results = response.Results;
-            DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+            ArrayOf<BrowsePathResult> results = response.Results;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
             ServerFixtureUtils.ValidateResponse(response.ResponseHeader, results, browsePaths);
             ServerFixtureUtils.ValidateDiagnosticInfos(
@@ -458,15 +459,13 @@ namespace Opc.Ua.Client.Tests
             ILogger logger = telemetry.CreateLogger<ClientBatchTest>();
 
             // there are no historizing nodes, but create some real ones
-            System.Collections.Generic.IList<NodeId> testSet = GetTestSetSimulation(
-                Session.NamespaceUris);
-            var nodesToRead = new HistoryReadValueIdCollection(
-                testSet.Select(nodeId => new HistoryReadValueId { NodeId = nodeId }));
-
+            var nodesToRead = GetTestSetSimulation(
+                Session.NamespaceUris)
+                .Select(nodeId => new HistoryReadValueId { NodeId = nodeId })
             // add a some real history nodes
-            testSet = GetTestSetHistory(Session.NamespaceUris);
-            nodesToRead.AddRange(
-                testSet.Select(nodeId => new HistoryReadValueId { NodeId = nodeId }));
+                .Concat(GetTestSetHistory(Session.NamespaceUris)
+                    .Select(nodeId => new HistoryReadValueId { NodeId = nodeId }))
+                .ToArrayOf();
 
             HistoryReadResponse response = await Session
                 .HistoryReadAsync(
@@ -501,28 +500,28 @@ namespace Opc.Ua.Client.Tests
 
             // see https://reference.opcfoundation.org/v104/Core/docs/Part11/6.8.1/ as to why
             // history update of event, data or annotations should be called individually
-            ExtensionObjectCollection historyUpdateDetails;
+            ArrayOf<ExtensionObject> historyUpdateDetails;
             if (eventDetails)
             {
-                historyUpdateDetails =
-                [
-                    .. testSet.Select(nodeId => new ExtensionObject(
-                        new UpdateEventDetails {
+                historyUpdateDetails = testSet
+                    .Select(nodeId => new ExtensionObject(
+                        new UpdateEventDetails
+                        {
                             NodeId = nodeId,
-                            PerformInsertReplace = PerformUpdateType.Insert }
-                    ))
-                ];
+                            PerformInsertReplace = PerformUpdateType.Insert
+                        }
+                    )).ToArrayOf();
             }
             else
             {
-                historyUpdateDetails =
-                [
-                    .. testSet.Select(nodeId => new ExtensionObject(
-                        new UpdateDataDetails {
+                historyUpdateDetails = testSet
+                    .Select(nodeId => new ExtensionObject(
+                        new UpdateDataDetails
+                        {
                             NodeId = nodeId,
-                            PerformInsertReplace = PerformUpdateType.Replace }
-                    ))
-                ];
+                            PerformInsertReplace = PerformUpdateType.Replace
+                        }
+                    )).ToArrayOf();
             }
 
             HistoryUpdateResponse response = await Session

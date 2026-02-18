@@ -608,7 +608,6 @@ namespace Opc.Ua
                     "Failed to decode xml extension object body: {0}",
                     ae.Message);
             }
-
         }
 
         /// <summary>

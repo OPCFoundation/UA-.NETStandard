@@ -406,6 +406,21 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Get as typed one dimensional list for manipulation
+        /// Allocates a list and fills it
+        /// </summary>
+        /// <returns></returns>
+        public List<T> ToList()
+        {
+            var newList = new List<T>(m_memory.Length);
+            for (int i = 0; i < m_memory.Length; i++)
+            {
+                newList.Add(m_memory.Span[i]);
+            }
+            return newList;
+        }
+
+        /// <summary>
         /// Redimensionate an array of T into a matrix
         /// </summary>
         /// <param name="dimensions"></param>
@@ -428,8 +443,6 @@ namespace Opc.Ua
         /// Transform
         /// </summary>
         /// <typeparam name="TResult"></typeparam>
-        /// <param name="transform"></param>
-        /// <returns></returns>
         public ArrayOf<TResult> ConvertAll<TResult>(Func<T, TResult> transform)
         {
             var values = new TResult[m_memory.Length];
@@ -441,10 +454,29 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Filter the array and return an array with the false items removed.
+        /// </summary>
+        public ArrayOf<T> Filter(Func<T, bool> filter)
+        {
+            var values = new T[m_memory.Length];
+            int j = 0;
+            for (int i = 0; i < m_memory.Length; i++)
+            {
+                if (filter(m_memory.Span[i]))
+                {
+                    values[j++] = m_memory.Span[i];
+                }
+            }
+            if (j == 0)
+            {
+                return Empty;
+            }
+            return new ArrayOf<T>(values.AsMemory()[..j]);
+        }
+
+        /// <summary>
         /// Find item
         /// </summary>
-        /// <param name="predicate"></param>
-        /// <returns></returns>
         public T Find(Func<T, bool> predicate)
         {
             foreach (T? item in m_memory.Span)
@@ -475,7 +507,7 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// Marks types as convertable to <see cref="System.Array"/>
+    /// Marks types as convertable to <see cref="Array"/>
     /// </summary>
     public interface IConvertableToArray
     {
@@ -574,6 +606,7 @@ namespace Opc.Ua
         /// Add array as range to list
         /// </summary>
         /// <typeparam name="T"></typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="list"/> is <c>null</c>.</exception>
         public static void AddRange<T>(this IList<T> list, ArrayOf<T> values)
         {
             if (list == null)

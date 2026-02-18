@@ -126,12 +126,12 @@ namespace Quickstarts.Servers
         /// <summary>
         /// The property with available node manager factories.
         /// </summary>
-        public static ReadOnlyList<INodeManagerFactory> NodeManagerFactories
+        public static ArrayOf<INodeManagerFactory> NodeManagerFactories
         {
             get
             {
                 s_nodeManagerFactories ??= GetNodeManagerFactories();
-                return new ReadOnlyList<INodeManagerFactory>(s_nodeManagerFactories);
+                return s_nodeManagerFactories.ToArrayOf();
             }
         }
 

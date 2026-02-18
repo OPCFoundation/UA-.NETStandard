@@ -2171,7 +2171,7 @@ namespace Opc.Ua
         private void WriteObjectArray(string fieldName, object[] values)
         {
             // write length.
-            if (WriteArrayLength((Array)values))
+            if (WriteArrayLength(values))
             {
                 return;
             }

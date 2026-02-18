@@ -124,7 +124,7 @@ namespace Opc.Ua.Client.Tests
             NamespaceTable namespaceUris = Session.NamespaceUris;
             var testSet = new NodeIdCollection(GetTestSetStatic(namespaceUris));
             testSet.AddRange(GetTestSetFullSimulation(namespaceUris));
-            (DataValueCollection values, IList<ServiceResult> errors) =
+            (var values, var errors) =
                 await Session.ReadValuesAsync(testSet).ConfigureAwait(false);
             Assert.AreEqual(testSet.Count, values.Count);
             Assert.AreEqual(testSet.Count, errors.Count);

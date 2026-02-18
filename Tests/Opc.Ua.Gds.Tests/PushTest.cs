@@ -518,7 +518,7 @@ namespace Opc.Ua.Gds.Tests
                     m_pushClient.PushClient.UpdateCertificateAsync(
                         invalidCertGroup,
                         default,
-                        serverCert.RawData,
+                        serverCert.RawData.ToByteString(),
                         null,
                         default,
                         null
@@ -529,7 +529,7 @@ namespace Opc.Ua.Gds.Tests
                     m_pushClient.PushClient.UpdateCertificateAsync(
                         default,
                         invalidCertType,
-                        serverCert.RawData,
+                        serverCert.RawData.ToByteString(),
                         null,
                         default,
                         null
@@ -540,7 +540,7 @@ namespace Opc.Ua.Gds.Tests
                     m_pushClient.PushClient.UpdateCertificateAsync(
                         invalidCertGroup,
                         invalidCertType,
-                        serverCert.RawData,
+                        serverCert.RawData.ToByteString(),
                         null,
                         default,
                         null
@@ -548,24 +548,24 @@ namespace Opc.Ua.Gds.Tests
                 Throws.Exception).ConfigureAwait(false);
             await NUnit.Framework.Assert.ThatAsync(
                 () => m_pushClient.PushClient
-                    .UpdateCertificateAsync(default, default, invalidRawCert, null, default, null),
+                    .UpdateCertificateAsync(default, default, invalidRawCert.ToByteString(), null, default, null),
                 Throws.Exception).ConfigureAwait(false);
             await NUnit.Framework.Assert.ThatAsync(
                 () => m_pushClient.PushClient
-                    .UpdateCertificateAsync(default, default, invalidCert.RawData, null, default, null),
+                    .UpdateCertificateAsync(default, default, invalidCert.RawData.ToByteString(), null, default, null),
                 Throws.Exception).ConfigureAwait(false);
             await NUnit.Framework.Assert.ThatAsync(
                 () => m_pushClient.PushClient
-                    .UpdateCertificateAsync(default, default, serverCert.RawData, "XYZ", default, null),
+                    .UpdateCertificateAsync(default, default, serverCert.RawData.ToByteString(), "XYZ", default, null),
                 Throws.Exception).ConfigureAwait(false);
             await NUnit.Framework.Assert.ThatAsync(
                 () =>
                     m_pushClient.PushClient.UpdateCertificateAsync(
                         default,
                         default,
-                        serverCert.RawData,
+                        serverCert.RawData.ToByteString(),
                         "XYZ",
-                        invalidCert.RawData,
+                        invalidCert.RawData.ToByteString(),
                         null
                     ),
                 Throws.Exception).ConfigureAwait(false);
@@ -574,10 +574,10 @@ namespace Opc.Ua.Gds.Tests
                     m_pushClient.PushClient.UpdateCertificateAsync(
                         default,
                         default,
-                        invalidCert.RawData,
+                        invalidCert.RawData.ToByteString(),
                         null,
                         default,
-                        [serverCert.RawData, invalidCert.RawData]
+                        [serverCert.RawData.ToByteString(), invalidCert.RawData.ToByteString()]
                     ),
                 Throws.Exception).ConfigureAwait(false);
             await NUnit.Framework.Assert.ThatAsync(
@@ -588,7 +588,7 @@ namespace Opc.Ua.Gds.Tests
                         default,
                         null,
                         default,
-                        [serverCert.RawData, invalidCert.RawData]
+                        [serverCert.RawData.ToByteString(), invalidCert.RawData.ToByteString()]
                     ),
                 Throws.Exception).ConfigureAwait(false);
             await NUnit.Framework.Assert.ThatAsync(
@@ -596,10 +596,10 @@ namespace Opc.Ua.Gds.Tests
                     m_pushClient.PushClient.UpdateCertificateAsync(
                         default,
                         default,
-                        invalidRawCert,
+                        invalidRawCert.ToByteString(),
                         null,
                         default,
-                        [serverCert.RawData, invalidCert.RawData]
+                        [serverCert.RawData.ToByteString(), invalidCert.RawData.ToByteString()]
                     ),
                 Throws.Exception).ConfigureAwait(false);
             await NUnit.Framework.Assert.ThatAsync(
@@ -607,15 +607,15 @@ namespace Opc.Ua.Gds.Tests
                     m_pushClient.PushClient.UpdateCertificateAsync(
                         default,
                         default,
-                        serverCert.RawData,
+                        serverCert.RawData.ToByteString(),
                         null,
                         default,
-                        [serverCert.RawData, invalidRawCert]
+                        [serverCert.RawData.ToByteString(), invalidRawCert.ToByteString()]
                     ),
                 Throws.Exception).ConfigureAwait(false);
             await NUnit.Framework.Assert.ThatAsync(
                 () => m_pushClient.PushClient
-                    .UpdateCertificateAsync(default, default, serverCert.RawData, null, default, null),
+                    .UpdateCertificateAsync(default, default, serverCert.RawData.ToByteString(), null, default, null),
                 Throws.Exception).ConfigureAwait(false);
         }
 
@@ -637,7 +637,7 @@ namespace Opc.Ua.Gds.Tests
             bool success = await m_pushClient.PushClient.UpdateCertificateAsync(
                 default,
                 m_certificateType,
-                serverCert.RawData,
+                serverCert.RawData.ToByteString(),
                 null,
                 default,
                 null).ConfigureAwait(false);
@@ -645,7 +645,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
             }
-            await VerifyNewPushServerCertAsync(serverCert.RawData).ConfigureAwait(false);
+            await VerifyNewPushServerCertAsync(serverCert.RawData.ToByteString()).ConfigureAwait(false);
         }
 
         [Test]
@@ -690,7 +690,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.False(requestId.IsNull);
             ByteString privateKey = default;
             ByteString certificate = default;
-            ByteString[] issuerCertificates = null;
+            ArrayOf<ByteString> issuerCertificates = default;
 
             Thread.Sleep(1000);
 
@@ -808,16 +808,16 @@ namespace Opc.Ua.Gds.Tests
             bool success = await m_pushClient.PushClient.UpdateCertificateAsync(
                 m_pushClient.PushClient.DefaultApplicationGroup,
                 m_certificateType,
-                newCert.RawData,
+                newCert.RawData.ToByteString(),
                 keyFormat,
-                privateKey,
+                privateKey.ToByteString(),
                 null).ConfigureAwait(false);
 
             if (success)
             {
                 await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
             }
-            await VerifyNewPushServerCertAsync(newCert.RawData).ConfigureAwait(false);
+            await VerifyNewPushServerCertAsync(newCert.RawData.ToByteString()).ConfigureAwait(false);
         }
 
         [Test]
@@ -856,7 +856,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.False(requestId.IsNull);
             ByteString privateKey = default;
             ByteString certificate = default;
-            ByteString[] issuerCertificates = null;
+            ArrayOf<ByteString> issuerCertificates = default;
             DateTime now = DateTime.UtcNow;
             do
             {
@@ -918,10 +918,10 @@ namespace Opc.Ua.Gds.Tests
                 () => m_pushClient.PushClient.GetCertificatesAsync(default),
                 Throws.Exception).ConfigureAwait(false);
 
-            (NodeId[] certificateTypeIds, ByteString[] certificates) = await m_pushClient.PushClient.GetCertificatesAsync(
+            (var certificateTypeIds, var certificates) = await m_pushClient.PushClient.GetCertificatesAsync(
                 m_pushClient.PushClient.DefaultApplicationGroup).ConfigureAwait(false);
 
-            NUnit.Framework.Assert.That(certificateTypeIds.Length == certificates.Length);
+            NUnit.Framework.Assert.That(certificateTypeIds.Count == certificates.Count);
             Assert.False(certificates[0].IsEmpty);
             using X509Certificate2 x509 = CertificateFactory.Create(certificates[0]);
             Assert.NotNull(x509);
@@ -950,7 +950,7 @@ namespace Opc.Ua.Gds.Tests
                     m_pushClient.PushClient.UpdateCertificateAsync(
                         default,
                         default,
-                        m_selfSignedServerCert.RawData,
+                        m_selfSignedServerCert.RawData.ToByteString(),
                         null,
                         default,
                         null

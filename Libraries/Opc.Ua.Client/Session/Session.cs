@@ -253,7 +253,7 @@ namespace Opc.Ua.Client
             m_keepAliveTimer = new Timer(_ => m_keepAliveEvent.Set(), this, Timeout.Infinite, Timeout.Infinite);
 
             // set the default preferred locales.
-            m_preferredLocales = new string[] { CultureInfo.CurrentCulture.Name };
+            m_preferredLocales = [CultureInfo.CurrentCulture.Name];
 
             // create a context to use.
             m_systemContext = new SessionSystemContext(m_telemetry)
@@ -263,7 +263,7 @@ namespace Opc.Ua.Client
                 NamespaceUris = NamespaceUris,
                 ServerUris = ServerUris,
                 TypeTable = TypeTree,
-                PreferredLocales = null,
+                PreferredLocales = default,
                 SessionId = default,
                 UserIdentity = null
             };
@@ -577,7 +577,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the locales that the server should use when returning localized text.
         /// </summary>
-        public StringCollection PreferredLocales => m_preferredLocales;
+        public ArrayOf<string> PreferredLocales => m_preferredLocales;
 
         /// <summary>
         /// Gets the subscriptions owned by the session.
@@ -1078,7 +1078,7 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string>? preferredLocales,
+            ArrayOf<string> preferredLocales,
             bool checkDomain,
             bool closeChannel,
             CancellationToken ct)
@@ -1302,9 +1302,9 @@ namespace Opc.Ua.Client
                     m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
 
                 // copy the preferred locales if provided.
-                if (preferredLocales != null && preferredLocales.Count > 0)
+                if (preferredLocales.Count > 0)
                 {
-                    m_preferredLocales = [.. preferredLocales];
+                    m_preferredLocales = preferredLocales;
                 }
 
                 // activate session.
@@ -1321,19 +1321,15 @@ namespace Opc.Ua.Client
                 ProcessResponseAdditionalHeader(activateResponse.ResponseHeader, serverCertificate);
 
                 serverNonce = activateResponse.ServerNonce;
-                StatusCodeCollection certificateResults = activateResponse.Results;
-                DiagnosticInfoCollection certificateDiagnosticInfos = activateResponse
-                    .DiagnosticInfos;
+                ArrayOf<StatusCode> certificateResults = activateResponse.Results;
+                ArrayOf<DiagnosticInfo> certificateDiagnosticInfos = activateResponse.DiagnosticInfos;
 
-                if (certificateResults != null)
+                for (int i = 0; i < certificateResults.Count; i++)
                 {
-                    for (int i = 0; i < certificateResults.Count; i++)
-                    {
-                        m_logger.LogInformation(
-                            "ActivateSession result[{Index}] = {Result}",
-                            i,
-                            certificateResults[i]);
-                    }
+                    m_logger.LogInformation(
+                        "ActivateSession result[{Index}] = {Result}",
+                        i,
+                        certificateResults[i]);
                 }
 
                 // fetch namespaces.
@@ -1395,7 +1391,7 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public Task ChangePreferredLocalesAsync(
-            StringCollection preferredLocales,
+            ArrayOf<string> preferredLocales,
             CancellationToken ct)
         {
             return UpdateSessionAsync(Identity, preferredLocales, ct);
@@ -1404,7 +1400,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task UpdateSessionAsync(
             IUserIdentity? identity,
-            StringCollection preferredLocales,
+            ArrayOf<string> preferredLocales,
             CancellationToken ct = default)
         {
             ThrowIfDisposed();
@@ -1423,7 +1419,9 @@ namespace Opc.Ua.Client
 
                 // get current nonce.
                 serverNonce = m_serverNonce;
-                preferredLocales ??= m_preferredLocales;
+                preferredLocales = preferredLocales.IsEmpty ?
+                    m_preferredLocales :
+                    preferredLocales;
             }
 
             // get the identity token.
@@ -1601,7 +1599,7 @@ namespace Opc.Ua.Client
         {
             ThrowIfDisposed();
             using Activity? activity = m_telemetry.StartActivity();
-            var subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
+            ArrayOf<uint> subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
             int failedSubscriptions = 0;
 
             if (subscriptionIds.Count > 0)
@@ -1630,8 +1628,8 @@ namespace Opc.Ua.Client
                     {
                         try
                         {
-                            IReadOnlyList<ServiceResult> resendResults = await this.ResendDataAsync(
-                                subscriptions.Select(s => s.Id),
+                            ArrayOf<ServiceResult> resendResults = await this.ResendDataAsync(
+                                subscriptions.Select(s => s.Id).ToArrayOf(),
                                 ct).ConfigureAwait(false);
                             for (int ii = 0; ii < resendResults.Count; ii++)
                             {
@@ -1678,7 +1676,7 @@ namespace Opc.Ua.Client
             CancellationToken ct)
         {
             using Activity? activity = m_telemetry.StartActivity();
-            var subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
+            ArrayOf<uint> subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
             int failedSubscriptions = 0;
 
             if (subscriptionIds.Count > 0)
@@ -1696,8 +1694,8 @@ namespace Opc.Ua.Client
                             sendInitialValues,
                             ct)
                         .ConfigureAwait(false);
-                    var results = response.Results;
-                    var diagnosticInfos = response.DiagnosticInfos;
+                    ArrayOf<TransferResult> results = response.Results;
+                    ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
                     ResponseHeader responseHeader = response.ResponseHeader;
 
                     if (!StatusCode.IsGood(responseHeader.ServiceResult))
@@ -1787,7 +1785,7 @@ namespace Opc.Ua.Client
         public async Task FetchNamespaceTablesAsync(CancellationToken ct = default)
         {
             using Activity? activity = m_telemetry.StartActivity();
-            ReadValueIdCollection nodesToRead = PrepareNamespaceTableNodesToRead();
+            ArrayOf<ReadValueId> nodesToRead = PrepareNamespaceTableNodesToRead();
 
             // read from server.
             ReadResponse response = await ReadAsync(
@@ -1798,8 +1796,8 @@ namespace Opc.Ua.Client
                 ct)
                 .ConfigureAwait(false);
 
-            var values = response.Results;
-            var diagnosticInfos = response.DiagnosticInfos;
+            ArrayOf<DataValue> values = response.Results;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
             ResponseHeader responseHeader = response.ResponseHeader;
 
             ValidateResponse(values, nodesToRead);
@@ -1862,7 +1860,7 @@ namespace Opc.Ua.Client
             using Activity? activity = m_telemetry.StartActivity();
 
             // Helper extraction
-            static T Get<T>(ref int index, IList<DataValue> values, IList<ServiceResult> errors)
+            static T Get<T>(ref int index, ArrayOf<DataValue> values, ArrayOf<ServiceResult> errors)
                 where T : struct
             {
                 DataValue value = values[index];
@@ -1891,14 +1889,16 @@ namespace Opc.Ua.Client
             }
 
             // First we read the node read max to optimize the second read.
-            var nodeIds = new List<NodeId>
-            {
+            ArrayOf<NodeId> nodeIds =
+            [
         VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRead
-            };
-            (DataValueCollection values, IList<ServiceResult> errors) =
+            ];
+            (ArrayOf<DataValue> values, ArrayOf<ServiceResult> errors) =
                 await this.ReadValuesAsync(nodeIds, ct).ConfigureAwait(false);
             int index = 0;
-            OperationLimits.MaxNodesPerRead = ApplyOperationLimit(OperationLimits.MaxNodesPerRead, Get<uint>(ref index, values, errors));
+            OperationLimits.MaxNodesPerRead = ApplyOperationLimit(
+                OperationLimits.MaxNodesPerRead,
+                Get<uint>(ref index, values, errors));
 
             nodeIds =
             [
@@ -2457,8 +2457,8 @@ namespace Opc.Ua.Client
                         timeout.Token).ConfigureAwait(false);
 
                     ByteString serverNonce = activateResult.ServerNonce;
-                    StatusCodeCollection certificateResults = activateResult.Results;
-                    DiagnosticInfoCollection certificateDiagnosticInfos = activateResult.DiagnosticInfos;
+                    ArrayOf<StatusCode> certificateResults = activateResult.Results;
+                    ArrayOf<DiagnosticInfo> certificateDiagnosticInfos = activateResult.DiagnosticInfos;
 
                     m_logger.LogInformation("Session RECONNECT {SessionId} completed successfully.", SessionId);
 
@@ -2695,8 +2695,8 @@ namespace Opc.Ua.Client
 
             m_serverState = ServerState.Unknown;
 
-            var nodesToRead = new ReadValueIdCollection
-            {
+            ArrayOf<ReadValueId> nodesToRead =
+            [
                 // read the server state.
                 new ReadValueId
                 {
@@ -2705,7 +2705,7 @@ namespace Opc.Ua.Client
                     DataEncoding = QualifiedName.Null,
                     IndexRange = null
                 }
-            };
+            ];
 
             await StopKeepAliveTimerAsync().ConfigureAwait(false);
 
@@ -3032,7 +3032,7 @@ namespace Opc.Ua.Client
         /// Sends a keep alive by reading from the server.
         /// </summary>
         private async Task OnSendKeepAliveAsync(
-            ReadValueIdCollection nodesToRead,
+            ArrayOf<ReadValueId> nodesToRead,
             CancellationToken ct)
         {
             while (!ct.IsCancellationRequested && !Disposed)
@@ -3081,8 +3081,8 @@ namespace Opc.Ua.Client
                         ct).ConfigureAwait(false);
 
                     // read the server status.
-                    DataValueCollection values = result.Results;
-                    DiagnosticInfoCollection diagnosticInfos = result.DiagnosticInfos;
+                    ArrayOf<DataValue> values = result.Results;
+                    ArrayOf<DiagnosticInfo> diagnosticInfos = result.DiagnosticInfos;
                     ResponseHeader responseHeader = result.ResponseHeader;
 
                     ValidateResponse(values, nodesToRead);
@@ -3258,29 +3258,23 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Prepares the list of node ids to read to fetch the namespace table.
         /// </summary>
-        private static ReadValueIdCollection PrepareNamespaceTableNodesToRead()
+        private static ArrayOf<ReadValueId> PrepareNamespaceTableNodesToRead()
         {
-            var nodesToRead = new ReadValueIdCollection();
-
-            // request namespace array.
-            var valueId = new ReadValueId
-            {
-                NodeId = Variables.Server_NamespaceArray,
-                AttributeId = Attributes.Value
-            };
-
-            nodesToRead.Add(valueId);
-
-            // request server array.
-            valueId = new ReadValueId
-            {
-                NodeId = Variables.Server_ServerArray,
-                AttributeId = Attributes.Value
-            };
-
-            nodesToRead.Add(valueId);
-
-            return nodesToRead;
+            return
+            [
+                // request namespace array.
+                new ReadValueId
+                {
+                    NodeId = Variables.Server_NamespaceArray,
+                    AttributeId = Attributes.Value
+                },
+                // request server array.
+                new ReadValueId
+                {
+                    NodeId = Variables.Server_ServerArray,
+                    AttributeId = Attributes.Value
+                }
+            ];
         }
 
         /// <summary>
@@ -3291,8 +3285,8 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private void UpdateNamespaceTable(
-            DataValueCollection values,
-            DiagnosticInfoCollection diagnosticInfos,
+            ArrayOf<DataValue> values,
+            ArrayOf<DiagnosticInfo> diagnosticInfos,
             ResponseHeader responseHeader)
         {
             // validate namespace array.
@@ -3483,7 +3477,7 @@ namespace Opc.Ua.Client
         private void OnPublishComplete(
             Task<PublishResponse> task,
             NodeId sessionId,
-            SubscriptionAcknowledgementCollection acknowledgementsToSend,
+            SubscriptionAcknowledgementCollection? acknowledgementsToSend,
             RequestHeader requestHeader)
         {
             // extract state information.
@@ -3505,11 +3499,11 @@ namespace Opc.Ua.Client
                 PublishResponse response = task.Result;
                 ResponseHeader responseHeader = response.ResponseHeader;
                 subscriptionId = response.SubscriptionId;
-                UInt32Collection availableSequenceNumbers = response.AvailableSequenceNumbers;
+                ArrayOf<uint> availableSequenceNumbers = response.AvailableSequenceNumbers;
                 bool moreNotifications = response.MoreNotifications;
                 NotificationMessage notificationMessage = response.NotificationMessage;
-                StatusCodeCollection acknowledgeResults = response.Results;
-                DiagnosticInfoCollection acknowledgeDiagnosticInfos = response.DiagnosticInfos;
+                ArrayOf<StatusCode> acknowledgeResults = response.Results;
+                ArrayOf<DiagnosticInfo> acknowledgeDiagnosticInfos = response.DiagnosticInfos;
 
                 LogLevel logLevel = LogLevel.Warning;
                 foreach (StatusCode code in acknowledgeResults)
@@ -4455,7 +4449,7 @@ namespace Opc.Ua.Client
                     subscriptionId);
 
                 // delete the subscription.
-                UInt32Collection subscriptionIds = new uint[] { subscriptionId };
+                ArrayOf<uint> subscriptionIds = [subscriptionId];
 
                 DeleteSubscriptionsResponse response = await DeleteSubscriptionsAsync(
                     null,
@@ -4463,8 +4457,8 @@ namespace Opc.Ua.Client
                     ct).ConfigureAwait(false);
 
                 ResponseHeader responseHeader = response.ResponseHeader;
-                StatusCodeCollection results = response.Results;
-                DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+                ArrayOf<StatusCode> results = response.Results;
+                ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
                 // validate response.
                 ValidateResponse(results, subscriptionIds);
@@ -4725,7 +4719,7 @@ namespace Opc.Ua.Client
                     subscriptionIds.Add(subscription.TransferId);
                 }
             }
-            return subscriptionIds;
+            return subscriptionIds.ToArrayOf();
         }
 
         /// <summary>
@@ -4858,7 +4852,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The locales that the server should use when returning localized text.
         /// </summary>
-        protected StringCollection m_preferredLocales;
+        protected ArrayOf<string> m_preferredLocales;
 
         /// <summary>
         /// The Application Configuration.

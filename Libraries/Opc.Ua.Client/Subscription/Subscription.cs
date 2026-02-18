@@ -812,7 +812,7 @@ namespace Opc.Ua.Client
             try
             {
                 // delete the subscription.
-                UInt32Collection subscriptionIds = new uint[] { Id };
+                ArrayOf<uint> subscriptionIds = [Id];
 
                 DeleteSubscriptionsResponse response = await Session
                     .DeleteSubscriptionsAsync(null, subscriptionIds, ct)
@@ -898,10 +898,10 @@ namespace Opc.Ua.Client
             VerifySessionAndSubscriptionState(true);
 
             // modify the subscription.
-            UInt32Collection subscriptionIds = new uint[] { Id };
+            ArrayOf<uint> subscriptionIds = [Id];
 
             SetPublishingModeResponse response = await Session
-                .SetPublishingModeAsync(null, enabled, new uint[] { Id }, ct)
+                .SetPublishingModeAsync(null, enabled, subscriptionIds, ct)
                 .ConfigureAwait(false);
 
             // validate response.
@@ -1521,10 +1521,7 @@ namespace Opc.Ua.Client
             else
             {
                 // handle the case when the client restarts and loads the saved subscriptions from storage
-                bool success;
-                UInt32Collection serverHandles;
-                UInt32Collection clientHandles;
-                (success, serverHandles, clientHandles) = await GetMonitoredItemsAsync(ct)
+                (bool success, ArrayOf<uint> serverHandles, ArrayOf<uint> clientHandles) = await GetMonitoredItemsAsync(ct)
                     .ConfigureAwait(false);
                 if (!success)
                 {
@@ -1859,25 +1856,23 @@ namespace Opc.Ua.Client
         /// </summary>
         public async Task<(
             bool,
-            UInt32Collection,
-            UInt32Collection
+            ArrayOf<uint>,
+            ArrayOf<uint>
             )> GetMonitoredItemsAsync(CancellationToken ct = default)
         {
             using Activity? activity = m_telemetry.StartActivity();
             VerifySession();
-            var serverHandles = new UInt32Collection();
-            var clientHandles = new UInt32Collection();
             try
             {
-                VariantCollection outputArguments = await Session.CallAsync(
+                var outputArguments = await Session.CallAsync(
                     ObjectIds.Server,
                     MethodIds.Server_GetMonitoredItems,
                     ct,
                     TransferId).ConfigureAwait(false);
-                if (outputArguments != null && outputArguments.Count == 2)
+                if (outputArguments.Count == 2)
                 {
-                    serverHandles.AddRange((uint[])outputArguments[0]);
-                    clientHandles.AddRange((uint[])outputArguments[1]);
+                    var serverHandles = ((ArrayOf<uint>)outputArguments[0]);
+                    var clientHandles = ((ArrayOf<uint>)outputArguments[1]);
                     return (true, serverHandles, clientHandles);
                 }
             }
@@ -1888,7 +1883,7 @@ namespace Opc.Ua.Client
                     "SubscriptionId {SubscriptionId}: Failed to call GetMonitoredItems on server",
                     Id);
             }
-            return (false, serverHandles, clientHandles);
+            return (false, default, default);
         }
 
         /// <summary>
@@ -1904,7 +1899,7 @@ namespace Opc.Ua.Client
 
             try
             {
-                VariantCollection outputArguments = await Session
+                var outputArguments = await Session
                     .CallAsync(
                         ObjectIds.Server,
                         MethodIds.Server_SetSubscriptionDurable,
@@ -1913,7 +1908,7 @@ namespace Opc.Ua.Client
                         lifetimeInHours)
                     .ConfigureAwait(false);
 
-                if (outputArguments != null && outputArguments.Count == 1)
+                if (outputArguments.Count == 1)
                 {
                     revisedLifetimeInHours = (uint)outputArguments[0];
                     return (true, revisedLifetimeInHours);

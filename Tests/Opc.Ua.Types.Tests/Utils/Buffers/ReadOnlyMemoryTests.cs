@@ -63,7 +63,7 @@ namespace Opc.Ua.Types.Buffers.Tests
         public void FromReturnsExpectedReadOnlyMemory()
         {
             string str = "test";
-            ref var memory = ref ReadOnlyMemoryHelper.From(ref str);
+            ref ReadOnlyMemory memory = ref ReadOnlyMemoryHelper.From(ref str);
             Assert.That(memory.Object, Is.EqualTo("test"));
         }
 #endif

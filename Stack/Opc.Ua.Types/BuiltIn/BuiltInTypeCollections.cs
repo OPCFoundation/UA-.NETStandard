@@ -2488,6 +2488,7 @@ namespace Opc.Ua
         {
             return values.ToArrayOf();
         }
+
         /// <inheritdoc/>
         public object Clone()
         {

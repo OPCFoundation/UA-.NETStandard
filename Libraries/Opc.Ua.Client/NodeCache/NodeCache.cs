@@ -445,7 +445,7 @@ namespace Opc.Ua.Client
             (ArrayOf<Node> sourceNodes, ArrayOf<ServiceResult> readErrors) = await m_context
                 .FetchNodesAsync(null, localIds, NodeClass.Unspecified, ct: ct)
                 .ConfigureAwait(false);
-            (ArrayOf<ReferenceDescriptionCollection> referenceCollectionList, ArrayOf<ServiceResult> fetchErrors) =
+            (ArrayOf<ArrayOf<ReferenceDescription>> referenceCollectionList, ArrayOf<ServiceResult> fetchErrors) =
                 await m_context.FetchReferencesAsync(null, localIds, ct).ConfigureAwait(false);
 
             int ii = 0;

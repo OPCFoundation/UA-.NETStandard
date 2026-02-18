@@ -70,7 +70,7 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public async Task LoadingConfigurationWithApplicationCertificateShouldMarkItDeprecatedAsync()
+        public void LoadingConfigurationWithApplicationCertificateShouldMarkItDeprecated()
         {
             string file = Path.Combine(TestContext.CurrentContext.WorkDirectory, "testlegacyconfig.xml");
 
@@ -85,7 +85,7 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public async Task LoadingConfigurationWithApplicationCertificateAndApplicationCertificatesShouldNotMarkItDeprecatedAsync()
+        public void LoadingConfigurationWithApplicationCertificateAndApplicationCertificatesShouldNotMarkItDeprecated()
         {
             string file = Path.Combine(TestContext.CurrentContext.WorkDirectory, "testhybridconfig.xml");
 

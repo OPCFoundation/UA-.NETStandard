@@ -162,7 +162,7 @@ namespace Alarms
 
             if (alarm.EnabledState.Id.Value)
             {
-                alarm.EventId.Value = Uuid.NewUuid().ToByteArray();
+                alarm.EventId.Value = Uuid.NewUuid().ToByteString();
                 alarm.Time.Value = DateTime.UtcNow;
                 alarm.ReceiveTime.Value = alarm.Time.Value;
 

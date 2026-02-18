@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -49,16 +48,16 @@ namespace Opc.Ua.Client.Tests
         {
             var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
-            var nodeIds = new List<NodeId>
-            {
+            ArrayOf<NodeId> nodeIds =
+            [
                 NodeId.Parse("ns=2;s=TestNode1"),
                 NodeId.Parse("ns=2;s=TestNode2")
-            };
-            var dataValues = new DataValueCollection
-            {
+            ];
+            ArrayOf<DataValue> dataValues =
+            [
                 new DataValue(new Variant(123), StatusCodes.Good, DateTime.UtcNow),
                 new DataValue(new Variant(456), StatusCodes.Good, DateTime.UtcNow)
-            };
+            ];
             var diagnosticInfos = new DiagnosticInfoCollection();
 
             session.Channel
@@ -76,7 +75,7 @@ namespace Opc.Ua.Client.Tests
             ResultSet<DataValue> result = await sut.FetchValuesAsync(null, nodeIds).ConfigureAwait(false);
 
             // Assert
-            Assert.That(result.Results, Is.EquivalentTo(dataValues));
+            Assert.That(result.Results, Is.EqualTo(dataValues));
             Assert.That(result.Errors, Is.All.EqualTo(ServiceResult.Good));
         }
 
@@ -117,7 +116,7 @@ namespace Opc.Ua.Client.Tests
             // Arrange
             var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
-            var nodeIds = new List<NodeId>();
+            ArrayOf<NodeId> nodeIds = [];
 
             // Act
             ResultSet<DataValue> result = await sut.FetchValuesAsync(null, nodeIds).ConfigureAwait(false);
@@ -162,14 +161,16 @@ namespace Opc.Ua.Client.Tests
             // Arrange
             var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
-            var nodeIds = new List<NodeId> {
+            ArrayOf<NodeId> nodeIds =
+            [
                 NodeId.Parse("ns=2;s=TestNode1"),
-                NodeId.Parse("ns=2;s=TestNode2") };
-            var dataValues = new DataValueCollection
-            {
+                NodeId.Parse("ns=2;s=TestNode2")
+            ];
+            ArrayOf<DataValue> dataValues =
+            [
                 new DataValue(new Variant(123), StatusCodes.Bad, DateTime.UtcNow),
                 new DataValue(new Variant(456), StatusCodes.Good, DateTime.UtcNow)
-            };
+            ];
             var diagnosticInfos = new DiagnosticInfoCollection();
 
             session.Channel
@@ -184,10 +185,12 @@ namespace Opc.Ua.Client.Tests
                 .Verifiable(Times.Once);
 
             // Act
-            ResultSet<DataValue> result = await sut.FetchValuesAsync(null, nodeIds).ConfigureAwait(false);
+            ResultSet<DataValue> result = await sut.FetchValuesAsync(
+                null,
+                nodeIds).ConfigureAwait(false);
 
             // Assert
-            Assert.That(result.Results, Is.EquivalentTo(dataValues));
+            Assert.That(result.Results, Is.EqualTo(dataValues));
             Assert.That(result.Errors[0].StatusCode, Is.EqualTo(StatusCodes.Bad));
             Assert.That(result.Errors[1].StatusCode, Is.EqualTo(StatusCodes.Good));
         }
@@ -218,11 +221,11 @@ namespace Opc.Ua.Client.Tests
             // Arrange
             var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
-            var nodeIds = new List<NodeId>
-            {
+            ArrayOf<NodeId> nodeIds =
+            [
                 NodeId.Parse("ns=2;s=TestNode1"),
                 NodeId.Parse("ns=2;s=TestNode2")
-            };
+            ];
             var cts = new CancellationTokenSource();
             cts.Cancel();
 
@@ -275,18 +278,18 @@ namespace Opc.Ua.Client.Tests
             // Arrange
             var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
-            var nodeIds = new List<NodeId>
-            {
+            ArrayOf<NodeId> nodeIds =
+            [
                 NodeId.Parse("ns=2;s=TestNode1"),
                 NodeId.Parse("ns=2;s=TestNode2")
-            };
-            var dataValues = new DataValueCollection
-            {
+            ];
+            ArrayOf<DataValue> dataValues =
+            [
                 new DataValue(new Variant(123), StatusCodes.Good, DateTime.UtcNow),
                 new DataValue(new Variant(456), StatusCodes.Good, DateTime.UtcNow)
-            };
+            ];
             var diagnosticInfo = new DiagnosticInfo();
-            var diagnosticInfos = new DiagnosticInfoCollection { diagnosticInfo, diagnosticInfo };
+            ArrayOf<DiagnosticInfo> diagnosticInfos = [diagnosticInfo, diagnosticInfo];
 
             session.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -300,10 +303,12 @@ namespace Opc.Ua.Client.Tests
                 .Verifiable(Times.Once);
 
             // Act
-            ResultSet<DataValue> result = await sut.FetchValuesAsync(null, nodeIds).ConfigureAwait(false);
+            ResultSet<DataValue> result = await sut.FetchValuesAsync(
+                null,
+                nodeIds).ConfigureAwait(false);
 
             // Assert
-            Assert.That(result.Results, Is.EquivalentTo(dataValues));
+            Assert.That(result.Results, Is.EqualTo(dataValues));
             Assert.That(result.Errors, Is.All.EqualTo(ServiceResult.Good));
             Assert.That(diagnosticInfos, Contains.Item(diagnosticInfo));
 
@@ -316,11 +321,11 @@ namespace Opc.Ua.Client.Tests
             // Arrange
             var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
-            var nodeIds = new List<NodeId>
-            {
+            ArrayOf<NodeId> nodeIds =
+            [
                 NodeId.Parse("ns=2;s=TestNode1"),
                 NodeId.Parse("ns=2;s=TestNode2")
-            };
+            ];
             VariableNode[] nodes =
             [
                 new VariableNode
@@ -353,8 +358,8 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns<ReadRequest, CancellationToken>((request, ct) =>
                 {
-                    var results = new DataValueCollection(request.NodesToRead
-                        .Select(r =>
+                    ArrayOf<DataValue> results = request.NodesToRead
+                        .ConvertAll(r =>
                         {
                             var value = new DataValue();
                             if (r.NodeId == nodeIds[0])
@@ -366,7 +371,7 @@ namespace Opc.Ua.Client.Tests
                                 nodes[1].Read(null, r.AttributeId, value);
                             }
                             return value;
-                        }));
+                        });
                     return new ValueTask<IServiceResponse>(new ReadResponse
                     {
                         Results = results,
@@ -391,11 +396,11 @@ namespace Opc.Ua.Client.Tests
             // Arrange
             var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
-            var nodeIds = new List<NodeId>
-            {
+            ArrayOf<NodeId> nodeIds =
+            [
                 NodeId.Parse("ns=2;s=TestNode1"),
                 NodeId.Parse("ns=2;s=TestNode2")
-            };
+            ];
             VariableNode[] nodes =
             [
                 new VariableNode
@@ -428,8 +433,8 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns<ReadRequest, CancellationToken>((request, ct) =>
                 {
-                    var results = new DataValueCollection(request.NodesToRead
-                        .Select(r =>
+                    ArrayOf<DataValue> results = request.NodesToRead
+                        .ConvertAll(r =>
                         {
                             var value = new DataValue();
                             if (r.AttributeId == Attributes.MinimumSamplingInterval)
@@ -449,7 +454,7 @@ namespace Opc.Ua.Client.Tests
                                 nodes[1].Read(null, r.AttributeId, value);
                             }
                             return value;
-                        }));
+                        });
                     return new ValueTask<IServiceResponse>(new ReadResponse
                     {
                         Results = results,
@@ -493,13 +498,13 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns<ReadRequest, CancellationToken>((request, ct) =>
                 {
-                    var results = new DataValueCollection(request.NodesToRead
-                        .Select(r =>
+                    ArrayOf<DataValue> results = request.NodesToRead
+                        .ConvertAll(r =>
                         {
                             var value = new DataValue();
                             node.Read(null, r.AttributeId, value);
                             return value;
-                        }));
+                        });
                     return new ValueTask<IServiceResponse>(new ReadResponse
                     {
                         Results = results,
@@ -523,7 +528,7 @@ namespace Opc.Ua.Client.Tests
             // Arrange
             var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
-            var nodeIds = new List<NodeId>();
+            ArrayOf<NodeId> nodeIds = [];
 
             // Act
             ResultSet<Node> result = await sut.FetchNodesAsync(null, nodeIds).ConfigureAwait(false);
@@ -560,9 +565,9 @@ namespace Opc.Ua.Client.Tests
                 .Returns<ReadRequest, CancellationToken>((request, ct) =>
                     new ValueTask<IServiceResponse>(new ReadResponse
                     {
-                        Results = [.. request.NodesToRead
-                                .Select(r => new DataValue(StatusCodes.BadAlreadyExists))],
-                        DiagnosticInfos = [.. request.NodesToRead.Select(_ => new DiagnosticInfo())]
+                        Results = request.NodesToRead
+                           .ConvertAll(r => new DataValue(StatusCodes.BadAlreadyExists)),
+                        DiagnosticInfos = request.NodesToRead.ConvertAll(_ => new DiagnosticInfo())
                     }))
                 .Verifiable(Times.Once);
 
@@ -580,11 +585,11 @@ namespace Opc.Ua.Client.Tests
             // Arrange
             var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
-            var nodeIds = new List<NodeId>
-            {
+            ArrayOf<NodeId> nodeIds =
+            [
                 NodeId.Parse("ns=2;s=TestNode1"),
                 NodeId.Parse("ns=2;s=TestNode2")
-            };
+            ];
             VariableNode[] nodes =
             [
                 new VariableNode
@@ -617,21 +622,20 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns<ReadRequest, CancellationToken>((request, ct) =>
                 {
-                    var results = new DataValueCollection(request.NodesToRead
-                        .Select(r =>
+                    ArrayOf<DataValue> results = request.NodesToRead.ConvertAll(r =>
+                    {
+                        if (r.NodeId == nodeIds[0])
                         {
-                            if (r.NodeId == nodeIds[0])
-                            {
-                                var value = new DataValue();
-                                nodes[0].Read(null, r.AttributeId, value);
-                                return value;
-                            }
-                            return new DataValue(StatusCodes.BadUnexpectedError);
-                        }));
+                            var value = new DataValue();
+                            nodes[0].Read(null, r.AttributeId, value);
+                            return value;
+                        }
+                        return new DataValue(StatusCodes.BadUnexpectedError);
+                    });
                     return new ValueTask<IServiceResponse>(new ReadResponse
                     {
                         Results = results,
-                        DiagnosticInfos = [.. results.Select(r => new DiagnosticInfo())]
+                        DiagnosticInfos = [.. results.ConvertAll(r => new DiagnosticInfo())]
                     });
                 })
                 .Verifiable(Times.Exactly(2));
@@ -654,11 +658,11 @@ namespace Opc.Ua.Client.Tests
             // Arrange
             var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
-            var nodeIds = new List<NodeId>
-            {
+            ArrayOf<NodeId> nodeIds =
+            [
                 NodeId.Parse("ns=2;s=TestNode1"),
                 NodeId.Parse("ns=2;s=TestNode2")
-            };
+            ];
             VariableNode[] nodes =
             [
                 new VariableNode
@@ -691,8 +695,8 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns<ReadRequest, CancellationToken>((request, ct) =>
                 {
-                    var results = new DataValueCollection(request.NodesToRead
-                        .Select(r =>
+                    ArrayOf<DataValue> results = request.NodesToRead
+                        .ConvertAll(r =>
                         {
                             if (r.AttributeId == Attributes.NodeClass)
                             {
@@ -708,11 +712,11 @@ namespace Opc.Ua.Client.Tests
                                 nodes[1].Read(null, r.AttributeId, value);
                             }
                             return value;
-                        }));
+                        });
                     return new ValueTask<IServiceResponse>(new ReadResponse
                     {
                         Results = results,
-                        DiagnosticInfos = [.. results.Select(r => new DiagnosticInfo())]
+                        DiagnosticInfos = results.ConvertAll(r => new DiagnosticInfo())
                     });
                 })
                 .Verifiable(Times.Exactly(2));
@@ -755,11 +759,11 @@ namespace Opc.Ua.Client.Tests
             // Arrange
             var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
-            var nodeIds = new List<NodeId>
-            {
+            ArrayOf<NodeId> nodeIds =
+            [
                 NodeId.Parse("ns=2;s=TestNode1"),
                 NodeId.Parse("ns=2;s=TestNode2")
-            };
+            ];
             var cts = new CancellationTokenSource();
             cts.Cancel();
 
@@ -802,17 +806,17 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns<ReadRequest, CancellationToken>((request, ct) =>
                 {
-                    var results = new DataValueCollection(request.NodesToRead
-                        .Select(r =>
+                    ArrayOf<DataValue> results = request.NodesToRead
+                        .ConvertAll(r =>
                         {
                             var value = new DataValue();
                             node.Read(null, r.AttributeId, value);
                             return value;
-                        }));
+                        });
                     return new ValueTask<IServiceResponse>(new ReadResponse
                     {
                         Results = results,
-                        DiagnosticInfos = [.. results.Select(_ => new DiagnosticInfo())]
+                        DiagnosticInfos = results.ConvertAll(_ => new DiagnosticInfo())
                     });
                 })
                 .Verifiable(Times.Once);
@@ -832,11 +836,11 @@ namespace Opc.Ua.Client.Tests
             // Arrange
             var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
-            var nodeIds = new List<NodeId>
-            {
+            ArrayOf<NodeId> nodeIds =
+            [
                 NodeId.Parse("ns=2;s=TestNode1"),
                 NodeId.Parse("ns=2;s=TestNode2")
-            };
+            ];
             VariableNode[] nodes =
             [
                 new VariableNode
@@ -869,8 +873,8 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns<ReadRequest, CancellationToken>((request, ct) =>
                 {
-                    var results = new DataValueCollection(request.NodesToRead
-                        .Select(r =>
+                    ArrayOf<DataValue> results = request.NodesToRead
+                        .ConvertAll(r =>
                         {
                             var value = new DataValue();
                             if (r.NodeId == nodeIds[0])
@@ -882,11 +886,11 @@ namespace Opc.Ua.Client.Tests
                                 nodes[1].Read(null, r.AttributeId, value);
                             }
                             return value;
-                        }));
+                        });
                     return new ValueTask<IServiceResponse>(new ReadResponse
                     {
                         Results = results,
-                        DiagnosticInfos = [.. results.Select(r => new DiagnosticInfo())]
+                        DiagnosticInfos = results.ConvertAll(r => new DiagnosticInfo())
                     });
                 })
                 .Verifiable(Times.Exactly(2));
@@ -961,10 +965,10 @@ namespace Opc.Ua.Client.Tests
             // Arrange
             var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
-            var nodeIds = new List<NodeId>();
+            var nodeIds = ArrayOf.Empty<NodeId>();
 
             // Act
-            ResultSet<ReferenceDescriptionCollection> result =
+            ResultSet<ArrayOf<ReferenceDescription>> result =
                 await sut.FetchReferencesAsync(null, nodeIds).ConfigureAwait(false);
 
             // Assert
@@ -978,13 +982,13 @@ namespace Opc.Ua.Client.Tests
             // Arrange
             var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
-            var nodeIds = new List<NodeId>
-            {
+            ArrayOf<NodeId> nodeIds =
+            [
                 NodeId.Parse("ns=2;s=TestNode1"),
                 NodeId.Parse("ns=2;s=TestNode2")
-            };
-            var references = new ReferenceDescriptionCollection
-            {
+            ];
+            ArrayOf<ReferenceDescription> references =
+            [
                 new ReferenceDescription
                 {
                     NodeId = ExpandedNodeId.Parse("ns=2;s=TestNode1"),
@@ -999,7 +1003,7 @@ namespace Opc.Ua.Client.Tests
                     DisplayName = LocalizedText.From("TestDisplayName2"),
                     NodeClass = NodeClass.Variable
                 }
-            };
+            ];
 
             session.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -1025,7 +1029,7 @@ namespace Opc.Ua.Client.Tests
                 .Verifiable(Times.Once);
 
             // Act
-            ResultSet<ReferenceDescriptionCollection> result = await sut.FetchReferencesAsync(null, nodeIds,
+            ResultSet<ArrayOf<ReferenceDescription>> result = await sut.FetchReferencesAsync(null, nodeIds,
                 CancellationToken.None).ConfigureAwait(false);
 
             // Assert
@@ -1042,11 +1046,11 @@ namespace Opc.Ua.Client.Tests
         {
             var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
-            var nodeIds = new List<NodeId>
-            {
+            ArrayOf<NodeId> nodeIds =
+            [
                 NodeId.Parse("ns=2;s=TestNode1"),
                 NodeId.Parse("ns=2;s=TestNode2")
-            };
+            ];
             var cts = new CancellationTokenSource();
             cts.Cancel();
 

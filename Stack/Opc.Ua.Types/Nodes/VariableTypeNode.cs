@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using System.Runtime.Serialization;
 using Opc.Ua.Types;
 
@@ -54,11 +53,7 @@ namespace Opc.Ua
                 Value = new Variant(node.Value);
                 DataType = node.DataType;
                 ValueRank = node.ValueRank;
-
-                if (node.ArrayDimensions != null)
-                {
-                    ArrayDimensions = [.. node.ArrayDimensions];
-                }
+                ArrayDimensions = node.ArrayDimensions;
             }
         }
 
@@ -235,20 +230,10 @@ namespace Opc.Ua
         /// The number in each dimension of an array value.
         /// </summary>
         /// <value>The number in each dimension of an array value.</value>
-        IList<uint> IVariableBase.ArrayDimensions
+        ArrayOf<uint> IVariableBase.ArrayDimensions
         {
             get => m_arrayDimensions;
-            set
-            {
-                if (value == null)
-                {
-                    m_arrayDimensions = [];
-                }
-                else
-                {
-                    m_arrayDimensions = [.. value];
-                }
-            }
+            set => m_arrayDimensions = value;
         }
 
         /// <summary>
@@ -267,7 +252,7 @@ namespace Opc.Ua
                 case Attributes.IsAbstract:
                     return true;
                 case Attributes.ArrayDimensions:
-                    return m_arrayDimensions != null && m_arrayDimensions.Count != 0;
+                    return !m_arrayDimensions.IsEmpty;
                 default:
                     return base.SupportsAttribute(attributeId);
             }
@@ -290,11 +275,10 @@ namespace Opc.Ua
                 case Attributes.Value:
                     return Value.AsBoxedObject();
                 case Attributes.ArrayDimensions:
-                    if (m_arrayDimensions == null || m_arrayDimensions.Count == 0)
+                    if (m_arrayDimensions.IsEmpty)
                     {
                         return StatusCodes.BadAttributeIdInvalid;
                     }
-
                     return m_arrayDimensions.ToArray();
                 default:
                     return base.Read(attributeId);
@@ -353,6 +337,6 @@ namespace Opc.Ua
             }
         }
 
-        private UInt32Collection m_arrayDimensions;
+        private ArrayOf<uint> m_arrayDimensions;
     }
 }

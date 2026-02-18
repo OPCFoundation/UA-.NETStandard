@@ -72,7 +72,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.AreEqual(nodeId1, inodeId1);
 
             // ByteString
-            ByteString byteid2 = ByteString.From([65, 66, 67, 68, 69]);
+            ByteString byteid2 = [65, 66, 67, 68, 69];
             var nodeId2 = new ExpandedNodeId(byteid2);
 
             // implicit conversion;
@@ -237,7 +237,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             // Test opaque identifiers (b=01020304 is valid base64 that decodes to specific bytes)
             Assert.IsTrue(ExpandedNodeId.TryParse("b=01020304", out result));
-            ByteString expectedOpaqueBytes = ByteString.FromBase64("01020304");
+            var expectedOpaqueBytes = ByteString.FromBase64("01020304");
             Assert.AreEqual(expectedOpaqueBytes, result.TryGetIdentifier(out ByteString o1) ? o1 : default);
             Assert.AreEqual(IdType.Opaque, result.IdType);
 

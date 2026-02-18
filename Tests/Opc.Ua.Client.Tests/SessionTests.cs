@@ -276,7 +276,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public async Task FetchOperationLimitsAsyncShouldApplyClientLimitsWhenSmaller()
+        public async Task FetchOperationLimitsAsyncShouldApplyClientLimitsWhenSmallerAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var channel = new Mock<ITransportChannel>();
@@ -376,7 +376,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public async Task FetchOperationLimitsAsyncShouldApplyServerLimitsWhenSmaller()
+        public async Task FetchOperationLimitsAsyncShouldApplyServerLimitsWhenSmallerAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var channel = new Mock<ITransportChannel>();
@@ -965,7 +965,7 @@ namespace Opc.Ua.Client.Tests
             sut.SetConnected();
             CancellationToken ct = CancellationToken.None;
 
-            byte[] serverNonce = [1, 2, 3, 4];
+            ByteString serverNonce = [1, 2, 3, 4];
 
             sut.Channel
                 .Setup(c => c.ReconnectAsync(
@@ -991,7 +991,7 @@ namespace Opc.Ua.Client.Tests
 
             await sut.ReconnectAsync(ct).ConfigureAwait(false);
 
-            Assert.That(sut.ServerNonce, Is.EquivalentTo(serverNonce));
+            Assert.That(sut.ServerNonce, Is.EqualTo(serverNonce));
             sut.Channel.Verify();
         }
 
@@ -1203,7 +1203,7 @@ namespace Opc.Ua.Client.Tests
             };
             var sut = SessionMock.Create(ep);
             CancellationToken ct = CancellationToken.None;
-            byte[] serverNonce = [1, 2, 3, 4];
+            ByteString serverNonce = [1, 2, 3, 4];
             var authToken = NodeId.Parse("s=cookie");
 
             sut.Channel
@@ -1269,8 +1269,8 @@ namespace Opc.Ua.Client.Tests
                 {
                     Results =
                     [
-                        new (new[] { Ua.Namespaces.OpcUa }),
-                        new(Array.Empty<string>())
+                        new(ArrayOf.Create([Ua.Namespaces.OpcUa])),
+                        new(ArrayOf.Empty<string>())
                     ],
                     DiagnosticInfos = []
                 }))
@@ -1278,7 +1278,7 @@ namespace Opc.Ua.Client.Tests
 
             await sut.OpenAsync("test", new UserIdentity(), ct).ConfigureAwait(false);
 
-            Assert.That(sut.ServerNonce, Is.EquivalentTo(new byte[] { 1, 2, 3, 4 }));
+            Assert.That(sut.ServerNonce, Is.EqualTo(ByteString.From([1, 2, 3, 4])));
             sut.Channel.Verify();
         }
 
@@ -1298,7 +1298,7 @@ namespace Opc.Ua.Client.Tests
             };
             var sut = SessionMock.Create(ep);
             CancellationToken ct = CancellationToken.None;
-            byte[] serverNonce = [1, 2, 3, 4];
+            ByteString serverNonce = [1, 2, 3, 4];
             var authToken = NodeId.Parse("s=cookie");
 
             sut.Channel
@@ -1364,7 +1364,7 @@ namespace Opc.Ua.Client.Tests
             };
             var sut = SessionMock.Create(ep);
             CancellationToken ct = CancellationToken.None;
-            byte[] serverNonce = [1, 2, 3, 4];
+            ByteString serverNonce = [1, 2, 3, 4];
             var authToken = NodeId.Parse("s=cookie");
 
             sut.Channel

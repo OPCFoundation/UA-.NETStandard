@@ -1165,9 +1165,7 @@ namespace Opc.Ua.Client.Tests
             NamespaceTable namespaceUris = Session.NamespaceUris;
             var testSet = GetTestSetStatic(namespaceUris).ToList();
             testSet.AddRange(GetTestSetFullSimulation(namespaceUris));
-            DataValueCollection values;
-            IList<ServiceResult> errors;
-            (values, errors) = await Session.ReadValuesAsync([.. testSet]).ConfigureAwait(false);
+            (var values, var errors) = await Session.ReadValuesAsync([.. testSet]).ConfigureAwait(false);
             Assert.AreEqual(testSet.Count, values.Count);
             Assert.AreEqual(testSet.Count, errors.Count);
         }
@@ -1195,7 +1193,7 @@ namespace Opc.Ua.Client.Tests
         public async Task ReadDataTypeDefinitionNodesAsync()
         {
             // Test Read a DataType Node, the nodeclass is known
-            (IList<Node> nodes, IList<ServiceResult> errors) = await Session
+            (var nodes, var errors) = await Session
                 .ReadNodesAsync([DataTypeIds.ProgramDiagnosticDataType], NodeClass.DataType, false)
                 .ConfigureAwait(false);
             Assert.AreEqual(nodes.Count, errors.Count);
@@ -1278,7 +1276,7 @@ namespace Opc.Ua.Client.Tests
             }
             var nodeIds = ReferenceDescriptions
                 .Select(n => ExpandedNodeId.ToNodeId(n.NodeId, Session.NamespaceUris))
-                .ToList();
+                .ToArrayOf();
             if (OperationLimits.MaxNodesPerRead > 0 &&
                 nodeIds.Count > OperationLimits.MaxNodesPerRead)
             {
@@ -1295,15 +1293,13 @@ namespace Opc.Ua.Client.Tests
                         sre.StatusCode);
                     while (nodeIds.Count > 0)
                     {
-                        IList<string> displayNames;
-                        IList<ServiceResult> errors;
-                        (displayNames, errors) = await Session.ReadDisplayNameAsync(
-                            [.. nodeIds.Take((int)OperationLimits.MaxNodesPerRead)]).ConfigureAwait(false);
+                        (var displayNames, var errors) = await Session.ReadDisplayNameAsync(
+                            nodeIds.Slice(0, (int)OperationLimits.MaxNodesPerRead)).ConfigureAwait(false);
                         foreach (string name in displayNames)
                         {
                             TestContext.Out.WriteLine("{0}", name);
                         }
-                        nodeIds = [.. nodeIds.Skip((int)OperationLimits.MaxNodesPerRead)];
+                        nodeIds = nodeIds.Slice((int)OperationLimits.MaxNodesPerRead);
                     }
                 }
                 finally
@@ -1313,9 +1309,7 @@ namespace Opc.Ua.Client.Tests
             }
             else
             {
-                IList<string> displayNames;
-                IList<ServiceResult> errors;
-                (displayNames, errors) =
+                (var displayNames, var errors) =
                     await Session.ReadDisplayNameAsync(nodeIds).ConfigureAwait(false);
                 foreach (string name in displayNames)
                 {
@@ -1421,25 +1415,23 @@ namespace Opc.Ua.Client.Tests
                         reference.NodeId,
                         Session.NamespaceUris)));
 
-            IList<Node> nodeCollection;
-            IList<ServiceResult> errors;
-            (nodeCollection, errors) = await Session.ReadNodesAsync(nodes)
+            (var nodeCollection, var errors) = await Session.ReadNodesAsync(nodes)
                 .ConfigureAwait(false);
-            Assert.NotNull(nodeCollection);
-            Assert.NotNull(errors);
+            Assert.False(nodeCollection.IsNull);
+            Assert.False(errors.IsNull);
             Assert.AreEqual(nodes.Count, nodeCollection.Count);
             Assert.AreEqual(nodes.Count, errors.Count);
 
             (nodeCollection, errors) = await Session.ReadNodesAsync(
                 nodes, NodeClass.Unspecified).ConfigureAwait(false);
-            Assert.NotNull(nodeCollection);
-            Assert.NotNull(errors);
+            Assert.False(nodeCollection.IsNull);
+            Assert.False(errors.IsNull);
             Assert.AreEqual(nodes.Count, nodeCollection.Count);
             Assert.AreEqual(nodes.Count, errors.Count);
 
             int ii = 0;
             var variableNodes = new NodeIdCollection();
-            foreach (Node node in nodeCollection)
+            foreach (Node node in nodeCollection.ToList())
             {
                 Assert.NotNull(node);
                 TestContext.Out.WriteLine("NodeId: {0} Node: {1}", node.NodeId, node);
@@ -1462,17 +1454,17 @@ namespace Opc.Ua.Client.Tests
                 ii++;
             }
 
-            (DataValueCollection values, errors) = await Session.ReadValuesAsync(nodes)
+            (var values, errors) = await Session.ReadValuesAsync(nodes)
                 .ConfigureAwait(false);
 
-            Assert.NotNull(values);
+            Assert.False(values.IsNull);
             Assert.AreEqual(nodes.Count, values.Count);
             Assert.AreEqual(nodes.Count, errors.Count);
 
             (values, errors) = await Session.ReadValuesAsync(variableNodes)
                 .ConfigureAwait(false);
 
-            Assert.NotNull(values);
+            Assert.False(values.IsNull);
             Assert.AreEqual(variableNodes.Count, values.Count);
             Assert.AreEqual(variableNodes.Count, errors.Count);
         }
@@ -1496,25 +1488,25 @@ namespace Opc.Ua.Client.Tests
                         reference.NodeId,
                         Session.NamespaceUris)));
 
-            (IList<Node> nodeCollection, IList<ServiceResult> errors) = await Session
+            (var nodeCollection, var errors) = await Session
                 .ReadNodesAsync(nodes, true)
                 .ConfigureAwait(false);
-            Assert.NotNull(nodeCollection);
-            Assert.NotNull(errors);
+            Assert.False(nodeCollection.IsNull);
+            Assert.False(errors.IsNull);
             Assert.AreEqual(nodes.Count, nodeCollection.Count);
             Assert.AreEqual(nodes.Count, errors.Count);
 
             (nodeCollection, errors) = await Session
                 .ReadNodesAsync(nodes, NodeClass.Unspecified, true)
                 .ConfigureAwait(false);
-            Assert.NotNull(nodeCollection);
-            Assert.NotNull(errors);
+            Assert.False(nodeCollection.IsNull);
+            Assert.False(errors.IsNull);
             Assert.AreEqual(nodes.Count, nodeCollection.Count);
             Assert.AreEqual(nodes.Count, errors.Count);
 
             int ii = 0;
             var variableNodes = new NodeIdCollection();
-            foreach (Node node in nodeCollection)
+            foreach (Node node in nodeCollection.ToList())
             {
                 Assert.NotNull(node);
                 Assert.AreEqual(ServiceResult.Good, errors[ii]);
@@ -1537,18 +1529,17 @@ namespace Opc.Ua.Client.Tests
                 ii++;
             }
 
-            DataValueCollection values;
-            (values, errors) = await Session.ReadValuesAsync(nodes).ConfigureAwait(false);
+            (var values, errors) = await Session.ReadValuesAsync(nodes).ConfigureAwait(false);
 
-            Assert.NotNull(values);
-            Assert.NotNull(errors);
+            Assert.False(values.IsNull);
+            Assert.False(errors.IsNull);
             Assert.AreEqual(nodes.Count, values.Count);
             Assert.AreEqual(nodes.Count, errors.Count);
 
             (values, errors) = await Session.ReadValuesAsync(variableNodes).ConfigureAwait(false);
 
-            Assert.NotNull(values);
-            Assert.NotNull(errors);
+            Assert.False(values.IsNull);
+            Assert.False(errors.IsNull);
             Assert.AreEqual(variableNodes.Count, values.Count);
             Assert.AreEqual(variableNodes.Count, errors.Count);
         }
@@ -1790,26 +1781,22 @@ namespace Opc.Ua.Client.Tests
                 VariableIds.Server_ServerStatus_BuildInfo_BuildDate
             };
 
-            IList<Node> nodeCollection;
-            IList<ServiceResult> errors;
-            (nodeCollection, errors) =
+            (var nodeCollection, var errors) =
                 await Session.ReadNodesAsync(nodes).ConfigureAwait(false);
-            Assert.NotNull(nodeCollection);
-            Assert.NotNull(errors);
+            Assert.False(nodeCollection.IsNull);
+            Assert.False(errors.IsNull);
             Assert.AreEqual(nodes.Count, nodeCollection.Count);
             Assert.AreEqual(nodes.Count, errors.Count);
 
-            DataValueCollection values;
-            IList<ServiceResult> errors2;
-            (values, errors2) =
+            (var values, var errors2) =
                 await Session.ReadValuesAsync(nodes).ConfigureAwait(false);
-            Assert.NotNull(values);
-            Assert.NotNull(errors);
+            Assert.False(values.IsNull);
+            Assert.False(errors2.IsNull);
             Assert.AreEqual(nodes.Count, values.Count);
             Assert.AreEqual(nodes.Count, errors2.Count);
 
-            IList<VariableNode> variableNodes = [.. nodeCollection.Cast<VariableNode>()];
-            Assert.NotNull(variableNodes);
+            var variableNodes = nodeCollection.ConvertAll(n => (VariableNode)n);
+            Assert.False(variableNodes.IsNull);
 
             // test build info contains the equal values as the properties
             (values[0].Value is ExtensionObject eo ? eo : default)
@@ -2177,9 +2164,7 @@ namespace Opc.Ua.Client.Tests
 
             var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
-            UInt32Collection serverHandles;
-            UInt32Collection clientHandles;
-            (bool success, serverHandles, clientHandles) =
+            (bool success, var serverHandles, var clientHandles) =
                 await subscription.GetMonitoredItemsAsync().ConfigureAwait(false);
             Assert.IsTrue(success);
             Assert.AreEqual(5, serverHandles.Count);
@@ -2206,9 +2191,7 @@ namespace Opc.Ua.Client.Tests
 
             var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
-            UInt32Collection serverHandles;
-            UInt32Collection clientHandles;
-            (bool success, serverHandles, clientHandles) =
+            (bool success, var serverHandles, var clientHandles) =
                 await subscription.GetMonitoredItemsAsync().ConfigureAwait(false);
             Assert.IsFalse(success);
         }
@@ -2236,9 +2219,7 @@ namespace Opc.Ua.Client.Tests
 
             var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
-            UInt32Collection serverHandles;
-            UInt32Collection clientHandles;
-            (bool success, serverHandles, clientHandles) =
+            (bool success, var serverHandles, var clientHandles) =
                 await subscription.GetMonitoredItemsAsync().ConfigureAwait(false);
             Assert.IsFalse(success);
         }
@@ -2266,9 +2247,7 @@ namespace Opc.Ua.Client.Tests
 
             var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
-            UInt32Collection serverHandles;
-            UInt32Collection clientHandles;
-            (bool success, serverHandles, clientHandles) =
+            (bool success, var serverHandles, var clientHandles) =
                 await subscription.GetMonitoredItemsAsync().ConfigureAwait(false);
             Assert.IsFalse(success);
         }
@@ -2301,9 +2280,7 @@ namespace Opc.Ua.Client.Tests
 
             var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
-            UInt32Collection serverHandles;
-            UInt32Collection clientHandles;
-            (bool success, serverHandles, clientHandles) =
+            (bool success, var serverHandles, var clientHandles) =
                 await subscription.GetMonitoredItemsAsync().ConfigureAwait(false);
 
             Assert.IsFalse(success);

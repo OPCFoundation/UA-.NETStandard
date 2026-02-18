@@ -223,7 +223,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             TestContext.Out.WriteLine("VariableIds: {0}", variableIds.Count);
 
-            (IReadOnlyList<DataValue> values, IReadOnlyList<ServiceResult> serviceResults) =
+            (ArrayOf<DataValue> values, ArrayOf<ServiceResult> serviceResults) =
                 await samples.ReadAllValuesAsync(this, variableIds).ConfigureAwait(false);
 
             int ii = 0;
@@ -262,7 +262,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             TestContext.Out.WriteLine("VariableIds: {0}", variableIds.Count);
 
-            (IReadOnlyList<DataValue> values, IReadOnlyList<ServiceResult> serviceResults) =
+            (ArrayOf<DataValue> values, ArrayOf<ServiceResult> serviceResults) =
                 await samples.ReadAllValuesAsync(this, variableIds).ConfigureAwait(false);
 
             foreach (ServiceResult serviceResult in serviceResults)

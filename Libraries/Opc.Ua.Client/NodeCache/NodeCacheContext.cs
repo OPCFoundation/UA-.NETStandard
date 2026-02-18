@@ -103,8 +103,8 @@ namespace Opc.Ua.Client
                 ct)
                 .ConfigureAwait(false);
 
-            var nodeClassValues = readResponse.Results;
-            var diagnosticInfos = readResponse.DiagnosticInfos;
+            ArrayOf<DataValue> nodeClassValues = readResponse.Results;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = readResponse.DiagnosticInfos;
 
             ClientBase.ValidateResponse(nodeClassValues, itemsToRead);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
@@ -136,7 +136,7 @@ namespace Opc.Ua.Client
                     ct)
                     .ConfigureAwait(false);
 
-                var values = readResponse.Results;
+                ArrayOf<DataValue> values = readResponse.Results;
                 diagnosticInfos = readResponse.DiagnosticInfos;
 
                 ClientBase.ValidateResponse(values, itemsToRead);
@@ -198,8 +198,8 @@ namespace Opc.Ua.Client
                 ct)
                 .ConfigureAwait(false);
 
-            var values = readResponse.Results;
-            var diagnosticInfos = readResponse.DiagnosticInfos;
+            ArrayOf<DataValue> values = readResponse.Results;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = readResponse.DiagnosticInfos;
 
             ClientBase.ValidateResponse(values, itemsToRead);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
@@ -247,8 +247,8 @@ namespace Opc.Ua.Client
                 ct)
                 .ConfigureAwait(false);
 
-            var values = readResponse.Results;
-            var diagnosticInfos = readResponse.DiagnosticInfos;
+            ArrayOf<DataValue> values = readResponse.Results;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = readResponse.DiagnosticInfos;
 
             ClientBase.ValidateResponse(values, itemsToRead);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
@@ -285,8 +285,8 @@ namespace Opc.Ua.Client
                 ct)
                 .ConfigureAwait(false);
 
-            var values = readResponse.Results;
-            var diagnosticInfos = readResponse.DiagnosticInfos;
+            ArrayOf<DataValue> values = readResponse.Results;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = readResponse.DiagnosticInfos;
 
             ClientBase.ValidateResponse(values, itemsToRead);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
@@ -316,7 +316,7 @@ namespace Opc.Ua.Client
             }
 
             // read all values from server.
-            var itemsToRead = nodeIds
+            ArrayOf<ReadValueId> itemsToRead = nodeIds
                 .ConvertAll(nodeId => new ReadValueId
                 {
                     NodeId = nodeId,
@@ -334,8 +334,8 @@ namespace Opc.Ua.Client
                 ct)
                 .ConfigureAwait(false);
 
-            var values = readResponse.Results;
-            var diagnosticInfos = readResponse.DiagnosticInfos;
+            ArrayOf<DataValue> values = readResponse.Results;
+            ArrayOf<DiagnosticInfo> diagnosticInfos = readResponse.DiagnosticInfos;
 
             ClientBase.ValidateResponse(values, itemsToRead);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
@@ -447,7 +447,7 @@ namespace Opc.Ua.Client
             List<IDictionary<uint, DataValue?>?> attributesPerNodeId,
             ArrayOf<DataValue> values,
             ArrayOf<DiagnosticInfo> diagnosticInfos,
-            NodeCollection nodeCollection,
+            List<Node> nodeCollection,
             List<ServiceResult> errors)
         {
             int readIndex = 0;
@@ -460,9 +460,9 @@ namespace Opc.Ua.Client
                 }
 
                 int readCount = attributes.Count;
-                var subRangeAttributes = attributesToRead.Slice(readIndex, readCount);
-                var subRangeValues = values.Slice(readIndex, readCount);
-                var subRangeDiagnostics =
+                ArrayOf<ReadValueId> subRangeAttributes = attributesToRead.Slice(readIndex, readCount);
+                ArrayOf<DataValue> subRangeValues = values.Slice(readIndex, readCount);
+                ArrayOf<DiagnosticInfo> subRangeDiagnostics =
                     diagnosticInfos.Count > 0
                         ? diagnosticInfos.Slice(readIndex, readCount)
                         : diagnosticInfos;

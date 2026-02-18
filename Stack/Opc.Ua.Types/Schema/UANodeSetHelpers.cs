@@ -445,7 +445,7 @@ namespace Opc.Ua.Export
             exportedNode.ReleaseStatus = node.ReleaseStatus;
             exportedNode.WriteMask = (uint)node.WriteMask;
             exportedNode.UserWriteMask = (uint)node.UserWriteMask;
-            exportedNode.Extensions = node.Extensions.Select(x => x.AsXmlElement()).ToArray();
+            exportedNode.Extensions = [.. node.Extensions.Select(x => x.AsXmlElement())];
             exportedNode.RolePermissions = null;
             exportedNode.AccessRestrictions = 0;
             exportedNode.AccessRestrictionsSpecified = false;

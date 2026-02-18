@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using System.Runtime.Serialization;
 using Opc.Ua.Types;
 
@@ -60,14 +59,12 @@ namespace Opc.Ua
                 Variant value = variable.Value;
                 if (value.IsNull)
                 {
-                    value = TypeInfo.GetDefaultVariantValue(variable.DataType, variable.ValueRank);
+                    value = TypeInfo.GetDefaultVariantValue(
+                        variable.DataType,
+                        variable.ValueRank);
                 }
                 Value = value;
-
-                if (variable.ArrayDimensions != null)
-                {
-                    ArrayDimensions = [.. variable.ArrayDimensions];
-                }
+                ArrayDimensions = variable.ArrayDimensions;
             }
         }
 
@@ -304,20 +301,10 @@ namespace Opc.Ua
         /// The number in each dimension of an array value.
         /// </summary>
         /// <value>The array dimensions.</value>
-        IList<uint> IVariableBase.ArrayDimensions
+        ArrayOf<uint> IVariableBase.ArrayDimensions
         {
             get => m_arrayDimensions;
-            set
-            {
-                if (value == null)
-                {
-                    m_arrayDimensions = [];
-                }
-                else
-                {
-                    m_arrayDimensions = [.. value];
-                }
-            }
+            set => m_arrayDimensions = value;
         }
 
         /// <summary>
@@ -339,7 +326,7 @@ namespace Opc.Ua
                 case Attributes.Historizing:
                     return true;
                 case Attributes.ArrayDimensions:
-                    return m_arrayDimensions != null && m_arrayDimensions.Count != 0;
+                    return !m_arrayDimensions.IsEmpty;
                 default:
                     return base.SupportsAttribute(attributeId);
             }
@@ -373,7 +360,7 @@ namespace Opc.Ua
                     return Value.AsBoxedObject();
                 // array dimensions attribute is not support if it is empty.
                 case Attributes.ArrayDimensions:
-                    if (m_arrayDimensions == null || m_arrayDimensions.Count == 0)
+                    if (m_arrayDimensions.IsEmpty)
                     {
                         return StatusCodes.BadAttributeIdInvalid;
                     }
@@ -451,6 +438,6 @@ namespace Opc.Ua
             }
         }
 
-        private UInt32Collection m_arrayDimensions;
+        private ArrayOf<uint> m_arrayDimensions;
     }
 }

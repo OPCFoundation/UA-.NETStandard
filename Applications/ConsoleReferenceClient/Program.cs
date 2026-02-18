@@ -584,8 +584,8 @@ namespace Quickstarts.ConsoleReferenceClient
                             if (jsonvalues && variableIds != null)
                             {
                                 (
-                                    IReadOnlyList<DataValue> allValues,
-                                    IReadOnlyList<ServiceResult> results
+                                    var allValues,
+                                    var results
                                 ) = await samples
                                     .ReadAllValuesAsync(uaClient, variableIds, ct)
                                     .ConfigureAwait(false);

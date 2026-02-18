@@ -2028,7 +2028,7 @@ namespace Opc.Ua
                 // attempt to decode a known type.
                 if (systemType != null && extension.Body != null)
                 {
-                    var element = extension.Body is XmlElement xe ? xe: default;
+                    var element = extension.Body is XmlElement xe ? xe : default;
                     using var xmlDecoder = new XmlDecoder(element, Context);
                     try
                     {
