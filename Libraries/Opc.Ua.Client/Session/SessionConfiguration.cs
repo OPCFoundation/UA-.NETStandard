@@ -130,6 +130,13 @@ namespace Opc.Ua.Client
         public byte[]? ServerNonce { get; init; }
 
         /// <summary>
+        /// The raw bytes of the client nonce used when the session was created.
+        /// Required for enhanced-policy activate signatures during reconnect.
+        /// </summary>
+        [DataMember(IsRequired = false, Order = 85)]
+        public byte[]? ClientNonce { get; init; }
+
+        /// <summary>
         /// The user identity token policy which was used to create the session.
         /// </summary>
         [DataMember(IsRequired = true, Order = 90)]

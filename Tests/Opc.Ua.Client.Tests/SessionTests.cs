@@ -1570,5 +1570,54 @@ namespace Opc.Ua.Client.Tests
             Assert.That(loadedSubscriptions.Count, Is.EqualTo(2), "Only the specified subscriptions should be saved");
             Assert.That(loadedSubscriptions.Select(s => s.DisplayName), Is.EquivalentTo(["Subscription1", "Subscription3"]));
         }
+
+        [Test]
+        public void SaveAndApplySessionConfigurationShouldPersistClientNonce()
+        {
+            var source = SessionMock.Create();
+            source.SetConnected();
+
+            byte[] clientNonce = [1, 3, 5, 7, 9];
+            byte[] serverNonce = [2, 4, 6, 8];
+
+            SetPrivateByteArrayField(source, "m_clientNonce", clientNonce);
+            SetPrivateByteArrayField(source, "m_serverNonce", serverNonce);
+
+            SessionConfiguration configuration = source.SaveSessionConfiguration();
+
+            Assert.That(configuration.ClientNonce, Is.EquivalentTo(clientNonce));
+            Assert.That(configuration.ServerNonce, Is.EquivalentTo(serverNonce));
+
+            var target = SessionMock.Create();
+
+            bool success = target.ApplySessionConfiguration(configuration);
+
+            Assert.That(success, Is.True);
+            Assert.That(GetPrivateByteArrayField(target, "m_clientNonce"), Is.EquivalentTo(clientNonce));
+            Assert.That(GetPrivateByteArrayField(target, "m_serverNonce"), Is.EquivalentTo(serverNonce));
+        }
+
+        private static byte[] GetPrivateByteArrayField(Session session, string fieldName)
+        {
+            return (byte[])typeof(Session)
+                .GetField(
+                    fieldName,
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance)?
+                .GetValue(session);
+        }
+
+        private static void SetPrivateByteArrayField(
+            Session session,
+            string fieldName,
+            byte[] value)
+        {
+            typeof(Session)
+                .GetField(
+                    fieldName,
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance)?
+                .SetValue(session, value);
+        }
     }
 }

@@ -894,6 +894,7 @@ namespace Opc.Ua.Client
         public void Snapshot(out SessionConfiguration sessionConfiguration)
         {
             byte[]? serverNonce = m_serverNonce != null ? [.. m_serverNonce] : null;
+            byte[]? clientNonce = m_clientNonce != null ? [.. m_clientNonce] : null;
             byte[]? serverEccEphemeralKey = m_eccServerEphemeralKey?.Data != null
                 ? [.. m_eccServerEphemeralKey.Data]
                 : null;
@@ -906,6 +907,7 @@ namespace Opc.Ua.Client
                 ConfiguredEndpoint = ConfiguredEndpoint,
                 CheckDomain = CheckDomain,
                 ServerNonce = serverNonce,
+                ClientNonce = clientNonce,
                 ServerEccEphemeralKey = serverEccEphemeralKey,
                 UserIdentityTokenPolicy = m_userTokenSecurityPolicyUri
             };
@@ -925,6 +927,9 @@ namespace Opc.Ua.Client
             m_checkDomain = sessionConfiguration.CheckDomain;
             m_serverNonce = sessionConfiguration.ServerNonce != null
                 ? [.. sessionConfiguration.ServerNonce]
+                : null;
+            m_clientNonce = sessionConfiguration.ClientNonce != null
+                ? [.. sessionConfiguration.ClientNonce]
                 : null;
             m_userTokenSecurityPolicyUri = sessionConfiguration.UserIdentityTokenPolicy;
             if (sessionConfiguration.ServerEccEphemeralKey?.Length > 0)
