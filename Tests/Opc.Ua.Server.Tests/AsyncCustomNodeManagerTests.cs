@@ -2366,6 +2366,568 @@ namespace Opc.Ua.Server.Tests
             return (parent, child, handle);
         }
 
+        [Test]
+        public async Task ValidateMonitoringFilterAsyncNullFilterReturnsGood()
+        {
+            using var manager = CreateManager();
+
+            var result = await manager.ValidateMonitoringFilterPublicAsync(
+                manager.SystemContext,
+                new NodeHandle(new NodeId("N", manager.NamespaceIndexes[0]), new BaseDataVariableState(null)),
+                Attributes.Value,
+                100,
+                10,
+                default(ExtensionObject)).ConfigureAwait(false);
+
+            Assert.That((uint)result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.FilterToUse, Is.Null);
+            Assert.That(result.Range, Is.Null);
+        }
+
+        [Test]
+        public async Task ValidateMonitoringFilterAsyncUnknownFilterTypeReturnsBadFilterNotAllowed()
+        {
+            using var manager = CreateManager();
+            var nsIdx = manager.NamespaceIndexes[0];
+            var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.Int32 };
+            var handle = new NodeHandle(variable.NodeId, variable);
+
+            var result = await manager.ValidateMonitoringFilterPublicAsync(
+                manager.SystemContext,
+                handle,
+                Attributes.Value,
+                100,
+                10,
+                new ExtensionObject(new EventFilter())).ConfigureAwait(false);
+
+            Assert.That((uint)result.StatusCode, Is.EqualTo(StatusCodes.BadFilterNotAllowed));
+            Assert.That(result.FilterToUse, Is.Null);
+        }
+
+        [Test]
+        public async Task ValidateMonitoringFilterAsyncAggregateFilterOnNonValueAttributeReturnsBadFilterNotAllowed()
+        {
+            using var manager = CreateManager();
+            var nsIdx = manager.NamespaceIndexes[0];
+            var handle = new NodeHandle(new NodeId("V", nsIdx), new BaseDataVariableState(null));
+            var filter = new ExtensionObject(new AggregateFilter
+            {
+                AggregateType = ObjectIds.Server,
+                StartTime = DateTime.UtcNow.AddHours(-1),
+                ProcessingInterval = 1000
+            });
+
+            var result = await manager.ValidateMonitoringFilterPublicAsync(
+                manager.SystemContext,
+                handle,
+                Attributes.Description,
+                100,
+                10,
+                filter).ConfigureAwait(false);
+
+            Assert.That((uint)result.StatusCode, Is.EqualTo(StatusCodes.BadFilterNotAllowed));
+            Assert.That(result.FilterToUse, Is.Null);
+        }
+
+        [Test]
+        public async Task ValidateMonitoringFilterAsyncAggregateFilterWithUnsupportedAggregateReturnsBadAggregateNotSupported()
+        {
+            using var manager = CreateManager();
+            var nsIdx = manager.NamespaceIndexes[0];
+            var unsupportedAggregateId = new NodeId("UnsupportedAggregate", nsIdx);
+            CreateAndSetupAggregateManager();
+            var handle = new NodeHandle(new NodeId("V", nsIdx), new BaseDataVariableState(null));
+            var filter = new ExtensionObject(new AggregateFilter
+            {
+                AggregateType = unsupportedAggregateId,
+                StartTime = DateTime.UtcNow.AddHours(-1),
+                ProcessingInterval = 1000
+            });
+
+            var result = await manager.ValidateMonitoringFilterPublicAsync(
+                manager.SystemContext,
+                handle,
+                Attributes.Value,
+                100,
+                10,
+                filter).ConfigureAwait(false);
+
+            Assert.That((uint)result.StatusCode, Is.EqualTo(StatusCodes.BadAggregateNotSupported));
+            Assert.That(result.FilterToUse, Is.Null);
+        }
+
+        [Test]
+        public async Task ValidateMonitoringFilterAsyncValidAggregateFilterSetsServerAggregateFilterAsFilterToUse()
+        {
+            using var manager = CreateManager();
+            var nsIdx = manager.NamespaceIndexes[0];
+            var supportedAggregateId = new NodeId("SupportedAggregate", nsIdx);
+            CreateAndSetupAggregateManager(supportedAggregateId);
+            var handle = new NodeHandle(new NodeId("V", nsIdx), new BaseDataVariableState(null));
+            var filter = new ExtensionObject(new AggregateFilter
+            {
+                AggregateType = supportedAggregateId,
+                StartTime = DateTime.UtcNow.AddHours(-1),
+                ProcessingInterval = 1000,
+                AggregateConfiguration = new AggregateConfiguration { UseServerCapabilitiesDefaults = false }
+            });
+
+            var result = await manager.ValidateMonitoringFilterPublicAsync(
+                manager.SystemContext,
+                handle,
+                Attributes.Value,
+                100,
+                10,
+                filter).ConfigureAwait(false);
+
+            Assert.That((uint)result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.FilterToUse, Is.InstanceOf<ServerAggregateFilter>());
+            Assert.That(result.Range, Is.Null);
+            Assert.That(((ServerAggregateFilter)result.FilterToUse).AggregateType, Is.EqualTo(supportedAggregateId));
+        }
+
+        [Test]
+        public async Task ValidateMonitoringFilterAsyncAggregateFilterProcessingIntervalAdjustedToSamplingInterval()
+        {
+            using var manager = CreateManager();
+            var nsIdx = manager.NamespaceIndexes[0];
+            var supportedAggregateId = new NodeId("SupportedAggregate", nsIdx);
+            CreateAndSetupAggregateManager(supportedAggregateId, minimumProcessingInterval: 50);
+            var handle = new NodeHandle(new NodeId("V", nsIdx), new BaseDataVariableState(null));
+            var filter = new ExtensionObject(new AggregateFilter
+            {
+                AggregateType = supportedAggregateId,
+                StartTime = DateTime.UtcNow.AddHours(-1),
+                ProcessingInterval = 50,
+                AggregateConfiguration = new AggregateConfiguration { UseServerCapabilitiesDefaults = false }
+            });
+
+            var result = await manager.ValidateMonitoringFilterPublicAsync(
+                manager.SystemContext,
+                handle,
+                Attributes.Value,
+                200,
+                10,
+                filter).ConfigureAwait(false);
+
+            Assert.That((uint)result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.FilterToUse, Is.InstanceOf<ServerAggregateFilter>());
+            Assert.That(((ServerAggregateFilter)result.FilterToUse).ProcessingInterval, Is.EqualTo(200));
+        }
+
+        [Test]
+        public async Task ValidateMonitoringFilterAsyncAggregateFilterProcessingIntervalAdjustedToMinimumProcessingInterval()
+        {
+            using var manager = CreateManager();
+            var nsIdx = manager.NamespaceIndexes[0];
+            var supportedAggregateId = new NodeId("SupportedAggregate", nsIdx);
+            const double minimumProcessingInterval = 500;
+            CreateAndSetupAggregateManager(supportedAggregateId, minimumProcessingInterval);
+            var handle = new NodeHandle(new NodeId("V", nsIdx), new BaseDataVariableState(null));
+            var filter = new ExtensionObject(new AggregateFilter
+            {
+                AggregateType = supportedAggregateId,
+                StartTime = DateTime.UtcNow.AddHours(-1),
+                ProcessingInterval = 50,
+                AggregateConfiguration = new AggregateConfiguration { UseServerCapabilitiesDefaults = false }
+            });
+
+            var result = await manager.ValidateMonitoringFilterPublicAsync(
+                manager.SystemContext,
+                handle,
+                Attributes.Value,
+                100,
+                10,
+                filter).ConfigureAwait(false);
+
+            Assert.That((uint)result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.FilterToUse, Is.InstanceOf<ServerAggregateFilter>());
+            Assert.That(((ServerAggregateFilter)result.FilterToUse).ProcessingInterval, Is.EqualTo(minimumProcessingInterval));
+        }
+
+        [Test]
+        public async Task ValidateMonitoringFilterAsyncAggregateFilterWithUseServerCapabilitiesDefaultsUpdatesAggregateConfiguration()
+        {
+            using var manager = CreateManager();
+            var nsIdx = manager.NamespaceIndexes[0];
+            var supportedAggregateId = new NodeId("SupportedAggregate", nsIdx);
+            CreateAndSetupAggregateManager(supportedAggregateId);
+            var handle = new NodeHandle(new NodeId("V", nsIdx), new BaseDataVariableState(null));
+            var filter = new ExtensionObject(new AggregateFilter
+            {
+                AggregateType = supportedAggregateId,
+                StartTime = DateTime.UtcNow.AddHours(-1),
+                ProcessingInterval = 1000,
+                AggregateConfiguration = new AggregateConfiguration { UseServerCapabilitiesDefaults = true }
+            });
+
+            var result = await manager.ValidateMonitoringFilterPublicAsync(
+                manager.SystemContext,
+                handle,
+                Attributes.Value,
+                100,
+                10,
+                filter).ConfigureAwait(false);
+
+            Assert.That((uint)result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.FilterToUse, Is.InstanceOf<ServerAggregateFilter>());
+            Assert.That(((ServerAggregateFilter)result.FilterToUse).AggregateConfiguration.UseServerCapabilitiesDefaults, Is.False);
+        }
+
+        [Test]
+        public async Task ValidateMonitoringFilterAsyncDataChangeFilterOnNonValueAttributeReturnsBadFilterNotAllowed()
+        {
+            using var manager = CreateManager();
+            var nsIdx = manager.NamespaceIndexes[0];
+            var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.Int32 };
+            var handle = new NodeHandle(variable.NodeId, variable);
+            var filter = new ExtensionObject(new DataChangeFilter { DeadbandType = (uint)DeadbandType.Absolute, DeadbandValue = 1.0 });
+
+            var result = await manager.ValidateMonitoringFilterPublicAsync(
+                manager.SystemContext,
+                handle,
+                Attributes.Description,
+                100,
+                10,
+                filter).ConfigureAwait(false);
+
+            Assert.That((uint)result.StatusCode, Is.EqualTo(StatusCodes.BadFilterNotAllowed));
+            Assert.That(result.FilterToUse, Is.Null);
+        }
+
+        [Test]
+        public async Task ValidateMonitoringFilterAsyncDataChangeFilterOnNonVariableNodeReturnsBadFilterNotAllowed()
+        {
+            using var manager = CreateManager();
+            var nsIdx = manager.NamespaceIndexes[0];
+            var objNode = new BaseObjectState(null) { NodeId = new NodeId("Obj", nsIdx) };
+            var handle = new NodeHandle(objNode.NodeId, objNode);
+            var filter = new ExtensionObject(new DataChangeFilter { DeadbandType = (uint)DeadbandType.Absolute, DeadbandValue = 1.0 });
+
+            var result = await manager.ValidateMonitoringFilterPublicAsync(
+                manager.SystemContext,
+                handle,
+                Attributes.Value,
+                100,
+                10,
+                filter).ConfigureAwait(false);
+
+            Assert.That((uint)result.StatusCode, Is.EqualTo(StatusCodes.BadFilterNotAllowed));
+            Assert.That(result.FilterToUse, Is.Null);
+        }
+
+        [Test]
+        public async Task ValidateMonitoringFilterAsyncDataChangeFilterDeadbandNoneOnNumericVariableReturnsBadFilterNotAllowed()
+        {
+            using var manager = CreateManager();
+            SetupNumericTypeTree();
+            var nsIdx = manager.NamespaceIndexes[0];
+            var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.Int32 };
+            var handle = new NodeHandle(variable.NodeId, variable);
+            var filter = new ExtensionObject(new DataChangeFilter { DeadbandType = (uint)DeadbandType.None });
+
+            var result = await manager.ValidateMonitoringFilterPublicAsync(
+                manager.SystemContext,
+                handle,
+                Attributes.Value,
+                100,
+                10,
+                filter).ConfigureAwait(false);
+
+            Assert.That((uint)result.StatusCode, Is.EqualTo(StatusCodes.BadFilterNotAllowed));
+        }
+
+        [Test]
+        public async Task ValidateMonitoringFilterAsyncDataChangeFilterAbsoluteDeadbandOnNonNumericTypeReturnsBadFilterNotAllowed()
+        {
+            using var manager = CreateManager();
+            SetupNumericTypeTree();
+            var nsIdx = manager.NamespaceIndexes[0];
+            var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.String };
+            var handle = new NodeHandle(variable.NodeId, variable);
+            var filter = new ExtensionObject(new DataChangeFilter { DeadbandType = (uint)DeadbandType.Absolute, DeadbandValue = 5.0 });
+
+            var result = await manager.ValidateMonitoringFilterPublicAsync(
+                manager.SystemContext,
+                handle,
+                Attributes.Value,
+                100,
+                10,
+                filter).ConfigureAwait(false);
+
+            Assert.That((uint)result.StatusCode, Is.EqualTo(StatusCodes.BadFilterNotAllowed));
+            Assert.That(result.FilterToUse, Is.Null);
+        }
+
+        [Test]
+        public async Task ValidateMonitoringFilterAsyncDataChangeFilterAbsoluteDeadbandOnNumericTypeSetsFilterToUse()
+        {
+            using var manager = CreateManager();
+            SetupNumericTypeTree();
+            var nsIdx = manager.NamespaceIndexes[0];
+            var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.Double };
+            var handle = new NodeHandle(variable.NodeId, variable);
+            var filter = new ExtensionObject(new DataChangeFilter { DeadbandType = (uint)DeadbandType.Absolute, DeadbandValue = 5.0 });
+
+            var result = await manager.ValidateMonitoringFilterPublicAsync(
+                manager.SystemContext,
+                handle,
+                Attributes.Value,
+                100,
+                10,
+                filter).ConfigureAwait(false);
+
+            Assert.That((uint)result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.FilterToUse, Is.InstanceOf<DataChangeFilter>());
+            Assert.That(((DataChangeFilter)result.FilterToUse).DeadbandValue, Is.EqualTo(5.0));
+            Assert.That(result.Range, Is.Null);
+        }
+
+        [Test]
+        public async Task ValidateMonitoringFilterAsyncDataChangeFilterPercentDeadbandWithoutEURangeReturnsBadMonitoredItemFilterUnsupported()
+        {
+            using var manager = CreateManager();
+            SetupNumericTypeTree();
+            var nsIdx = manager.NamespaceIndexes[0];
+            var variable = new BaseDataVariableState(null) { NodeId = new NodeId("V", nsIdx), DataType = DataTypeIds.Double };
+            var handle = new NodeHandle(variable.NodeId, variable);
+            var filter = new ExtensionObject(new DataChangeFilter { DeadbandType = (uint)DeadbandType.Percent, DeadbandValue = 10.0 });
+
+            var result = await manager.ValidateMonitoringFilterPublicAsync(
+                manager.SystemContext,
+                handle,
+                Attributes.Value,
+                100,
+                10,
+                filter).ConfigureAwait(false);
+
+            Assert.That((uint)result.StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemFilterUnsupported));
+            Assert.That(result.FilterToUse, Is.Null);
+        }
+
+        [Test]
+        public async Task ValidateMonitoringFilterAsyncDataChangeFilterPercentDeadbandWithEURangeSetsFilterToUseAndRange()
+        {
+            using var manager = CreateManager();
+            SetupNumericTypeTree();
+            var nsIdx = manager.NamespaceIndexes[0];
+
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("V", nsIdx),
+                BrowseName = new QualifiedName("V", nsIdx),
+                DataType = DataTypeIds.Double,
+                ValueRank = ValueRanks.Scalar
+            };
+
+            var euRangeProperty = new PropertyState(variable)
+            {
+                NodeId = new NodeId("EURange", nsIdx),
+                BrowseName = new QualifiedName(BrowseNames.EURange),
+                ReferenceTypeId = ReferenceTypeIds.HasProperty,
+                Value = new Variant(new ExtensionObject(new Range { Low = 0.0, High = 100.0 }))
+            };
+            variable.AddChild(euRangeProperty);
+
+            var handle = new NodeHandle(variable.NodeId, variable);
+            var filter = new ExtensionObject(new DataChangeFilter { DeadbandType = (uint)DeadbandType.Percent, DeadbandValue = 10.0 });
+
+            var result = await manager.ValidateMonitoringFilterPublicAsync(
+                manager.SystemContext,
+                handle,
+                Attributes.Value,
+                100,
+                10,
+                filter).ConfigureAwait(false);
+
+            Assert.That((uint)result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.FilterToUse, Is.InstanceOf<DataChangeFilter>());
+            Assert.That(((DataChangeFilter)result.FilterToUse).DeadbandType, Is.EqualTo((uint)DeadbandType.Percent));
+            Assert.That(result.Range, Is.Not.Null);
+            Assert.That(result.Range.High, Is.EqualTo(100.0));
+            Assert.That(result.Range.Low, Is.EqualTo(0.0));
+        }
+
+        [Test]
+        public async Task AddPredefinedNodeAsyncWithNonReferenceBaseTypeStateAddsSubtypeToTypeTree()
+        {
+            using var manager = CreateManager();
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var dataType = new DataTypeState
+            {
+                NodeId = new NodeId("MyDataType", nsIdx),
+                BrowseName = new QualifiedName("MyDataType", nsIdx),
+                SuperTypeId = NodeId.Null
+            };
+
+            await manager.AddPredefinedNodePublicAsync(manager.SystemContext, dataType).ConfigureAwait(false);
+
+            Assert.That(_mockServer.Object.TypeTree.IsKnown(dataType.NodeId), Is.True);
+            Assert.That(manager.PredefinedNodes.ContainsKey(dataType.NodeId), Is.True);
+        }
+
+        [Test]
+        public async Task AddPredefinedNodeAsyncWithReferenceTypeStateAddsReferenceSubtypeToTypeTree()
+        {
+            using var manager = CreateManager();
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var refType = new ReferenceTypeState
+            {
+                NodeId = new NodeId("MyRefType", nsIdx),
+                BrowseName = new QualifiedName("MyRefType", nsIdx),
+                SuperTypeId = NodeId.Null
+            };
+
+            await manager.AddPredefinedNodePublicAsync(manager.SystemContext, refType).ConfigureAwait(false);
+
+            Assert.That(_mockServer.Object.TypeTree.IsKnown(refType.NodeId), Is.True);
+            // FindReferenceType uses the browse name registered by AddReferenceSubtype
+            Assert.That(
+                _mockServer.Object.TypeTree.FindReferenceType(refType.BrowseName),
+                Is.EqualTo(refType.NodeId));
+        }
+
+        [Test]
+        public async Task AddPredefinedNodeAsyncRecursivelyAddsUnknownSuperTypeFromPredefinedNodes()
+        {
+            using var manager = CreateManager();
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var parentType = new DataTypeState
+            {
+                NodeId = new NodeId("ParentType", nsIdx),
+                BrowseName = new QualifiedName("ParentType", nsIdx),
+                SuperTypeId = NodeId.Null
+            };
+
+            // Place the parent directly in PredefinedNodes without adding it to the TypeTree
+            manager.PredefinedNodes.AddOrUpdate(parentType.NodeId, parentType, (_, __) => parentType);
+            Assert.That(_mockServer.Object.TypeTree.IsKnown(parentType.NodeId), Is.False);
+
+            var childType = new DataTypeState
+            {
+                NodeId = new NodeId("ChildType", nsIdx),
+                BrowseName = new QualifiedName("ChildType", nsIdx),
+                SuperTypeId = parentType.NodeId
+            };
+
+            await manager.AddPredefinedNodePublicAsync(manager.SystemContext, childType).ConfigureAwait(false);
+
+            Assert.That(_mockServer.Object.TypeTree.IsKnown(parentType.NodeId), Is.True);
+            Assert.That(_mockServer.Object.TypeTree.IsKnown(childType.NodeId), Is.True);
+            Assert.That(
+                _mockServer.Object.TypeTree.IsTypeOf(childType.NodeId, parentType.NodeId),
+                Is.True);
+        }
+
+        [Test]
+        public async Task AddPredefinedNodeAsyncSkipsSuperTypeRecursionWhenSuperTypeAlreadyKnown()
+        {
+            using var manager = CreateManager();
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            // Pre-register the parent type in the TypeTree directly
+            var parentNodeId = new NodeId("KnownParent", nsIdx);
+            _mockServer.Object.TypeTree.AddSubtype(parentNodeId, NodeId.Null);
+            Assert.That(_mockServer.Object.TypeTree.IsKnown(parentNodeId), Is.True);
+
+            var childType = new DataTypeState
+            {
+                NodeId = new NodeId("ChildOfKnownParent", nsIdx),
+                BrowseName = new QualifiedName("ChildOfKnownParent", nsIdx),
+                SuperTypeId = parentNodeId
+            };
+
+            await manager.AddPredefinedNodePublicAsync(manager.SystemContext, childType).ConfigureAwait(false);
+
+            Assert.That(_mockServer.Object.TypeTree.IsKnown(childType.NodeId), Is.True);
+            Assert.That(
+                _mockServer.Object.TypeTree.IsTypeOf(childType.NodeId, parentNodeId),
+                Is.True);
+            // Parent's supertype should remain as registered (Null), not altered by the child add
+            Assert.That(
+                _mockServer.Object.TypeTree.FindSuperType(parentNodeId),
+                Is.EqualTo(NodeId.Null));
+        }
+
+        [Test]
+        public async Task AddPredefinedNodeAsyncWithNullSuperTypeIdSkipsRecursionAndAddsToTypeTree()
+        {
+            using var manager = CreateManager();
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var rootType = new DataTypeState
+            {
+                NodeId = new NodeId("RootType", nsIdx),
+                BrowseName = new QualifiedName("RootType", nsIdx),
+                SuperTypeId = NodeId.Null
+            };
+
+            await manager.AddPredefinedNodePublicAsync(manager.SystemContext, rootType).ConfigureAwait(false);
+
+            Assert.That(_mockServer.Object.TypeTree.IsKnown(rootType.NodeId), Is.True);
+            Assert.That(
+                _mockServer.Object.TypeTree.FindSuperType(rootType.NodeId),
+                Is.EqualTo(NodeId.Null));
+        }
+
+        [Test]
+        public async Task AddPredefinedNodeAsyncWithNonBaseTypeStateNodeDoesNotAddToTypeTree()
+        {
+            using var manager = CreateManager();
+            var context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var objectNode = new BaseObjectState(null);
+            objectNode.CreateAsPredefinedNode(context);
+            objectNode.NodeId = new NodeId("PlainObject", nsIdx);
+            objectNode.BrowseName = new QualifiedName("PlainObject", nsIdx);
+
+            await manager.AddPredefinedNodePublicAsync(context, objectNode).ConfigureAwait(false);
+
+            Assert.That(manager.PredefinedNodes.ContainsKey(objectNode.NodeId), Is.True);
+            Assert.That(_mockServer.Object.TypeTree.IsKnown(objectNode.NodeId), Is.False);
+        }
+
+        private AggregateManager CreateAndSetupAggregateManager(double minimumProcessingInterval = 1000.0)
+        {
+            var mockDiagnosticsNodeManager = new Mock<IDiagnosticsNodeManager>();
+            _mockServer.Setup(s => s.DiagnosticsNodeManager).Returns(mockDiagnosticsNodeManager.Object);
+            var aggregateManager = new AggregateManager(_mockServer.Object);
+            aggregateManager.MinimumProcessingInterval = minimumProcessingInterval;
+            _mockServer.Setup(s => s.AggregateManager).Returns(aggregateManager);
+            return aggregateManager;
+        }
+
+        private AggregateManager CreateAndSetupAggregateManager(NodeId supportedAggregateId, double minimumProcessingInterval = 1000.0)
+        {
+            AggregateManager aggregateManager = CreateAndSetupAggregateManager(minimumProcessingInterval);
+            aggregateManager.RegisterFactory(
+                supportedAggregateId,
+                "TestAggregate",
+                (id, start, end, interval, stepped, cfg, telemetry) => null);
+            return aggregateManager;
+        }
+
+        private void SetupNumericTypeTree()
+        {
+            var typeTree = new TypeTable(_namespaceTable);
+            typeTree.AddSubtype(DataTypeIds.Number, NodeId.Null);
+            typeTree.AddSubtype(DataTypeIds.Integer, DataTypeIds.Number);
+            typeTree.AddSubtype(DataTypeIds.UInteger, DataTypeIds.Number);
+            typeTree.AddSubtype(DataTypeIds.Float, DataTypeIds.Number);
+            typeTree.AddSubtype(DataTypeIds.Double, DataTypeIds.Number);
+            typeTree.AddSubtype(DataTypeIds.Int16, DataTypeIds.Integer);
+            typeTree.AddSubtype(DataTypeIds.Int32, DataTypeIds.Integer);
+            typeTree.AddSubtype(DataTypeIds.Int64, DataTypeIds.Integer);
+            typeTree.AddSubtype(DataTypeIds.UInt16, DataTypeIds.UInteger);
+            typeTree.AddSubtype(DataTypeIds.UInt32, DataTypeIds.UInteger);
+            typeTree.AddSubtype(DataTypeIds.UInt64, DataTypeIds.UInteger);
+            _mockServer.Setup(s => s.TypeTree).Returns(typeTree);
+        }
+
         private TestableAsyncCustomNodeManager CreateManager()
         {
             var manager = new TestableAsyncCustomNodeManager(
@@ -2458,6 +3020,19 @@ namespace Opc.Ua.Server.Tests
         public NodeState AddNodeToComponentCachePublic(ISystemContext context, NodeHandle handle, NodeState node)
             => AddNodeToComponentCache(context, handle, node);
 
+        public ValueTask<AsyncCustomNodeManager.ValidateMonitoringFilterResult> ValidateMonitoringFilterPublicAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            uint attributeId,
+            double samplingInterval,
+            uint queueSize,
+            ExtensionObject filter,
+            CancellationToken cancellationToken = default)
+        {
+            return ValidateMonitoringFilterAsync(
+                context, handle, attributeId, samplingInterval, queueSize, filter, cancellationToken);
+        }
+
         protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
             ISystemContext context,
             CancellationToken cancellationToken = default)
@@ -2469,6 +3044,12 @@ namespace Opc.Ua.Server.Tests
 
             return base.LoadPredefinedNodesAsync(context, cancellationToken);
         }
+
+        public ValueTask AddPredefinedNodePublicAsync(
+            ISystemContext context,
+            NodeState node,
+            CancellationToken cancellationToken = default)
+            => AddPredefinedNodeAsync(context, node, cancellationToken);
     }
 
     internal class TestEventMonitoredItem : IEventMonitoredItem

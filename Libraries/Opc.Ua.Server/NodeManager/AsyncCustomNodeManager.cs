@@ -4147,7 +4147,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <remarks>This class encapsulates the necessary information to determine which monitoring
         /// filter is applicable and the outcome of its evaluation within a specified range.</remarks>
-        protected class ValidateMonitoringFilterResult
+        public class ValidateMonitoringFilterResult
         {
             /// <summary>
             /// The Status of the Validation.
