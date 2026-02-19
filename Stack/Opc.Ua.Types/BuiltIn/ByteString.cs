@@ -56,6 +56,11 @@ namespace Opc.Ua
         IEquatable<ReadOnlySequence<byte>>
     {
         /// <summary>
+        /// Returns an empty ByteString.
+        /// </summary>
+        public static ByteString Empty => new(Array.Empty<byte>());
+
+        /// <summary>
         /// Provides read-only access to the memory backing the
         /// <see cref="ByteString"/>.
         /// No data is copied so this is the most efficient way
@@ -245,7 +250,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override string ToString()
         {
-            return ToBase64();
+            return ToHexString();
         }
 
         /// <inheritdoc/>
@@ -451,11 +456,6 @@ namespace Opc.Ua
         {
             return !(left == right);
         }
-
-        /// <summary>
-        /// Returns an empty ByteString.
-        /// </summary>
-        public static ByteString Empty => new(ReadOnlyMemory<byte>.Empty);
 
         /// <inheritdoc/>
         public static implicit operator ReadOnlyMemory<byte>(in ByteString bytes)
@@ -677,12 +677,13 @@ namespace Opc.Ua
         /// base64 representation.
         /// </summary>
         /// <returns>A base64 representation of this object.</returns>
-        public string ToBase64()
+        public string ToBase64(
+            Base64FormattingOptions options = Base64FormattingOptions.None)
         {
 #if NET8_0_OR_GREATER
-            return Convert.ToBase64String(m_memory.Span);
+            return Convert.ToBase64String(m_memory.Span, options);
 #else
-            return Convert.ToBase64String(m_memory.ToArray());
+            return Convert.ToBase64String(m_memory.ToArray(), options);
 #endif
         }
 

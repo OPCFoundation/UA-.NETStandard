@@ -326,10 +326,11 @@ namespace Opc.Ua
         /// <summary>
         /// The value of data value.
         /// </summary>
+        //[Obsolete("Use WrappedValue to access The value.")]
         public object Value
         {
             get => m_value.AsBoxedObject();
-            set => m_value = new Variant(value);
+            set => VariantHelper.TryConvert(value, out m_value);
         }
 
         /// <summary>

@@ -186,7 +186,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="attributeId">The attribute id.</param>
         /// <returns>The value of an attribute.</returns>
-        protected override object Read(uint attributeId)
+        protected override Variant Read(uint attributeId)
         {
             switch (attributeId)
             {
@@ -205,7 +205,7 @@ namespace Opc.Ua
         /// <param name="attributeId">The attribute id.</param>
         /// <param name="value">The value.</param>
         /// <returns>The result of write operation.</returns>
-        protected override ServiceResult Write(uint attributeId, object value)
+        protected override ServiceResult Write(uint attributeId, Variant value)
         {
             switch (attributeId)
             {

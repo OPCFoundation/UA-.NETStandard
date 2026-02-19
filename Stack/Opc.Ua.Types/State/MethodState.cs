@@ -776,7 +776,7 @@ namespace Opc.Ua
             {
                 for (int ii = 0; ii < outputs.Count; ii++)
                 {
-                    outputArguments.Add(new Variant(outputs[ii]));
+                    outputArguments.Add(outputs[ii]);
                 }
             }
 

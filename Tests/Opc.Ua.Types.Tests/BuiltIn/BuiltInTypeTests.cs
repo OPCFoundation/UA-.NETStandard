@@ -188,7 +188,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var layout = TypeLayout.GetLayout<MatrixOf<int>>();
             TestContext.Out.WriteLine(layout.ToString(true));
-            Assert.That(Unsafe.SizeOf<MatrixOf<int>>(), Is.EqualTo(40));
+            Assert.That(Unsafe.SizeOf<MatrixOf<int>>(), Is.EqualTo(24));
         }
 
         [Test]
@@ -196,7 +196,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var layout = TypeLayout.GetLayout<MatrixOf<ByteString>>();
             TestContext.Out.WriteLine(layout.ToString(true));
-            Assert.That(Unsafe.SizeOf<MatrixOf<ByteString>>(), Is.EqualTo(40));
+            Assert.That(Unsafe.SizeOf<MatrixOf<ByteString>>(), Is.EqualTo(24));
         }
 
         [Test]
@@ -204,7 +204,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var layout = TypeLayout.GetLayout<MatrixOf<NodeId>>();
             TestContext.Out.WriteLine(layout.ToString(true));
-            Assert.That(Unsafe.SizeOf<MatrixOf<NodeId>>(), Is.EqualTo(40));
+            Assert.That(Unsafe.SizeOf<MatrixOf<NodeId>>(), Is.EqualTo(24));
         }
 
         [Test]
@@ -212,14 +212,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var layout = TypeLayout.GetLayout<MatrixOf<Variant>>();
             TestContext.Out.WriteLine(layout.ToString(true));
-            Assert.That(Unsafe.SizeOf<MatrixOf<Variant>>(), Is.EqualTo(40));
+            Assert.That(Unsafe.SizeOf<MatrixOf<Variant>>(), Is.EqualTo(24));
             Assert.That(Unsafe.SizeOf<Variant>(), Is.EqualTo(Unsafe.SizeOf<MatrixOf<Variant>>()));
-            Assert.That(((FieldLayout)layout.Fields[0]).FieldInfo.FieldType, Is.EqualTo(typeof(ReadOnlyMemory<Variant>)));
+            Assert.That(((FieldLayout)layout.Fields[0]).FieldInfo.FieldType, Is.EqualTo(typeof(int[])));
             Assert.That(layout.Fields[0].Offset, Is.EqualTo(0));
-            Assert.That(layout.Fields[0].Size, Is.EqualTo(16));
-            Assert.That(((FieldLayout)layout.Fields[1]).FieldInfo.FieldType, Is.EqualTo(typeof(uint[])));
-            Assert.That(layout.Fields[1].Offset, Is.EqualTo(16));
-            Assert.That(layout.Fields[1].Size, Is.EqualTo(8));
+            Assert.That(layout.Fields[0].Size, Is.EqualTo(8));
+            Assert.That(((FieldLayout)layout.Fields[1]).FieldInfo.FieldType, Is.EqualTo(typeof(ReadOnlyMemory<Variant>)));
+            Assert.That(layout.Fields[1].Offset, Is.EqualTo(8));
+            Assert.That(layout.Fields[1].Size, Is.EqualTo(16));
         }
 
         [Test]

@@ -307,7 +307,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             string result = byteString.ToString();
 
             // Assert
-            Assert.That(result, Is.EqualTo(Convert.ToBase64String(values)));
+            Assert.That(result, Is.EqualTo("010203"));
         }
 
         [Test]

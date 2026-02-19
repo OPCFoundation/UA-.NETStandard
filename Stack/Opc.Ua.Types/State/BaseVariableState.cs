@@ -773,7 +773,7 @@ namespace Opc.Ua
             {
                 try
                 {
-                    variableNode.Value = new Variant(CoreUtils.Clone(Value));
+                    variableNode.Value = CoreUtils.Clone(Value); // TODO: Clone correctly
 
                     variableNode.DataType = DataType;
                     variableNode.ValueRank = ValueRank;
@@ -1842,7 +1842,7 @@ namespace Opc.Ua
                         return result;
                     }
 
-                    value = new Variant(target);
+                    value = VariantHelper.Convert(target);
                 }
             }
 
@@ -1962,7 +1962,7 @@ namespace Opc.Ua
         public new T Value
         {
             get => CheckTypeBeforeCast<T>(base.Value, true);
-            set => base.Value = new Variant(value);
+            set => base.Value = VariantHelper.Convert(value);
         }
     }
 
@@ -2183,7 +2183,7 @@ namespace Opc.Ua
         public new T Value
         {
             get => CheckTypeBeforeCast<T>(base.Value, true);
-            set => base.Value = new Variant(value);
+            set => base.Value = VariantHelper.Convert(value);
         }
     }
 

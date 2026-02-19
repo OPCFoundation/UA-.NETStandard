@@ -263,7 +263,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="attributeId">The attribute id.</param>
         /// <returns>The value of an attribute.</returns>
-        protected override object Read(uint attributeId)
+        protected override Variant Read(uint attributeId)
         {
             switch (attributeId)
             {
@@ -273,13 +273,13 @@ namespace Opc.Ua
                     return ValueRank;
                 // values are copied when the are written so then can be safely returned.
                 case Attributes.Value:
-                    return Value.AsBoxedObject();
+                    return Value;
                 case Attributes.ArrayDimensions:
                     if (m_arrayDimensions.IsEmpty)
                     {
                         return StatusCodes.BadAttributeIdInvalid;
                     }
-                    return m_arrayDimensions.ToArray();
+                    return m_arrayDimensions;
                 default:
                     return base.Read(attributeId);
             }
@@ -291,7 +291,7 @@ namespace Opc.Ua
         /// <param name="attributeId">The attribute id.</param>
         /// <param name="value">The value.</param>
         /// <returns>The result of write operation.</returns>
-        protected override ServiceResult Write(uint attributeId, object value)
+        protected override ServiceResult Write(uint attributeId, Variant value)
         {
             switch (attributeId)
             {
@@ -322,7 +322,7 @@ namespace Opc.Ua
 
                     return ServiceResult.Good;
                 case Attributes.ArrayDimensions:
-                    m_arrayDimensions = [.. (uint[])value];
+                    m_arrayDimensions = value.GetUInt32Array();
 
                     // ensure number of dimensions is correct.
                     if (m_arrayDimensions.Count > 0 && ValueRank != m_arrayDimensions.Count)

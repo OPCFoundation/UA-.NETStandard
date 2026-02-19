@@ -672,7 +672,7 @@ namespace Opc.Ua.Schema.Model
             if (input.Value != null)
             {
                 XmlDecoder decoder = CreateDecoder(input.Value);
-                output.DecodedValue = decoder.ReadVariantContents(out _);
+                output.DecodedValue = decoder.ReadVariantContents().AsBoxedObject(true);
                 decoder.Close();
             }
 
@@ -966,7 +966,7 @@ namespace Opc.Ua.Schema.Model
             if (input.Value != null)
             {
                 XmlDecoder decoder = CreateDecoder(input.Value);
-                output.DecodedValue = decoder.ReadVariantContents(out _);
+                output.DecodedValue = decoder.ReadVariantContents().AsBoxedObject(true);
                 decoder.Close();
             }
 
@@ -987,7 +987,7 @@ namespace Opc.Ua.Schema.Model
             if (input != null)
             {
                 XmlDecoder decoder = CreateDecoder(input, sourceNodeSetUri);
-                object value = decoder.ReadVariantContents(out _);
+                object value = decoder.ReadVariantContents().AsBoxedObject(true);
                 decoder.Close();
 
                 foreach (Argument argument in (IList<Argument>)ExtensionObject.ToArray(value, typeof(Argument)))

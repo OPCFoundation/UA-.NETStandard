@@ -3567,7 +3567,7 @@ namespace Opc.Ua
             }
             else
             {
-                value.WrappedValue = new Variant(valueToRead);
+                value.WrappedValue = valueToRead;
             }
 
             // return result.

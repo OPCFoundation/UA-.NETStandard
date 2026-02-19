@@ -695,7 +695,9 @@ namespace Opc.Ua.Schema.Model
             if (decodedValue == null && defaultValue != null)
             {
                 using var decoder = new XmlDecoder((XmlElement)defaultValue, context);
-                decodedValue = decoder.ReadVariantContents(out decodedValueType);
+                Variant variant = decoder.ReadVariantContents();
+                decodedValueType = variant.TypeInfo;
+                decodedValue = variant.AsBoxedObject(true);
             }
 
             if (valueRank == ValueRank.Array)
@@ -2405,13 +2407,15 @@ namespace Opc.Ua.Schema.Model
             }
         }
 
-        private static System.Xml.XmlElement AsXmlElement(object value, IServiceMessageContext context)
+        private static System.Xml.XmlElement AsXmlElement(
+            object value,
+            IServiceMessageContext context)
         {
-            if (value != null)
+            if (VariantHelper.TryConvertWithReflectionFallback(value, out Variant variant) &&
+                !variant.IsNull)
             {
                 using var encoder = new XmlEncoder(context);
-                var variant = new Variant(value);
-                encoder.WriteVariantContents(variant.AsBoxedObject(), variant.TypeInfo);
+                encoder.WriteVariantContents(variant);
                 var xmlDoc = new XmlDocument();
                 xmlDoc.LoadInnerXml(encoder.CloseAndReturnText());
                 return xmlDoc.DocumentElement;

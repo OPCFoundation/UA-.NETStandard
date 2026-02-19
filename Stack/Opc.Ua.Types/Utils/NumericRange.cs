@@ -952,7 +952,7 @@ namespace Opc.Ua
             // TODO: Make it work on array types without boxing.
             object boxed = value.AsBoxedObject();
             StatusCode result = ApplyRange(ref boxed);
-            value = new Variant(boxed);
+            value = VariantHelper.Convert(boxed);
             return result;
         }
 
@@ -1066,7 +1066,7 @@ namespace Opc.Ua
             // check for list.
             if (list != null && !typeInfo.IsUnknown)
             {
-                clone = TypeInfo.CreateArray(typeInfo.BuiltInType, subLength);
+                clone = TypeInfo.CreateArray(typeInfo.BuiltInType);
 
                 for (int ii = begin; ii < subLength; ii++)
                 {

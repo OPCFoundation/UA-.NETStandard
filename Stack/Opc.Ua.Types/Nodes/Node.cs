@@ -609,7 +609,7 @@ namespace Opc.Ua
                 return StatusCodes.BadAttributeIdInvalid;
             }
 
-            value.WrappedValue = new Variant(Read(attributeId));
+            value.WrappedValue = Read(attributeId);
             value.StatusCode = StatusCodes.Good;
 
             if (attributeId == Attributes.Value)
@@ -647,7 +647,7 @@ namespace Opc.Ua
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
-                    return Write(attributeId, value.Value);
+                    return Write(attributeId, value.WrappedValue);
             }
         }
 
@@ -730,14 +730,14 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="attributeId">The attribute id.</param>
         /// <returns>The value of an attribute.</returns>
-        protected virtual object Read(uint attributeId)
+        protected virtual Variant Read(uint attributeId)
         {
             switch (attributeId)
             {
                 case Attributes.NodeId:
                     return NodeId;
                 case Attributes.NodeClass:
-                    return NodeClass;
+                    return Variant.From(NodeClass);
                 case Attributes.BrowseName:
                     return BrowseName;
                 case Attributes.DisplayName:
@@ -749,9 +749,9 @@ namespace Opc.Ua
                 case Attributes.UserWriteMask:
                     return UserWriteMask;
                 case Attributes.RolePermissions:
-                    return m_rolePermissions;
+                    return Variant.FromStructure(m_rolePermissions);
                 case Attributes.UserRolePermissions:
-                    return m_userRolePermissions;
+                    return Variant.FromStructure(m_userRolePermissions);
                 case Attributes.AccessRestrictions:
                     return AccessRestrictions;
                 default:
@@ -766,7 +766,7 @@ namespace Opc.Ua
         /// <param name="attributeId">The attribute id.</param>
         /// <param name="value">The value.</param>
         /// <returns>The result of write operation.</returns>
-        protected virtual ServiceResult Write(uint attributeId, object value)
+        protected virtual ServiceResult Write(uint attributeId, Variant value)
         {
             switch (attributeId)
             {
@@ -786,10 +786,10 @@ namespace Opc.Ua
                     UserWriteMask = (uint)value;
                     break;
                 case Attributes.RolePermissions:
-                    m_rolePermissions = (RolePermissionTypeCollection)value;
+                    m_rolePermissions = value.GetStructureArray<RolePermissionType>();
                     break;
                 case Attributes.UserRolePermissions:
-                    m_userRolePermissions = (RolePermissionTypeCollection)value;
+                    m_userRolePermissions = value.GetStructureArray<RolePermissionType>();
                     break;
                 case Attributes.AccessRestrictions:
                     AccessRestrictions = (ushort)value;
@@ -803,8 +803,8 @@ namespace Opc.Ua
         }
 
         private ReferenceCollection m_referenceTable;
-        private RolePermissionTypeCollection m_rolePermissions;
-        private RolePermissionTypeCollection m_userRolePermissions;
+        private ArrayOf<RolePermissionType> m_rolePermissions;
+        private ArrayOf<RolePermissionType> m_userRolePermissions;
         private ReferenceNodeCollection m_references;
     }
 }

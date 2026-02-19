@@ -204,7 +204,7 @@ namespace Opc.Ua
             m_inner.NamespaceIdx = 0;
             m_inner.Type = (byte)IdType.Opaque;
             m_identifier = value;
-            m_inner.Numeric = (uint)value.GetHashCode();
+            m_inner.Numeric = value.IsEmpty ? 0 : (uint)value.GetHashCode();
         }
 
         /// <summary>

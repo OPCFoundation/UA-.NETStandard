@@ -189,7 +189,7 @@ namespace Opc.Ua
             // create encoder.
             using var encoder = new XmlEncoder(context);
             // write body.
-            encoder.WriteExtensionObjectBody(encodeable);
+            encoder.WriteExtensionObjectBody(new ExtensionObject(encodeable));
             // return as xml element
             return XmlElement.From(encoder.CloseAndReturnText());
         }

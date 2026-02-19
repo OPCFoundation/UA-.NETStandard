@@ -3740,11 +3740,12 @@ namespace Opc.Ua.Schema.Model
                 if (variableType.DefaultValue != null)
                 {
                     var decoder = new XmlDecoder(variableType.DefaultValue, m_context);
-                    variableType.DecodedValue = decoder.ReadVariantContents(out TypeInfo typeInfo);
+                    var variant = decoder.ReadVariantContents();
 
-                    if (!typeInfo.IsUnknown)
+                    if (!variant.TypeInfo.IsUnknown)
                     {
-                        variableType.ValueRank = typeInfo.ValueRank == ValueRanks.Scalar ?
+                        variableType.DecodedValue = variant.AsBoxedObject(true);
+                        variableType.ValueRank = variant.TypeInfo.ValueRank == ValueRanks.Scalar ?
                             ValueRank.Scalar :
                             ValueRank.Array;
                         variableType.ValueRankSpecified = true;
@@ -4022,13 +4023,13 @@ namespace Opc.Ua.Schema.Model
                 if (variable.DefaultValue != null)
                 {
                     var decoder = new XmlDecoder(variable.DefaultValue, m_context);
-                    variable.DecodedValue = decoder.ReadVariantContents(out TypeInfo typeInfo);
-
-                    if (!typeInfo.IsUnknown)
+                    var variant = decoder.ReadVariantContents();
+                    if (!variant.TypeInfo.IsUnknown)
                     {
                         variable.ValueRank =
-                            typeInfo.ValueRank == ValueRanks.Scalar ? ValueRank.Scalar : ValueRank.Array;
+                            variant.TypeInfo.ValueRank == ValueRanks.Scalar ? ValueRank.Scalar : ValueRank.Array;
                         variable.ValueRankSpecified = true;
+                        variable.DecodedValue = variant.AsBoxedObject(true);
                     }
 
                     decoder.Close();

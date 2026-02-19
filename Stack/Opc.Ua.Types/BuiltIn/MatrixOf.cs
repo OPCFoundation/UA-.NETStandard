@@ -227,13 +227,13 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public bool Equals(in MatrixOf<T> other, IEqualityComparer<T> comparer)
         {
-            return Equals(other.m_memory.Span, m_dimensions, comparer);
+            return Equals(other.m_memory.Span, other.m_dimensions, comparer);
         }
 
         /// <inheritdoc/>
         public bool Equals(in ArrayOf<T> other, IEqualityComparer<T> comparer)
         {
-            if (m_dimensions.Length != 1)
+            if (m_dimensions.Length != 1 || m_dimensions[0] != other.Count)
             {
                 return false;
             }
@@ -459,6 +459,16 @@ namespace Opc.Ua
         /// <returns></returns>
         public ArrayOf<T> ToArrayOf()
         {
+            return new ArrayOf<T>(m_memory);
+        }
+
+        /// <summary>
+        /// To array of
+        /// </summary>
+        /// <returns></returns>
+        public ArrayOf<T> ToArrayOf(out int[] dimensions)
+        {
+            dimensions = m_dimensions;
             return new ArrayOf<T>(m_memory);
         }
 

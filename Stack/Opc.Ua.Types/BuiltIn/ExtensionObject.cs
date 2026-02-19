@@ -713,7 +713,7 @@ namespace Opc.Ua
                 IServiceMessageContext context = AmbientMessageContext.CurrentContext;
                 using var encoder = new XmlEncoder(context);
                 // write body.
-                encoder.WriteExtensionObjectBody(Value.Body);
+                encoder.WriteExtensionObjectBody(Value);
                 return new XmlElement(encoder.CloseAndReturnText());
             }
             set

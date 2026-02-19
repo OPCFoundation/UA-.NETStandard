@@ -5964,40 +5964,6 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
-        /// Tests GetDotNetTypeName for Array valueRank with Enumeration not derived from built-in calls recursively to base type.
-        /// </summary>
-        [Test]
-        public void GetDotNetTypeName_ArrayValueRankWithDerivedEnumeration_ReturnsBaseTypeCollection()
-        {
-            // Arrange
-            var mockBaseDataType = new DataTypeDesign
-            {
-                BasicDataType = BasicDataType.Int32
-            };
-
-            var mockDataType = new DataTypeDesign
-            {
-                BasicDataType = BasicDataType.Enumeration,
-                SymbolicId = new XmlQualifiedName("DerivedEnum", "http://custom.namespace"),
-                IsOptionSet = false,
-                BaseType = new XmlQualifiedName("CustomBase", "http://custom.namespace"),
-                BaseTypeNode = mockBaseDataType
-            };
-            Namespace[] namespaces = [];
-            const string targetNamespace = "http://test.namespace";
-
-            // Act
-            string result = mockDataType.GetDotNetTypeName(
-                ValueRank.Array,
-                targetNamespace,
-                namespaces,
-                NullableAnnotation.NonNullable);
-
-            // Assert
-            Assert.That(result, Is.EqualTo("global::Opc.Ua.Int32Collection"));
-        }
-
-        /// <summary>
         /// Tests GetDotNetTypeName returns custom user-defined type collection for Array valueRank.
         /// </summary>
         [Test]

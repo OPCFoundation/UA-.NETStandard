@@ -55,7 +55,7 @@ namespace Opc.Ua
         /// <summary>
         /// Empty array
         /// </summary>
-        public static readonly ArrayOf<T> Empty = new(ReadOnlyMemory<T>.Empty);
+        public static readonly ArrayOf<T> Empty = new(Array.Empty<T>());
 
         /// <summary>
         /// Get values
@@ -106,7 +106,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         internal ArrayOf(IEnumerable<T> values)
-            : this (values is T[] t ? t : [.. values])
+            : this([.. values])
         {
         }
 
@@ -128,7 +128,6 @@ namespace Opc.Ua
         public override string ToString()
         {
             StringBuilder builder = new StringBuilder()
-                .Append(typeof(T).Name)
                 .Append('[')
                 .Append(' ');
             for (int i = 0; i < m_memory.Length; i++)
@@ -454,7 +453,8 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Filter the array and return an array with the false items removed.
+        /// Filter the array and return an array with the
+        /// false items removed.
         /// </summary>
         public ArrayOf<T> Filter(Func<T, bool> filter)
         {
@@ -548,9 +548,18 @@ namespace Opc.Ua
         /// code to create mocked array of instances using reflection.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public static ArrayOf<T> Wrapped<T>(T[] memory)
+        public static ArrayOf<T> Wrapped<T>(params T[] memory)
         {
             return new(memory.AsMemory());
+        }
+
+        /// <summary>
+        /// Create an array of from the array type
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static ArrayOf<T> From<T>(Array array)
+        {
+            return MatrixOf<T>.CreateFromArray(array).ToArrayOf();
         }
 
         /// <summary>

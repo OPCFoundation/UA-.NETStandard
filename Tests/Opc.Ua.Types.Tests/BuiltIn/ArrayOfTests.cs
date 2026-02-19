@@ -337,7 +337,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ToStringTest()
         {
             var arrayOf = new ArrayOf<int>([1, 2, 3]);
-            Assert.That(arrayOf.ToString(), Is.EqualTo("Int32[ 1 2 3 ]"));
+            Assert.That(arrayOf.ToString(), Is.EqualTo("[ 1 2 3 ]"));
         }
 
         [Test]
@@ -570,7 +570,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var arrayOf = new ArrayOf<int>([1, 2, 3]);
             int[] expected = [1, 2, 3];
             var matrix = new MatrixOf<int>(expected, [3]);
-            Assert.That(arrayOf.Equals(matrix), Is.False);
+            Assert.That(arrayOf.Equals(matrix), Is.True);
         }
 
         [Test]

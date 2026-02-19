@@ -273,10 +273,8 @@ namespace Opc.Ua
         /// Reads the contents of an Variant object.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public object ReadVariantContents(out TypeInfo typeInfo)
+        public Variant ReadVariantContents()
         {
-            typeInfo = TypeInfo.Unknown;
-
             // skip whitespace.
             while (m_reader.NodeType != XmlNodeType.Element)
             {
@@ -295,156 +293,53 @@ namespace Opc.Ua
                     switch (typeName["ListOf".Length..])
                     {
                         case "Boolean":
-                        {
-                            typeInfo = TypeInfo.Arrays.Boolean;
-                            BooleanCollection collection = ReadBooleanArray(typeName);
-                            return collection?.ToArray();
-                        }
+                            return Variant.From(ReadBooleanArray(typeName));
                         case "SByte":
-                        {
-                            typeInfo = TypeInfo.Arrays.SByte;
-                            SByteCollection collection = ReadSByteArray(typeName);
-                            return collection?.ToArray();
-                        }
+                            return Variant.From(ReadSByteArray(typeName));
                         case "Byte":
-                        {
-                            typeInfo = TypeInfo.Arrays.Byte;
-                            ByteCollection collection = ReadByteArray(typeName);
-                            return collection?.ToArray();
-                        }
+                            return Variant.From(ReadByteArray(typeName));
                         case "Int16":
-                        {
-                            typeInfo = TypeInfo.Arrays.Int16;
-                            Int16Collection collection = ReadInt16Array(typeName);
-                            return collection?.ToArray();
-                        }
+                            return Variant.From(ReadInt16Array(typeName));
                         case "UInt16":
-                        {
-                            typeInfo = TypeInfo.Arrays.UInt16;
-                            UInt16Collection collection = ReadUInt16Array(typeName);
-                            return collection?.ToArray();
-                        }
+                            return Variant.From(ReadUInt16Array(typeName));
                         case "Int32":
-                        {
-                            typeInfo = TypeInfo.Arrays.Int32;
-                            Int32Collection collection = ReadInt32Array(typeName);
-                            return collection?.ToArray();
-                        }
+                            return Variant.From(ReadInt32Array(typeName));
                         case "UInt32":
-                        {
-                            typeInfo = TypeInfo.Arrays.UInt32;
-                            UInt32Collection collection = ReadUInt32Array(typeName);
-                            return collection?.ToArray();
-                        }
+                            return Variant.From(ReadUInt32Array(typeName));
                         case "Int64":
-                        {
-                            typeInfo = TypeInfo.Arrays.Int64;
-                            Int64Collection collection = ReadInt64Array(typeName);
-                            return collection?.ToArray();
-                        }
+                            return Variant.From(ReadInt64Array(typeName));
                         case "UInt64":
-                        {
-                            typeInfo = TypeInfo.Arrays.UInt64;
-                            UInt64Collection collection = ReadUInt64Array(typeName);
-                            return collection?.ToArray();
-                        }
+                            return Variant.From(ReadUInt64Array(typeName));
                         case "Float":
-                        {
-                            typeInfo = TypeInfo.Arrays.Float;
-                            FloatCollection collection = ReadFloatArray(typeName);
-                            return collection?.ToArray();
-                        }
+                            return Variant.From(ReadFloatArray(typeName));
                         case "Double":
-                        {
-                            typeInfo = TypeInfo.Arrays.Double;
-                            DoubleCollection collection = ReadDoubleArray(typeName);
-                            return collection?.ToArray();
-                        }
+                            return Variant.From(ReadDoubleArray(typeName));
                         case "String":
-                        {
-                            typeInfo = TypeInfo.Arrays.String;
-                            StringCollection collection = ReadStringArray(typeName);
-                            return collection?.ToArray();
-                        }
+                            return Variant.From(ReadStringArray(typeName));
                         case "DateTime":
-                        {
-                            typeInfo = TypeInfo.Arrays.DateTime;
-                            DateTimeCollection collection = ReadDateTimeArray(typeName);
-                            return collection?.ToArray();
-                        }
+                            return Variant.From(ReadDateTimeArray(typeName));
                         case "Guid":
-                        {
-                            typeInfo = TypeInfo.Arrays.Guid;
-                            UuidCollection collection = ReadGuidArray(typeName);
-                            return collection?.ToArray();
-                        }
+                            return Variant.From(ReadGuidArray(typeName));
                         case "ByteString":
-                        {
-                            typeInfo = TypeInfo.Arrays.ByteString;
-                            ByteStringCollection collection = ReadByteStringArray(typeName);
-                            return collection?.ToArray();
-                        }
+                            return Variant.From(ReadByteStringArray(typeName));
                         case "XmlElement":
-                        {
-                            typeInfo = TypeInfo.Arrays.XmlElement;
-                            XmlElementCollection collection = ReadXmlElementArray(typeName);
-                            return collection?.ToArray();
-                        }
+                            return Variant.From(ReadXmlElementArray(typeName));
                         case "NodeId":
-                        {
-                            typeInfo = TypeInfo.Arrays.NodeId;
-                            NodeIdCollection collection = ReadNodeIdArray(typeName);
-                            return collection?.ToArray();
-                        }
+                            return Variant.From(ReadNodeIdArray(typeName));
                         case "ExpandedNodeId":
-                        {
-                            typeInfo = TypeInfo.Arrays.ExpandedNodeId;
-                            ExpandedNodeIdCollection collection = ReadExpandedNodeIdArray(typeName);
-                            return collection?.ToArray();
-                        }
+                            return Variant.From(ReadExpandedNodeIdArray(typeName));
                         case "StatusCode":
-                        {
-                            typeInfo = TypeInfo.Arrays.StatusCode;
-                            StatusCodeCollection collection = ReadStatusCodeArray(typeName);
-                            return collection?.ToArray();
-                        }
-                        case "DiagnosticInfo":
-                        {
-                            typeInfo = TypeInfo.Arrays.DiagnosticInfo;
-                            DiagnosticInfoCollection collection = ReadDiagnosticInfoArray(typeName);
-                            return collection?.ToArray();
-                        }
+                            return Variant.From(ReadStatusCodeArray(typeName));
                         case "QualifiedName":
-                        {
-                            typeInfo = TypeInfo.Arrays.QualifiedName;
-                            QualifiedNameCollection collection = ReadQualifiedNameArray(typeName);
-                            return collection?.ToArray();
-                        }
+                            return Variant.From(ReadQualifiedNameArray(typeName));
                         case "LocalizedText":
-                        {
-                            typeInfo = TypeInfo.Arrays.LocalizedText;
-                            LocalizedTextCollection collection = ReadLocalizedTextArray(typeName);
-                            return collection?.ToArray();
-                        }
+                            return Variant.From(ReadLocalizedTextArray(typeName));
                         case "ExtensionObject":
-                        {
-                            typeInfo = TypeInfo.Arrays.ExtensionObject;
-                            ExtensionObjectCollection collection = ReadExtensionObjectArray(
-                                typeName);
-                            return collection?.ToArray();
-                        }
+                            return Variant.From(ReadExtensionObjectArray(typeName));
                         case "DataValue":
-                        {
-                            typeInfo = TypeInfo.Arrays.DataValue;
-                            DataValueCollection collection = ReadDataValueArray(typeName);
-                            return collection?.ToArray();
-                        }
+                            return Variant.From(ReadDataValueArray(typeName));
                         case "Variant":
-                        {
-                            typeInfo = TypeInfo.Arrays.Variant;
-                            VariantCollection collection = ReadVariantArray(typeName);
-                            return collection?.ToArray();
-                        }
+                            return Variant.From(ReadVariantArray(typeName));
                         default:
                             throw ServiceResultException.Create(
                                 StatusCodes.BadDecodingError,
@@ -459,91 +354,55 @@ namespace Opc.Ua
                     switch (typeName)
                     {
                         case "Null":
-                            if (BeginField(typeName, true))
-                            {
-                                EndField(typeName);
-                            }
-
-                            return null;
+                            return Variant.Null;
                         case "Boolean":
-                            typeInfo = TypeInfo.Scalars.Boolean;
                             return ReadBoolean(typeName);
                         case "SByte":
-                            typeInfo = TypeInfo.Scalars.SByte;
                             return ReadSByte(typeName);
                         case "Byte":
-                            typeInfo = TypeInfo.Scalars.Byte;
                             return ReadByte(typeName);
                         case "Int16":
-                            typeInfo = TypeInfo.Scalars.Int16;
                             return ReadInt16(typeName);
                         case "UInt16":
-                            typeInfo = TypeInfo.Scalars.UInt16;
                             return ReadUInt16(typeName);
                         case "Int32":
-                            typeInfo = TypeInfo.Scalars.Int32;
                             return ReadInt32(typeName);
                         case "UInt32":
-                            typeInfo = TypeInfo.Scalars.UInt32;
                             return ReadUInt32(typeName);
                         case "Int64":
-                            typeInfo = TypeInfo.Scalars.Int64;
                             return ReadInt64(typeName);
                         case "UInt64":
-                            typeInfo = TypeInfo.Scalars.UInt64;
                             return ReadUInt64(typeName);
                         case "Float":
-                            typeInfo = TypeInfo.Scalars.Float;
                             return ReadFloat(typeName);
                         case "Double":
-                            typeInfo = TypeInfo.Scalars.Double;
                             return ReadDouble(typeName);
                         case "String":
-                            typeInfo = TypeInfo.Scalars.String;
                             return ReadString(typeName);
                         case "DateTime":
-                            typeInfo = TypeInfo.Scalars.DateTime;
                             return ReadDateTime(typeName);
                         case "Guid":
-                            typeInfo = TypeInfo.Scalars.Guid;
                             return ReadGuid(typeName);
                         case "ByteString":
-                            typeInfo = TypeInfo.Scalars.ByteString;
                             return ReadByteString(typeName);
                         case "XmlElement":
-                            typeInfo = TypeInfo.Scalars.XmlElement;
                             return ReadXmlElement(typeName);
                         case "NodeId":
-                            typeInfo = TypeInfo.Scalars.NodeId;
                             return ReadNodeId(typeName);
                         case "ExpandedNodeId":
-                            typeInfo = TypeInfo.Scalars.ExpandedNodeId;
                             return ReadExpandedNodeId(typeName);
                         case "StatusCode":
-                            typeInfo = TypeInfo.Scalars.StatusCode;
                             return ReadStatusCode(typeName);
-                        case "DiagnosticInfo":
-                            typeInfo = TypeInfo.Scalars.DiagnosticInfo;
-                            return ReadDiagnosticInfo(typeName);
                         case "QualifiedName":
-                            typeInfo = TypeInfo.Scalars.QualifiedName;
                             return ReadQualifiedName(typeName);
                         case "LocalizedText":
-                            typeInfo = TypeInfo.Scalars.LocalizedText;
                             return ReadLocalizedText(typeName);
                         case "ExtensionObject":
-                            typeInfo = TypeInfo.Scalars.ExtensionObject;
                             return ReadExtensionObject(typeName);
                         case "DataValue":
-                            typeInfo = TypeInfo.Scalars.DataValue;
                             return ReadDataValue(typeName);
                         case "Matrix":
-                            Matrix matrix = ReadMatrix(typeName);
-                            typeInfo = matrix.TypeInfo;
-                            // return Array for a one dimensional Matrix
-                            return typeInfo.ValueRank == ValueRanks.OneDimension
-                                ? matrix.Elements
-                                : matrix;
+                            return ReadMatrix(typeName);
                         default:
                             throw ServiceResultException.Create(
                                 StatusCodes.BadDecodingError,
@@ -1331,8 +1190,7 @@ namespace Opc.Ua
                     {
                         try
                         {
-                            object contents = ReadVariantContents(out TypeInfo typeInfo);
-                            value = new Variant(contents, typeInfo);
+                            value = ReadVariantContents();
                         }
                         catch (Exception ex) when (ex is not ServiceResultException)
                         {
@@ -2622,26 +2480,21 @@ namespace Opc.Ua
         /// Reads a Matrix from the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private Matrix ReadMatrix(string fieldName)
+        private Variant ReadMatrix(string fieldName)
         {
             CheckAndIncrementNestingLevel();
 
+            Variant value = default;
             try
             {
-                Array elements = null;
-                Int32Collection dimensions = null;
-                TypeInfo typeInfo = default;
-
                 if (BeginField(fieldName, true))
                 {
                     PushNamespace(Namespaces.OpcUaXsd);
 
-                    dimensions = ReadInt32Array("Dimensions");
-
+                    var dimensions = ReadInt32Array("Dimensions").ToArray();
                     if (BeginField("Elements", true))
                     {
-                        typeInfo = MapElementTypeToTypeInfo(m_reader.LocalName);
-                        elements = ReadArray(null, typeInfo.ValueRank, typeInfo.BuiltInType, null);
+                        value = ReadMatrix(dimensions);
                         EndField("Elements");
                     }
 
@@ -2649,80 +2502,74 @@ namespace Opc.Ua
 
                     EndField(fieldName);
                 }
-
-                if (elements == null)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadDecodingError,
-                        "The Matrix contains invalid elements.");
-                }
-
-                if (dimensions != null && dimensions.Count > 0)
-                {
-                    int length = elements.Length;
-                    int[] dimensionsArray = [.. dimensions];
-                    (bool valid, int matrixLength) = Matrix.ValidateDimensions(
-                        dimensionsArray,
-                        length,
-                        Context.MaxArrayLength);
-
-                    if (!valid || (matrixLength != length))
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadDecodingError,
-                            "ArrayDimensions length does not match with the ArrayLength in Variant object.");
-                    }
-
-                    return new Matrix(elements, typeInfo.BuiltInType, dimensionsArray);
-                }
-
-                return new Matrix(elements, typeInfo.BuiltInType);
             }
             finally
             {
                 m_nestingLevel--;
             }
-        }
+            return value;
 
-        /// <summary>
-        /// Maps an element type name to its corresponding TypeInfo.Arrays value.
-        /// </summary>
-        /// <param name="elementTypeName">The name of the element type.</param>
-        /// <returns>The corresponding TypeInfo.Arrays value.</returns>
-        /// <exception cref="ServiceResultException"></exception>
-        private static TypeInfo MapElementTypeToTypeInfo(string elementTypeName)
-        {
-            return elementTypeName switch
+            Variant ReadMatrix(int[] dimensions)
             {
-                "Boolean" => TypeInfo.Arrays.Boolean,
-                "SByte" => TypeInfo.Arrays.SByte,
-                "Byte" => TypeInfo.Arrays.Byte,
-                "Int16" => TypeInfo.Arrays.Int16,
-                "UInt16" => TypeInfo.Arrays.UInt16,
-                "Int32" => TypeInfo.Arrays.Int32,
-                "UInt32" => TypeInfo.Arrays.UInt32,
-                "Int64" => TypeInfo.Arrays.Int64,
-                "UInt64" => TypeInfo.Arrays.UInt64,
-                "Float" => TypeInfo.Arrays.Float,
-                "Double" => TypeInfo.Arrays.Double,
-                "String" => TypeInfo.Arrays.String,
-                "DateTime" => TypeInfo.Arrays.DateTime,
-                "Guid" => TypeInfo.Arrays.Guid,
-                "ByteString" => TypeInfo.Arrays.ByteString,
-                "XmlElement" => TypeInfo.Arrays.XmlElement,
-                "NodeId" => TypeInfo.Arrays.NodeId,
-                "ExpandedNodeId" => TypeInfo.Arrays.ExpandedNodeId,
-                "StatusCode" => TypeInfo.Arrays.StatusCode,
-                "QualifiedName" => TypeInfo.Arrays.QualifiedName,
-                "LocalizedText" => TypeInfo.Arrays.LocalizedText,
-                "ExtensionObject" => TypeInfo.Arrays.ExtensionObject,
-                "Variant" => TypeInfo.Arrays.Variant,
-                "DataValue" => TypeInfo.Arrays.DataValue,
-                "DiagnosticInfo" => TypeInfo.Arrays.DiagnosticInfo,
-                _ => throw new ServiceResultException(
-                    StatusCodes.BadDecodingError,
-                    $"Unsupported element type: {elementTypeName}")
-            };
+                var typeName = m_reader.LocalName;
+                switch (typeName["ListOf".Length..])
+                {
+                    case "Boolean":
+                        return Variant.From(ReadBooleanArray(typeName).ToMatrixOf(dimensions));
+                    case "SByte":
+                        return Variant.From(ReadSByteArray(typeName).ToMatrixOf(dimensions));
+                    case "Byte":
+                        return Variant.From(ReadByteArray(typeName).ToMatrixOf(dimensions));
+                    case "Int16":
+                        return Variant.From(ReadInt16Array(typeName).ToMatrixOf(dimensions));
+                    case "UInt16":
+                        return Variant.From(ReadUInt16Array(typeName).ToMatrixOf(dimensions));
+                    case "Int32":
+                        return Variant.From(ReadInt32Array(typeName).ToMatrixOf(dimensions));
+                    case "UInt32":
+                        return Variant.From(ReadUInt32Array(typeName).ToMatrixOf(dimensions));
+                    case "Int64":
+                        return Variant.From(ReadInt64Array(typeName).ToMatrixOf(dimensions));
+                    case "UInt64":
+                        return Variant.From(ReadUInt64Array(typeName).ToMatrixOf(dimensions));
+                    case "Float":
+                        return Variant.From(ReadFloatArray(typeName).ToMatrixOf(dimensions));
+                    case "Double":
+                        return Variant.From(ReadDoubleArray(typeName).ToMatrixOf(dimensions));
+                    case "String":
+                        return Variant.From(ReadStringArray(typeName).ToMatrixOf(dimensions));
+                    case "DateTime":
+                        return Variant.From(ReadDateTimeArray(typeName).ToMatrixOf(dimensions));
+                    case "Guid":
+                        return Variant.From(ReadGuidArray(typeName).ToMatrixOf(dimensions));
+                    case "ByteString":
+                        return Variant.From(ReadByteStringArray(typeName).ToMatrixOf(dimensions));
+                    case "XmlElement":
+                        return Variant.From(ReadXmlElementArray(typeName).ToMatrixOf(dimensions));
+                    case "NodeId":
+                        return Variant.From(ReadNodeIdArray(typeName).ToMatrixOf(dimensions));
+                    case "ExpandedNodeId":
+                        return Variant.From(ReadExpandedNodeIdArray(typeName).ToMatrixOf(dimensions));
+                    case "StatusCode":
+                        return Variant.From(ReadStatusCodeArray(typeName).ToMatrixOf(dimensions));
+                    case "QualifiedName":
+                        return Variant.From(ReadQualifiedNameArray(typeName).ToMatrixOf(dimensions));
+                    case "LocalizedText":
+                        return Variant.From(ReadLocalizedTextArray(typeName).ToMatrixOf(dimensions));
+                    case "ExtensionObject":
+                        return Variant.From(ReadExtensionObjectArray(typeName).ToMatrixOf(dimensions));
+                    case "DataValue":
+                        return Variant.From(ReadDataValueArray(typeName).ToMatrixOf(dimensions));
+                    case "Variant":
+                        return Variant.From(ReadVariantArray(typeName).ToMatrixOf(dimensions));
+                    default:
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "Element '{1}:{0}' is not allowed in a Variant.",
+                            m_reader.LocalName,
+                            m_reader.NamespaceURI);
+                }
+            }
         }
 
         /// <summary>

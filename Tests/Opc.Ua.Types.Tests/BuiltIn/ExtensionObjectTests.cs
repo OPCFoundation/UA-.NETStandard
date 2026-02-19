@@ -72,10 +72,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // constructor by ExpandedNodeId
             extensionObject = new ExtensionObject(ExpandedNodeId.Null);
             Assert.AreEqual(0, extensionObject.GetHashCode());
-            NUnit.Framework.Assert
-                .Throws<ServiceResultException>(() => new ExtensionObject(default, new object()));
+            NUnit.Framework.Assert.Throws<ServiceResultException>(
+                () => new ExtensionObject(default, new object()));
+            NUnit.Framework.Assert.Throws<ServiceResultException>(
+                () => new ExtensionObject(default, new byte[] { 1, 2, 3 }));
             // constructor by object
-            byte[] byteArray = [1, 2, 3];
+            ByteString byteArray = [1, 2, 3];
             extensionObject = new ExtensionObject(default, byteArray);
             Assert.NotNull(extensionObject);
             Assert.AreEqual(extensionObject, extensionObject);

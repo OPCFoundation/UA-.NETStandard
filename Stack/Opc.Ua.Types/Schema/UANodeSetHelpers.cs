@@ -304,8 +304,7 @@ namespace Opc.Ua.Export
                     if (!o.Value.IsNull)
                     {
                         using XmlEncoder encoder = CreateEncoder(context);
-                        var variant = new Variant(o.Value);
-                        encoder.WriteVariantContents(variant.Value, variant.TypeInfo);
+                        encoder.WriteVariantContents(o.Value);
 
                         var document = new XmlDocument();
                         document.LoadInnerXml(encoder.CloseAndReturnText());
@@ -370,8 +369,7 @@ namespace Opc.Ua.Export
                     if (!o.Value.IsNull)
                     {
                         using XmlEncoder encoder = CreateEncoder(context);
-                        var variant = new Variant(o.Value);
-                        encoder.WriteVariantContents(variant.Value, variant.TypeInfo);
+                        encoder.WriteVariantContents(o.Value);
 
                         var document = new XmlDocument();
                         document.LoadInnerXml(encoder.CloseAndReturnText());

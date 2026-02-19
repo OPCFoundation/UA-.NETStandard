@@ -344,7 +344,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             const string xmlString = "<root>";
             var xmlElement = new XmlElement(xmlString);
 
-            Assert.That(() => xmlElement.ToXmlElement,
+            Assert.That(() => xmlElement.ToXmlElement(),
                 Throws.TypeOf<System.Xml.XmlException>());
         }
 
@@ -354,7 +354,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             const string xmlString = "    ";
             var xmlElement = new XmlElement(xmlString);
 
-            Assert.That(() => xmlElement.ToXmlElement,
+            Assert.That(() => xmlElement.ToXmlElement(),
                 Throws.TypeOf<System.Xml.XmlException>());
         }
 
@@ -399,9 +399,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             const string xmlString = "<root>";
             var xmlElement = new XmlElement(xmlString);
 
-            var act = xmlElement.ToXElement;
-
-            Assert.That(() => xmlElement.ToXmlElement,
+            Assert.That(() => xmlElement.ToXmlElement(),
                 Throws.TypeOf<System.Xml.XmlException>());
         }
 

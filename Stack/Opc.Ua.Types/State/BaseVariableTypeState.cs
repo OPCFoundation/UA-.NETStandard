@@ -263,7 +263,7 @@ namespace Opc.Ua
 
             if (node is VariableTypeNode variableTypeNode)
             {
-                variableTypeNode.Value = new Variant(CoreUtils.Clone(Value));
+                variableTypeNode.Value = CoreUtils.Clone(Value); // TODO: revisit
                 variableTypeNode.DataType = DataType;
                 variableTypeNode.ValueRank = ValueRank;
                 variableTypeNode.ArrayDimensions = ArrayDimensions;
@@ -808,7 +808,7 @@ namespace Opc.Ua
         public new T Value
         {
             get => BaseVariableState.CheckTypeBeforeCast<T>(base.Value, true);
-            set => base.Value = new Variant(value);
+            set => base.Value = VariantHelper.Convert(value);
         }
     }
 
@@ -897,7 +897,7 @@ namespace Opc.Ua
         public new T Value
         {
             get => BaseVariableState.CheckTypeBeforeCast<T>(base.Value, true);
-            set => base.Value = new Variant(value);
+            set => base.Value = VariantHelper.Convert(value);
         }
     }
 }
