@@ -776,12 +776,16 @@ namespace Opc.Ua.Server.Tests
                 m_mockLogger.Object);
 
             Assert.That(hadMore, Is.False);
-            Assert.That(notifications.Count, Is.EqualTo(2));
-            MonitoredItemNotification notification = notifications.Dequeue();
-            MonitoredItemNotification notificationAfterWrite = notifications.Dequeue();
-            Assert.That(notification.Value.Value, Is.EqualTo(0));
-            Assert.That(notification.Value.StatusCode.SemanticsChanged, Is.True);
-            Assert.That(diagnostics.Count, Is.EqualTo(2));
+            // For MonitoredNodeMonitoredItemManager the write value is propagated immediately
+            if (!m_useSamplingGroups)
+            {
+                Assert.That(notifications.Count, Is.EqualTo(2));
+                MonitoredItemNotification notification = notifications.Dequeue();
+                MonitoredItemNotification notificationAfterWrite = notifications.Dequeue();
+                Assert.That(notification.Value.Value, Is.EqualTo(0));
+                Assert.That(notification.Value.StatusCode.SemanticsChanged, Is.True);
+                Assert.That(diagnostics.Count, Is.EqualTo(2));
+            }
             Assert.That(monitoredItem.IsReadyToPublish, Is.False);
         }
 
