@@ -420,11 +420,9 @@ namespace Opc.Ua.Server
 
             instance.ReferenceTypeId = referenceTypeId;
 
-            NodeState parent = null;
-
             if (!parentId.IsNull)
             {
-                if (!PredefinedNodes.TryGetValue(parentId, out parent))
+                if (!PredefinedNodes.TryGetValue(parentId, out NodeState parent))
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadNodeIdUnknown,
@@ -633,7 +631,7 @@ namespace Opc.Ua.Server
             }
 
             // update the root notifiers.
-            if (RootNotifiers.TryGetValue(activeNode.NodeId, out var _))
+            if (RootNotifiers.TryGetValue(activeNode.NodeId, out NodeState _))
             {
                 RootNotifiers[activeNode.NodeId] = activeNode;
 
@@ -1279,8 +1277,6 @@ namespace Opc.Ua.Server
             // check for valid view.
             ValidateViewDescription(systemContext, continuationPoint.View);
 
-            BrowserContext browserContext = null;
-
             // check for valid handle.
             NodeHandle handle =
                 IsHandleInNamespace(continuationPoint.NodeToBrowse)
@@ -1297,11 +1293,8 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadNodeNotInView);
             }
 
-            // check for previous continuation point.
-            browserContext = continuationPoint.Data as BrowserContext;
-
             // fetch list of references.
-            if (browserContext == null)
+            if (continuationPoint.Data is not BrowserContext browserContext)
             {
                 INodeBrowser browser;
                 lock (source)
@@ -3512,7 +3505,6 @@ namespace Opc.Ua.Server
 
                 // all done.
                 return serviceResult;
-
             }
             finally
             {
@@ -3688,8 +3680,7 @@ namespace Opc.Ua.Server
                 {
                     NodeHandle handle = nodesToValidate[ii];
 
-                    bool success = false;
-                    IMonitoredItem monitoredItem = null;
+                    bool success;
 
                     // validate node.
                     NodeState source = await ValidateNodeAsync(systemContext, handle, operationCache, cancellationToken).ConfigureAwait(false);
@@ -3707,7 +3698,7 @@ namespace Opc.Ua.Server
                         handle,
                         itemToCreate,
                         savedOwnerIdentity,
-                        out monitoredItem);
+                        out IMonitoredItem monitoredItem);
 
                     if (!success)
                     {
@@ -3845,8 +3836,8 @@ namespace Opc.Ua.Server
                 {
                     NodeHandle handle = nodesToValidate[ii];
 
-                    MonitoringFilterResult filterResult = null;
-                    IMonitoredItem monitoredItem = null;
+                    MonitoringFilterResult filterResult;
+                    IMonitoredItem monitoredItem;
 
                     // validate node.
                     NodeState source = await ValidateNodeAsync(systemContext, handle, operationCache, cancellationToken).ConfigureAwait(false);
@@ -4307,7 +4298,6 @@ namespace Opc.Ua.Server
                     result.Range = range;
                     result.StatusCode = StatusCodes.Good;
                     return result;
-
                 }
             }
 
@@ -4971,7 +4961,7 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            List<object> values = null;
+            List<object> values;
 
             // construct the meta-data object.
             var metadata = new NodeMetadata(target, target.NodeId);

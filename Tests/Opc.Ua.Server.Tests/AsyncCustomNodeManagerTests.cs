@@ -57,6 +57,8 @@ namespace Opc.Ua.Server.Tests
         private NamespaceTable m_namespaceTable;
         private readonly string m_testNamespaceUri = "http://test.org/UA/Data/";
         private readonly bool m_useSamplingGroups;
+        private static readonly double[] s_value = [10.0, 200.0, 30.0];
+        private static readonly double[] s_expected = [10.0, 20.0, 30.0];
 
         public enum AsyncCustomNodeManagerType
         {
@@ -79,7 +81,7 @@ namespace Opc.Ua.Server.Tests
 
             m_mockSession = new Mock<ISession>();
             m_mockSession.Setup(s => s.EffectiveIdentity).Returns(new Mock<IUserIdentity>().Object);
-            m_mockSession.Setup(s => s.PreferredLocales).Returns(Array.Empty<string>());
+            m_mockSession.Setup(s => s.PreferredLocales).Returns([]);
 
             m_namespaceTable = new NamespaceTable();
             m_namespaceTable.Append(m_testNamespaceUri);
@@ -575,7 +577,7 @@ namespace Opc.Ua.Server.Tests
             {
                 NodeId = variable.NodeId,
                 AttributeId = Attributes.Value,
-                Value = new DataValue(new Variant(new double[] { 10.0, 200.0, 30.0 }))
+                Value = new DataValue(new Variant(s_value))
             };
             var nodesToWrite = new List<WriteValue> { writeValue };
             var errors = new List<ServiceResult> { null };
@@ -587,7 +589,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(nodesToWrite[0].Processed, Is.True);
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
-            Assert.That((double[])variable.Value, Is.EqualTo(new double[] { 10.0, 20.0, 30.0 }));
+            Assert.That((double[])variable.Value, Is.EqualTo(s_expected));
         }
 
         [Test]
@@ -3287,7 +3289,9 @@ namespace Opc.Ua.Server.Tests
         }
 
         private OperationContext CreateMonitoredItemsContext()
-            => new OperationContext(new RequestHeader(), null, RequestType.CreateMonitoredItems, m_mockSession.Object);
+        {
+            return new OperationContext(new RequestHeader(), null, RequestType.CreateMonitoredItems, m_mockSession.Object);
+        }
 
         private TestableAsyncCustomNodeManager CreateManager()
         {
