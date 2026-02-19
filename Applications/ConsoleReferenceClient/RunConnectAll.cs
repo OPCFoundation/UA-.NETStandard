@@ -25,13 +25,40 @@ namespace SecurityTestClient
         private ISession m_session;
 
         const string ServerUrl = "opc.tcp://localhost:62541";
-        //const string ServerUrl = "opc.tcp://WhiteCat:4880/Softing/OpcUa/TestServer";
+        const string UserName = "sysadmin";
+        const string Password = "demo12";
+        const bool supportsX509 = true;
+
+        //const string ServerUrl = "opc.tcp://10.103.19.71:52520/OPCUA/SampleConsoleServer";
+        //const string UserName = "opcua";
+        //const string Password = "opcua";
+        //static bool supportsX509 = false;
+
+        //const string ServerUrl = "opc.tcp://10.103.141.179:4840";
+        //const string UserName = "iop";
+        //const string Password = "test";
+        //static bool supportsX509 = false;
+
+        //const string ServerUrl = "opc.tcp://78.46.151.116:4840";
+        //const string UserName = "user1";
+        //const string Password = "passsword";
+        //static bool supportsX509 = false;
+
+        //const string ServerUrl = "opc.tcp://10.103.119.62:4888/Softing/OpcUa/TestServer";
+        //const string UserName = "usr";
+        //const string Password = "pwd";
+        //const bool supportsX509 = true;
+
+        static string TargetPolicy = SecurityPolicies.ECC_nistP256_AesGcm;
+
         const int kMaxSearchDepth = 128;
         const int ReconnectPeriod = 1000;
         const int ReconnectPeriodExponentialBackoff = 15000;
 
         public RunConnectAll(ApplicationConfiguration configuration, ITelemetryContext context)
         {
+            CryptoTrace.Enabled = true;
+
             m_context = context;
             m_configuration = configuration;
             m_logger = context.CreateLogger("Test");
@@ -108,12 +135,11 @@ namespace SecurityTestClient
                     ServerUrl,
                     ct).ConfigureAwait(false);
 
-                //endpoints = endpoints.Where(x => x.SecurityPolicyUri == SecurityPolicies.RSA_DH_ChaChaPoly).ToList();
+                endpoints = endpoints.Where(x => x.SecurityPolicyUri == TargetPolicy).ToList();
 
                 var endpointConfiguration = EndpointConfiguration.Create(m_configuration);
                 var sessionFactory = new DefaultSessionFactory(m_context);
-                var userNameidentity = new UserIdentity("sysadmin", new UTF8Encoding(false).GetBytes("demo"));
-                //var userNameidentity = new UserIdentity("usr", new UTF8Encoding(false).GetBytes("pwd"));
+                var userNameidentity = new UserIdentity(UserName, new UTF8Encoding(false).GetBytes(Password));
 
                 foreach (var ii in endpoints)
                 {
@@ -123,7 +149,15 @@ namespace SecurityTestClient
 
                     var certificateIdentity = await LoadUserCertificateAsync(thumbprint, "password", ct).ConfigureAwait(false);
 
-                    foreach (var identity in new UserIdentity[] { userNameidentity, certificateIdentity })
+                    var identities = new List<UserIdentity>
+                    {
+                       new UserIdentity()
+                    };
+
+                    if (!String.IsNullOrEmpty(UserName)) { identities.Add(userNameidentity); }
+                    if (supportsX509) { identities.Add(certificateIdentity); }
+
+                    foreach (var identity in identities)
                     {
                         try
                         {
@@ -149,7 +183,7 @@ namespace SecurityTestClient
                             m_logger.LogWarning("Waiting for SecureChannel renew");
                             await session.UpdateSessionAsync(identity, null, ct).ConfigureAwait(false);
 
-                            for (int count = 0; count < 8; count++)
+                            for (int count = 0; count < 20; count++)
                             {
                                 var result = await session.ReadAsync(
                                     null,
@@ -628,7 +662,7 @@ namespace SecurityTestClient
             result.Sort((x, y) => x.NodeId.CompareTo(y.NodeId));
 
             m_logger.LogWarning(
-                "BrowseFullAddressSpace found {Count} references on server in {ElapsedMilliseconds}ms.",
+                "BrowseFullAddressSpace found {Count} references on server in {ElapsedMilliseconds} ms.",
                 referenceDescriptions.Count,
                 stopWatch.ElapsedMilliseconds);
 

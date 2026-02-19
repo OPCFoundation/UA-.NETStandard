@@ -210,6 +210,13 @@ namespace Opc.Ua
             encoder.WriteByteString(null, senderCertificate);
             encoder.WriteDateTime(null, DateTime.UtcNow);
 
+            if (ReceiverNonce?.Data == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadArgumentsMissing,
+                    $"The receiver did not provide an ephemeral key.");
+            }
+
             byte[] senderNonce = SenderNonce.Data;
             byte[] receiverNonce = ReceiverNonce.Data;
 
@@ -241,13 +248,13 @@ namespace Opc.Ua
             {
                 case SymmetricEncryptionAlgorithm.Aes128Cbc:
                 case SymmetricEncryptionAlgorithm.Aes256Cbc:
-                    paddingCount = GetPaddingCount(SecurityPolicy.InitializationVectorLength, encoder.Position - startOfSecret);
+                    paddingCount = GetPaddingCount(SecurityPolicy.InitializationVectorLength, secret.Length, encoder.Position - startOfSecret);
                     tagLength = 0;
                     break;
                 case SymmetricEncryptionAlgorithm.Aes128Gcm:
                 case SymmetricEncryptionAlgorithm.Aes256Gcm:
                 case SymmetricEncryptionAlgorithm.ChaCha20Poly1305:
-                    paddingCount = GetPaddingCount(encryptingKey.Length, encoder.Position - startOfSecret);
+                    paddingCount = GetPaddingCount(16, secret.Length, encoder.Position - startOfSecret);
                     tagLength = SecurityPolicy.SymmetricSignatureLength;
                     break;
             }
@@ -306,13 +313,18 @@ namespace Opc.Ua
             return message;
         }
 
-        private int GetPaddingCount(int blockSize, int dataLength)
+        private int GetPaddingCount(int blockSize, int secretLength, int dataLength)
         {
-            int paddingCount = blockSize - ((dataLength + 2) % blockSize);
+            dataLength += 2; // add padding size
 
-            if (paddingCount == blockSize)
+            int paddingCount =
+                dataLength % blockSize == 0
+                ? 0
+                : blockSize - dataLength % blockSize;
+
+            if (paddingCount + secretLength < blockSize)
             {
-                paddingCount = 0;
+                paddingCount += blockSize;
             }
 
             return paddingCount;

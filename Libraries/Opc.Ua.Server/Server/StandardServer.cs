@@ -660,7 +660,7 @@ namespace Opc.Ua.Server
                                     Value = new ExtensionObject(key)
                                 });
 
-                            m_logger.LogWarning("Returning new EphmeralKey: {PublicKey}.", CryptoTrace.KeyToString(key.PublicKey));
+                            m_logger.LogWarning("Returning new EphmeralKey: {PublicKey} bytes.", key.PublicKey?.Length ?? 0);
                         }
                         else
                         {
@@ -700,7 +700,7 @@ namespace Opc.Ua.Server
                 response.Parameters
                     .Add(new KeyValuePair { Key = AdditionalParameterNames.ECDHKey, Value = new ExtensionObject(key) });
 
-                m_logger.LogWarning("Returning new EphmeralKey: {PublicKey}.", CryptoTrace.KeyToString(key.PublicKey));
+                m_logger.LogWarning("Returning new EphmeralKey: {PublicKey} bytes.", key.PublicKey?.Length ?? 0);
             }
 
             return response;

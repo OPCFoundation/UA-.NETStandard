@@ -91,11 +91,11 @@
     <MaxArrayLength>65535</MaxArrayLength>
     <MaxMessageSize>4194304</MaxMessageSize>
     <MaxBufferSize>65535</MaxBufferSize>
-    <ChannelLifetime>300000</ChannelLifetime>
+    <ChannelLifetime>30000</ChannelLifetime>
     <SecurityTokenLifetime>30000</SecurityTokenLifetime>
   </TransportQuotas>
   <ClientConfiguration>
-    <DefaultSessionTimeout>60000</DefaultSessionTimeout>
+    <DefaultSessionTimeout>600000</DefaultSessionTimeout>
     <WellKnownDiscoveryUrls>
       <ua:String>opc.tcp://{0}:4840</ua:String>
       <ua:String>http://{0}:52601/UADiscovery</ua:String>

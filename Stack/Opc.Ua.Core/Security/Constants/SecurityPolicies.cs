@@ -677,6 +677,11 @@ namespace Opc.Ua
                         securityPolicy.Uri);
             }
 
+            if (securityPolicy.SecureChannelEnhancements)
+            {
+                signatureData.Signature = null;
+            }
+
             signatureData.Signature = CryptoUtils.Sign(
                 new ArraySegment<byte>(dataToSign),
                 localCertificate,

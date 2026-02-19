@@ -1216,15 +1216,23 @@ namespace Opc.Ua
     public static class CryptoTrace
     {
         /// <summary>
+        /// Enabled crypto traces to stdout.
+        /// </summary>
+        public static bool Enabled { get; set; } = true;
+
+        /// <summary>
         /// Starts a trace block.
         /// </summary>
         public static void Start(ConsoleColor color, string format, params object[] args)
         {
 #if DEBUG
-            Console.ForegroundColor = color;
-            Console.Write("============ ");
-            Console.Write(format, args);
-            Console.WriteLine(" ============");
+            if (Enabled)
+            {
+                Console.ForegroundColor = color;
+                Console.Write("============ ");
+                Console.Write(format, args);
+                Console.WriteLine(" ============");
+            }
 #endif
         }
 
@@ -1234,10 +1242,13 @@ namespace Opc.Ua
         public static void Finish(string format, params object[] args)
         {
 #if DEBUG
-            Console.Write("============ ");
-            Console.Write(format, args);
-            Console.WriteLine(" Finished ============");
-            Console.ForegroundColor = ConsoleColor.White;
+            if (Enabled)
+            {
+                Console.Write("============ ");
+                Console.Write(format, args);
+                Console.WriteLine(" Finished ============");
+                Console.ForegroundColor = ConsoleColor.White;
+            }
 #endif
         }
 
@@ -1247,7 +1258,10 @@ namespace Opc.Ua
         public static void Write(string format, params object[] args)
         {
 #if DEBUG
-            Console.Write(format, args);
+            if (Enabled)
+            {
+                Console.Write(format, args);
+            }
 #endif
         }
 
@@ -1257,7 +1271,10 @@ namespace Opc.Ua
         public static void WriteLine(string format, params object[] args)
         {
 #if DEBUG
-            Console.WriteLine(format, args);
+            if (Enabled)
+            {
+                Console.WriteLine(format, args);
+            }
 #endif
         }
 
@@ -1267,13 +1284,20 @@ namespace Opc.Ua
         public static string KeyToString(ArraySegment<byte> key)
         {
 #if DEBUG
-            byte[] bytes = new byte[key.Count];
-            Buffer.BlockCopy(key.Array ?? [], key.Offset, bytes, 0, key.Count);
-            return KeyToString(bytes);
+            if (Enabled)
+            {
+                byte[] bytes = new byte[key.Count];
+                Buffer.BlockCopy(key.Array ?? [], key.Offset, bytes, 0, key.Count);
+                return KeyToString(bytes);
+            }
+            else
+            {
+                return String.Empty;
+            }
 #else
             return String.Empty;
 #endif
-        }
+            }
 
         /// <summary>
         /// Returns a debug string for a key.
@@ -1281,29 +1305,36 @@ namespace Opc.Ua
         public static string KeyToString(byte[] key)
         {
 #if DEBUG
-            if (key == null || key.Length == 0)
+            if (Enabled)
             {
-                return "Len=0:---";
+                if (key == null || key.Length == 0)
+                {
+                    return "Len=0:---";
+                }
+
+                byte checksum = 0;
+
+                foreach (var item in key)
+                {
+                    checksum ^= item;
+                }
+
+                if (key.Length <= 16)
+                {
+                    return "Len=" + key.Length.ToString(CultureInfo.InvariantCulture) +
+                        ":" +
+                        Utils.ToHexString(key) +
+                        "=>XOR=" +
+                        checksum.ToString(CultureInfo.InvariantCulture);
+                }
+
+                var text = Utils.ToHexString(key);
+                return $"Len={key.Length}:{text.Substring(0, 8)}...{text.Substring(text.Length - 8, 8)}=>XOR={checksum}";
             }
-
-            byte checksum = 0;
-
-            foreach (var item in key)
+            else
             {
-                checksum ^= item;
+                return String.Empty;
             }
-
-            if (key.Length <= 16)
-            {
-                return "Len=" + key.Length.ToString(CultureInfo.InvariantCulture) +
-                    ":" +
-                    Utils.ToHexString(key) +
-                    "=>XOR=" +
-                    checksum.ToString(CultureInfo.InvariantCulture);
-            }
-
-            var text = Utils.ToHexString(key);
-            return $"Len={key.Length}:{text.Substring(0, 8)}...{text.Substring(text.Length - 8, 8)}=>XOR={checksum}";
 #else
             return String.Empty;
 #endif

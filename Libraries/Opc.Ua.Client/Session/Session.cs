@@ -4942,7 +4942,7 @@ namespace Opc.Ua.Client
                             SecurityPolicies.GetInfo(m_userTokenSecurityPolicyUri),
                             key.PublicKey);
 
-                        m_logger.LogWarning("Updating ServerEphemeralKey: {Key}", CryptoTrace.KeyToString(m_eccServerEphemeralKey.Data));
+                        m_logger.LogWarning("Updating ServerEphemeralKey: {Key} bytes", m_eccServerEphemeralKey.Data?.Length ?? 0);
                     }
                 }
             }

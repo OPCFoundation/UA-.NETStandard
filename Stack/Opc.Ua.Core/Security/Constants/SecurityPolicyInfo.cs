@@ -114,6 +114,11 @@ namespace Opc.Ua
         public CertificateKeyAlgorithm EphemeralKeyAlgorithm { get; private set; }
 
         /// <summary>
+        /// The algorithm used to calculate the thumbprint of the certificate.
+        /// </summary>
+        public CertificateThumbprintAlgorithm CertificateThumbprintAlgorithm { get; private set; }
+
+        /// <summary>
         /// The length, in bytes, of the Nonces used when opening a SecureChannel.
         /// </summary>
         public int SecureChannelNonceLength { get; private set; }
@@ -194,13 +199,26 @@ namespace Opc.Ua
                 CryptoTrace.WriteLine($"ClientChannelCertificate={CryptoTrace.KeyToString(clientChannelCertificate)}");
                 CryptoTrace.WriteLine($"ClientNonce={CryptoTrace.KeyToString(clientNonce)}");
 
+                using HashAlgorithm hash = CertificateThumbprintAlgorithm switch
+                {
+                    CertificateThumbprintAlgorithm.SHA256 => SHA256.Create(),
+                    CertificateThumbprintAlgorithm.SHA384 => SHA384.Create(),
+                    CertificateThumbprintAlgorithm.SHA512 => SHA512.Create(),
+                    _ => throw new NotSupportedException()
+                };
+
+                var serverCertificateHash = serverCertificate != null ? hash.ComputeHash(serverCertificate) : null;
+                var serverChannelCertificateHash = serverChannelCertificate != null ? hash.ComputeHash(serverChannelCertificate) : null;
+                var clientCertificateHash = clientCertificate != null ? hash.ComputeHash(clientCertificate) : null;
+                var clientChannelCertificateHash = clientChannelCertificate != null ? hash.ComputeHash(clientChannelCertificate) : null;
+
                 data = Utils.Append(
                     channelThumbprint,
                     serverNonce,
-                    serverCertificate,
-                    serverChannelCertificate,
-                    clientCertificate,
-                    clientChannelCertificate,
+                    serverCertificateHash,
+                    serverChannelCertificateHash,
+                    clientCertificateHash,
+                    clientChannelCertificateHash,
                     clientNonce);
             }
             else
@@ -240,11 +258,22 @@ namespace Opc.Ua
                 CryptoTrace.WriteLine($"ClientChannelCertificate={CryptoTrace.KeyToString(clientChannelCertificate)}");
                 CryptoTrace.WriteLine($"ServerNonce={CryptoTrace.KeyToString(serverNonce)}");
 
+                using HashAlgorithm hash = CertificateThumbprintAlgorithm switch
+                {
+                    CertificateThumbprintAlgorithm.SHA256 => SHA256.Create(),
+                    CertificateThumbprintAlgorithm.SHA384 => SHA384.Create(),
+                    CertificateThumbprintAlgorithm.SHA512 => SHA512.Create(),
+                    _ => throw new NotSupportedException()
+                };
+
+                var serverChannelCertificateHash = serverChannelCertificate != null ? hash.ComputeHash(serverChannelCertificate) : null;
+                var clientChannelCertificateHash = clientChannelCertificate != null ? hash.ComputeHash(clientChannelCertificate) : null;
+
                 data = Utils.Append(
                     channelThumbprint,
                     clientNonce,
-                    serverChannelCertificate,
-                    clientChannelCertificate,
+                    serverChannelCertificateHash,
+                    clientChannelCertificateHash,
                     serverNonce);
             }
             else
@@ -285,12 +314,24 @@ namespace Opc.Ua
                 CryptoTrace.WriteLine($"ClientChannelCertificate={CryptoTrace.KeyToString(clientChannelCertificate)}");
                 CryptoTrace.WriteLine($"ClientNonce={CryptoTrace.KeyToString(clientNonce)}");
 
+                using HashAlgorithm hash = CertificateThumbprintAlgorithm switch
+                {
+                    CertificateThumbprintAlgorithm.SHA256 => SHA256.Create(),
+                    CertificateThumbprintAlgorithm.SHA384 => SHA384.Create(),
+                    CertificateThumbprintAlgorithm.SHA512 => SHA512.Create(),
+                    _ => throw new NotSupportedException()
+                };
+
+                var serverCertificateHash = serverCertificate != null ? hash.ComputeHash(serverCertificate) : null;
+                var serverChannelCertificateHash = serverChannelCertificate != null ? hash.ComputeHash(serverChannelCertificate) : null;
+                var clientChannelCertificateHash = clientChannelCertificate != null ? hash.ComputeHash(clientChannelCertificate) : null;
+
                 data = Utils.Append(
                     channelThumbprint,
                     serverNonce,
-                    serverCertificate,
-                    serverChannelCertificate,
-                    clientChannelCertificate,
+                    serverCertificateHash,
+                    serverChannelCertificateHash,
+                    clientChannelCertificateHash,
                     clientNonce);
             }
             else
@@ -350,7 +391,7 @@ namespace Opc.Ua
             MinAsymmetricKeyLength = 0,
             MaxAsymmetricKeyLength = 0,
             SecureChannelNonceLength = 32,
-            LegacySequenceNumbers = false,
+            LegacySequenceNumbers = true,
             AsymmetricEncryptionAlgorithm = AsymmetricEncryptionAlgorithm.None,
             AsymmetricSignatureAlgorithm = AsymmetricSignatureAlgorithm.None,
             CertificateKeyFamily = CertificateKeyFamily.None,
@@ -360,7 +401,8 @@ namespace Opc.Ua
             KeyDerivationAlgorithm = KeyDerivationAlgorithm.None,
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.None,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.None,
-            SecureChannelEnhancements = false
+            SecureChannelEnhancements = false,
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA1
         };
 
         /// <summary>
@@ -386,7 +428,8 @@ namespace Opc.Ua
             KeyDerivationAlgorithm = KeyDerivationAlgorithm.PSha1,
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes128Cbc,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.HmacSha1,
-            IsDeprecated = true
+            IsDeprecated = true,
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA1
         };
 
         /// <summary>
@@ -412,7 +455,8 @@ namespace Opc.Ua
             KeyDerivationAlgorithm = KeyDerivationAlgorithm.PSha1,
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes256Cbc,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.HmacSha1,
-            IsDeprecated = true
+            IsDeprecated = true,
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA1
         };
 
         /// <summary>
@@ -437,7 +481,8 @@ namespace Opc.Ua
             KeyDerivationAlgorithm = KeyDerivationAlgorithm.PSha256,
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes256Cbc,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.HmacSha256,
-            IsDeprecated = false
+            IsDeprecated = false,
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA1
         };
 
         /// <summary>
@@ -462,7 +507,8 @@ namespace Opc.Ua
             EphemeralKeyAlgorithm = CertificateKeyAlgorithm.None,
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes256Cbc,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.HmacSha256,
-            IsDeprecated = false
+            IsDeprecated = false,
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA1
         };
 
         /// <summary>
@@ -487,7 +533,8 @@ namespace Opc.Ua
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.HmacSha256,
             InitializationVectorLength = 128 / 8,
             SymmetricSignatureLength = 256 / 8,
-            IsDeprecated = false
+            IsDeprecated = false,
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA1
         };
 
         /// <summary>
@@ -513,7 +560,8 @@ namespace Opc.Ua
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.ChaCha20Poly1305,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.ChaCha20Poly1305,
             SecureChannelEnhancements = false,
-            IsDeprecated = false
+            IsDeprecated = false,
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
         };
 
         /// <summary>
@@ -539,7 +587,8 @@ namespace Opc.Ua
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes128Gcm,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.Aes128Gcm,
             SecureChannelEnhancements = true,
-            IsDeprecated = false
+            IsDeprecated = false,
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
         };
 
         /// <summary>
@@ -565,7 +614,8 @@ namespace Opc.Ua
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.ChaCha20Poly1305,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.ChaCha20Poly1305,
             SecureChannelEnhancements = true,
-            IsDeprecated = false
+            IsDeprecated = false,
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
         };
 
         /// <summary>
@@ -591,7 +641,8 @@ namespace Opc.Ua
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.ChaCha20Poly1305,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.ChaCha20Poly1305,
             SecureChannelEnhancements = false,
-            IsDeprecated = false
+            IsDeprecated = false,
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384
         };
 
         /// <summary>
@@ -617,7 +668,8 @@ namespace Opc.Ua
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes128Gcm,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.Aes128Gcm,
             SecureChannelEnhancements = true,
-            IsDeprecated = false
+            IsDeprecated = false,
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384
         };
 
         /// <summary>
@@ -643,7 +695,8 @@ namespace Opc.Ua
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.ChaCha20Poly1305,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.ChaCha20Poly1305,
             SecureChannelEnhancements = true,
-            IsDeprecated = false
+            IsDeprecated = false,
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384
         };
 
         /// <summary>
@@ -669,7 +722,8 @@ namespace Opc.Ua
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes128Cbc,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.HmacSha256,
             SecureChannelEnhancements = false,
-            IsDeprecated = false
+            IsDeprecated = false,
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
         };
 
         /// <summary>
@@ -695,7 +749,8 @@ namespace Opc.Ua
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes128Gcm,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.Aes128Gcm,
             SecureChannelEnhancements = true,
-            IsDeprecated = false
+            IsDeprecated = false,
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
         };
 
         /// <summary>
@@ -721,7 +776,8 @@ namespace Opc.Ua
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.ChaCha20Poly1305,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.ChaCha20Poly1305,
             SecureChannelEnhancements = true,
-            IsDeprecated = false
+            IsDeprecated = false,
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
         };
 
         /// <summary>
@@ -747,7 +803,8 @@ namespace Opc.Ua
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes256Cbc,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.HmacSha384,
             SecureChannelEnhancements = false,
-            IsDeprecated = false
+            IsDeprecated = false,
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384
         };
 
         /// <summary>
@@ -773,7 +830,8 @@ namespace Opc.Ua
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes128Gcm,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.Aes128Gcm,
             SecureChannelEnhancements = true,
-            IsDeprecated = false
+            IsDeprecated = false,
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384
         };
 
         /// <summary>
@@ -799,7 +857,8 @@ namespace Opc.Ua
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.ChaCha20Poly1305,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.ChaCha20Poly1305,
             SecureChannelEnhancements = true,
-            IsDeprecated = false
+            IsDeprecated = false,
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384
         };
 
         /// <summary>
@@ -825,7 +884,8 @@ namespace Opc.Ua
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes128Cbc,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.HmacSha256,
             SecureChannelEnhancements = false,
-            IsDeprecated = false
+            IsDeprecated = false,
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
         };
 
         /// <summary>
@@ -851,7 +911,8 @@ namespace Opc.Ua
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes128Gcm,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.Aes128Gcm,
             SecureChannelEnhancements = true,
-            IsDeprecated = false
+            IsDeprecated = false,
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
         };
 
         /// <summary>
@@ -877,7 +938,8 @@ namespace Opc.Ua
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.ChaCha20Poly1305,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.ChaCha20Poly1305,
             SecureChannelEnhancements = true,
-            IsDeprecated = false
+            IsDeprecated = false,
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
         };
 
         /// <summary>
@@ -903,7 +965,8 @@ namespace Opc.Ua
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes256Cbc,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.HmacSha384,
             SecureChannelEnhancements = false,
-            IsDeprecated = false
+            IsDeprecated = false,
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384
         };
 
         /// <summary>
@@ -929,7 +992,8 @@ namespace Opc.Ua
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes256Gcm,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.Aes256Gcm,
             SecureChannelEnhancements = true,
-            IsDeprecated = false
+            IsDeprecated = false,
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384
         };
 
         /// <summary>
@@ -955,7 +1019,8 @@ namespace Opc.Ua
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.ChaCha20Poly1305,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.ChaCha20Poly1305,
             SecureChannelEnhancements = true,
-            IsDeprecated = false
+            IsDeprecated = false,
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA384
         };
          
         /// <summary>
@@ -981,7 +1046,8 @@ namespace Opc.Ua
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes128Gcm,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.Aes128Gcm,
             SecureChannelEnhancements = true,
-            IsDeprecated = false
+            IsDeprecated = false,
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
         };
 
         /// <summary>
@@ -1007,7 +1073,8 @@ namespace Opc.Ua
             SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.ChaCha20Poly1305,
             SymmetricSignatureAlgorithm = SymmetricSignatureAlgorithm.ChaCha20Poly1305,
             SecureChannelEnhancements = true,
-            IsDeprecated = false
+            IsDeprecated = false,
+            CertificateThumbprintAlgorithm = CertificateThumbprintAlgorithm.SHA256
         };
     }
 
@@ -1271,5 +1338,31 @@ namespace Opc.Ua
         /// AES 256 in GCM mode
         /// </summary>
         Aes256Gcm
+    }
+
+    /// <summary>
+    /// The algorithm used to generate certificate thumbprints.
+    /// </summary>
+    public enum CertificateThumbprintAlgorithm
+    {
+        /// <summary>
+        /// The SHA1 algorithm. This algorithm is considered insecure.
+        /// </summary>
+        SHA1,
+
+        /// <summary>
+        /// The SHA256 algorithm.
+        /// </summary>
+        SHA256,
+
+        /// <summary>
+        /// The SHA384 algorithm.
+        /// </summary>
+        SHA384,
+
+        /// <summary>
+        /// The SHA512 algorithm.
+        /// </summary>
+        SHA512
     }
 }
