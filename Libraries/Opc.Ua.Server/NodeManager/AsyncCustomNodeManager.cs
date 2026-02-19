@@ -142,6 +142,7 @@ namespace Opc.Ua.Server
             // the node id factory assigns new node ids to new nodes.
             // the strategy used by a NodeManager depends on what kind of information it provides.
             SystemContext.NodeIdFactory = this;
+            m_lastUsedNodeId = (uint)DateTime.UtcNow.Ticks & 0x7FFFFFFF;
 
             // add the uris to the server's namespace table and cache the indexes.
             ushort[] namespaceIndexes = [];
@@ -232,7 +233,8 @@ namespace Opc.Ua.Server
         /// <returns>The new NodeId.</returns>
         public virtual NodeId New(ISystemContext context, NodeState node)
         {
-            return node.NodeId;
+            uint id = Utils.IncrementIdentifier(ref m_lastUsedNodeId);
+            return new NodeId(id, m_namespaceIndexes[0]);
         }
 
         /// <summary>
@@ -428,7 +430,46 @@ namespace Opc.Ua.Server
                 parent.AddChild(instance);
             }
 
-            instance.Create(contextToUse, instance.NodeId, browseName, default, true);
+            instance.Create(contextToUse, default, browseName, default, true);
+            await AddPredefinedNodeAsync(contextToUse, instance, cancellationToken).ConfigureAwait(false);
+
+            return instance.NodeId;
+        }
+
+        /// <summary>
+        /// Add a created instance and its children to the NodeManagers AddressSpace. Assigns NodeIds if needed and fixes ReferenceTargets after assigning NodeIds.
+        /// </summary>
+        /// <param name="context">The operation context.</param>
+        /// <param name="parentId">An optional parent identifier.</param>
+        /// <param name="instance">The instance to create.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The node id of the Node that was added.</returns>
+        /// <exception cref="ServiceResultException"></exception>
+        public async ValueTask<NodeId> AddNodeAsync(
+            ServerSystemContext context,
+            NodeId parentId,
+            BaseInstanceState instance,
+            CancellationToken cancellationToken = default)
+        {
+            ServerSystemContext contextToUse = SystemContext.Copy(context);
+
+            if (!parentId.IsNull)
+            {
+                if (!PredefinedNodes.TryGetValue(parentId, out NodeState parent))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadNodeIdUnknown,
+                        "Cannot find parent with id: {0}",
+                        parentId);
+                }
+
+                parent.AddChild(instance);
+            }
+
+            var mappingTable = new Dictionary<NodeId, NodeId>();
+            instance.AssignNodeIds(context, mappingTable);
+            instance.UpdateReferenceTargets(context, mappingTable);
+
             await AddPredefinedNodeAsync(contextToUse, instance, cancellationToken).ConfigureAwait(false);
 
             return instance.NodeId;
@@ -457,15 +498,6 @@ namespace Opc.Ua.Server
             }
 
             return true;
-        }
-
-        /// <summary>
-        /// Searches the node id in all node managers
-        /// </summary>
-        [Obsolete("Use IServerInteral.IMasterNodeManager.FindNodeInAddressSpaceAsync instead.")]
-        public NodeState FindNodeInAddressSpace(NodeId nodeId)
-        {
-            return Server.NodeManager.FindNodeInAddressSpaceAsync(nodeId).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -5249,5 +5281,10 @@ namespace Opc.Ua.Server
         /// The synchronaization primitive used to protect access to operations affecting the MonitoredItems owned by the NodeManager.
         /// </summary>
         protected SemaphoreSlim m_monitoredItemSemaphore = new(1, 1);
+
+        /// <summary>
+        /// Counter for the NodeIdFactory.New Method
+        /// </summary>
+        private uint m_lastUsedNodeId;
     }
 }
