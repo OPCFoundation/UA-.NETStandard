@@ -1881,6 +1881,7 @@ namespace Opc.Ua.Server.Tests
 
             // A node with no manually-added references should not generate any external references
             var source = new BaseObjectState(null);
+            source.CreateAsPredefinedNode(context);
             source.NodeId = new NodeId("SourceNoRefs", nsIdx);
             source.BrowseName = new QualifiedName("SourceNoRefs", nsIdx);
             await manager.AddPredefinedNodePublicAsync(context, source).ConfigureAwait(false);
@@ -1970,10 +1971,12 @@ namespace Opc.Ua.Server.Tests
             // Use AddPredefinedNodePublicAsync to bypass AssignNodeIds, which would
             // reassign NodeIds and break the PredefinedNodes lookup for the reference target.
             var source = new BaseObjectState(null);
+            source.CreateAsPredefinedNode(context);
             source.NodeId = new NodeId("Source", nsIdx);
             source.BrowseName = new QualifiedName("Source", nsIdx);
 
             var target = new BaseObjectState(null);
+            target.CreateAsPredefinedNode(context);
             target.NodeId = new NodeId("Target", nsIdx);
             target.BrowseName = new QualifiedName("Target", nsIdx);
 
@@ -1999,10 +2002,12 @@ namespace Opc.Ua.Server.Tests
             ushort nsIdx = manager.NamespaceIndexes[0];
 
             var source = new BaseObjectState(null);
+            source.CreateAsPredefinedNode(context);
             source.NodeId = new NodeId("Source", nsIdx);
             source.BrowseName = new QualifiedName("Source", nsIdx);
 
             var target = new BaseObjectState(null);
+            target.CreateAsPredefinedNode(context);
             target.NodeId = new NodeId("Target", nsIdx);
             target.BrowseName = new QualifiedName("Target", nsIdx);
 
