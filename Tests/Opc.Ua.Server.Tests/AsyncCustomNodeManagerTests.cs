@@ -487,6 +487,92 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task WriteAsync_WritesOutOfRangeScalarValueToAnalogItemReturnsBadOutOfRangeAsync()
+        {
+            using TestableAsyncCustomNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var variable = new AnalogItemState(null);
+            variable.CreateAsPredefinedNode(context);
+            variable.NodeId = new NodeId("AnalogScalarVar", nsIdx);
+            variable.BrowseName = new QualifiedName("AnalogScalarVar", nsIdx);
+            variable.Value = 50.0;
+            variable.DataType = DataTypeIds.Double;
+            variable.ValueRank = ValueRanks.Scalar;
+            variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.InstrumentRange = new PropertyState<Range>(variable)
+            {
+                Value = new Range { Low = 0.0, High = 100.0 }
+            };
+
+            await manager.AddNodeAsync(context, default, variable).ConfigureAwait(false);
+
+            var writeValue = new WriteValue
+            {
+                NodeId = variable.NodeId,
+                AttributeId = Attributes.Value,
+                Value = new DataValue(new Variant(200.0)) // out of range (> 100)
+            };
+            var nodesToWrite = new List<WriteValue> { writeValue };
+            var errors = new List<ServiceResult> { null };
+
+            await manager.WriteAsync(
+                new OperationContext(new RequestHeader(), null, RequestType.Write),
+                nodesToWrite,
+                errors).ConfigureAwait(false);
+
+            Assert.That(nodesToWrite[0].Processed, Is.True);
+            Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+            Assert.That(variable.Value, Is.EqualTo(50.0));
+        }
+
+        [Test]
+        public async Task WriteAsync_WritesOutOfRangeArrayValueToAnalogItemReturnsBadOutOfRangeAsync()
+        {
+            using TestableAsyncCustomNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var variable = new AnalogItemState(null);
+            variable.CreateAsPredefinedNode(context);
+            variable.NodeId = new NodeId("AnalogArrayVar", nsIdx);
+            variable.BrowseName = new QualifiedName("AnalogArrayVar", nsIdx);
+            variable.Value = new double[] { 10.0, 20.0, 30.0 };
+            variable.DataType = DataTypeIds.Double;
+            variable.ValueRank = ValueRanks.OneDimension;
+            variable.ArrayDimensions = new ReadOnlyList<uint>([0]);
+            variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.InstrumentRange = new PropertyState<Range>(variable)
+            {
+                Value = new Range { Low = 0.0, High = 100.0 }
+            };
+
+            await manager.AddNodeAsync(context, default, variable).ConfigureAwait(false);
+
+            // 200.0 is above High (100.0)
+            var writeValue = new WriteValue
+            {
+                NodeId = variable.NodeId,
+                AttributeId = Attributes.Value,
+                Value = new DataValue(new Variant(new double[] { 10.0, 200.0, 30.0 }))
+            };
+            var nodesToWrite = new List<WriteValue> { writeValue };
+            var errors = new List<ServiceResult> { null };
+
+            await manager.WriteAsync(
+                new OperationContext(new RequestHeader(), null, RequestType.Write),
+                nodesToWrite,
+                errors).ConfigureAwait(false);
+
+            Assert.That(nodesToWrite[0].Processed, Is.True);
+            Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+            Assert.That((double[])variable.Value, Is.EqualTo(new double[] { 10.0, 20.0, 30.0 }));
+        }
+
+        [Test]
         public async Task WriteAsync_PublishesValueToMonitoredItemQueueAsync()
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
