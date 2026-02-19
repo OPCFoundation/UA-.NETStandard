@@ -233,8 +233,13 @@ namespace Opc.Ua.Server
         /// <returns>The new NodeId.</returns>
         public virtual NodeId New(ISystemContext context, NodeState node)
         {
-            uint id = Utils.IncrementIdentifier(ref m_lastUsedNodeId);
-            return new NodeId(id, m_namespaceIndexes[0]);
+            if (node.NodeId.IsNull)
+            {
+                uint id = Utils.IncrementIdentifier(ref m_lastUsedNodeId);
+                return new NodeId(id, m_namespaceIndexes[0]);
+            }
+
+            return node.NodeId;
         }
 
         /// <summary>
