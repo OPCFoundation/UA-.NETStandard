@@ -1873,6 +1873,237 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task AddReverseReferencesAsyncWithNodeHavingNoReferencesProducesNoExternalRefs()
+        {
+            using var manager = CreateManager();
+            var context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            // A node with no manually-added references should not generate any external references
+            var source = new BaseObjectState(null);
+            source.NodeId = new NodeId("SourceNoRefs", nsIdx);
+            source.BrowseName = new QualifiedName("SourceNoRefs", nsIdx);
+            await manager.AddPredefinedNodePublicAsync(context, source).ConfigureAwait(false);
+
+            var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+            await manager.AddReverseReferencesPublicAsync(externalReferences).ConfigureAwait(false);
+
+            Assert.That(externalReferences, Is.Empty);
+        }
+
+        [Test]
+        public async Task AddReverseReferencesAsyncSkipsReferenceWithAbsoluteTargetId()
+        {
+            using var manager = CreateManager();
+            var context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var source = new BaseObjectState(null);
+            source.CreateAsPredefinedNode(context);
+            source.NodeId = new NodeId("Source", nsIdx);
+            source.BrowseName = new QualifiedName("Source", nsIdx);
+            source.AddReference(ReferenceTypeIds.HasComponent, false, new ExpandedNodeId("AbsoluteTarget", (ushort)0, "http://absolute.example.org/", 0u));
+            await manager.AddNodeAsync(context, default, source).ConfigureAwait(false);
+
+            var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+            await manager.AddReverseReferencesPublicAsync(externalReferences).ConfigureAwait(false);
+
+            Assert.That(externalReferences, Is.Empty);
+        }
+
+        [Test]
+        public async Task AddReverseReferencesAsyncSkipsHasSubtypeReferences()
+        {
+            using var manager = CreateManager();
+            var context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var source = new BaseObjectState(null);
+            source.CreateAsPredefinedNode(context);
+            source.NodeId = new NodeId("Source", nsIdx);
+            source.BrowseName = new QualifiedName("Source", nsIdx);
+            var externalTarget = new NodeId("ExternalTarget", 0);
+            source.AddReference(ReferenceTypeIds.HasSubtype, false, externalTarget);
+            await manager.AddNodeAsync(context, default, source).ConfigureAwait(false);
+
+            var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+            await manager.AddReverseReferencesPublicAsync(externalReferences).ConfigureAwait(false);
+
+            Assert.That(externalReferences, Is.Empty);
+        }
+
+        [Test]
+        public async Task AddReverseReferencesAsyncAddsInverseHasEncodingToTypeTree()
+        {
+            using var manager = CreateManager();
+            var context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var encodingTargetId = new NodeId("DataType", 0);
+            // AddEncoding requires the data type to be registered in the TypeTree first
+            _mockServer.Object.TypeTree.AddSubtype(encodingTargetId, NodeId.Null);
+
+            var source = new BaseObjectState(null);
+            source.CreateAsPredefinedNode(context);
+            source.NodeId = new NodeId("DataTypeEncoding", nsIdx);
+            source.BrowseName = new QualifiedName("DataTypeEncoding", nsIdx);
+            source.AddReference(ReferenceTypeIds.HasEncoding, true, encodingTargetId);
+            await manager.AddNodeAsync(context, default, source).ConfigureAwait(false);
+
+            var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+            await manager.AddReverseReferencesPublicAsync(externalReferences).ConfigureAwait(false);
+
+            // AddEncoding(dataTypeId, encodingId) maps encodingId → dataTypeId;
+            // FindDataTypeId(encodingId) should return the registered dataTypeId.
+            Assert.That(
+                _mockServer.Object.TypeTree.FindDataTypeId(source.NodeId),
+                Is.EqualTo(encodingTargetId));
+        }
+
+        [Test]
+        public async Task AddReverseReferencesAsyncAddsReverseReferenceToInternalTarget()
+        {
+            using var manager = CreateManager();
+            var context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            // Use AddPredefinedNodePublicAsync to bypass AssignNodeIds, which would
+            // reassign NodeIds and break the PredefinedNodes lookup for the reference target.
+            var source = new BaseObjectState(null);
+            source.NodeId = new NodeId("Source", nsIdx);
+            source.BrowseName = new QualifiedName("Source", nsIdx);
+
+            var target = new BaseObjectState(null);
+            target.NodeId = new NodeId("Target", nsIdx);
+            target.BrowseName = new QualifiedName("Target", nsIdx);
+
+            source.AddReference(ReferenceTypeIds.HasComponent, false, target.NodeId);
+            await manager.AddPredefinedNodePublicAsync(context, source).ConfigureAwait(false);
+            await manager.AddPredefinedNodePublicAsync(context, target).ConfigureAwait(false);
+
+            var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+            await manager.AddReverseReferencesPublicAsync(externalReferences).ConfigureAwait(false);
+
+            Assert.That(
+                target.ReferenceExists(ReferenceTypeIds.HasComponent, true, source.NodeId),
+                Is.True,
+                "Target should have the inverse (IsInverse=true) HasComponent reference back to source");
+            Assert.That(externalReferences, Is.Empty);
+        }
+
+        [Test]
+        public async Task AddReverseReferencesAsyncDoesNotDuplicateReverseReferenceForInternalTarget()
+        {
+            using var manager = CreateManager();
+            var context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var source = new BaseObjectState(null);
+            source.NodeId = new NodeId("Source", nsIdx);
+            source.BrowseName = new QualifiedName("Source", nsIdx);
+
+            var target = new BaseObjectState(null);
+            target.NodeId = new NodeId("Target", nsIdx);
+            target.BrowseName = new QualifiedName("Target", nsIdx);
+
+            source.AddReference(ReferenceTypeIds.HasComponent, false, target.NodeId);
+            await manager.AddPredefinedNodePublicAsync(context, source).ConfigureAwait(false);
+            await manager.AddPredefinedNodePublicAsync(context, target).ConfigureAwait(false);
+
+            var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+            await manager.AddReverseReferencesPublicAsync(externalReferences).ConfigureAwait(false);
+            await manager.AddReverseReferencesPublicAsync(externalReferences).ConfigureAwait(false);
+
+            var refs = new List<IReference>();
+            target.GetReferences(context, refs);
+            int count = refs.Count(r =>
+                r.ReferenceTypeId == ReferenceTypeIds.HasComponent &&
+                r.IsInverse &&
+                r.TargetId == new ExpandedNodeId(source.NodeId));
+            Assert.That(count, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task AddReverseReferencesAsyncSkipsExternalReferenceForTargetInSameNamespace()
+        {
+            using var manager = CreateManager();
+            var context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var source = new BaseObjectState(null);
+            source.CreateAsPredefinedNode(context);
+            source.NodeId = new NodeId("Source", nsIdx);
+            source.BrowseName = new QualifiedName("Source", nsIdx);
+
+            // Reference to a target that is in the managed namespace but not in PredefinedNodes
+            var inNamespaceTarget = new NodeId("NotInPredefinedNodes", nsIdx);
+            source.AddReference(ReferenceTypeIds.HasComponent, false, inNamespaceTarget);
+            await manager.AddNodeAsync(context, default, source).ConfigureAwait(false);
+
+            var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+            await manager.AddReverseReferencesPublicAsync(externalReferences).ConfigureAwait(false);
+
+            Assert.That(externalReferences, Is.Empty);
+        }
+
+        [Test]
+        public async Task AddReverseReferencesAsyncAddsExternalReferenceForExternalNamespaceTarget()
+        {
+            using var manager = CreateManager();
+            var context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var source = new BaseObjectState(null);
+            source.CreateAsPredefinedNode(context);
+            source.NodeId = new NodeId("Source", nsIdx);
+            source.BrowseName = new QualifiedName("Source", nsIdx);
+
+            var externalTarget = new NodeId("ExternalTarget", 0);
+            source.AddReference(ReferenceTypeIds.Organizes, false, externalTarget);
+            await manager.AddNodeAsync(context, default, source).ConfigureAwait(false);
+
+            var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+            await manager.AddReverseReferencesPublicAsync(externalReferences).ConfigureAwait(false);
+
+            Assert.That(externalReferences.ContainsKey(externalTarget), Is.True);
+            var addedRefs = externalReferences[externalTarget];
+            Assert.That(addedRefs, Has.Count.EqualTo(1));
+            Assert.That(addedRefs[0].ReferenceTypeId, Is.EqualTo(ReferenceTypeIds.Organizes));
+            Assert.That(addedRefs[0].IsInverse, Is.True);
+            Assert.That(addedRefs[0].TargetId, Is.EqualTo(new ExpandedNodeId(source.NodeId)));
+        }
+
+        [Test]
+        public async Task AddReverseReferencesAsyncAppendsToExistingExternalReferenceList()
+        {
+            using var manager = CreateManager();
+            var context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var source1 = new BaseObjectState(null);
+            source1.CreateAsPredefinedNode(context);
+            source1.NodeId = new NodeId("Source1", nsIdx);
+            source1.BrowseName = new QualifiedName("Source1", nsIdx);
+
+            var source2 = new BaseObjectState(null);
+            source2.CreateAsPredefinedNode(context);
+            source2.NodeId = new NodeId("Source2", nsIdx);
+            source2.BrowseName = new QualifiedName("Source2", nsIdx);
+
+            var sharedExternalTarget = new NodeId("SharedTarget", 0);
+            source1.AddReference(ReferenceTypeIds.Organizes, false, sharedExternalTarget);
+            source2.AddReference(ReferenceTypeIds.HasComponent, false, sharedExternalTarget);
+            await manager.AddNodeAsync(context, default, source1).ConfigureAwait(false);
+            await manager.AddNodeAsync(context, default, source2).ConfigureAwait(false);
+
+            var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+            await manager.AddReverseReferencesPublicAsync(externalReferences).ConfigureAwait(false);
+
+            Assert.That(externalReferences.ContainsKey(sharedExternalTarget), Is.True);
+            Assert.That(externalReferences[sharedExternalTarget], Has.Count.EqualTo(2));
+        }
+
+        [Test]
         public void SetNamespacesUpdatesUrisAndIndexes()
         {
             using var manager = CreateManager();
