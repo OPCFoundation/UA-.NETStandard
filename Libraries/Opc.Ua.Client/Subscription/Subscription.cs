@@ -51,7 +51,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Duration to wait before republishing missed notification
         /// </summary>
-        public const int REPUBLISH_MESSAGE_TIMEOUT = 2500;
+        public const int RepublishMessageTimeout = 2500;
 
         /// <summary>
         /// Create subscription
@@ -1997,8 +1997,8 @@ namespace Opc.Ua.Client
                     // only republish consecutive sequence numbers
                     // triggers the republish mechanism immediately,
                     // if event is in the past
-                    DateTime now = DateTime.UtcNow.AddMilliseconds(-REPUBLISH_MESSAGE_TIMEOUT * 2);
-                    int tickCount = HiResClock.TickCount - (REPUBLISH_MESSAGE_TIMEOUT * 2);
+                    DateTime now = DateTime.UtcNow.AddMilliseconds(-RepublishMessageTimeout * 2);
+                    int tickCount = HiResClock.TickCount - (RepublishMessageTimeout * 2);
                     uint lastSequenceNumberToRepublish = m_lastSequenceNumberProcessed - 1;
                     int availableNumbers = availableSequenceNumbers.Count;
                     int republishMessages = 0;
@@ -2533,7 +2533,7 @@ namespace Opc.Ua.Client
                             // tolerate if a single request was received out of order
                             if (ii.Next.Next != null &&
                                 (HiResClock.TickCount -
-                                    ii.Value.TickCount) > REPUBLISH_MESSAGE_TIMEOUT)
+                                    ii.Value.TickCount) > RepublishMessageTimeout)
                             {
                                 ii.Value.Republished = true;
                                 publishStateChangedMask |= PublishStateChangedMask.Republish;

@@ -71,7 +71,7 @@ namespace Opc.Ua.Client.Tests
 
         private static Task AwaitForRepublishTimeout(CancellationToken ct)
         {
-            return Task.Delay(Subscription.REPUBLISH_MESSAGE_TIMEOUT + 100, ct);
+            return Task.Delay(Subscription.RepublishMessageTimeout + 100, ct);
         }
 
         private static ISession BuildSessionMock(Func<uint, uint, bool> republishHandler)
@@ -219,7 +219,7 @@ namespace Opc.Ua.Client.Tests
 
         [Test]
         [Explicit("Test shows possibility for broken order of notifications during sequential publishing")]
-        [CancelAfter(Subscription.REPUBLISH_MESSAGE_TIMEOUT * 6)]
+        [CancelAfter(Subscription.RepublishMessageTimeout * 6)]
         public async Task UnorderedMessagesWouldBeLostForSequentialPublishingAsync(CancellationToken ct)
         {
             NotificationMessage[] messages = BuildMessages(5);
@@ -247,7 +247,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        [CancelAfter(Subscription.REPUBLISH_MESSAGE_TIMEOUT * 3)]
+        [CancelAfter(Subscription.RepublishMessageTimeout * 3)]
         public async Task WillRestoreOrderOfTwoMessagesForSequentialPublishingAsync(CancellationToken ct)
         {
             NotificationMessage[] messages = BuildMessages(3);
@@ -265,7 +265,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        [CancelAfter(Subscription.REPUBLISH_MESSAGE_TIMEOUT * 7)]
+        [CancelAfter(Subscription.RepublishMessageTimeout * 7)]
         public async Task WillAbandonMissedMessagesIfThereAreNoAvailableSequenceNumbersAsync(bool sequentialPublishing, CancellationToken ct)
         {
             int[] sequenceNumbersToPublish = [/*1..2 gap*/ 3, 4, /*5..7 gap*/ 8, 9, 10];
@@ -292,7 +292,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        [CancelAfter(Subscription.REPUBLISH_MESSAGE_TIMEOUT * 3)]
+        [CancelAfter(Subscription.RepublishMessageTimeout * 3)]
         public async Task WillRepublishIfMissedMessagesOnFirstPublishAsync(
             bool sequentialPublishing,
             [Values(2, 5, 8, 11)] int gapEnd,
@@ -320,7 +320,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory]
-        [CancelAfter(Subscription.REPUBLISH_MESSAGE_TIMEOUT * 3)]
+        [CancelAfter(Subscription.RepublishMessageTimeout * 3)]
         public async Task WillRepublishIfMissedMessagesInBetweenOfPublishesAsync(
             bool sequentialPublishing,
             [Values(1, 6, 9)] int gapStart,
