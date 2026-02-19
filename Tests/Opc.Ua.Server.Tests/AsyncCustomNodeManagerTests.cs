@@ -1872,6 +1872,500 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.RootNotifiers.ContainsKey(area.NodeId), Is.False);
         }
 
+        [Test]
+        public void SetNamespacesUpdatesUrisAndIndexes()
+        {
+            using var manager = CreateManager();
+            string ns1 = "http://test.org/ns1/";
+            string ns2 = "http://test.org/ns2/";
+
+            manager.SetNamespacesPublic(ns1, ns2);
+
+            Assert.That(manager.NamespaceUris, Is.EqualTo(new[] { ns1, ns2 }));
+            Assert.That(manager.NamespaceIndexes, Has.Count.EqualTo(2));
+        }
+
+        [Test]
+        public void SetNamespacesRegistersUrisInServerNamespaceTable()
+        {
+            using var manager = CreateManager();
+            string ns1 = "http://test.org/ns1/";
+            string ns2 = "http://test.org/ns2/";
+
+            manager.SetNamespacesPublic(ns1, ns2);
+
+            ushort idx0 = manager.NamespaceIndexes[0];
+            ushort idx1 = manager.NamespaceIndexes[1];
+            Assert.That(_namespaceTable.GetString(idx0), Is.EqualTo(ns1));
+            Assert.That(_namespaceTable.GetString(idx1), Is.EqualTo(ns2));
+        }
+
+        [Test]
+        public void SetNamespacesEmptyArrayClearsNamespacesAndIndexes()
+        {
+            using var manager = CreateManager();
+
+            manager.SetNamespacesPublic();
+
+            Assert.That(manager.NamespaceUris, Is.Empty);
+            Assert.That(manager.NamespaceIndexes, Is.Empty);
+        }
+
+        [Test]
+        public void SetNamespacesReusesPreviouslyRegisteredUri()
+        {
+            // GetIndexOrAppend must not duplicate URIs already in the table
+            using var manager = CreateManager();
+            ushort originalIndex = manager.NamespaceIndexes[0];
+
+            manager.SetNamespacesPublic(_testNamespaceUri);
+
+            Assert.That(manager.NamespaceIndexes[0], Is.EqualTo(originalIndex));
+        }
+
+        [Test]
+        public void SetNamespaceIndexesLooksUpUrisFromServerTable()
+        {
+            using var manager = CreateManager();
+            string ns1 = "http://test.org/idx1/";
+            string ns2 = "http://test.org/idx2/";
+            ushort idx1 = _namespaceTable.GetIndexOrAppend(ns1);
+            ushort idx2 = _namespaceTable.GetIndexOrAppend(ns2);
+
+            manager.SetNamespaceIndexesPublic([idx1, idx2]);
+
+            Assert.That(manager.NamespaceIndexes, Is.EqualTo(new[] { idx1, idx2 }));
+            Assert.That(manager.NamespaceUris, Is.EqualTo(new[] { ns1, ns2 }));
+        }
+
+        [Test]
+        public void SetNamespaceIndexesEmptyArrayClearsNamespacesAndIndexes()
+        {
+            using var manager = CreateManager();
+
+            manager.SetNamespaceIndexesPublic([]);
+
+            Assert.That(manager.NamespaceIndexes, Is.Empty);
+            Assert.That(manager.NamespaceUris, Is.Empty);
+        }
+
+        [Test]
+        public void NamespaceUrisSetterAppendsToServerTableAndUpdatesIndexes()
+        {
+            using var manager = CreateManager();
+            string ns1 = "http://test.org/setter1/";
+            string ns2 = "http://test.org/setter2/";
+
+            manager.SetNamespaceUrisPublic([ns1, ns2]);
+
+            Assert.That(manager.NamespaceUris, Is.EqualTo(new[] { ns1, ns2 }));
+            Assert.That(manager.NamespaceIndexes, Has.Count.EqualTo(2));
+            Assert.That(_namespaceTable.GetString(manager.NamespaceIndexes[0]), Is.EqualTo(ns1));
+            Assert.That(_namespaceTable.GetString(manager.NamespaceIndexes[1]), Is.EqualTo(ns2));
+        }
+
+        [Test]
+        public void NamespaceUrisSetterNullThrowsArgumentNullException()
+        {
+            using var manager = CreateManager();
+
+            Assert.Throws<ArgumentNullException>(() => manager.SetNamespaceUrisPublic(null));
+        }
+
+        [Test]
+        public void NamespaceIndexReturnsFirstIndex()
+        {
+            using var manager = CreateManager();
+            ushort firstIndex = manager.NamespaceIndexes[0];
+
+            Assert.That(manager.NamespaceIndex, Is.EqualTo(firstIndex));
+        }
+
+        [Test]
+        public void ConstructorWithMultipleNamespacesRegistersAllInServerTable()
+        {
+            string ns1 = "http://test.org/multi1/";
+            string ns2 = "http://test.org/multi2/";
+            var manager = new TestableAsyncCustomNodeManager(
+                _mockServer.Object,
+                _configuration,
+                _mockLogger.Object,
+                ns1, ns2);
+            using (manager)
+            {
+                Assert.That(manager.NamespaceIndexes, Has.Count.EqualTo(2));
+                Assert.That(manager.NamespaceUris, Is.EqualTo(new[] { ns1, ns2 }));
+                Assert.That(_namespaceTable.GetString(manager.NamespaceIndexes[0]), Is.EqualTo(ns1));
+                Assert.That(_namespaceTable.GetString(manager.NamespaceIndexes[1]), Is.EqualTo(ns2));
+            }
+        }
+
+        [Test]
+        public void IsNodeIdInNamespaceTrueForManagedNamespace()
+        {
+            using var manager = CreateManager();
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            Assert.That(manager.IsNodeIdInNamespacePublic(new NodeId("TestNode", nsIdx)), Is.True);
+        }
+
+        [Test]
+        public void IsNodeIdInNamespaceFalseForUnmanagedNamespace()
+        {
+            using var manager = CreateManager();
+            // Namespace 0 is the OPC UA built-in namespace, never managed by this node manager
+            Assert.That(manager.IsNodeIdInNamespacePublic(new NodeId("TestNode", 0)), Is.False);
+        }
+
+        [Test]
+        public void IsNodeIdInNamespaceFalseForNullNodeId()
+        {
+            using var manager = CreateManager();
+
+            Assert.That(manager.IsNodeIdInNamespacePublic(NodeId.Null), Is.False);
+        }
+
+        [Test]
+        public void IsNodeIdInNamespaceAfterSetNamespacesReflectsNewNamespaces()
+        {
+            using var manager = CreateManager();
+            ushort oldIdx = manager.NamespaceIndexes[0];
+            string newNs = "http://test.org/new/";
+
+            manager.SetNamespacesPublic(newNs);
+            ushort newIdx = manager.NamespaceIndexes[0];
+
+            Assert.That(manager.IsNodeIdInNamespacePublic(new NodeId("Old", oldIdx)), Is.False);
+            Assert.That(manager.IsNodeIdInNamespacePublic(new NodeId("New", newIdx)), Is.True);
+        }
+
+        [Test]
+        public void IsHandleInNamespaceReturnsHandleForManagedNamespace()
+        {
+            using var manager = CreateManager();
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var node = new BaseObjectState(null) { NodeId = new NodeId("H", nsIdx) };
+            var handle = new NodeHandle(node.NodeId, node);
+
+            NodeHandle result = manager.IsHandleInNamespacePublic(handle);
+
+            Assert.That(result, Is.SameAs(handle));
+        }
+
+        [Test]
+        public void IsHandleInNamespaceReturnsNullForUnmanagedNamespace()
+        {
+            using var manager = CreateManager();
+            var node = new BaseObjectState(null) { NodeId = new NodeId("H", 0) };
+            var handle = new NodeHandle(node.NodeId, node);
+
+            Assert.That(manager.IsHandleInNamespacePublic(handle), Is.Null);
+        }
+
+        [Test]
+        public void IsHandleInNamespaceReturnsNullForNonHandleObject()
+        {
+            using var manager = CreateManager();
+
+            Assert.That(manager.IsHandleInNamespacePublic("not-a-handle"), Is.Null);
+        }
+
+        [Test]
+        public void IsHandleInNamespaceReturnsNullForNullInput()
+        {
+            using var manager = CreateManager();
+
+            Assert.That(manager.IsHandleInNamespacePublic(null), Is.Null);
+        }
+
+        [Test]
+        public void SetNamespacesAffectsNewNodeIdGeneration()
+        {
+            using var manager = CreateManager();
+            string newNs = "http://test.org/newnodeid/";
+            manager.SetNamespacesPublic(newNs);
+            ushort newIdx = manager.NamespaceIndexes[0];
+
+            NodeId generated = manager.New(manager.SystemContext, new BaseObjectState(null));
+
+            Assert.That(generated.NamespaceIndex, Is.EqualTo(newIdx));
+        }
+
+        [Test]
+        public void AddNodeToComponentCacheNullHandleReturnsNodeUnchanged()
+        {
+            using var manager = CreateManager();
+            var node = new BaseObjectState(null) { NodeId = new NodeId("N", manager.NamespaceIndexes[0]) };
+
+            NodeState result = manager.AddNodeToComponentCachePublic(manager.SystemContext, null, node);
+
+            Assert.That(result, Is.SameAs(node));
+        }
+
+        [Test]
+        public void AddNodeToComponentCacheFirstAddCreatesEntry()
+        {
+            using var manager = CreateManager();
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var node = new BaseObjectState(null) { NodeId = new NodeId("CacheNode", nsIdx) };
+            var handle = new NodeHandle(node.NodeId, node);
+
+            NodeState result = manager.AddNodeToComponentCachePublic(manager.SystemContext, handle, node);
+
+            Assert.That(result, Is.SameAs(node));
+            // Lookup must now return the cached node
+            NodeState found = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle);
+            Assert.That(found, Is.SameAs(node));
+        }
+
+        [Test]
+        public void AddNodeToComponentCacheSecondAddIncrementsRefCountAndReturnsCachedNode()
+        {
+            using var manager = CreateManager();
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var node = new BaseObjectState(null) { NodeId = new NodeId("CacheNode2", nsIdx) };
+            var handle = new NodeHandle(node.NodeId, node);
+
+            manager.AddNodeToComponentCachePublic(manager.SystemContext, handle, node);
+            NodeState second = manager.AddNodeToComponentCachePublic(manager.SystemContext, handle, node);
+
+            Assert.That(second, Is.SameAs(node));
+
+            // One remove should keep the entry alive (RefCount 2 → 1)
+            manager.RemoveNodeFromComponentCachePublic(manager.SystemContext, handle);
+            NodeState afterOneRemove = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle);
+            Assert.That(afterOneRemove, Is.SameAs(node));
+
+            // Second remove takes RefCount to 0 → evicted
+            manager.RemoveNodeFromComponentCachePublic(manager.SystemContext, handle);
+            NodeState afterTwoRemoves = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle);
+            Assert.That(afterTwoRemoves, Is.Null);
+        }
+
+        [Test]
+        public void AddNodeToComponentCacheDistinctNodesStoredIndependently()
+        {
+            using var manager = CreateManager();
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var nodeA = new BaseObjectState(null) { NodeId = new NodeId("A", nsIdx) };
+            var nodeB = new BaseObjectState(null) { NodeId = new NodeId("B", nsIdx) };
+            var handleA = new NodeHandle(nodeA.NodeId, nodeA);
+            var handleB = new NodeHandle(nodeB.NodeId, nodeB);
+
+            manager.AddNodeToComponentCachePublic(manager.SystemContext, handleA, nodeA);
+            manager.AddNodeToComponentCachePublic(manager.SystemContext, handleB, nodeB);
+
+            Assert.That(manager.LookupNodeInComponentCachePublic(manager.SystemContext, handleA), Is.SameAs(nodeA));
+            Assert.That(manager.LookupNodeInComponentCachePublic(manager.SystemContext, handleB), Is.SameAs(nodeB));
+        }
+
+        [Test]
+        public void AddNodeToComponentCacheWithComponentPathStoresRootAtRootId()
+        {
+            using var manager = CreateManager();
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var (parent, child, handle) = CreateComponentPathFixture(nsIdx);
+
+            NodeState result = manager.AddNodeToComponentCachePublic(manager.SystemContext, handle, child);
+
+            // First add returns the child node itself
+            Assert.That(result, Is.SameAs(child));
+            // Lookup via the component path handle finds the child
+            NodeState found = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle);
+            Assert.That(found, Is.SameAs(child));
+        }
+
+        [Test]
+        public void AddNodeToComponentCacheWithComponentPathSecondAddIncrementsRefCount()
+        {
+            using var manager = CreateManager();
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var (parent, child, handle) = CreateComponentPathFixture(nsIdx);
+
+            manager.AddNodeToComponentCachePublic(manager.SystemContext, handle, child);
+            NodeState secondResult = manager.AddNodeToComponentCachePublic(manager.SystemContext, handle, child);
+
+            // Second add also returns child (found via FindChildBySymbolicName on root)
+            Assert.That(secondResult, Is.SameAs(child));
+
+            // One remove: RefCount 2 → 1, entry survives
+            manager.RemoveNodeFromComponentCachePublic(manager.SystemContext, handle);
+            Assert.That(
+                manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle),
+                Is.SameAs(child));
+
+            // Second remove: RefCount 1 → 0, entry evicted
+            manager.RemoveNodeFromComponentCachePublic(manager.SystemContext, handle);
+            Assert.That(
+                manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle),
+                Is.Null);
+        }
+
+        [Test]
+        public void LookupNodeInComponentCacheBeforeAnyAddReturnsNull()
+        {
+            using var manager = CreateManager();
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var node = new BaseObjectState(null) { NodeId = new NodeId("NotCached", nsIdx) };
+            var handle = new NodeHandle(node.NodeId, node);
+
+            NodeState result = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle);
+
+            Assert.That(result, Is.Null);
+        }
+
+        [Test]
+        public void LookupNodeInComponentCacheUnknownNodeIdReturnsNull()
+        {
+            using var manager = CreateManager();
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var knownNode = new BaseObjectState(null) { NodeId = new NodeId("Known", nsIdx) };
+            var knownHandle = new NodeHandle(knownNode.NodeId, knownNode);
+            manager.AddNodeToComponentCachePublic(manager.SystemContext, knownHandle, knownNode);
+
+            var unknownHandle = new NodeHandle(new NodeId("Unknown", nsIdx), null);
+            NodeState result = manager.LookupNodeInComponentCachePublic(manager.SystemContext, unknownHandle);
+
+            Assert.That(result, Is.Null);
+        }
+
+        [Test]
+        public void LookupNodeInComponentCacheWithComponentPathUnknownRootIdReturnsNull()
+        {
+            using var manager = CreateManager();
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            // Nothing added — lookup with a component path handle must return null
+            var handle = new NodeHandle
+            {
+                NodeId = new NodeId("Child", nsIdx),
+                RootId = new NodeId("UnknownRoot", nsIdx),
+                ComponentPath = "SomePath",
+                Validated = true
+            };
+
+            NodeState result = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle);
+
+            Assert.That(result, Is.Null);
+        }
+
+        [Test]
+        public void RemoveNodeFromComponentCacheNullHandleIsNoop()
+        {
+            using var manager = CreateManager();
+
+            // Must not throw
+            Assert.DoesNotThrow(() =>
+                manager.RemoveNodeFromComponentCachePublic(manager.SystemContext, null));
+        }
+
+        [Test]
+        public void RemoveNodeFromComponentCacheUnknownHandleIsNoop()
+        {
+            using var manager = CreateManager();
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var handle = new NodeHandle(new NodeId("NeverAdded", nsIdx), null);
+
+            // Must not throw even when the cache has never seen this node
+            Assert.DoesNotThrow(() =>
+                manager.RemoveNodeFromComponentCachePublic(manager.SystemContext, handle));
+        }
+
+        [Test]
+        public void RemoveNodeFromComponentCacheSingleAddThenRemoveEvictsEntry()
+        {
+            using var manager = CreateManager();
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var node = new BaseObjectState(null) { NodeId = new NodeId("Evict", nsIdx) };
+            var handle = new NodeHandle(node.NodeId, node);
+
+            manager.AddNodeToComponentCachePublic(manager.SystemContext, handle, node);
+            Assert.That(manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle), Is.Not.Null);
+
+            manager.RemoveNodeFromComponentCachePublic(manager.SystemContext, handle);
+
+            Assert.That(manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle), Is.Null);
+        }
+
+        [Test]
+        public void RemoveNodeFromComponentCacheTwoAddsThenOneRemoveEntryRemains()
+        {
+            using var manager = CreateManager();
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var node = new BaseObjectState(null) { NodeId = new NodeId("Shared", nsIdx) };
+            var handle = new NodeHandle(node.NodeId, node);
+
+            manager.AddNodeToComponentCachePublic(manager.SystemContext, handle, node);
+            manager.AddNodeToComponentCachePublic(manager.SystemContext, handle, node);
+
+            manager.RemoveNodeFromComponentCachePublic(manager.SystemContext, handle);
+
+            // RefCount 2 → 1: entry must still be there
+            Assert.That(manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle), Is.SameAs(node));
+        }
+
+        [Test]
+        public void RemoveNodeFromComponentCacheWithComponentPathUsesRootIdAsKey()
+        {
+            using var manager = CreateManager();
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var (parent, child, handle) = CreateComponentPathFixture(nsIdx);
+
+            manager.AddNodeToComponentCachePublic(manager.SystemContext, handle, child);
+            Assert.That(manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle), Is.SameAs(child));
+
+            manager.RemoveNodeFromComponentCachePublic(manager.SystemContext, handle);
+
+            // Entry was keyed on RootId: after remove, lookup returns null
+            Assert.That(manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle), Is.Null);
+
+            // A simple handle for the parent NodeId must also return null (same underlying key)
+            var parentHandle = new NodeHandle(parent.NodeId, parent);
+            Assert.That(manager.LookupNodeInComponentCachePublic(manager.SystemContext, parentHandle), Is.Null);
+        }
+
+        /// <summary>
+        /// Creates a parent/child pair wired up for component-path cache tests.
+        /// The child has SymbolicName "ChildValue" and its Parent is set to the parent node.
+        /// The returned handle has ComponentPath = "ChildValue" and RootId = parent.NodeId.
+        /// </summary>
+        private static (BaseObjectState parent, BaseDataVariableState child, NodeHandle handle)
+            CreateComponentPathFixture(ushort nsIdx)
+        {
+            var parent = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("ComponentParent", nsIdx),
+                BrowseName = new QualifiedName("ComponentParent", nsIdx)
+            };
+
+            var child = new BaseDataVariableState(parent)
+            {
+                NodeId = new NodeId("ComponentChild", nsIdx),
+                BrowseName = new QualifiedName("ComponentChild", nsIdx),
+                SymbolicName = "ChildValue",
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.Scalar
+            };
+
+            parent.AddChild(child);
+
+            var handle = new NodeHandle
+            {
+                NodeId = child.NodeId,
+                RootId = parent.NodeId,
+                ComponentPath = "ChildValue",
+                Validated = true,
+                Node = child
+            };
+
+            return (parent, child, handle);
+        }
+
         private TestableAsyncCustomNodeManager CreateManager()
         {
             var manager = new TestableAsyncCustomNodeManager(
@@ -1939,6 +2433,30 @@ namespace Opc.Ua.Server.Tests
             IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken = default)
             => AddReverseReferencesAsync(externalReferences, cancellationToken);
+
+        public void SetNamespacesPublic(params string[] namespaceUris)
+            => SetNamespaces(namespaceUris);
+
+        public void SetNamespaceIndexesPublic(ushort[] namespaceIndexes)
+            => SetNamespaceIndexes(namespaceIndexes);
+
+        public void SetNamespaceUrisPublic(IEnumerable<string> uris)
+            => NamespaceUris = uris;
+
+        public bool IsNodeIdInNamespacePublic(NodeId nodeId)
+            => IsNodeIdInNamespace(nodeId);
+
+        public NodeHandle IsHandleInNamespacePublic(object managerHandle)
+            => IsHandleInNamespace(managerHandle);
+
+        public NodeState LookupNodeInComponentCachePublic(ISystemContext context, NodeHandle handle)
+            => LookupNodeInComponentCache(context, handle);
+
+        public void RemoveNodeFromComponentCachePublic(ISystemContext context, NodeHandle handle)
+            => RemoveNodeFromComponentCache(context, handle);
+
+        public NodeState AddNodeToComponentCachePublic(ISystemContext context, NodeHandle handle, NodeState node)
+            => AddNodeToComponentCache(context, handle, node);
 
         protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
             ISystemContext context,
