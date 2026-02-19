@@ -607,7 +607,7 @@ namespace Opc.Ua.Client.Tests
                                 Assert.False(isEncodingOf);
                                 bool isEncodingFor = await Session.NodeCache.IsEncodingForAsync(
                                     DataTypeIds.Structure,
-                                    new TestData.ScalarStructureDataType()).ConfigureAwait(false);
+                                    Variant.FromStructure(new TestData.ScalarStructureDataType())).ConfigureAwait(false);
                                 Assert.True(isEncodingFor);
                                 bool isEncodingFor2 = await Session.NodeCache.IsEncodingForAsync(
                                     new NodeId((int)BuiltInType.UInt32),

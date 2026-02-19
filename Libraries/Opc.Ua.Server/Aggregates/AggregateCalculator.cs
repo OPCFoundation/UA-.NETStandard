@@ -987,10 +987,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected static double CastToDouble(DataValue value)
         {
-            return (double)TypeInfo.Cast(
-                value.Value,
-                value.WrappedValue.TypeInfo,
-                BuiltInType.Double);
+            return value.WrappedValue.ConvertToDouble().GetDouble();
         }
 
         /// <summary>
@@ -998,11 +995,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected static Variant CastToOriginalType(double value, DataValue original)
         {
-            object castValue = TypeInfo.Cast(
-                value,
-                TypeInfo.Scalars.Double,
-                original.WrappedValue.TypeInfo.BuiltInType);
-            return new Variant(castValue, original.WrappedValue.TypeInfo);
+            return new Variant(value).ConvertTo(original.WrappedValue.TypeInfo.BuiltInType);
         }
 
         /// <summary>

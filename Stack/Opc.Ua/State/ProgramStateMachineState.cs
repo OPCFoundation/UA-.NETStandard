@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
-
 namespace Opc.Ua
 {
     public partial class ProgramStateMachineState
@@ -225,12 +223,12 @@ namespace Opc.Ua
         protected override void UpdateAuditEvent(
             ISystemContext context,
             MethodState causeMethod,
-            IList<object> inputArguments,
+            VariantCollection inputArguments,
             uint causeId,
             AuditUpdateStateEventState e,
             ServiceResult result)
         {
-            base.UpdateAuditEvent(context, causeMethod, inputArguments, causeId, e, result);
+            base.UpdateAuditEvent(context, causeMethod, inputArguments.ToArray(), causeId, e, result);
 
             // update program specific event fields.
             if (ServiceResult.IsGood(result) && e is ProgramTransitionAuditEventState e2)
@@ -285,8 +283,8 @@ namespace Opc.Ua
         protected virtual ServiceResult OnStart(
             ISystemContext context,
             MethodState method,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             return DoCause(
                 context,
@@ -326,8 +324,8 @@ namespace Opc.Ua
         protected virtual ServiceResult OnSuspend(
             ISystemContext context,
             MethodState method,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             return DoCause(
                 context,
@@ -367,8 +365,8 @@ namespace Opc.Ua
         protected virtual ServiceResult OnResume(
             ISystemContext context,
             MethodState method,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             return DoCause(
                 context,
@@ -408,8 +406,8 @@ namespace Opc.Ua
         protected virtual ServiceResult OnHalt(
             ISystemContext context,
             MethodState method,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             return DoCause(
                 context,
@@ -449,8 +447,8 @@ namespace Opc.Ua
         protected virtual ServiceResult OnReset(
             ISystemContext context,
             MethodState method,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             return DoCause(
                 context,

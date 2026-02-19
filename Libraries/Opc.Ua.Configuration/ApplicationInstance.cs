@@ -444,7 +444,7 @@ namespace Opc.Ua.Configuration
             {
                 if (!DisableCertificateAutoCreation)
                 {
-                certificate = await CreateApplicationInstanceCertificateAsync(
+                    certificate = await CreateApplicationInstanceCertificateAsync(
                         configuration,
                         id,
                         minimumKeySize,

@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
@@ -74,8 +73,8 @@ namespace Boiler
             StateMachineState machine,
             uint transitionId,
             uint causeId,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             switch (causeId)
             {

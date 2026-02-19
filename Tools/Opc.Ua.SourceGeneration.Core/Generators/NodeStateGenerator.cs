@@ -628,36 +628,30 @@ namespace Opc.Ua.SourceGeneration
                 m_context.ModelDesign.Namespaces,
                 false);
 
-            if (field.DataTypeNode.BasicDataType != BasicDataType.UserDefined)
+            switch (field.DataTypeNode.BasicDataType)
             {
-                context.Out.WriteLine(
-                    "{1} {0} = ({1})_inputArguments[{2}];",
-                    fieldName,
-                    typeName,
-                    context.Index);
-                return null;
+                case BasicDataType.UserDefined:
+                    context.Out.WriteLine(
+                        "_inputArguments[{2}].TryGetStructure(out {1} {0});",
+                        fieldName,
+                        typeName,
+                        context.Index);
+                    break;
+                case BasicDataType.BaseDataType when field.ValueRank == ValueRank.Scalar:
+                    context.Out.WriteLine(
+                        "{1} {0} = _inputArguments[{2}];",
+                        fieldName,
+                        typeName,
+                        context.Index);
+                    break;
+                default:
+                    context.Out.WriteLine(
+                        "_inputArguments[{2}].TryGet(out {1} {0});",
+                        fieldName,
+                        typeName,
+                        context.Index);
+                    break;
             }
-
-            if (field.ValueRank != ValueRank.Scalar)
-            {
-                context.Out.WriteLine(
-                    "{1} {0} = ({1})global::Opc.Ua.ExtensionObject.ToArray(_inputArguments[{2}], typeof({3}));",
-                    fieldName,
-                    typeName,
-                    context.Index,
-                    field.DataTypeNode.GetMethodArgumentTypeAsCode(
-                        ValueRank.Scalar,
-                        m_context.ModelDesign.TargetNamespace.Value,
-                        m_context.ModelDesign.Namespaces,
-                        false));
-                return null;
-            }
-
-            context.Out.WriteLine(
-                "{1} {0} = ({1})global::Opc.Ua.ExtensionObject.ToEncodeable((global::Opc.Ua.ExtensionObject)_inputArguments[{2}]);",
-                fieldName,
-                typeName,
-                context.Index);
             return null;
         }
 
@@ -668,16 +662,37 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
-            context.Out.WriteLine(
-                "{1} {0} = ({1})_outputArguments[{2}];",
-                field.GetChildFieldName()[2..],
-                field.DataTypeNode.GetMethodArgumentTypeAsCode(
-                    field.ValueRank,
-                    m_context.ModelDesign.TargetNamespace.Value,
-                    m_context.ModelDesign.Namespaces,
-                    field.IsOptional),
-                context.Index);
+            string fieldName = field.GetChildFieldName()[2..];
+            string typeName = field.DataTypeNode.GetMethodArgumentTypeAsCode(
+                field.ValueRank,
+                m_context.ModelDesign.TargetNamespace.Value,
+                m_context.ModelDesign.Namespaces,
+                field.IsOptional);
 
+            switch (field.DataTypeNode.BasicDataType)
+            {
+                case BasicDataType.UserDefined:
+                    context.Out.WriteLine(
+                        "_outputArguments[{2}].TryGetStructure(out {1} {0});",
+                        fieldName,
+                        typeName,
+                        context.Index);
+                    break;
+                case BasicDataType.BaseDataType when field.ValueRank == ValueRank.Scalar:
+                    context.Out.WriteLine(
+                        "{1} {0} = _outputArguments[{2}];",
+                        fieldName,
+                        typeName,
+                        context.Index);
+                    break;
+                default:
+                    context.Out.WriteLine(
+                        "_outputArguments[{2}].TryGet(out {1} {0});",
+                        fieldName,
+                        typeName,
+                        context.Index);
+                    break;
+            }
             return null;
         }
 
@@ -688,11 +703,28 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
-            context.Out.WriteLine(
-                "_outputArguments[{1}] = {0};",
-                field.GetChildFieldName()[2..],
-                context.Index);
-
+            string fieldName = field.GetChildFieldName()[2..];
+            switch (field.DataTypeNode.BasicDataType)
+            {
+                case BasicDataType.UserDefined:
+                    context.Out.WriteLine(
+                        "_outputArguments[{1}] = global::Opc.Ua.Variant.FromStructure({0});",
+                        fieldName,
+                        context.Index);
+                    break;
+                case BasicDataType.BaseDataType:
+                    context.Out.WriteLine(
+                        "_outputArguments[{1}] = {0};",
+                        fieldName,
+                        context.Index);
+                    break;
+                default:
+                    context.Out.WriteLine(
+                        "_outputArguments[{1}] = global::Opc.Ua.Variant.From({0});",
+                        fieldName,
+                        context.Index);
+                    break;
+            }
             return null;
         }
 
@@ -786,14 +818,28 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
-            string fieldName = field.GetChildFieldName();
-
-            context.Out.WriteLine(
-                "_outputArguments[{1}] = _result.{2}{0};",
-                fieldName[3..],
-                context.Index,
-                fieldName.Substring(2, 1).ToUpperInvariant());
-
+            string fieldName = field.GetChildFieldName()[2..].ToUpperCamelCase();
+            switch (field.DataTypeNode.BasicDataType)
+            {
+                case BasicDataType.UserDefined:
+                    context.Out.WriteLine(
+                        "_outputArguments[{1}] = global::Opc.Ua.Variant.FromStructure(_result.{0});",
+                        fieldName,
+                        context.Index);
+                    break;
+                case BasicDataType.BaseDataType when field.ValueRank == ValueRank.Scalar:
+                    context.Out.WriteLine(
+                        "_outputArguments[{1}] = _result.{0};",
+                        fieldName,
+                        context.Index);
+                    break;
+                default:
+                    context.Out.WriteLine(
+                        "_outputArguments[{1}] = global::Opc.Ua.Variant.From(_result.{0});",
+                        fieldName,
+                        context.Index);
+                    break;
+            }
             return null;
         }
 
@@ -804,17 +850,15 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
-            string fieldName = field.GetChildFieldName();
-
+            string fieldName = field.GetChildFieldName()[2..].ToUpperCamelCase();
             context.Out.WriteLine(
-               "public {1} {2}{0} {{ get; set; }}",
-               fieldName[3..],
+               "public {1} {0} {{ get; set; }}",
+               fieldName,
                field.DataTypeNode.GetMethodArgumentTypeAsCode(
                    field.ValueRank,
                    m_context.ModelDesign.TargetNamespace.Value,
                    m_context.ModelDesign.Namespaces,
-                   field.IsOptional),
-               fieldName.Substring(2, 1).ToUpperInvariant());
+                   field.IsOptional));
 
             return null;
         }
@@ -1471,39 +1515,50 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
-            if (node.Parent != null &&
-                IsInAddressSpace(node.Parent) &&
-                node.Parent.Design is InstanceDesign parentInstance &&
-                (HasChildDefined(parentInstance.TypeDefinitionNode, instance.SymbolicName.Name) ||
-                    IsBuiltInProperty(node)))
+            string forInstanceVariableValue = node.Parent?.InstanceOf != null ? "true" : "forInstance";
+            if (node.Parent != null && IsInAddressSpace(node.Parent))
             {
-                switch (instance.ModellingRule)
+                switch (node.Parent.Design)
                 {
-                    case ModellingRule.Mandatory:
-                    case ModellingRule.Optional:
+                    case TypeDesign parentType:
                         context.Out.WriteLine(
-                            "state.CreateOrReplace{0}(context, Create{1}(context, state));",
-                            instance.SymbolicName.Name,
-                            instance.SymbolicId.Name);
-                        return null;
-                    case ModellingRule.OptionalPlaceholder:
-                    case ModellingRule.MandatoryPlaceholder:
-                        // TODO
+                            "state.AddChild(Create{0}(context, state, forInstance: {1}));",
+                            instance.SymbolicId.Name,
+                            forInstanceVariableValue);
                         break;
-                    case ModellingRule.ExposesItsArray:
-                    case ModellingRule.None:
-                    case ModellingRule.CardinalityRestriction:
-                    case ModellingRule.MandatoryShared:
+                    case InstanceDesign parentInstance:
+                        if (HasChildDefined(parentInstance.TypeDefinitionNode, instance.SymbolicName.Name) ||
+                            IsBuiltInProperty(node))
+                        {
+                            switch (instance.ModellingRule)
+                            {
+                                case ModellingRule.Mandatory:
+                                case ModellingRule.Optional:
+                                    context.Out.WriteLine(
+                                        "state.CreateOrReplace{0}(context, Create{1}(context, state, forInstance: {2}));",
+                                        instance.SymbolicName.Name,
+                                        instance.SymbolicId.Name,
+                                        forInstanceVariableValue);
+                                    return null;
+                                case ModellingRule.OptionalPlaceholder:
+                                case ModellingRule.MandatoryPlaceholder:
+                                    // TODO
+                                    break;
+                                case ModellingRule.ExposesItsArray:
+                                case ModellingRule.None:
+                                case ModellingRule.CardinalityRestriction:
+                                case ModellingRule.MandatoryShared:
+                                    break;
+                            }
+                        }
                         break;
                 }
             }
 
-            // context.Out.WriteLine(
-            //     "state.ReplaceChild(context, Create{0}(context, state));",
-            //     instance.SymbolicId.Name);
             context.Out.WriteLine(
-                "state.AddChild(Create{0}(context, state));",
-                instance.SymbolicId.Name);
+                "state.AddChild(Create{0}(context, state, forInstance: {1}));",
+                instance.SymbolicId.Name,
+                forInstanceVariableValue);
             return null;
         }
 
@@ -1553,7 +1608,7 @@ namespace Opc.Ua.SourceGeneration
         private bool WriteTemplate_Argument(IWriteContext context)
         {
             Argument argument = null;
-            Parameter parameter = null;
+            Parameter parameter;
             switch (context.Target)
             {
                 case Argument arg:
@@ -1608,7 +1663,7 @@ namespace Opc.Ua.SourceGeneration
                 return false;
             }
 
-           if (!m_context.ModelDesign.TryFindNode(
+            if (!m_context.ModelDesign.TryFindNode(
                 rolePermission.Role,
                 rolePermission.Role.Name,
                 "RoleType",
@@ -1656,9 +1711,7 @@ namespace Opc.Ua.SourceGeneration
                     parameter = "<global::Opc.Ua.Variant>";
                 }
 
-                context.Template.AddReplacement(
-                    Tokens.BaseT,
-                    GetTemplateParameter(variableType));
+                context.Template.AddReplacement(Tokens.BaseT, parameter);
             }
 
             string valueRank = variableType.ValueRank.GetValueRankAsCode(
@@ -1678,12 +1731,13 @@ namespace Opc.Ua.SourceGeneration
                 }
             }
 
-            context.Template.AddReplacement(Tokens.DefaultValue,
+            context.Template.AddReplacement(
+                Tokens.DefaultValue,
                 variableType.DataTypeNode.GetValueAsCode(
                     variableType.ValueRank,
                     variableType.DefaultValue,
                     variableType.DecodedValue,
-                    false,
+                    true,
                     m_context.ModelDesign.TargetNamespace.Value,
                     m_context.ModelDesign.Namespaces,
                     m_messageContext,
@@ -1731,7 +1785,6 @@ namespace Opc.Ua.SourceGeneration
                 [variableType],
                 LoadTemplate_VariableTypeValue,
                 WriteTemplate_VariableTypeValue);
-            return;
         }
 
         private void AddNodeStateClassObjectTypeReplacements(
@@ -1837,8 +1890,9 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.StateClassName,
                 "global::Opc.Ua.BaseDataVariableTypeState");
+
             context.Template.AddReplacement(Tokens.ValueCode, CoreUtils.Format(
-                "state.Value = {0};",
+                "state.WrappedValue = {0};",
                 node.DataTypeNode.GetValueAsCode(
                     node.ValueRank,
                     node.DefaultValue,
@@ -1930,18 +1984,18 @@ namespace Opc.Ua.SourceGeneration
                     case "XmlSchema_TypeSystem":
                         context.Template.AddReplacement(
                             Tokens.ValueCode,
-                            "state.Value = XmlSchemas.TypesXsd.ToArray();");
+                            "state.WrappedValue = global::Opc.Ua.Variant.From(XmlSchemas.TypesXsd.ToArray());");
                         return;
                     case "OPCBinarySchema_TypeSystem":
                         context.Template.AddReplacement(
                             Tokens.ValueCode,
-                            "state.Value = XmlSchemas.TypesBsd.ToArray();");
+                            "state.WrappedValue = global::Opc.Ua.Variant.From(XmlSchemas.TypesBsd.ToArray());");
                         return;
                 }
                 // unknown type system
-                // context.Template.AddReplacement(
-                //     Tokens.ValueCode,
-                //     "state.Value = global::System.Array.Empty<byte>();");
+                context.Template.AddReplacement(
+                    Tokens.ValueCode,
+                    "state.WrappedValue = global::Opc.Ua.Variant.Null;");
                 return;
             }
 
@@ -1949,14 +2003,14 @@ namespace Opc.Ua.SourceGeneration
             {
                 context.Template.AddReplacement(
                     Tokens.ValueCode,
-                    NodeStateTemplates.ArrayValue,
+                    NodeStateTemplates.VariantArrayValue,
                     [args],
                     WriteTemplate_ArgumentCollection);
             }
             else
             {
                 context.Template.AddReplacement(Tokens.ValueCode, CoreUtils.Format(
-                    "state.Value = {0};",
+                    "state.WrappedValue = {0};",
                     node.DataTypeNode.GetValueAsCode(
                         node.ValueRank,
                         node.DefaultValue,
@@ -2288,25 +2342,6 @@ namespace Opc.Ua.SourceGeneration
                 }
             }
             return HasChildDefined(typeDefinitionNode.BaseTypeNode, symbolicName);
-        }
-
-        private bool HasChildDefined(InstanceDesign parent, string symbolicName)
-        {
-            if (parent == null)
-            {
-                return false;
-            }
-            if (parent.Children?.Items != null)
-            {
-                foreach (InstanceDesign child in parent.Children.Items)
-                {
-                    if (child.SymbolicName.Name == symbolicName)
-                    {
-                        return true;
-                    }
-                }
-            }
-            return HasChildDefined(parent.TypeDefinitionNode, symbolicName);
         }
 
         private void GetChildren(
@@ -2838,10 +2873,8 @@ namespace Opc.Ua.SourceGeneration
                 if (m_initializers.TryAdd(uniqueName, new TextResource(uniqueName, xml)))
                 {
                     // Get code to create the variant from the XML resource reference
-                    return dataType.GetVariantFromXmlCode(
-                        valueRank,
-                        m_context.ModelDesign.TargetNamespace.Value,
-                        m_context.ModelDesign.Namespaces,
+                    return CoreUtils.Format(
+                        "global::Opc.Ua.Variant.FromXml({0}AsStream, context)",
                         uniqueName);
                 }
                 uniqueName = resourceName + i;

@@ -791,7 +791,6 @@ namespace Opc.Ua
             return null;
         }
 
-
         /// <summary>
         /// Get the certificate issuer by its key identifier.
         /// </summary>

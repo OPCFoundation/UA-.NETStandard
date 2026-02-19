@@ -80,13 +80,14 @@ namespace Opc.Ua
         /// <summary>
         /// Create extension object from encodeable object
         /// </summary>
-        /// <param name="body"></param>
-        public ExtensionObject(IEncodeable body)
+        /// <param name="body">Encodeable body</param>
+        /// <param name="copy">Clone the encodeable</param>
+        public ExtensionObject(IEncodeable body, bool copy = false)
         {
             if (body != null)
             {
                 TypeId = body.TypeId;
-                Body = body;
+                Body = copy ? body.Clone() : body;
             }
         }
 

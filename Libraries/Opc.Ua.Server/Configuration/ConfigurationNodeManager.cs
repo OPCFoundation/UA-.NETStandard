@@ -434,7 +434,7 @@ namespace Opc.Ua.Server
             bool applyChangesRequired = false;
             HasApplicationSecureAdminAccess(context);
 
-            object[] inputArguments =
+            VariantCollection inputArguments =
             [
                 certificateGroupId,
                 certificateTypeId,
@@ -967,8 +967,8 @@ namespace Opc.Ua.Server
             ISystemContext context,
             MethodState method,
             NodeId objectId,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             HasApplicationSecureAdminAccess(context);
 

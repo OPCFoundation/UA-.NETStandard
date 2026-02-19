@@ -30,7 +30,6 @@
   <Import Project="..\..\Tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
   <PropertyGroup>
     <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
-    <ModelSourceGeneratorEmbedNodeSet2Xml>true</ModelSourceGeneratorEmbedNodeSet2Xml>
   </PropertyGroup>
   <ItemGroup>
     <None Remove="Boiler\Generated\Boiler.NodeIds.csv" />

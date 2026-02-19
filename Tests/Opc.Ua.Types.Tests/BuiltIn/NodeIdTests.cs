@@ -58,7 +58,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             byte[] id2 = [65, 66, 67, 68, 69];
             var nodeId2 = new NodeId(id2);
             // implicit conversion;
-            NodeId inodeId2 = (NodeId)id2;
+            var inodeId2 = (NodeId)id2;
             Assert.AreEqual(nodeId2, inodeId2);
 
             Assert.False(nodeId2 < inodeId2);
@@ -69,7 +69,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var nodeIdText = NodeId.Parse(text);
             Assert.True(nodeIdText.TryGetIdentifier(out uint t1));
             Assert.AreEqual(123, t1);
-            NodeId inodeIdText = NodeId.Parse(text);
+            var inodeIdText = NodeId.Parse(text);
             Assert.AreEqual(nodeIdText, inodeIdText);
 
             Assert.False(nodeIdText < inodeIdText);
@@ -110,8 +110,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 _ = NodeId.Create(123, "urn:xyz", new NamespaceTable()));
             Assert.AreEqual(StatusCodes.BadNodeIdInvalid, sre.StatusCode);
 
-            NodeId opaqueId = (NodeId)"!,7B"u8.ToArray();
-            NodeId stringId1 = NodeId.Parse("ns=1;s=Test");
+            var opaqueId = (NodeId)"!,7B"u8.ToArray();
+            var stringId1 = NodeId.Parse("ns=1;s=Test");
             var stringId2 = NodeId.Parse("ns=1;s=Test");
             Assert.AreEqual(stringId1, stringId2);
             NUnit.Framework.Assert.Throws<ArgumentException>(() => NodeId.Parse("Test"));

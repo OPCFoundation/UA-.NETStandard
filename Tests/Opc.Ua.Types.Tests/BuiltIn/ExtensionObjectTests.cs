@@ -47,7 +47,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         /// Validate ExtensionObject special cases and constructors.
         /// </summary>
         [Test]
-        public void ExtensionObject()
+        public void TestExtensionObject()
         {
             // Validate the default constructor
             var extensionObject_Default = new ExtensionObject();
@@ -103,7 +103,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.NotNull(collection);
             collection = CoreUtils.Clone(collection);
             // default value is null
-            Assert.Null(TypeInfo.GetDefaultValue(BuiltInType.ExtensionObject));
+            Assert.That(TypeInfo.GetDefaultValue(BuiltInType.ExtensionObject), Is.EqualTo(ExtensionObject.Null));
         }
     }
 }

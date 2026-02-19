@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -41,7 +40,7 @@ namespace Opc.Ua
     /// <summary>
     /// The base class for custom nodes.
     /// </summary>
-    public abstract partial class NodeState : IDisposable, IFormattable, ICloneable
+    public abstract class NodeState : IDisposable, IFormattable, ICloneable
     {
         /// <summary>
         /// Creates an empty object.
@@ -182,7 +181,7 @@ namespace Opc.Ua
             {
                 if (m_references != null)
                 {
-                    target.AddReferences(m_references.Keys.ToList());
+                    target.AddReferences([.. m_references.Keys]);
                 }
             }
 
@@ -2905,7 +2904,7 @@ namespace Opc.Ua
                 UpdateReferenceTargets(context, children, mappingTable);
             }
 
-            CallOnAfterCreate(context, null);
+            CallOnAfterCreate(context, children);
 
             ClearChangeMasks(context, true);
         }
@@ -3507,7 +3506,7 @@ namespace Opc.Ua
                     "DataValue missing");
             }
 
-            object valueToRead = value.Value;
+            Variant valueToRead = value.WrappedValue;
 
             ServiceResult result;
             // read value attribute.
@@ -3588,7 +3587,7 @@ namespace Opc.Ua
         protected virtual ServiceResult ReadNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            ref object value)
+            ref Variant value)
         {
             ServiceResult result = null;
 
@@ -3622,7 +3621,7 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        value = nodeClass;
+                        value = Variant.From(nodeClass);
                     }
 
                     return result;
@@ -3657,7 +3656,7 @@ namespace Opc.Ua
                         value = displayName;
                     }
 
-                    if (value != null || result != null)
+                    if (!value.IsNull || result != null)
                     {
                         return result;
                     }
@@ -3678,7 +3677,7 @@ namespace Opc.Ua
                         value = description;
                     }
 
-                    if (value != null || result != null)
+                    if (!value.IsNull || result != null)
                     {
                         return result;
                     }
@@ -3730,10 +3729,10 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        value = rolePermissions;
+                        value = Variant.FromStructure(rolePermissions);
                     }
 
-                    if (value != null || result != null)
+                    if (!value.IsNull || result != null)
                     {
                         return result;
                     }
@@ -3752,10 +3751,10 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        value = userRolePermissions;
+                        value = Variant.FromStructure(userRolePermissions);
                     }
 
-                    if (value != null || result != null)
+                    if (!value.IsNull || result != null)
                     {
                         return result;
                     }
@@ -3777,7 +3776,7 @@ namespace Opc.Ua
                         value = (ushort)accessRestrictions;
                     }
 
-                    if (value != null || result != null)
+                    if (!value.IsNull || result != null)
                     {
                         return result;
                     }
@@ -3804,10 +3803,10 @@ namespace Opc.Ua
             ISystemContext context,
             NumericRange indexRange,
             QualifiedName dataEncoding,
-            ref object value,
+            ref Variant value,
             ref DateTime sourceTimestamp)
         {
-            value = null;
+            value = Variant.Null;
             sourceTimestamp = DateTime.MinValue;
             return StatusCodes.BadAttributeIdInvalid;
         }
@@ -3837,7 +3836,7 @@ namespace Opc.Ua
                     "DataValue missing");
             }
 
-            object valueToWrite = value.Value;
+            Variant valueToWrite = value.WrappedValue;
 
             if (attributeId == Attributes.Value)
             {
@@ -3889,7 +3888,7 @@ namespace Opc.Ua
             // call implementation.
             try
             {
-                return WriteNonValueAttribute(context, attributeId, value.Value);
+                return WriteNonValueAttribute(context, attributeId, valueToWrite);
             }
             catch (Exception e)
             {
@@ -3912,14 +3911,14 @@ namespace Opc.Ua
         protected virtual ServiceResult WriteNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            object value)
+            Variant value)
         {
             ServiceResult result = null;
 
             switch (attributeId)
             {
                 case Attributes.NodeId:
-                    if (value is not NodeId nodeId)
+                    if (!value.TryGet(out NodeId nodeId))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -3943,9 +3942,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.NodeClass:
-                    int? nodeClassRef = value as int?;
-
-                    if (nodeClassRef == null)
+                    if (!value.TryGet(out NodeClass nodeClass))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -3954,8 +3951,6 @@ namespace Opc.Ua
                     {
                         return StatusCodes.BadNotWritable;
                     }
-
-                    var nodeClass = (NodeClass)nodeClassRef.Value;
 
                     NodeAttributeEventHandler<NodeClass> onWriteNodeClass = OnWriteNodeClass;
 
@@ -3971,7 +3966,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.BrowseName:
-                    if (value is not QualifiedName browseName)
+                    if (!value.TryGet(out QualifiedName browseName))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -3995,7 +3990,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.DisplayName:
-                    if (value is not LocalizedText displayName)
+                    if (!value.TryGet(out LocalizedText displayName))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -4020,9 +4015,9 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.Description:
-                    if (value is not LocalizedText description)
+                    if (!value.TryGet(out LocalizedText description))
                     {
-                        if (value != null)
+                        if (!value.IsNull)
                         {
                             return StatusCodes.BadTypeMismatch;
                         }
@@ -4049,9 +4044,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.WriteMask:
-                    uint? writeMaskRef = value as uint?;
-
-                    if (writeMaskRef == null)
+                    if (!value.TryGet(out uint writeMask32))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -4061,7 +4054,7 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    var writeMask = (AttributeWriteMask)writeMaskRef.Value;
+                    var writeMask = (AttributeWriteMask)writeMask32;
 
                     NodeAttributeEventHandler<AttributeWriteMask> onWriteWriteMask
                         = OnWriteWriteMask;
@@ -4078,9 +4071,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.UserWriteMask:
-                    uint? userWriteMaskRef = value as uint?;
-
-                    if (userWriteMaskRef == null)
+                    if (!value.TryGet(out uint userWriteMask32))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -4090,8 +4081,7 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    var userWriteMask = (AttributeWriteMask)userWriteMaskRef.Value;
-
+                    var userWriteMask = (AttributeWriteMask)userWriteMask32;
                     NodeAttributeEventHandler<AttributeWriteMask> onWriteUserWriteMask
                         = OnWriteUserWriteMask;
 
@@ -4107,7 +4097,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.RolePermissions:
-                    if (value is not ExtensionObject[] rolePermissionsArray)
+                    if (!value.TryGet(out ExtensionObject[] rolePermissionsArray))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -4144,28 +4134,24 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.AccessRestrictions:
-                    ushort? accessRestrictionsRef = value as ushort?;
-
-                    if (accessRestrictionsRef == null && value != null)
+                    AccessRestrictionType? accessRestrictions = null;
+                    if (value.TryGet(out ushort accessRestrictions16))
                     {
-                        if (value.GetType() == typeof(uint))
-                        {
-                            accessRestrictionsRef = Convert.ToUInt16(
-                                value,
-                                CultureInfo.InvariantCulture);
-                        }
-                        else
-                        {
-                            return StatusCodes.BadTypeMismatch;
-                        }
+                        accessRestrictions = (AccessRestrictionType)accessRestrictions16;
+                    }
+                    else if (value.TryGet(out uint accessRestrictions32))
+                    {
+                        accessRestrictions = (AccessRestrictionType)accessRestrictions32;
+                    }
+                    else if (!value.IsNull)
+                    {
+                        return StatusCodes.BadTypeMismatch;
                     }
 
                     if ((WriteMask & AttributeWriteMask.AccessRestrictions) == 0)
                     {
                         return StatusCodes.BadNotWritable;
                     }
-
-                    var accessRestrictions = (AccessRestrictionType?)accessRestrictionsRef.Value;
 
                     NodeAttributeEventHandler<AccessRestrictionType?> onWriteAccessRestrictions =
                         OnWriteAccessRestrictions;
@@ -4201,7 +4187,7 @@ namespace Opc.Ua
         protected virtual ServiceResult WriteValueAttribute(
             ISystemContext context,
             NumericRange indexRange,
-            object value,
+            Variant value,
             StatusCode statusCode,
             DateTime sourceTimestamp)
         {
@@ -4524,7 +4510,7 @@ namespace Opc.Ua
         public bool SetChildValue(
             ISystemContext context,
             string browseName,
-            object value,
+            Variant value,
             bool copy)
         {
             return SetChildValue(context, QualifiedName.From(browseName), value, copy);
@@ -4538,7 +4524,7 @@ namespace Opc.Ua
         public bool SetChildValue(
             ISystemContext context,
             QualifiedName browseName,
-            object value,
+            Variant value,
             bool copy)
         {
             if (CreateChild(context, browseName) is not BaseVariableState child)
@@ -4546,15 +4532,113 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (copy)
+            child.Value = value;
+            return true;
+        }
+
+        /// <summary>
+        /// Finds the child variable with the specified browse and assigns the value to it.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns>False if the child does not exist or is not a variable.</returns>
+        /// <remarks>Creates the child if does not already exist.</remarks>
+        public bool SetChildValue<T>(
+            ISystemContext context,
+            string browseName,
+            T value,
+            bool copy) where T : IEncodeable
+        {
+            return SetChildValue(context, QualifiedName.From(browseName), value, copy);
+        }
+
+        /// <summary>
+        /// Finds the child variable with the specified browse and assigns the value to it.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns>False if the child does not exist or is not a variable.</returns>
+        /// <remarks>Creates the child if does not already exist.</remarks>
+        public bool SetChildValue<T>(
+            ISystemContext context,
+            QualifiedName browseName,
+            T value,
+            bool copy) where T : IEncodeable
+        {
+            if (CreateChild(context, browseName) is not BaseVariableState child)
             {
-                child.Value = CoreUtils.Clone(value);
-            }
-            else
-            {
-                child.Value = value;
+                return false;
             }
 
+            child.Value = Variant.FromStructure(value, copy);
+            return true;
+        }
+
+        /// <summary>
+        /// Finds the child variable with the specified browse and assigns the value to it.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns>False if the child does not exist or is not a variable.</returns>
+        /// <remarks>Creates the child if does not already exist.</remarks>
+        public bool SetChildValue<T>(
+            ISystemContext context,
+            string browseName,
+            T[] value,
+            bool copy) where T : IEncodeable
+        {
+            return SetChildValue(context, QualifiedName.From(browseName), value, copy);
+        }
+
+        /// <summary>
+        /// Finds the child variable with the specified browse and assigns the value to it.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns>False if the child does not exist or is not a variable.</returns>
+        /// <remarks>Creates the child if does not already exist.</remarks>
+        public bool SetChildValue<T>(
+            ISystemContext context,
+            QualifiedName browseName,
+            T[] value,
+            bool copy) where T : IEncodeable
+        {
+            if (CreateChild(context, browseName) is not BaseVariableState child)
+            {
+                return false;
+            }
+
+            child.Value = Variant.FromStructure(value, copy);
+            return true;
+        }
+
+        /// <summary>
+        /// Finds the child variable with the specified browse and assigns the value to it.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns>False if the child does not exist or is not a variable.</returns>
+        /// <remarks>Creates the child if does not already exist.</remarks>
+        public bool SetChildValue<T>(
+            ISystemContext context,
+            string browseName,
+            T value) where T : Enum
+        {
+            return SetChildValue(context, QualifiedName.From(browseName), value);
+        }
+
+        /// <summary>
+        /// Finds the child variable with the specified browse and assigns the value to it.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns>False if the child does not exist or is not a variable.</returns>
+        /// <remarks>Creates the child if does not already exist.</remarks>
+        public bool SetChildValue<T>(
+            ISystemContext context,
+            QualifiedName browseName,
+            T value) where T : Enum
+        {
+            if (CreateChild(context, browseName) is not BaseVariableState child)
+            {
+                return false;
+            }
+
+            child.Value = Variant.From(value);
             return true;
         }
 
@@ -5130,7 +5214,7 @@ namespace Opc.Ua
     public delegate ServiceResult NodeValueSimpleEventHandler(
         ISystemContext context,
         NodeState node,
-        ref object value);
+        ref Variant value);
 
     /// <summary>
     /// Used to receive notifications when the value attribute is read or written.
@@ -5140,7 +5224,7 @@ namespace Opc.Ua
         NodeState node,
         NumericRange indexRange,
         QualifiedName dataEncoding,
-        ref object value,
+        ref Variant value,
         ref StatusCode statusCode,
         ref DateTime timestamp);
 

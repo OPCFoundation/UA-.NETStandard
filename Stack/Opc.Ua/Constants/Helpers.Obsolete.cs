@@ -82,7 +82,7 @@ namespace Opc.Ua
         [Obsolete("Use BrowseNames property instead.")]
         public static string[] GetBrowseNames()
         {
-            return [.. ReferenceTypes.BrowseNames];
+            return [.. BrowseNames];
         }
     }
 }

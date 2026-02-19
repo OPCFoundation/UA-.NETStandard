@@ -49,7 +49,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             ISystemContext systemContext,
             NodeId objectId,
             MethodState method,
-            object[] inputArguments,
+            VariantCollection inputArguments,
             ILogger logger)
         {
             try
@@ -75,11 +75,11 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                     TimeZoneDataType.Local,
                     false);
 
-                e.SetChildValue(systemContext, Ua.BrowseNames.MethodId, method?.NodeId, false);
+                e.SetChildValue(systemContext, Ua.BrowseNames.MethodId, method?.NodeId ?? default, false);
                 e.SetChildValue(
                     systemContext,
                     Ua.BrowseNames.InputArguments,
-                    inputArguments,
+                    inputArguments.ToArray(),
                     false);
 
                 server?.ReportAuditEvent(systemContext, e);
@@ -109,7 +109,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             ISystemContext systemContext,
             NodeId objectId,
             MethodState method,
-            object[] inputArguments,
+            VariantCollection inputArguments,
             NodeId certificateGroupId,
             NodeId certificateTypeId,
             ILogger logger,
@@ -156,11 +156,11 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                     TimeZoneDataType.Local,
                     false);
 
-                e.SetChildValue(systemContext, Ua.BrowseNames.MethodId, method?.NodeId, false);
+                e.SetChildValue(systemContext, Ua.BrowseNames.MethodId, method?.NodeId ?? default, false);
                 e.SetChildValue(
                     systemContext,
                     Ua.BrowseNames.InputArguments,
-                    inputArguments,
+                    inputArguments.ToArray(),
                     false);
 
                 e.SetChildValue(
@@ -198,7 +198,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             ISystemContext systemContext,
             NodeId objectId,
             MethodState method,
-            object[] inputArguments,
+            VariantCollection inputArguments,
             ILogger logger)
         {
             try
@@ -224,11 +224,11 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                     TimeZoneDataType.Local,
                     false);
 
-                e.SetChildValue(systemContext, Ua.BrowseNames.MethodId, method?.NodeId, false);
+                e.SetChildValue(systemContext, Ua.BrowseNames.MethodId, method?.NodeId ?? default, false);
                 e.SetChildValue(
                     systemContext,
                     Ua.BrowseNames.InputArguments,
-                    inputArguments,
+                    inputArguments.ToArray(),
                     false);
 
                 server?.ReportAuditEvent(systemContext, e);
