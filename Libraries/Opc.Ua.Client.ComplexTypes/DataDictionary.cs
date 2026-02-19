@@ -55,9 +55,9 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             DataTypes = [];
             m_validator = null;
-            TypeSystemId = null;
+            TypeSystemId = default;
             TypeSystemName = null;
-            DictionaryId = null;
+            DictionaryId = default;
             Name = null;
         }
 
@@ -104,7 +104,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public string GetSchema(NodeId descriptionId)
         {
-            if (descriptionId != null)
+            if (!descriptionId.IsNull)
             {
                 if (!DataTypes.TryGetValue(descriptionId, out QualifiedName browseName))
                 {
@@ -138,13 +138,20 @@ namespace Opc.Ua.Client.ComplexTypes
         internal void Validate(
             byte[] dictionary,
             ILogger logger,
-            IDictionary<string, byte[]> imports = null,
+            Dictionary<string, byte[]> imports = null,
             bool throwOnError = false)
         {
             var istrm = new MemoryStream(dictionary);
 
             if (TypeSystemId == Objects.XmlSchema_TypeSystem)
             {
+                imports ??= [];
+                if (!imports.ContainsKey(Namespaces.OpcUaXsd))
+                {
+                    byte[] schema = XmlSchemas.TypesXsd.ToArray();
+                    imports.Add(Namespaces.OpcUaXsd, schema);
+                    imports.Add(Namespaces.OpcUa, schema);
+                }
                 var validator = new Schema.Xml.XmlSchemaValidator(imports);
 
                 try
@@ -161,6 +168,11 @@ namespace Opc.Ua.Client.ComplexTypes
 
             if (TypeSystemId == Objects.OPCBinarySchema_TypeSystem)
             {
+                imports ??= [];
+                if (!imports.ContainsKey(Namespaces.OpcUa))
+                {
+                    imports.Add(Namespaces.OpcUa, XmlSchemas.TypesBsd.ToArray());
+                }
                 var validator = new Schema.Binary.BinarySchemaValidator(imports);
                 try
                 {

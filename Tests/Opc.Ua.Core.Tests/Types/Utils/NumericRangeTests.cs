@@ -85,7 +85,7 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
 
             StatusCode statusCode = numericRange.ApplyRange(ref value);
 
-            Assert.AreEqual(new StatusCode(StatusCodes.Good), statusCode);
+            Assert.AreEqual(StatusCodes.Good, statusCode);
 
             int[,] range = value as int[,];
 
@@ -120,7 +120,7 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
                     { 10 }
                 });
 
-            Assert.AreEqual(new StatusCode(StatusCodes.Good), statusCode);
+            Assert.AreEqual(StatusCodes.Good, statusCode);
 
             dstMatrix = dst as Matrix;
             Assert.NotNull(dstMatrix);
@@ -151,7 +151,7 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
             var numericRange = Ua.NumericRange.Parse("1,1:2");
             object dst = new string[] { "Test1", "Test2", "Test3" };
             StatusCode statusCode = numericRange.UpdateRange(ref dst, s_src);
-            Assert.AreEqual(new StatusCode(StatusCodes.Good), statusCode);
+            Assert.AreEqual(StatusCodes.Good, statusCode);
 
             string[] updatedValue = dst as string[];
             Assert.NotNull(updatedValue);
@@ -174,7 +174,7 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
             StatusCode statusCode = numericRange.UpdateRange(
                 ref dst,
                 new byte[][] { [0xDD, 0xEE] });
-            Assert.AreEqual(new StatusCode(StatusCodes.Good), statusCode);
+            Assert.AreEqual(StatusCodes.Good, statusCode);
 
             byte[][] updatedValue = dst as byte[][];
             Assert.NotNull(updatedValue);

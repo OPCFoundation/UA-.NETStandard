@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -54,7 +55,7 @@ namespace Opc.Ua.Gds.Tests
                     certificateGroup.CertificateTypes[0]),
                 Throws.TypeOf<ArgumentException>());
             NUnit.Framework.Assert.That(
-                () => certificateGroup.CreateCACertificateAsync(configuration.SubjectName, null),
+                () => certificateGroup.CreateCACertificateAsync(configuration.SubjectName, default),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -85,6 +86,243 @@ namespace Opc.Ua.Gds.Tests
                 .FindByThumbprintAsync(certificate.Thumbprint)
                 .ConfigureAwait(false);
             Assert.IsTrue(certs.Count == 1);
+        }
+
+        [Test]
+        public async Task Test_Ca_Signed_Cert_Can_Be_Revoked()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var configuration = new CertificateGroupConfiguration
+            {
+                SubjectName = "CN=GDS Test CA, O=OPC Foundation",
+                BaseStorePath = m_path,
+                CertificateTypes = [nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)]
+            };
+            ICertificateGroup certificateGroup = new CertificateGroup(telemetry).Create(
+                m_path + "/authorities",
+                configuration);
+            X509Certificate2 certificate = await certificateGroup
+                .CreateCACertificateAsync(
+                    configuration.SubjectName,
+                    certificateGroup.CertificateTypes[0])
+                .ConfigureAwait(false);
+            Assert.NotNull(certificate);
+            var certificateStoreIdentifier = new CertificateStoreIdentifier(
+                configuration.TrustedListPath);
+            var certificateStoreIdentifier2 = new CertificateStoreIdentifier(
+                configuration.BaseStorePath);
+            ICertificateGroup otherCertGroup = new CertificateGroup(telemetry).Create(
+                m_path + "/authorities",
+                configuration);
+            using ICertificateStore authStore = otherCertGroup.AuthoritiesStore.OpenStore(telemetry);
+            X509Certificate2Collection authStoreCerts = authStore.EnumerateAsync().GetAwaiter().GetResult();
+
+            X509Certificate2 firstAuthStoreCert = authStoreCerts[0];
+            var id = new CertificateIdentifier
+            {
+                Thumbprint = firstAuthStoreCert.Thumbprint,
+                StorePath = authStore.StorePath,
+                StoreType = authStore.StoreType
+            };
+            X509Certificate2 authCert = id.LoadPrivateKeyAsync(null).GetAwaiter().GetResult();
+            using ICertificateStore trustedStore = certificateStoreIdentifier.OpenStore(telemetry);
+            X509Certificate2Collection storeCerts = trustedStore.EnumerateAsync().GetAwaiter().GetResult();
+            X509Certificate2Collection certs = await trustedStore
+                .FindByThumbprintAsync(certificate.Thumbprint)
+                .ConfigureAwait(false);
+            Assert.IsTrue(certs.Count >= 1);
+            X509Certificate2 signedCert = CertificateBuilder.Create("CN=signedCert")
+               .SetIssuer(authCert)
+               .CreateForRSA();
+            await trustedStore.AddAsync(signedCert).ConfigureAwait(false);
+            X509CRL crl = await certificateGroup.RevokeCertificateAsync(signedCert).ConfigureAwait(false);
+            Assert.NotNull(crl);
+            Assert.That(crl.RevokedCertificates.Any(el => el.SerialNumber == signedCert.SerialNumber));
+        }
+
+        [Test]
+        public async Task Test_Ca_Empty_Crl_Can_Be_Created_And_Is_Loaded()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var configuration = new CertificateGroupConfiguration
+            {
+                SubjectName = "CN=GDS Test CA, O=OPC Foundation",
+                BaseStorePath = m_path,
+                CertificateTypes = [nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)]
+            };
+            var certificateGroup = new CertificateGroup(telemetry).Create(
+                m_path + "/authorities",
+                configuration);
+            var certificateStoreIdentifier = new CertificateStoreIdentifier(
+                configuration.TrustedListPath);
+            var store = certificateStoreIdentifier.OpenStore(telemetry);
+            var authStore = certificateGroup.AuthoritiesStore.OpenStore(telemetry);
+            try
+            {
+                var crls = await store.EnumerateCRLsAsync().ConfigureAwait(false);
+                if(crls != null)
+                {
+                    foreach (var crl in crls)
+                    {
+                        await store.DeleteCRLAsync(crl).ConfigureAwait(false);
+                    }
+                }
+                X509Certificate2 certificate = await certificateGroup
+                    .CreateCACertificateAsync(
+                        configuration.SubjectName,
+                        certificateGroup.CertificateTypes[0])
+                    .ConfigureAwait(false);
+                Assert.NotNull(certificate);
+                crls = await store.EnumerateCRLsAsync().ConfigureAwait(false);
+                Assert.IsNotNull(crls);
+                Assert.That(crls.Count, Is.EqualTo(1));
+                var crl2 = await CertificateGroup
+                    .LoadCrlCreateEmptyIfNonExistantAsync(certificate, certificateStoreIdentifier, telemetry)
+                    .ConfigureAwait(false);
+                Assert.IsNotNull(crl2);
+                Assert.That(crls.First().RawData.SequenceEqual(crl2.RawData));
+                var id = new CertificateIdentifier
+                {
+                    Thumbprint = certificate.Thumbprint,
+                    StorePath = authStore.StorePath,
+                    StoreType = authStore.StoreType
+                };
+                var authCert = id.LoadPrivateKeyAsync(null).GetAwaiter().GetResult();
+                var signedCert = CertificateBuilder.Create("CN=signedCert")
+               .SetIssuer(authCert)
+               .CreateForRSA();
+                await store.AddAsync(signedCert).ConfigureAwait(false);
+                var crlWithRevokedCert = await certificateGroup.RevokeCertificateAsync(signedCert).ConfigureAwait(false);
+                Assert.NotNull(crlWithRevokedCert);
+                Assert.That(crlWithRevokedCert.RevokedCertificates.Any(el => el.SerialNumber == signedCert.SerialNumber));
+                var crlWithRevokedCert2 = await CertificateGroup
+                    .LoadCrlCreateEmptyIfNonExistantAsync(certificate, certificateStoreIdentifier, telemetry)
+                    .ConfigureAwait(false);
+                Assert.That(crlWithRevokedCert.RawData.SequenceEqual(crlWithRevokedCert2.RawData));
+            }
+            finally
+            {
+                authStore.Close();
+                store.Close();
+            }
+        }
+
+        [Test]
+        public async Task Test_Ca_Empty_Crl_Can_Be_Created()
+        {
+            var ca = CertificateBuilder.Create("CN=TestCA").SetCAConstraint().CreateForRSA();
+            var crl = await CertificateGroup.CreateEmptyCrlAsync(ca).ConfigureAwait(false);
+            Assert.That(crl, Is.Not.Null);
+            Assert.That(crl.RevokedCertificates.Count, Is.EqualTo(0));
+        }
+
+        [Test]
+        public async Task Test_Issuer_CA_Can_Be_Revoked()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var configuration = new CertificateGroupConfiguration
+            {
+                SubjectName = "CN=GDS Test CA, O=OPC Foundation",
+                BaseStorePath = m_path,
+                CertificateTypes = [nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)]
+            };
+            ICertificateGroup certificateGroup = new CertificateGroup(telemetry).Create(
+                m_path + "/authorities",
+                configuration);
+            X509Certificate2 certificate = await certificateGroup
+                .CreateCACertificateAsync(
+                    configuration.SubjectName,
+                    certificateGroup.CertificateTypes[0])
+                .ConfigureAwait(false);
+            Assert.NotNull(certificate);
+            var certificateStoreIdentifier = new CertificateStoreIdentifier(
+                configuration.TrustedListPath);
+            var certificateStoreIdentifier2 = new CertificateStoreIdentifier(
+                configuration.BaseStorePath);
+            ICertificateGroup otherCertGroup = new CertificateGroup(telemetry).Create(
+                m_path + "/authorities",
+                configuration);
+            using var authStore = otherCertGroup.AuthoritiesStore.OpenStore(telemetry);
+            var authStoreCerts = authStore.EnumerateAsync().GetAwaiter().GetResult();
+
+            var firstAuthStoreCert = authStoreCerts[0];
+            var id = new CertificateIdentifier
+            {
+                Thumbprint = firstAuthStoreCert.Thumbprint,
+                StorePath = authStore.StorePath,
+                StoreType = authStore.StoreType
+            };
+            var authCert = id.LoadPrivateKeyAsync(null).GetAwaiter().GetResult();
+            using ICertificateStore trustedStore = certificateStoreIdentifier.OpenStore(telemetry);
+            var storeCerts = trustedStore.EnumerateAsync().GetAwaiter().GetResult();
+            X509Certificate2Collection certs = await trustedStore
+                .FindByThumbprintAsync(certificate.Thumbprint)
+                .ConfigureAwait(false);
+            Assert.IsTrue(certs.Count >= 1);
+            var signedCACert = CertificateBuilder.Create("CN=signedCert")
+                .SetCAConstraint()
+                .SetIssuer(authCert)
+               .CreateForRSA();
+            await trustedStore.AddAsync(signedCACert).ConfigureAwait(false);
+            var crl = await certificateGroup.RevokeCertificateAsync(signedCACert).ConfigureAwait(false);
+            Assert.NotNull(crl);
+            Assert.That(crl.RevokedCertificates.Any(el => el.SerialNumber == signedCACert.SerialNumber));
+        }
+
+        [Test]
+        public async Task Test_Root_CA_throws_Exception()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var configuration = new CertificateGroupConfiguration
+            {
+                SubjectName = "CN=GDS Test CA, O=OPC Foundation",
+                BaseStorePath = m_path,
+                CertificateTypes = [nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)]
+            };
+            ICertificateGroup certificateGroup = new CertificateGroup(telemetry).Create(
+                m_path + "/authorities",
+                configuration);
+            X509Certificate2 certificate = await certificateGroup
+                .CreateCACertificateAsync(
+                    configuration.SubjectName,
+                    certificateGroup.CertificateTypes[0])
+                .ConfigureAwait(false);
+            Assert.NotNull(certificate);
+            var certificateStoreIdentifier = new CertificateStoreIdentifier(
+                configuration.TrustedListPath);
+            var certificateStoreIdentifier2 = new CertificateStoreIdentifier(
+                configuration.BaseStorePath);
+            ICertificateGroup otherCertGroup = new CertificateGroup(telemetry).Create(
+                m_path + "/authorities",
+                configuration);
+            using var authStore = otherCertGroup.AuthoritiesStore.OpenStore(telemetry);
+            var authStoreCerts = authStore.EnumerateAsync().GetAwaiter().GetResult();
+
+            var firstAuthStoreCert = authStoreCerts[0];
+            var id = new CertificateIdentifier
+            {
+                Thumbprint = firstAuthStoreCert.Thumbprint,
+                StorePath = authStore.StorePath,
+                StoreType = authStore.StoreType
+            };
+            var authCert = id.LoadPrivateKeyAsync(null).GetAwaiter().GetResult();
+            using ICertificateStore trustedStore = certificateStoreIdentifier.OpenStore(telemetry);
+            var storeCerts = trustedStore.EnumerateAsync().GetAwaiter().GetResult();
+            X509Certificate2Collection certs = await trustedStore
+                .FindByThumbprintAsync(certificate.Thumbprint)
+                .ConfigureAwait(false);
+            Assert.IsTrue(certs.Count >= 1);
+            var signedCACert = CertificateBuilder.Create("CN=signedCert")
+                .SetCAConstraint()
+                .SetIssuer(authCert)
+               .CreateForRSA();
+            await trustedStore.AddAsync(signedCACert).ConfigureAwait(false);
+            var exc = Assert.ThrowsAsync<ServiceResultException>(async () => await certificateGroup.RevokeCertificateAsync(authCert).ConfigureAwait(false));
+            Assert.That(exc.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
+            Assert.That(exc.Message.Contains("Cannot revoke", StringComparison.Ordinal));
         }
 
         [Test]

@@ -57,10 +57,12 @@ namespace Opc.Ua
                 MinimumSamplingInterval = variable.MinimumSamplingInterval;
                 Historizing = variable.Historizing;
 
-                object value = variable.Value ??
-                    TypeInfo.GetDefaultValue(variable.DataType, variable.ValueRank);
-
-                Value = new Variant(value);
+                Variant value = variable.Value;
+                if (value.IsNull)
+                {
+                    value = TypeInfo.GetDefaultVariantValue(variable.DataType, variable.ValueRank);
+                }
+                Value = value;
 
                 if (variable.ArrayDimensions != null)
                 {
@@ -84,7 +86,7 @@ namespace Opc.Ua
         private void Initialize()
         {
             Value = Variant.Null;
-            DataType = null;
+            DataType = default;
             ValueRank = 0;
             m_arrayDimensions = [];
             AccessLevel = 0;
@@ -285,27 +287,17 @@ namespace Opc.Ua
         {
             var clone = (VariableNode)base.MemberwiseClone();
 
-            clone.Value = (Variant)CoreUtils.Clone(Value);
-            clone.DataType = CoreUtils.Clone(DataType);
-            clone.ValueRank = (int)CoreUtils.Clone(ValueRank);
+            clone.Value = CoreUtils.Clone(Value);
+            clone.DataType = DataType;
+            clone.ValueRank = CoreUtils.Clone(ValueRank);
             clone.m_arrayDimensions = CoreUtils.Clone(m_arrayDimensions);
-            clone.AccessLevel = (byte)CoreUtils.Clone(AccessLevel);
-            clone.UserAccessLevel = (byte)CoreUtils.Clone(UserAccessLevel);
+            clone.AccessLevel = CoreUtils.Clone(AccessLevel);
+            clone.UserAccessLevel = CoreUtils.Clone(UserAccessLevel);
             clone.MinimumSamplingInterval = (double)CoreUtils.Clone(MinimumSamplingInterval);
-            clone.Historizing = (bool)CoreUtils.Clone(Historizing);
-            clone.AccessLevelEx = (uint)CoreUtils.Clone(AccessLevelEx);
+            clone.Historizing = CoreUtils.Clone(Historizing);
+            clone.AccessLevelEx = CoreUtils.Clone(AccessLevelEx);
 
             return clone;
-        }
-
-        /// <summary>
-        /// The value attribute.
-        /// </summary>
-        /// <value>The value.</value>
-        object IVariableBase.Value
-        {
-            get => Value.Value;
-            set => Value = new Variant(value);
         }
 
         /// <summary>
@@ -378,7 +370,7 @@ namespace Opc.Ua
                     return AccessLevelEx;
                 // values are copied when the are written so then can be safely returned.
                 case Attributes.Value:
-                    return Value.Value;
+                    return Value.AsBoxedObject();
                 // array dimensions attribute is not support if it is empty.
                 case Attributes.ArrayDimensions:
                     if (m_arrayDimensions == null || m_arrayDimensions.Count == 0)
@@ -427,7 +419,7 @@ namespace Opc.Ua
                     // must ensure the value is of the correct datatype.
                     if (dataType != DataType)
                     {
-                        Value = new Variant(TypeInfo.GetDefaultValue(dataType, ValueRank));
+                        Value = TypeInfo.GetDefaultVariantValue(dataType, ValueRank);
                     }
 
                     DataType = dataType;
@@ -437,7 +429,7 @@ namespace Opc.Ua
 
                     if (valueRank != ValueRank)
                     {
-                        Value = new Variant(TypeInfo.GetDefaultValue(DataType, valueRank));
+                        Value = TypeInfo.GetDefaultVariantValue(DataType, valueRank);
                     }
 
                     ValueRank = valueRank;
@@ -450,7 +442,7 @@ namespace Opc.Ua
                     if (m_arrayDimensions.Count > 0 && m_arrayDimensions.Count != ValueRank)
                     {
                         ValueRank = m_arrayDimensions.Count;
-                        Value = new Variant(TypeInfo.GetDefaultValue(DataType, ValueRank));
+                        Value = TypeInfo.GetDefaultVariantValue(DataType, ValueRank);
                     }
 
                     return ServiceResult.Good;

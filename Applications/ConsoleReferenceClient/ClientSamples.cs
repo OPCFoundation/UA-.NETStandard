@@ -34,7 +34,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -74,7 +73,8 @@ namespace Quickstarts
         {
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<ClientSamples>();
-            m_validateResponse = validateResponse ?? ClientBase.ValidateResponse;
+            m_validate = validateResponse;
+
             m_quitEvent = quitEvent;
             m_verbose = verbose;
             m_desiredEventFields = [];
@@ -82,19 +82,19 @@ namespace Quickstarts
 
             m_desiredEventFields.Add(
                 eventIndexCounter++,
-                [.. new QualifiedName[] { BrowseNames.Time }]);
+                [.. new QualifiedName[] { QualifiedName.From(BrowseNames.Time) }]);
             m_desiredEventFields.Add(
                 eventIndexCounter++,
-                [.. new QualifiedName[] { BrowseNames.ActiveState }]);
+                [.. new QualifiedName[] { QualifiedName.From(BrowseNames.ActiveState) }]);
             m_desiredEventFields.Add(
                 eventIndexCounter++,
-                [.. new QualifiedName[] { BrowseNames.Message }]);
+                [.. new QualifiedName[] { QualifiedName.From(BrowseNames.Message) }]);
             m_desiredEventFields.Add(
                 eventIndexCounter++,
-                [.. new QualifiedName[] { BrowseNames.LimitState, BrowseNames.CurrentState }]);
+                [.. new QualifiedName[] { QualifiedName.From(BrowseNames.LimitState), QualifiedName.From(BrowseNames.CurrentState) }]);
             m_desiredEventFields.Add(
                 eventIndexCounter++,
-                [.. new QualifiedName[] { BrowseNames.LimitState, BrowseNames.LastTransition }]);
+                [.. new QualifiedName[] { QualifiedName.From(BrowseNames.LimitState), QualifiedName.From(BrowseNames.LastTransition) }]);
         }
 
         /// <summary>
@@ -146,7 +146,7 @@ namespace Quickstarts
                 DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
 
                 // Validate the results
-                m_validateResponse(resultsValues, nodesToRead);
+                ValidateResponse(resultsValues, nodesToRead);
 
                 // Display the results.
                 foreach (DataValue result in resultsValues)
@@ -187,7 +187,7 @@ namespace Quickstarts
                 // Int32 Node - Objects\CTT\Scalar\Scalar_Static\Int32
                 var intWriteVal = new WriteValue
                 {
-                    NodeId = new NodeId("ns=2;s=Scalar_Static_Int32"),
+                    NodeId = NodeId.Parse("ns=2;s=Scalar_Static_Int32"),
                     AttributeId = Attributes.Value,
                     Value = new DataValue { Value = 100 }
                 };
@@ -196,7 +196,7 @@ namespace Quickstarts
                 // Float Node - Objects\CTT\Scalar\Scalar_Static\Float
                 var floatWriteVal = new WriteValue
                 {
-                    NodeId = new NodeId("ns=2;s=Scalar_Static_Float"),
+                    NodeId = NodeId.Parse("ns=2;s=Scalar_Static_Float"),
                     AttributeId = Attributes.Value,
                     Value = new DataValue { Value = (float)100.5 }
                 };
@@ -205,7 +205,7 @@ namespace Quickstarts
                 // String Node - Objects\CTT\Scalar\Scalar_Static\String
                 var stringWriteVal = new WriteValue
                 {
-                    NodeId = new NodeId("ns=2;s=Scalar_Static_String"),
+                    NodeId = NodeId.Parse("ns=2;s=Scalar_Static_String"),
                     AttributeId = Attributes.Value,
                     Value = new DataValue { Value = "String Test" }
                 };
@@ -224,7 +224,7 @@ namespace Quickstarts
                 DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
 
                 // Validate the response
-                m_validateResponse(results, nodesToWrite);
+                ValidateResponse(results, nodesToWrite);
 
                 // Display the results.
                 Console.WriteLine("Write Results :");
@@ -302,28 +302,26 @@ namespace Quickstarts
                 // Define the UA Method to call
                 // Parent node - Objects\CTT\Methods
                 // Method node - Objects\CTT\Methods\Add
-                var objectId = new NodeId("ns=2;s=Methods");
-                var methodId = new NodeId("ns=2;s=Methods_Add");
+                var objectId = NodeId.Parse("ns=2;s=Methods");
+                var methodId = NodeId.Parse("ns=2;s=Methods_Add");
 
                 // Define the method parameters
                 // Input argument requires a Float and an UInt32 value
-                object[] inputArguments = [(float)10.5, (uint)10];
-                IList<object> outputArguments = null;
-
                 // Invoke Call service
                 Console.WriteLine($"Calling UAMethod for node {methodId} ...");
-                outputArguments = await session.CallAsync(
+                VariantCollection outputArguments = await session.CallAsync(
                     objectId,
                     methodId,
                     ct,
-                    inputArguments).ConfigureAwait(false);
+                    (float)10.5,
+                    (uint)10).ConfigureAwait(false);
 
                 // Display results
                 Console.WriteLine($"Method call returned {outputArguments.Count} output argument(s):");
 
-                foreach (object outputArgument in outputArguments)
+                foreach (Variant outputArgument in outputArguments)
                 {
-                    Console.WriteLine($"     OutputValue = {outputArgument}");
+                    Console.WriteLine($"     OutputValue = {outputArgument.Value}");
                 }
             }
             catch (Exception ex)
@@ -351,28 +349,25 @@ namespace Quickstarts
                 // Define the UA Method to call
                 // Parent node - Objects\CTT\Alarms
                 // Method node - Objects\CTT\Alarms\Start
-                var objectId = new NodeId("ns=7;s=Alarms");
-                var methodId = new NodeId("ns=7;s=Alarms.Start");
+                var objectId = NodeId.Parse("ns=7;s=Alarms");
+                var methodId = NodeId.Parse("ns=7;s=Alarms.Start");
 
                 // Define the method parameters
                 // Input argument requires a Float and an UInt32 value
-                object[] inputArguments = [timeToRun];
-                IList<object> outputArguments = null;
-
                 // Invoke Call service
                 Console.WriteLine($"Calling UAMethod for node {methodId} ...");
-                outputArguments = await session.CallAsync(
+                VariantCollection outputArguments = await session.CallAsync(
                     objectId,
                     methodId,
                     ct,
-                    inputArguments).ConfigureAwait(false);
+                    timeToRun).ConfigureAwait(false);
 
                 // Display results
                 Console.WriteLine($"Method call returned {outputArguments.Count} output argument(s):");
 
-                foreach (object outputArgument in outputArguments)
+                foreach (Variant outputArgument in outputArguments)
                 {
-                    Console.WriteLine($"     OutputValue = {outputArgument}");
+                    Console.WriteLine($"     OutputValue = {outputArgument.Value}");
                 }
             }
             catch (Exception ex)
@@ -457,7 +452,7 @@ namespace Quickstarts
                 var intMonitoredItem = new MonitoredItem(subscription.DefaultItem)
                 {
                     // Int32 Node - Objects\CTT\Scalar\Simulation\Int32
-                    StartNodeId = new NodeId("ns=2;s=Scalar_Simulation_Int32"),
+                    StartNodeId = NodeId.Parse("ns=2;s=Scalar_Simulation_Int32"),
                     AttributeId = Attributes.Value,
                     DisplayName = "Int32 Variable",
                     SamplingInterval = itemSamplingInterval,
@@ -471,7 +466,7 @@ namespace Quickstarts
                 var floatMonitoredItem = new MonitoredItem(subscription.DefaultItem)
                 {
                     // Float Node - Objects\CTT\Scalar\Simulation\Float
-                    StartNodeId = new NodeId("ns=2;s=Scalar_Simulation_Float"),
+                    StartNodeId = NodeId.Parse("ns=2;s=Scalar_Simulation_Float"),
                     AttributeId = Attributes.Value,
                     DisplayName = "Float Variable",
                     SamplingInterval = itemSamplingInterval,
@@ -484,7 +479,7 @@ namespace Quickstarts
                 var stringMonitoredItem = new MonitoredItem(subscription.DefaultItem)
                 {
                     // String Node - Objects\CTT\Scalar\Simulation\String
-                    StartNodeId = new NodeId("ns=2;s=Scalar_Simulation_String"),
+                    StartNodeId = NodeId.Parse("ns=2;s=Scalar_Simulation_String"),
                     AttributeId = Attributes.Value,
                     DisplayName = "String Variable",
                     SamplingInterval = itemSamplingInterval,
@@ -496,7 +491,7 @@ namespace Quickstarts
 
                 var eventMonitoredItem = new MonitoredItem(subscription.DefaultItem)
                 {
-                    StartNodeId = new NodeId(ObjectIds.Server),
+                    StartNodeId = ObjectIds.Server,
                     AttributeId = Attributes.EventNotifier,
                     DisplayName = "Event Variable",
                     SamplingInterval = itemSamplingInterval,
@@ -525,11 +520,11 @@ namespace Quickstarts
                 {
                     AttributeId = Attributes.Value,
                     TypeDefinitionId = ObjectTypeIds.ExclusiveLevelAlarmType,
-                    BrowsePath = new QualifiedNameCollection(["EventType"])
+                    BrowsePath = [QualifiedName.From("EventType")]
                 };
                 var desiredEventType = new LiteralOperand
                 {
-                    Value = new Variant(new NodeId(ObjectTypeIds.ExclusiveLevelAlarmType))
+                    Value = new Variant(ObjectTypeIds.ExclusiveLevelAlarmType)
                 };
 
                 whereClause.Push(FilterOperator.Equals, [existingEventType, desiredEventType]);
@@ -715,7 +710,7 @@ namespace Quickstarts
         /// <param name="browseDescription">An optional BrowseDescription to use.</param>
         public async Task<ReferenceDescriptionCollection> ManagedBrowseFullAddressSpaceAsync(
             IUAClient uaClient,
-            NodeId startingNode = null,
+            NodeId startingNode = default,
             BrowseDescription browseDescription = null,
             CancellationToken ct = default)
         {
@@ -748,7 +743,7 @@ namespace Quickstarts
                 }
             }
 
-            var nodesToBrowse = new List<NodeId> { startingNode ?? ObjectIds.RootFolder };
+            var nodesToBrowse = new List<NodeId> { startingNode.IsNull ? ObjectIds.RootFolder : startingNode };
 
             const int kMaxReferencesPerNode = 1000;
 
@@ -891,7 +886,7 @@ namespace Quickstarts
         /// <param name="browseDescription">An optional BrowseDescription to use.</param>
         public async Task<ReferenceDescriptionCollection> BrowseFullAddressSpaceAsync(
             IUAClient uaClient,
-            NodeId startingNode = null,
+            NodeId startingNode = default,
             BrowseDescription browseDescription = null,
             CancellationToken ct = default)
         {
@@ -904,7 +899,7 @@ namespace Quickstarts
                 browseDescription
                 ?? new BrowseDescription
                 {
-                    NodeId = startingNode ?? ObjectIds.RootFolder,
+                    NodeId = startingNode.IsNull ? ObjectIds.RootFolder : startingNode,
                     BrowseDirection = BrowseDirection.Forward,
                     ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
                     IncludeSubtypes = true,
@@ -913,7 +908,7 @@ namespace Quickstarts
                 };
             BrowseDescriptionCollection browseDescriptionCollection
                 = CreateBrowseDescriptionCollectionFromNodeId(
-                [.. new NodeId[] { startingNode ?? ObjectIds.RootFolder }],
+                [.. new NodeId[] { startingNode.IsNull ? ObjectIds.RootFolder : startingNode }],
                 browseTemplate);
 
             // Browse
@@ -990,8 +985,8 @@ namespace Quickstarts
                     }
                     catch (ServiceResultException sre)
                     {
-                        if (sre.StatusCode is StatusCodes.BadEncodingLimitsExceeded or StatusCodes
-                            .BadResponseTooLarge)
+                        if (sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded ||
+                            sre.StatusCode == StatusCodes.BadResponseTooLarge)
                         {
                             // try to address by overriding operation limit
                             maxNodesPerBrowse =
@@ -1119,7 +1114,7 @@ namespace Quickstarts
             stopWatch.Start();
 
             var complexTypeSystem = new ComplexTypeSystem(session, m_telemetry);
-            await complexTypeSystem.LoadAsync(ct: ct).ConfigureAwait(false);
+            await complexTypeSystem.LoadAsync(throwOnError: true, ct: ct).ConfigureAwait(false);
 
             stopWatch.Stop();
 
@@ -1166,16 +1161,9 @@ namespace Quickstarts
             ISession session,
             CancellationToken ct = default)
         {
-            // fetch the reference types first, otherwise browse for e.g. hierarchical
-            // references with subtypes won't work
-            const BindingFlags bindingFlags = BindingFlags.Instance |
-                BindingFlags.Static |
-                BindingFlags.Public;
             NamespaceTable namespaceUris = session.NamespaceUris;
-            IEnumerable<ExpandedNodeId> referenceTypes = typeof(ReferenceTypeIds)
-                .GetFields(bindingFlags)
-                .Select(
-                    field => NodeId.ToExpandedNodeId((NodeId)field.GetValue(null), namespaceUris));
+            IEnumerable<ExpandedNodeId> referenceTypes = ReferenceTypeIds.Identifiers
+                .Select(nodeId => NodeId.ToExpandedNodeId(nodeId, namespaceUris));
             return session.FetchTypeTreeAsync([.. referenceTypes], ct);
         }
 
@@ -1335,7 +1323,7 @@ namespace Quickstarts
                         StartNodeId = item.NodeId,
                         AttributeId = Attributes.Value,
                         SamplingInterval = samplingInterval,
-                        DisplayName = item.DisplayName?.Text ?? item.BrowseName?.Name ?? "unknown",
+                        DisplayName = item.DisplayName.Text ?? item.BrowseName.Name ?? "unknown",
                         QueueSize = queueSize,
                         DiscardOldest = true,
                         MonitoringMode = MonitoringMode.Reporting
@@ -1504,7 +1492,7 @@ namespace Quickstarts
                         {
                             try
                             {
-                                var currentTime = (DateTime)field.Value;
+                                DateTime currentTime = field.GetDateTime();
                                 TimeSpan timeSpan = currentTime - m_lastEventTime;
                                 m_lastEventTime = currentTime;
                                 m_processedEvents++;
@@ -1533,7 +1521,7 @@ namespace Quickstarts
                             "\tField [{Index}] \"{Name}\" = [{Value}]",
                             entry.Key,
                             fieldName,
-                            field.Value);
+                            field);
                     }
                 }
             }
@@ -1618,6 +1606,145 @@ namespace Quickstarts
         }
 
         /// <summary>
+        /// Exports nodes to separate NodeSet2 XML files, one per namespace.
+        /// Excludes OPC Foundation companion specifications (namespaces starting with http://opcfoundation.org/UA/).
+        /// </summary>
+        /// <param name="session">The session to use for exporting.</param>
+        /// <param name="nodes">The list of nodes to export.</param>
+        /// <param name="outputDirectory">The directory where NodeSet2 XML files will be saved.</param>
+        /// <param name="cancellationToken">Optional cancellation token.</param>
+        /// <returns>A dictionary mapping namespace URI to the file path of the exported NodeSet2 file.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when session, nodes, or outputDirectory is null.</exception>
+        /// <exception cref="ArgumentException">Thrown when outputDirectory is empty or whitespace.</exception>
+        public async Task<IReadOnlyDictionary<string, string>> ExportNodesToNodeSet2PerNamespaceAsync(
+            ISession session,
+            IList<INode> nodes,
+            string outputDirectory,
+            CancellationToken cancellationToken = default)
+        {
+            if (session == null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
+            if (nodes == null)
+            {
+                throw new ArgumentNullException(nameof(nodes));
+            }
+            if (string.IsNullOrWhiteSpace(outputDirectory))
+            {
+                throw new ArgumentException("Value cannot be null or whitespace.", nameof(outputDirectory));
+            }
+
+            m_logger.LogInformation(
+                "Exporting {Count} nodes to separate NodeSet2 files per namespace in {Directory}...",
+                nodes.Count,
+                outputDirectory);
+
+            var stopwatch = Stopwatch.StartNew();
+
+            // Ensure output directory exists
+            Directory.CreateDirectory(outputDirectory);
+
+            // Group nodes by namespace, excluding OPC Foundation companion specs
+            var nodesByNamespace = nodes
+                .Where(node => node.NodeId.NamespaceIndex > 0) // Skip namespace 0 (OPC UA base)
+                .GroupBy(node => node.NodeId.NamespaceIndex)
+                .Where(group =>
+                {
+                    string namespaceUri = session.NamespaceUris.GetString(group.Key);
+                    // Exclude OPC Foundation companion specifications
+                    return
+                        !string.IsNullOrEmpty(namespaceUri) &&
+                        !namespaceUri.StartsWith(Namespaces.OpcUa, StringComparison.OrdinalIgnoreCase);
+                })
+                .ToDictionary(
+                    group => group.Key,
+                    group => group.ToList());
+
+            var exportedFiles = new Dictionary<string, string>();
+
+            // Export each namespace to its own file
+            foreach (KeyValuePair<ushort, List<INode>> kvp in nodesByNamespace)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                string namespaceUri = session.NamespaceUris.GetString(kvp.Key);
+
+                // Create a safe filename from the namespace URI
+
+                string fileName = CreateSafeFileName(namespaceUri, kvp.Key);
+                string filePath = Path.Combine(outputDirectory, fileName);
+
+                m_logger.LogInformation(
+                    "Exporting namespace {NamespaceIndex} ({NamespaceUri}): {Count} nodes to {FilePath}",
+                    kvp.Key,
+                    namespaceUri,
+                    kvp.Value.Count,
+                    filePath);
+
+                await Task.Run(() =>
+                {
+                    using var outputStream = new FileStream(filePath, FileMode.Create);
+                    var systemContext = new SystemContext(m_telemetry)
+                    {
+                        NamespaceUris = session.NamespaceUris,
+                        ServerUris = session.ServerUris
+                    };
+
+                    CoreClientUtils.ExportNodesToNodeSet2(systemContext, kvp.Value, outputStream, NodeSetExportOptions.Complete);
+                }, cancellationToken).ConfigureAwait(false);
+
+                exportedFiles[namespaceUri] = filePath;
+            }
+
+            stopwatch.Stop();
+
+            m_logger.LogInformation(
+                "Exported {NamespaceCount} namespaces ({NodeCount} total nodes) in {Duration}ms",
+                exportedFiles.Count,
+                nodes.Count,
+                stopwatch.ElapsedMilliseconds);
+
+            return exportedFiles;
+        }
+
+        /// <summary>
+        /// Creates a safe filename from a namespace URI.
+        /// </summary>
+        /// <param name="namespaceUri">The namespace URI.</param>
+        /// <param name="namespaceIndex">The namespace index (used as fallback).</param>
+        /// <returns>A safe filename for the NodeSet2 export.</returns>
+        private static string CreateSafeFileName(string namespaceUri, ushort namespaceIndex)
+        {
+            // Extract meaningful part from URI
+            string fileName = namespaceUri
+                .Replace("http://", string.Empty, StringComparison.OrdinalIgnoreCase)
+                .Replace("https://", string.Empty, StringComparison.OrdinalIgnoreCase)
+                .Replace("urn:", string.Empty, StringComparison.OrdinalIgnoreCase);
+
+            // Replace invalid filename characters
+            foreach (char c in Path.GetInvalidFileNameChars())
+            {
+                fileName = fileName.Replace(c, '_');
+            }
+
+            // Additional cleanup for common URI characters
+            fileName = fileName
+                .Replace('/', '_')
+                .Replace('\\', '_')
+                .Replace(':', '_')
+                .TrimEnd('_');
+
+            // Limit length and ensure uniqueness with namespace index
+            if (fileName.Length > 200)
+            {
+                fileName = fileName[..200];
+            }
+
+            return $"{fileName}_ns{namespaceIndex}.xml";
+        }
+
+        /// <summary>
         /// Create the continuation point collection from the browse result
         /// collection for the BrowseNext service.
         /// </summary>
@@ -1637,7 +1764,21 @@ namespace Quickstarts
             return continuationPoints;
         }
 
-        private readonly Action<IList, IList> m_validateResponse;
+        private void ValidateResponse<TRequest, TResponse>(
+            IReadOnlyList<TRequest> requests,
+            IReadOnlyList<TResponse> responses)
+        {
+            if (m_validate != null)
+            {
+                m_validate(requests?.ToList(), responses?.ToList());
+            }
+            else
+            {
+                ClientBase.ValidateResponse(responses, requests);
+            }
+        }
+
+        private readonly Action<IList, IList> m_validate;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
         private readonly ManualResetEvent m_quitEvent;

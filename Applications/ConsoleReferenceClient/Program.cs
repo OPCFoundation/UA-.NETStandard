@@ -94,6 +94,7 @@ namespace Quickstarts.ConsoleReferenceClient
             bool leakChannels = false;
             bool forever = false;
             bool enableDurableSubscriptions = false;
+            bool exportNodes = false;
             bool connectAllEndpointDescriptions = true;
 
             var options = new Mono.Options.OptionSet
@@ -181,6 +182,17 @@ namespace Quickstarts.ConsoleReferenceClient
                         if (b != null)
                         {
                             browseall = true;
+                        }
+                    }
+                },
+                {
+                    "e|export",
+                    "Export all fetched nodes into Nodeset2 xml per default",
+                    e =>
+                    {
+                        if (e != null)
+                        {
+                            exportNodes = true;
                         }
                     }
                 },
@@ -465,7 +477,7 @@ namespace Quickstarts.ConsoleReferenceClient
                         application.ApplicationConfiguration,
                         reverseConnectManager,
                         telemetry,
-                        ClientBase.ValidateResponse
+                        null
                     )
                     {
                         AutoAccept = autoAccept,
@@ -492,7 +504,7 @@ namespace Quickstarts.ConsoleReferenceClient
                         uaClient.Session.TransferSubscriptionsOnReconnect = true;
                         var samples = new ClientSamples(
                             telemetry,
-                            ClientBase.ValidateResponse,
+                            null,
                             quitEvent,
                             verbose);
                         if (loadTypes)
@@ -583,6 +595,13 @@ namespace Quickstarts.ConsoleReferenceClient
                                             r.NodeId,
                                             uaClient.Session.NamespaceUris))
                                 ];
+
+                                if (exportNodes)
+                                {
+                                    await samples
+                                        .ExportNodesToNodeSet2PerNamespaceAsync(uaClient.Session, allNodes, Environment.CurrentDirectory)
+                                        .ConfigureAwait(false);
+                            }
                             }
 
                             if (jsonvalues && variableIds != null)
@@ -736,14 +755,14 @@ namespace Quickstarts.ConsoleReferenceClient
                                     if (waitCounters == closeSessionTime &&
                                         uaClient.Session.SubscriptionCount == 1)
                                     {
-                                        Console.WriteLine($"Closing Session (CurrentTime: {DateTime.Now.ToLongTimeString()})");
+                                        Console.WriteLine($"Closing Session (CurrentTime: {DateTime.Now:T})");
                                         await uaClient.Session.CloseAsync(closeChannel: false, ct: ct)
                                             .ConfigureAwait(false);
                                     }
 
                                     if (waitCounters == restartSessionTime)
                                     {
-                                        Console.WriteLine($"Restarting Session (CurrentTime: {DateTime.Now.ToLongTimeString()})");
+                                        Console.WriteLine($"Restarting Session (CurrentTime: {DateTime.Now:T})");
                                         await uaClient
                                             .DurableSubscriptionTransferAsync(
                                                 serverUrl.ToString(),

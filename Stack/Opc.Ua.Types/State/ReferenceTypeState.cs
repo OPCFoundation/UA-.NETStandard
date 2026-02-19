@@ -43,7 +43,7 @@ namespace Opc.Ua
         public ReferenceTypeState()
             : base(NodeClass.ReferenceType)
         {
-            m_inverseName = null;
+            m_inverseName = default;
             m_symmetric = false;
         }
 
@@ -64,7 +64,7 @@ namespace Opc.Ua
         {
             base.Initialize(context);
 
-            InverseName = null;
+            InverseName = default;
             Symmetric = false;
         }
 
@@ -85,19 +85,43 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override object Clone()
         {
-            return MemberwiseClone();
+            var clone = (ReferenceTypeState)Activator.CreateInstance(GetType());
+            CopyTo(clone);
+            return clone;
         }
 
-        /// <summary>
-        /// Makes a copy of the node and all children.
-        /// </summary>
-        /// <returns>
-        /// A new object that is a copy of this instance.
-        /// </returns>
-        public new object MemberwiseClone()
+        /// <inheritdoc/>
+        public override bool DeepEquals(NodeState node)
         {
-            var clone = (ReferenceTypeState)Activator.CreateInstance(GetType());
-            return CloneChildren(clone);
+            if (node is not ReferenceTypeState state)
+            {
+                return false;
+            }
+            return
+                base.DeepEquals(state) &&
+                state.InverseName == InverseName &&
+                state.Symmetric == Symmetric;
+        }
+
+        /// <inheritdoc/>
+        public override int DeepGetHashCode()
+        {
+            var hash = new HashCode();
+            hash.Add(base.DeepGetHashCode());
+            hash.Add(InverseName);
+            hash.Add(InverseName);
+            return hash.ToHashCode();
+        }
+
+        /// <inheritdoc/>
+        protected override void CopyTo(NodeState target)
+        {
+            if (target is ReferenceTypeState state)
+            {
+                state.InverseName = InverseName;
+                state.Symmetric = Symmetric;
+            }
+            base.CopyTo(target);
         }
 
         /// <summary>
@@ -108,7 +132,7 @@ namespace Opc.Ua
             get => m_inverseName;
             set
             {
-                if (!ReferenceEquals(m_inverseName, value))
+                if (m_inverseName != value)
                 {
                     ChangeMasks |= NodeStateChangeMasks.NonValue;
                 }
@@ -161,7 +185,7 @@ namespace Opc.Ua
 
             encoder.PushNamespace(Namespaces.OpcUaXsd);
 
-            if (!LocalizedText.IsNullOrEmpty(m_inverseName))
+            if (!m_inverseName.IsNullOrEmpty)
             {
                 encoder.WriteLocalizedText("InverseName", m_inverseName);
             }
@@ -207,7 +231,7 @@ namespace Opc.Ua
         {
             AttributesToSave attributesToSave = base.GetAttributesToSave(context);
 
-            if (!LocalizedText.IsNullOrEmpty(m_inverseName))
+            if (!m_inverseName.IsNullOrEmpty)
             {
                 attributesToSave |= AttributesToSave.InverseName;
             }
@@ -294,7 +318,7 @@ namespace Opc.Ua
         protected override ServiceResult ReadNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            ref object value)
+            ref Variant value)
         {
             ServiceResult result = null;
 
@@ -312,7 +336,7 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        if (inverseName == null)
+                        if (inverseName.IsNullOrEmpty)
                         {
                             result = StatusCodes.BadAttributeIdInvalid;
                         }
@@ -350,18 +374,21 @@ namespace Opc.Ua
         protected override ServiceResult WriteNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            object value)
+            Variant value)
         {
             ServiceResult result = null;
 
             switch (attributeId)
             {
                 case Attributes.InverseName:
-                    var inverseName = value as LocalizedText;
 
-                    if (inverseName == null && value != null)
+                    if (!value.TryGet(out LocalizedText inverseName))
                     {
-                        return StatusCodes.BadTypeMismatch;
+                        if (!value.IsNull)
+                        {
+                            return StatusCodes.BadTypeMismatch;
+                        }
+                        inverseName = LocalizedText.Null;
                     }
 
                     if ((WriteMask & AttributeWriteMask.InverseName) == 0)
@@ -384,9 +411,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.Symmetric:
-                    bool? symmetricRef = value as bool?;
-
-                    if (symmetricRef == null)
+                    if (!value.TryGet(out bool symmetric))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -395,8 +420,6 @@ namespace Opc.Ua
                     {
                         return StatusCodes.BadNotWritable;
                     }
-
-                    bool symmetric = symmetricRef.Value;
 
                     NodeAttributeEventHandler<bool> onWriteSymmetric = OnWriteSymmetric;
 

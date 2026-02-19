@@ -778,7 +778,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 // Define publishedDataSet.DataSetMetaData
                 DataSetMetaData = CreateDataSetMetaData(dataSetName, namespaceIndex, fieldMetaDatas)
             };
-            //publishedDataSet.DataSetMetaData.DataSetClassId = new Uuid(Guid.NewGuid());
+            //publishedDataSet.DataSetMetaData.DataSetClassId = Uuid.NewUuid();
 
             var publishedDataSetSimpleSource = new PublishedDataItemsDataType
             {
@@ -1001,8 +1001,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                             TargetNodeId = new NodeId(fieldMetaData.Name, nameSpaceIndexForData),
                             AttributeId = Attributes.Value,
                             OverrideValueHandling = OverrideValueHandling.OverrideValue,
-                            OverrideValue = new Variant(
-                                TypeInfo.GetDefaultValue(fieldMetaData.DataType, ValueRanks.Scalar))
+                            OverrideValue = TypeInfo.GetDefaultVariantValue(fieldMetaData.DataType, ValueRanks.Scalar)
                         });
                 }
 
@@ -1263,14 +1262,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Define  DataSetMetaData
             return new DataSetMetaDataType
             {
-                DataSetClassId = new Uuid(Guid.NewGuid()),
+                DataSetClassId = Uuid.NewUuid(),
                 Name = dataSetName,
                 Fields =
                 [
                     new FieldMetaData
                     {
                         Name = "BoolToggleMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Boolean,
                         DataType = DataTypeIds.Boolean,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -1279,7 +1278,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "SByteMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.SByte,
                         DataType = DataTypeIds.SByte,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -1288,7 +1287,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "ByteMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Byte,
                         DataType = DataTypeIds.Byte,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -1297,7 +1296,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "Int16Matrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Int16,
                         DataType = DataTypeIds.Int16,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -1306,7 +1305,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "UInt16Matrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.UInt16,
                         DataType = DataTypeIds.UInt16,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -1315,7 +1314,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "Int32Matrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Int32,
                         DataType = DataTypeIds.Int32,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -1324,7 +1323,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "UInt32Matrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.UInt32,
                         DataType = DataTypeIds.UInt32,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -1333,7 +1332,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "Int64Matrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Int64,
                         DataType = DataTypeIds.UInt64,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -1342,7 +1341,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "UInt64Matrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.UInt64,
                         DataType = DataTypeIds.UInt64,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -1351,7 +1350,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "FloatMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Float,
                         DataType = DataTypeIds.Float,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -1360,7 +1359,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "DoubleMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Double,
                         DataType = DataTypeIds.Double,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -1369,7 +1368,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "StringMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.String,
                         DataType = DataTypeIds.String,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -1378,7 +1377,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "DateTimeMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.DateTime,
                         DataType = DataTypeIds.DateTime,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -1387,7 +1386,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "GuidMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Guid,
                         DataType = DataTypeIds.Guid,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -1396,7 +1395,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "ByteStringMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.ByteString,
                         DataType = DataTypeIds.ByteString,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -1405,7 +1404,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "XmlElementMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.XmlElement,
                         DataType = DataTypeIds.XmlElement,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -1414,7 +1413,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "NodeIdMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.NodeId,
                         DataType = DataTypeIds.NodeId,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -1423,7 +1422,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "ExpandedNodeIdMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.ExpandedNodeId,
                         DataType = DataTypeIds.ExpandedNodeId,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -1432,7 +1431,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "StatusCodeMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.StatusCode,
                         DataType = DataTypeIds.StatusCode,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -1441,7 +1440,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "QualifiedNameMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.QualifiedName,
                         DataType = DataTypeIds.QualifiedName,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -1450,18 +1449,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "LocalizedTextMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.LocalizedText,
                         DataType = DataTypeIds.LocalizedText,
-                        ValueRank = ValueRanks.TwoDimensions,
-                        Description = LocalizedText.Null
-                    },
-                    new FieldMetaData
-                    {
-                        Name = "DiagnosticInfoMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.DiagnosticInfo,
-                        DataType = DataTypeIds.DiagnosticInfo,
                         ValueRank = ValueRanks.TwoDimensions,
                         Description = LocalizedText.Null
                     }
@@ -1483,14 +1473,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Define  DataSetMetaData
             return new DataSetMetaDataType
             {
-                DataSetClassId = new Uuid(Guid.NewGuid()),
+                DataSetClassId = Uuid.NewUuid(),
                 Name = dataSetName,
                 Fields =
                 [
                     new FieldMetaData
                     {
                         Name = "BoolToggleArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Boolean,
                         DataType = DataTypeIds.Boolean,
                         ValueRank = ValueRanks.OneDimension,
@@ -1499,7 +1489,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "SByteArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.SByte,
                         DataType = DataTypeIds.SByte,
                         ValueRank = ValueRanks.OneDimension,
@@ -1508,7 +1498,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "ByteArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Byte,
                         DataType = DataTypeIds.Byte,
                         ValueRank = ValueRanks.OneDimension,
@@ -1517,7 +1507,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "Int16Array",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Int16,
                         DataType = DataTypeIds.Int16,
                         ValueRank = ValueRanks.OneDimension,
@@ -1526,7 +1516,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "UInt16Array",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.UInt16,
                         DataType = DataTypeIds.UInt16,
                         ValueRank = ValueRanks.OneDimension,
@@ -1535,7 +1525,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "Int32Array",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Int32,
                         DataType = DataTypeIds.Int32,
                         ValueRank = ValueRanks.OneDimension,
@@ -1544,7 +1534,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "UInt32Array",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.UInt32,
                         DataType = DataTypeIds.UInt32,
                         ValueRank = ValueRanks.OneDimension,
@@ -1553,7 +1543,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "Int64Array",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Int64,
                         DataType = DataTypeIds.UInt64,
                         ValueRank = ValueRanks.OneDimension,
@@ -1562,7 +1552,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "UInt64Array",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.UInt64,
                         DataType = DataTypeIds.UInt64,
                         ValueRank = ValueRanks.OneDimension,
@@ -1571,7 +1561,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "FloatArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Float,
                         DataType = DataTypeIds.Float,
                         ValueRank = ValueRanks.OneDimension,
@@ -1580,7 +1570,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "DoubleArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Double,
                         DataType = DataTypeIds.Double,
                         ValueRank = ValueRanks.OneDimension,
@@ -1589,7 +1579,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "StringArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.String,
                         DataType = DataTypeIds.String,
                         ValueRank = ValueRanks.OneDimension,
@@ -1598,7 +1588,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "DateTimeArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.DateTime,
                         DataType = DataTypeIds.DateTime,
                         ValueRank = ValueRanks.OneDimension,
@@ -1607,7 +1597,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "GuidArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Guid,
                         DataType = DataTypeIds.Guid,
                         ValueRank = ValueRanks.OneDimension,
@@ -1616,7 +1606,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "ByteStringArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.ByteString,
                         DataType = DataTypeIds.ByteString,
                         ValueRank = ValueRanks.OneDimension,
@@ -1625,7 +1615,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "XmlElementArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.XmlElement,
                         DataType = DataTypeIds.XmlElement,
                         ValueRank = ValueRanks.OneDimension,
@@ -1634,7 +1624,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "NodeIdArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.NodeId,
                         DataType = DataTypeIds.NodeId,
                         ValueRank = ValueRanks.OneDimension,
@@ -1643,7 +1633,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "ExpandedNodeIdArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.ExpandedNodeId,
                         DataType = DataTypeIds.ExpandedNodeId,
                         ValueRank = ValueRanks.OneDimension,
@@ -1652,7 +1642,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "StatusCodeArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.StatusCode,
                         DataType = DataTypeIds.StatusCode,
                         ValueRank = ValueRanks.OneDimension,
@@ -1661,7 +1651,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "QualifiedNameArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.QualifiedName,
                         DataType = DataTypeIds.QualifiedName,
                         ValueRank = ValueRanks.OneDimension,
@@ -1670,18 +1660,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "LocalizedTextArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.LocalizedText,
                         DataType = DataTypeIds.LocalizedText,
-                        ValueRank = ValueRanks.OneDimension,
-                        Description = LocalizedText.Null
-                    },
-                    new FieldMetaData
-                    {
-                        Name = "DiagnosticInfoArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.DiagnosticInfo,
-                        DataType = DataTypeIds.DiagnosticInfo,
                         ValueRank = ValueRanks.OneDimension,
                         Description = LocalizedText.Null
                     }
@@ -1703,14 +1684,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Define  DataSetMetaData
             return new DataSetMetaDataType
             {
-                DataSetClassId = new Uuid(Guid.NewGuid()),
+                DataSetClassId = Uuid.NewUuid(),
                 Name = dataSetName,
                 Fields =
                 [
                     new FieldMetaData
                     {
                         Name = "BoolToggle",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Boolean,
                         DataType = DataTypeIds.Boolean,
                         ValueRank = ValueRanks.Scalar,
@@ -1719,7 +1700,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "Byte",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Byte,
                         DataType = DataTypeIds.Byte,
                         ValueRank = ValueRanks.Scalar,
@@ -1728,7 +1709,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "SByte",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.SByte,
                         DataType = DataTypeIds.SByte,
                         ValueRank = ValueRanks.Scalar,
@@ -1752,14 +1733,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Define  DataSetMetaData
             return new DataSetMetaDataType
             {
-                DataSetClassId = new Uuid(Guid.NewGuid()),
+                DataSetClassId = Uuid.NewUuid(),
                 Name = dataSetName,
                 Fields =
                 [
                     new FieldMetaData
                     {
                         Name = "UInt16",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.UInt16,
                         DataType = DataTypeIds.UInt16,
                         ValueRank = ValueRanks.Scalar,
@@ -1768,7 +1749,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "UInt32",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.UInt32,
                         DataType = DataTypeIds.UInt32,
                         ValueRank = ValueRanks.Scalar,
@@ -1777,7 +1758,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "UInt64",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.UInt64,
                         DataType = DataTypeIds.UInt64,
                         ValueRank = ValueRanks.Scalar,
@@ -1801,14 +1782,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Define  DataSetMetaData
             return new DataSetMetaDataType
             {
-                DataSetClassId = new Uuid(Guid.NewGuid()),
+                DataSetClassId = Uuid.NewUuid(),
                 Name = dataSetName,
                 Fields =
                 [
                     new FieldMetaData
                     {
                         Name = "Int16",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Int16,
                         DataType = DataTypeIds.Int16,
                         ValueRank = ValueRanks.Scalar,
@@ -1817,7 +1798,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "Int32",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Int32,
                         DataType = DataTypeIds.Int32,
                         ValueRank = ValueRanks.Scalar,
@@ -1826,7 +1807,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "Int64",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Int64,
                         DataType = DataTypeIds.Int64,
                         ValueRank = ValueRanks.Scalar,
@@ -1850,14 +1831,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Define  DataSetMetaData
             return new DataSetMetaDataType
             {
-                DataSetClassId = new Uuid(Guid.NewGuid()),
+                DataSetClassId = Uuid.NewUuid(),
                 Name = dataSetName,
                 Fields =
                 [
                     new FieldMetaData
                     {
                         Name = "BoolToggle",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Boolean,
                         DataType = DataTypeIds.Boolean,
                         ValueRank = ValueRanks.Scalar,
@@ -1866,7 +1847,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "SByte",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.SByte,
                         DataType = DataTypeIds.SByte,
                         ValueRank = ValueRanks.Scalar,
@@ -1875,7 +1856,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "Byte",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Byte,
                         DataType = DataTypeIds.Byte,
                         ValueRank = ValueRanks.Scalar,
@@ -1884,7 +1865,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "Int16",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Int16,
                         DataType = DataTypeIds.Int16,
                         ValueRank = ValueRanks.Scalar,
@@ -1893,7 +1874,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "UInt16",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.UInt16,
                         DataType = DataTypeIds.UInt16,
                         ValueRank = ValueRanks.Scalar,
@@ -1902,7 +1883,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "Int32",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Int32,
                         DataType = DataTypeIds.Int32,
                         ValueRank = ValueRanks.Scalar,
@@ -1911,7 +1892,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "UInt32",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.UInt32,
                         DataType = DataTypeIds.UInt32,
                         ValueRank = ValueRanks.Scalar,
@@ -1920,7 +1901,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "Int64",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Int64,
                         DataType = DataTypeIds.Int64,
                         ValueRank = ValueRanks.Scalar,
@@ -1929,7 +1910,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "UInt64",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.UInt64,
                         DataType = DataTypeIds.UInt64,
                         ValueRank = ValueRanks.Scalar,
@@ -1938,7 +1919,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "Float",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Float,
                         DataType = DataTypeIds.Float,
                         ValueRank = ValueRanks.Scalar,
@@ -1947,7 +1928,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "Double",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Double,
                         DataType = DataTypeIds.Double,
                         ValueRank = ValueRanks.Scalar,
@@ -1956,7 +1937,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "String",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.String,
                         DataType = DataTypeIds.String,
                         ValueRank = ValueRanks.Scalar,
@@ -1965,7 +1946,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "DateTime",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.DateTime,
                         DataType = DataTypeIds.DateTime,
                         ValueRank = ValueRanks.Scalar,
@@ -1974,7 +1955,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "Guid",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Guid,
                         DataType = DataTypeIds.Guid,
                         ValueRank = ValueRanks.Scalar,
@@ -1983,7 +1964,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "ByteString",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.ByteString,
                         DataType = DataTypeIds.ByteString,
                         ValueRank = ValueRanks.Scalar,
@@ -1992,7 +1973,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "XmlElement",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.XmlElement,
                         DataType = DataTypeIds.XmlElement,
                         ValueRank = ValueRanks.Scalar,
@@ -2001,7 +1982,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "NodeIdNumeric",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.NodeId,
                         DataType = DataTypeIds.NodeId,
                         ValueRank = ValueRanks.Scalar,
@@ -2010,7 +1991,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "NodeIdGuid",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.NodeId,
                         DataType = DataTypeIds.NodeId,
                         ValueRank = ValueRanks.Scalar,
@@ -2019,7 +2000,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "NodeIdString",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.NodeId,
                         DataType = DataTypeIds.NodeId,
                         ValueRank = ValueRanks.Scalar,
@@ -2028,7 +2009,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "NodeIdOpaque",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.NodeId,
                         DataType = DataTypeIds.NodeId,
                         ValueRank = ValueRanks.Scalar,
@@ -2037,7 +2018,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "ExpandedNodeIdNumeric",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.ExpandedNodeId,
                         DataType = DataTypeIds.ExpandedNodeId,
                         ValueRank = ValueRanks.Scalar,
@@ -2046,7 +2027,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "ExpandedNodeIdGuid",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.ExpandedNodeId,
                         DataType = DataTypeIds.ExpandedNodeId,
                         ValueRank = ValueRanks.Scalar,
@@ -2055,7 +2036,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "ExpandedNodeIdString",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.ExpandedNodeId,
                         DataType = DataTypeIds.ExpandedNodeId,
                         ValueRank = ValueRanks.Scalar,
@@ -2064,7 +2045,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "ExpandedNodeIdOpaque",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.ExpandedNodeId,
                         DataType = DataTypeIds.ExpandedNodeId,
                         ValueRank = ValueRanks.Scalar,
@@ -2073,7 +2054,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "StatusCode",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.StatusCode,
                         DataType = DataTypeIds.StatusCode,
                         ValueRank = ValueRanks.Scalar,
@@ -2082,7 +2063,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     //new FieldMetaData()
                     //{
                     //    Name = "StatusCodeGood",
-                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    //    DataSetFieldId = Uuid.NewUuid(),
                     //    BuiltInType = (byte)BuiltInType.StatusCode,
                     //    DataType = DataTypeIds.StatusCode,
                     //    ValueRank = ValueRanks.Scalar,
@@ -2091,7 +2072,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "StatusCodeBad",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.StatusCode,
                         DataType = DataTypeIds.StatusCode,
                         ValueRank = ValueRanks.Scalar,
@@ -2100,7 +2081,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "QualifiedName",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.QualifiedName,
                         DataType = DataTypeIds.QualifiedName,
                         ValueRank = ValueRanks.Scalar,
@@ -2109,7 +2090,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "LocalizedText",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.LocalizedText,
                         DataType = DataTypeIds.LocalizedText,
                         ValueRank = ValueRanks.Scalar,
@@ -2118,7 +2099,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     //new FieldMetaData()
                     //{
                     //    Name = "Structure",
-                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    //    DataSetFieldId = Uuid.NewUuid(),
                     //    BuiltInType = (byte)BuiltInType.ExtensionObject, // this BuiltinType is not [possible to be decoded yet
                     //    DataType = DataTypeIds.Structure,
                     //    ValueRank = ValueRanks.Scalar,
@@ -2127,7 +2108,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     //new FieldMetaData()
                     //{
                     //    Name = "DataValue",
-                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    //    DataSetFieldId = Uuid.NewUuid(),
                     //    BuiltInType = (byte)BuiltInType.DataValue,
                     //    DataType = DataTypeIds.DataValue,
                     //    ValueRank = ValueRanks.Scalar,
@@ -2136,27 +2117,18 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     //new FieldMetaData()
                     //{
                     //    Name = "Variant",
-                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    //    DataSetFieldId = Uuid.NewUuid(),
                     //    BuiltInType = (byte)BuiltInType.Variant,
                     //    DataType = DataTypeIds.DataValue,
                     //    ValueRank = ValueRanks.Scalar,
                     //     //    Description = LocalizedText.Null
                     //},
-                    new FieldMetaData
-                    {
-                        Name = "DiagnosticInfo",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.DiagnosticInfo,
-                        DataType = DataTypeIds.DiagnosticInfo,
-                        ValueRank = ValueRanks.Scalar,
-                        Description = LocalizedText.Null
-                    },
                     // Number,Integer,UInteger, Enumeration internal use
                     // Array type
                     new FieldMetaData
                     {
                         Name = "BoolToggleArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Boolean,
                         DataType = DataTypeIds.Boolean,
                         ValueRank = ValueRanks.OneDimension,
@@ -2165,7 +2137,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "SByteArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.SByte,
                         DataType = DataTypeIds.SByte,
                         ValueRank = ValueRanks.OneDimension,
@@ -2174,7 +2146,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "ByteArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Byte,
                         DataType = DataTypeIds.Byte,
                         ValueRank = ValueRanks.OneDimension,
@@ -2183,7 +2155,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "Int16Array",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Int16,
                         DataType = DataTypeIds.Int16,
                         ValueRank = ValueRanks.OneDimension,
@@ -2192,7 +2164,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "UInt16Array",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.UInt16,
                         DataType = DataTypeIds.UInt16,
                         ValueRank = ValueRanks.OneDimension,
@@ -2201,7 +2173,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "Int32Array",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Int32,
                         DataType = DataTypeIds.Int32,
                         ValueRank = ValueRanks.OneDimension,
@@ -2210,7 +2182,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "UInt32Array",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.UInt32,
                         DataType = DataTypeIds.UInt32,
                         ValueRank = ValueRanks.OneDimension,
@@ -2219,7 +2191,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "Int64Array",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Int64,
                         DataType = DataTypeIds.UInt64,
                         ValueRank = ValueRanks.OneDimension,
@@ -2228,7 +2200,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "UInt64Array",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.UInt64,
                         DataType = DataTypeIds.UInt64,
                         ValueRank = ValueRanks.OneDimension,
@@ -2237,7 +2209,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "FloatArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Float,
                         DataType = DataTypeIds.Float,
                         ValueRank = ValueRanks.OneDimension,
@@ -2246,7 +2218,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "DoubleArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Double,
                         DataType = DataTypeIds.Double,
                         ValueRank = ValueRanks.OneDimension,
@@ -2255,7 +2227,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "StringArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.String,
                         DataType = DataTypeIds.String,
                         ValueRank = ValueRanks.OneDimension,
@@ -2264,7 +2236,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "DateTimeArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.DateTime,
                         DataType = DataTypeIds.DateTime,
                         ValueRank = ValueRanks.OneDimension,
@@ -2273,7 +2245,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "GuidArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Guid,
                         DataType = DataTypeIds.Guid,
                         ValueRank = ValueRanks.OneDimension,
@@ -2282,7 +2254,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "ByteStringArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.ByteString,
                         DataType = DataTypeIds.ByteString,
                         ValueRank = ValueRanks.OneDimension,
@@ -2291,7 +2263,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "XmlElementArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.XmlElement,
                         DataType = DataTypeIds.XmlElement,
                         ValueRank = ValueRanks.OneDimension,
@@ -2300,7 +2272,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "NodeIdArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.NodeId,
                         DataType = DataTypeIds.NodeId,
                         ValueRank = ValueRanks.OneDimension,
@@ -2309,7 +2281,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "ExpandedNodeIdArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.ExpandedNodeId,
                         DataType = DataTypeIds.ExpandedNodeId,
                         ValueRank = ValueRanks.OneDimension,
@@ -2318,7 +2290,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "StatusCodeArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.StatusCode,
                         DataType = DataTypeIds.StatusCode,
                         ValueRank = ValueRanks.OneDimension,
@@ -2327,7 +2299,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "QualifiedNameArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.QualifiedName,
                         DataType = DataTypeIds.QualifiedName,
                         ValueRank = ValueRanks.OneDimension,
@@ -2336,7 +2308,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "LocalizedTextArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.LocalizedText,
                         DataType = DataTypeIds.LocalizedText,
                         ValueRank = ValueRanks.OneDimension,
@@ -2345,7 +2317,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     //new FieldMetaData()
                     //{
                     //    Name = "StructureArray",
-                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    //    DataSetFieldId = Uuid.NewUuid(),
                     //    BuiltInType = (byte)BuiltInType.ExtensionObject,
                     //    DataType = DataTypeIds.Structure,
                     //    ValueRank = ValueRanks.OneDimension,
@@ -2354,7 +2326,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     //new FieldMetaData()
                     //{
                     //    Name = "DataValueArray",
-                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    //    DataSetFieldId = Uuid.NewUuid(),
                     //    BuiltInType = (byte)BuiltInType.DataValue,
                     //    DataType = DataTypeIds.DataValue,
                     //    ValueRank = ValueRanks.OneDimension,
@@ -2363,26 +2335,17 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     //new FieldMetaData()
                     //{
                     //    Name = "VariantArray",
-                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    //    DataSetFieldId = Uuid.NewUuid(),
                     //    BuiltInType = (byte)BuiltInType.Variant,
                     //    DataType = DataTypeIds.DataValue,
                     //    ValueRank = ValueRanks.OneDimension,
                     //    Description = LocalizedText.Null
                     //},
-                    new FieldMetaData
-                    {
-                        Name = "DiagnosticInfoArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.DiagnosticInfo,
-                        DataType = DataTypeIds.DiagnosticInfo,
-                        ValueRank = ValueRanks.OneDimension,
-                        Description = LocalizedText.Null
-                    },
                     // Matrix type
                     new FieldMetaData
                     {
                         Name = "BoolToggleMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Boolean,
                         DataType = DataTypeIds.Boolean,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -2391,7 +2354,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "SByteMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.SByte,
                         DataType = DataTypeIds.SByte,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -2400,7 +2363,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "ByteMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Byte,
                         DataType = DataTypeIds.Byte,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -2409,7 +2372,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "Int16Matrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Int16,
                         DataType = DataTypeIds.Int16,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -2418,7 +2381,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "UInt16Matrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.UInt16,
                         DataType = DataTypeIds.UInt16,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -2427,7 +2390,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "Int32Matrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Int32,
                         DataType = DataTypeIds.Int32,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -2436,7 +2399,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "UInt32Matrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.UInt32,
                         DataType = DataTypeIds.UInt32,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -2445,7 +2408,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "Int64Matrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Int64,
                         DataType = DataTypeIds.UInt64,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -2454,7 +2417,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "UInt64Matrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.UInt64,
                         DataType = DataTypeIds.UInt64,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -2463,7 +2426,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "FloatMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Float,
                         DataType = DataTypeIds.Float,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -2472,7 +2435,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "DoubleMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Double,
                         DataType = DataTypeIds.Double,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -2481,7 +2444,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "StringMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.String,
                         DataType = DataTypeIds.String,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -2490,7 +2453,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "DateTimeMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.DateTime,
                         DataType = DataTypeIds.DateTime,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -2499,7 +2462,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "GuidMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.Guid,
                         DataType = DataTypeIds.Guid,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -2508,7 +2471,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "ByteStringMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.ByteString,
                         DataType = DataTypeIds.ByteString,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -2517,7 +2480,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "XmlElementMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.XmlElement,
                         DataType = DataTypeIds.XmlElement,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -2526,7 +2489,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "NodeIdMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.NodeId,
                         DataType = DataTypeIds.NodeId,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -2535,7 +2498,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     //new FieldMetaData()
                     //{
                     //    Name = "ExpandedNodeIdMatrix",
-                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    //    DataSetFieldId = Uuid.NewUuid(),
                     //    BuiltInType = (byte)BuiltInType.ExpandedNodeId,
                     //    DataType = DataTypeIds.ExpandedNodeId,
                     //    ValueRank = ValueRanks.TwoDimensions
@@ -2544,7 +2507,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "StatusCodeMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.StatusCode,
                         DataType = DataTypeIds.StatusCode,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -2553,7 +2516,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "QualifiedNameMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.QualifiedName,
                         DataType = DataTypeIds.QualifiedName,
                         ValueRank = ValueRanks.TwoDimensions,
@@ -2562,16 +2525,16 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     new FieldMetaData
                     {
                         Name = "LocalizedTextMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        DataSetFieldId = Uuid.NewUuid(),
                         BuiltInType = (byte)BuiltInType.LocalizedText,
                         DataType = DataTypeIds.LocalizedText,
                         ValueRank = ValueRanks.TwoDimensions,
                         Description = LocalizedText.Null
-                    },
+                    } //,
                     //new FieldMetaData()
                     //{
                     //    Name = "StructureMatrix",
-                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    //    DataSetFieldId = Uuid.NewUuid(),
                     //    BuiltInType = (byte)BuiltInType.ExtensionObject,
                     //    DataType = DataTypeIds.Structure,
                     //    ValueRank = ValueRanks.TwoDimensions,
@@ -2580,7 +2543,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     //new FieldMetaData()
                     //{
                     //    Name = "DataValueMatrix",
-                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    //    DataSetFieldId = Uuid.NewUuid(),
                     //    BuiltInType = (byte)BuiltInType.DataValue,
                     //    DataType = DataTypeIds.DataValue,
                     //    ValueRank = ValueRanks.TwoDimensions,
@@ -2589,21 +2552,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     //new FieldMetaData()
                     //{
                     //    Name = "VariantMatrix",
-                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    //    DataSetFieldId = Uuid.NewUuid(),
                     //    BuiltInType = (byte)BuiltInType.Variant,
                     //    DataType = DataTypeIds.DataValue,
                     //    ValueRank = ValueRanks.TwoDimensions,
                     //    Description = LocalizedText.Null
-                    //},
-                    new FieldMetaData
-                    {
-                        Name = "DiagnosticInfoMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.DiagnosticInfo,
-                        DataType = DataTypeIds.DiagnosticInfo,
-                        ValueRank = ValueRanks.TwoDimensions,
-                        Description = LocalizedText.Null
-                    }
+                    //}
                 ],
                 ConfigurationVersion = new ConfigurationVersionDataType
                 {
@@ -2687,7 +2641,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 new NodeId("DateTime", namespaceIndexAllTypes),
                 Attributes.Value,
                 dateTimeVal);
-            var guidValue = new DataValue(new Variant(new Guid()));
+            var guidValue = new DataValue(new Variant(new Uuid()));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("Guid", namespaceIndexAllTypes),
                 Attributes.Value,
@@ -2715,7 +2669,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 new NodeId("NodeIdNumeric", namespaceIndexAllTypes),
                 Attributes.Value,
                 nodeIdValue);
-            nodeIdValue = new DataValue(new Variant(new NodeId(Guid.NewGuid(), 2)));
+            nodeIdValue = new DataValue(new Variant(new NodeId(Uuid.NewUuid(), 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("NodeIdGuid", namespaceIndexAllTypes),
                 Attributes.Value,
@@ -2740,7 +2694,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 new NodeId("ExpandedNodeIdNumeric", namespaceIndexAllTypes),
                 Attributes.Value,
                 expandedNodeId);
-            expandedNodeId = new DataValue(new Variant(new ExpandedNodeId(Guid.NewGuid(), 2)));
+            expandedNodeId = new DataValue(new Variant(new ExpandedNodeId(Uuid.NewUuid(), 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ExpandedNodeIdGuid", namespaceIndexAllTypes),
                 Attributes.Value,
@@ -2756,18 +2710,18 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Attributes.Value,
                 expandedNodeId);
             var statusCode = new DataValue(
-                new Variant(new StatusCode(StatusCodes.BadAggregateInvalidInputs)));
+                new Variant(StatusCodes.BadAggregateInvalidInputs));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("StatusCode", namespaceIndexAllTypes),
                 Attributes.Value,
                 statusCode);
-            statusCode = new DataValue(new Variant(new StatusCode(StatusCodes.Good)));
+            statusCode = new DataValue(new Variant(StatusCodes.Good));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("StatusCodeGood", namespaceIndexAllTypes),
                 Attributes.Value,
                 statusCode);
             statusCode = new DataValue(
-                new Variant(new StatusCode(StatusCodes.BadAttributeIdInvalid)));
+                new Variant(StatusCodes.BadAttributeIdInvalid));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("StatusCodeBad", namespaceIndexAllTypes),
                 Attributes.Value,
@@ -2804,12 +2758,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 new NodeId("DataValue", namespaceIndexAllTypes),
                 Attributes.Value,
                 dataValue);
-            var diagnosticInfoValue = new DataValue(
-                new Variant(new DiagnosticInfo(1, 1, 1, 1, "Diagnostic_info")));
-            pubSubApplication.DataStore.WritePublishedDataItem(
-                new NodeId("DiagnosticInfo", namespaceIndexAllTypes),
-                Attributes.Value,
-                diagnosticInfoValue);
 
             // DataSet 'AllTypes' fill with data array
             var boolToggleArray = new DataValue(
@@ -2894,7 +2842,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Attributes.Value,
                 dateTimeValArray);
             var guidValueArray = new DataValue(
-                new Variant(new UuidCollection { new Uuid(new Guid()), new Uuid(new Guid()) }));
+                new Variant(new UuidCollection { new Uuid(), new Uuid() }));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("GuidArray", namespaceIndexAllTypes),
                 Attributes.Value,
@@ -2943,8 +2891,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 statusCodeArray);
             var qualifiedValueArray = new DataValue(
                 new Variant(new QualifiedNameCollection {
-                    new QualifiedName("123"),
-                    new QualifiedName("abc") }));
+                    QualifiedName.From("123"),
+                    QualifiedName.From("abc") }));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("QualifiedNameArray", namespaceIndexAllTypes),
                 Attributes.Value,
@@ -2968,17 +2916,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 new NodeId("DataValueArray", namespaceIndexAllTypes),
                 Attributes.Value,
                 dataValueArray);
-            var diagnosticInfoValueArray = new DataValue(
-                new Variant(
-                    new DiagnosticInfoCollection
-                    {
-                        new DiagnosticInfo(1, 1, 1, 1, "Diagnostic_info1"),
-                        new DiagnosticInfo(2, 2, 2, 2, "Diagnostic_info2")
-                    }));
-            pubSubApplication.DataStore.WritePublishedDataItem(
-                new NodeId("DiagnosticInfoArray", namespaceIndexAllTypes),
-                Attributes.Value,
-                diagnosticInfoValueArray);
 
             // DataSet 'AllTypes' fill with matrix data
             var boolToggleMatrix = new DataValue(
@@ -3093,10 +3030,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 new Variant(
                     new Matrix(
                         new Uuid[] {
-                            new(new Guid()),
-                            new(new Guid()),
-                            new(new Guid()),
-                            new(new Guid()) },
+                            new(),
+                            new(),
+                            new(),
+                            new()
+                        },
                         BuiltInType.Guid,
                         2,
                         2)));
@@ -3217,23 +3155,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 new NodeId("DataValueMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
                 dataValueMatrix);
-            var diagnosticInfoValueMatrix = new DataValue(
-                new Variant(
-                    new Matrix(
-                        new DiagnosticInfo[]
-                        {
-                            new(1, 1, 1, 1, "Diagnostic_info1"),
-                            new(2, 2, 2, 2, "Diagnostic_info2"),
-                            new(3, 3, 3, 3, "Diagnostic_info3"),
-                            new(4, 4, 4, 4, "Diagnostic_info4")
-                        },
-                        BuiltInType.DiagnosticInfo,
-                        2,
-                        2)));
-            pubSubApplication.DataStore.WritePublishedDataItem(
-                new NodeId("DiagnosticInfoMatrix", namespaceIndexAllTypes),
-                Attributes.Value,
-                diagnosticInfoValueMatrix);
         }
 
         /// <summary>

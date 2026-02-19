@@ -276,6 +276,204 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        public async Task FetchOperationLimitsAsyncShouldApplyClientLimitsWhenSmaller()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var channel = new Mock<ITransportChannel>();
+            channel
+                .SetupGet(s => s.MessageContext)
+                .Returns(new ServiceMessageContext(telemetry));
+            channel
+                .SetupGet(s => s.SupportedFeatures)
+                .Returns(TransportChannelFeatures.Reconnect);
+
+            // Configure client with smaller limits than server
+            var configuration = new ApplicationConfiguration(telemetry)
+            {
+                ClientConfiguration = new ClientConfiguration
+                {
+                    OperationLimits = new OperationLimits
+                    {
+                        MaxNodesPerRead = 500,
+                        MaxNodesPerWrite = 2000,
+                        MaxNodesPerBrowse = 4000
+                    }
+                }
+            };
+
+            var endpoint = new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None,
+                EndpointUrl = "opc.tcp://localhost:4840"
+            };
+
+            var sut = new SessionMock(
+                channel,
+                configuration,
+                new ConfiguredEndpoint(null, endpoint));
+
+            CancellationToken ct = CancellationToken.None;
+
+            // Server returns larger values
+            var dataValues = new DataValueCollection
+            {
+                new DataValue(new Variant(1000u)), // MaxNodesPerHistoryReadData - no client limit
+                new DataValue(new Variant(1000u)), // MaxNodesPerHistoryReadEvents - no client limit
+                new DataValue(new Variant(5000u)), // MaxNodesPerWrite - client has 2000
+                new DataValue(new Variant(1000u)), // MaxNodesPerRead - client has 500
+                new DataValue(new Variant(1000u)), // MaxNodesPerHistoryUpdateData
+                new DataValue(new Variant(1000u)), // MaxNodesPerHistoryUpdateEvents
+                new DataValue(new Variant(1000u)), // MaxNodesPerMethodCall
+                new DataValue(new Variant(10000u)), // MaxNodesPerBrowse - client has 4000
+                new DataValue(new Variant(1000u)), // MaxNodesPerRegisterNodes
+                new DataValue(new Variant(1000u)), // MaxNodesPerNodeManagement
+                new DataValue(new Variant(1000u)), // MaxMonitoredItemsPerCall
+                new DataValue(new Variant(1000u)), // MaxNodesPerTranslateBrowsePathsToNodeIds
+                new DataValue(new Variant((ushort)100)),
+                new DataValue(new Variant((ushort)100)),
+                new DataValue(new Variant((ushort)100)),
+                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(100.0)),
+                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(1000u))
+            };
+
+            channel
+                .SetupSequence(c => c.SendRequestAsync(
+                    It.IsAny<ReadRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(new ReadResponse
+                {
+                    Results = [new DataValue(new Variant(1000u))],
+                    DiagnosticInfos = []
+                }))
+                .Returns(new ValueTask<IServiceResponse>(new ReadResponse
+                {
+                    Results = dataValues,
+                    DiagnosticInfos = []
+                }));
+
+            // Act
+            await sut.FetchOperationLimitsAsync(ct).ConfigureAwait(false);
+
+            // Assert - should use smaller of client and server values
+            Assert.That(sut.OperationLimits.MaxNodesPerRead, Is.EqualTo(500)); // min(500, 1000)
+            Assert.That(sut.OperationLimits.MaxNodesPerWrite, Is.EqualTo(2000)); // min(2000, 5000)
+            Assert.That(sut.OperationLimits.MaxNodesPerBrowse, Is.EqualTo(4000)); // min(4000, 10000)
+            Assert.That(sut.OperationLimits.MaxNodesPerHistoryReadData, Is.EqualTo(1000)); // 0 -> server
+            Assert.That(sut.OperationLimits.MaxNodesPerHistoryReadEvents, Is.EqualTo(1000)); // 0 -> server
+
+            channel.Verify();
+        }
+
+        [Test]
+        public async Task FetchOperationLimitsAsyncShouldApplyServerLimitsWhenSmaller()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var channel = new Mock<ITransportChannel>();
+            channel
+                .SetupGet(s => s.MessageContext)
+                .Returns(new ServiceMessageContext(telemetry));
+            channel
+                .SetupGet(s => s.SupportedFeatures)
+                .Returns(TransportChannelFeatures.Reconnect);
+
+            // Configure client with larger limits than server
+            var configuration = new ApplicationConfiguration(telemetry)
+            {
+                ClientConfiguration = new ClientConfiguration
+                {
+                    OperationLimits = new OperationLimits
+                    {
+                        MaxNodesPerRead = 2000,
+                        MaxNodesPerWrite = 10000,
+                        MaxNodesPerBrowse = 8000
+                    }
+                }
+            };
+
+            var endpoint = new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None,
+                EndpointUrl = "opc.tcp://localhost:4840"
+            };
+
+            var sut = new SessionMock(
+                channel,
+                configuration,
+                new ConfiguredEndpoint(null, endpoint));
+
+            CancellationToken ct = CancellationToken.None;
+
+            // Server returns smaller values
+            var dataValues = new DataValueCollection
+            {
+                new DataValue(new Variant(1000u)), // MaxNodesPerHistoryReadData
+                new DataValue(new Variant(1000u)), // MaxNodesPerHistoryReadEvents
+                new DataValue(new Variant(5000u)), // MaxNodesPerWrite - server has 5000, client has 10000
+                new DataValue(new Variant(1000u)), // MaxNodesPerRead - server has 1000, client has 2000
+                new DataValue(new Variant(1000u)), // MaxNodesPerHistoryUpdateData
+                new DataValue(new Variant(1000u)), // MaxNodesPerHistoryUpdateEvents
+                new DataValue(new Variant(1000u)), // MaxNodesPerMethodCall
+                new DataValue(new Variant(5000u)), // MaxNodesPerBrowse - server has 5000, client has 8000
+                new DataValue(new Variant(1000u)), // MaxNodesPerRegisterNodes
+                new DataValue(new Variant(1000u)), // MaxNodesPerNodeManagement
+                new DataValue(new Variant(1000u)), // MaxMonitoredItemsPerCall
+                new DataValue(new Variant(1000u)), // MaxNodesPerTranslateBrowsePathsToNodeIds
+                new DataValue(new Variant((ushort)100)),
+                new DataValue(new Variant((ushort)100)),
+                new DataValue(new Variant((ushort)100)),
+                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(100.0)),
+                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(1000u)),
+                new DataValue(new Variant(1000u))
+            };
+
+            channel
+                .SetupSequence(c => c.SendRequestAsync(
+                    It.IsAny<ReadRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(new ReadResponse
+                {
+                    Results = [new DataValue(new Variant(1000u))],
+                    DiagnosticInfos = []
+                }))
+                .Returns(new ValueTask<IServiceResponse>(new ReadResponse
+                {
+                    Results = dataValues,
+                    DiagnosticInfos = []
+                }));
+
+            // Act
+            await sut.FetchOperationLimitsAsync(ct).ConfigureAwait(false);
+
+            // Assert - should use smaller of client and server values
+            Assert.That(sut.OperationLimits.MaxNodesPerRead, Is.EqualTo(1000)); // min(2000, 1000)
+            Assert.That(sut.OperationLimits.MaxNodesPerWrite, Is.EqualTo(5000)); // min(10000, 5000)
+            Assert.That(sut.OperationLimits.MaxNodesPerBrowse, Is.EqualTo(5000)); // min(8000, 5000)
+
+            channel.Verify();
+        }
+
+        [Test]
         public async Task FetchNamespaceTablesAsyncShouldFetchAndUpdateTablesAsync()
         {
             var sut = SessionMock.Create();

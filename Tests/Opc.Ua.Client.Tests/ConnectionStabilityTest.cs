@@ -43,69 +43,80 @@ namespace Opc.Ua.Client.Tests
     /// Long-running connection stability test.
     /// </summary>
     [TestFixture]
-    [Category("ConnectionStability")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
+    [Category("Client")]
     public class ConnectionStabilityTest : ClientTestFramework
     {
-        private const int SecurityTokenLifetimeCIMs = 5 * 60 * 1000; // 5 minutes for CI
-        private const int SecurityTokenLifetimeLocalMs = 10 * 1000; // 10 seconds for local testing
-        private const int StatusReportIntervalSeconds = 60; // Report status every 60 seconds
-        private const double NotificationToleranceRatio = 0.95; // Accept 95% of expected notifications (5% tolerance)
+        /// <summary>
+        /// 5 minutes for CI
+        /// </summary>
+        private const int kSecurityTokenLifetimeCIMs = 5 * 60 * 1000;
+
+        /// <summary>
+        /// 10 seconds for local testing
+        /// </summary>
+        private const int kSecurityTokenLifetimeLocalMs = 10 * 1000;
+
+        /// <summary>
+        /// Report status every 60 seconds
+        /// </summary>
+        private const int kStatusReportIntervalSeconds = 60;
+
+        /// <summary>
+        /// Accept 95% of expected notifications (5% tolerance)
+        /// </summary>
+        private const double kNotificationToleranceRatio = 0.95;
 
         public ConnectionStabilityTest()
             : base(Utils.UriSchemeOpcTcp)
         {
-            SingleSession = false;
-        }
-
-        /// <summary>
-        /// Set up a Server and a Client instance.
-        /// </summary>
-        [OneTimeSetUp]
-        public override async Task OneTimeSetUpAsync()
-        {
             SupportsExternalServerUrl = true;
-
-            // Check if running in CI environment
-            bool isCI = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CI")) ||
-                       !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"));
-
-            // Configure security token lifetime based on environment
-            // CI: 5 minutes to force 18 renewals in 90 minute test
-            // Local: 10 seconds to force 6 renewals in 1 minute test
-            int tokenLifetime = isCI ? SecurityTokenLifetimeCIMs : SecurityTokenLifetimeLocalMs;
-
-            SecurityTokenLifetime = tokenLifetime;
-
-            await base.OneTimeSetUpAsync().ConfigureAwait(false);
         }
 
-        /// <summary>
-        /// Tear down the Server and the Client.
-        /// </summary>
-        [OneTimeTearDown]
-        public override Task OneTimeTearDownAsync()
+        [Test]
+        [Order(100)]
+        public async Task ShortHaulStabilityTestAsync()
         {
-            return base.OneTimeTearDownAsync();
+            try
+            {
+                SecurityTokenLifetime = kSecurityTokenLifetimeLocalMs;
+                await OneTimeSetUpAsync().ConfigureAwait(false);
+
+                // 2 minutes for local testing
+                await RunStabilityTestAsync(2).ConfigureAwait(false);
+            }
+            finally
+            {
+                await OneTimeTearDownAsync().ConfigureAwait(false);
+            }
         }
 
-        /// <summary>
-        /// Test setup.
-        /// </summary>
-        [SetUp]
-        public override Task SetUpAsync()
+        [Test]
+        [Order(100)]
+        [Explicit]
+        [Category("ConnectionStability")]
+        public async Task LongHaulStabilityTestAsync()
         {
-            return base.SetUpAsync();
-        }
+            try
+            {
+                SecurityTokenLifetime = kSecurityTokenLifetimeCIMs;
+                await OneTimeSetUpAsync().ConfigureAwait(false);
 
-        /// <summary>
-        /// Test teardown.
-        /// </summary>
-        [TearDown]
-        public override Task TearDownAsync()
-        {
-            return base.TearDownAsync();
+                // Configurable duration for CI testing
+                string envValue = Environment.GetEnvironmentVariable("TEST_DURATION_MINUTES");
+                if (string.IsNullOrEmpty(envValue) ||
+                    !int.TryParse(envValue, out int minutes) ||
+                    minutes <= 0)
+                {
+                    minutes = 90; // Default to 90 minutes for CI
+                }
+                await RunStabilityTestAsync(minutes).ConfigureAwait(false);
+            }
+            finally
+            {
+                await OneTimeTearDownAsync().ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -113,24 +124,18 @@ namespace Opc.Ua.Client.Tests
         /// Tests that:
         /// - Connection remains stable over extended period
         /// - Subscriptions deliver all expected values (no message loss)
-        /// - Security token renewals happen correctly (every 5 minutes in CI, every 10 seconds locally)
-        /// Duration can be configured via TEST_DURATION_MINUTES environment variable (default: 90 minutes CI, 1 minute local)
+        /// - Security token renewals happen correctly
         /// </summary>
-        [Test]
-        [Order(100)]
-        public async Task LongRunningStabilityTestAsync()
+        private async Task RunStabilityTestAsync(int testDurationMinutes)
         {
             // Get test duration from environment variable or use default
-            int testDurationMinutes = GetTestDurationMinutes();
             int testDurationSeconds = testDurationMinutes * 60;
+            int tokenLifetimeMs = SecurityTokenLifetime;
 
-            // Determine token lifetime based on environment
-            bool isCI = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CI")) ||
-                       !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"));
-            int tokenLifetimeMs = isCI ? SecurityTokenLifetimeCIMs : SecurityTokenLifetimeLocalMs;
-
-            TestContext.Out.WriteLine($"Starting connection stability test for {testDurationMinutes} minutes ({testDurationSeconds} seconds)");
-            TestContext.Out.WriteLine($"Security token lifetime: {tokenLifetimeMs / 1000} seconds ({tokenLifetimeMs / 60000.0:F1} minutes)");
+            TestContext.Out.WriteLine(
+                $"Starting connection stability test for {testDurationMinutes} minutes ({testDurationSeconds} seconds)");
+            TestContext.Out.WriteLine(
+                $"Security token lifetime: {tokenLifetimeMs / 1000} seconds ({tokenLifetimeMs / 60000.0:F1} minutes)");
 
             const int publishingInterval = 1000; // 1 second
             const int writerInterval = 2000;     // 2 seconds
@@ -155,7 +160,9 @@ namespace Opc.Ua.Client.Tests
                 TestContext.Out.WriteLine($"Subscribing to {nodeIds.Count} nodes.");
 
                 // Create session
-                session = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+                session = await ClientFixture.ConnectAsync(
+                    ServerUrl,
+                    SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
                 Assert.NotNull(session, "Failed to create session");
 
                 // Create subscription
@@ -221,7 +228,9 @@ namespace Opc.Ua.Client.Tests
                 TestContext.Out.WriteLine($"Subscription created with {subscription.MonitoredItemCount} monitored items");
 
                 // Create writer session
-                ISession writerSession = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+                ISession writerSession = await ClientFixture.ConnectAsync(
+                    ServerUrl,
+                    SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
                 Assert.NotNull(writerSession, "Failed to create writer session");
 
                 // Writer task - continuously write values
@@ -282,7 +291,9 @@ namespace Opc.Ua.Client.Tests
                     {
                         try
                         {
-                            await Task.Delay(TimeSpan.FromSeconds(StatusReportIntervalSeconds), statusReportingCts.Token).ConfigureAwait(false);
+                            await Task.Delay(
+                                TimeSpan.FromSeconds(kStatusReportIntervalSeconds),
+                                statusReportingCts.Token).ConfigureAwait(false);
                         }
                         catch (OperationCanceledException)
                         {
@@ -291,7 +302,7 @@ namespace Opc.Ua.Client.Tests
 
                         reportCount++;
                         int totalNotifications = valueChanges.Values.Sum();
-                        int elapsedMinutes = reportCount * StatusReportIntervalSeconds / 60;
+                        int elapsedMinutes = reportCount * kStatusReportIntervalSeconds / 60;
 
                         TestContext.Out.WriteLine(
                             $"[Status Report {reportCount}] Elapsed: {elapsedMinutes} minutes, " +
@@ -302,7 +313,7 @@ namespace Opc.Ua.Client.Tests
                         if (reportCount % 5 == 0) // Every 5 minutes
                         {
                             TestContext.Out.WriteLine("Per-node notification counts:");
-                            foreach (var kvp in valueChanges.OrderBy(x => x.Key.ToString()))
+                            foreach (KeyValuePair<NodeId, int> kvp in valueChanges.OrderBy(x => x.Key.ToString()))
                             {
                                 TestContext.Out.WriteLine($"  {kvp.Key}: {kvp.Value} notifications");
                             }
@@ -346,7 +357,7 @@ namespace Opc.Ua.Client.Tests
                 TestContext.Out.WriteLine("=== Final Results ===");
                 TestContext.Out.WriteLine($"Test duration: {testDurationMinutes} minutes");
                 TestContext.Out.WriteLine($"Security token lifetime: {tokenLifetimeMs / 1000} seconds ({tokenLifetimeMs / 60000.0:F1} minutes)");
-                TestContext.Out.WriteLine($"Expected token renewals: ~{(testDurationMinutes * 60000) / tokenLifetimeMs} times");
+                TestContext.Out.WriteLine($"Expected token renewals: ~{testDurationMinutes * 60000 / tokenLifetimeMs} times");
                 TestContext.Out.WriteLine($"Total write operations: {writeCount}");
                 TestContext.Out.WriteLine($"Total errors: {errors.Count}");
 
@@ -367,10 +378,12 @@ namespace Opc.Ua.Client.Tests
 #if DEBUG
                         TestContext.Out.WriteLine($"  {nodeId}: {changes} notifications");
 #endif
-                        if (changes < (writeCount * NotificationToleranceRatio))
+                        double expected = writeCount * kNotificationToleranceRatio;
+                        if (changes < expected)
                         {
                             allNodesReceivedData = false;
-                            TestContext.Out.WriteLine($"    WARNING: Expected at least {writeCount * NotificationToleranceRatio:F0} notifications");
+                            TestContext.Out.WriteLine(
+                                $"    WARNING: Expected at least {expected:F0} but got {changes} on {nodeId}");
                         }
                     }
                     else
@@ -408,7 +421,10 @@ namespace Opc.Ua.Client.Tests
                 // Assertions
                 Assert.IsTrue(allNodesReceivedData, "Not all nodes received expected data");
                 Assert.AreEqual(0, errors.Count, $"Test encountered {errors.Count} errors");
-                Assert.GreaterOrEqual(totalNotifications, expectedMinNotifications, "Total notifications received is less than expected minimum");
+                Assert.GreaterOrEqual(
+                    totalNotifications,
+                    expectedMinNotifications,
+                    "Total notifications received is less than expected minimum");
 
                 TestContext.Out.WriteLine("Connection stability test PASSED");
             }
@@ -440,28 +456,6 @@ namespace Opc.Ua.Client.Tests
                     }
                 }
             }
-        }
-
-        /// <summary>
-        /// Gets the test duration in minutes from environment variable or returns default.
-        /// </summary>
-        private int GetTestDurationMinutes()
-        {
-            string envValue = Environment.GetEnvironmentVariable("TEST_DURATION_MINUTES");
-
-            if (!string.IsNullOrEmpty(envValue) && int.TryParse(envValue, out int minutes) && minutes > 0)
-            {
-                return minutes;
-            }
-
-            // Default to 90 minutes for nightly runs, but use 1 minute for manual/local testing
-            // CI: 90 minutes with 5-minute token lifetime = 18 renewals
-            // Local: 1 minute with 10-second token lifetime = 6 renewals
-            // Check if running in CI environment
-            bool isCI = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CI")) ||
-                       !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"));
-
-            return isCI ? 90 : 1; // 90 minutes for CI (18 renewals), 1 minute for local (6 renewals)
         }
     }
 }

@@ -1,0 +1,18 @@
+<Project>
+  <ItemGroup>
+    <CompilerVisibleProperty Include="ModelSourceGeneratorVersion" />
+    <CompilerVisibleProperty Include="ModelSourceGeneratorExclude" />
+    <CompilerVisibleProperty Include="ModelSourceGeneratorUseAllowSubtypes" />
+    <CompilerVisibleProperty Include="ModelSourceGeneratorStartId" />
+    <CompilerVisibleProperty Include="ModelSourceGeneratorModelVersion" />
+    <CompilerVisibleProperty Include="ModelSourceGeneratorModelPublicationDate" />
+    <CompilerVisibleProperty Include="ModelSourceGeneratorReleaseCandidate" />
+  </ItemGroup>
+  <ItemGroup>
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="ModelSourceGeneratorVersion" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="ModelSourceGeneratorModelUri" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="ModelSourceGeneratorName" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="ModelSourceGeneratorPrefix" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="ModelSourceGeneratorIgnore" />
+  </ItemGroup>
+</Project>

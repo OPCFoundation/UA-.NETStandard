@@ -215,7 +215,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             loperand1.Value = new Variant(operandFirst1);
             if (filterOp == FilterOperator.Cast)
             {
-                var uintNoid = new NodeId(operandFirst2, 0);
+                var uintNoid = new NodeId((uint)operandFirst2, 0);
                 loperand2.Value = new Variant(uintNoid);
             }
             else
@@ -260,7 +260,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             loperand1.Value = new Variant(operandFirst1);
             if (filterOp1 == FilterOperator.Cast)
             {
-                var uintNoid = new NodeId(operandFirst2, 0);
+                var uintNoid = new NodeId((uint)operandFirst2, 0);
                 loperand2.Value = new Variant(uintNoid);
             }
             else
@@ -355,7 +355,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             loperand1.Value = new Variant(operandFirst1);
             if (filterOp1 == FilterOperator.Cast)
             {
-                var uintNoid = new NodeId(operandFirst2, 0);
+                var uintNoid = new NodeId((uint)operandFirst2, 0);
                 loperand2.Value = new Variant(uintNoid);
             }
             else

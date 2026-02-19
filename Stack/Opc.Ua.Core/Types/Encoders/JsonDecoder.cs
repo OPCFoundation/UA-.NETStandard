@@ -722,7 +722,7 @@ namespace Opc.Ua
 
             try
             {
-                return new Uuid(value);
+                return Uuid.Parse(value);
             }
             catch (FormatException fe)
             {
@@ -1334,7 +1334,7 @@ namespace Opc.Ua
                 bool inlineValues = true;
                 ExpandedNodeId typeId = ReadExpandedNodeId("UaTypeId");
 
-                if (NodeId.IsNull(typeId))
+                if (typeId.IsNull)
                 {
                     typeId = ReadExpandedNodeId("TypeId");
                     inlineValues = false;
@@ -1344,7 +1344,7 @@ namespace Opc.Ua
                     ? typeId
                     : NodeId.ToExpandedNodeId(typeId.InnerNodeId, Context.NamespaceUris);
 
-                if (!NodeId.IsNull(typeId) && NodeId.IsNull(absoluteId))
+                if (!typeId.IsNull && absoluteId.IsNull)
                 {
                     m_logger.LogWarning(
                         "Cannot de-serialized extension objects if the NamespaceUri is not in the NamespaceTable: Type = {Type}",
@@ -1449,7 +1449,7 @@ namespace Opc.Ua
         public IEncodeable ReadEncodeable(
             string fieldName,
             Type systemType,
-            ExpandedNodeId encodeableTypeId = null)
+            ExpandedNodeId encodeableTypeId = default)
         {
             if (systemType == null)
             {
@@ -1470,7 +1470,7 @@ namespace Opc.Ua
                         systemType.FullName));
             }
 
-            if (encodeableTypeId != null)
+            if (!encodeableTypeId.IsNull)
             {
                 // set type identifier for custom complex data types before decode.
                 if (value is IComplexTypeInstance complexTypeInstance)
@@ -2198,7 +2198,7 @@ namespace Opc.Ua
         public Array ReadEncodeableArray(
             string fieldName,
             Type systemType,
-            ExpandedNodeId encodeableTypeId = null)
+            ExpandedNodeId encodeableTypeId = default)
         {
             if (systemType == null)
             {
@@ -2267,7 +2267,7 @@ namespace Opc.Ua
             int valueRank,
             BuiltInType builtInType,
             Type systemType = null,
-            ExpandedNodeId encodeableTypeId = null)
+            ExpandedNodeId encodeableTypeId = default)
         {
             if (valueRank == ValueRanks.OneDimension)
             {
@@ -3007,7 +3007,7 @@ namespace Opc.Ua
             ref Type systemType,
             ExpandedNodeId encodeableTypeId)
         {
-            if (encodeableTypeId != null && systemType == null)
+            if (!encodeableTypeId.IsNull && systemType == null)
             {
                 systemType = Context.Factory.GetSystemType(encodeableTypeId);
             }

@@ -156,7 +156,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(appCertificate);
             Assert.True(appCertificate.HasPrivateKey);
 
-            char[] password = Guid.NewGuid().ToString().ToCharArray();
+            char[] password = Uuid.NewUuid().ToString().ToCharArray();
 
             // pki directory root for app cert
             string pkiRoot = Path.GetTempPath() +
@@ -277,7 +277,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         "14A630438BF775E19169D3279069BBF20419EF84",
                         null,
                         null,
-                        null,
+                        default,
                         null)
                     .ConfigureAwait(false);
 
@@ -359,7 +359,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         "14A630438BF775E19169D3279069BBF20419EF84",
                         null,
                         null,
-                        null,
+                        default,
                         null)
                     .ConfigureAwait(false);
 
@@ -415,7 +415,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 Assert.False(x509Store.SupportsCRLs);
                 NUnit.Framework.Assert
-                    .Throws<ServiceResultException>(() => x509Store.EnumerateCRLsAsync());
+                    .ThrowsAsync<ServiceResultException>(() => x509Store.EnumerateCRLsAsync());
             }
             else
             {
@@ -460,7 +460,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             //TestRevocation
             StatusCode statusCode = await x509Store.IsRevokedAsync(GetTestCert(), GetTestCert())
                 .ConfigureAwait(false);
-            Assert.AreEqual((StatusCode)StatusCodes.BadCertificateRevoked, statusCode);
+            Assert.AreEqual(StatusCodes.BadCertificateRevoked, statusCode);
         }
 
         /// <summary>
@@ -483,7 +483,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             //Test Revocation before adding cert
             StatusCode statusCode = await x509Store.IsRevokedAsync(GetTestCert(), GetTestCert2())
                 .ConfigureAwait(false);
-            Assert.AreEqual((StatusCode)StatusCodes.Good, statusCode);
+            Assert.AreEqual(StatusCodes.Good, statusCode);
 
             var crlBuilder = CrlBuilder.Create(crl);
 
@@ -500,7 +500,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             StatusCode statusCode2 = await x509Store
                 .IsRevokedAsync(GetTestCert(), GetTestCert2())
                 .ConfigureAwait(false);
-            Assert.AreEqual((StatusCode)StatusCodes.BadCertificateRevoked, statusCode2);
+            Assert.AreEqual(StatusCodes.BadCertificateRevoked, statusCode2);
         }
 
         /// <summary>
@@ -562,7 +562,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             //make shure IsRevoked can't find crl anymore
             StatusCode statusCode = await x509Store.IsRevokedAsync(GetTestCert(), GetTestCert())
                 .ConfigureAwait(false);
-            Assert.AreEqual((StatusCode)StatusCodes.BadCertificateRevocationUnknown, statusCode);
+            Assert.AreEqual(StatusCodes.BadCertificateRevocationUnknown, statusCode);
 
             //Delete second (empty) crl from store
             await x509Store.DeleteCRLAsync(crlsAfterFirstDelete[0]).ConfigureAwait(false);
@@ -704,7 +704,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 certSubjectSubstring.Thumbprint,
                 null,
                 null,
-                null,
+                default,
                 false);
             Assert.NotNull(resultThumbprint);
             Assert.AreEqual(certSubjectSubstring.Thumbprint, resultThumbprint.Thumbprint);
@@ -715,7 +715,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 certSubjectSubstring.Thumbprint,
                 "CN=Ua.Core.Tests",
                 null,
-                null,
+                default,
                 false);
             Assert.NotNull(resultThumbprintAndSubject);
             Assert.AreEqual(certSubjectSubstring.Thumbprint, resultThumbprintAndSubject.Thumbprint);
@@ -726,7 +726,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 certSubjectSubstring.Thumbprint,
                 "CN=NonMatching",
                 null,
-                null,
+                default,
                 false);
             Assert.Null(resultThumbprintAndNonMatchingSubject);
 
@@ -737,7 +737,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 "CN=Ua.Core.Tests",
                 null,
-                null,
+                default,
                 false);
             Assert.NotNull(resultSubjectSubstring);
             Assert.AreEqual(certSubjectSubstring.Thumbprint, resultSubjectSubstring.Thumbprint);
@@ -749,7 +749,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 "CN=Opc.Ua.Core.Tests",
                 null,
-                null,
+                default,
                 false);
             Assert.NotNull(resultSubjectWithCnDuplicate);
             Assert.AreEqual(certLongestDurationLatestNotAfterValid.Thumbprint,
@@ -762,7 +762,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 "Opc.Ua.Core.Tests",
                 null,
-                null,
+                default,
                 false);
             Assert.NotNull(resultLongestDuration);
             Assert.AreEqual(certLongestDurationLatestNotAfterValid.Thumbprint,
@@ -774,7 +774,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 null,
                 "urn:localhost:UA:Ua.Core.Tests",
-                null,
+                default,
                 false);
             Assert.NotNull(resultApplicationUri);
             Assert.AreEqual(certSubjectSubstring.Thumbprint, resultApplicationUri.Thumbprint);
@@ -785,7 +785,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 null,
                 "urn:localhost:UA:Opc.Ua.Core.Tests",
-                null,
+                default,
                 false);
             Assert.NotNull(resultApplicationUriDuplicate);
             Assert.AreEqual(certLongestDurationLatestNotAfterValid.Thumbprint,
@@ -820,7 +820,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 "CN=Opc.Ua.Core.Tests",
                 null,
-                null,
+                default,
                 false);
             Assert.NotNull(resultCASigned);
             Assert.AreEqual(caSignedCert.Thumbprint, resultCASigned.Thumbprint,
@@ -832,7 +832,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 null,
                 "urn:localhost:UA:Opc.Ua.Core.Tests",
-                null,
+                default,
                 false);
             Assert.NotNull(resultCASignedByUri);
             Assert.AreEqual(caSignedCert.Thumbprint, resultCASignedByUri.Thumbprint);
@@ -866,7 +866,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 "CN=Opc.Ua.Core.Tests",
                 null,
-                null,
+                default,
                 false);
             Assert.NotNull(resultValidMultiple);
             Assert.AreEqual(validLongRemaining.Thumbprint, resultValidMultiple.Thumbprint,
@@ -905,7 +905,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 "CN=Opc.Ua.Core.Tests",
                 null,
-                null,
+                default,
                 false);
             Assert.NotNull(resultExpired);
             Assert.AreEqual(expiredCert2.Thumbprint, resultExpired.Thumbprint,
@@ -938,7 +938,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 "CN=Opc.Ua.Core.Tests",
                 null,
-                null,
+                default,
                 false);
             Assert.NotNull(resultMixed);
             Assert.AreEqual(validCertShort.Thumbprint, resultMixed.Thumbprint,
@@ -973,7 +973,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 "CN=Opc.Ua.Core.Tests",
                 null,
-                null,
+                default,
                 false);
             Assert.NotNull(resultExpiredCA);
             Assert.AreEqual(expiredCASigned.Thumbprint, resultExpiredCA.Thumbprint,
@@ -1002,7 +1002,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 "CN=Opc.Ua.Core.Tests",
                 null,
-                null,
+                default,
                 false);
             Assert.NotNull(resultFuture);
             Assert.AreEqual(currentlyValid.Thumbprint, resultFuture.Thumbprint,
@@ -1039,7 +1039,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 "CN=Opc.Ua.Core.Tests",
                 null,
-                null,
+                default,
                 false);
             Assert.NotNull(resultSameExpiry);
             Assert.AreEqual(expiredCASigned1.Thumbprint, resultSameExpiry.Thumbprint,
@@ -1074,7 +1074,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 "CN=Opc.Ua.Core.Tests",
                 null,
-                null,
+                default,
                 false);
             Assert.NotNull(resultMixedExpiredFuture);
             Assert.AreEqual(notYetValidSoon.Thumbprint, resultMixedExpiredFuture.Thumbprint,
@@ -1092,7 +1092,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 "CN=Opc.Ua.Core.Tests",
                 null,
-                null,
+                default,
                 false);
             Assert.NotNull(resultAllNotYetValid);
             Assert.AreEqual(notYetValidSoon.Thumbprint, resultAllNotYetValid.Thumbprint,
@@ -1119,7 +1119,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 "CN=Opc.Ua.Core.Tests",
                 null,
-                null,
+                default,
                 false);
             Assert.NotNull(resultNotYetValidCA);
             Assert.AreEqual(notYetValidCASigned.Thumbprint, resultNotYetValidCA.Thumbprint,
@@ -1143,7 +1143,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 "CN=Opc.Ua.Core.Tests",
                 null,
-                null,
+                default,
                 false);
             Assert.NotNull(resultMixedCA);
             Assert.AreEqual(notYetValidCASigned.Thumbprint, resultMixedCA.Thumbprint,
@@ -1155,7 +1155,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 null,
                 "urn:localhost:UA:Opc.Ua.Core.Tests.Expired2",
-                null,
+                default,
                 false);
             Assert.NotNull(resultExpiredByUri);
             Assert.AreEqual(expiredCert2.Thumbprint, resultExpiredByUri.Thumbprint,
@@ -1188,7 +1188,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null,
                 "CN=Opc.Ua.Core.Tests",
                 null,
-                null,
+                default,
                 false);
             Assert.NotNull(resultValidCAvsSeIf);
             Assert.AreEqual(validCASignedShorter.Thumbprint, resultValidCAvsSeIf.Thumbprint,

@@ -75,7 +75,7 @@ namespace Opc.Ua.Server.Tests
         {
             m_telemetry = NUnitTelemetryContext.Create();
             // start Ref server
-            m_fixture = new ServerFixture<ReferenceServer>
+            m_fixture = new ServerFixture<ReferenceServer>(t => new ReferenceServer(t))
             {
                 AllNodeManagers = true,
                 OperationLimits = true,
@@ -130,7 +130,10 @@ namespace Opc.Ua.Server.Tests
         public async Task GlobalSetupAsync()
         {
             // start Ref server
-            m_fixture = new ServerFixture<ReferenceServer> { AllNodeManagers = true };
+            m_fixture = new ServerFixture<ReferenceServer>(t => new ReferenceServer(t))
+            {
+                AllNodeManagers = true
+            };
             m_server = await m_fixture.StartAsync(null).ConfigureAwait(false);
             (m_requestHeader, m_secureChannelContext) = await m_server.CreateAndActivateSessionAsync("Bench").ConfigureAwait(false);
         }
@@ -314,9 +317,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ReadAllNodesAsync()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-
-            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext, telemetry);
+            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext);
             if (m_operationLimits == null)
             {
                 await GetOperationLimitsAsync().ConfigureAwait(false);
@@ -395,6 +396,154 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Test that ReferenceNodeManager variables update their SourceTimestamp on read.
+        /// </summary>
+        [Test]
+        [Order(340)]
+        public async Task ReferenceNodeManagerVariablesUpdateTimestampOnReadAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<ReferenceServerTests>();
+
+            // Read a variable from the ReferenceNodeManager (namespace index 2)
+            var nodeId = new NodeId("Scalar_Static_Byte", 2);
+            var nodesToRead = new ReadValueIdCollection
+            {
+                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }
+            };
+
+            // First read
+            RequestHeader requestHeader = m_requestHeader;
+            requestHeader.Timestamp = DateTime.UtcNow;
+            DateTime timeBeforeFirstRead = DateTime.UtcNow;
+            ReadResponse firstReadResponse = await m_server.ReadAsync(
+                m_secureChannelContext,
+                requestHeader,
+                kMaxAge,
+                TimestampsToReturn.Both,
+                nodesToRead,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.IsNotNull(firstReadResponse);
+            Assert.IsNotNull(firstReadResponse.Results);
+            Assert.AreEqual(1, firstReadResponse.Results.Count);
+            DataValue firstValue = firstReadResponse.Results[0];
+            Assert.AreEqual(StatusCodes.Good, firstValue.StatusCode);
+            Assert.IsNotNull(firstValue.SourceTimestamp);
+            logger.LogInformation("First read - SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
+                firstValue.SourceTimestamp, firstValue.ServerTimestamp);
+
+            // Verify the timestamp is recent (not startup time)
+            Assert.GreaterOrEqual(firstValue.SourceTimestamp, timeBeforeFirstRead.AddSeconds(-1),
+                "SourceTimestamp should be close to the read time, not the server startup time");
+
+            // Wait a bit to ensure time difference
+            await Task.Delay(1500).ConfigureAwait(false);
+
+            // Second read
+            requestHeader.Timestamp = DateTime.UtcNow;
+            DateTime timeBeforeSecondRead = DateTime.UtcNow;
+            ReadResponse secondReadResponse = await m_server.ReadAsync(
+                m_secureChannelContext,
+                requestHeader,
+                kMaxAge,
+                TimestampsToReturn.Both,
+                nodesToRead,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.IsNotNull(secondReadResponse);
+            Assert.IsNotNull(secondReadResponse.Results);
+            Assert.AreEqual(1, secondReadResponse.Results.Count);
+            DataValue secondValue = secondReadResponse.Results[0];
+            Assert.AreEqual(StatusCodes.Good, secondValue.StatusCode);
+            Assert.IsNotNull(secondValue.SourceTimestamp);
+            logger.LogInformation("Second read - SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
+                secondValue.SourceTimestamp, secondValue.ServerTimestamp);
+
+            // Verify the second timestamp is more recent than the first
+            Assert.Greater(secondValue.SourceTimestamp, firstValue.SourceTimestamp,
+                "SourceTimestamp should be updated on each read");
+
+            // Verify the second timestamp is recent
+            Assert.GreaterOrEqual(secondValue.SourceTimestamp, timeBeforeSecondRead.AddSeconds(-1),
+                "SourceTimestamp should be close to the second read time");
+        }
+
+        /// <summary>
+        /// Test that ReferenceNodeManager array variables update their SourceTimestamp on read.
+        /// </summary>
+        [Test]
+        [NonParallelizable]
+        public async Task ReferenceNodeManagerArrayVariablesUpdateTimestampOnReadAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<ReferenceServerTests>();
+
+            // Read an array variable from the ReferenceNodeManager (namespace index 2)
+            var nodeId = new NodeId("Scalar_Static_Arrays_Byte", 2);
+            var nodesToRead = new ReadValueIdCollection
+            {
+                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }
+            };
+
+            // First read
+            RequestHeader requestHeader = m_requestHeader;
+            requestHeader.Timestamp = DateTime.UtcNow;
+            DateTime timeBeforeFirstRead = DateTime.UtcNow;
+            ReadResponse firstReadResponse = await m_server.ReadAsync(
+                m_secureChannelContext,
+                requestHeader,
+                kMaxAge,
+                TimestampsToReturn.Both,
+                nodesToRead,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.IsNotNull(firstReadResponse);
+            Assert.IsNotNull(firstReadResponse.Results);
+            Assert.AreEqual(1, firstReadResponse.Results.Count);
+            DataValue firstValue = firstReadResponse.Results[0];
+            Assert.AreEqual(StatusCodes.Good, firstValue.StatusCode);
+            Assert.IsNotNull(firstValue.SourceTimestamp);
+            logger.LogInformation("Array First read - SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
+                firstValue.SourceTimestamp, firstValue.ServerTimestamp);
+
+            // Verify the timestamp is recent (not startup time)
+            Assert.GreaterOrEqual(firstValue.SourceTimestamp, timeBeforeFirstRead.AddSeconds(-1),
+                "Array SourceTimestamp should be close to the read time, not the server startup time");
+
+            // Wait a bit to ensure time difference
+            await Task.Delay(1500).ConfigureAwait(false);
+
+            // Second read
+            requestHeader.Timestamp = DateTime.UtcNow;
+            DateTime timeBeforeSecondRead = DateTime.UtcNow;
+            ReadResponse secondReadResponse = await m_server.ReadAsync(
+                m_secureChannelContext,
+                requestHeader,
+                kMaxAge,
+                TimestampsToReturn.Both,
+                nodesToRead,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.IsNotNull(secondReadResponse);
+            Assert.IsNotNull(secondReadResponse.Results);
+            Assert.AreEqual(1, secondReadResponse.Results.Count);
+            DataValue secondValue = secondReadResponse.Results[0];
+            Assert.AreEqual(StatusCodes.Good, secondValue.StatusCode);
+            Assert.IsNotNull(secondValue.SourceTimestamp);
+            logger.LogInformation("Array Second read - SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
+                secondValue.SourceTimestamp, secondValue.ServerTimestamp);
+
+            // Verify the second timestamp is more recent than the first
+            Assert.Greater(secondValue.SourceTimestamp, firstValue.SourceTimestamp,
+                "Array SourceTimestamp should be updated on each read");
+
+            // Verify the second timestamp is recent
+            Assert.GreaterOrEqual(secondValue.SourceTimestamp, timeBeforeSecondRead.AddSeconds(-1),
+                "Array SourceTimestamp should be close to the second read time");
+        }
+
+        /// <summary>
         /// Update static Nodes, read modify write.
         /// </summary>
         [Test]
@@ -420,9 +569,7 @@ namespace Opc.Ua.Server.Tests
         [Benchmark]
         public async Task BrowseFullAddressSpaceAsync()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-
-            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext, telemetry);
+            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext);
             if (m_operationLimits == null)
             {
                 await GetOperationLimitsAsync().ConfigureAwait(false);
@@ -441,9 +588,7 @@ namespace Opc.Ua.Server.Tests
         [Benchmark]
         public async Task TranslateBrowsePathAsync()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-
-            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext, telemetry);
+            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext);
             if (m_operationLimits == null)
             {
                 await GetOperationLimitsAsync().ConfigureAwait(false);
@@ -467,9 +612,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task SubscriptionAsync()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-
-            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext, telemetry);
+            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext);
             await CommonTestWorkers.SubscriptionTestAsync(serverTestServices, m_requestHeader).ConfigureAwait(false);
         }
 
@@ -484,7 +627,7 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext, telemetry);
+            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext);
             (RequestHeader transferRequestHeader, SecureChannelContext transferContext) = await m_server.CreateAndActivateSessionAsync(
                 "ClosedSession",
                 useSecurity).ConfigureAwait(false);
@@ -528,8 +671,8 @@ namespace Opc.Ua.Server.Tests
                         true).ConfigureAwait(false);
                 });
                 Assert.AreEqual(
-                    (StatusCode)StatusCodes.BadNoSubscription,
-                    (StatusCode)sre.StatusCode);
+                    StatusCodes.BadNoSubscription,
+                    sre.StatusCode);
             }
         }
 
@@ -543,7 +686,7 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext, telemetry);
+            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext);
 
             NamespaceTable namespaceUris = m_server.CurrentInstance.NamespaceUris;
             NodeId[] testSet =
@@ -599,7 +742,7 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext, telemetry);
+            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext);
 
             NamespaceTable namespaceUris = m_server.CurrentInstance.NamespaceUris;
             NodeIdCollection testSetCollection = CommonTestWorkers
@@ -639,7 +782,7 @@ namespace Opc.Ua.Server.Tests
                 m_requestHeader,
                 acknowledgements).ConfigureAwait(false);
 
-            Assert.AreEqual((StatusCode)StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
+            Assert.AreEqual(StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
             ServerFixtureUtils.ValidateResponse(publishResponse.ResponseHeader);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 publishResponse.DiagnosticInfos,
@@ -658,7 +801,7 @@ namespace Opc.Ua.Server.Tests
                     m_requestHeader,
                     acknowledgements).ConfigureAwait(false);
 
-                Assert.AreEqual((StatusCode)StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
+                Assert.AreEqual(StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
                 ServerFixtureUtils.ValidateResponse(publishResponse.ResponseHeader);
                 ServerFixtureUtils.ValidateDiagnosticInfos(
                     publishResponse.DiagnosticInfos,
@@ -680,7 +823,7 @@ namespace Opc.Ua.Server.Tests
 
             serverTestServices.SecureChannelContext = m_secureChannelContext;
 
-            Assert.AreEqual((StatusCode)StatusCodes.BadUserAccessDenied, callResponse.Results[0].StatusCode);
+            Assert.AreEqual(StatusCodes.BadUserAccessDenied, callResponse.Results[0].StatusCode);
             ServerFixtureUtils.ValidateResponse(callResponse.ResponseHeader, callResponse.Results, nodesToCall);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 callResponse.DiagnosticInfos,
@@ -694,7 +837,7 @@ namespace Opc.Ua.Server.Tests
                 m_requestHeader,
                 acknowledgements).ConfigureAwait(false);
 
-            Assert.AreEqual((StatusCode)StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
+            Assert.AreEqual(StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
             ServerFixtureUtils.ValidateResponse(publishResponse.ResponseHeader);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 publishResponse.DiagnosticInfos,
@@ -732,7 +875,7 @@ namespace Opc.Ua.Server.Tests
                 m_requestHeader,
                 acknowledgements).ConfigureAwait(false);
 
-            Assert.AreEqual((StatusCode)StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
+            Assert.AreEqual(StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
             ServerFixtureUtils.ValidateResponse(publishResponse.ResponseHeader);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 publishResponse.DiagnosticInfos,
@@ -746,7 +889,8 @@ namespace Opc.Ua.Server.Tests
             MonitoredItemNotificationCollection monitoredItemsCollection = (
                 (DataChangeNotification)items.Body
             ).MonitoredItems;
-            Assert.AreEqual(testSet.Length, monitoredItemsCollection.Count);
+            Assert.AreEqual(testSet.Length, monitoredItemsCollection.Count,
+                "One MonitoredItemNotification should be returned for each Node present in the TestSet");
 
             Thread.Sleep(1000);
 
@@ -758,7 +902,7 @@ namespace Opc.Ua.Server.Tests
                     m_requestHeader,
                     acknowledgements).ConfigureAwait(false);
 
-                Assert.AreEqual((StatusCode)StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
+                Assert.AreEqual(StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
                 ServerFixtureUtils.ValidateResponse(publishResponse.ResponseHeader);
                 ServerFixtureUtils.ValidateDiagnosticInfos(
                     publishResponse.DiagnosticInfos,
@@ -785,7 +929,7 @@ namespace Opc.Ua.Server.Tests
                 m_requestHeader,
                 acknowledgements).ConfigureAwait(false);
 
-            Assert.AreEqual((StatusCode)StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
+            Assert.AreEqual(StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
             ServerFixtureUtils.ValidateResponse(publishResponse.ResponseHeader);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 publishResponse.DiagnosticInfos,
@@ -826,7 +970,7 @@ namespace Opc.Ua.Server.Tests
                 m_requestHeader,
                 nodesToCall, CancellationToken.None).ConfigureAwait(false);
 
-            Assert.AreEqual(expectedStatus, callResponse.Results[0].StatusCode.Code);
+            Assert.AreEqual(expectedStatus, callResponse.Results[0].StatusCode);
             ServerFixtureUtils.ValidateResponse(callResponse.ResponseHeader, callResponse.Results, nodesToCall);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 callResponse.DiagnosticInfos,
@@ -872,10 +1016,10 @@ namespace Opc.Ua.Server.Tests
             var modifiedValues = new DataValueCollection();
             foreach (DataValue dataValue in readResponse.Results)
             {
-                var typeInfo = TypeInfo.Construct(dataValue.Value);
-                Assert.IsNotNull(typeInfo);
-                object value = m_generator.GetRandom(typeInfo.BuiltInType);
-                modifiedValues.Add(new DataValue { WrappedValue = new Variant(value) });
+                TypeInfo typeInfo = dataValue.WrappedValue.TypeInfo;
+                Assert.False(typeInfo.IsUnknown);
+                Variant value = m_generator.GetRandomScalar(typeInfo.BuiltInType);
+                modifiedValues.Add(new DataValue { WrappedValue = value });
             }
 
             int ii = 0;
@@ -989,7 +1133,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ServerStatusTimestampsMatchAsync()
         {
-            var logger = m_telemetry.CreateLogger<ReferenceServerTests>();
+            ILogger<ReferenceServerTests> logger = m_telemetry.CreateLogger<ReferenceServerTests>();
 
             // Read ServerStatus children (CurrentTime, StartTime, State, etc.)
             var nodesToRead = new ReadValueIdCollection
@@ -1000,7 +1144,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             m_requestHeader.Timestamp = DateTime.UtcNow;
-            var readResponse = await m_server.ReadAsync(
+            ReadResponse readResponse = await m_server.ReadAsync(
                 m_secureChannelContext,
                 m_requestHeader,
                 0,
@@ -1014,7 +1158,7 @@ namespace Opc.Ua.Server.Tests
             // Verify that SourceTimestamp and ServerTimestamp are equal for all ServerStatus children
             for (int i = 0; i < readResponse.Results.Count; i++)
             {
-                var result = readResponse.Results[i];
+                DataValue result = readResponse.Results[i];
                 logger.LogInformation(
                     "NodeId: {NodeId}, SourceTimestamp: {SourceTimestamp}, ServerTimestamp: {ServerTimestamp}",
                     nodesToRead[i].NodeId,
@@ -1038,7 +1182,7 @@ namespace Opc.Ua.Server.Tests
             ILogger logger = telemetry.CreateLogger<ReferenceServerTests>();
 
             // Get the NodeId for Data_Dynamic_Scalar_Int32Value
-            NodeId int32ValueNodeId = new NodeId(
+            var int32ValueNodeId = new NodeId(
                 TestData.Variables.Data_Dynamic_Scalar_Int32Value,
                 (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(TestData.Namespaces.TestData));
 
@@ -1078,7 +1222,8 @@ namespace Opc.Ua.Server.Tests
                 "Int32Value node should have HistoryRead access level");
 
             // Perform a history read operation
-            var historyReadDetails = new ReadRawModifiedDetails {
+            var historyReadDetails = new ReadRawModifiedDetails
+            {
                 StartTime = DateTime.UtcNow.AddHours(-1),
                 EndTime = DateTime.UtcNow,
                 NumValuesPerNode = 10,
@@ -1122,7 +1267,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.Greater(historyData.DataValues.Count, 0, "Should have at least one historical value");
 
                 // Verify the data values have proper timestamps
-                foreach (var dataValue in historyData.DataValues)
+                foreach (DataValue dataValue in historyData.DataValues)
                 {
                     Assert.IsNotNull(dataValue, "DataValue should not be null");
                     Assert.IsTrue(dataValue.ServerTimestamp != DateTime.MinValue,
@@ -1131,7 +1276,7 @@ namespace Opc.Ua.Server.Tests
             }
             else
             {
-                Assert.Fail("HistoryData body should be of type HistoryData");
+                NUnit.Framework.Assert.Fail("HistoryData body should be of type HistoryData");
             }
         }
 
@@ -1144,7 +1289,7 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // start Ref server in provisioning mode
-            var fixture = new ServerFixture<ReferenceServer>
+            var fixture = new ServerFixture<ReferenceServer>(t => new ReferenceServer(t))
             {
                 AllNodeManagers = false,
                 OperationLimits = false,

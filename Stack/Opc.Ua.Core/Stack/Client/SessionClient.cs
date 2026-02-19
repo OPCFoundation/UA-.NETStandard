@@ -35,15 +35,6 @@ namespace Opc.Ua
     public partial class SessionClient : ISessionClient
     {
         /// <summary>
-        /// Intializes the object with a channel and a message context.
-        /// </summary>
-        public SessionClient(ITransportChannel channel, ITelemetryContext telemetry)
-            : this(channel)
-        {
-            m_logger = telemetry.CreateLogger(this);
-        }
-
-        /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
         /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources;
@@ -52,7 +43,7 @@ namespace Opc.Ua
         {
             if (disposing)
             {
-                SessionId = null;
+                SessionId = default;
             }
 
             base.Dispose(disposing);
@@ -68,7 +59,7 @@ namespace Opc.Ua
         /// Whether a session has beed created with the server.
         /// </summary>
         /// <value><c>true</c> if connected; otherwise, <c>false</c>.</value>
-        public bool Connected => SessionId != null;
+        public bool Connected => !SessionId.IsNull;
 
         /// <summary>
         /// Called when a new session is created.

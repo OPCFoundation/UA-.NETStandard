@@ -207,19 +207,17 @@ namespace Opc.Ua
         {
             try
             {
-                var serializer = new DataContractSerializer(typeof(ConfiguredEndpointCollection));
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
-                var endpoints = serializer.ReadObject(istrm) as ConfiguredEndpointCollection;
+                DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<ConfiguredEndpointCollection>();
+                using var reader = XmlReader.Create(istrm, Utils.DefaultXmlReaderSettings());
+                var endpoints = serializer.ReadObject(reader) as ConfiguredEndpointCollection;
 
                 if (endpoints != null)
                 {
                     foreach (ConfiguredEndpoint endpoint in endpoints)
                     {
-                        if (endpoint.Description != null)
-                        {
-                            endpoint.Description.TransportProfileUri = Profiles.NormalizeUri(
+                        endpoint.Description?.TransportProfileUri = Profiles.NormalizeUri(
                                 endpoint.Description.TransportProfileUri);
-                        }
                     }
                 }
 
@@ -260,8 +258,10 @@ namespace Opc.Ua
         /// </summary>
         public void Save(Stream ostrm)
         {
-            var serializer = new DataContractSerializer(typeof(ConfiguredEndpointCollection));
-            serializer.WriteObject(ostrm, this);
+            DataContractSerializer serializer =
+                CoreUtils.CreateDataContractSerializer<ConfiguredEndpointCollection>();
+            using var writer = XmlWriter.Create(ostrm, Utils.DefaultXmlWriterSettings());
+            serializer.WriteObject(writer, this);
         }
 
         /// <inheritdoc/>
@@ -354,20 +354,20 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Removes all items from the <see cref="System.Collections.Generic.ICollection{T}"/>.
+        /// Removes all items from the <see cref="ICollection{T}"/>.
         /// </summary>
-        /// <exception cref="System.NotSupportedException">The <see cref="System.Collections.Generic.ICollection{T}"/> is read-only. </exception>
+        /// <exception cref="NotSupportedException">The <see cref="ICollection{T}"/> is read-only. </exception>
         public void Clear()
         {
             m_endpoints.Clear();
         }
 
         /// <summary>
-        /// Determines whether the <see cref="System.Collections.Generic.ICollection{T}"/> contains a specific value.
+        /// Determines whether the <see cref="ICollection{T}"/> contains a specific value.
         /// </summary>
-        /// <param name="item">The object to locate in the <see cref="System.Collections.Generic.ICollection{T}"/>.</param>
+        /// <param name="item">The object to locate in the <see cref="ICollection{T}"/>.</param>
         /// <returns>
-        /// true if <paramref name="item"/> is found in the <see cref="System.Collections.Generic.ICollection{T}"/>; otherwise, false.
+        /// true if <paramref name="item"/> is found in the <see cref="ICollection{T}"/>; otherwise, false.
         /// </returns>
         public bool Contains(ConfiguredEndpoint item)
         {
@@ -383,38 +383,38 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Copies the elements of the <see cref="System.Collections.Generic.ICollection{T}"/> to an <see cref="System.Array"/>, starting at a particular <see cref="System.Array"/> index.
+        /// Copies the elements of the <see cref="ICollection{T}"/> to an <see cref="Array"/>, starting at a particular <see cref="Array"/> index.
         /// </summary>
-        /// <param name="array">The one-dimensional <see cref="System.Array"/> that is the destination of the elements copied from <see cref="System.Collections.Generic.ICollection{T}"/>. The <see cref="System.Array"/> must have zero-based indexing.</param>
+        /// <param name="array">The one-dimensional <see cref="Array"/> that is the destination of the elements copied from <see cref="ICollection{T}"/>. The <see cref="Array"/> must have zero-based indexing.</param>
         /// <param name="arrayIndex">The zero-based index in <paramref name="array"/> at which copying begins.</param>
-        /// <exception cref="System.ArgumentNullException">
+        /// <exception cref="ArgumentNullException">
         /// 	<paramref name="array"/> is null.</exception>
-        /// <exception cref="System.ArgumentOutOfRangeException">
+        /// <exception cref="ArgumentOutOfRangeException">
         /// 	<paramref name="arrayIndex"/> is less than 0.</exception>
-        /// <exception cref="System.ArgumentException">
-        /// 	<paramref name="array"/> is multidimensional.-or-<paramref name="arrayIndex"/> is equal to or greater than the length of <paramref name="array"/>.-or-The number of elements in the source <see cref="System.Collections.Generic.ICollection{T}"/> is greater than the available space from <paramref name="arrayIndex"/> to the end of the destination <paramref name="array"/>./>.</exception>
+        /// <exception cref="ArgumentException">
+        /// 	<paramref name="array"/> is multidimensional.-or-<paramref name="arrayIndex"/> is equal to or greater than the length of <paramref name="array"/>.-or-The number of elements in the source <see cref="ICollection{T}"/> is greater than the available space from <paramref name="arrayIndex"/> to the end of the destination <paramref name="array"/>./>.</exception>
         public void CopyTo(ConfiguredEndpoint[] array, int arrayIndex)
         {
             m_endpoints.CopyTo(array, arrayIndex);
         }
 
         /// <summary>
-        /// Gets the number of elements contained in the <see cref="System.Collections.Generic.ICollection{T}"/>.
+        /// Gets the number of elements contained in the <see cref="ICollection{T}"/>.
         /// </summary>
-        /// <returns>The number of elements contained in the <see cref="System.Collections.Generic.ICollection{T}"/>.</returns>
+        /// <returns>The number of elements contained in the <see cref="ICollection{T}"/>.</returns>
         public int Count => m_endpoints.Count;
 
         /// <summary>
-        /// Gets a value indicating whether the <see cref="System.Collections.Generic.ICollection{T}"/> is read-only.
+        /// Gets a value indicating whether the <see cref="ICollection{T}"/> is read-only.
         /// </summary>
-        /// <returns>true if the <see cref="System.Collections.Generic.ICollection{T}"/> is read-only; otherwise, false.</returns>
+        /// <returns>true if the <see cref="ICollection{T}"/> is read-only; otherwise, false.</returns>
         public bool IsReadOnly => false;
 
         /// <summary>
         /// Returns an enumerator that iterates through the collection.
         /// </summary>
         /// <returns>
-        /// A <see cref="System.Collections.Generic.IEnumerator{T}"/> that can be used to iterate through the collection.
+        /// A <see cref="IEnumerator{T}"/> that can be used to iterate through the collection.
         /// </returns>
         public IEnumerator<ConfiguredEndpoint> GetEnumerator()
         {
@@ -691,7 +691,7 @@ namespace Opc.Ua
                 SecurityPolicyUri = securityPolicyUri
             };
             description.Server.ApplicationUri = Utils.UpdateInstanceUri(uri.ToString());
-            description.Server.ApplicationName = uri.AbsolutePath;
+            description.Server.ApplicationName = new LocalizedText(uri.AbsolutePath);
 
             if (description.EndpointUrl.StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
             {

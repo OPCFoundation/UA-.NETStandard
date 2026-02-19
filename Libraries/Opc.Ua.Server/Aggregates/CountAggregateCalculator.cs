@@ -65,13 +65,11 @@ namespace Opc.Ua.Server
         /// </summary>
         protected override DataValue ComputeValue(TimeSlice slice)
         {
-            uint? id = AggregateId.Identifier as uint?;
-
-            if (id == null)
+            if (!AggregateId.TryGetIdentifier(out uint numericId))
             {
                 return base.ComputeValue(slice);
             }
-            switch (id.Value)
+            switch (numericId)
             {
                 case Objects.AggregateFunction_Count:
                     return ComputeCount(slice);
@@ -125,7 +123,7 @@ namespace Opc.Ua.Server
             if (!StatusCode.IsBad(value.StatusCode))
             {
                 // set aggregate bits fon non Bad values
-                value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
+                value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
             }
             // return result.
             return value;
@@ -160,7 +158,7 @@ namespace Opc.Ua.Server
                 SourceTimestamp = GetTimestamp(slice),
                 ServerTimestamp = GetTimestamp(slice)
             };
-            value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
+            value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
 
             // return result.
             return value;
@@ -213,7 +211,7 @@ namespace Opc.Ua.Server
                 ServerTimestamp = GetTimestamp(slice)
             };
             value.StatusCode = GetTimeBasedStatusCode(regions, value.StatusCode);
-            value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
+            value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
 
             // return result.
             return value;
@@ -283,7 +281,7 @@ namespace Opc.Ua.Server
                 SourceTimestamp = GetTimestamp(slice),
                 ServerTimestamp = GetTimestamp(slice)
             };
-            value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
+            value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
             value.StatusCode = GetValueBasedStatusCode(slice, values, value.StatusCode);
 
             // return result.

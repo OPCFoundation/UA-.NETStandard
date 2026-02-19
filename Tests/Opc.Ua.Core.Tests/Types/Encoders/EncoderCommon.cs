@@ -114,7 +114,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected void TearDown()
         {
             // ensure after every test that the Null NodeId was not modified
-            Assert.True(NodeId.Null.IsNullNodeId);
+            Assert.True(NodeId.Null.IsNull);
         }
 
         /// <summary>
@@ -743,7 +743,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         encoder.WriteDateTime(fieldName, (DateTime)value);
                         return;
                     case BuiltInType.Guid:
-                        encoder.WriteGuid(fieldName, (Uuid)value);
+                        encoder.WriteGuid(fieldName, value is Guid g ? (Uuid)g : (Uuid)value);
                         return;
                     case BuiltInType.ByteString:
                         encoder.WriteByteString(fieldName, (byte[])value);
@@ -821,7 +821,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 case BuiltInType.Null:
                     Variant variant = decoder.ReadVariant(fieldName);
-                    return variant.Value;
+                    return variant.AsBoxedObject();
                 case BuiltInType.Boolean:
                     return decoder.ReadBoolean(fieldName);
                 case BuiltInType.SByte:
@@ -1283,10 +1283,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         ? df.GetDynamicEncodeableForEncoding(TypeId)
                         : null;
                     // Read the type information
-                    TypeId = encodeable?.TypeId;
-                    XmlEncodingId = encodeable?.XmlEncodingId;
-                    JsonEncodingId = encodeable?.JsonEncodingId;
-                    BinaryEncodingId = encodeable?.BinaryEncodingId;
+                    TypeId = encodeable?.TypeId ?? default;
+                    XmlEncodingId = encodeable?.XmlEncodingId ?? default;
+                    JsonEncodingId = encodeable?.JsonEncodingId ?? default;
+                    BinaryEncodingId = encodeable?.BinaryEncodingId ?? default;
                     Count = encodeable?.Count ?? 0;
                     m_fields = encodeable?.m_fields.ToDictionary(
                         kv => kv.Key,
@@ -1366,7 +1366,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             public DynamicEncodeable GetDynamicEncodeableForEncoding(ExpandedNodeId typeId)
             {
-                if (typeId != null &&
+                if (!typeId.IsNull &&
                     m_dynamicEncodeables.TryGetValue(
                         typeId,
                         out DynamicEncodeable dynamicEncodeable))

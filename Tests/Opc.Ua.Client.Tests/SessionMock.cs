@@ -52,7 +52,7 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Create the mock
         /// </summary>
-        private SessionMock(
+        internal SessionMock(
             Mock<ITransportChannel> channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint)
@@ -118,7 +118,7 @@ namespace Opc.Ua.Client.Tests
 
         internal void SetConnected()
         {
-            SessionCreated(new NodeId("s=connected"), new NodeId("s=auth"));
+            SessionCreated(NodeId.Parse("s=connected"), NodeId.Parse("s=auth"));
             RenewUserIdentity += Sut_RenewUserIdentity;
         }
 

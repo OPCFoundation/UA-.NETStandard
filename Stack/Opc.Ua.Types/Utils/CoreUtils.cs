@@ -37,6 +37,8 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Xml;
+using System.Runtime.Serialization;
+
 #if NETFRAMEWORK
 using System.Runtime.InteropServices;
 #endif
@@ -276,6 +278,68 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Converts a hexadecimal string to a buffer skipping whitespace
+        /// </summary>
+        /// <exception cref="FormatException"></exception>
+        public static byte[] FromHexString(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return [];
+            }
+
+            using var ostrm = new MemoryStream();
+            byte buffer = 0;
+            bool firstByte = false;
+            const string digits = "0123456789ABCDEF";
+
+            for (int ii = 0; ii < text.Length; ii++)
+            {
+                if (!char.IsWhiteSpace(text, ii) && !char.IsLetterOrDigit(text, ii))
+                {
+                    throw new FormatException(
+                        "Invalid character in ByteString. " + text[ii]);
+                }
+
+                if (char.IsWhiteSpace(text, ii))
+                {
+                    continue;
+                }
+
+                int index = digits.IndexOf(
+                    char.ToUpperInvariant(text[ii]),
+                    StringComparison.Ordinal);
+
+                if (index < 0)
+                {
+                    throw new FormatException(
+                        "Invalid character in ByteString." + text[ii]);
+                }
+
+                buffer <<= 4;
+                buffer += (byte)index;
+
+                if (firstByte)
+                {
+                    ostrm.WriteByte(buffer);
+                    firstByte = false;
+                    continue;
+                }
+
+                firstByte = true;
+            }
+
+            if (firstByte)
+            {
+                buffer <<= 4;
+                ostrm.WriteByte(buffer);
+            }
+
+            // you should not access a closed stream, ever.
+            return ostrm.ToArray();
+        }
+
+        /// <summary>
         /// Formats a message using the invariant locale.
         /// </summary>
         public static string Format(string text, params object[] args)
@@ -284,7 +348,17 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns a deep copy of the value.
+        /// Returns a struct as is because structs are never deep copied
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static T Clone<T>(in T value)
+            where T : struct
+        {
+            return value;
+        }
+
+        /// <summary>
+        /// Returns a deep copy of the reference type value.
         /// </summary>
         /// <typeparam name="T"></typeparam>
         public static T Clone<T>(T value)
@@ -311,15 +385,13 @@ namespace Opc.Ua
             {
                 return value;
             }
-
-            // strings are special a reference type that does not need to be copied.
-            if (type == typeof(string))
+            // nothing to do for other value types.
+            if (type.GetTypeInfo().IsValueType)
             {
                 return value;
             }
-
-            // Guid are special a reference type that does not need to be copied.
-            if (type == typeof(Guid))
+            // strings are special a reference type that does not need to be copied.
+            if (type == typeof(string))
             {
                 return value;
             }
@@ -366,17 +438,9 @@ namespace Opc.Ua
             }
 
             // use ICloneable if supported
-            // must be checked before value type due to some
-            // structs implementing ICloneable
             if (value is ICloneable cloneable)
             {
                 return cloneable.Clone();
-            }
-
-            // nothing to do for other value types.
-            if (type.GetTypeInfo().IsValueType)
-            {
-                return value;
             }
 
             // copy XmlNode.
@@ -444,8 +508,19 @@ namespace Opc.Ua
         /// Checks if two T values are equal based on IEquatable compare.
         /// </summary>
         /// <typeparam name="T"></typeparam>
+        public static bool IsEqual<T>(in T value1, in T value2)
+            where T : struct, IEquatable<T>
+        {
+            // use IEquatable comparer
+            return value1.Equals(value2);
+        }
+
+        /// <summary>
+        /// Checks if two T values are equal based on IEquatable compare.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
         public static bool IsEqual<T>(T value1, T value2)
-            where T : IEquatable<T>
+            where T : class, IEquatable<T>
         {
             // check for reference equality.
             if (ReferenceEquals(value1, value2))
@@ -545,6 +620,15 @@ namespace Opc.Ua
             if (ReferenceEquals(value1, value2))
             {
                 return true;
+            }
+
+            if (value1 is NodeId nodeId1)
+            {
+                return nodeId1.Equals(value2);
+            }
+            if (value2 is NodeId nodeId2)
+            {
+                return nodeId2.Equals(value1);
             }
 
             // check for null values.
@@ -932,6 +1016,61 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Create semantic version by parsing the input version string.
+        /// Expands missing fields with zeros and removes invalid characters.
+        /// </summary>
+        public static string FixupAsSemanticVersion(string version)
+        {
+            if (string.IsNullOrWhiteSpace(version))
+            {
+                return null;
+            }
+
+            string[] fields = version.Split('.');
+
+            var output = new StringBuilder();
+            foreach (string field in fields)
+            {
+                string suffix = null;
+
+                if (!uint.TryParse(field, out uint element))
+                {
+                    for (int ii = 0; ii < field.Length; ii++)
+                    {
+                        if (field[ii] is '+' or '-')
+                        {
+                            suffix = field[ii..];
+                            if (!uint.TryParse(field[..ii], out element))
+                            {
+                                element = 0;
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                if (output.Length > 0)
+                {
+                    output.Append('.');
+                }
+
+                output.Append(element);
+
+                if (suffix != null)
+                {
+                    output.Append(suffix);
+                }
+            }
+
+            while (output.ToString().Count(x => x == '.') < 2)
+            {
+                output.Append(".0");
+            }
+
+            return output.ToString();
+        }
+
+        /// <summary>
         /// Returns the major/minor version number for an assembly formatted as a string.
         /// </summary>
         public static string GetAssemblySoftwareVersion()
@@ -996,15 +1135,43 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Create a data contract serializer for the specified type with OPC UA surrogates.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        public static DataContractSerializer CreateDataContractSerializer<T>(
+            IServiceMessageContext messageContext = null,
+            IEnumerable<Type> knownTypes = null)
+        {
+            return CreateDataContractSerializer(typeof(T), messageContext, knownTypes);
+        }
+
+        /// <summary>
+        /// Create a data contract serializer for the specified type with OPC UA surrogates.
+        /// </summary>
+        /// <returns></returns>
+        public static DataContractSerializer CreateDataContractSerializer(
+            Type systemType,
+            IServiceMessageContext messageContext = null,
+            IEnumerable<Type> knownTypes = null)
+        {
+            var serializer = new DataContractSerializer(systemType,
+                DataContractSurrogates.KnownTypes.Concat(knownTypes ?? []));
+            serializer.SetSerializationSurrogateProvider(
+                new DataContractSurrogates(messageContext ?? AmbientMessageContext.CurrentContext));
+            return serializer;
+        }
+
+        /// <summary>
         /// Get the opc ua core assembly to load manifest from or encodeable types
         /// </summary>
         /// <returns></returns>
-        public static Assembly GetOpcUaCoreAssembly()
+        public static Assembly GetOpcUaAssembly()
         {
             // Find the core assembly with all generated core types if referenced
             foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
             {
-                if (assembly.FullName.StartsWith("Opc.Ua.Core,", StringComparison.Ordinal))
+                if (assembly.GetName().Name.Equals("Opc.Ua", StringComparison.Ordinal))
                 {
                     return assembly;
                 }

@@ -393,7 +393,7 @@ namespace Opc.Ua.Client.ComplexTypes
             var dataTypeNodeId = ExpandedNodeId.ToNodeId(
                 dataTypeId,
                 m_complexTypeResolver.NamespaceUris);
-            if (!NodeId.IsNull(dataTypeNodeId))
+            if (!dataTypeNodeId.IsNull)
             {
                 CollectAllDataTypeDefinitions(dataTypeNodeId, dataTypeDefinitions);
             }
@@ -404,7 +404,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 NodeId nodeId,
                 NodeIdDictionary<DataTypeDefinition> collect)
             {
-                if (NodeId.IsNull(nodeId))
+                if (nodeId.IsNull)
                 {
                     return;
                 }
@@ -538,7 +538,7 @@ namespace Opc.Ua.Client.ComplexTypes
                                 NodeId nodeId = dictionary.DataTypes
                                     .FirstOrDefault(d => d.Value.Name == item.Name)
                                     .Key;
-                                if (nodeId == null)
+                                if (nodeId.IsNull)
                                 {
                                     m_logger.LogError(
                                         Utils.TraceMasks.Error,
@@ -672,7 +672,9 @@ namespace Opc.Ua.Client.ComplexTypes
                                     m_logger.LogTrace(
                                         "Skipped the type definition of {DataType}, missing {MissingTypeIds}. Retry in next round.",
                                         item.Name,
-                                        missingTypeIds?.ToString() ?? string.Empty);
+                                        missingTypeIds == null ?
+                                            string.Empty :
+                                            string.Join(",", [.. missingTypeIds.Select(id => id.ToString())]));
                                 }
                             }
                         }
@@ -747,7 +749,37 @@ namespace Opc.Ua.Client.ComplexTypes
             } while (repeatDataTypeLoad);
 
             // all types loaded
-            return enumTypesToDoList.Count == 0 && structTypesToDoList.Count == 0;
+            if (enumTypesToDoList.Count == 0 && structTypesToDoList.Count == 0)
+            {
+                return true;
+            }
+
+            // Provide some diagnostics so users understand why types could not be serialized.
+            if (enumTypesToDoList.Count > 0)
+            {
+                m_logger.LogWarning(
+                    "{TodoCount} enum types could not be loaded from the server.",
+                    enumTypesToDoList.Count);
+                if (enumTypesToDoList.Count < 10)
+                {
+                    m_logger.LogInformation(
+                        "Missing enum types: {MissingEnumTypes}",
+                        string.Join(", ", enumTypesToDoList.Select(e => e.BrowseName)));
+                }
+            }
+            if (structTypesToDoList.Count > 0)
+            {
+                m_logger.LogWarning(
+                    "{TodoCount} structure types could not be loaded from the server.",
+                    structTypesToDoList.Count);
+                if (structTypesToDoList.Count < 10)
+                {
+                    m_logger.LogInformation(
+                        "Missing structure types: {MissingStructureTypes}",
+                        string.Join(", ", structTypesToDoList.Select(e => e.BrowseName)));
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -969,12 +1001,13 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private static StructureDefinition GetStructureDefinition(DataTypeNode dataTypeNode)
         {
-            if (dataTypeNode.DataTypeDefinition?.Body is StructureDefinition structureDefinition)
+            if (dataTypeNode.DataTypeDefinition.TryGetEncodeable(
+                out StructureDefinition structureDefinition))
             {
                 // Validate the DataTypeDefinition structure,
                 // but not if the type is supported
                 if (structureDefinition.Fields == null ||
-                    structureDefinition.BaseDataType.IsNullNodeId ||
+                    structureDefinition.BaseDataType.IsNull ||
                     structureDefinition.BinaryEncodingId.IsNull)
                 {
                     return null;
@@ -985,7 +1018,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     // validate if the DataTypeDefinition is correctly
                     // filled out, some servers don't do it yet...
                     if (field.BinaryEncodingId.IsNull ||
-                        field.DataType.IsNullNodeId ||
+                        field.DataType.IsNull ||
                         field.TypeId.IsNull ||
                         field.Name == null)
                     {
@@ -1031,7 +1064,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 superType = await m_complexTypeResolver.FindSuperTypeAsync(superType, ct)
                     .ConfigureAwait(false);
-                if (superType.IsNullNodeId)
+                if (superType.IsNull)
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadNodeIdInvalid,
@@ -1112,7 +1145,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         m_dataTypeDefinitionCache[enumType.NodeId] = enumDefinition;
 
                         newType = complexTypeBuilder.AddEnumType(
-                            enumeratedObject.Name,
+                            QualifiedName.From(enumeratedObject.Name),
                             enumDefinition);
                     }
                     if (newType == null)
@@ -1155,7 +1188,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private void AddEncodeableType(ExpandedNodeId nodeId, Type type)
         {
-            if (NodeId.IsNull(nodeId) || type == null)
+            if (nodeId.IsNull || type == null)
             {
                 return;
             }
@@ -1179,7 +1212,8 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 // 1. use DataTypeDefinition
                 if (DisableDataTypeDefinition ||
-                    enumTypeNode.DataTypeDefinition?.Body is not EnumDefinition enumDefinition)
+                    !enumTypeNode.DataTypeDefinition.TryGetEncodeable(
+                        out EnumDefinition enumDefinition))
                 {
                     // browse for EnumFields or EnumStrings property
                     object enumTypeArray = await m_complexTypeResolver
@@ -1360,10 +1394,12 @@ namespace Opc.Ua.Client.ComplexTypes
                     field.IsOptional,
                     ct)
                     .ConfigureAwait(false);
-                if (superType?.IsNullNodeId == false)
+                if (!superType.IsNull)
                 {
                     field.DataType = superType;
+#pragma warning disable EPC30 // Method calls itself recursively
                     return await GetFieldTypeAsync(field, allowSubTypes, ct).ConfigureAwait(false);
+#pragma warning restore EPC30 // Method calls itself recursively
                 }
                 return null;
             }
@@ -1398,9 +1434,9 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 superType = await m_complexTypeResolver.FindSuperTypeAsync(superType, ct)
                     .ConfigureAwait(false);
-                if (superType?.IsNullNodeId != false)
+                if (superType.IsNull)
                 {
-                    return null;
+                    return default;
                 }
                 if (superType.NamespaceIndex == 0)
                 {
@@ -1412,7 +1448,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                     if (superType == DataTypeIds.Enumeration)
                     {
-                        return null;
+                        return default;
                     }
                     else if (superType == DataTypeIds.Structure)
                     {
@@ -1430,12 +1466,12 @@ namespace Opc.Ua.Client.ComplexTypes
                         {
                             return superType;
                         }
-                        return null;
+                        return default;
                     }
                     // end search if a valid BuiltInType is found. Treat type as opaque.
-                    else if (superType.IdType == IdType.Numeric &&
-                        (uint)superType.Identifier >= (uint)BuiltInType.Boolean &&
-                        (uint)superType.Identifier <= (uint)BuiltInType.DiagnosticInfo)
+                    else if (superType.TryGetIdentifier(out uint id) &&
+                        id >= (uint)BuiltInType.Boolean &&
+                        id <= (uint)BuiltInType.DiagnosticInfo)
                     {
                         return superType;
                     }
@@ -1446,7 +1482,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                 }
             }
-            return null;
+            return default;
         }
 
         /// <summary>

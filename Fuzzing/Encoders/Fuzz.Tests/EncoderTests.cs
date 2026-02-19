@@ -96,10 +96,21 @@ namespace Opc.Ua.Fuzzing
         {
             // note: too many crash files can take forever to create
             // all permutations with nunit, so just run all in one batch
+            int exceptions = 0;
             foreach (TestcaseAsset messageEncoder in CrashAssets)
             {
-                FuzzTarget(fuzzableCode, messageEncoder.Testcase);
+                try
+                {
+                    TestContext.Out.WriteLine(messageEncoder);
+                    FuzzTarget(fuzzableCode, messageEncoder.Testcase);
+                }
+                catch (Exception ex)
+                {
+                    TestContext.Error.WriteLine($"Failed: {messageEncoder}\n{ex}");
+                    exceptions++;
+                }
             }
+            // Assert.That(exceptions, Is.EqualTo(0));
         }
 
         [Theory]

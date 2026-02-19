@@ -110,7 +110,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         public override NodeId RegisterApplication(ApplicationRecordDataType application)
         {
             NodeId appNodeId = base.RegisterApplication(application);
-            if (NodeId.IsNull(appNodeId))
+            if (appNodeId.IsNull)
             {
                 appNodeId = new NodeId(Guid.NewGuid(), NamespaceIndex);
             }
@@ -342,11 +342,21 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
                 foreach (Application result in results)
                 {
-                    LocalizedText[] names = null;
+                    var names = new List<LocalizedText>();
 
-                    if (result.ApplicationName != null)
+                    IEnumerable<ApplicationName> applicationNames =
+                    from ii in ApplicationNames
+                    where ii.ApplicationId == result.ApplicationId
+                    select ii;
+
+                    foreach (ApplicationName applicationName in applicationNames)
                     {
-                        names = [result.ApplicationName];
+                        names.Add(new LocalizedText(applicationName.Locale, applicationName.Text));
+                    }
+
+                    if (names.Count == 0 && result.ApplicationName != null)
+                    {
+                        names = [LocalizedText.From(result.ApplicationName)];
                     }
 
                     StringCollection discoveryUrls = null;
@@ -467,7 +477,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     {
                         continue;
                     }
-                    else // filter for clients
+
+                    // filter for clients
                     if (applicationType == 2 &&
                         result.ApplicationType != (int)ApplicationType.Client &&
                         result.ApplicationType != (int)ApplicationType.ClientAndServer)
@@ -503,12 +514,24 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                         lastID = result.ID;
                     }
 
+                    var names = new List<LocalizedText>();
+
+                    IEnumerable<ApplicationName> applicationNames =
+                    from ii in ApplicationNames
+                    where ii.ApplicationId == result.ApplicationId
+                    select ii;
+
+                    foreach (ApplicationName appName in applicationNames)
+                    {
+                        names.Add(new LocalizedText(appName.Locale, appName.Text));
+                    }
+
                     records.Add(
                         new ApplicationDescription
                         {
                             ApplicationUri = result.ApplicationUri,
                             ProductUri = result.ProductUri,
-                            ApplicationName = result.ApplicationName,
+                            ApplicationName = names.Count != 0 ? names[0] : new LocalizedText(result.ApplicationName),
                             ApplicationType = (ApplicationType)result.ApplicationType,
                             GatewayServerUri = null,
                             DiscoveryProfileUri = null,

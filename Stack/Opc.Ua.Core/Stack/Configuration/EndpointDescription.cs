@@ -35,34 +35,10 @@ namespace Opc.Ua
     /// <summary>
     /// Describes how to connect to an endpoint.
     /// </summary>
-    public partial class EndpointDescription
+    public static class EndpointDescriptionExtensions
     {
-        /// <summary>
-        /// Creates an endpoint configuration from a url.
-        /// </summary>
-        public EndpointDescription(string url)
+        extension(EndpointDescription endpointDescription)
         {
-            Initialize();
-
-            var parsedUrl = new UriBuilder(url);
-
-            if (Utils.IsUriHttpRelatedScheme(parsedUrl.Scheme) &&
-                !parsedUrl.Path.EndsWith(
-                    ConfiguredEndpoint.DiscoverySuffix,
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                parsedUrl.Path += ConfiguredEndpoint.DiscoverySuffix;
-            }
-
-            Server.DiscoveryUrls.Add(parsedUrl.ToString());
-
-            EndpointUrl = url;
-            Server.ApplicationUri = url;
-            Server.ApplicationName = url;
-            SecurityMode = MessageSecurityMode.None;
-            SecurityPolicyUri = SecurityPolicies.None;
-        }
-
         /// <summary>
         /// The encodings supported by the configuration.
         /// </summary>
@@ -70,22 +46,20 @@ namespace Opc.Ua
         {
             get
             {
-                if (!string.IsNullOrEmpty(EndpointUrl) &&
-                    EndpointUrl.StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
+                    if (!string.IsNullOrEmpty(endpointDescription.EndpointUrl) &&
+                        endpointDescription.EndpointUrl.StartsWith(
+                            Utils.UriSchemeOpcTcp,
+                            StringComparison.Ordinal))
                 {
                     return BinaryEncodingSupport.Required;
                 }
 
-                TransportProfileUri = Profiles.NormalizeUri(TransportProfileUri);
-                return TransportProfileUri == Profiles.HttpsBinaryTransport ?
+                    endpointDescription.TransportProfileUri =
+                        Profiles.NormalizeUri(endpointDescription.TransportProfileUri);
+                    return endpointDescription.TransportProfileUri == Profiles.HttpsBinaryTransport ?
                     BinaryEncodingSupport.Required : BinaryEncodingSupport.None;
             }
         }
-
-        /// <summary>
-        /// The proxy url to use when connecting to the endpoint.
-        /// </summary>
-        public Uri ProxyUrl { get; set; }
 
         /// <summary>
         /// Finds the user token policy with the specified id and securtyPolicyUri
@@ -95,7 +69,7 @@ namespace Opc.Ua
             UserTokenPolicy sameEncryptionAlgorithm = null;
             UserTokenPolicy unspecifiedSecPolicy = null;
             // The specified security policies take precedence
-            foreach (UserTokenPolicy policy in m_userIdentityTokens)
+                foreach (UserTokenPolicy policy in endpointDescription.UserIdentityTokens)
             {
                 if (policy.PolicyId == policyId)
                 {
@@ -140,10 +114,13 @@ namespace Opc.Ua
         {
             if (issuedTokenType == null)
             {
-                return FindUserTokenPolicy(tokenType, (string)null, tokenSecurityPolicyUri);
+                    return endpointDescription.FindUserTokenPolicy(
+                        tokenType,
+                        (string)null,
+                        tokenSecurityPolicyUri);
             }
 
-            return FindUserTokenPolicy(
+                return endpointDescription.FindUserTokenPolicy(
                 tokenType,
                 issuedTokenType.Namespace,
                 tokenSecurityPolicyUri);
@@ -163,7 +140,7 @@ namespace Opc.Ua
             UserTokenPolicy sameEncryptionAlgorithm = null;
             UserTokenPolicy unspecifiedSecPolicy = null;
             // The specified security policies take precedence
-            foreach (UserTokenPolicy policy in m_userIdentityTokens)
+                foreach (UserTokenPolicy policy in endpointDescription.UserIdentityTokens)
             {
                 if ((policy.TokenType == tokenType) &&
                     (issuedTokenTypeText == policy.IssuedTokenType))
@@ -203,4 +180,5 @@ namespace Opc.Ua
             return unspecifiedSecPolicy;
         }
     }
+}
 }

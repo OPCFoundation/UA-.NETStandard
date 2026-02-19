@@ -226,17 +226,13 @@ namespace Opc.Ua.Bindings
             if (disposing)
             {
                 DiscardTokens();
-                if (m_localNonce != null)
-                {
-                    m_localNonce.Dispose();
-                    m_localNonce = null;
-                }
+                Utils.SilentDispose(Socket);
 
-                if (m_remoteNonce != null)
-                {
-                    m_remoteNonce.Dispose();
-                    m_remoteNonce = null;
-                }
+                m_localNonce?.Dispose();
+                m_localNonce = null;
+
+                m_remoteNonce?.Dispose();
+                m_remoteNonce = null;
             }
         }
 
@@ -288,7 +284,7 @@ namespace Opc.Ua.Bindings
             TcpChannelStateEventHandler stateChanged = m_stateChanged;
             if (stateChanged != null)
             {
-                Task.Run(() => stateChanged?.Invoke(this, state, reason));
+                _ = Task.Run(() => stateChanged?.Invoke(this, state, reason));
             }
         }
 
@@ -506,7 +502,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void HandleMessageProcessingError(
             Exception e,
-            uint defaultCode,
+            StatusCode defaultCode,
             string format,
             params object[] args)
         {
@@ -517,7 +513,7 @@ namespace Opc.Ua.Bindings
         /// Handles an error parsing or verifying a message.
         /// </summary>
         protected void HandleMessageProcessingError(
-            uint statusCode,
+            StatusCode statusCode,
             string format,
             params object[] args)
         {
@@ -699,7 +695,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected static void WriteErrorMessageBody(BinaryEncoder encoder, ServiceResult error)
         {
-            string reason = error.LocalizedText?.Text;
+            string reason = error.LocalizedText.Text;
 
             // check that length is not exceeded.
             if (reason != null &&
@@ -977,7 +973,6 @@ namespace Opc.Ua.Bindings
         /// treat TcpChannelState as int to use Interlocked
         /// </summary>
         private int m_state;
-
         private int m_activeWriteRequests;
         private readonly string m_contextId;
         private readonly ILogger m_logger;

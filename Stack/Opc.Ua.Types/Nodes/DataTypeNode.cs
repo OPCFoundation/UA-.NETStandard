@@ -68,7 +68,7 @@ namespace Opc.Ua
         private void Initialize()
         {
             IsAbstract = true;
-            DataTypeDefinition = null;
+            DataTypeDefinition = default;
         }
 
         /// <summary>
@@ -158,7 +158,7 @@ namespace Opc.Ua
         {
             var clone = (DataTypeNode)base.MemberwiseClone();
 
-            clone.IsAbstract = (bool)CoreUtils.Clone(IsAbstract);
+            clone.IsAbstract = CoreUtils.Clone(IsAbstract);
             clone.DataTypeDefinition = CoreUtils.Clone(DataTypeDefinition);
 
             return clone;

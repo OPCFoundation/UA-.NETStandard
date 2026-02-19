@@ -142,6 +142,12 @@ namespace Opc.Ua.Server
         ValueTask DeleteReferencesAsync(NodeId targetId, IList<IReference> references, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Searches the node id in all node managers,
+        /// returns the node state if found (and node Manager supports it), otherwise returns null.
+        /// </summary>
+        ValueTask<NodeState> FindNodeInAddressSpaceAsync(NodeId nodeId);
+
+        /// <summary>
         /// Returns node handle and its node manager.
         /// </summary>
         [Obsolete("Use GetManagerHandleAsync instead.")]
@@ -221,7 +227,6 @@ namespace Opc.Ua.Server
         /// </para>
         /// </remarks>
         /// <exception cref="ArgumentNullException">Throw if the namespaceUri or the nodeManager are null.</exception>
-
         void RegisterNamespaceManager(string namespaceUri, IAsyncNodeManager nodeManager);
 
         /// <summary>
@@ -248,7 +253,6 @@ namespace Opc.Ua.Server
         /// Registers a set of node ids.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="nodesToRegister"/> is <c>null</c>.</exception>
-
         void RegisterNodes(OperationContext context, NodeIdCollection nodesToRegister, out NodeIdCollection registeredNodeIds);
 
         /// <summary>
@@ -302,7 +306,6 @@ namespace Opc.Ua.Server
         /// Transfers a set of monitored items.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-
         ValueTask TransferMonitoredItemsAsync(
             OperationContext context,
             bool sendInitialValues,

@@ -113,6 +113,7 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Load the default client configuration.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         public async Task LoadClientConfigurationAsync(
             string pkiRoot = null,
             string clientName = "TestClient")
@@ -238,11 +239,13 @@ namespace Opc.Ua.Client.Tests
 
                     return await ConnectAsync(endpoint).ConfigureAwait(false);
                 }
-                catch (ServiceResultException e) when ((e.StatusCode is
-                    StatusCodes.BadServerHalted or
-                    StatusCodes.BadSecureChannelClosed or
-                    StatusCodes.BadNoCommunication) &&
-                    attempt < maxAttempts)
+                catch (ServiceResultException e) when (
+                (
+                    e.StatusCode == StatusCodes.BadServerHalted ||
+                    e.StatusCode == StatusCodes.BadSecureChannelClosed ||
+                    e.StatusCode == StatusCodes.BadNoCommunication
+                ) &&
+                attempt < maxAttempts)
                 {
                     attempt++;
                     m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt + 1);
@@ -283,11 +286,13 @@ namespace Opc.Ua.Client.Tests
                     ).ConfigureAwait(false);
                     return await ConnectAsync(endpoint, userIdentity).ConfigureAwait(false);
                 }
-                catch (ServiceResultException e) when ((e.StatusCode is
-                    StatusCodes.BadServerHalted or
-                    StatusCodes.BadSecureChannelClosed or
-                    StatusCodes.BadNoCommunication) &&
-                    attempt < maxAttempts)
+                catch (ServiceResultException e) when (
+                (
+                    e.StatusCode == StatusCodes.BadServerHalted ||
+                    e.StatusCode == StatusCodes.BadSecureChannelClosed ||
+                    e.StatusCode == StatusCodes.BadNoCommunication
+                ) &&
+                attempt < maxAttempts)
                 {
                     m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt + 1);
                     await Task.Delay(1000).ConfigureAwait(false);
@@ -466,8 +471,7 @@ namespace Opc.Ua.Client.Tests
                     ShouldListenTo = (source) => source.Name == expectedName,
 
                     // Sample all data and recorded activities
-                    Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
-                        ActivitySamplingResult.AllDataAndRecorded,
+                    Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
                     // Do not log during benchmarks
                     ActivityStarted = _ => { },
                     ActivityStopped = _ => { }
@@ -481,8 +485,7 @@ namespace Opc.Ua.Client.Tests
                     ShouldListenTo = (source) => source.Name == expectedName,
 
                     // Sample all data and recorded activities
-                    Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
-                        ActivitySamplingResult.AllDataAndRecorded,
+                    Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStarted = activity =>
                         m_logger.LogInformation(
                             "Client Started: {OperationName,-15} - TraceId: {TraceId,-32} SpanId: {SpanId,-16}",
@@ -517,7 +520,9 @@ namespace Opc.Ua.Client.Tests
             {
                 // Ignore expected errors during test shutdown to reduce noise in CI logs
                 if (e.Status?.StatusCode == StatusCodes.BadServerHalted ||
-                    e.Status?.StatusCode == StatusCodes.BadNoCommunication)
+                    e.Status?.StatusCode == StatusCodes.BadNoCommunication ||
+                    e.Status?.StatusCode == StatusCodes.BadSecureChannelClosed ||
+                    e.Status?.StatusCode == StatusCodes.BadRequestInterrupted)
                 {
                     return;
                 }

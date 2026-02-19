@@ -1,0 +1,501 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<opc:ModelDesign
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns:ua="http://opcfoundation.org/UA/"
+  xmlns="http://opcfoundation.org/UA/"
+  xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+  TargetNamespace="http://opcfoundation.org/UA/"
+  TargetVersion="1.05.03"
+  TargetPublicationDate="2023-12-15T00:00:00Z"
+>
+  <opc:Namespaces>
+    <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/</opc:Namespace>
+  </opc:Namespaces>
+
+  <opc:Object SymbolicName="DefaultBinary" PartNo="3">
+    <opc:BrowseName>Default Binary</opc:BrowseName>
+    <opc:Description>The default binary encoding for a data type.</opc:Description>
+  </opc:Object>
+
+  <opc:Object SymbolicName="DefaultXml" PartNo="3">
+    <opc:BrowseName>Default XML</opc:BrowseName>
+    <opc:Description>The default XML encoding for a data type.</opc:Description>
+  </opc:Object>
+
+  <opc:DataType SymbolicName="BaseDataType" IsAbstract="true" NumericId="24" PartNo="3">
+    <opc:Description>Describes a value that can have any valid DataType.</opc:Description>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="Number" BaseType="BaseDataType" IsAbstract="true" PartNo="3">
+    <opc:Description>Describes a value that can have any numeric DataType.</opc:Description>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="Integer" BaseType="Number" IsAbstract="true" PartNo="3">
+    <opc:Description>Describes a value that can have any integer DataType.</opc:Description>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="UInteger" BaseType="Number" IsAbstract="true" PartNo="3">
+    <opc:Description>Describes a value that can have any unsigned integer DataType.</opc:Description>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="Enumeration" BaseType="BaseDataType" IsAbstract="true" PartNo="3">
+    <opc:Description>Describes a value that is an enumerated DataType.</opc:Description>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="Boolean" BaseType="BaseDataType" NumericId="1" PartNo="3">
+    <opc:Description>Describes a value that is either TRUE or FALSE.</opc:Description>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="SByte" BaseType="Integer" NumericId="2" PartNo="3">
+    <opc:Description>Describes a value that is an integer between -128 and 127.</opc:Description>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="Byte" BaseType="UInteger" NumericId="3" PartNo="3">
+    <opc:Description>Describes a value that is an integer between 0 and 255.</opc:Description>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="Int16" BaseType="Integer" NumericId="4" PartNo="3">
+    <opc:Description>Describes a value that is an integer between −32,768 and 32,767.</opc:Description>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="UInt16" BaseType="UInteger" NumericId="5" PartNo="3">
+    <opc:Description>Describes a value that is an integer between 0 and 65535.</opc:Description>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="Int32" BaseType="Integer" NumericId="6" PartNo="3">
+    <opc:Description>Describes a value that is an integer between −2,147,483,648  and 2,147,483,647.</opc:Description>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="UInt32" BaseType="UInteger" NumericId="7" PartNo="3">
+    <opc:Description>Describes a value that is an integer between 0 and 4,294,967,295.</opc:Description>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="Int64" BaseType="Integer" NumericId="8" PartNo="3">
+    <opc:Description>Describes a value that is an integer between −9,223,372,036,854,775,808 and 9,223,372,036,854,775,807.</opc:Description>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="UInt64" BaseType="UInteger" NumericId="9" PartNo="3">
+    <opc:Description>Describes a value that is an integer between 0 and 18,446,744,073,709,551,615.</opc:Description>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="Float" BaseType="Number" NumericId="10" PartNo="3">
+    <opc:Description>Describes a value that is an IEEE 754-1985 single precision floating point number.</opc:Description>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="Double" BaseType="Number" NumericId="11" PartNo="3">
+    <opc:Description>Describes a value that is an IEEE 754-1985 double precision floating point number.</opc:Description>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="String" BaseType="BaseDataType" NumericId="12" PartNo="3">
+    <opc:Description>Describes a value that is a sequence of printable Unicode characters.</opc:Description>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="DateTime" BaseType="BaseDataType" NumericId="13" PartNo="3">
+    <opc:Description>Describes a value that is a Gregorian calender date and time.</opc:Description>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="Guid" BaseType="BaseDataType" NumericId="14" PartNo="3">
+    <opc:Description>Describes a value that is a 128-bit globally unique identifier.</opc:Description>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="ByteString" BaseType="BaseDataType" NumericId="15" PartNo="3">
+    <opc:Description>Describes a value that is a sequence of bytes.</opc:Description>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="XmlElement" BaseType="BaseDataType" NumericId="16" PartNo="3">
+    <opc:Description>Describes a value that is an XML element.</opc:Description>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="NodeId" BaseType="BaseDataType" NumericId="17" PartNo="3">
+    <opc:Description>Describes a value that is an identifier for a node within a Server address space.</opc:Description>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="ExpandedNodeId" BaseType="BaseDataType" NumericId="18" PartNo="4">
+    <opc:Description>Describes a value that is an absolute identifier for a node.</opc:Description>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="StatusCode" BaseType="BaseDataType" NumericId="19" PartNo="4">
+    <opc:Description>Describes a value that is a code representing the outcome of an operation by a Server.</opc:Description>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="QualifiedName" BaseType="BaseDataType" NumericId="20" PartNo="3">
+    <opc:Description>Describes a value that is a name qualified by a namespace.</opc:Description>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="LocalizedText" BaseType="BaseDataType" NumericId="21" PartNo="3">
+    <opc:Description>Describes a value that is human readable Unicode text with a locale identifier.</opc:Description>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="Structure" BaseType="BaseDataType" IsAbstract="true" NumericId="22" PartNo="3">
+    <opc:Description>Describes a value that is any type of structure that can be described with a data encoding.</opc:Description>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="DataValue" BaseType="BaseDataType" NumericId="23" PartNo="4">
+    <opc:Description>Describes a value that is a structure containing a value, a status code and timestamps.</opc:Description>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="DiagnosticInfo" BaseType="BaseDataType" PartNo="4">
+    <opc:Description>Describes a value that is a structure containing diagnostics associated with a StatusCode.</opc:Description>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="Image" BaseType="ByteString" IsAbstract="true" PartNo="3">
+    <opc:Description>Describes a value that is an image encoded as a string of bytes.</opc:Description>
+  </opc:DataType>
+  
+  <opc:DataType SymbolicName="Decimal" BaseType="Number" PartNo="3">
+    <opc:Description>Describes an arbitrary precision decimal value.</opc:Description>
+  </opc:DataType>
+
+  <opc:ReferenceType SymbolicName="References" IsAbstract="true" Symmetric="true" PartNo="3">
+    <opc:Description>The abstract base type for all references.</opc:Description>
+  </opc:ReferenceType>
+
+  <opc:ReferenceType SymbolicName="NonHierarchicalReferences" BaseType="References" IsAbstract="true" Symmetric="true" PartNo="3">
+    <opc:Description>The abstract base type for all non-hierarchical references.</opc:Description>
+  </opc:ReferenceType>
+
+  <opc:ReferenceType SymbolicName="HierarchicalReferences" BaseType="References" IsAbstract="true" PartNo="3">
+    <opc:Description>The abstract base type for all hierarchical references.</opc:Description>
+    <opc:InverseName>InverseHierarchicalReferences</opc:InverseName>
+  </opc:ReferenceType>
+
+  <opc:ReferenceType SymbolicName="HasChild" BaseType="HierarchicalReferences"  IsAbstract="true" PartNo="3">
+    <opc:Description>The abstract base type for all non-looping hierarchical references.</opc:Description>
+    <opc:InverseName>ChildOf</opc:InverseName>
+  </opc:ReferenceType>
+
+  <opc:ReferenceType SymbolicName="Organizes" BaseType="HierarchicalReferences" PartNo="3">
+    <opc:Description>The type for hierarchical references that are used to organize nodes.</opc:Description>
+    <opc:InverseName>OrganizedBy</opc:InverseName>
+  </opc:ReferenceType>
+
+  <opc:ReferenceType SymbolicName="HasEventSource" BaseType="HierarchicalReferences" PartNo="3">
+    <opc:Description>The type for non-looping hierarchical references that are used to organize event sources.</opc:Description>
+    <opc:InverseName>EventSourceOf</opc:InverseName>
+  </opc:ReferenceType>
+
+  <opc:ReferenceType SymbolicName="HasModellingRule" BaseType="NonHierarchicalReferences" PartNo="3">
+    <opc:Description>The type for references from instance declarations to modelling rule nodes.</opc:Description>
+    <opc:InverseName>ModellingRuleOf</opc:InverseName>
+  </opc:ReferenceType>
+
+  <opc:ReferenceType SymbolicName="HasEncoding" BaseType="NonHierarchicalReferences" PartNo="3">
+    <opc:Description>The type for references from data type nodes to to data type encoding nodes.</opc:Description>
+    <opc:InverseName>EncodingOf</opc:InverseName>
+  </opc:ReferenceType>
+
+  <opc:ReferenceType SymbolicName="HasDescription" BaseType="NonHierarchicalReferences" ReleaseStatus="Deprecated" PartNo="3">
+    <opc:Description>The type for references from data type encoding nodes to data type description nodes.</opc:Description>
+    <opc:InverseName>DescriptionOf</opc:InverseName>
+  </opc:ReferenceType>
+
+  <opc:ReferenceType SymbolicName="HasTypeDefinition" BaseType="NonHierarchicalReferences" PartNo="3">
+    <opc:Description>The type for references from a instance node its type defintion node.</opc:Description>
+    <opc:InverseName>TypeDefinitionOf</opc:InverseName>
+  </opc:ReferenceType>
+
+  <opc:ReferenceType SymbolicName="GeneratesEvent" BaseType="NonHierarchicalReferences" PartNo="3">
+    <opc:Description>The type for references from a node to an event type that is raised by node.</opc:Description>
+    <opc:InverseName>GeneratedBy</opc:InverseName>
+  </opc:ReferenceType>
+
+  <opc:ReferenceType SymbolicName="AlwaysGeneratesEvent" BaseType="GeneratesEvent" PartNo="3">
+    <opc:Description>The type for references from a node to an event type that is always raised by node.</opc:Description>
+    <opc:InverseName>AlwaysGeneratedBy</opc:InverseName>
+  </opc:ReferenceType>
+
+  <opc:ReferenceType SymbolicName="Aggregates" BaseType="HasChild" IsAbstract="true" PartNo="3">
+    <opc:Description>The type for non-looping hierarchical references that are used to aggregate nodes into complex types.</opc:Description>
+    <opc:InverseName>AggregatedBy</opc:InverseName>
+  </opc:ReferenceType>
+
+  <opc:ReferenceType SymbolicName="HasSubtype" BaseType="HasChild" PartNo="3">
+    <opc:Description>The type for non-looping hierarchical references that are used to define sub types.</opc:Description>
+    <opc:InverseName>SubtypeOf</opc:InverseName>
+  </opc:ReferenceType>
+
+  <opc:ReferenceType SymbolicName="HasProperty" BaseType="Aggregates" PartNo="3">
+    <opc:Description>The type for non-looping hierarchical reference from a node to its property.</opc:Description>
+    <opc:InverseName>PropertyOf</opc:InverseName>
+  </opc:ReferenceType>
+
+  <opc:ReferenceType SymbolicName="HasComponent" BaseType="Aggregates" PartNo="3">
+    <opc:Description>The type for non-looping hierarchical reference from a node to its component.</opc:Description>
+    <opc:InverseName>ComponentOf</opc:InverseName>
+  </opc:ReferenceType>
+
+  <opc:ReferenceType SymbolicName="HasNotifier" BaseType="HasEventSource" PartNo="3">
+    <opc:Description>The type for non-looping hierarchical references that are used to indicate how events propagate from node to node.</opc:Description>
+    <opc:InverseName>NotifierOf</opc:InverseName>
+  </opc:ReferenceType>
+
+  <opc:ReferenceType SymbolicName="HasOrderedComponent" BaseType="HasComponent" PartNo="3">
+    <opc:Description>The type for non-looping hierarchical reference from a node to its component when the order of references matters.</opc:Description>
+    <opc:InverseName>OrderedComponentOf</opc:InverseName>
+  </opc:ReferenceType>
+
+  <opc:ReferenceType SymbolicName="FromState" BaseType="ua:NonHierarchicalReferences" PartNo="5">
+    <opc:Description>The type for a reference to the state before a transition.</opc:Description>
+    <opc:InverseName>ToTransition</opc:InverseName>
+  </opc:ReferenceType>
+
+  <opc:ReferenceType SymbolicName="ToState" BaseType="ua:NonHierarchicalReferences" PartNo="5">
+    <opc:Description>The type for a reference to the state after a transition.</opc:Description>
+    <opc:InverseName>FromTransition</opc:InverseName>
+  </opc:ReferenceType>
+
+  <opc:ReferenceType SymbolicName="HasCause" BaseType="ua:NonHierarchicalReferences" PartNo="5">
+    <opc:Description>The type for a reference to a method that can cause a transition to occur.</opc:Description>
+    <opc:InverseName>MayBeCausedBy</opc:InverseName>
+  </opc:ReferenceType>
+
+  <opc:ReferenceType SymbolicName="HasEffect" BaseType="ua:NonHierarchicalReferences" PartNo="5">
+    <opc:Description>The type for a reference to an event that may be raised when a transition occurs.</opc:Description>
+    <opc:InverseName>MayBeEffectedBy</opc:InverseName>
+  </opc:ReferenceType>
+
+  <opc:ReferenceType SymbolicName="HasSubStateMachine" BaseType="ua:NonHierarchicalReferences" PartNo="5">
+    <opc:Description>The type for a reference to a substate for a state.</opc:Description>
+    <opc:InverseName>SubStateMachineOf</opc:InverseName>
+  </opc:ReferenceType>
+
+  <opc:ReferenceType SymbolicName="HasHistoricalConfiguration" BaseType="ua:Aggregates" PartNo="11">
+    <opc:Description>The type for a reference to the historical configuration for a data variable.</opc:Description>
+    <opc:InverseName>HistoricalConfigurationOf</opc:InverseName>
+  </opc:ReferenceType>
+
+  <opc:ReferenceType SymbolicName="HasStructuredComponent" BaseType="ua:HasComponent" PartNo="5">
+    <opc:InverseName>IsStructuredComponentOf</opc:InverseName>
+  </opc:ReferenceType>
+
+  <opc:ReferenceType SymbolicName="AssociatedWith" BaseType="ua:NonHierarchicalReferences" Symmetric="true" PartNo="5">
+  </opc:ReferenceType>
+
+  <opc:ReferenceType SymbolicName="HasKeyValueDescription" BaseType="ua:NonHierarchicalReferences" Symmetric="false" PartNo="5">
+    <opc:InverseName>KeyValueDescriptionOf</opc:InverseName>
+  </opc:ReferenceType>
+
+  <opc:ObjectType SymbolicName="BaseObjectType" PartNo="5">
+    <opc:Description>The base type for all object nodes.</opc:Description>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="FolderType" BaseType="BaseObjectType" NoClassGeneration="true" PartNo="5">
+    <opc:Description>The type for objects that organize other nodes.</opc:Description>
+  </opc:ObjectType>
+
+  <opc:VariableType SymbolicName="BaseVariableType" IsAbstract="true" ValueRank="ScalarOrArray" PartNo="5">
+    <opc:Description>The abstract base type for all variable nodes.</opc:Description>
+  </opc:VariableType>
+
+  <opc:VariableType SymbolicName="BaseDataVariableType" BaseType="BaseVariableType" ValueRank="ScalarOrArray" PartNo="5">
+    <opc:Description>The type for variable that represents a process value.</opc:Description>
+  </opc:VariableType>
+
+  <opc:VariableType SymbolicName="PropertyType" BaseType="BaseVariableType" ValueRank="ScalarOrArray" PartNo="5">
+    <opc:Description>The type for variable that represents a property of another node.</opc:Description>
+  </opc:VariableType>
+
+  <opc:VariableType SymbolicName="DataTypeDescriptionType" BaseType="BaseDataVariableType" DataType="ua:String" ValueRank="Scalar" PartNo="5" ReleaseStatus="Deprecated">
+    <opc:Description>The type for variable that represents the description of a data type encoding.</opc:Description>
+    <opc:Children>
+      <opc:Property SymbolicName="DataTypeVersion" DataType="String" ModellingRule="Optional">
+        <opc:Description>The version number for the data type description.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="DictionaryFragment" DataType="ByteString" ModellingRule="Optional">
+        <opc:Description>A fragment of a data type dictionary that defines the data type.</opc:Description>
+      </opc:Property>
+    </opc:Children>
+  </opc:VariableType>
+
+  <opc:VariableType SymbolicName="DataTypeDictionaryType" BaseType="BaseDataVariableType" DataType="ua:ByteString" ValueRank="Scalar" PartNo="5" ReleaseStatus="Deprecated">
+    <opc:Description>The type for variable that represents the collection of data type decriptions.</opc:Description>
+    <opc:Children>
+      <opc:Property SymbolicName="DataTypeVersion" DataType="String" ModellingRule="Optional">
+        <opc:Description>The version number for the data type dictionary.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="NamespaceUri" DataType="String" ModellingRule="Optional">
+        <opc:Description>A URI that uniquely identifies the dictionary.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="Deprecated" DataType="Boolean" ModellingRule="Optional">
+        <opc:Description>Indicates that all of the definitions for the dictionary are available through a DataTypeDefinition Attribute.</opc:Description>
+      </opc:Property>
+    </opc:Children>
+  </opc:VariableType>
+
+  <opc:ObjectType SymbolicName="DataTypeSystemType" BaseType="BaseObjectType" PartNo="5" ReleaseStatus="Deprecated" />
+  <opc:ObjectType SymbolicName="DataTypeEncodingType" BaseType="BaseObjectType" PartNo="5" />
+
+  <opc:DataType SymbolicName="NamingRuleType" BaseType="ua:Enumeration" PartNo="3" ReleaseStatus="Deprecated">
+    <opc:Description>Describes a value that specifies the significance of the BrowseName for an instance declaration.</opc:Description>
+    <opc:Fields>
+      <opc:Field Name="Mandatory" Identifier="1">
+        <opc:Description>The BrowseName must appear in all instances of the type.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="Optional" Identifier="2">
+        <opc:Description>The BrowseName may appear in an instance of the type.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="Constraint" Identifier="3">
+        <opc:Description>The modelling rule defines a constraint and the BrowseName is not used in an instance of the type.</opc:Description>
+      </opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:ObjectType SymbolicName="ModellingRuleType" BaseType="BaseObjectType" PartNo="5">
+  </opc:ObjectType>
+
+  <opc:Object SymbolicName="ModellingRule_Mandatory" TypeDefinition="ModellingRuleType" ModellingRule="None" PartNo="5">
+    <opc:BrowseName>Mandatory</opc:BrowseName>
+    <opc:Description>Specifies that an instance with the attributes and references of the instance declaration must appear when a type is instantiated.</opc:Description>
+  </opc:Object>
+
+  <opc:Object SymbolicName="ModellingRule_Optional" TypeDefinition="ModellingRuleType" ModellingRule="None" PartNo="5">
+    <opc:BrowseName>Optional</opc:BrowseName>
+    <opc:Description>Specifies that an instance with the attributes and references of the instance declaration may appear when a type is instantiated.</opc:Description>
+  </opc:Object>
+
+  <opc:Object SymbolicName="ModellingRule_ExposesItsArray" TypeDefinition="ModellingRuleType" ModellingRule="None" PartNo="5">
+    <opc:BrowseName>ExposesItsArray</opc:BrowseName>
+    <opc:Description>Specifies that an instance appears for each element of the containing array variable.</opc:Description>
+  </opc:Object>
+
+  <opc:Object SymbolicName="ModellingRule_OptionalPlaceholder" TypeDefinition="ModellingRuleType" ModellingRule="None" PartNo="5">
+      <opc:BrowseName>OptionalPlaceholder</opc:BrowseName>
+      <opc:Description>Specifies that zero or more instances with the attributes and references of the instance declaration may appear when a type is instantiated.</opc:Description>
+  </opc:Object>
+
+  <opc:Object SymbolicName="ModellingRule_MandatoryPlaceholder" TypeDefinition="ModellingRuleType" ModellingRule="None" PartNo="5">
+      <opc:BrowseName>MandatoryPlaceholder</opc:BrowseName>
+      <opc:Description>Specifies that one or more instances with the attributes and references of the instance declaration must appear when a type is instantiated.</opc:Description>
+  </opc:Object>
+
+  <opc:Object SymbolicName="RootFolder" TypeDefinition="FolderType" ModellingRule="None" PartNo="5">
+    <opc:BrowseName>Root</opc:BrowseName>
+    <opc:Description>The root of the server address space.</opc:Description>
+  </opc:Object>
+
+  <opc:Object SymbolicName="ObjectsFolder" TypeDefinition="FolderType" ModellingRule="None" PartNo="5">
+    <opc:BrowseName>Objects</opc:BrowseName>
+    <opc:Description>The browse entry point when looking for objects in the server address space.</opc:Description>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>Organizes</opc:ReferenceType>
+        <opc:TargetId>RootFolder</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+  <opc:Object SymbolicName="TypesFolder" TypeDefinition="FolderType" ModellingRule="None" PartNo="5">
+    <opc:BrowseName>Types</opc:BrowseName>
+    <opc:Description>The browse entry point when looking for types in the server address space.</opc:Description>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>Organizes</opc:ReferenceType>
+        <opc:TargetId>RootFolder</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+  <opc:Object SymbolicName="ViewsFolder" TypeDefinition="FolderType" ModellingRule="None" PartNo="5">
+    <opc:BrowseName>Views</opc:BrowseName>
+    <opc:Description>The browse entry point when looking for views in the server address space.</opc:Description>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>Organizes</opc:ReferenceType>
+        <opc:TargetId>RootFolder</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+  <opc:Object SymbolicName="ObjectTypesFolder" TypeDefinition="FolderType" ModellingRule="None" PartNo="5">
+    <opc:BrowseName>ObjectTypes</opc:BrowseName>
+    <opc:Description>The browse entry point when looking for object types in the server address space.</opc:Description>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>Organizes</opc:ReferenceType>
+        <opc:TargetId>TypesFolder</opc:TargetId>
+      </opc:Reference>
+      <opc:Reference>
+        <opc:ReferenceType>Organizes</opc:ReferenceType>
+        <opc:TargetId>BaseObjectType</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+  <opc:Object SymbolicName="VariableTypesFolder" TypeDefinition="FolderType" ModellingRule="None" PartNo="5">
+    <opc:BrowseName>VariableTypes</opc:BrowseName>
+    <opc:Description>The browse entry point when looking for variable types in the server address space.</opc:Description>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>Organizes</opc:ReferenceType>
+        <opc:TargetId>TypesFolder</opc:TargetId>
+      </opc:Reference>
+      <opc:Reference>
+        <opc:ReferenceType>Organizes</opc:ReferenceType>
+        <opc:TargetId>BaseVariableType</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+  <opc:Object SymbolicName="DataTypesFolder" TypeDefinition="FolderType" ModellingRule="None" PartNo="5">
+    <opc:BrowseName>DataTypes</opc:BrowseName>
+    <opc:Description>The browse entry point when looking for data types in the server address space.</opc:Description>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>Organizes</opc:ReferenceType>
+        <opc:TargetId>TypesFolder</opc:TargetId>
+      </opc:Reference>
+      <opc:Reference>
+        <opc:ReferenceType>Organizes</opc:ReferenceType>
+        <opc:TargetId>BaseDataType</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+  <opc:Object SymbolicName="ReferenceTypesFolder" TypeDefinition="FolderType" ModellingRule="None" PartNo="5">
+    <opc:BrowseName>ReferenceTypes</opc:BrowseName>
+    <opc:Description>The browse entry point when looking for reference types in the server address space.</opc:Description>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>Organizes</opc:ReferenceType>
+        <opc:TargetId>TypesFolder</opc:TargetId>
+      </opc:Reference>
+      <opc:Reference>
+        <opc:ReferenceType>Organizes</opc:ReferenceType>
+        <opc:TargetId>References</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+  <opc:Object SymbolicName="XmlSchema_TypeSystem" TypeDefinition="DataTypeSystemType" ModellingRule="None" PartNo="5">
+    <opc:BrowseName>XML Schema</opc:BrowseName>
+    <opc:Description>A type system which uses XML schema to describe the encoding of data types.</opc:Description>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>Organizes</opc:ReferenceType>
+        <opc:TargetId>DataTypesFolder</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+  <opc:Object SymbolicName="OPCBinarySchema_TypeSystem" TypeDefinition="DataTypeSystemType" ModellingRule="None" PartNo="5">
+    <opc:BrowseName>OPC Binary</opc:BrowseName>
+    <opc:Description>A type system which uses OPC binary schema to describe the encoding of data types.</opc:Description>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>Organizes</opc:ReferenceType>
+        <opc:TargetId>DataTypesFolder</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+  <opc:ReferenceType SymbolicName="HasArgumentDescription" BaseType="ua:HasComponent" PartNo="3" ReleaseStatus="Released">
+    <opc:InverseName>ArgumentDescriptionOf</opc:InverseName>
+  </opc:ReferenceType>
+
+  <opc:ReferenceType SymbolicName="HasOptionalInputArgumentDescription" BaseType="ua:HasArgumentDescription" PartNo="3" ReleaseStatus="Released">
+    <opc:InverseName>OptionalInputArgumentDescriptionOf</opc:InverseName>
+  </opc:ReferenceType>
+
+</opc:ModelDesign>

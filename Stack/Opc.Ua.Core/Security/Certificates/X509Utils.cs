@@ -425,11 +425,7 @@ namespace Opc.Ua
             if (field.StartsWith("S=", StringComparison.OrdinalIgnoreCase) &&
                 !field.StartsWith("ST=", StringComparison.OrdinalIgnoreCase))
             {
-#if NET5_0_OR_GREATER
-                return string.Concat("ST=", field.AsSpan(2));
-#else
-                return "ST=" + field.Substring(2);
-#endif
+                return $"ST={field[2..]}";
             }
 
             return field;
@@ -796,6 +792,30 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Get the certificate issuer by its key identifier.
+        /// </summary>
+        public static async Task<X509Certificate2> FindIssuerCAByKeyIdentifierAsync(
+            ICertificateStore store,
+            X500DistinguishedName issuer,
+            string keyIdentifier)
+        {
+            X509Certificate2Collection certificates = await store.EnumerateAsync()
+                .ConfigureAwait(false);
+            foreach (X509Certificate2 certificate in certificates)
+            {
+                if (CompareDistinguishedName(certificate.SubjectName, issuer))
+                {
+                    X509SubjectKeyIdentifierExtension subject = certificate.FindExtension<X509SubjectKeyIdentifierExtension>();
+                    if (subject != null && Utils.IsEqual(subject.SubjectKeyIdentifier, keyIdentifier))
+                    {
+                        return certificate;
+                    }
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Extension to add a certificate to a <see cref="ICertificateStore"/>.
         /// </summary>
         /// <remarks>
@@ -886,6 +906,40 @@ namespace Opc.Ua
         }
 
         /// <summary>e
+        /// Extension to add a crl to a <see cref="ICertificateStore"/>.
+        /// </summary>
+        /// <param name="crl">The crl to store.</param>
+        /// <param name="storeIdentifier">Type of certificate store (Directory) <see cref="CertificateStoreType"/>.</param>
+        /// <param name="telemetry">Telemetry context to use</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <exception cref="ArgumentException">e.g. Invalid store type</exception>
+        public static async Task<X509CRL> AddToStoreAsync(
+            this X509CRL crl,
+            CertificateStoreIdentifier storeIdentifier,
+            ITelemetryContext telemetry = null,
+            CancellationToken ct = default)
+        {
+            // add cert to the store.
+            if (storeIdentifier != null)
+            {
+                ICertificateStore store = storeIdentifier.OpenStore(telemetry);
+                try
+                {
+                    if (store == null)
+                    {
+                        throw new ArgumentException("Invalid store type");
+                    }
+                    await store.AddCRLAsync(crl, ct).ConfigureAwait(false);
+                }
+                finally
+                {
+                    store?.Close();
+                }
+            }
+            return crl;
+        }
+
+        /// <summary>e
         /// Extension to add a certificate to a <see cref="ICertificateStore"/>.
         /// </summary>
         /// <remarks>
@@ -897,7 +951,7 @@ namespace Opc.Ua
         /// <param name="password">The password to use to protect the certificate.</param>
         /// <param name="telemetry">Telemetry context to use</param>
         /// <param name="ct">The cancellation token.</param>
-        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ArgumentException">e.g. invalid store type</exception>
         public static async Task<X509Certificate2> AddToStoreAsync(
             this X509Certificate2 certificate,
             CertificateStoreIdentifier storeIdentifier,

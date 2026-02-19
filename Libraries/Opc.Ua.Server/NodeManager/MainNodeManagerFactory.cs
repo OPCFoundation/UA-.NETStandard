@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.Configuration;
-
 namespace Opc.Ua.Server
 {
     /// <summary>
@@ -57,7 +55,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public ICoreNodeManager CreateCoreNodeManager(ushort dynamicNamespaceIndex)
         {
-            return new CoreNodeManager(m_server, m_applicationConfiguration, dynamicNamespaceIndex);
+            return new CoreNodeManager2(m_server, m_applicationConfiguration, dynamicNamespaceIndex);
         }
 
         private readonly ApplicationConfiguration m_applicationConfiguration;

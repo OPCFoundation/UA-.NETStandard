@@ -65,13 +65,11 @@ namespace Opc.Ua.Server
         /// </summary>
         protected override DataValue ComputeValue(TimeSlice slice)
         {
-            uint? id = AggregateId.Identifier as uint?;
-
-            if (id == null)
+            if (!AggregateId.TryGetIdentifier(out uint numericId))
             {
                 return base.ComputeValue(slice);
             }
-            switch (id.Value)
+            switch (numericId)
             {
                 case Objects.AggregateFunction_Start:
                     return ComputeStartEnd(slice, false);
@@ -128,7 +126,7 @@ namespace Opc.Ua.Server
             }
 
             double startValue = double.NaN;
-            TypeInfo originalType = null;
+            TypeInfo originalType = default;
             bool badDataSkipped = false;
 
             for (int ii = 0; ii < values.Count; ii++)
@@ -196,23 +194,16 @@ namespace Opc.Ua.Server
                 value.StatusCode = StatusCodes.UncertainDataSubNormal;
             }
 
-            value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
+            value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
 
             // calculate delta.
             double delta = endValue - startValue;
+            if (originalType.IsUnknown)
+            {
+                originalType = TypeInfo.Scalars.Double;
+            }
 
-            if (originalType != null && originalType.BuiltInType != BuiltInType.Double)
-            {
-                object delta2 = TypeInfo.Cast(
-                    delta,
-                    TypeInfo.Scalars.Double,
-                    originalType.BuiltInType);
-                value.WrappedValue = new Variant(delta2, originalType);
-            }
-            else
-            {
-                value.WrappedValue = new Variant(delta, TypeInfo.Scalars.Double);
-            }
+            value.WrappedValue = new Variant(delta).ConvertTo(originalType.BuiltInType);
 
             // return result.
             return value;
@@ -257,7 +248,7 @@ namespace Opc.Ua.Server
 
                 if (StatusCode.IsNotBad(value.StatusCode))
                 {
-                    value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
+                    value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
                 }
             }
 
@@ -287,7 +278,7 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            TypeInfo originalType = null;
+            TypeInfo originalType = default;
 
             // convert to doubles.
             double startValue;
@@ -328,23 +319,17 @@ namespace Opc.Ua.Server
                 value.StatusCode = StatusCodes.UncertainDataSubNormal;
             }
 
-            value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
+            value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
 
             // calculate delta.
             double delta = endValue - startValue;
 
-            if (originalType != null && originalType.BuiltInType != BuiltInType.Double)
+            if (originalType.IsUnknown)
             {
-                object delta2 = TypeInfo.Cast(
-                    delta,
-                    TypeInfo.Scalars.Double,
-                    originalType.BuiltInType);
-                value.WrappedValue = new Variant(delta2, originalType);
+                originalType = TypeInfo.Scalars.Double;
             }
-            else
-            {
-                value.WrappedValue = new Variant(delta, TypeInfo.Scalars.Double);
-            }
+
+            value.WrappedValue = new Variant(delta).ConvertTo(originalType.BuiltInType);
 
             // return result.
             return value;

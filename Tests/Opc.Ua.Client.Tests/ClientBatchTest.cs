@@ -151,8 +151,8 @@ namespace Opc.Ua.Client.Tests
                     });
 
             Assert.AreEqual(
-                (StatusCode)StatusCodes.BadServiceUnsupported,
-                (StatusCode)sre.StatusCode,
+                StatusCodes.BadServiceUnsupported,
+                sre.StatusCode,
                 sre.ToString());
         }
 
@@ -186,8 +186,8 @@ namespace Opc.Ua.Client.Tests
                     });
 
             Assert.AreEqual(
-                (StatusCode)StatusCodes.BadServiceUnsupported,
-                (StatusCode)sre.StatusCode);
+                StatusCodes.BadServiceUnsupported,
+                sre.StatusCode);
         }
 
         [Test]
@@ -217,8 +217,8 @@ namespace Opc.Ua.Client.Tests
                     });
 
             Assert.AreEqual(
-                (StatusCode)StatusCodes.BadServiceUnsupported,
-                (StatusCode)sre.StatusCode);
+                StatusCodes.BadServiceUnsupported,
+                sre.StatusCode);
         }
 
         [Test]
@@ -251,8 +251,8 @@ namespace Opc.Ua.Client.Tests
                     });
 
             Assert.AreEqual(
-                (StatusCode)StatusCodes.BadServiceUnsupported,
-                (StatusCode)sre.StatusCode);
+                StatusCodes.BadServiceUnsupported,
+                sre.StatusCode);
         }
 
         [Test]
@@ -424,7 +424,7 @@ namespace Opc.Ua.Client.Tests
             var browsePath = new BrowsePath
             {
                 StartingNode = ObjectIds.RootFolder,
-                RelativePath = new RelativePath("Types")
+                RelativePath = new RelativePath(QualifiedName.From("Types"))
             };
 
             for (int ii = 0; ii < kOperationLimit * 2; ii++)
@@ -569,15 +569,15 @@ namespace Opc.Ua.Client.Tests
         {
             EventFilter filter = _ = new EventFilter();
 
-            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.EventId);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.EventType);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.SourceNode);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.SourceName);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.Time);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.ReceiveTime);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.LocalTime);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.Message);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.Severity);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.EventId));
+            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.EventType));
+            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.SourceNode));
+            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.SourceName));
+            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.Time));
+            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.ReceiveTime));
+            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.LocalTime));
+            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.Message));
+            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.Severity));
 
             return filter;
         }

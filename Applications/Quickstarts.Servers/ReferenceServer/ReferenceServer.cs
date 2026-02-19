@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
@@ -53,6 +52,17 @@ namespace Quickstarts.ReferenceServer
     /// </remarks>
     public class ReferenceServer : ReverseConnectServer
     {
+        /// <summary>
+        /// Create reference server
+        /// </summary>
+        public ReferenceServer(ITelemetryContext telemetry)
+            : base(telemetry)
+        {
+        }
+
+        /// <summary>
+        /// Token validator
+        /// </summary>
         public ITokenValidator TokenValidator { get; set; }
 
         /// <summary>
@@ -174,16 +184,9 @@ namespace Quickstarts.ReferenceServer
         {
             var resourceManager = new ResourceManager(configuration);
 
-            foreach (
-                System.Reflection.FieldInfo field in typeof(StatusCodes).GetFields(
-                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static))
+            foreach (StatusCode id in StatusCode.InternedStatusCodes)
             {
-                uint? id = field.GetValue(typeof(StatusCodes)) as uint?;
-
-                if (id != null)
-                {
-                    resourceManager.Add(id.Value, "en-US", field.Name);
-                }
+                resourceManager.Add(id.SymbolicId, "en-US", id.SymbolicId);
             }
 
             return resourceManager;
@@ -308,7 +311,7 @@ namespace Quickstarts.ReferenceServer
         {
             // check for a user name token.
 
-            if (args.NewIdentity is UserNameIdentityToken userNameToken)
+            if (args.UserIdentityTokenHandler is UserNameIdentityTokenHandler userNameToken)
             {
                 args.Identity = VerifyPassword(userNameToken);
 
@@ -322,13 +325,14 @@ namespace Quickstarts.ReferenceServer
 
             // check for x509 user token.
 
-            if (args.NewIdentity is X509IdentityToken x509Token)
+            if (args.UserIdentityTokenHandler is X509IdentityTokenHandler x509Token)
             {
                 VerifyX509IdentityToken(x509Token);
                 // set AuthenticatedUser role for accepted certificate authentication
                 args.Identity = new RoleBasedIdentity(
                     new UserIdentity(x509Token),
-                    [Role.AuthenticatedUser]);
+                    [Role.AuthenticatedUser],
+                    ServerInternal.MessageContext.NamespaceUris);
                 m_logger.LogInformation(
                     Utils.TraceMasks.Security,
                     "X509 Token Accepted: {Identity}",
@@ -338,7 +342,7 @@ namespace Quickstarts.ReferenceServer
             }
 
             // check for issued identity token.
-            if (args.NewIdentity is IssuedIdentityToken issuedToken)
+            if (args.UserIdentityTokenHandler is IssuedIdentityTokenHandler issuedToken)
             {
                 args.Identity = VerifyIssuedToken(issuedToken);
 
@@ -349,10 +353,13 @@ namespace Quickstarts.ReferenceServer
             }
 
             // check for anonymous token.
-            if (args.NewIdentity is AnonymousIdentityToken or null)
+            if (args.UserIdentityTokenHandler is AnonymousIdentityTokenHandler or null)
             {
                 // allow anonymous authentication and set Anonymous role for this authentication
-                args.Identity = new RoleBasedIdentity(new UserIdentity(), [Role.Anonymous]);
+                args.Identity = new RoleBasedIdentity(
+                    new UserIdentity(),
+                    [Role.Anonymous],
+                    ServerInternal.MessageContext.NamespaceUris);
                 return;
             }
 
@@ -360,17 +367,17 @@ namespace Quickstarts.ReferenceServer
             throw ServiceResultException.Create(
                 StatusCodes.BadIdentityTokenInvalid,
                 "Not supported user token type: {0}.",
-                args.NewIdentity);
+                args.UserIdentityTokenHandler.TokenType);
         }
 
         /// <summary>
         /// Validates the password for a username token.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private IUserIdentity VerifyPassword(UserNameIdentityToken userNameToken)
+        private IUserIdentity VerifyPassword(UserNameIdentityTokenHandler userTokenHandler)
         {
-            string userName = userNameToken.UserName;
-            byte[] password = userNameToken.DecryptedPassword;
+            string userName = userTokenHandler.UserName;
+            byte[] password = userTokenHandler.DecryptedPassword;
             if (string.IsNullOrEmpty(userName))
             {
                 // an empty username is not accepted.
@@ -391,7 +398,7 @@ namespace Quickstarts.ReferenceServer
             if (userName == "sysadmin" && Utils.IsEqual(password, "demo"u8))
             {
                 return new SystemConfigurationIdentity(
-                    new UserIdentity(userNameToken));
+                    new UserIdentity(userTokenHandler));
             }
 
             // standard users for CTT verification
@@ -409,30 +416,34 @@ namespace Quickstarts.ReferenceServer
                 throw new ServiceResultException(
                     new ServiceResult(
                         LoadServerProperties().ProductUri,
-                        new StatusCode(StatusCodes.BadUserAccessDenied, "InvalidPassword"),
+                        new StatusCode(StatusCodes.BadUserAccessDenied.Code, "InvalidPassword"),
                         new LocalizedText(info)));
             }
             return new RoleBasedIdentity(
-                new UserIdentity(userNameToken),
-                [Role.AuthenticatedUser]);
+                new UserIdentity(userTokenHandler),
+                [Role.AuthenticatedUser],
+                ServerInternal.MessageContext.NamespaceUris);
         }
 
         /// <summary>
         /// Verifies that a certificate user token is trusted.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void VerifyX509IdentityToken(X509IdentityToken token)
+        private void VerifyX509IdentityToken(X509IdentityTokenHandler x509TokenHandler)
         {
-            X509Certificate2 certificate = token.GetOrCreateCertificate(MessageContext.Telemetry);
             try
             {
                 if (m_userCertificateValidator != null)
                 {
-                    m_userCertificateValidator.ValidateAsync(certificate, default).GetAwaiter().GetResult();
+                    m_userCertificateValidator.ValidateAsync(
+                        x509TokenHandler.Certificate,
+                        default).GetAwaiter().GetResult();
                 }
                 else
                 {
-                    CertificateValidator.ValidateAsync(certificate, default).GetAwaiter().GetResult();
+                    CertificateValidator.ValidateAsync(
+                        x509TokenHandler.Certificate,
+                        default).GetAwaiter().GetResult();
                 }
             }
             catch (Exception e)
@@ -446,7 +457,7 @@ namespace Quickstarts.ReferenceServer
                         "InvalidCertificate",
                         "en-US",
                         "'{0}' is an invalid user certificate.",
-                        certificate.Subject);
+                        x509TokenHandler.Certificate.Subject);
 
                     result = StatusCodes.BadIdentityTokenInvalid;
                 }
@@ -457,7 +468,7 @@ namespace Quickstarts.ReferenceServer
                         "UntrustedCertificate",
                         "en-US",
                         "'{0}' is not a trusted user certificate.",
-                        certificate.Subject);
+                        x509TokenHandler.Certificate.Subject);
                 }
 
                 // create an exception with a vendor defined sub-code.
@@ -469,7 +480,7 @@ namespace Quickstarts.ReferenceServer
             }
         }
 
-        private IUserIdentity VerifyIssuedToken(IssuedIdentityToken issuedToken)
+        private IUserIdentity VerifyIssuedToken(IssuedIdentityTokenHandler issuedTokenHandler)
         {
             if (TokenValidator == null)
             {
@@ -478,10 +489,10 @@ namespace Quickstarts.ReferenceServer
             }
             try
             {
-                if (issuedToken.IssuedTokenType == IssuedTokenType.JWT)
+                if (issuedTokenHandler.IssuedTokenType == IssuedTokenType.JWT)
                 {
                     m_logger.LogDebug(Utils.TraceMasks.Security, "VerifyIssuedToken: ValidateToken");
-                    return TokenValidator.ValidateToken(issuedToken);
+                    return TokenValidator.ValidateToken(issuedTokenHandler);
                 }
 
                 return null;

@@ -783,7 +783,8 @@ namespace Opc.Ua.Client
 
                     if (value != null)
                     {
-                        dataTypeNode.DataTypeDefinition = value.Value as ExtensionObject;
+                        dataTypeNode.DataTypeDefinition =
+                            value.Value is ExtensionObject eo ? eo : default;
                     }
 
                     node = dataTypeNode;

@@ -43,6 +43,7 @@ namespace Quickstarts.Servers
     {
         private static readonly JsonSerializerSettings s_settings = new()
         {
+            ReferenceLoopHandling = ReferenceLoopHandling.Ignore, // Uses equality which does not work with Variant.
             TypeNameHandling = TypeNameHandling.All,
             Converters = { new ExtensionObjectConverter(), new NumericRangeConverter() }
         };
@@ -134,7 +135,7 @@ namespace Quickstarts.Servers
                 var jo = JObject.Load(reader);
                 object body = jo["Body"].ToObject<object>(serializer);
                 ExpandedNodeId typeId = jo["TypeId"].ToObject<ExpandedNodeId>(serializer);
-                return new ExtensionObject { Body = body, TypeId = typeId };
+                return new ExtensionObject(typeId, body);
             }
 
             public override void WriteJson(

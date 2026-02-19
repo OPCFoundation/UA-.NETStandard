@@ -220,6 +220,7 @@ namespace Opc.Ua.Server
             {
                 foreach (Variant field in fields.EventFields)
                 {
+                    // TODO: This does not seem right, shoudld be xtension object
                     if (field.Value is StatusResult statusResult)
                     {
                         statusResult.ApplyDiagnosticMasks(

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Security.Cryptography.X509Certificates;
@@ -191,7 +192,7 @@ namespace Opc.Ua.Server
                 }
 
                 // can assign a simple identifier if secured.
-                authenticationToken = null;
+                authenticationToken = default;
                 if (!string.IsNullOrEmpty(context.ChannelContext.SecureChannelId) &&
                     context.ChannelContext.EndpointDescription
                         .SecurityMode != MessageSecurityMode.None)
@@ -201,7 +202,7 @@ namespace Opc.Ua.Server
                 }
 
                 // must assign a hard-to-guess id if not secured.
-                if (authenticationToken == null)
+                if (authenticationToken.IsNull)
                 {
                     byte[] token = Nonce.CreateRandomNonceData(32);
                     authenticationToken = new NodeId(token);
@@ -292,8 +293,9 @@ namespace Opc.Ua.Server
             Nonce serverNonceObject = null;
 
             ISession session = null;
-            UserIdentityToken newIdentity = null;
+            IUserIdentityTokenHandler newIdentity = null;
             UserTokenPolicy userTokenPolicy = null;
+            string clientKey = null;
 
             // fast path no lock
             if (!m_sessions.TryGetValue(authenticationToken, out _))
@@ -301,14 +303,29 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
             }
 
-            await m_semaphoreSlim.WaitAsync(cancellationToken)
-                .ConfigureAwait(false);
+            await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 // find session.
                 if (!m_sessions.TryGetValue(authenticationToken, out session))
                 {
                     throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                }
+
+                // get client lockout key.
+                clientKey = GetClientLockoutKey(session);
+
+                // check if client is locked out due to too many failed authentication attempts.
+                if (IsClientLockedOut(clientKey, out long remainingLockoutTicks))
+                {
+                    long remainingSeconds = remainingLockoutTicks / HiResClock.Frequency;
+                    m_logger.LogWarning(
+                        "Client {ClientKey} is locked out. Remaining lockout time: {RemainingSeconds} seconds.",
+                        clientKey,
+                        remainingSeconds);
+                    throw new ServiceResultException(
+                        StatusCodes.BadUserAccessDenied,
+                        $"Too many failed authentication attempts. Try again in {remainingSeconds} seconds.");
                 }
 
                 // check if session timeout has expired.
@@ -336,6 +353,11 @@ namespace Opc.Ua.Server
                     out userTokenPolicy);
 
                 serverNonce = serverNonceObject.Data;
+            }
+            catch (ServiceResultException)
+            {
+                RecordFailedAuthentication(clientKey);
+                throw;
             }
             finally
             {
@@ -378,20 +400,30 @@ namespace Opc.Ua.Server
                 // use the identity as the effectiveIdentity if not provided.
                 effectiveIdentity ??= identity;
             }
-            catch (Exception e) when (e is not ServiceResultException)
+            catch (Exception e)
             {
-                throw ServiceResultException.Create(
+                RecordFailedAuthentication(clientKey);
+
+                if (e is not ServiceResultException)
+                {
+                    throw ServiceResultException.Create(
                     StatusCodes.BadIdentityTokenInvalid,
                     e,
                     "Could not validate user identity token: {0}",
                     newIdentity);
+                }
+                throw;
             }
 
             // check for validation error.
             if (ServiceResult.IsBad(error))
             {
+                RecordFailedAuthentication(clientKey);
                 throw new ServiceResultException(error);
             }
+
+            // clear failed authentication attempts on successful activation.
+            ClearFailedAuthentication(clientKey);
 
             // activate session.
 
@@ -487,8 +519,7 @@ namespace Opc.Ua.Server
                 // find session.
                 if (!m_sessions.TryGetValue(requestHeader.AuthenticationToken, out session))
                 {
-                    EventHandler<ValidateSessionLessRequestEventArgs> handler
-                        = m_ValidateSessionLessRequest;
+                    EventHandler<ValidateSessionLessRequestEventArgs> handler = m_ValidateSessionLessRequest;
 
                     if (handler != null)
                     {
@@ -517,16 +548,17 @@ namespace Opc.Ua.Server
                 // return context.
                 return new OperationContext(requestHeader, secureChannelContext, requestType, session);
             }
-            catch (Exception e)
+            catch (ServiceResultException sre)
             {
-                if (e is ServiceResultException sre &&
-                    sre.StatusCode == StatusCodes.BadSessionNotActivated &&
-                    session != null)
+                if (sre.StatusCode == StatusCodes.BadSessionNotActivated && session != null)
                 {
                     CloseSession(session.Id);
                 }
-
-                throw new ServiceResultException(e, StatusCodes.BadUnexpectedError);
+                throw;
+            }
+            catch (Exception e)
+            {
+                throw ServiceResultException.Unexpected(e, e.Message);
             }
         }
 
@@ -694,6 +726,11 @@ namespace Opc.Ua.Server
         private readonly int m_maxBrowseContinuationPoints;
         private readonly int m_maxHistoryContinuationPoints;
 
+        private readonly ConcurrentDictionary<string, ClientLockoutInfo> m_clientLockouts = new();
+        private const int kMaxFailedAuthenticationAttempts = 5;
+        private static readonly long s_lockoutDurationTicks = HiResClock.Frequency * 5 * 60;
+        private static readonly long s_failureExpirationTicks = HiResClock.Frequency * 1 * 60;
+
         private readonly Lock m_eventLock = new();
         private event SessionEventHandler m_SessionCreated;
         private event SessionEventHandler m_SessionActivated;
@@ -851,6 +888,150 @@ namespace Opc.Ua.Server
                 return session;
             }
             return null;
+        }
+
+        /// <summary>
+        /// Gets the lockout key for a client based on certificate thumbprint or application URI.
+        /// </summary>
+        private static string GetClientLockoutKey(ISession session)
+        {
+            if (session?.ClientCertificate != null)
+            {
+                return session.ClientCertificate.Thumbprint;
+            }
+
+            string applicationUri = session?.SessionDiagnostics?.ClientDescription?.ApplicationUri;
+            if (!string.IsNullOrEmpty(applicationUri))
+            {
+                return applicationUri;
+            }
+
+            return session?.SecureChannelId ?? string.Empty;
+        }
+
+        /// <summary>
+        /// Checks if a client is currently locked out due to too many failed authentication attempts.
+        /// </summary>
+        private bool IsClientLockedOut(string clientKey, out long remainingLockoutTicks)
+        {
+            remainingLockoutTicks = 0;
+
+            if (string.IsNullOrEmpty(clientKey))
+            {
+                return false;
+            }
+
+            if (m_clientLockouts.TryGetValue(clientKey, out ClientLockoutInfo lockoutInfo))
+            {
+                long currentTicks = HiResClock.Ticks;
+                if (lockoutInfo.IsLockedOut(currentTicks))
+                {
+                    remainingLockoutTicks = lockoutInfo.LockoutEndTicks - currentTicks;
+                    return true;
+                }
+
+                if (lockoutInfo.IsExpired(currentTicks, s_failureExpirationTicks))
+                {
+                    m_clientLockouts.TryRemove(clientKey, out _);
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Records a failed authentication attempt for a client.
+        /// </summary>
+        private void RecordFailedAuthentication(string clientKey)
+        {
+            if (string.IsNullOrEmpty(clientKey))
+            {
+                return;
+            }
+
+            long currentTicks = HiResClock.Ticks;
+            ClientLockoutInfo lockoutInfo = m_clientLockouts.AddOrUpdate(
+                clientKey,
+                _ => new ClientLockoutInfo(1, currentTicks, s_lockoutDurationTicks, kMaxFailedAuthenticationAttempts),
+                (_, existing) => existing.IncrementFailures(
+                    currentTicks, s_lockoutDurationTicks, s_failureExpirationTicks, kMaxFailedAuthenticationAttempts));
+
+            if (lockoutInfo.IsLockedOut(currentTicks))
+            {
+                long remainingSeconds = (lockoutInfo.LockoutEndTicks - currentTicks) / HiResClock.Frequency;
+                m_logger.LogWarning(
+                    "Client {ClientKey} has been locked out after {FailedAttempts} failed authentication attempts. Lockout expires in {RemainingSeconds} seconds.",
+                    clientKey,
+                    lockoutInfo.FailedAttempts,
+                    remainingSeconds);
+            }
+        }
+
+        /// <summary>
+        /// Clears the failed authentication attempts for a client after successful authentication.
+        /// </summary>
+        private void ClearFailedAuthentication(string clientKey)
+        {
+            if (!string.IsNullOrEmpty(clientKey))
+            {
+                m_clientLockouts.TryRemove(clientKey, out _);
+            }
+        }
+
+        /// <summary>
+        /// Tracks failed authentication attempts and lockout state for a client.
+        /// </summary>
+        private sealed class ClientLockoutInfo
+        {
+            public ClientLockoutInfo(
+                int failedAttempts,
+                long lastFailureTicks,
+                long lockoutDurationTicks,
+                int maxAttempts)
+            {
+                FailedAttempts = failedAttempts;
+                LastFailureTicks = lastFailureTicks;
+                LockoutEndTicks = failedAttempts >= maxAttempts
+                    ? lastFailureTicks + lockoutDurationTicks
+                    : 0;
+            }
+
+            public int FailedAttempts { get; }
+            public long LastFailureTicks { get; }
+            public long LockoutEndTicks { get; }
+
+            public bool IsLockedOut(long currentTicks)
+            {
+                return LockoutEndTicks > currentTicks;
+            }
+
+            public bool IsExpired(long currentTicks, long expirationTicks)
+            {
+                return !IsLockedOut(currentTicks) && (currentTicks - LastFailureTicks) > expirationTicks;
+            }
+
+            public ClientLockoutInfo IncrementFailures(
+                long currentTicks,
+                long lockoutDurationTicks,
+                long expirationTicks,
+                int maxAttempts)
+            {
+                if (IsLockedOut(currentTicks))
+                {
+                    return this;
+                }
+
+                if (IsExpired(currentTicks, expirationTicks))
+                {
+                    return new ClientLockoutInfo(1, currentTicks, lockoutDurationTicks, maxAttempts);
+                }
+
+                return new ClientLockoutInfo(
+                    FailedAttempts + 1,
+                    currentTicks,
+                    lockoutDurationTicks,
+                    maxAttempts);
+            }
         }
     }
 }

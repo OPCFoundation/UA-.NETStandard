@@ -149,7 +149,7 @@ namespace Opc.Ua
         /// us to weed out areas that need telemetry plumbed through.
         /// </summary>
         /// <param name="telemetry">The telemetry context to use</param>
-        [Conditional("DEBUG")]
+        [Conditional("CHECKED")]
         private static void DebugCheck(ITelemetryContext? telemetry)
         {
             DebugLog.Instance.CollectIf(telemetry == null);

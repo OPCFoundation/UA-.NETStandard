@@ -223,6 +223,25 @@ namespace Opc.Ua.Client
             DefaultSubscription.MinLifetimeInterval = (uint)m_configuration.ClientConfiguration
                 .MinSubscriptionLifetime;
 
+            // initialize operation limits from client configuration.
+            if (m_configuration.ClientConfiguration.OperationLimits != null)
+            {
+                OperationLimits clientLimits = m_configuration.ClientConfiguration.OperationLimits;
+                OperationLimits.MaxNodesPerRead = clientLimits.MaxNodesPerRead;
+                OperationLimits.MaxNodesPerHistoryReadData = clientLimits.MaxNodesPerHistoryReadData;
+                OperationLimits.MaxNodesPerHistoryReadEvents = clientLimits.MaxNodesPerHistoryReadEvents;
+                OperationLimits.MaxNodesPerWrite = clientLimits.MaxNodesPerWrite;
+                OperationLimits.MaxNodesPerHistoryUpdateData = clientLimits.MaxNodesPerHistoryUpdateData;
+                OperationLimits.MaxNodesPerHistoryUpdateEvents = clientLimits.MaxNodesPerHistoryUpdateEvents;
+                OperationLimits.MaxNodesPerMethodCall = clientLimits.MaxNodesPerMethodCall;
+                OperationLimits.MaxNodesPerBrowse = clientLimits.MaxNodesPerBrowse;
+                OperationLimits.MaxNodesPerRegisterNodes = clientLimits.MaxNodesPerRegisterNodes;
+                OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds =
+                    clientLimits.MaxNodesPerTranslateBrowsePathsToNodeIds;
+                OperationLimits.MaxNodesPerNodeManagement = clientLimits.MaxNodesPerNodeManagement;
+                OperationLimits.MaxMonitoredItemsPerCall = clientLimits.MaxMonitoredItemsPerCall;
+            }
+
             NamespaceUris = messageContext.NamespaceUris;
             ServerUris = messageContext.ServerUris;
             Factory = messageContext.Factory;
@@ -245,7 +264,7 @@ namespace Opc.Ua.Client
                 ServerUris = ServerUris,
                 TypeTable = TypeTree,
                 PreferredLocales = null,
-                SessionId = null,
+                SessionId = default,
                 UserIdentity = null
             };
         }
@@ -279,9 +298,9 @@ namespace Opc.Ua.Client
                 return;
             }
 
-            throw new ServiceResultException(
-                StatusCodes.BadConfigurationError,
-                $"The client configuration does not specify the {configurationField}.");
+            throw ServiceResultException.ConfigurationError(
+                "The client configuration does not specify the configuration field {0}.",
+                configurationField);
         }
 
         /// <summary>
@@ -291,7 +310,7 @@ namespace Opc.Ua.Client
         private void ValidateServerNonce(
             IUserIdentity identity,
             byte[]? serverNonce,
-            string securityPolicyUri,
+            string? securityPolicyUri,
             byte[]? previousServerNonce,
             MessageSecurityMode channelSecurityMode = MessageSecurityMode.None)
         {
@@ -933,10 +952,10 @@ namespace Opc.Ua.Client
             Snapshot(out SessionConfiguration sessionConfiguration);
             if (stream != null)
             {
-                XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
-                using var writer = XmlWriter.Create(stream, settings);
-                var serializer = new DataContractSerializer(typeof(SessionConfiguration));
+                DataContractSerializer serializer =
+                    CoreUtils.CreateDataContractSerializer<SessionConfiguration>(MessageContext);
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(MessageContext);
+                using var writer = XmlWriter.Create(stream, Utils.DefaultXmlWriterSettings());
                 serializer.WriteObject(writer, sessionConfiguration);
             }
             return sessionConfiguration;
@@ -956,11 +975,13 @@ namespace Opc.Ua.Client
                 subscription.Snapshot(out SubscriptionState state);
                 subscriptionStateCollection.Add(state);
             }
-            XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
 
-            using var writer = XmlWriter.Create(stream, settings);
-            var serializer = new DataContractSerializer(typeof(SubscriptionStateCollection), knownTypes);
+            DataContractSerializer serializer =
+                CoreUtils.CreateDataContractSerializer<SubscriptionStateCollection>(
+                    MessageContext,
+                    knownTypes);
             using IDisposable scope = AmbientMessageContext.SetScopedContext(MessageContext);
+            using var writer = XmlWriter.Create(stream, Utils.DefaultXmlWriterSettings());
             serializer.WriteObject(writer, subscriptionStateCollection);
         }
 
@@ -972,12 +993,15 @@ namespace Opc.Ua.Client
         {
             using Activity? activity = m_telemetry.StartActivity();
             // secure settings
+
+            DataContractSerializer serializer =
+                CoreUtils.CreateDataContractSerializer<SubscriptionStateCollection>(
+                    MessageContext,
+                    knownTypes);
+            using IDisposable scope = AmbientMessageContext.SetScopedContext(MessageContext);
             XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
             settings.CloseInput = true;
-
             using var reader = XmlReader.Create(stream, settings);
-            var serializer = new DataContractSerializer(typeof(SubscriptionStateCollection), knownTypes);
-            using IDisposable scope = AmbientMessageContext.SetScopedContext(MessageContext);
             var stateCollection = (SubscriptionStateCollection?)serializer.ReadObject(reader);
             if (stateCollection == null)
             {
@@ -1072,14 +1096,14 @@ namespace Opc.Ua.Client
 
             OpenValidateIdentity(
                 ref identity,
-                out UserIdentityToken identityToken,
                 out UserTokenPolicy identityPolicy,
                 out string securityPolicyUri,
                 out bool requireEncryption);
 
             // validate the server certificate /certificate chain.
+            IUserIdentityTokenHandler identityToken = identity.TokenHandler;
             X509Certificate2? serverCertificate = null;
-            byte[] certificateData = m_endpoint.Description.ServerCertificate;
+            byte[]? certificateData = m_endpoint.Description.ServerCertificate;
 
             if (certificateData != null && certificateData.Length > 0)
             {
@@ -1126,7 +1150,7 @@ namespace Opc.Ua.Client
             var clientDescription = new ApplicationDescription
             {
                 ApplicationUri = m_configuration.ApplicationUri,
-                ApplicationName = m_configuration.ApplicationName,
+                ApplicationName = LocalizedText.From(m_configuration.ApplicationName),
                 ApplicationType = ApplicationType.Client,
                 ProductUri = m_configuration.ProductUri
             };
@@ -1185,15 +1209,15 @@ namespace Opc.Ua.Client
                     maxMessageSize,
                     ct).ConfigureAwait(false);
             }
-            if (NodeId.IsNull(response?.SessionId))
+            if (response is null || response.SessionId.IsNull)
             {
                 throw ServiceResultException.Unexpected(
                     "Create response returned null session id");
             }
             NodeId sessionId = response.SessionId;
             NodeId sessionCookie = response.AuthenticationToken;
-            byte[] serverNonce = response.ServerNonce;
-            byte[] serverCertificateData = response.ServerCertificate;
+            byte[]? serverNonce = response.ServerNonce;
+            byte[]? serverCertificateData = response.ServerCertificate;
             SignatureData serverSignature = response.ServerSignature;
             EndpointDescriptionCollection serverEndpoints = response.ServerEndpoints;
 
@@ -1252,7 +1276,7 @@ namespace Opc.Ua.Client
                     dataToSign);
 
                 // select the security policy for the user token.
-                string tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
+                string? tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
 
                 if (string.IsNullOrEmpty(tokenSecurityPolicyUri))
                 {
@@ -1283,8 +1307,7 @@ namespace Opc.Ua.Client
 
                     userTokenSignature = identityToken.Sign(
                         dataToSign,
-                        tokenSecurityPolicyUri,
-                        m_telemetry);
+                    tokenSecurityPolicyUri);
                 }
                 else
                 {
@@ -1312,12 +1335,11 @@ namespace Opc.Ua.Client
                 ActivateSessionResponse activateResponse = await ActivateSessionAsync(
                     header,
                     clientSignature,
-                        null,
+                    [],
                     m_preferredLocales,
-                    new ExtensionObject(identityToken),
+                    new ExtensionObject(identityToken.Token),
                     userTokenSignature,
-                    ct)
-                .ConfigureAwait(false);
+                    ct).ConfigureAwait(false);
 
                 //  process additional header
                 ProcessResponseAdditionalHeader(activateResponse.ResponseHeader, serverCertificate);
@@ -1384,7 +1406,7 @@ namespace Opc.Ua.Client
                 {
                     lock (m_lock)
                     {
-                        SessionCreated(null, null);
+                        SessionCreated(default, default);
                     }
                 }
                 if (closeChannel)
@@ -1430,7 +1452,8 @@ namespace Opc.Ua.Client
             }
 
             // get the identity token.
-            string securityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
+            string securityPolicyUri =
+                m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
             SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
 
             // create the client signature.
@@ -1465,11 +1488,10 @@ namespace Opc.Ua.Client
             }
 
             // select the security policy for the user token.
-            string tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
-
+            string? tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
             if (string.IsNullOrEmpty(tokenSecurityPolicyUri))
             {
-                tokenSecurityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
+                tokenSecurityPolicyUri = securityPolicyUri;
             }
 
             bool requireEncryption = tokenSecurityPolicyUri != SecurityPolicies.None;
@@ -1479,7 +1501,9 @@ namespace Opc.Ua.Client
                 requireEncryption &&
                 identity.TokenType != UserTokenType.Anonymous)
             {
-                await m_configuration.CertificateValidator.ValidateAsync(m_serverCertificate, ct).ConfigureAwait(false);
+                await m_configuration.CertificateValidator.ValidateAsync(
+                    m_serverCertificate,
+                    ct).ConfigureAwait(false);
             }
 
             // validate server nonce and security parameters for user identity.
@@ -1491,8 +1515,8 @@ namespace Opc.Ua.Client
                 m_endpoint.Description.SecurityMode);
 
             // sign data with user token.
-            UserIdentityToken identityToken = identity.GetIdentityToken();
-            identityToken.PolicyId = identityPolicy.PolicyId;
+            using var identityToken = (IUserIdentityTokenHandler)identity.TokenHandler.Clone();
+            identityToken.UpdatePolicy(identityPolicy);
 
             dataToSign = securityPolicy.GetUserTokenSignatureData(
                 TransportChannel.ChannelThumbprint,
@@ -1505,8 +1529,7 @@ namespace Opc.Ua.Client
 
             SignatureData userTokenSignature = identityToken.Sign(
                 dataToSign,
-                tokenSecurityPolicyUri,
-                m_telemetry);
+                tokenSecurityPolicyUri);
 
             m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
 
@@ -1531,9 +1554,9 @@ namespace Opc.Ua.Client
             ActivateSessionResponse response = await ActivateSessionAsync(
                 requestHeader,
                 clientSignature,
-                null,
+                [],
                 preferredLocales,
-                new ExtensionObject(identityToken),
+                new ExtensionObject(identityToken.Token),
                 userTokenSignature,
                 ct).ConfigureAwait(false);
 
@@ -1890,6 +1913,35 @@ namespace Opc.Ua.Client
         public async Task FetchOperationLimitsAsync(CancellationToken ct)
         {
             using Activity? activity = m_telemetry.StartActivity();
+
+            // Helper extraction
+            static T Get<T>(ref int index, IList<DataValue> values, IList<ServiceResult> errors)
+                where T : struct
+            {
+                DataValue value = values[index];
+                ServiceResult error = errors.Count > 0 ? errors[index] : ServiceResult.Good;
+                index++;
+                if (ServiceResult.IsNotBad(error) && value.Value is T retVal)
+                {
+                    return retVal;
+                }
+                return default;
+            }
+
+            // Apply operation limit logic: if client value is 0, use server value; otherwise use min(client, server)
+            static uint ApplyOperationLimit(uint clientLimit, uint serverLimit)
+            {
+                if (clientLimit == 0)
+                {
+                    return serverLimit;
+                }
+                if (serverLimit == 0)
+                {
+                    return clientLimit;
+                }
+                return Math.Min(clientLimit, serverLimit);
+            }
+
             // First we read the node read max to optimize the second read.
             var nodeIds = new List<NodeId>
             {
@@ -1898,7 +1950,7 @@ namespace Opc.Ua.Client
             (DataValueCollection values, IList<ServiceResult> errors) =
                 await this.ReadValuesAsync(nodeIds, ct).ConfigureAwait(false);
             int index = 0;
-            OperationLimits.MaxNodesPerRead = Get<uint>(ref index, values, errors);
+            OperationLimits.MaxNodesPerRead = ApplyOperationLimit(OperationLimits.MaxNodesPerRead, Get<uint>(ref index, values, errors));
 
             nodeIds =
             [
@@ -1933,18 +1985,31 @@ namespace Opc.Ua.Client
 
             (values, errors) = await this.ReadValuesAsync(nodeIds, ct).ConfigureAwait(false);
             index = 0;
-            OperationLimits.MaxNodesPerHistoryReadData = Get<uint>(ref index, values, errors);
-            OperationLimits.MaxNodesPerHistoryReadEvents = Get<uint>(ref index, values, errors);
-            OperationLimits.MaxNodesPerWrite = Get<uint>(ref index, values, errors);
-            OperationLimits.MaxNodesPerRead = Get<uint>(ref index, values, errors);
-            OperationLimits.MaxNodesPerHistoryUpdateData = Get<uint>(ref index, values, errors);
-            OperationLimits.MaxNodesPerHistoryUpdateEvents = Get<uint>(ref index, values, errors);
-            OperationLimits.MaxNodesPerMethodCall = Get<uint>(ref index, values, errors);
-            OperationLimits.MaxNodesPerBrowse = Get<uint>(ref index, values, errors);
-            OperationLimits.MaxNodesPerRegisterNodes = Get<uint>(ref index, values, errors);
-            OperationLimits.MaxNodesPerNodeManagement = Get<uint>(ref index, values, errors);
-            OperationLimits.MaxMonitoredItemsPerCall = Get<uint>(ref index, values, errors);
-            OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds = Get<uint>(ref index, values, errors);
+            OperationLimits.MaxNodesPerHistoryReadData = ApplyOperationLimit(
+                OperationLimits.MaxNodesPerHistoryReadData, Get<uint>(ref index, values, errors));
+            OperationLimits.MaxNodesPerHistoryReadEvents = ApplyOperationLimit(
+                OperationLimits.MaxNodesPerHistoryReadEvents, Get<uint>(ref index, values, errors));
+            OperationLimits.MaxNodesPerWrite = ApplyOperationLimit(
+                OperationLimits.MaxNodesPerWrite, Get<uint>(ref index, values, errors));
+            OperationLimits.MaxNodesPerRead = ApplyOperationLimit(
+                OperationLimits.MaxNodesPerRead, Get<uint>(ref index, values, errors));
+            OperationLimits.MaxNodesPerHistoryUpdateData = ApplyOperationLimit(
+                OperationLimits.MaxNodesPerHistoryUpdateData, Get<uint>(ref index, values, errors));
+            OperationLimits.MaxNodesPerHistoryUpdateEvents = ApplyOperationLimit(
+                OperationLimits.MaxNodesPerHistoryUpdateEvents, Get<uint>(ref index, values, errors));
+            OperationLimits.MaxNodesPerMethodCall = ApplyOperationLimit(
+                OperationLimits.MaxNodesPerMethodCall, Get<uint>(ref index, values, errors));
+            OperationLimits.MaxNodesPerBrowse = ApplyOperationLimit(
+                OperationLimits.MaxNodesPerBrowse, Get<uint>(ref index, values, errors));
+            OperationLimits.MaxNodesPerRegisterNodes = ApplyOperationLimit(
+                OperationLimits.MaxNodesPerRegisterNodes, Get<uint>(ref index, values, errors));
+            OperationLimits.MaxNodesPerNodeManagement = ApplyOperationLimit(
+                OperationLimits.MaxNodesPerNodeManagement, Get<uint>(ref index, values, errors));
+            OperationLimits.MaxMonitoredItemsPerCall = ApplyOperationLimit(
+                OperationLimits.MaxMonitoredItemsPerCall, Get<uint>(ref index, values, errors));
+            OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds = ApplyOperationLimit(
+                OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds,
+                Get<uint>(ref index, values, errors));
             ServerCapabilities.MaxBrowseContinuationPoints = Get<ushort>(ref index, values, errors);
             ServerCapabilities.MaxHistoryContinuationPoints = Get<ushort>(ref index, values, errors);
             ServerCapabilities.MaxQueryContinuationPoints = Get<ushort>(ref index, values, errors);
@@ -1960,20 +2025,6 @@ namespace Opc.Ua.Client
             ServerCapabilities.MaxSubscriptionsPerSession = Get<uint>(ref index, values, errors);
             ServerCapabilities.MaxWhereClauseParameters = Get<uint>(ref index, values, errors);
             ServerCapabilities.MaxSelectClauseParameters = Get<uint>(ref index, values, errors);
-
-            // Helper extraction
-            static T Get<T>(ref int index, IList<DataValue> values, IList<ServiceResult> errors)
-                where T : struct
-            {
-                DataValue value = values[index];
-                ServiceResult error = errors.Count > 0 ? errors[index] : ServiceResult.Good;
-                index++;
-                if (ServiceResult.IsNotBad(error) && value.Value is T retVal)
-                {
-                    return retVal;
-                }
-                return default;
-            }
 
             uint maxByteStringLength = (uint?)m_configuration.TransportQuotas?.MaxByteStringLength ?? 0u;
             if (maxByteStringLength != 0 &&
@@ -2237,7 +2288,7 @@ namespace Opc.Ua.Client
                         // raised notification indicating the session is closed.
                         lock (m_lock)
                         {
-                            SessionCreated(null, null);
+                            SessionCreated(default, default);
                         }
                     }
                 }
@@ -2352,8 +2403,7 @@ namespace Opc.Ua.Client
                 }
 
                 // select the security policy for the user token.
-                string tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
-
+                string? tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
                 if (string.IsNullOrEmpty(tokenSecurityPolicyUri))
                 {
                     tokenSecurityPolicyUri = endpoint.SecurityPolicyUri;
@@ -2369,8 +2419,8 @@ namespace Opc.Ua.Client
                     m_endpoint.Description.SecurityMode);
 
                 // sign data with user token.
-                UserIdentityToken identityToken = m_identity.GetIdentityToken();
-                identityToken.PolicyId = identityPolicy.PolicyId;
+                using var identityToken = (IUserIdentityTokenHandler)m_identity.TokenHandler.Clone();
+                identityToken.UpdatePolicy(identityPolicy);
 
                 dataToSign = securityPolicy.GetUserTokenSignatureData(
                     TransportChannel.ChannelThumbprint,
@@ -2383,8 +2433,7 @@ namespace Opc.Ua.Client
 
                 SignatureData userTokenSignature = identityToken.Sign(
                     dataToSign,
-                    tokenSecurityPolicyUri,
-                    m_telemetry);
+                    tokenSecurityPolicyUri);
 
                 // encrypt token.
                 identityToken.Encrypt(
@@ -2485,13 +2534,13 @@ namespace Opc.Ua.Client
                     ActivateSessionResponse activateResult = await ActivateSessionAsync(
                         header,
                         clientSignature,
-                        null,
+                        [],
                         m_preferredLocales,
-                        new ExtensionObject(identityToken),
+                        new ExtensionObject(identityToken.Token),
                         userTokenSignature,
                         timeout.Token).ConfigureAwait(false);
 
-                    byte[] serverNonce = activateResult.ServerNonce;
+                    byte[]? serverNonce = activateResult.ServerNonce;
                     StatusCodeCollection certificateResults = activateResult.Results;
                     DiagnosticInfoCollection certificateDiagnosticInfos = activateResult.DiagnosticInfos;
 
@@ -2598,18 +2647,18 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Recreate the subscriptions in a recreated session.
         /// </summary>
-        /// <param name="transferSbscriptionTemplates">Uses Transfer service
+        /// <param name="transferSubscriptionTemplates">Uses Transfer service
         /// if set to <c>true</c>.</param>
         /// <param name="subscriptionsTemplate">The template for the subscriptions.</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         private async Task RecreateSubscriptionsAsync(
-            bool transferSbscriptionTemplates,
+            bool transferSubscriptionTemplates,
             IEnumerable<Subscription> subscriptionsTemplate,
             CancellationToken ct)
         {
             using Activity? activity = m_telemetry.StartActivity();
             bool transferred = false;
-            if (transferSbscriptionTemplates)
+            if (transferSubscriptionTemplates)
             {
                 try
                 {
@@ -2737,7 +2786,7 @@ namespace Opc.Ua.Client
                 {
                     NodeId = Variables.Server_ServerStatus_State,
                     AttributeId = Attributes.Value,
-                    DataEncoding = null,
+                    DataEncoding = QualifiedName.Null,
                     IndexRange = null
                 }
             };
@@ -2750,17 +2799,14 @@ namespace Opc.Ua.Client
 
                 if (m_keepAliveWorker == null)
                 {
-                    m_keepAliveCancellation = new CancellationTokenSource();
+                    var keepAliveCancellation = new CancellationTokenSource();
 
-                    // start timer
-                    m_keepAliveWorker = Task
-                        .Factory.StartNew(
-                            () => OnSendKeepAliveAsync(
-                                nodesToRead,
-                                m_keepAliveCancellation.Token),
-                            m_keepAliveCancellation.Token,
-                            TaskCreationOptions.LongRunning,
-                            TaskScheduler.Default);
+                    m_keepAliveWorker = Task.Run(
+                        () => OnSendKeepAliveAsync(nodesToRead, keepAliveCancellation.Token),
+                        keepAliveCancellation.Token);
+
+                    m_keepAliveCancellation?.Dispose();
+                    m_keepAliveCancellation = keepAliveCancellation;
                 }
 
                 // send initial keep alive.
@@ -2812,7 +2858,11 @@ namespace Opc.Ua.Client
             try
             {
                 keepAliveCancellation!.Cancel();
+                if (!m_inKeepAliveCallback)
+                {
+                    // Make sure no circular loops
                 await keepAliveWorker.ConfigureAwait(false);
+            }
             }
             catch (OperationCanceledException)
             {
@@ -3152,6 +3202,10 @@ namespace Opc.Ua.Client
                 {
                     // This should not happen, but we fail gracefully anyway
                 }
+                catch (TaskCanceledException)
+                {
+                    //expected exception type
+                }
                 catch (Exception e)
                 {
                     m_logger.LogError(
@@ -3244,8 +3298,10 @@ namespace Opc.Ua.Client
             {
                 try
                 {
+                    m_inKeepAliveCallback = true;
                     var args = new KeepAliveEventArgs(result, ServerState.Unknown, DateTime.UtcNow);
                     callback(this, args);
+                    m_inKeepAliveCallback = false;
                     return !args.CancelKeepAlive;
                 }
                 catch (Exception e)
@@ -3340,14 +3396,12 @@ namespace Opc.Ua.Client
             string[] namespaceArray = (string[])values[0].Value;
             if (namespaceArray.Length == 0)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "Retrieved namespace list contain no entries.");
             }
             if (namespaceArray[0] != Namespaces.OpcUa)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadUnexpectedError,
+                throw ServiceResultException.Unexpected(
                     "Retrieved namespaces are missing OPC UA namespace at index 0.");
             }
 
@@ -3468,7 +3522,7 @@ namespace Opc.Ua.Client
                 Task<PublishResponse> task = PublishAsync(
                     requestHeader,
                     acknowledgementsToSend,
-                    default); // TODO: Need a session scoped cancellation token.
+                    default).AsTask(); // TODO: Need a session scoped cancellation token.
                 AsyncRequestStarted(task, activity, requestHeader.RequestHandle, DataTypes.PublishRequest);
                 task.ConfigureAwait(false)
                     .GetAwaiter()
@@ -3557,7 +3611,7 @@ namespace Opc.Ua.Client
                 }
 
                 // nothing more to do if we were never connected
-                if (NodeId.IsNull(sessionId))
+                if (sessionId.IsNull)
                 {
                     return;
                 }
@@ -3600,7 +3654,7 @@ namespace Opc.Ua.Client
                 if (m_subscriptions.Count == 0)
                 {
                     // Publish responses with error should occur after deleting the last subscription.
-                    m_logger.LogError(
+                    m_logger.LogWarning(
                         "Publish #{RequestHandle}, Subscription count = 0, Error: {Message}",
                         requestHeader.RequestHandle,
                         e.Message);
@@ -3617,7 +3671,8 @@ namespace Opc.Ua.Client
                 // raise an error event.
                 var error = new ServiceResult(e);
 
-                if (error.Code != StatusCodes.BadNoSubscription)
+                // raise publish error even for BadNoSubscription if there are active subscriptions.
+                if (error.Code != StatusCodes.BadNoSubscription || m_subscriptions.Any(s => s.Created))
                 {
                     PublishErrorEventHandler? callback = m_PublishError;
 
@@ -3678,9 +3733,8 @@ namespace Opc.Ua.Client
 
                 // don't send another publish for these errors,
                 // or throttle to avoid server overload.
-                switch (error.Code)
+                if (error.StatusCode == StatusCodes.BadTooManyPublishRequests)
                 {
-                    case StatusCodes.BadTooManyPublishRequests:
                         int tooManyPublishRequests = GoodPublishRequestCount;
                         if (BelowPublishRequestLimit(tooManyPublishRequests))
                         {
@@ -3690,22 +3744,36 @@ namespace Opc.Ua.Client
                                 m_tooManyPublishRequests);
                         }
                         return;
-                    case StatusCodes.BadNoSubscription:
-                    case StatusCodes.BadSessionClosed:
-                    case StatusCodes.BadSecurityChecksFailed:
-                    case StatusCodes.BadCertificateInvalid:
-                    case StatusCodes.BadServerHalted:
+                }
+                if (error.StatusCode == StatusCodes.BadNoSubscription ||
+                    error.StatusCode == StatusCodes.BadSessionClosed ||
+                    error.StatusCode == StatusCodes.BadSecurityChecksFailed ||
+                    error.StatusCode == StatusCodes.BadCertificateInvalid ||
+                    error.StatusCode == StatusCodes.BadServerHalted)
+                {
                         return;
-                    // may require a reconnect or activate to recover
-                    case StatusCodes.BadSessionIdInvalid:
-                    case StatusCodes.BadSecureChannelIdInvalid:
-                    case StatusCodes.BadSecureChannelClosed:
+                }
+                if (error.StatusCode == StatusCodes.BadSessionIdInvalid ||
+                    error.StatusCode == StatusCodes.BadSecureChannelIdInvalid ||
+                    error.StatusCode == StatusCodes.BadSecureChannelClosed)
+                {
                         OnKeepAliveError(error);
                         return;
+                }
                     // Servers may return this error when overloaded
-                    case StatusCodes.BadTooManyOperations:
-                    case StatusCodes.BadTcpServerTooBusy:
-                    case StatusCodes.BadServerTooBusy:
+                if (error.StatusCode != StatusCodes.BadTimeout &&
+                    error.StatusCode != StatusCodes.BadRequestTimeout)
+                {
+                    if (error.StatusCode != StatusCodes.BadTooManyOperations &&
+                        error.StatusCode != StatusCodes.BadTcpServerTooBusy &&
+                        error.StatusCode != StatusCodes.BadServerTooBusy)
+                    {
+                        m_logger.LogError(
+                            e,
+                            "PUBLISH #{RequestHandle} - Unhandled error {StatusCode} during Publish.",
+                            requestHeader.RequestHandle,
+                            error.StatusCode);
+                    }
                         // throttle the next publish to reduce server load
                         _ = Task.Run(async () =>
                         {
@@ -3713,16 +3781,6 @@ namespace Opc.Ua.Client
                             QueueBeginPublish();
                         });
                         return;
-                    case StatusCodes.BadTimeout:
-                    case StatusCodes.BadRequestTimeout:
-                        break;
-                    default:
-                        m_logger.LogError(
-                            e,
-                            "PUBLISH #{RequestHandle} - Unhandled error {StatusCode} during Publish.",
-                            requestHeader.RequestHandle,
-                            error.StatusCode);
-                        goto case StatusCodes.BadServerTooBusy;
                 }
             }
 
@@ -3783,7 +3841,6 @@ namespace Opc.Ua.Client
         /// <exception cref="ServiceResultException"></exception>
         private void OpenValidateIdentity(
             ref IUserIdentity identity,
-            out UserIdentityToken identityToken,
             out UserTokenPolicy identityPolicy,
             out string securityPolicyUri,
             out bool requireEncryption)
@@ -3799,7 +3856,7 @@ namespace Opc.Ua.Client
                 }
             }
 
-            securityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
+            securityPolicyUri = m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
 
             // catch security policies which are not supported by core
             if (SecurityPolicies.GetDisplayName(securityPolicyUri) == null)
@@ -3812,12 +3869,10 @@ namespace Opc.Ua.Client
             // get the identity token.
             identity ??= new UserIdentity();
 
-            // get identity token.
-            identityToken = identity.GetIdentityToken();
-
             // check that the user identity is supported by the endpoint.
-            identityPolicy = m_endpoint.Description
-                .FindUserTokenPolicy(identityToken.PolicyId, securityPolicyUri);
+            identityPolicy = m_endpoint.Description.FindUserTokenPolicy(
+                identity.TokenHandler.Token.PolicyId,
+                securityPolicyUri);
 
             if (identityPolicy == null)
             {
@@ -3825,16 +3880,12 @@ namespace Opc.Ua.Client
                 identityPolicy = m_endpoint.Description.FindUserTokenPolicy(
                     identity.TokenType,
                     identity.IssuedTokenType,
-                    securityPolicyUri);
-
-                if (identityPolicy == null)
-                {
+                    securityPolicyUri) ??
                     throw ServiceResultException.Create(
                         StatusCodes.BadIdentityTokenRejected,
                         "Endpoint does not support the user identity type provided.");
-                }
 
-                identityToken.PolicyId = identityPolicy.PolicyId;
+                identity.TokenHandler.UpdatePolicy(identityPolicy);
             }
 
             requireEncryption = securityPolicyUri != SecurityPolicies.None;
@@ -3874,7 +3925,7 @@ namespace Opc.Ua.Client
         /// Validates the server certificate returned.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void ValidateServerCertificateData(byte[] serverCertificateData)
+        private void ValidateServerCertificateData(byte[]? serverCertificateData)
         {
             if (serverCertificateData != null &&
                 m_endpoint.Description.ServerCertificate != null &&
@@ -4166,18 +4217,18 @@ namespace Opc.Ua.Client
             var error = new ServiceResult(e);
 
             bool result = true;
-            switch (error.StatusCode.Code)
+            if (error.StatusCode == StatusCodes.BadSubscriptionIdInvalid ||
+                error.StatusCode == StatusCodes.BadMessageNotAvailable)
             {
-                case StatusCodes.BadSubscriptionIdInvalid:
-                case StatusCodes.BadMessageNotAvailable:
                     m_logger.LogWarning(
                         "Message {SubscriptionId}-{SequenceNumber} no longer available.",
                         subscriptionId,
                         sequenceNumber);
-                    break;
+            }
+            else if (error.StatusCode == StatusCodes.BadEncodingLimitsExceeded)
+            {
                 // if encoding limits are exceeded, the issue is logged and
                 // the published data is acknowledged to prevent the endless republish loop.
-                case StatusCodes.BadEncodingLimitsExceeded:
                     m_logger.LogError(
                         e,
                         "Message {SubscriptionId}-{SequenceNumber} exceeded size limits, ignored.",
@@ -4190,11 +4241,11 @@ namespace Opc.Ua.Client
                             subscriptionId,
                             sequenceNumber);
                     }
-                    break;
-                default:
+            }
+            else
+            {
                     result = false;
                     m_logger.LogError(e, "Unexpected error sending republish request.");
-                    break;
             }
 
             PublishErrorEventHandler? callback = m_PublishError;
@@ -4436,7 +4487,7 @@ namespace Opc.Ua.Client
                         notificationMessage,
                         responseHeader.StringTable);
 
-                    Task.Run(() => OnRaisePublishNotification(publishEventHandler, args));
+                    _ = Task.Run(() => OnRaisePublishNotification(publishEventHandler, args));
                 }
             }
             else if (DeleteSubscriptionsOnClose && !Reconnecting && !subscriptionCreationInProgress)
@@ -4446,7 +4497,7 @@ namespace Opc.Ua.Client
                     "Received Publish Response for Unknown SubscriptionId={SubscriptionId}. Deleting abandoned subscription from server.",
                     subscriptionId);
 
-                Task.Run(() => DeleteSubscriptionAsync(subscriptionId));
+                _ = Task.Run(() => DeleteSubscriptionAsync(subscriptionId));
             }
             else
             {
@@ -4530,6 +4581,7 @@ namespace Opc.Ua.Client
             bool throwIfConfigurationChangedFromLastLoad,
             CancellationToken ct = default)
         {
+            m_endpoint.Description.SecurityPolicyUri ??= SecurityPolicies.None;
             if (m_endpoint.Description.SecurityPolicyUri == SecurityPolicies.None)
             {
                 // No need to load instance certificates
@@ -4545,7 +4597,7 @@ namespace Opc.Ua.Client
                     // Updating a live session must be prevented unless the session was
                     // closed. Therefore we need to throw here to catch this case during any
                     // reconnect or other activation operation
-                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError,
+                    throw ServiceResultException.ConfigurationError(
                         "Configuration was changed for an active session.");
                 }
                 // If the configured endpoint was updated while we are closed we reload.
@@ -4562,8 +4614,7 @@ namespace Opc.Ua.Client
                     .ConfigureAwait(false);
                 if (m_instanceCertificate == null)
                 {
-                    throw new ServiceResultException(
-                        StatusCodes.BadConfigurationError,
+                    throw ServiceResultException.ConfigurationError(
                         "The client configuration does not specify an application instance certificate.");
                 }
                 m_effectiveEndpoint = m_endpoint;
@@ -4573,8 +4624,7 @@ namespace Opc.Ua.Client
             // check for private key.
             if (!m_instanceCertificate.HasPrivateKey)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
+                throw ServiceResultException.ConfigurationError(
                     "Client certificate configured for security policy {0} is missing a private key.",
                     m_endpoint.Description.SecurityPolicyUri);
             }
@@ -4601,8 +4651,7 @@ namespace Opc.Ua.Client
                 privateKey: true,
                 telemetry,
                 ct).ConfigureAwait(false)
-                ?? throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
+                ?? throw ServiceResultException.ConfigurationError(
                     "ApplicationCertificate for the security profile {0} cannot be found.",
                     securityProfile);
         }
@@ -4806,11 +4855,11 @@ namespace Opc.Ua.Client
         /// for the ecc user token security policy, if needed.
         /// </summary>
         private RequestHeader CreateRequestHeaderPerUserTokenPolicy(
-            string identityTokenSecurityPolicyUri,
-            string endpointSecurityPolicyUri)
+            string? identityTokenSecurityPolicyUri,
+            string? endpointSecurityPolicyUri)
         {
             var requestHeader = new RequestHeader();
-            string userTokenSecurityPolicyUri = identityTokenSecurityPolicyUri;
+            string? userTokenSecurityPolicyUri = identityTokenSecurityPolicyUri;
             if (string.IsNullOrEmpty(userTokenSecurityPolicyUri))
             {
                 userTokenSecurityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
@@ -4882,8 +4931,9 @@ namespace Opc.Ua.Client
             ResponseHeader responseHeader,
             X509Certificate2? serverCertificate)
         {
-            if (ExtensionObject.ToEncodeable(
-                responseHeader?.AdditionalHeader) is AdditionalParametersType parameters)
+            if (responseHeader != null &&
+                responseHeader.AdditionalHeader.TryGetEncodeable(out IEncodeable e) &&
+                e is AdditionalParametersType parameters)
             {
                 foreach (KeyValuePair ii in parameters.Parameters)
                 {
@@ -4915,12 +4965,11 @@ namespace Opc.Ua.Client
                         if (ii.Value.TypeInfo == TypeInfo.Scalars.StatusCode)
                         {
                             throw new ServiceResultException(
-                                (uint)(StatusCode)ii.Value.Value,
+                                ii.Value.GetStatusCode(StatusCodes.Bad),
                                 "Server could not provide an ECDHKey. User authentication not possible.");
                         }
 
-                        if (ExtensionObject.ToEncodeable(
-                            ii.Value.Value as ExtensionObject) is not EphemeralKeyType key)
+                        if (ExtensionObject.ToEncodeable(ii.Value.GetExtensionObject()) is not EphemeralKeyType key)
                         {
                             throw new ServiceResultException(
                                 StatusCodes.BadDecodingError,
@@ -4928,7 +4977,7 @@ namespace Opc.Ua.Client
                         }
 
                         if (!CryptoUtils.Verify(
-                                new ArraySegment<byte>(key.PublicKey),
+                                new ArraySegment<byte>(key.PublicKey ?? []),
                                 key.Signature,
                                 serverCertificate,
                                 m_userTokenSecurityPolicyUri))
@@ -5037,6 +5086,7 @@ namespace Opc.Ua.Client
         private readonly AsyncAutoResetEvent m_keepAliveEvent = new();
         private uint m_keepAliveCounter;
         private Task? m_keepAliveWorker;
+        private bool m_inKeepAliveCallback;
         private CancellationTokenSource? m_keepAliveCancellation;
         private readonly SemaphoreSlim m_reconnectLock = new(1, 1);
         private int m_minPublishRequestCount;
@@ -5047,6 +5097,7 @@ namespace Opc.Ua.Client
         private Subscription? m_defaultSubscription;
         private readonly EndpointDescriptionCollection? m_discoveryServerEndpoints;
         private readonly StringCollection? m_discoveryProfileUris;
+        private new readonly ILogger m_logger;
 
         private sealed class AsyncRequestState : IDisposable
         {

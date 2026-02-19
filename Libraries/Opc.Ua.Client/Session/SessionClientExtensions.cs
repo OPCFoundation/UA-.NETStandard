@@ -47,6 +47,41 @@ namespace Opc.Ua.Client
         /// Reads the values for a set of variables.
         /// </summary>
         public static async ValueTask<(
+            Variant[],
+            IList<ServiceResult>
+            )> ReadValuesAsync(
+                this ISessionClient session,
+                IList<NodeId> variableIds,
+                IReadOnlyList<TypeInfo> expectedTypes,
+                CancellationToken ct = default)
+        {
+            (DataValueCollection dataValues, IList<ServiceResult> errors) =
+                await session.ReadValuesAsync(
+                    variableIds,
+                    ct).ConfigureAwait(false);
+
+            var values = new Variant[dataValues.Count];
+            for (int ii = 0; ii < variableIds.Count; ii++)
+            {
+                if (dataValues[ii].WrappedValue.TypeInfo != expectedTypes[ii])
+                {
+                    errors[ii] = ServiceResult.Create(
+                        StatusCodes.BadTypeMismatch,
+                        "Value {0} does not have expected type: {1}.",
+                        dataValues[ii],
+                        expectedTypes[ii]);
+                    continue;
+                }
+                // suitable value found.
+                values[ii] = dataValues[ii].WrappedValue;
+            }
+            return (values, errors);
+        }
+
+        /// <summary>
+        /// Reads the values for a set of variables.
+        /// </summary>
+        public static async ValueTask<(
             IList<object>,
             IList<ServiceResult>
             )> ReadValuesAsync(
@@ -187,7 +222,7 @@ namespace Opc.Ua.Client
                 IList<NodeId> nodesToBrowse,
                 uint maxResultsToReturn,
                 BrowseDirection browseDirection,
-                NodeId? referenceTypeId,
+                NodeId referenceTypeId,
                 bool includeSubtypes,
                 uint nodeClassMask,
                 CancellationToken ct = default)
@@ -198,7 +233,7 @@ namespace Opc.Ua.Client
                 View = view,
                 MaxReferencesReturned = maxResultsToReturn,
                 BrowseDirection = browseDirection,
-                ReferenceTypeId = referenceTypeId ?? NodeId.Null,
+                ReferenceTypeId = referenceTypeId,
                 IncludeSubtypes = includeSubtypes,
                 NodeClassMask = (int)nodeClassMask
             });
@@ -225,7 +260,7 @@ namespace Opc.Ua.Client
                     [nodeId],
                     0,
                     BrowseDirection.Both,
-                    null,
+                    default,
                     true,
                     0,
                     ct)
@@ -255,7 +290,7 @@ namespace Opc.Ua.Client
                 nodeIds,
                 0,
                 BrowseDirection.Both,
-                null,
+                default,
                 true,
                 0,
                 ct);
@@ -384,7 +419,7 @@ namespace Opc.Ua.Client
                     NodeId = nodeIds[ii],
                     AttributeId = Attributes.DisplayName,
                     IndexRange = null,
-                    DataEncoding = null
+                    DataEncoding = QualifiedName.Null
                 };
 
                 valuesToRead.Add(valueToRead);
@@ -426,7 +461,7 @@ namespace Opc.Ua.Client
                 // extract the name.
                 LocalizedText displayName = results[ii].GetValue(LocalizedText.Null);
 
-                if (!LocalizedText.IsNullOrEmpty(displayName))
+                if (!displayName.IsNullOrEmpty)
                 {
                     displayNames[ii] = displayName.Text;
                 }
@@ -729,7 +764,7 @@ namespace Opc.Ua.Client
                             // Range is inclusive and starts at 0. Therefore
                             // to read 5 bytes you need to specify 0-4.
                             offset + maxByteStringLength - 1).ToString(),
-                        DataEncoding = null
+                        DataEncoding = QualifiedName.Null
                     };
                     var readValueIds = new ReadValueIdCollection { valueToRead };
 
@@ -823,28 +858,18 @@ namespace Opc.Ua.Client
         /// <param name="args">The input arguments.</param>
         /// <returns>The list of output argument values.</returns>
         /// <exception cref="ServiceResultException"></exception>
-        public static async Task<IList<object>> CallAsync(
+        public static async Task<VariantCollection> CallAsync(
             this ISessionClient session,
             NodeId objectId,
             NodeId methodId,
             CancellationToken ct = default,
-            params object[] args)
+            params Variant[] args)
         {
-            var inputArguments = new VariantCollection();
-
-            if (args != null)
-            {
-                for (int ii = 0; ii < args.Length; ii++)
-                {
-                    inputArguments.Add(new Variant(args[ii]));
-                }
-            }
-
             var request = new CallMethodRequest
             {
                 ObjectId = objectId,
                 MethodId = methodId,
-                InputArguments = inputArguments
+                InputArguments = new VariantCollection(args)
             };
 
             var requests = new CallMethodRequestCollection { request };
@@ -852,7 +877,10 @@ namespace Opc.Ua.Client
             CallMethodResultCollection results;
             DiagnosticInfoCollection diagnosticInfos;
 
-            CallResponse response = await session.CallAsync(null, requests, ct).ConfigureAwait(false);
+            CallResponse response = await session.CallAsync(
+                null,
+                requests,
+                ct).ConfigureAwait(false);
 
             results = response.Results;
             diagnosticInfos = response.DiagnosticInfos;
@@ -869,14 +897,7 @@ namespace Opc.Ua.Client
                     response.ResponseHeader.StringTable);
             }
 
-            var outputArguments = new List<object>();
-
-            foreach (Variant arg in results[0].OutputArguments)
-            {
-                outputArguments.Add(arg.Value);
-            }
-
-            return outputArguments;
+            return results[0].OutputArguments;
         }
 
         /// <summary>

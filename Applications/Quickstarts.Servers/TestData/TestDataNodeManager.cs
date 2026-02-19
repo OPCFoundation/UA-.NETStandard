@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -127,7 +126,7 @@ namespace TestData
         /// </summary>
         public void OnDataChange(
             BaseVariableState variable,
-            object value,
+            Variant value,
             StatusCode statusCode,
             DateTime timestamp)
         {
@@ -190,9 +189,8 @@ namespace TestData
 
 #if CONDITION_SAMPLES
                 // start monitoring the system status.
-                m_systemStatusCondition = (TestSystemConditionState)FindPredefinedNode(
-                    new NodeId(Objects.Data_Conditions_SystemStatus, m_typeNamespaceIndex),
-                    typeof(TestSystemConditionState));
+                m_systemStatusCondition = FindPredefinedNode<TestSystemConditionState>(
+                    new NodeId(Objects.Data_Conditions_SystemStatus, m_typeNamespaceIndex));
 
                 if (m_systemStatusCondition != null)
                 {
@@ -202,24 +200,22 @@ namespace TestData
                 }
 #endif
                 // link all conditions to the conditions folder.
-                NodeState conditionsFolder = FindPredefinedNode(
-                    new NodeId(Objects.Data_Conditions, m_typeNamespaceIndex),
-                    typeof(NodeState));
+                NodeState conditionsFolder = FindPredefinedNode<NodeState>(
+                    new NodeId(Objects.Data_Conditions, m_typeNamespaceIndex));
 
                 foreach (NodeState node in PredefinedNodes.Values)
                 {
                     if (node is ConditionState condition &&
                         !ReferenceEquals(condition.Parent, conditionsFolder))
                     {
-                        condition.AddNotifier(SystemContext, null, true, conditionsFolder);
-                        conditionsFolder.AddNotifier(SystemContext, null, false, condition);
+                        condition.AddNotifier(SystemContext, default, true, conditionsFolder);
+                        conditionsFolder.AddNotifier(SystemContext, default, false, condition);
                     }
                 }
 
                 // enable history for all numeric scalar values.
-                var scalarValues = (ScalarValueObjectState)FindPredefinedNode(
-                    new NodeId(Objects.Data_Dynamic_Scalar, m_typeNamespaceIndex),
-                    typeof(ScalarValueObjectState));
+                ScalarValueObjectState scalarValues = FindPredefinedNode<ScalarValueObjectState>(
+                    new NodeId(Objects.Data_Dynamic_Scalar, m_typeNamespaceIndex));
 
                 scalarValues.Int32Value.Historizing = true;
                 scalarValues.Int32Value.AccessLevel = (byte)(
@@ -286,13 +282,7 @@ namespace TestData
         /// </summary>
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
-            var predefinedNodes = new NodeStateCollection();
-            predefinedNodes.LoadFromBinaryResource(
-                context,
-                "Quickstarts.Servers.TestData.Generated.TestData.PredefinedNodes.uanodes",
-                GetType().GetTypeInfo().Assembly,
-                true);
-            return predefinedNodes;
+            return new NodeStateCollection().AddTestData(context);
         }
 
         /// <summary>
@@ -306,184 +296,149 @@ namespace TestData
             {
                 NodeId typeId = passiveNode.TypeDefinitionId;
 
-                if (!IsNodeIdInNamespace(typeId) || typeId.IdType != IdType.Numeric)
+                if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetIdentifier(out uint typeIdNumeric))
                 {
                     return predefinedNode;
                 }
 
-                switch ((uint)typeId.Identifier)
+                switch (typeIdNumeric)
                 {
                     case ObjectTypes.TestSystemConditionType:
                     {
-                        if (passiveNode is TestSystemConditionState)
+                        if (passiveNode is not TestSystemConditionState activeNode)
                         {
-                            break;
+                            activeNode = new TestSystemConditionState(passiveNode.Parent);
+                            activeNode.Create(context, passiveNode);
+
+                            passiveNode.Parent?.ReplaceChild(context, activeNode);
                         }
-
-                        var activeNode = new TestSystemConditionState(passiveNode.Parent);
-                        activeNode.Create(context, passiveNode);
-
-                        passiveNode.Parent?.ReplaceChild(context, activeNode);
-
                         return activeNode;
                     }
                     case ObjectTypes.ScalarValueObjectType:
                     {
-                        if (passiveNode is ScalarValueObjectState)
+                        if (passiveNode is not ScalarValueObjectState activeNode)
                         {
-                            break;
+                            activeNode = new ScalarValueObjectState(passiveNode.Parent);
+                            activeNode.Create(context, passiveNode);
+
+                            passiveNode.Parent?.ReplaceChild(context, activeNode);
                         }
-
-                        var activeNode = new ScalarValueObjectState(passiveNode.Parent);
-                        activeNode.Create(context, passiveNode);
-
-                        passiveNode.Parent?.ReplaceChild(context, activeNode);
-
                         return activeNode;
                     }
                     case ObjectTypes.StructureValueObjectType:
                     {
-                        if (passiveNode is StructureValueObjectState)
+                        if (passiveNode is not StructureValueObjectState activeNode)
                         {
-                            break;
+                            activeNode = new StructureValueObjectState(passiveNode.Parent);
+                            activeNode.Create(context, passiveNode);
+
+                            passiveNode.Parent?.ReplaceChild(context, activeNode);
                         }
-
-                        var activeNode = new StructureValueObjectState(passiveNode.Parent);
-                        activeNode.Create(context, passiveNode);
-
-                        passiveNode.Parent?.ReplaceChild(context, activeNode);
-
                         return activeNode;
                     }
                     case ObjectTypes.AnalogScalarValueObjectType:
                     {
-                        if (passiveNode is AnalogScalarValueObjectState)
+                        if (passiveNode is not AnalogScalarValueObjectState activeNode)
                         {
-                            break;
+                            activeNode = new AnalogScalarValueObjectState(passiveNode.Parent);
+                            activeNode.Create(context, passiveNode);
+
+                            passiveNode.Parent?.ReplaceChild(context, activeNode);
                         }
-
-                        var activeNode = new AnalogScalarValueObjectState(passiveNode.Parent);
-                        activeNode.Create(context, passiveNode);
-
-                        passiveNode.Parent?.ReplaceChild(context, activeNode);
-
                         return activeNode;
                     }
                     case ObjectTypes.ArrayValueObjectType:
                     {
-                        if (passiveNode is ArrayValueObjectState)
+                        if (passiveNode is not ArrayValueObjectState activeNode)
                         {
-                            break;
+                            activeNode = new ArrayValueObjectState(passiveNode.Parent);
+                            activeNode.Create(context, passiveNode);
+
+                            passiveNode.Parent?.ReplaceChild(context, activeNode);
                         }
-
-                        var activeNode = new ArrayValueObjectState(passiveNode.Parent);
-                        activeNode.Create(context, passiveNode);
-
-                        passiveNode.Parent?.ReplaceChild(context, activeNode);
-
                         return activeNode;
                     }
                     case ObjectTypes.AnalogArrayValueObjectType:
                     {
-                        if (passiveNode is AnalogArrayValueObjectState)
+                        if (passiveNode is not AnalogArrayValueObjectState activeNode)
                         {
-                            break;
+                            activeNode = new AnalogArrayValueObjectState(passiveNode.Parent);
+                            activeNode.Create(context, passiveNode);
+
+                            passiveNode.Parent?.ReplaceChild(context, activeNode);
                         }
-
-                        var activeNode = new AnalogArrayValueObjectState(passiveNode.Parent);
-                        activeNode.Create(context, passiveNode);
-
-                        passiveNode.Parent?.ReplaceChild(context, activeNode);
-
                         return activeNode;
                     }
                     case ObjectTypes.UserScalarValueObjectType:
                     {
-                        if (passiveNode is UserScalarValueObjectState)
+                        if (passiveNode is not UserScalarValueObjectState activeNode)
                         {
-                            break;
+                            activeNode = new UserScalarValueObjectState(passiveNode.Parent);
+                            activeNode.Create(context, passiveNode);
+
+                            passiveNode.Parent?.ReplaceChild(context, activeNode);
                         }
-
-                        var activeNode = new UserScalarValueObjectState(passiveNode.Parent);
-                        activeNode.Create(context, passiveNode);
-
-                        passiveNode.Parent?.ReplaceChild(context, activeNode);
-
                         return activeNode;
                     }
                     case ObjectTypes.UserArrayValueObjectType:
                     {
-                        if (passiveNode is UserArrayValueObjectState)
+                        if (passiveNode is not UserArrayValueObjectState activeNode)
                         {
-                            break;
+                            activeNode = new UserArrayValueObjectState(passiveNode.Parent);
+                            activeNode.Create(context, passiveNode);
+
+                            passiveNode.Parent?.ReplaceChild(context, activeNode);
                         }
-
-                        var activeNode = new UserArrayValueObjectState(passiveNode.Parent);
-                        activeNode.Create(context, passiveNode);
-
-                        passiveNode.Parent?.ReplaceChild(context, activeNode);
-
                         return activeNode;
                     }
                     case ObjectTypes.MethodTestType:
                     {
-                        if (passiveNode is MethodTestState)
+                        if (passiveNode is not MethodTestState activeNode)
                         {
-                            break;
+                            activeNode = new MethodTestState(passiveNode.Parent);
+                            activeNode.Create(context, passiveNode);
+
+                            passiveNode.Parent?.ReplaceChild(context, activeNode);
                         }
-
-                        var activeNode = new MethodTestState(passiveNode.Parent);
-                        activeNode.Create(context, passiveNode);
-
-                        passiveNode.Parent?.ReplaceChild(context, activeNode);
-
                         return activeNode;
                     }
                 }
             }
-
-            if (predefinedNode is BaseVariableState variableNode)
+            else if (predefinedNode is BaseVariableState variableNode)
             {
                 NodeId typeId = variableNode.TypeDefinitionId;
 
-                if (!IsNodeIdInNamespace(typeId) || typeId.IdType != IdType.Numeric)
+                if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetIdentifier(out uint typeIdNumeric))
                 {
                     return predefinedNode;
                 }
 
-                switch ((uint)typeId.Identifier)
+                switch (typeIdNumeric)
                 {
                     case VariableTypes.ScalarStructureVariableType:
                     {
-                        if (variableNode is ScalarStructureVariableState)
+                        if (variableNode is not ScalarStructureVariableState activeNode)
                         {
-                            break;
+                            activeNode = new ScalarStructureVariableState(variableNode.Parent);
+                            activeNode.Create(context, variableNode);
+
+                            variableNode.Parent?.ReplaceChild(context, activeNode);
                         }
-
-                        var activeNode = new ScalarStructureVariableState(variableNode.Parent);
-                        activeNode.Create(context, variableNode);
-
-                        variableNode.Parent?.ReplaceChild(context, activeNode);
-
                         return activeNode;
                     }
                     case VariableTypes.VectorVariableType:
                     {
-                        if (variableNode is VectorVariableState)
+                        if (variableNode is not VectorVariableState activeNode)
                         {
-                            break;
+                            activeNode = new VectorVariableState(variableNode.Parent);
+                            activeNode.Create(context, variableNode);
+
+                            variableNode.Parent?.ReplaceChild(context, activeNode);
                         }
-
-                        var activeNode = new VectorVariableState(variableNode.Parent);
-                        activeNode.Create(context, variableNode);
-
-                        variableNode.Parent?.ReplaceChild(context, activeNode);
-
                         return activeNode;
                     }
                 }
             }
-
             return predefinedNode;
         }
 
@@ -856,9 +811,8 @@ namespace TestData
             where TS : NodeState
         {
             var expandedNodeId = new ExpandedNodeId(nodeId, Namespaces.TestData);
-            return FindPredefinedNode(
-                ExpandedNodeId.ToNodeId(expandedNodeId, Server.NamespaceUris),
-                typeof(TS)) as TS;
+            return FindPredefinedNode<TS>(
+                ExpandedNodeId.ToNodeId(expandedNodeId, Server.NamespaceUris));
         }
 
 #if CONDITION_SAMPLES

@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Diagnostics;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
@@ -72,8 +71,6 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void TranslateMultiLanguageExactMatchMulRequested()
         {
-            IgnoreNetStandard20();
-
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Arrange
@@ -81,7 +78,7 @@ namespace Opc.Ua.Server.Tests
             var translations = new Dictionary<string, string> {
                 { "en-US", "Hello" },
                 { "de-DE", "Hallo" } };
-            var defaultText = new LocalizedText("greeting", translations);
+            LocalizedText defaultText = new LocalizedText("greeting", translations).AsMultiLanguage();
 
             //Act
             LocalizedText resultText = resourceManager.Translate(
@@ -95,8 +92,6 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void TranslateMultiLanguageMulRequested()
         {
-            IgnoreNetStandard20();
-
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Arrange
@@ -116,7 +111,7 @@ namespace Opc.Ua.Server.Tests
 
             // Assert
             Assert.AreEqual( /*lang=json,strict*/
-                "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"]]}",
+                "{\"t\":[[\"de-DE\",\"Hallo\"],[\"en-US\",\"Hello\"]]}",
                 resultText.Text);
             Assert.AreEqual("mul", resultText.Locale);
         }
@@ -158,8 +153,6 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void TranslateSingleLanguageMulRequestedWithTranslation()
         {
-            IgnoreNetStandard20();
-
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Arrange
@@ -175,7 +168,7 @@ namespace Opc.Ua.Server.Tests
 
             // Assert
             Assert.AreEqual( /*lang=json,strict*/
-                "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"]]}",
+                "{\"t\":[[\"de-DE\",\"Hallo\"],[\"en-US\",\"Hello\"]]}",
                 resultText.Text);
             Assert.AreEqual("mul", resultText.Locale);
         }
@@ -183,8 +176,6 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void TranslateKeyMulRequestedWithTranslation()
         {
-            IgnoreNetStandard20();
-
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Arrange
@@ -208,8 +199,6 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void TranslateKeyMulRequestedAllLanguagesWithTranslation()
         {
-            IgnoreNetStandard20();
-
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Arrange
@@ -230,8 +219,6 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void TranslateKeyMulRequestedTranslationWithParameters()
         {
-            IgnoreNetStandard20();
-
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Arrange
@@ -247,12 +234,6 @@ namespace Opc.Ua.Server.Tests
                 "{\"t\":[[\"de-DE\",\"Hallo User\"],[\"en-US\",\"Hello User\"]]}",
                 resultText.Text);
             Assert.AreEqual("mul", resultText.Locale);
-        }
-
-        [Conditional("NET_STANDARD_TESTS")]
-        private static void IgnoreNetStandard20()
-        {
-            NUnit.Framework.Assert.Ignore("Mul locale is not supported on .net standard");
         }
     }
 }

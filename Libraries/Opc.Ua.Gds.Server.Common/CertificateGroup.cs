@@ -109,9 +109,7 @@ namespace Opc.Ua.Gds.Server
 
             foreach (string certificateTypeString in Configuration.CertificateTypes)
             {
-                var certificateType = typeof(Ua.ObjectTypeIds).GetField(certificateTypeString)
-                    .GetValue(null) as NodeId;
-                if (certificateType != null)
+                if (Ua.ObjectTypeIds.TryGetIdentifier(certificateTypeString, out NodeId certificateType))
                 {
                     if (!Utils.IsSupportedCertificateType(certificateType))
                     {
@@ -353,7 +351,7 @@ namespace Opc.Ua.Gds.Server
                         "CSR signature invalid.");
                 }
 
-                X509SubjectAltNameExtension altNameExtension = 
+                X509SubjectAltNameExtension altNameExtension =
                     Pkcs10Utils.GetSubjectAltNameExtension(pkcs10CertificationRequest.Attributes);
                 if (altNameExtension != null &&
                     altNameExtension.Uris.Count > 0 &&
@@ -389,7 +387,7 @@ namespace Opc.Ua.Gds.Server
                         "CSR signature invalid.");
                 }
 
-                X509SubjectAltNameExtension altNameExtension = 
+                X509SubjectAltNameExtension altNameExtension =
                     Pkcs10Utils.GetSubjectAltNameExtension(pkcs10CertificationRequest.Attributes);
                 if (altNameExtension != null)
                 {
@@ -427,7 +425,7 @@ namespace Opc.Ua.Gds.Server
                     m_telemetry,
                     ct)
                     .ConfigureAwait(false);
-                var subjectName = pkcs10CertificationRequest.Subject;
+                X500DistinguishedName subjectName = pkcs10CertificationRequest.Subject;
 
                 ICertificateBuilder builder = CertificateBuilder
                     .Create(subjectName)
@@ -473,7 +471,7 @@ namespace Opc.Ua.Gds.Server
                     subjectName);
             }
 
-            if (certificateType is null)
+            if (certificateType.IsNull)
             {
                 throw new ArgumentNullException(nameof(certificateType));
             }
@@ -503,30 +501,22 @@ namespace Opc.Ua.Gds.Server
             Certificates[certificateType] = CertificateFactory.Create(certificate.RawData);
 
             // initialize revocation list
-            X509CRL crl = await RevokeCertificateAsync(
-                AuthoritiesStore,
-                certificate,
-                issuerKeyFilePassword: null,
-                m_telemetry,
-                ct)
-                .ConfigureAwait(false);
+            var initialCrl = await LoadCrlCreateEmptyIfNonExistantAsync(certificate, AuthoritiesStore, m_telemetry, ct: ct).ConfigureAwait(false);
 
             //Update TrustedList Store
-            if (crl != null)
-            {
-                // TODO: make CA trust selectable
-                var certificateStoreIdentifier = new CertificateStoreIdentifier(
-                    Configuration.TrustedListPath);
-                await UpdateAuthorityCertInCertificateStoreAsync(certificateStoreIdentifier, ct)
-                    .ConfigureAwait(false);
+            await initialCrl.AddToStoreAsync(AuthoritiesStore, m_telemetry, ct).ConfigureAwait(false);
+            // TODO: make CA trust selectable
+            var certificateStoreIdentifier = new CertificateStoreIdentifier(
+                Configuration.TrustedListPath);
+            await UpdateAuthorityCertInCertificateStoreAsync(certificateStoreIdentifier, ct)
+                .ConfigureAwait(false);
 
-                // Update TrustedIssuerCertificates Store
-                if (IssuerCertificatesStore != null)
-                {
-                    await UpdateAuthorityCertInCertificateStoreAsync(IssuerCertificatesStore, ct)
-                        .ConfigureAwait(false);
-                }
-            }
+            // Update TrustedIssuerCertificates Store
+            if (IssuerCertificatesStore != null)
+            {
+                await UpdateAuthorityCertInCertificateStoreAsync(IssuerCertificatesStore, ct)
+                    .ConfigureAwait(false);
+            }   
 
             return Certificates[certificateType];
         }
@@ -549,6 +539,97 @@ namespace Opc.Ua.Gds.Server
         }
 
         /// <summary>
+        /// Create an empty Crl for the given ca certificate
+        /// </summary>
+        /// <param name="caCertificate">CA certificate to search for the according crl for</param>
+        /// <param name="thisUpdate">Time the crl will be valid from (defaults to UtcNow)</param>
+        /// <param name="nextUpdate">Time until the crl will be valid to (defaults to UtcNow + 12 Months)</param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
+        public static async Task<X509CRL> CreateEmptyCrlAsync(X509Certificate2 caCertificate, DateTime? thisUpdate = null, DateTime? nextUpdate = null)
+        {
+            bool isCACert = X509Utils.IsCertificateAuthority(caCertificate);
+            if (!isCACert)
+            {
+                throw new ArgumentException("Cannot create an empty Crl for non-CA certificate!");
+            }
+            X509CRL result = null;
+            CrlBuilder crlBuilder = CrlBuilder
+                    .Create(caCertificate.SubjectName)
+                    .SetThisUpdate(thisUpdate ?? DateTime.UtcNow)
+                    .SetNextUpdate(nextUpdate ?? DateTime.UtcNow.AddMonths(12))
+                    .AddCRLExtension(caCertificate.BuildAuthorityKeyIdentifier())
+                    .AddCRLExtension(X509Extensions.BuildCRLNumber(1));
+            if (X509PfxUtils.IsECDsaSignature(caCertificate))
+            {
+                result = new X509CRL(crlBuilder.CreateForECDsa(caCertificate));
+            }
+            else
+            {
+                result = new X509CRL(crlBuilder.CreateForRSA(caCertificate));
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Load the crl or newly create an empty one if it does not exist for the CA certificate.
+        /// </summary>
+        /// <param name="caCertificate">CA certificate to search for the according crl for</param>
+        /// <param name="storeIdentifier">Store Identifier - to search/insert the crl for</param>
+        /// <param name="telemetry">Telemetry for logging purposes</param>
+        /// <param name="thisUpdate">Time the crl will be valid from (defaults to UtcNow)</param>
+        /// <param name="nextUpdate">Time until the crl will be valid to (defaults to UtcNow + 12 Months)</param>
+        /// <param name="ct">Cancellation token</param>
+        /// <returns>Crl for the CA Certificate</returns>
+        /// <exception cref="ArgumentException">Non-CA certificates or when no store is provided</exception>
+        public static async Task<X509CRL> LoadCrlCreateEmptyIfNonExistantAsync(
+            X509Certificate2 caCertificate,
+            CertificateStoreIdentifier storeIdentifier,
+            ITelemetryContext telemetry = null,
+            DateTime? thisUpdate = null,
+            DateTime? nextUpdate = null,
+            CancellationToken ct = default)
+        {
+            bool isCACert = X509Utils.IsCertificateAuthority(caCertificate);
+            if(!isCACert)
+            {
+                throw new ArgumentException("Cannot create an empty Crl for non-CA certificate!");
+            }
+            ICertificateStore store = storeIdentifier.OpenStore(telemetry);
+            if (store == null)
+            {
+                throw new ArgumentException("Invalid store path/type");
+            }
+            try
+            {
+                X509CRLCollection certCACrl = await store.EnumerateCRLsAsync(caCertificate, false, ct)
+                    .ConfigureAwait(false);
+                X509CRL result = null;
+                if (certCACrl == null || certCACrl.Count == 0)
+                {
+                    result = await CreateEmptyCrlAsync(caCertificate, thisUpdate, nextUpdate).ConfigureAwait(false); 
+                    await store.AddCRLAsync(result, ct).ConfigureAwait(false);
+                }
+                else
+                {
+                    if(certCACrl.Count > 1)
+                    {
+                        telemetry?.CreateLogger<CertificateGroup>().LogWarning(
+                            "Multiple CRLs found for CA certificate {CertificateSubject}. The most recent one will be used.",
+                            caCertificate.Subject);
+                    }
+                    result = certCACrl.OrderByDescending(crl => crl.ThisUpdate).FirstOrDefault();
+                }
+                return result ?? throw new ServiceResultException(StatusCodes.BadCertificateIssuerRevocationUnknown,
+                    "Issuer Crl should have been created but it seems it was not!");
+            }
+            finally
+            {
+                store.Close();
+            }
+        }
+
+        /// <summary>
         /// Revoke the CA signed certificate.
         /// The issuer CA public key, the private key and the crl reside in the storepath.
         /// The CRL number is increased by one and existing CRL for the issuer are deleted
@@ -565,31 +646,29 @@ namespace Opc.Ua.Gds.Server
         {
             X509CRL updatedCRL = null;
 
-            // caller may want to create empty CRL using the CA cert itself
             bool isCACert = X509Utils.IsCertificateAuthority(certificate);
 
             // find the authority key identifier.
-
             X509AuthorityKeyIdentifierExtension authority =
                 certificate.FindExtension<X509AuthorityKeyIdentifierExtension>();
             string serialNumber;
+            string keyIdentifier;
             if (authority != null)
             {
                 serialNumber = authority.SerialNumber;
+                keyIdentifier = authority.KeyIdentifier;
             }
             else
             {
                 throw new ArgumentException("Certificate does not contain an Authority Key");
             }
 
-            if (!isCACert)
+            
+            if (serialNumber == certificate.SerialNumber || X509Utils.IsSelfSigned(certificate))
             {
-                if (serialNumber == certificate.SerialNumber || X509Utils.IsSelfSigned(certificate))
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadCertificateInvalid,
-                        "Cannot revoke self signed certificates");
-                }
+                throw new ServiceResultException(
+                    StatusCodes.BadCertificateInvalid,
+                    "Cannot revoke self signed (root) certificates");
             }
 
             ICertificateStore store = storeIdentifier.OpenStore(telemetry);
@@ -605,6 +684,12 @@ namespace Opc.Ua.Gds.Server
                             store,
                             certificate.IssuerName,
                             serialNumber)
+                        .ConfigureAwait(false)
+                    ?? await X509Utils
+                        .FindIssuerCAByKeyIdentifierAsync(
+                            store,
+                            certificate.IssuerName,
+                            keyIdentifier)
                         .ConfigureAwait(false)
                     ?? throw new ServiceResultException(
                         StatusCodes.BadCertificateInvalid,
@@ -637,10 +722,7 @@ namespace Opc.Ua.Gds.Server
                     .ConfigureAwait(false);
 
                 var certificateCollection = new X509Certificate2Collection();
-                if (!isCACert)
-                {
-                    certificateCollection.Add(certificate);
-                }
+                certificateCollection.Add(certificate);
                 updatedCRL = CertificateFactory.RevokeCertificate(
                     certCAWithPrivateKey,
                     certCACrl,
@@ -683,7 +765,7 @@ namespace Opc.Ua.Gds.Server
             //  Checks if the Certificate Group is for RSA Certificates
             static bool IsRSACertificateType(NodeId certificateType)
             {
-                return certificateType == null ||
+                return certificateType.IsNull ||
                     certificateType == Ua.ObjectTypeIds.ApplicationCertificateType ||
                     certificateType == Ua.ObjectTypeIds.HttpsCertificateType ||
                     certificateType == Ua.ObjectTypeIds.UserCertificateType ||
@@ -759,7 +841,6 @@ namespace Opc.Ua.Gds.Server
                 trustedOrIssuerStore.Close();
             }
         }
-
 
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;

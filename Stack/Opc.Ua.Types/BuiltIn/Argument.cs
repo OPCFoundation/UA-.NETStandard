@@ -48,7 +48,7 @@ namespace Opc.Ua
             Name = name;
             DataType = dataType;
             ValueRank = valueRank;
-            Description = description;
+            Description = new LocalizedText(description);
         }
 
         /// <inheritdoc/>
@@ -66,10 +66,10 @@ namespace Opc.Ua
         private void Initialize()
         {
             Name = null;
-            DataType = null;
+            DataType = default;
             ValueRank = 0;
             m_arrayDimensions = [];
-            Description = null;
+            Description = default;
         }
 
         /// <summary>
@@ -214,8 +214,8 @@ namespace Opc.Ua
             var clone = (Argument)base.MemberwiseClone();
 
             clone.Name = CoreUtils.Clone(Name);
-            clone.DataType = CoreUtils.Clone(DataType);
-            clone.ValueRank = (int)CoreUtils.Clone(ValueRank);
+            clone.DataType = DataType;
+            clone.ValueRank = ValueRank;
             clone.m_arrayDimensions = CoreUtils.Clone(m_arrayDimensions);
             clone.Description = CoreUtils.Clone(Description);
 

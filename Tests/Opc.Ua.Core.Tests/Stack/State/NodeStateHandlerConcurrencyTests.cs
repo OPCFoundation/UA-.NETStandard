@@ -99,7 +99,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 };
                 yield return new TestCaseData(
                     Attributes.BrowseName,
-                    new Variant(new QualifiedName("test")),
+                    new Variant(QualifiedName.From("test")),
                     action);
 
                 // Test OnWriteDisplayName
@@ -705,7 +705,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             NodeState node,
             NumericRange indexRange,
             QualifiedName dataEncoding,
-            ref object value,
+            ref Variant value,
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {

@@ -38,7 +38,7 @@ namespace Opc.Ua.Server.Tests
     /// </summary>
     public interface IServerTestServices
     {
-        ITelemetryContext Telemetry { get; }
+        IServiceMessageContext MessageContext { get; }
 
         ILogger Logger { get; }
 
@@ -137,16 +137,15 @@ namespace Opc.Ua.Server.Tests
     {
         private readonly ISessionServer m_server;
 
-        public ITelemetryContext Telemetry { get; }
-
         public ILogger Logger { get; }
 
         public SecureChannelContext SecureChannelContext { get; set; }
 
-        public ServerTestServices(ISessionServer server, SecureChannelContext secureChannelContext, ITelemetryContext telemetry)
+        public IServiceMessageContext MessageContext => m_server.MessageContext;
+
+        public ServerTestServices(ISessionServer server, SecureChannelContext secureChannelContext)
         {
-            Telemetry = telemetry;
-            Logger = telemetry.CreateLogger<ServerTestServices>();
+            Logger = server.MessageContext.Telemetry.CreateLogger<ServerTestServices>();
             m_server = server;
             SecureChannelContext = secureChannelContext;
         }
@@ -158,13 +157,13 @@ namespace Opc.Ua.Server.Tests
             BrowseDescriptionCollection nodesToBrowse,
             CancellationToken ct = default)
         {
-            return new ValueTask<BrowseResponse>(m_server.BrowseAsync(
+            return m_server.BrowseAsync(
                 SecureChannelContext,
                 requestHeader,
                 view,
                 requestedMaxReferencesPerNode,
                 nodesToBrowse,
-                ct));
+                ct);
         }
 
         public ValueTask<BrowseNextResponse> BrowseNextAsync(
@@ -173,12 +172,12 @@ namespace Opc.Ua.Server.Tests
             ByteStringCollection continuationPoints,
             CancellationToken ct = default)
         {
-            return new ValueTask<BrowseNextResponse>(m_server.BrowseNextAsync(
+            return m_server.BrowseNextAsync(
                 SecureChannelContext,
                 requestHeader,
                 releaseContinuationPoints,
                 continuationPoints,
-                ct));
+                ct);
         }
 
         public ValueTask<CreateSubscriptionResponse> CreateSubscriptionAsync(
@@ -191,7 +190,7 @@ namespace Opc.Ua.Server.Tests
             byte priority,
             CancellationToken ct = default)
         {
-            return new ValueTask<CreateSubscriptionResponse>(m_server.CreateSubscriptionAsync(
+            return m_server.CreateSubscriptionAsync(
                 SecureChannelContext,
                 requestHeader,
                 requestedPublishingInterval,
@@ -200,7 +199,7 @@ namespace Opc.Ua.Server.Tests
                 maxNotificationsPerPublish,
                 publishingEnabled,
                 priority,
-                ct));
+                ct);
         }
 
         public ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
@@ -210,13 +209,13 @@ namespace Opc.Ua.Server.Tests
             MonitoredItemCreateRequestCollection itemsToCreate,
             CancellationToken ct = default)
         {
-            return new ValueTask<CreateMonitoredItemsResponse>(m_server.CreateMonitoredItemsAsync(
+            return m_server.CreateMonitoredItemsAsync(
                 SecureChannelContext,
                 requestHeader,
                 subscriptionId,
                 timestampsToReturn,
                 itemsToCreate,
-                ct));
+                ct);
         }
 
         public ValueTask<ModifySubscriptionResponse> ModifySubscriptionAsync(
@@ -229,7 +228,7 @@ namespace Opc.Ua.Server.Tests
             byte priority,
             CancellationToken ct = default)
         {
-            return new ValueTask<ModifySubscriptionResponse>(m_server.ModifySubscriptionAsync(
+            return m_server.ModifySubscriptionAsync(
                 SecureChannelContext,
                 requestHeader,
                 subscriptionId,
@@ -238,7 +237,7 @@ namespace Opc.Ua.Server.Tests
                 requestedMaxKeepAliveCount,
                 maxNotificationsPerPublish,
                 priority,
-                ct));
+                ct);
         }
 
         public ValueTask<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
@@ -248,13 +247,13 @@ namespace Opc.Ua.Server.Tests
             MonitoredItemModifyRequestCollection itemsToModify,
             CancellationToken ct = default)
         {
-            return new ValueTask<ModifyMonitoredItemsResponse>(m_server.ModifyMonitoredItemsAsync(
+            return m_server.ModifyMonitoredItemsAsync(
                 SecureChannelContext,
                 requestHeader,
                 subscriptionId,
                 timestampsToReturn,
                 itemsToModify,
-                ct));
+                ct);
         }
 
         public ValueTask<PublishResponse> PublishAsync(
@@ -262,11 +261,11 @@ namespace Opc.Ua.Server.Tests
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
             CancellationToken ct = default)
         {
-            return new ValueTask<PublishResponse>(m_server.PublishAsync(
+            return m_server.PublishAsync(
                 SecureChannelContext,
                 requestHeader,
                 subscriptionAcknowledgements,
-                ct));
+                ct);
         }
 
         public ValueTask<SetPublishingModeResponse> SetPublishingModeAsync(
@@ -275,12 +274,12 @@ namespace Opc.Ua.Server.Tests
             UInt32Collection subscriptionIds,
             CancellationToken ct = default)
         {
-            return new ValueTask<SetPublishingModeResponse>(m_server.SetPublishingModeAsync(
+            return m_server.SetPublishingModeAsync(
                 SecureChannelContext,
                 requestHeader,
                 publishingEnabled,
                 subscriptionIds,
-                ct));
+                ct);
         }
 
         public ValueTask<SetMonitoringModeResponse> SetMonitoringModeAsync(
@@ -290,14 +289,14 @@ namespace Opc.Ua.Server.Tests
             UInt32Collection monitoredItemIds,
             CancellationToken ct = default)
         {
-            return new ValueTask<SetMonitoringModeResponse>(
+            return
                 m_server.SetMonitoringModeAsync(
                     SecureChannelContext,
                     requestHeader,
                     subscriptionId,
                     monitoringMode,
                     monitoredItemIds,
-                    ct));
+                    ct);
         }
 
         public ValueTask<RepublishResponse> RepublishAsync(
@@ -306,12 +305,12 @@ namespace Opc.Ua.Server.Tests
             uint retransmitSequenceNumber,
             CancellationToken ct = default)
         {
-            return new ValueTask<RepublishResponse>(m_server.RepublishAsync(
+            return m_server.RepublishAsync(
                 SecureChannelContext,
                 requestHeader,
                 subscriptionId,
                 retransmitSequenceNumber,
-                ct));
+                ct);
         }
 
         public ValueTask<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
@@ -319,11 +318,11 @@ namespace Opc.Ua.Server.Tests
             UInt32Collection subscriptionIds,
             CancellationToken ct = default)
         {
-            return new ValueTask<DeleteSubscriptionsResponse>(m_server.DeleteSubscriptionsAsync(
+            return m_server.DeleteSubscriptionsAsync(
                 SecureChannelContext,
                 requestHeader,
                 subscriptionIds,
-                ct));
+                ct);
         }
 
         public ValueTask<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
@@ -332,12 +331,12 @@ namespace Opc.Ua.Server.Tests
             bool sendInitialValues,
             CancellationToken ct = default)
         {
-            return new ValueTask<TransferSubscriptionsResponse>(m_server.TransferSubscriptionsAsync(
+            return m_server.TransferSubscriptionsAsync(
                 SecureChannelContext,
                 requestHeader,
                 subscriptionIds,
                 sendInitialValues,
-                ct));
+                ct);
         }
 
         public ValueTask<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
@@ -345,11 +344,11 @@ namespace Opc.Ua.Server.Tests
             BrowsePathCollection browsePaths,
             CancellationToken ct = default)
         {
-            return new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(m_server.TranslateBrowsePathsToNodeIdsAsync(
+            return m_server.TranslateBrowsePathsToNodeIdsAsync(
                 SecureChannelContext,
                 requestHeader,
                 browsePaths,
-                ct));
+                ct);
         }
     }
 }

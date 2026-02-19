@@ -929,6 +929,23 @@ namespace Opc.Ua
         /// </remarks>
         /// <param name="value">The array to subset.</param>
         /// <returns>The reason for the failure if the range could not be applied.</returns>
+        public readonly StatusCode ApplyRange(ref Variant value)
+        {
+            // TODO: Make it work on array types without boxing.
+            var boxed = value.AsBoxedObject();
+            StatusCode result = ApplyRange(ref boxed);
+            value = new Variant(boxed);
+            return result;
+        }
+
+        /// <summary>
+        /// Applys the index range to an array value.
+        /// </summary>
+        /// <remarks>
+        /// Replaces the value
+        /// </remarks>
+        /// <param name="value">The array to subset.</param>
+        /// <returns>The reason for the failure if the range could not be applied.</returns>
         public readonly StatusCode ApplyRange(ref object value)
         {
             // check for empty range.
@@ -947,7 +964,7 @@ namespace Opc.Ua
 
             // check for list type.
             IList list = null;
-            TypeInfo typeInfo = null;
+            TypeInfo typeInfo = default;
 
             if (array == null)
             {
@@ -1029,7 +1046,7 @@ namespace Opc.Ua
 
             Array clone;
             // check for list.
-            if (list != null && typeInfo != null)
+            if (list != null && !typeInfo.IsUnknown)
             {
                 clone = TypeInfo.CreateArray(typeInfo.BuiltInType, subLength);
 

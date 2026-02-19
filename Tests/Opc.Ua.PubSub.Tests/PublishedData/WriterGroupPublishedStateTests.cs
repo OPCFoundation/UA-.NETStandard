@@ -450,8 +450,8 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
 
             // And another key frame
             isDelta = writerGroupPublishState.IsDeltaFrame(writer, out uint seqKeyFrame2);
-            Assert.That(isDelta, Is.False, $"Message {2 * keyFrameCount + 1} should be a key frame");
-            Assert.That(seqKeyFrame2, Is.EqualTo(2 * keyFrameCount + 1), $"Sequence number should be {2 * keyFrameCount + 1}");
+            Assert.That(isDelta, Is.False, $"Message {(2 * keyFrameCount) + 1} should be a key frame");
+            Assert.That(seqKeyFrame2, Is.EqualTo((2 * keyFrameCount) + 1), $"Sequence number should be {(2 * keyFrameCount) + 1}");
         }
     }
 }

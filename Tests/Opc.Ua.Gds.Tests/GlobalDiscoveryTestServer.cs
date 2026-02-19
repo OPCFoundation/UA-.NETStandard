@@ -169,7 +169,8 @@ namespace Opc.Ua.Gds.Tests
                 applicationsDatabase,
                 applicationsDatabase,
                 new CertificateGroup(m_telemetry),
-                userDatabase);
+                userDatabase,
+                m_telemetry);
             await Application.StartAsync(Server).ConfigureAwait(false);
 
             ServerState serverState = Server.CurrentState;
@@ -325,6 +326,6 @@ namespace Opc.Ua.Gds.Tests
         private static bool s_autoAccept;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
-        private readonly int m_maxTrustListSize = 0;
+        private readonly int m_maxTrustListSize;
     }
 }

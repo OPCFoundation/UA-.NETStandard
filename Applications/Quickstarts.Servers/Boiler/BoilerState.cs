@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
@@ -74,17 +73,14 @@ namespace Boiler
             StateMachineState machine,
             uint transitionId,
             uint causeId,
-            IList<object> inputArguments,
-            IList<object> outputArguments)
+            VariantCollection inputArguments,
+            VariantCollection outputArguments)
         {
             switch (causeId)
             {
                 case Opc.Ua.Methods.ProgramStateMachineType_Start:
-                    if (m_simulationTimer != null)
-                    {
-                        m_simulationTimer.Dispose();
-                        m_simulationTimer = null;
-                    }
+                    m_simulationTimer?.Dispose();
+                    m_simulationTimer = null;
 
                     uint updateRate = Simulation.UpdateRate.Value;
 
@@ -103,20 +99,14 @@ namespace Boiler
                     break;
                 case Opc.Ua.Methods.ProgramStateMachineType_Halt:
                 case Opc.Ua.Methods.ProgramStateMachineType_Suspend:
-                    if (m_simulationTimer != null)
-                    {
-                        m_simulationTimer.Dispose();
-                        m_simulationTimer = null;
-                    }
+                    m_simulationTimer?.Dispose();
+                    m_simulationTimer = null;
 
                     m_simulationContext = context;
                     break;
                 case Opc.Ua.Methods.ProgramStateMachineType_Reset:
-                    if (m_simulationTimer != null)
-                    {
-                        m_simulationTimer.Dispose();
-                        m_simulationTimer = null;
-                    }
+                    m_simulationTimer?.Dispose();
+                    m_simulationTimer = null;
 
                     m_simulationContext = context;
                     break;
@@ -128,7 +118,7 @@ namespace Boiler
         /// <summary>
         /// Rounds a value to the significant digits specified and adds a random perturbation.
         /// </summary>
-        private double RoundAndPerturb(double value, byte significantDigits)
+        private static double RoundAndPerturb(double value, byte significantDigits)
         {
             double offsetToApply = 0;
 

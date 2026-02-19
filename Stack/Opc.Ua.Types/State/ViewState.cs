@@ -61,10 +61,10 @@ namespace Opc.Ua
         protected override void Initialize(ISystemContext context)
         {
             SymbolicName = "View1";
-            NodeId = null;
+            NodeId = default;
             BrowseName = new QualifiedName(SymbolicName, 1);
-            DisplayName = SymbolicName;
-            Description = null;
+            DisplayName = new LocalizedText(SymbolicName);
+            Description = default;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
             EventNotifier = EventNotifiers.None;
@@ -88,19 +88,43 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override object Clone()
         {
-            return MemberwiseClone();
+            var clone = (ViewState)Activator.CreateInstance(GetType());
+            CopyTo(clone);
+            return clone;
         }
 
-        /// <summary>
-        /// Makes a copy of the node and all children.
-        /// </summary>
-        /// <returns>
-        /// A new object that is a copy of this instance.
-        /// </returns>
-        public new object MemberwiseClone()
+        /// <inheritdoc/>
+        public override bool DeepEquals(NodeState node)
         {
-            var clone = (ViewState)Activator.CreateInstance(GetType());
-            return CloneChildren(clone);
+            if (node is not ViewState state)
+            {
+                return false;
+            }
+            return
+                base.DeepEquals(state) &&
+                state.ContainsNoLoops == ContainsNoLoops &&
+                state.EventNotifier == EventNotifier;
+        }
+
+        /// <inheritdoc/>
+        public override int DeepGetHashCode()
+        {
+            var hash = new HashCode();
+            hash.Add(base.DeepGetHashCode());
+            hash.Add(ContainsNoLoops);
+            hash.Add(EventNotifier);
+            return hash.ToHashCode();
+        }
+
+        /// <inheritdoc/>
+        protected override void CopyTo(NodeState target)
+        {
+            if (target is ViewState state)
+            {
+                state.EventNotifier = EventNotifier;
+                state.ContainsNoLoops = ContainsNoLoops;
+            }
+            base.CopyTo(target);
         }
 
         /// <summary>
@@ -297,7 +321,7 @@ namespace Opc.Ua
         protected override ServiceResult ReadNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            ref object value)
+            ref Variant value)
         {
             ServiceResult result = null;
 
@@ -346,16 +370,14 @@ namespace Opc.Ua
         protected override ServiceResult WriteNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            object value)
+            Variant value)
         {
             ServiceResult result = null;
 
             switch (attributeId)
             {
                 case Attributes.EventNotifier:
-                    byte? eventNotifierRef = value as byte?;
-
-                    if (eventNotifierRef == null)
+                    if (!value.TryGet(out byte eventNotifier))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -364,8 +386,6 @@ namespace Opc.Ua
                     {
                         return StatusCodes.BadNotWritable;
                     }
-
-                    byte eventNotifier = eventNotifierRef.Value;
 
                     NodeAttributeEventHandler<byte> onWriteEventNotifier = OnWriteEventNotifier;
 
@@ -381,9 +401,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.ContainsNoLoops:
-                    bool? containsNoLoopsRef = value as bool?;
-
-                    if (containsNoLoopsRef == null)
+                    if (!value.TryGet(out bool containsNoLoops))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -392,8 +410,6 @@ namespace Opc.Ua
                     {
                         return StatusCodes.BadNotWritable;
                     }
-
-                    bool containsNoLoops = containsNoLoopsRef.Value;
 
                     NodeAttributeEventHandler<bool> onWriteContainsNoLoops = OnWriteContainsNoLoops;
 

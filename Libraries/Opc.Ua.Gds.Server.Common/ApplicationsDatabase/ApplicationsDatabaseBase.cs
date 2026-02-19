@@ -71,7 +71,7 @@ namespace Opc.Ua.Gds.Server.Database
 
             if (application.ApplicationNames == null ||
                 application.ApplicationNames.Count == 0 ||
-                LocalizedText.IsNullOrEmpty(application.ApplicationNames[0]))
+                application.ApplicationNames[0].IsNullOrEmpty)
             {
                 throw new ArgumentException(
                     "At least one ApplicationName must be provided.",
@@ -130,35 +130,27 @@ namespace Opc.Ua.Gds.Server.Database
                     nameof(application));
             }
 
-            NodeId nodeId = NodeId.Null;
-            if (!NodeId.IsNull(application.ApplicationId))
+            if (application.ApplicationId.IsNull)
             {
-                // verify node integrity
-                switch (application.ApplicationId.IdType)
-                {
-                    case IdType.Guid:
-                        nodeId = new NodeId(
-                            (Guid)application.ApplicationId.Identifier,
-                            NamespaceIndex);
-                        break;
-                    case IdType.String:
-                        nodeId = new NodeId(
-                            (string)application.ApplicationId.Identifier,
-                            NamespaceIndex);
-                        break;
-                    case IdType.Numeric:
-                    case IdType.Opaque:
-                        throw new ArgumentException(
-                            "The ApplicationId has invalid type {0}",
-                            nameof(application));
-                    default:
-                        throw new ArgumentException(
-                            "The ApplicationId has unexpected type {0}",
-                            nameof(application));
-                }
+                return default;
             }
 
-            return nodeId;
+            // verify node integrity
+            switch (application.ApplicationId.IdType)
+            {
+                case IdType.String:
+                case IdType.Guid:
+                    return application.ApplicationId.WithNamespaceIndex(NamespaceIndex);
+                case IdType.Numeric:
+                case IdType.Opaque:
+                    throw new ArgumentException(
+                        "The ApplicationId has invalid type {0}",
+                        nameof(application));
+                default:
+                    throw new ArgumentException(
+                        "The ApplicationId has unexpected type {0}",
+                        nameof(application));
+            }
         }
 
         public virtual void UnregisterApplication(NodeId applicationId)
@@ -340,36 +332,33 @@ namespace Opc.Ua.Gds.Server.Database
 
         protected Guid GetNodeIdGuid(NodeId nodeId)
         {
-            if (NodeId.IsNull(nodeId))
+            if (nodeId.IsNull)
             {
                 throw new ArgumentNullException(nameof(nodeId));
             }
 
-            if (nodeId.IdType != IdType.Guid || NamespaceIndex != nodeId.NamespaceIndex)
+            if (NamespaceIndex != nodeId.NamespaceIndex ||
+                !nodeId.TryGetIdentifier(out Guid id))
             {
                 throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
             }
 
-            if (nodeId.Identifier is not Guid id)
-            {
-                throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
-            }
             return id;
         }
 
         protected string GetNodeIdString(NodeId nodeId)
         {
-            if (NodeId.IsNull(nodeId))
+            if (nodeId.IsNull)
             {
                 return null;
             }
 
-            if (nodeId.IdType != IdType.String || NamespaceIndex != nodeId.NamespaceIndex)
+            if (NamespaceIndex != nodeId.NamespaceIndex)
             {
                 throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
             }
 
-            if (nodeId.Identifier is not string id)
+            if (!nodeId.TryGetIdentifier(out string id))
             {
                 throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
             }
@@ -378,7 +367,7 @@ namespace Opc.Ua.Gds.Server.Database
 
         protected void ValidateApplicationNodeId(NodeId nodeId)
         {
-            if (NodeId.IsNull(nodeId))
+            if (nodeId.IsNull)
             {
                 throw new ArgumentNullException(nameof(nodeId));
             }
@@ -387,15 +376,6 @@ namespace Opc.Ua.Gds.Server.Database
                 NamespaceIndex != nodeId.NamespaceIndex)
             {
                 throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
-            }
-
-            if (nodeId.IdType == IdType.Guid)
-            {
-                // test if identifier is a valid Guid - if null we already threw earlier
-                if (nodeId.Identifier is not Guid)
-                {
-                    throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
-                }
             }
         }
 

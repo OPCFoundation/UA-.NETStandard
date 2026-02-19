@@ -68,16 +68,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         public string ToString(string format, IFormatProvider formatProvider)
         {
-            if (BuiltInType == BuiltInType.Variant && Instance is Variant variant)
+            if (BuiltInType == BuiltInType.Variant &&
+                Instance is Variant variant &&
+                !variant.TypeInfo.IsUnknown)
             {
-                BuiltInType? builtInType = variant.TypeInfo?.BuiltInType;
-                if (builtInType != null)
-                {
-                    return $"Variant:{builtInType}:{Instance}" +
-                        (IncludeDefaultValue
-                            ? ":Default"
-                            : string.Empty);
-                }
+                return $"Variant:{variant.TypeInfo.BuiltInType}:{Instance}" +
+                    (IncludeDefaultValue
+                        ? ":Default"
+                        : string.Empty);
             }
             return $"{BuiltInType}:{Instance}" + (IncludeDefaultValue ? ":Default" : string.Empty);
         }

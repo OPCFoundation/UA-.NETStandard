@@ -292,11 +292,13 @@ namespace Opc.Ua.Gds.Client
                     await ConnectInternalAsync(endpoint, false, ct).ConfigureAwait(false);
                     return;
                 }
-                catch (ServiceResultException e) when ((e.StatusCode is
-                    StatusCodes.BadServerHalted or
-                    StatusCodes.BadSecureChannelClosed or
-                    StatusCodes.BadNoCommunication) &&
-                    attempt < maxAttempts)
+                catch (ServiceResultException e) when (
+                (
+                    e.StatusCode == StatusCodes.BadServerHalted ||
+                    e.StatusCode == StatusCodes.BadSecureChannelClosed ||
+                    e.StatusCode == StatusCodes.BadNoCommunication
+                ) &&
+                attempt < maxAttempts)
                 {
                     m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt + 1);
                     await Task.Delay(1000, ct).ConfigureAwait(false);
@@ -347,11 +349,13 @@ namespace Opc.Ua.Gds.Client
                     await ConnectInternalAsync(endpoint, true, ct).ConfigureAwait(false);
                     return;
                 }
-                catch (ServiceResultException e) when ((e.StatusCode is
-                    StatusCodes.BadServerHalted or
-                    StatusCodes.BadSecureChannelClosed or
-                    StatusCodes.BadNoCommunication) &&
-                    attempt < maxAttempts)
+                catch (ServiceResultException e) when (
+                (
+                    e.StatusCode == StatusCodes.BadServerHalted ||
+                    e.StatusCode == StatusCodes.BadSecureChannelClosed ||
+                    e.StatusCode == StatusCodes.BadNoCommunication
+                ) &&
+                attempt < maxAttempts)
                 {
                     m_logger.LogError(e, "Failed to connect {Attempt}. Retrying in 1 second...", attempt + 1);
                     await Task.Delay(1000, ct).ConfigureAwait(false);
@@ -478,7 +482,7 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                System.Collections.Generic.IList<object> outputArguments = await session.CallAsync(
+                VariantCollection outputArguments = await session.CallAsync(
                     ExpandedNodeId.ToNodeId(
                         Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList,
                         session.NamespaceUris
@@ -608,7 +612,16 @@ namespace Opc.Ua.Gds.Client
         /// Updates the trust list.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public async Task<bool> UpdateTrustListAsync(TrustListDataType trustList, long maxTrustListSize = 0, CancellationToken ct = default)
+        public Task<bool> UpdateTrustListAsync(TrustListDataType trustList, CancellationToken ct = default)
+        {
+            return UpdateTrustListAsync(trustList, 0, ct);
+        }
+
+        /// <summary>
+        /// Updates the trust list.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        public async Task<bool> UpdateTrustListAsync(TrustListDataType trustList, long maxTrustListSize, CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             IUserIdentity oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
@@ -638,7 +651,7 @@ namespace Opc.Ua.Gds.Client
                         maxTrustListSize);
                 }
 
-                System.Collections.Generic.IList<object> outputArguments = await session.CallAsync(
+                VariantCollection outputArguments = await session.CallAsync(
                     ExpandedNodeId.ToNodeId(
                         Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList,
                         session.NamespaceUris
@@ -845,7 +858,7 @@ namespace Opc.Ua.Gds.Client
             IUserIdentity oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
             try
             {
-                System.Collections.Generic.IList<object> outputArguments = await session.CallAsync(
+                VariantCollection outputArguments = await session.CallAsync(
                     ExpandedNodeId.ToNodeId(
                         Ua.ObjectIds.ServerConfiguration,
                         session.NamespaceUris),
@@ -857,8 +870,8 @@ namespace Opc.Ua.Gds.Client
                     certificateGroupId).ConfigureAwait(false);
                 if (outputArguments.Count >= 2)
                 {
-                    certificateTypeIds = outputArguments[0] as NodeId[];
-                    certificates = outputArguments[1] as byte[][];
+                    certificateTypeIds = outputArguments[0].GetNodeIdArray();
+                    certificates = outputArguments[1].GetByteStringArray();
                 }
             }
             finally
@@ -914,7 +927,7 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                System.Collections.Generic.IList<object> outputArguments = await session.CallAsync(
+                VariantCollection outputArguments = await session.CallAsync(
                     ExpandedNodeId.ToNodeId(
                         Ua.ObjectIds.ServerConfiguration,
                         session.NamespaceUris),
@@ -993,7 +1006,7 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                System.Collections.Generic.IList<object> outputArguments = await session.CallAsync(
+                VariantCollection outputArguments = await session.CallAsync(
                     ExpandedNodeId.ToNodeId(
                         Ua.ObjectIds.ServerConfiguration,
                         session.NamespaceUris),
@@ -1040,7 +1053,7 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                System.Collections.Generic.IList<object> outputArguments = await session.CallAsync(
+                VariantCollection outputArguments = await session.CallAsync(
                     ExpandedNodeId.ToNodeId(
                         Ua.ObjectIds.ServerConfiguration,
                         session.NamespaceUris),
@@ -1210,11 +1223,8 @@ namespace Opc.Ua.Gds.Client
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                if (Session != null)
-                {
-                    Session.Dispose();
-                    Session = null;
-                }
+                Session?.Dispose();
+                Session = null;
 
                 Session = await m_sessionFactory.CreateAsync(
                     Configuration,

@@ -618,10 +618,8 @@ namespace Opc.Ua.Server
             lock (DiagnosticsLock)
             {
                 // get the server object.
-                ServerObjectState serverObject = ServerObject = (ServerObjectState)
-                    DiagnosticsNodeManager.FindPredefinedNode(
-                        ObjectIds.Server,
-                        typeof(ServerObjectState));
+                ServerObjectState serverObject = ServerObject =
+                    DiagnosticsNodeManager.FindPredefinedNode<ServerObjectState>(ObjectIds.Server);
 
                 // update server capabilities.
                 serverObject.ServiceLevel.Value = 255;
@@ -644,6 +642,10 @@ namespace Opc.Ua.Server
                     m_configuration.TransportQuotas.MaxStringLength;
                 serverObject.ServerCapabilities.MaxByteStringLength.Value = (uint)
                     m_configuration.TransportQuotas.MaxByteStringLength;
+                serverObject.ServerCapabilities.MaxSessions.Value = (uint)
+                    m_configuration.ServerConfiguration.MaxSessionCount;
+                serverObject.ServerCapabilities.MaxSubscriptions.Value = (uint)
+                    m_configuration.ServerConfiguration.MaxSubscriptionCount;
 
                 // Any operational limits Property that is provided shall have a non zero value.
                 OperationLimitsState operationLimits = serverObject.ServerCapabilities
@@ -709,17 +711,15 @@ namespace Opc.Ua.Server
                 // setup PublishSubscribe Status State value
                 const PubSubState pubSubState = PubSubState.Disabled;
 
-                var default_PubSubState = (BaseVariableState)
-                    DiagnosticsNodeManager.FindPredefinedNode(
-                        VariableIds.PublishSubscribe_Status_State,
-                        typeof(BaseVariableState));
-                default_PubSubState.Value = pubSubState;
+                BaseVariableState default_PubSubState =
+                    DiagnosticsNodeManager.FindPredefinedNode<BaseVariableState>(
+                        VariableIds.PublishSubscribe_Status_State);
+                default_PubSubState.Value = Variant.From(pubSubState);
 
                 // setup value for SupportedTransportProfiles
-                var default_SupportedTransportProfiles = (BaseVariableState)
-                    DiagnosticsNodeManager.FindPredefinedNode(
-                        VariableIds.PublishSubscribe_SupportedTransportProfiles,
-                        typeof(BaseVariableState));
+                BaseVariableState default_SupportedTransportProfiles =
+                    DiagnosticsNodeManager.FindPredefinedNode<BaseVariableState>(
+                        VariableIds.PublishSubscribe_SupportedTransportProfiles);
                 default_SupportedTransportProfiles.Value = "uadp";
 
                 // setup callbacks for dynamic values.
@@ -756,10 +756,9 @@ namespace Opc.Ua.Server
                     BuildNumber = m_serverDescription.BuildNumber,
                     BuildDate = m_serverDescription.BuildDate
                 };
-                var buildInfoVariableState = (BuildInfoVariableState)
-                    DiagnosticsNodeManager.FindPredefinedNode(
-                        VariableIds.Server_ServerStatus_BuildInfo,
-                        typeof(BuildInfoVariableState));
+                BuildInfoVariableState buildInfoVariableState =
+                    DiagnosticsNodeManager.FindPredefinedNode<BuildInfoVariableState>(
+                        VariableIds.Server_ServerStatus_BuildInfo);
                 var buildInfoVariable = new BuildInfoVariableValue(
                     buildInfoVariableState,
                     buildInfo,
@@ -872,7 +871,7 @@ namespace Opc.Ua.Server
         private ServiceResult OnReadNamespaceArray(
             ISystemContext context,
             NodeState node,
-            ref object value)
+            ref Variant value)
         {
             value = NamespaceUris.ToArray();
             return ServiceResult.Good;
@@ -884,7 +883,7 @@ namespace Opc.Ua.Server
         private ServiceResult OnReadServerArray(
             ISystemContext context,
             NodeState node,
-            ref object value)
+            ref Variant value)
         {
             value = ServerUris.ToArray();
             return ServiceResult.Good;
@@ -896,7 +895,7 @@ namespace Opc.Ua.Server
         private ServiceResult OnReadDiagnosticsEnabledFlag(
             ISystemContext context,
             NodeState node,
-            ref object value)
+            ref Variant value)
         {
             value = DiagnosticsNodeManager.DiagnosticsEnabled;
             return ServiceResult.Good;
@@ -908,7 +907,7 @@ namespace Opc.Ua.Server
         private ServiceResult OnWriteDiagnosticsEnabledFlag(
             ISystemContext context,
             NodeState node,
-            ref object value)
+            ref Variant value)
         {
             bool enabled = (bool)value;
             DiagnosticsNodeManager.SetDiagnosticsEnabled(DefaultSystemContext, enabled);
@@ -922,7 +921,7 @@ namespace Opc.Ua.Server
         private ServiceResult OnWriteAuditing(
             ISystemContext context,
             NodeState node,
-            ref object value)
+            ref Variant value)
         {
             Auditing = Convert.ToBoolean(value, CultureInfo.InvariantCulture);
             return ServiceResult.Good;
@@ -934,7 +933,7 @@ namespace Opc.Ua.Server
         private ServiceResult OnReadAuditing(
             ISystemContext context,
             NodeState node,
-            ref object value)
+            ref Variant value)
         {
             value = Auditing;
             return ServiceResult.Good;
@@ -946,11 +945,11 @@ namespace Opc.Ua.Server
         private ServiceResult OnUpdateDiagnostics(
             ISystemContext context,
             NodeState node,
-            ref object value)
+            ref Variant value)
         {
             lock (ServerDiagnostics)
             {
-                value = Utils.Clone(ServerDiagnostics);
+                value = Variant.FromStructure(ServerDiagnostics);
             }
 
             return ServiceResult.Good;

@@ -51,7 +51,7 @@ namespace Opc.Ua
         {
             m_objectGenerator = objectGenerator ?? throw new ArgumentNullException(nameof(objectGenerator));
             m_maxSize = maxSize > 0 ? maxSize : throw new ArgumentOutOfRangeException(nameof(maxSize));
-            m_objects = new ConcurrentBag<T>();
+            m_objects = [];
         }
 
         /// <summary>

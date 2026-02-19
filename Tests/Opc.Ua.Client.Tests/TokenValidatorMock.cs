@@ -27,17 +27,24 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Client.Tests
 {
-    public class TokenValidatorMock : ITokenValidator
+    public sealed class TokenValidatorMock : ITokenValidator, IDisposable
     {
-        public IssuedIdentityToken LastIssuedToken { get; set; }
+        public IssuedIdentityTokenHandler LastIssuedToken { get; set; }
 
-        public IUserIdentity ValidateToken(IssuedIdentityToken issuedToken)
+        public void Dispose()
         {
-            LastIssuedToken = issuedToken;
+            LastIssuedToken?.Dispose();
+        }
+
+        public IUserIdentity ValidateToken(IssuedIdentityTokenHandler issuedToken)
+        {
+            LastIssuedToken?.Dispose();
+            LastIssuedToken = issuedToken.Copy();
 
             return new UserIdentity(issuedToken);
         }

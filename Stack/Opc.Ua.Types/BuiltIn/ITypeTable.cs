@@ -157,7 +157,7 @@ namespace Opc.Ua
         /// <returns>
         /// 	<c>true</c> the value is an encoding of the <paramref name="value"/>; otherwise, <c>false</c>.
         /// </returns>
-        bool IsEncodingFor(NodeId expectedTypeId, object value);
+        bool IsEncodingFor(NodeId expectedTypeId, Variant value);
 
         /// <summary>
         /// Returns the data type for the specified encoding.

@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -182,7 +181,7 @@ namespace Opc.Ua
                 {
                     continue;
                 }
-                if (item.Value.Value is ExtensionObject eo &&
+                if (item.Value.TryGet(out ExtensionObject eo) &&
                     eo.Body is SpanContextDataType spanContext)
                 {
 #if NET8_0_OR_GREATER
@@ -276,59 +275,6 @@ namespace Opc.Ua
             }
         }
 
-#if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
-        /// <summary>
-        /// Dispatches an incoming binary encoded request.
-        /// </summary>
-        /// <param name="request">Request.</param>
-        /// <returns>Invoke service response message.</returns>
-        public virtual InvokeServiceResponseMessage InvokeService(InvokeServiceMessage request)
-        {
-            IServiceRequest decodedRequest = null;
-            IServiceResponse response = null;
-
-            // create context for request and reply.
-            ServiceMessageContext context = MessageContext;
-
-            try
-            {
-                // check for null.
-                if (request == null || request.InvokeServiceRequest == null)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadDecodingError,
-                        Utils.Format("Null message cannot be processed."));
-                }
-
-                // decoding incoming message.
-                decodedRequest =
-                    BinaryDecoder.DecodeMessage(request.InvokeServiceRequest, null, context) as IServiceRequest;
-
-                // invoke service.
-                response = ProcessRequest(decodedRequest);
-
-                // encode response.
-                InvokeServiceResponseMessage outgoing = new InvokeServiceResponseMessage();
-                outgoing.InvokeServiceResponse = BinaryEncoder.EncodeMessage(response, context);
-                return outgoing;
-            }
-            catch (Exception e)
-            {
-                // create fault.
-                ServiceFault fault = CreateFault(decodedRequest, e);
-
-                // encode fault response.
-                if (context == null)
-                {
-                    context = new ServiceMessageContext();
-                }
-
-                InvokeServiceResponseMessage outgoing = new InvokeServiceResponseMessage();
-                outgoing.InvokeServiceResponse = BinaryEncoder.EncodeMessage(fault, context);
-                return outgoing;
-            }
-        }
-#else
         /// <summary>
         /// Dispatches an incoming binary encoded request.
         /// </summary>
@@ -380,7 +326,6 @@ namespace Opc.Ua
                 };
             }
         }
-#endif
 
         /// <summary>
         /// Returns the host associated with the current context.
@@ -493,29 +438,29 @@ namespace Opc.Ua
             if (exception is ServiceResultException sre)
             {
                 result = new ServiceResult(sre);
-                switch (sre.StatusCode)
+                if (sre.StatusCode == StatusCodes.BadNoSubscription ||
+                    sre.StatusCode == StatusCodes.BadSessionClosed ||
+                    sre.StatusCode == StatusCodes.BadSecurityChecksFailed ||
+                    sre.StatusCode == StatusCodes.BadCertificateInvalid ||
+                    sre.StatusCode == StatusCodes.BadServerHalted)
                 {
-                    case StatusCodes.BadNoSubscription:
-                    case StatusCodes.BadSessionClosed:
-                    case StatusCodes.BadSecurityChecksFailed:
-                    case StatusCodes.BadCertificateInvalid:
-                    case StatusCodes.BadServerHalted:
-                        // Log information instead of warning for expected disconnection scenarios
-                        logger.LogInformation(
-                            "SERVER - Service Fault Occurred. Reason={StatusCode}",
-                            result.StatusCode);
-                        break;
-                    case StatusCodes.BadUnexpectedError:
-                        logger.LogWarning(
-                            Utils.TraceMasks.StackTrace,
-                            sre,
-                            "SERVER - Service Fault Occurred due to unexpected state");
-                        break;
-                    default:
-                        logger.LogWarning(
-                            "SERVER - Service Fault Occurred. Reason={StatusCode}",
-                            result.StatusCode);
-                        break;
+                    // Log debug instead of warning for expected disconnection scenarios
+                    logger.LogDebug(
+                        "SERVER - Service Fault Occurred. Reason={StatusCode}",
+                        result.StatusCode);
+                }
+                else if (sre.StatusCode == StatusCodes.BadUnexpectedError)
+                {
+                    logger.LogWarning(
+                        Utils.TraceMasks.StackTrace,
+                        sre,
+                        "SERVER - Service Fault Occurred due to unexpected state");
+                }
+                else
+                {
+                    logger.LogWarning(
+                        "SERVER - Service Fault Occurred. Reason={StatusCode}",
+                        result.StatusCode);
                 }
             }
             else
@@ -541,25 +486,6 @@ namespace Opc.Ua
             fault.ResponseHeader.StringTable = stringTable.ToArray();
 
             return fault;
-        }
-
-        /// <summary>
-        /// Creates a fault message.
-        /// </summary>
-        /// <param name="request">The request.</param>
-        /// <param name="exception">The exception.</param>
-        /// <returns>A fault message.</returns>
-        protected Exception CreateSoapFault(IServiceRequest request, Exception exception)
-        {
-            ServiceFault fault = CreateFault(request, exception);
-
-            // get the error from the header.
-            StatusCode error = fault.ResponseHeader.ServiceResult;
-
-            // construct the fault code and fault reason.
-            string codeName = StatusCodes.GetBrowseName(error.Code);
-
-            return new ServiceResultException(error.Code, codeName, exception);
         }
 
         /// <summary>
@@ -626,11 +552,26 @@ namespace Opc.Ua
             /// Initializes the object with its request type and implementation.
             /// </summary>
             /// <param name="requestType">Type of the request.</param>
-            /// <param name="invokeMethod">The invoke method.</param>
-            public ServiceDefinition(Type requestType, InvokeServiceEventHandler invokeMethod)
+            /// <param name="invokeService">The async invoke method.</param>
+            public ServiceDefinition(Type requestType, InvokeService invokeService)
             {
                 RequestType = requestType;
-                m_invokeService = invokeMethod;
+                m_invokeServiceAsync = invokeService;
+            }
+
+            /// <summary>
+            /// Initializes the object with its request type and implementation.
+            /// </summary>
+            /// <param name="requestType">Type of the request.</param>
+            /// <param name="invokeMethod">The invoke method.</param>
+            [Obsolete("Use constructor taking an InvokeService delegate.")]
+            public ServiceDefinition(
+                Type requestType,
+                InvokeServiceEventHandler invokeMethod)
+            {
+                RequestType = requestType;
+                m_invokeServiceAsync = (request, ctx, ct)
+                    => new ValueTask<IServiceResponse>(invokeMethod(request, ctx));
             }
 
             /// <summary>
@@ -638,12 +579,14 @@ namespace Opc.Ua
             /// </summary>
             /// <param name="requestType">Type of the request.</param>
             /// <param name="asyncInvokeMethod">The async invoke method.</param>
+            [Obsolete("Use constructor taking an InvokeService delegate.")]
             public ServiceDefinition(
                 Type requestType,
                 InvokeServiceAsyncEventHandler asyncInvokeMethod)
             {
                 RequestType = requestType;
-                m_invokeServiceAsync = asyncInvokeMethod;
+                m_invokeServiceAsync = async (request, ctx, ct)
+                    => await asyncInvokeMethod(request, ctx, ct).ConfigureAwait(false);
             }
 
             /// <summary>
@@ -652,15 +595,23 @@ namespace Opc.Ua
             /// <param name="requestType">Type of the request.</param>
             /// <param name="invokeMethod">The invoke method.</param>
             /// <param name="asyncInvokeMethod">The async invoke method.</param>
-            [Obsolete("Use constructor taking an InvokeServiceAsyncEventHandler.")]
+            [Obsolete("Use constructor taking an InvokeService delegate.")]
             public ServiceDefinition(
                 Type requestType,
                 InvokeServiceEventHandler invokeMethod,
                 InvokeServiceAsyncEventHandler asyncInvokeMethod)
             {
                 RequestType = requestType;
-                m_invokeService = invokeMethod;
-                m_invokeServiceAsync = asyncInvokeMethod;
+                if (invokeMethod != null)
+                {
+                    m_invokeServiceAsync = (request, ctx, ct)
+                        => new ValueTask<IServiceResponse>(invokeMethod(request, ctx));
+                }
+                else
+                {
+                    m_invokeServiceAsync = async (request, ctx, ct)
+                        => await asyncInvokeMethod(request, ctx, ct).ConfigureAwait(false);
+                }
             }
 
             /// <summary>
@@ -682,15 +633,14 @@ namespace Opc.Ua
             /// <param name="secureChannelContext">The secure channel context.</param>
             /// <param name="logger">A contextual logger to log to</param>
             [Obsolete("Use InvokeAsync.")]
-            public IServiceResponse Invoke(IServiceRequest request, SecureChannelContext secureChannelContext, ILogger logger)
+            public IServiceResponse Invoke(
+                IServiceRequest request,
+                SecureChannelContext secureChannelContext,
+                ILogger logger)
             {
-                if (m_invokeService == null && m_invokeServiceAsync != null)
-                {
-                    logger.LogWarning(
-                        "Async Service invoced sychronously. Prefer using InvokeAsync for best performance.");
-                    return InvokeAsync(request, secureChannelContext).GetAwaiter().GetResult();
-                }
-                return m_invokeService?.Invoke(request, secureChannelContext);
+                logger.LogWarning(
+                    "Async Service invoked sychronously. Prefer using InvokeAsync for best performance.");
+                return InvokeAsync(request, secureChannelContext).AsTask().GetAwaiter().GetResult();
             }
 
             /// <summary>
@@ -700,394 +650,41 @@ namespace Opc.Ua
             /// <param name="secureChannelContext">The secure channel context.</param>
             /// <param name="cancellationToken">The cancellation token.</param>
             /// <returns></returns>
-            public async Task<IServiceResponse> InvokeAsync(
+            public ValueTask<IServiceResponse> InvokeAsync(
                 IServiceRequest request,
                 SecureChannelContext secureChannelContext,
                 CancellationToken cancellationToken = default)
             {
-                InvokeServiceAsyncEventHandler asyncHandler = m_invokeServiceAsync;
-
-                if (asyncHandler != null)
-                {
-                    return await asyncHandler(request, secureChannelContext, cancellationToken).ConfigureAwait(false);
-                }
-
-                return m_invokeService?.Invoke(request, secureChannelContext);
+                return m_invokeServiceAsync(request, secureChannelContext, cancellationToken);
             }
 
-            private readonly InvokeServiceEventHandler m_invokeService;
-            private readonly InvokeServiceAsyncEventHandler m_invokeServiceAsync;
+            private readonly InvokeService m_invokeServiceAsync;
         }
-
-        /// <summary>
-        /// A delegate used to dispatch incoming service requests.
-        /// </summary>
-        protected delegate IServiceResponse InvokeServiceEventHandler(IServiceRequest request, SecureChannelContext secureChannelContext);
 
         /// <summary>
         /// A delegate used to asynchronously dispatch incoming service requests.
         /// </summary>
-        protected delegate Task<IServiceResponse> InvokeServiceAsyncEventHandler(
+        protected delegate ValueTask<IServiceResponse> InvokeService(
             IServiceRequest request,
             SecureChannelContext secureChannelContext,
             CancellationToken cancellationToken = default);
 
-#if !NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM
         /// <summary>
-        /// An AsyncResult object when handling an asynchronous request.
+        /// A delegate used to dispatch incoming service requests.
         /// </summary>
-        [Obsolete("Use EndpointIncomingRequest instead.")]
-        protected class ProcessRequestAsyncResult : AsyncResultBase, IEndpointIncomingRequest
-        {
-            /// <summary>
-            /// Initializes a new instance of the <see cref="ProcessRequestAsyncResult"/> class.
-            /// </summary>
-            /// <param name="endpoint">The endpoint being called.</param>
-            /// <param name="callback">The callback to use when the operation completes.</param>
-            /// <param name="callbackData">The callback data.</param>
-            /// <param name="timeout">The timeout in milliseconds</param>
-            public ProcessRequestAsyncResult(
-                EndpointBase endpoint,
-                AsyncCallback callback,
-                object callbackData,
-                int timeout)
-                : base(callback, callbackData, timeout)
-            {
-                m_endpoint = endpoint;
-            }
+        [Obsolete("Use InvokeService delegate.")]
+        protected delegate IServiceResponse InvokeServiceEventHandler(
+            IServiceRequest request,
+            SecureChannelContext secureChannelContext);
 
-            /// <summary>
-            /// Gets the request.
-            /// </summary>
-            /// <value>The request.</value>
-            public IServiceRequest Request { get; private set; }
-
-            /// <summary>
-            /// Gets the secure channel context associated with the request.
-            /// </summary>
-            /// <value>The secure channel context.</value>
-            public SecureChannelContext SecureChannelContext { get; private set; }
-
-            /// <summary>
-            /// Gets or sets the call data associated with the request.
-            /// </summary>
-            /// <value>The call data.</value>
-            public object Calldata { get; set; }
-
-            /// <summary>
-            /// Used to call the default synchronous handler.
-            /// </summary>
-            /// <remarks>
-            /// This method may block the current thread so the caller must not call in the
-            /// thread that calls IServerBase.ScheduleIncomingRequest().
-            /// This method always traps any exceptions and reports them to the client as a fault.
-            /// </remarks>
-            public void CallSynchronously()
-            {
-                OnProcessRequest(null);
-            }
-
-            /// <summary>
-            /// Used to call the default asynchronous handler.
-            /// </summary>
-            /// <remarks>
-            /// This method may block the current thread so the caller must not call in the
-            /// thread that calls IServerBase.ScheduleIncomingRequest().
-            /// This method always traps any exceptions and reports them to the client as a fault.
-            /// </remarks>
-            public async ValueTask CallAsync(CancellationToken cancellationToken = default)
-            {
-                await OnProcessRequestAsync(null, cancellationToken).ConfigureAwait(false);
-            }
-
-            /// <summary>
-            /// Used to indicate that the asynchronous operation has completed.
-            /// </summary>
-            /// <param name="response">The response. May be null if an error is provided.</param>
-            /// <param name="error">Error result</param>
-            public void OperationCompleted(IServiceResponse response, ServiceResult error)
-            {
-                // save response and/or error.
-                m_error = null;
-                m_response = response;
-
-                if (ServiceResult.IsBad(error))
-                {
-                    m_error = new ServiceResultException(error);
-                    m_response = SaveExceptionAsResponse(m_error);
-                }
-
-                // operation completed.
-                OperationCompleted();
-            }
-
-            /// <summary>
-            /// Begins processing an incoming request.
-            /// </summary>
-            /// <param name="context">The security context for the request</param>
-            /// <param name="requestData">The request data.</param>
-            /// <returns>
-            /// The result object that is used to call the EndProcessRequest method.
-            /// </returns>
-            /// <exception cref="ServiceResultException"></exception>
-            public IAsyncResult BeginProcessRequest(
-                SecureChannelContext context,
-                byte[] requestData)
-            {
-                SecureChannelContext = context;
-
-                try
-                {
-                    // decoding incoming message.
-                    Request =
-                        BinaryDecoder.DecodeMessage(
-                            requestData,
-                            null,
-                            m_endpoint.MessageContext) as IServiceRequest;
-
-                    // find service.
-                    m_service = m_endpoint.FindService(Request.TypeId);
-
-                    if (m_service == null)
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadServiceUnsupported,
-                            "'{0}' is an unrecognized service type.",
-                            Request.TypeId);
-                    }
-
-                    // queue request.
-                    m_endpoint.ServerForContext.ScheduleIncomingRequest(this);
-                }
-                catch (Exception e)
-                {
-                    m_error = e;
-                    m_response = SaveExceptionAsResponse(e);
-
-                    // operation completed.
-                    OperationCompleted();
-                }
-
-                return this;
-            }
-
-            /// <summary>
-            /// Begins processing an incoming request.
-            /// </summary>
-            /// <param name="context">The security context for the request</param>
-            /// <param name="request">The request.</param>
-            /// <returns>The result object that is used to call the EndProcessRequest method.</returns>
-            /// <exception cref="ServiceResultException"></exception>
-            public IAsyncResult BeginProcessRequest(
-                SecureChannelContext context,
-                IServiceRequest request)
-            {
-                SecureChannelContext = context;
-                Request = request;
-
-                try
-                {
-                    // find service.
-                    m_service = m_endpoint.FindService(Request.TypeId);
-
-                    if (m_service == null)
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadServiceUnsupported,
-                            "'{0}' is an unrecognized service type.",
-                            Request.TypeId);
-                    }
-
-                    // queue request.
-                    m_endpoint.ServerForContext.ScheduleIncomingRequest(this);
-                }
-                catch (Exception e)
-                {
-                    m_error = e;
-                    m_response = SaveExceptionAsResponse(e);
-
-                    // operation completed.
-                    OperationCompleted();
-                }
-
-                return this;
-            }
-
-            /// <summary>
-            /// Checks for a valid IAsyncResult object and waits for the operation to complete.
-            /// </summary>
-            /// <param name="ar">The IAsyncResult object for the operation.</param>
-            /// <param name="throwOnError">if set to <c>true</c> an exception is thrown if an error occurred.</param>
-            /// <returns>The response.</returns>
-            /// <exception cref="ArgumentException"></exception>
-            /// <exception cref="TimeoutException"></exception>
-            /// <exception cref="ServiceResultException"></exception>
-            public static IServiceResponse WaitForComplete(IAsyncResult ar, bool throwOnError)
-            {
-                if (ar is not ProcessRequestAsyncResult result)
-                {
-                    throw new ArgumentException(
-                        "End called with an invalid IAsyncResult object.",
-                        nameof(ar));
-                }
-
-                if (result.m_response == null && !result.WaitForComplete())
-                {
-                    throw new TimeoutException();
-                }
-
-                if (throwOnError && result.m_error != null)
-                {
-                    throw new ServiceResultException(result.m_error, StatusCodes.BadInternalError);
-                }
-
-                return result.m_response;
-            }
-
-            /// <summary>
-            /// Checks for a valid IAsyncResult object and returns the original request object.
-            /// </summary>
-            /// <param name="ar">The IAsyncResult object for the operation.</param>
-            /// <returns>The request object if available; otherwise null.</returns>
-            public static IServiceRequest GetRequest(IAsyncResult ar)
-            {
-                if (ar is ProcessRequestAsyncResult result)
-                {
-                    return result.Request;
-                }
-
-                return null;
-            }
-
-            /// <summary>
-            /// Saves an exception as response.
-            /// </summary>
-            /// <param name="e">The exception.</param>
-            private ServiceFault SaveExceptionAsResponse(Exception e)
-            {
-                try
-                {
-                    return m_endpoint.CreateFault(Request, e);
-                }
-                catch (Exception e2)
-                {
-                    return m_endpoint.CreateFault(null, e2);
-                }
-            }
-
-            /// <summary>
-            /// Processes the request.
-            /// </summary>
-            private void OnProcessRequest(object state)
-            {
-                try
-                {
-                    // set the context.
-                    SecureChannelContext.Current = SecureChannelContext;
-
-                    ActivitySource activitySource = m_endpoint.MessageContext.Telemetry
-                        .GetActivitySource();
-                    if (activitySource.HasListeners())
-                    {
-                        // extract trace information from the request header if available
-                        if (Request.RequestHeader?.AdditionalHeader?
-                                .Body is AdditionalParametersType parameters &&
-                            TryExtractActivityContextFromParameters(
-                                parameters,
-                                out ActivityContext activityContext))
-                        {
-                            using Activity activity = activitySource.StartActivity(
-                                Request.GetType().Name,
-                                ActivityKind.Server,
-                                activityContext);
-                            // call the service.
-                            m_response = m_service.Invoke(Request, SecureChannelContext, m_endpoint.m_logger);
-                        }
-                        else
-                        {
-                            // call the service even when there is no trace information
-                            m_response = m_service.Invoke(Request, SecureChannelContext, m_endpoint.m_logger);
-                        }
-                    }
-                    else
-                    {
-                        // no listener, directly call the service.
-                        m_response = m_service.Invoke(Request, SecureChannelContext, m_endpoint.m_logger);
-                    }
-                }
-                catch (Exception e)
-                {
-                    // save any error.
-                    m_error = e;
-                    m_response = SaveExceptionAsResponse(e);
-                }
-
-                // report completion.
-                OperationCompleted();
-            }
-
-            /// <summary>
-            /// Processes the request asynchronously.
-            /// </summary>
-            private async Task OnProcessRequestAsync(
-                object state,
-                CancellationToken cancellationToken = default)
-            {
-                try
-                {
-                    // set the context.
-                    SecureChannelContext.Current = SecureChannelContext;
-
-                    ActivitySource activitySource = m_endpoint.MessageContext.Telemetry
-                        .GetActivitySource();
-                    if (activitySource.HasListeners())
-                    {
-                        // extract trace information from the request header if available
-                        if (Request.RequestHeader?.AdditionalHeader?
-                            .Body is AdditionalParametersType parameters &&
-                            TryExtractActivityContextFromParameters(
-                                parameters,
-                                out ActivityContext activityContext))
-                        {
-                            using Activity activity = activitySource.StartActivity(
-                                Request.GetType().Name,
-                                ActivityKind.Server,
-                                activityContext);
-                            // call the service.
-                            m_response = await m_service.InvokeAsync(Request, SecureChannelContext, cancellationToken)
-                                .ConfigureAwait(false);
-                        }
-                        else
-                        {
-                            // call the service even when there is no trace information
-                            m_response = await m_service.InvokeAsync(Request, SecureChannelContext, cancellationToken)
-                                .ConfigureAwait(false);
-                        }
-                    }
-                    else
-                    {
-                        // no listener, directly call the service.
-                        m_response = await m_service.InvokeAsync(Request, SecureChannelContext, cancellationToken)
-                            .ConfigureAwait(false);
-                    }
-                }
-                catch (Exception e)
-                {
-                    // save any error.
-                    m_error = e;
-                    m_response = SaveExceptionAsResponse(e);
-                }
-
-                // report completion.
-                OperationCompleted();
-            }
-
-            private readonly EndpointBase m_endpoint;
-            private IServiceResponse m_response;
-            private ServiceDefinition m_service;
-            private Exception m_error;
-        }
-#endif
+        /// <summary>
+        /// A delegate used to asynchronously dispatch incoming service requests.
+        /// </summary>
+        [Obsolete("Use InvokeService delegate.")]
+        protected delegate Task<IServiceResponse> InvokeServiceAsyncEventHandler(
+            IServiceRequest request,
+            SecureChannelContext secureChannelContext,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// An object that handles an incoming request for an endpoint.
@@ -1107,7 +704,6 @@ namespace Opc.Ua
                 SecureChannelContext = context;
                 Request = request;
                 m_vts = ServiceResponsePooledValueTaskSource.Create();
-                m_service = m_endpoint.FindService(Request.TypeId);
                 m_cancellationToken = cancellationToken;
             }
 
@@ -1155,8 +751,9 @@ namespace Opc.Ua
                     if (activitySource.HasListeners())
                     {
                         // extract trace information from the request header if available
-                        if (Request.RequestHeader?.AdditionalHeader?
-                            .Body is AdditionalParametersType parameters &&
+                        if (Request.RequestHeader != null &&
+                            Request.RequestHeader.AdditionalHeader
+                                .TryGetEncodeable(out AdditionalParametersType parameters) &&
                             TryExtractActivityContextFromParameters(
                                 parameters,
                                 out ActivityContext activityContext))
@@ -1170,7 +767,8 @@ namespace Opc.Ua
 
                     using (activity)
                     {
-                        IServiceResponse response = await m_service.InvokeAsync(Request, SecureChannelContext, linkedCts.Token).ConfigureAwait(false);
+                        ServiceDefinition service = m_endpoint.FindService(Request.TypeId);
+                        IServiceResponse response = await service.InvokeAsync(Request, SecureChannelContext, linkedCts.Token).ConfigureAwait(false);
                         m_vts.SetResult(response);
                     }
                 }
@@ -1232,7 +830,6 @@ namespace Opc.Ua
             }
 
             private readonly EndpointBase m_endpoint;
-            private readonly ServiceDefinition m_service;
             private readonly ServiceResponsePooledValueTaskSource m_vts;
             private readonly CancellationToken m_cancellationToken;
         }

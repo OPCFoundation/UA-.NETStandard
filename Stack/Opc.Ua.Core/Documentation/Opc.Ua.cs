@@ -33,7 +33,7 @@ namespace Opc.Ua
     /// The <b>Opc.Ua</b> namespace contains classes and interfaces which implement all of the types
     /// and services defined by the UA specification.
     /// </summary>
-    ///<exclude/>
+    /// <exclude/>
     [System.Runtime.CompilerServices.CompilerGenerated]
     public class NamespaceDoc;
 }

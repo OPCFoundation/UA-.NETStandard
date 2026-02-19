@@ -42,8 +42,6 @@ using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.Hosting;
 using Opc.Ua.Security.Certificates;
 using Microsoft.Extensions.Logging;
-
-
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
 using System.Security.Cryptography;
 #endif
@@ -420,7 +418,7 @@ namespace Opc.Ua.Bindings
                 // extract the JWT token from the HTTP headers.
                 input.RequestHeader ??= new RequestHeader();
 
-                if (NodeId.IsNull(input.RequestHeader.AuthenticationToken) &&
+                if (input.RequestHeader.AuthenticationToken.IsNull &&
                     input.TypeId != DataTypeIds.CreateSessionRequest &&
                     context.Request.Headers.TryGetValue(
                         kAuthorizationKey,

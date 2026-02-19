@@ -137,7 +137,7 @@ namespace Opc.Ua.Client
             ClientHandle = state.ClientId;
             ServerId = state.ServerId;
             TriggeringItemId = state.TriggeringItemId;
-            TriggeredItems = state.TriggeredItems != null ? new UInt32Collection(state.TriggeredItems) : null;
+            TriggeredItems = state.TriggeredItems != null ? [.. state.TriggeredItems] : null;
             CacheQueueSize = state.CacheQueueSize < 1 ? 1 : state.CacheQueueSize;
         }
 
@@ -149,7 +149,7 @@ namespace Opc.Ua.Client
                 ServerId = Status.Id,
                 ClientId = ClientHandle,
                 TriggeringItemId = TriggeringItemId,
-                TriggeredItems = TriggeredItems != null ? new UInt32Collection(TriggeredItems) : null,
+                TriggeredItems = TriggeredItems != null ? [.. TriggeredItems] : null,
                 CacheQueueSize = CacheQueueSize
             };
         }
@@ -174,7 +174,7 @@ namespace Opc.Ua.Client
         public NodeId StartNodeId
         {
             get => State.StartNodeId;
-            set => State = State with { StartNodeId = value ?? NodeId.Null };
+            set => State = State with { StartNodeId = value };
         }
 
         /// <summary>
@@ -256,7 +256,7 @@ namespace Opc.Ua.Client
         public QualifiedName Encoding
         {
             get => State.Encoding;
-            set => State = State with { Encoding = value ?? QualifiedName.Null };
+            set => State = State with { Encoding = value };
         }
 
         /// <summary>
@@ -838,7 +838,7 @@ namespace Opc.Ua.Client
                     }
 
                     // ignore event type id when matching null browse paths.
-                    return eventFields.EventFields[ii].Value;
+                    return eventFields.EventFields[ii].AsBoxedObject();
                 }
 
                 // match browse path.
@@ -874,7 +874,7 @@ namespace Opc.Ua.Client
                 }
 
                 // return value.
-                return eventFields.EventFields[ii].Value;
+                return eventFields.EventFields[ii].AsBoxedObject();
             }
 
             // no event type in event field list.
@@ -889,12 +889,15 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             // get event type.
-            var eventTypeId = GetFieldValue(
+            if (GetFieldValue(
                 eventFields,
                 ObjectTypes.BaseEventType,
-                BrowseNames.EventType) as NodeId;
+                QualifiedName.From(BrowseNames.EventType)) is not NodeId eventTypeId)
+            {
+                return null;
+            }
 
-            if (eventTypeId != null &&
+            if (!eventTypeId.IsNull &&
                 Subscription != null &&
                 Subscription.Session != null)
             {
@@ -916,7 +919,7 @@ namespace Opc.Ua.Client
             var eventTime = GetFieldValue(
                 eventFields,
                 ObjectTypes.BaseEventType,
-                BrowseNames.Time) as DateTime?;
+                QualifiedName.From(BrowseNames.Time)) as DateTime?;
 
             if (eventTime != null)
             {
@@ -974,8 +977,7 @@ namespace Opc.Ua.Client
             }
 
             if (ExtensionObject.ToEncodeable(
-                    eventFields.EventFields[index].Value as ExtensionObject)
-                is not StatusResult status)
+                eventFields.EventFields[index].GetExtensionObject()) is not StatusResult status)
             {
                 return null;
             }
@@ -1053,15 +1055,15 @@ namespace Opc.Ua.Client
         {
             var filter = new EventFilter();
 
-            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.EventId);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.EventType);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.SourceNode);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.SourceName);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.Time);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.ReceiveTime);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.LocalTime);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.Message);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.Severity);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.EventId));
+            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.EventType));
+            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.SourceNode));
+            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.SourceName));
+            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.Time));
+            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.ReceiveTime));
+            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.LocalTime));
+            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.Message));
+            filter.AddSelectClause(ObjectTypes.BaseEventType, QualifiedName.From(BrowseNames.Severity));
 
             return filter;
         }
@@ -1184,7 +1186,7 @@ namespace Opc.Ua.Client
             {
                 CoreClientUtils.EventLog.Notification(
                     (int)notification.ClientHandle,
-                    LastValue.WrappedValue);
+                    LastValue.WrappedValue.ToString());
             }
 
             if (m_logger.IsEnabled(LogLevel.Debug))

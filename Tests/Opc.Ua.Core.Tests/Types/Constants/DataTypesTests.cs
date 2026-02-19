@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
@@ -47,32 +48,32 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         public void GetBrowseName_StandardDataTypes_ReturnsValidNames()
         {
             // Test a few standard data type IDs
-            int[] dataTypeIds =
+            uint[] dataTypeIds =
             [
-                (int)DataTypes.Boolean,
-                (int)DataTypes.SByte,
-                (int)DataTypes.Byte,
-                (int)DataTypes.Int16,
-                (int)DataTypes.UInt16,
-                (int)DataTypes.Int32,
-                (int)DataTypes.UInt32,
-                (int)DataTypes.Int64,
-                (int)DataTypes.UInt64,
-                (int)DataTypes.Float,
-                (int)DataTypes.Double,
-                (int)DataTypes.String,
-                (int)DataTypes.DateTime,
-                (int)DataTypes.Guid,
-                (int)DataTypes.ByteString,
-                (int)DataTypes.XmlElement,
-                (int)DataTypes.NodeId,
-                (int)DataTypes.ExpandedNodeId,
-                (int)DataTypes.StatusCode,
-                (int)DataTypes.QualifiedName,
-                (int)DataTypes.LocalizedText
+                DataTypes.Boolean,
+                DataTypes.SByte,
+                DataTypes.Byte,
+                DataTypes.Int16,
+                DataTypes.UInt16,
+                DataTypes.Int32,
+                DataTypes.UInt32,
+                DataTypes.Int64,
+                DataTypes.UInt64,
+                DataTypes.Float,
+                DataTypes.Double,
+                DataTypes.String,
+                DataTypes.DateTime,
+                DataTypes.Guid,
+                DataTypes.ByteString,
+                DataTypes.XmlElement,
+                DataTypes.NodeId,
+                DataTypes.ExpandedNodeId,
+                DataTypes.StatusCode,
+                DataTypes.QualifiedName,
+                DataTypes.LocalizedText
             ];
 
-            foreach (int id in dataTypeIds)
+            foreach (uint id in dataTypeIds)
             {
                 string browseName = DataTypes.GetBrowseName(id);
                 Assert.IsNotNull(browseName);
@@ -86,7 +87,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         [Test]
         public void GetBrowseName_BooleanDataType_ReturnsBoolean()
         {
-            string browseName = DataTypes.GetBrowseName((int)DataTypes.Boolean);
+            string browseName = DataTypes.GetBrowseName(DataTypes.Boolean);
             Assert.AreEqual("Boolean", browseName);
         }
 
@@ -96,7 +97,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         [Test]
         public void GetBrowseName_InvalidDataTypeId_ReturnsEmptyString()
         {
-            string browseName = DataTypes.GetBrowseName(-9999);
+            string browseName = DataTypes.GetBrowseName(unchecked((uint)-9999));
             Assert.AreEqual(string.Empty, browseName);
         }
 
@@ -149,20 +150,20 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         [Test]
         public void GetBrowseName_GetIdentifier_AreInverseOperations()
         {
-            int[] dataTypeIds =
+            uint[] dataTypeIds =
             [
-                (int)DataTypes.Boolean,
-                (int)DataTypes.Int32,
-                (int)DataTypes.String,
-                (int)DataTypes.DateTime,
-                (int)DataTypes.NodeId
+                DataTypes.Boolean,
+                DataTypes.Int32,
+                DataTypes.String,
+                DataTypes.DateTime,
+                DataTypes.NodeId
             ];
 
-            foreach (int id in dataTypeIds)
+            foreach (uint id in dataTypeIds)
             {
                 string browseName = DataTypes.GetBrowseName(id);
                 uint retrievedId = DataTypes.GetIdentifier(browseName);
-                Assert.AreEqual((uint)id, retrievedId);
+                Assert.AreEqual(id, retrievedId);
             }
         }
 
@@ -172,27 +173,13 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         [Test]
         public void GetDataTypeId_EUInformationType_ReturnsSpecificDataTypeId()
         {
-            NodeId dataTypeId = DataTypes.GetDataTypeId(typeof(EUInformation));
-            
-            Assert.IsNotNull(dataTypeId);
-            Assert.AreEqual(DataTypes.EUInformation, (uint)dataTypeId.Identifier);
-            Assert.AreEqual(0, dataTypeId.NamespaceIndex);
-            Assert.AreNotEqual(DataTypes.Structure, (uint)dataTypeId.Identifier, 
-                "Should return specific EUInformation DataTypeId (i=887), not generic Structure (i=22)");
-        }
+            NodeId dataTypeId = TypeInfo.GetDataTypeId(typeof(EUInformation));
 
-        /// <summary>
-        /// Test GetDataTypeId for EUInformation instance returns specific DataTypeId.
-        /// </summary>
-        [Test]
-        public void GetDataTypeId_EUInformationInstance_ReturnsSpecificDataTypeId()
-        {
-            var euInfo = new EUInformation("unit", "http://test.org");
-            NodeId dataTypeId = DataTypes.GetDataTypeId(euInfo);
-            
             Assert.IsNotNull(dataTypeId);
-            Assert.AreEqual(DataTypes.EUInformation, (uint)dataTypeId.Identifier);
+            Assert.AreEqual(DataTypes.EUInformation, dataTypeId.TryGetIdentifier(out uint n1) ? n1 : 0);
             Assert.AreEqual(0, dataTypeId.NamespaceIndex);
+            Assert.AreNotEqual(DataTypes.Structure, dataTypeId.TryGetIdentifier(out uint n2) ? n2 : 0,
+                "Should return specific EUInformation DataTypeId (i=887), not generic Structure (i=22)");
         }
 
         /// <summary>
@@ -202,23 +189,24 @@ namespace Opc.Ua.Core.Tests.Types.Constants
         public void GetDataTypeId_WellKnownEncodeableTypes_ReturnsSpecificDataTypeIds()
         {
             // Test various well-known types that implement IEncodeable
-            var testCases = new[]
-            {
+
+            (Type, uint)[] testCases =
+            [
                 (typeof(EUInformation), DataTypes.EUInformation),
                 (typeof(Range), DataTypes.Range),
                 (typeof(Argument), DataTypes.Argument),
                 (typeof(EnumValueType), DataTypes.EnumValueType),
                 (typeof(TimeZoneDataType), DataTypes.TimeZoneDataType)
-            };
+            ];
 
-            foreach (var (type, expectedId) in testCases)
+            foreach ((Type type, uint expectedId) in testCases)
             {
-                NodeId dataTypeId = DataTypes.GetDataTypeId(type);
-                
+                NodeId dataTypeId = TypeInfo.GetDataTypeId(type);
+
                 Assert.IsNotNull(dataTypeId, $"DataTypeId should not be null for {type.Name}");
-                Assert.AreEqual(expectedId, (uint)dataTypeId.Identifier, 
-                    $"DataTypeId for {type.Name} should be i={expectedId}, not i={dataTypeId.Identifier}");
-                Assert.AreEqual(0, dataTypeId.NamespaceIndex, 
+                Assert.AreEqual(expectedId, dataTypeId.TryGetIdentifier(out uint n1) ? n1 : 0,
+                    $"DataTypeId for {type.Name} should be i={expectedId}, not i={dataTypeId.IdentifierAsString}");
+                Assert.AreEqual(0, dataTypeId.NamespaceIndex,
                     $"NamespaceIndex should be 0 for {type.Name}");
             }
         }

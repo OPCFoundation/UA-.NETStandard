@@ -262,7 +262,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             Assert.AreEqual(
                 networkMessage0.DataSetClassId,
-                Guid.Empty,
+                Uuid.Empty,
                 "UadpNetworkMessage.DataSetClassId is invalid.");
             Assert.AreEqual(
                 networkMessage0.WriterGroupId,

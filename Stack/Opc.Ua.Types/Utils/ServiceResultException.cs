@@ -63,7 +63,7 @@ namespace Opc.Ua
         public ServiceResultException(Exception e, StatusCode defaultCode)
             : base(e.Message, e)
         {
-            Result = ServiceResult.Create(e, defaultCode, string.Empty);
+            Result = ServiceResult.Create(e, defaultCode, defaultCode.SymbolicId);
         }
 
         /// <summary>
@@ -88,7 +88,15 @@ namespace Opc.Ua
         /// Initializes the exception with a status code and a message.
         /// </summary>
         public ServiceResultException(StatusCode statusCode, string message)
-            : base(message)
+            : this(statusCode, LocalizedText.From(message))
+        {
+        }
+
+        /// <summary>
+        /// Initializes the exception with a status code and a message.
+        /// </summary>
+        public ServiceResultException(StatusCode statusCode, LocalizedText message)
+            : base(message.Text)
         {
             Result = new ServiceResult(statusCode, message);
         }
@@ -106,29 +114,37 @@ namespace Opc.Ua
         /// Initializes the exception with a status code, a message and an inner exception.
         /// </summary>
         public ServiceResultException(StatusCode statusCode, string message, Exception e)
-            : base(message, e)
+            : this(statusCode, LocalizedText.From(message), e)
         {
-            Result = new ServiceResult(message, statusCode, e);
+        }
+
+        /// <summary>
+        /// Initializes the exception with a status code, a message and an inner exception.
+        /// </summary>
+        public ServiceResultException(StatusCode statusCode, LocalizedText message, Exception e)
+            : base(message.Text, e)
+        {
+            Result = new ServiceResult(statusCode, message, e);
         }
 
         /// <summary>
         /// Initializes the exception with a Result object.
         /// </summary>
         public ServiceResultException(ServiceResult status)
-            : base(GetMessage(status))
+            : base(GetMessage(status), status.InnerResult?.GetServiceResultException())
         {
             Result = status ?? ServiceResult.Bad;
         }
 
         /// <summary>
-        /// The identifier for the status code.
+        /// The status code.
         /// </summary>
-        public uint StatusCode => Result.StatusCode.Code;
+        public StatusCode StatusCode => Result.StatusCode;
 
         /// <summary>
         /// The identifier for the status code.
         /// </summary>
-        public StatusCode Code => Result.StatusCode;
+        public uint Code => Result.StatusCode.Code;
 
         /// <summary>
         /// The namespace that qualifies symbolic identifier.
@@ -172,7 +188,10 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new instance of a ServiceResultException
         /// </summary>
-        public static ServiceResultException Create(uint code, string format, params object[] args)
+        public static ServiceResultException Create(
+            StatusCode code,
+            string format,
+            params object[] args)
         {
             if (format == null)
             {
@@ -186,7 +205,7 @@ namespace Opc.Ua
         /// Creates a new instance of a ServiceResultException
         /// </summary>
         public static ServiceResultException Create(
-            uint code,
+            StatusCode code,
             Exception e,
             string format,
             params object[] args)
@@ -215,10 +234,18 @@ namespace Opc.Ua
         /// <summary>
         /// Unexpected error occurred
         /// </summary>
-        /// <param name="format"></param>
-        /// <param name="args"></param>
-        /// <returns></returns>
         public static ServiceResultException Unexpected(
+            string format,
+            params object[] args)
+        {
+            return Unexpected(null, format, args);
+        }
+
+        /// <summary>
+        /// Unexpected error occurred
+        /// </summary>
+        public static ServiceResultException Unexpected(
+            Exception exception,
             string format,
             params object[] args)
         {
@@ -231,6 +258,19 @@ namespace Opc.Ua
 #endif
             System.Diagnostics.Debug.WriteLine($"{message}\n{new System.Diagnostics.StackTrace()}");
 #endif
+            if (exception != null)
+            {
+                if (format == null)
+                {
+                    return new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        exception);
+                }
+                return new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    CoreUtils.Format(format, args),
+                    exception);
+            }
             if (format == null)
             {
                 return new ServiceResultException(
@@ -238,6 +278,56 @@ namespace Opc.Ua
             }
             return new ServiceResultException(
                 StatusCodes.BadUnexpectedError,
+                CoreUtils.Format(format, args));
+        }
+
+        /// <summary>
+        /// Configuration error occurred
+        /// </summary>
+        public static ServiceResultException ConfigurationError(
+            string format,
+            params object[] args)
+        {
+            return ConfigurationError(null, format, args);
+        }
+
+        /// <summary>
+        /// Configuration error occurred
+        /// </summary>
+        public static ServiceResultException ConfigurationError(
+            Exception exception,
+            string format,
+            params object[] args)
+        {
+#if DEBUG
+            string message = format == null ?
+                "A configuration error occurred" :
+                CoreUtils.Format(format, args);
+#if DEBUGCHK
+            System.Diagnostics.Debug.Fail(message);
+#endif
+            System.Diagnostics.Debug.WriteLine($"{message}\n{new System.Diagnostics.StackTrace()}");
+#endif
+            if (exception != null)
+            {
+                if (format == null)
+                {
+                    return new ServiceResultException(
+                        StatusCodes.BadConfigurationError,
+                        exception);
+                }
+                return new ServiceResultException(
+                    StatusCodes.BadConfigurationError,
+                    CoreUtils.Format(format, args),
+                    exception);
+            }
+            if (format == null)
+            {
+                return new ServiceResultException(
+                    StatusCodes.BadConfigurationError);
+            }
+            return new ServiceResultException(
+                StatusCodes.BadConfigurationError,
                 CoreUtils.Format(format, args));
         }
 

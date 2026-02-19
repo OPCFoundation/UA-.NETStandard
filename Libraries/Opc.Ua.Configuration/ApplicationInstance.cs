@@ -167,9 +167,7 @@ namespace Opc.Ua.Configuration
 
             if (configuration == null)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
-                    "Could not load configuration.");
+                throw ServiceResultException.ConfigurationError("Could not load configuration.");
             }
 
             ApplicationConfiguration = FixupAppConfig(configuration);
@@ -203,9 +201,7 @@ namespace Opc.Ua.Configuration
 
             if (configuration == null)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
-                    "Could not load configuration file.");
+                throw ServiceResultException.ConfigurationError("Could not load configuration file.");
             }
 
             ApplicationConfiguration = FixupAppConfig(configuration);
@@ -303,9 +299,7 @@ namespace Opc.Ua.Configuration
 
             if (securityConfiguration.ApplicationCertificates.Count == 0)
             {
-                throw new ServiceResultException(
-                    StatusCodes.BadConfigurationError,
-                    "Need at least one Application Certificate.");
+                throw ServiceResultException.ConfigurationError("Need at least one Application Certificate.");
             }
 
             // Note: The FindAsync method searches certificates in this order: thumbprint, subjectName, then applicationUri.
@@ -349,8 +343,7 @@ namespace Opc.Ua.Configuration
 
             if (id == null)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
+                throw ServiceResultException.ConfigurationError(
                     "Configuration file does not specify a certificate.");
             }
 
@@ -384,14 +377,9 @@ namespace Opc.Ua.Configuration
 
                 if (!certificateValid)
                 {
-                    var message = new StringBuilder();
-                    message.AppendLine(
-                        "The certificate with subject {0} in the configuration is invalid.")
-                        .AppendLine(" Please update or delete the certificate from this location:")
-                        .AppendLine(" {1}");
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadConfigurationError,
-                        message.ToString(),
+                    throw ServiceResultException.ConfigurationError(
+                        "The certificate with subject {0} in the configuration is invalid.\n" +
+                        " Please update or delete the certificate from this location: {1}",
                         id.SubjectName,
                         Utils.ReplaceSpecialFolderNames(id.StorePath));
                 }
@@ -404,8 +392,7 @@ namespace Opc.Ua.Configuration
 
                 if (certificate != null)
                 {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadConfigurationError,
+                    throw ServiceResultException.ConfigurationError(
                         "Cannot access private key for certificate with thumbprint={0}",
                         certificate.Thumbprint);
                 }
@@ -438,22 +425,17 @@ namespace Opc.Ua.Configuration
                             Utils.Format(message.ToString(), id.SubjectName, certificate.Subject), silent)
                                 .ConfigureAwait(false))
                         {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadConfigurationError,
-                                message.ToString(),
+                            throw ServiceResultException.ConfigurationError(
+                                "Thumbprint for {0} was explicitly specified in the configuration but\n" +
+                                "another certificate with the same subject name {1} was found.",
                                 id.SubjectName,
                                 certificate.Subject);
                         }
                     }
                     else
                     {
-                        var message = new StringBuilder();
-                        message.AppendLine(
-                            "Thumbprint was explicitly specified in the configuration.")
-                            .AppendLine("Cannot generate a new certificate.");
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadConfigurationError,
-                            message.ToString());
+                        throw ServiceResultException.ConfigurationError(
+                            "Thumbprint was explicitly specified in the configuration. Cannot generate a new certificate.");
                     }
                 }
             }
@@ -465,6 +447,7 @@ namespace Opc.Ua.Configuration
                     certificate = await CreateApplicationInstanceCertificateAsync(
                             configuration,
                             id,
+                        minimumKeySize,
                             lifeTimeInMonths,
                             ct)
                         .ConfigureAwait(false);
@@ -476,14 +459,9 @@ namespace Opc.Ua.Configuration
 
                 if (certificate == null)
                 {
-                    var message = new StringBuilder();
-                    message.AppendLine("There is no cert with subject {0} in the configuration.")
-                        .AppendLine(" Please generate a cert for your application,")
-                        .AppendLine(" then copy the new cert to this location:")
-                        .AppendLine(" {1}");
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadConfigurationError,
-                        message.ToString(),
+                    throw ServiceResultException.ConfigurationError(
+                        "There is no cert with subject {0} in the configuration.\n" +
+                        "Please generate a cert for your application, then copy the new cert to this location: {1}",
                         id.SubjectName,
                         id.StorePath);
                 }
@@ -831,6 +809,7 @@ namespace Opc.Ua.Configuration
         /// </summary>
         /// <param name="configuration">The configuration.</param>
         /// <param name="id">The certificate identifier.</param>
+        /// <param name="minimumKeySize">Minimum RSA key size to use when creating the certificate.</param>
         /// <param name="lifeTimeInMonths">The lifetime in months.</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>The new certificate</returns>
@@ -838,6 +817,7 @@ namespace Opc.Ua.Configuration
         private async Task<X509Certificate2> CreateApplicationInstanceCertificateAsync(
             ApplicationConfiguration configuration,
             CertificateIdentifier id,
+            ushort minimumKeySize,
             ushort lifeTimeInMonths,
             CancellationToken ct)
         {
@@ -869,23 +849,27 @@ namespace Opc.Ua.Configuration
                     serverDomainNames)
                 .SetLifeTime(lifeTimeInMonths);
 
-            if (id.CertificateType == null ||
+            if (id.CertificateType.IsNull ||
                 id.CertificateType == ObjectTypeIds.ApplicationCertificateType ||
                 id.CertificateType == ObjectTypeIds.RsaMinApplicationCertificateType ||
                 id.CertificateType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
             {
-                id.Certificate = builder.SetRSAKeySize(CertificateFactory.DefaultKeySize)
-                    .CreateForRSA();
+                ushort keySize = minimumKeySize == 0
+                    ? CertificateFactory.DefaultKeySize
+                    : minimumKeySize;
 
-                m_logger.LogInformation("Certificate {Certificate} created for RSA.", id.Certificate.AsLogSafeString());
+                id.Certificate = builder.SetRSAKeySize(keySize).CreateForRSA();
+
+                m_logger.LogInformation(
+                    "Certificate {Certificate} created for RSA with key size {KeySize} bits.",
+                    id.Certificate.AsLogSafeString(),
+                    keySize);
             }
             else
             {
                 ECCurve? curve =
                     CryptoUtils.GetCurveFromCertificateTypeId(id.CertificateType)
-                    ?? throw new ServiceResultException(
-                        StatusCodes.BadConfigurationError,
-                        "The Ecc certificate type is not supported.");
+                    ?? throw ServiceResultException.ConfigurationError("The Ecc certificate type is not supported.");
 
                 id.Certificate = builder.SetECCurve(curve.Value).CreateForECDsa();
 

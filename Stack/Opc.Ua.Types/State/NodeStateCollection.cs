@@ -41,7 +41,7 @@ namespace Opc.Ua
     /// <summary>
     /// Stores a collection of nodes.
     /// </summary>
-    public partial class NodeStateCollection : List<NodeState>
+    public class NodeStateCollection : List<NodeState>
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="NodeStateCollection"/> class.
@@ -63,7 +63,7 @@ namespace Opc.Ua
         /// Initializes a new instance of the <see cref="NodeStateCollection"/> class.
         /// </summary>
         /// <param name="collection">The collection whose elements are copied to the new list.</param>
-        /// <exception cref="System.ArgumentNullException">
+        /// <exception cref="ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
         public NodeStateCollection(IEnumerable<NodeState> collection)
@@ -92,8 +92,8 @@ namespace Opc.Ua
 
             XmlWriterSettings settings = CoreUtils.DefaultXmlWriterSettings();
             settings.CloseOutput = true;
+            DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<NodeSet>();
             using var writer = XmlWriter.Create(ostrm, settings);
-            var serializer = new DataContractSerializer(typeof(NodeSet));
             serializer.WriteObject(writer, nodeSet);
         }
 
@@ -221,12 +221,7 @@ namespace Opc.Ua
             XmlWriterSettings settings = CoreUtils.DefaultXmlWriterSettings();
             settings.CloseOutput = !keepStreamOpen;
 
-            var messageContext = new ServiceMessageContext(context.Telemetry)
-            {
-                NamespaceUris = context.NamespaceUris,
-                ServerUris = context.ServerUris,
-                Factory = context.EncodeableFactory
-            };
+            IServiceMessageContext messageContext = context.AsMessageContext();
 
             using var writer = XmlWriter.Create(ostrm, settings);
             var root = new XmlQualifiedName("ListOfNodeState", Namespaces.OpcUaXsd);
@@ -249,12 +244,7 @@ namespace Opc.Ua
         /// </summary>
         public void SaveAsBinary(ISystemContext context, Stream ostrm)
         {
-            var messageContext = new ServiceMessageContext(context.Telemetry)
-            {
-                NamespaceUris = context.NamespaceUris,
-                ServerUris = context.ServerUris,
-                Factory = context.EncodeableFactory
-            };
+            IServiceMessageContext messageContext = context.AsMessageContext();
 
             using var encoder = new BinaryEncoder(ostrm, messageContext, true);
             encoder.SaveStringTable(context.NamespaceUris);
@@ -272,16 +262,62 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Writes the collection to a stream using the Opc.Ua.Schema.UANodeSet schema.
+        /// </summary>
+        public void SaveAsNodeSet2(
+            ISystemContext context,
+            Stream ostrm,
+            Export.ModelTableEntry model,
+            DateTime lastModified,
+            bool outputRedundantNames)
+        {
+            var nodeSet = new Export.UANodeSet();
+
+            if (lastModified != DateTime.MinValue)
+            {
+                nodeSet.LastModified = lastModified;
+                nodeSet.LastModifiedSpecified = true;
+            }
+
+            nodeSet.NamespaceUris = (context.NamespaceUris?.ToArray()
+                .Where(x => x != Namespaces.OpcUa)
+                .ToArray());
+            nodeSet.ServerUris = (context.ServerUris?.ToArray());
+
+            if (nodeSet.NamespaceUris != null && nodeSet.NamespaceUris.Length == 0)
+            {
+                nodeSet.NamespaceUris = null;
+            }
+
+            if (nodeSet.ServerUris != null && nodeSet.ServerUris.Length == 0)
+            {
+                nodeSet.ServerUris = null;
+            }
+
+            if (model != null)
+            {
+                nodeSet.Models = [model];
+            }
+
+            for (int ii = 0; ii < s_aliasesToUse.Length; ii++)
+            {
+                nodeSet.AddAlias(context, s_aliasesToUse[ii].Alias, s_aliasesToUse[ii].NodeId);
+            }
+
+            for (int ii = 0; ii < Count; ii++)
+            {
+                nodeSet.Export(context, this[ii], outputRedundantNames);
+            }
+
+            nodeSet.Write(ostrm);
+        }
+
+        /// <summary>
         /// Reads the schema information from a XML document.
         /// </summary>
         public void LoadFromBinary(ISystemContext context, Stream istrm, bool updateTables)
         {
-            var messageContext = new ServiceMessageContext(context.Telemetry)
-            {
-                NamespaceUris = context.NamespaceUris,
-                ServerUris = context.ServerUris,
-                Factory = context.EncodeableFactory
-            };
+            IServiceMessageContext messageContext = context.AsMessageContext();
 
             using var decoder = new BinaryDecoder(istrm, messageContext);
             // check if a namespace table was provided.
@@ -346,12 +382,7 @@ namespace Opc.Ua
         /// </summary>
         public void LoadFromXml(ISystemContext context, Stream istrm, bool updateTables)
         {
-            var messageContext = new ServiceMessageContext(context.Telemetry)
-            {
-                NamespaceUris = context.NamespaceUris,
-                ServerUris = context.ServerUris,
-                Factory = context.EncodeableFactory
-            };
+            IServiceMessageContext messageContext = context.AsMessageContext();
 
             using var reader = XmlReader.Create(istrm, CoreUtils.DefaultXmlReaderSettings());
             using var decoder = new XmlDecoder(null, reader, messageContext);
@@ -495,118 +526,5 @@ namespace Opc.Ua
 
             LoadFromBinary(context, istrm, updateTables);
         }
-    }
-
-    /// <summary>
-    /// A class that creates instances of nodes based on the parameters provided.
-    /// </summary>
-    public class NodeStateFactory
-    {
-        /// <summary>
-        /// Creates a new instance.
-        /// </summary>
-        /// <param name="context">The current context.</param>
-        /// <param name="parent">The parent.</param>
-        /// <param name="nodeClass">The node class.</param>
-        /// <param name="browseName">The browse name.</param>
-        /// <param name="referenceTypeId">The reference type between the parent and the node.</param>
-        /// <param name="typeDefinitionId">The type definition.</param>
-        /// <returns>Returns null if the type is not known.</returns>
-        /// <exception cref="ServiceResultException"></exception>
-        public virtual NodeState CreateInstance(
-            ISystemContext context,
-            NodeState parent,
-            NodeClass nodeClass,
-            QualifiedName browseName,
-            NodeId referenceTypeId,
-            NodeId typeDefinitionId)
-        {
-            NodeState child;
-            if (m_types != null &&
-                !NodeId.IsNull(typeDefinitionId) &&
-                m_types.TryGetValue(typeDefinitionId, out Type type))
-            {
-                child = Activator.CreateInstance(type, parent) as NodeState;
-            }
-            else
-            {
-                switch (nodeClass)
-                {
-                    case NodeClass.Variable:
-                        if (context.TypeTable != null &&
-                            context.TypeTable.IsTypeOf(referenceTypeId, ReferenceTypeIds.HasProperty))
-                        {
-                            child = new PropertyState(parent);
-                            break;
-                        }
-
-                        child = new BaseDataVariableState(parent);
-                        break;
-                    case NodeClass.Object:
-                        child = new BaseObjectState(parent);
-                        break;
-                    case NodeClass.Method:
-                        child = new MethodState(parent);
-                        break;
-                    case NodeClass.ReferenceType:
-                        child = new ReferenceTypeState();
-                        break;
-                    case NodeClass.ObjectType:
-                        child = new BaseObjectTypeState();
-                        break;
-                    case NodeClass.VariableType:
-                        child = new BaseDataVariableTypeState();
-                        break;
-                    case NodeClass.DataType:
-                        child = new DataTypeState();
-                        break;
-                    case NodeClass.View:
-                        child = new ViewState();
-                        break;
-                    case NodeClass.Unspecified:
-                        child = null;
-                        break;
-                    default:
-                        throw ServiceResultException.Unexpected(
-                            $"Unexpected NodeClass {nodeClass}");
-                }
-            }
-            return child;
-        }
-
-        /// <summary>
-        /// Registers a type with the factory.
-        /// </summary>
-        /// <param name="typeDefinitionId">The type definition.</param>
-        /// <param name="type">The system type.</param>
-        /// <exception cref="ArgumentNullException"></exception>
-        public void RegisterType(NodeId typeDefinitionId, Type type)
-        {
-            if (NodeId.IsNull(typeDefinitionId))
-            {
-                throw new ArgumentNullException(nameof(typeDefinitionId));
-            }
-
-            m_types ??= [];
-
-            m_types[typeDefinitionId] = type ?? throw new ArgumentNullException(nameof(type));
-        }
-
-        /// <summary>
-        /// Unregisters a type with the factory.
-        /// </summary>
-        /// <param name="typeDefinitionId">The type definition.</param>
-        /// <exception cref="ArgumentNullException"></exception>
-        public void UnRegisterType(NodeId typeDefinitionId)
-        {
-            if (NodeId.IsNull(typeDefinitionId))
-            {
-                throw new ArgumentNullException(nameof(typeDefinitionId));
-            }
-
-            m_types?.Remove(typeDefinitionId);
-        }
-
-        private NodeIdDictionary<Type> m_types;
     }
 }

@@ -153,11 +153,8 @@ namespace Opc.Ua.PubSub
             {
                 Stop();
 
-                if (m_cancellationToken != null)
-                {
-                    m_cancellationToken.Dispose();
-                    m_cancellationToken = null;
-                }
+                m_cancellationToken?.Dispose();
+                m_cancellationToken = null;
             }
         }
 

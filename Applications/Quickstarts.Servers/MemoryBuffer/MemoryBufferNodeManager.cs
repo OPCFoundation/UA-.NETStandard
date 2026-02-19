@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Reflection;
 using Opc.Ua;
 using Opc.Ua.Sample;
 using Opc.Ua.Server;
@@ -102,9 +101,8 @@ namespace MemoryBuffer
                 ushort namespaceIndex = Server.NamespaceUris
                     .GetIndexOrAppend(Namespaces.MemoryBuffer);
 
-                var root = (BaseInstanceState)FindPredefinedNode(
-                    new NodeId(Objects.MemoryBuffers, namespaceIndex),
-                    typeof(BaseInstanceState));
+                BaseInstanceState root = FindPredefinedNode<BaseInstanceState>(
+                    new NodeId(Objects.MemoryBuffers, namespaceIndex));
 
                 // create the nodes from configuration.
                 namespaceIndex = Server.NamespaceUris
@@ -124,7 +122,7 @@ namespace MemoryBuffer
                             SystemContext,
                             new NodeId(bufferNode.SymbolicName, namespaceIndex),
                             new QualifiedName(bufferNode.SymbolicName, namespaceIndex),
-                            null,
+                            default,
                             true);
 
                         bufferNode.CreateBuffer(instance.DataType, instance.TagCount);
@@ -145,13 +143,7 @@ namespace MemoryBuffer
         /// </summary>
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
-            var predefinedNodes = new NodeStateCollection();
-            predefinedNodes.LoadFromBinaryResource(
-                context,
-                "Quickstarts.Servers.MemoryBuffer.Generated.MemoryBuffer.PredefinedNodes.uanodes",
-                GetType().GetTypeInfo().Assembly,
-                true);
-            return predefinedNodes;
+            return new NodeStateCollection().AddMemoryBuffer(context);
         }
 
         /// <summary>
@@ -185,7 +177,7 @@ namespace MemoryBuffer
                     return null;
                 }
 
-                if (nodeId.Identifier is string id)
+                if (nodeId.TryGetIdentifier(out string id))
                 {
                     // check for a reference to the buffer.
 
@@ -304,7 +296,7 @@ namespace MemoryBuffer
             }
 
             // data encoding not supported.
-            if (!QualifiedName.IsNull(itemToCreate.ItemToMonitor.DataEncoding))
+            if (!itemToCreate.ItemToMonitor.DataEncoding.IsNull)
             {
                 return StatusCodes.BadDataEncodingUnsupported;
             }
@@ -536,7 +528,7 @@ namespace MemoryBuffer
                     context,
                     datachangeItem.AttributeId,
                     NumericRange.Empty,
-                    null,
+                    default,
                     initialValue);
 
                 datachangeItem.QueueValue(initialValue, error);
