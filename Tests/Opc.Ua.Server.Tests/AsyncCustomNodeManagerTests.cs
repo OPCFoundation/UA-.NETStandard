@@ -39,7 +39,8 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Server.Tests
 {
-    [TestFixture]
+    [TestFixture(AsyncCustomNodeManagerType.MonitoredNodeMonitoredItemManager)]
+    [TestFixture(AsyncCustomNodeManagerType.SamplingGroupMonitoredItemManager)]
     [Category("AsyncCustomNodeManager")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
@@ -51,9 +52,22 @@ namespace Opc.Ua.Server.Tests
         private ApplicationConfiguration m_configuration;
         private Mock<ILogger> m_mockLogger;
         private Mock<IMasterNodeManager> m_mockMasterNodeManager;
+        private Mock<ISession> m_mockSession;
         private ServerSystemContext m_serverSystemContext;
         private NamespaceTable m_namespaceTable;
         private readonly string m_testNamespaceUri = "http://test.org/UA/Data/";
+        private readonly bool m_useSamplingGroups;
+
+        public enum AsyncCustomNodeManagerType
+        {
+            MonitoredNodeMonitoredItemManager,
+            SamplingGroupMonitoredItemManager
+        }
+
+        public AsyncCustomNodeManagerTests(AsyncCustomNodeManagerType managerType)
+        {
+            m_useSamplingGroups = managerType == AsyncCustomNodeManagerType.SamplingGroupMonitoredItemManager;
+        }
 
         [SetUp]
         public void SetUp()
@@ -62,6 +76,10 @@ namespace Opc.Ua.Server.Tests
             m_mockLogger = new Mock<ILogger>();
             m_mockMasterNodeManager = new Mock<IMasterNodeManager>();
             var mockConfigurationNodeManager = new Mock<IConfigurationNodeManager>();
+
+            m_mockSession = new Mock<ISession>();
+            m_mockSession.Setup(s => s.EffectiveIdentity).Returns(new Mock<IUserIdentity>().Object);
+            m_mockSession.Setup(s => s.PreferredLocales).Returns(Array.Empty<string>());
 
             m_namespaceTable = new NamespaceTable();
             m_namespaceTable.Append(m_testNamespaceUri);
@@ -605,7 +623,7 @@ namespace Opc.Ua.Server.Tests
             var monitoredItems = new List<IMonitoredItem> { null };
 
             await manager.CreateMonitoredItemsAsync(
-                new OperationContext(new RequestHeader(), null, RequestType.CreateMonitoredItems),
+                CreateMonitoredItemsContext(),
                 1,
                 1000,
                 TimestampsToReturn.Both,
@@ -651,13 +669,20 @@ namespace Opc.Ua.Server.Tests
                 m_mockLogger.Object);
 
             Assert.That(hadMore, Is.False);
-            Assert.That(notifications.Count, Is.EqualTo(2));
-            MonitoredItemNotification notification = notifications.Dequeue();
-            MonitoredItemNotification notificationAfterWrite = notifications.Dequeue();
-            Assert.That(notification.Value.Value, Is.EqualTo(0));
-            Assert.That(notificationAfterWrite.Value.Value, Is.EqualTo(123));
-            Assert.That(diagnostics.Count, Is.EqualTo(2));
-            Assert.That(monitoredItem.IsReadyToPublish, Is.False);
+            if (!m_useSamplingGroups)
+            {
+                // MonitoredNodeMonitoredItemManager propagates writes immediately via ClearChangeMasks
+                Assert.That(notifications.Count, Is.EqualTo(2));
+                MonitoredItemNotification notification = notifications.Dequeue();
+                MonitoredItemNotification notificationAfterWrite = notifications.Dequeue();
+                Assert.That(notification.Value.Value, Is.EqualTo(0));
+                Assert.That(notificationAfterWrite.Value.Value, Is.EqualTo(123));
+                Assert.That(diagnostics.Count, Is.EqualTo(2));
+                Assert.That(monitoredItem.IsReadyToPublish, Is.False);
+            }
+            // For SamplingGroupMonitoredItemManager the background sampling timer fires
+            // asynchronously, so notification count after a write is timing-dependent.
+            // The write value is verified above via variable.Value == 123.
         }
 
         [Test]
@@ -703,7 +728,7 @@ namespace Opc.Ua.Server.Tests
             var monitoredItems = new List<IMonitoredItem> { null };
 
             await manager.CreateMonitoredItemsAsync(
-                new OperationContext(new RequestHeader(), null, RequestType.CreateMonitoredItems),
+                CreateMonitoredItemsContext(),
                 1,
                 1000,
                 TimestampsToReturn.Both,
@@ -862,7 +887,7 @@ namespace Opc.Ua.Server.Tests
 
             // Act
             await manager.CreateMonitoredItemsAsync(
-                new OperationContext(new RequestHeader(), null, RequestType.CreateMonitoredItems),
+                CreateMonitoredItemsContext(),
                 1,
                 1000,
                 TimestampsToReturn.Both,
@@ -879,8 +904,12 @@ namespace Opc.Ua.Server.Tests
             Assert.That(monitoredItems[0].NodeId, Is.EqualTo(variable.NodeId));
             Assert.That(manager.MonitoredItems.ContainsKey(monitoredItems[0].Id), Is.True);
             Assert.That(manager.MonitoredItems[monitoredItems[0].Id], Is.SameAs(monitoredItems[0]));
-            Assert.That(manager.MonitoredNodes.ContainsKey(variable.NodeId), Is.True);
-            Assert.That(manager.MonitoredNodes[variable.NodeId].DataChangeMonitoredItems.ContainsKey(monitoredItems[0].Id), Is.True);
+            if (!m_useSamplingGroups)
+            {
+                // SamplingGroupMonitoredItemManager does not populate MonitoredNodes for data-change items
+                Assert.That(manager.MonitoredNodes.ContainsKey(variable.NodeId), Is.True);
+                Assert.That(manager.MonitoredNodes[variable.NodeId].DataChangeMonitoredItems.ContainsKey(monitoredItems[0].Id), Is.True);
+            }
             Assert.That(monitoredItems[0].MonitoringMode, Is.EqualTo(MonitoringMode.Reporting));
             Assert.That(monitoredItems[0].SamplingInterval, Is.EqualTo(100).Within(0.1));
         }
@@ -914,7 +943,7 @@ namespace Opc.Ua.Server.Tests
             var filterErrors = new List<MonitoringFilterResult> { null };
             var monitoredItems = new List<IMonitoredItem> { null };
 
-            await manager.CreateMonitoredItemsAsync(new OperationContext(new RequestHeader(), null, RequestType.CreateMonitoredItems),
+            await manager.CreateMonitoredItemsAsync(CreateMonitoredItemsContext(),
                                                     1,
                                                     1000,
                                                     TimestampsToReturn.Both,
@@ -940,7 +969,7 @@ namespace Opc.Ua.Server.Tests
 
             // Act
             await manager.ModifyMonitoredItemsAsync(
-                 new OperationContext(new RequestHeader(), null, RequestType.ModifyMonitoredItems),
+                 new OperationContext(new RequestHeader(), null, RequestType.ModifyMonitoredItems, m_mockSession.Object),
                  TimestampsToReturn.Both,
                  monitoredItems,
                  itemsToModify,
@@ -983,7 +1012,7 @@ namespace Opc.Ua.Server.Tests
             var filterErrors = new List<MonitoringFilterResult> { null };
             var monitoredItems = new List<IMonitoredItem> { null };
 
-            await manager.CreateMonitoredItemsAsync(new OperationContext(new RequestHeader(), null, RequestType.CreateMonitoredItems),
+            await manager.CreateMonitoredItemsAsync(CreateMonitoredItemsContext(),
                 1,
                 1000,
                 TimestampsToReturn.Both,
@@ -1044,7 +1073,7 @@ namespace Opc.Ua.Server.Tests
             var monitoredItems = new List<IMonitoredItem> { null };
 
             await manager.CreateMonitoredItemsAsync(
-                new OperationContext(new RequestHeader(), null, RequestType.CreateMonitoredItems),
+                CreateMonitoredItemsContext(),
                 1,
                 1000,
                 TimestampsToReturn.Both,
@@ -3257,11 +3286,15 @@ namespace Opc.Ua.Server.Tests
             m_mockServer.Setup(s => s.TypeTree).Returns(typeTree);
         }
 
+        private OperationContext CreateMonitoredItemsContext()
+            => new OperationContext(new RequestHeader(), null, RequestType.CreateMonitoredItems, m_mockSession.Object);
+
         private TestableAsyncCustomNodeManager CreateManager()
         {
             var manager = new TestableAsyncCustomNodeManager(
                 m_mockServer.Object,
                 m_configuration,
+                m_useSamplingGroups,
                 m_mockLogger.Object,
                 m_testNamespaceUri);
 
@@ -3298,6 +3331,16 @@ namespace Opc.Ua.Server.Tests
            ILogger logger,
            params string[] namespaceUris)
            : base(server, configuration, logger, namespaceUris)
+        {
+        }
+
+        public TestableAsyncCustomNodeManager(
+           IServerInternal server,
+           ApplicationConfiguration configuration,
+           bool useSamplingGroups,
+           ILogger logger,
+           params string[] namespaceUris)
+           : base(server, configuration, useSamplingGroups, logger, namespaceUris)
         {
         }
 
