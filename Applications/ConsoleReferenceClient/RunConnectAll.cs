@@ -26,7 +26,7 @@ namespace SecurityTestClient
 
         const string ServerUrl = "opc.tcp://localhost:62541";
         const string UserName = "sysadmin";
-        const string Password = "demo12";
+        const string Password = "demo";
         const bool supportsX509 = true;
 
         //const string ServerUrl = "opc.tcp://10.103.19.71:52520/OPCUA/SampleConsoleServer";
@@ -49,7 +49,7 @@ namespace SecurityTestClient
         //const string Password = "pwd";
         //const bool supportsX509 = true;
 
-        static string TargetPolicy = SecurityPolicies.ECC_nistP256_AesGcm;
+        //static string TargetPolicy = SecurityPolicies.ECC_nistP256_AesGcm;
 
         const int kMaxSearchDepth = 128;
         const int ReconnectPeriod = 1000;
@@ -95,6 +95,7 @@ namespace SecurityTestClient
             try
             {
                 m_logger.LogInformation("OPC UA Security Test Client");
+                CryptoTrace.Enabled = false;
 
                 // The application name and config file names
                 const string applicationName = "ConsoleReferenceClient";
@@ -135,7 +136,7 @@ namespace SecurityTestClient
                     ServerUrl,
                     ct).ConfigureAwait(false);
 
-                endpoints = endpoints.Where(x => x.SecurityPolicyUri == TargetPolicy).ToList();
+                //endpoints = endpoints.Where(x => x.SecurityPolicyUri == TargetPolicy).ToList();
 
                 var endpointConfiguration = EndpointConfiguration.Create(m_configuration);
                 var sessionFactory = new DefaultSessionFactory(m_context);
@@ -183,7 +184,7 @@ namespace SecurityTestClient
                             m_logger.LogWarning("Waiting for SecureChannel renew");
                             await session.UpdateSessionAsync(identity, null, ct).ConfigureAwait(false);
 
-                            for (int count = 0; count < 20; count++)
+                            for (int count = 0; count < 1; count++)
                             {
                                 var result = await session.ReadAsync(
                                     null,
@@ -214,7 +215,18 @@ namespace SecurityTestClient
                         {
                             Console.WriteLine("Exception: {0}", e.Message);
                             Console.WriteLine("StackTrace: {0}", e.StackTrace);
-                            quitEvent.WaitOne(20000);
+
+                            m_logger.LogWarning(
+                                "SECURITY-POLICY={SecurityPolicyUri} {SecurityMode}",
+                                SecurityPolicies.GetDisplayName(ii.SecurityPolicyUri),
+                                ii.SecurityMode);
+
+                            m_logger.LogWarning(
+                                "IDENTITY={DisplayName} {TokenType}",
+                                identity.DisplayName,
+                                identity.TokenType);
+
+                            m_logger.LogWarning("{Line}", new string('=', 80));
                         }
 
                         m_logger.LogWarning(
@@ -452,7 +464,7 @@ namespace SecurityTestClient
 
         private async Task<ReferenceDescriptionCollection> BrowseFullAddressSpaceAsync(
             ISession session,
-            NodeId startingNode = null,
+            NodeId? startingNode = null,
             BrowseDescription browseDescription = null,
             CancellationToken ct = default)
         {
@@ -526,7 +538,7 @@ namespace SecurityTestClient
                                 {
                                     Parameters = new KeyValuePairCollection([
                                         new Opc.Ua.KeyValuePair() {
-                                        Key = AdditionalParameterNames.Padding,
+                                        Key = new QualifiedName(AdditionalParameterNames.Padding),
                                         Value = new Variant(padding)
                                     }
                                     ])
@@ -574,8 +586,8 @@ namespace SecurityTestClient
                     }
                     catch (ServiceResultException sre)
                     {
-                        if (sre.StatusCode is StatusCodes.BadEncodingLimitsExceeded or StatusCodes
-                            .BadResponseTooLarge)
+                        if (sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded ||
+                            sre.StatusCode == StatusCodes.BadResponseTooLarge)
                         {
                             // try to address by overriding operation limit
                             maxNodesPerBrowse =

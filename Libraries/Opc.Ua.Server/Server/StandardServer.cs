@@ -624,7 +624,7 @@ namespace Opc.Ua.Server
                             response.Parameters.Add(
                                 new KeyValuePair
                                 {
-                                    Key = AdditionalParameterNames.ECDHKey,
+                                    Key = new QualifiedName(AdditionalParameterNames.ECDHKey),
                                     Value = new ExtensionObject(key)
                                 });
 
@@ -635,7 +635,7 @@ namespace Opc.Ua.Server
                             response.Parameters.Add(
                                 new KeyValuePair
                                 {
-                                    Key = AdditionalParameterNames.ECDHKey,
+                                    Key = new QualifiedName(AdditionalParameterNames.ECDHKey),
                                     Value = StatusCodes.BadSecurityPolicyRejected
                                 });
 
@@ -666,7 +666,10 @@ namespace Opc.Ua.Server
             {
                 response = new AdditionalParametersType();
                 response.Parameters
-                    .Add(new KeyValuePair { Key = AdditionalParameterNames.ECDHKey, Value = new ExtensionObject(key) });
+                    .Add(new KeyValuePair {
+                        Key = new QualifiedName(AdditionalParameterNames.ECDHKey),
+                        Value = new ExtensionObject(key)
+                    });
 
                 m_logger.LogWarning("Returning new EphmeralKey: {PublicKey} bytes.", key.PublicKey?.Length ?? 0);
             }

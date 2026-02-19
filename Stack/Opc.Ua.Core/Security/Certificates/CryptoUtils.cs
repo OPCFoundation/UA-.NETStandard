@@ -425,6 +425,16 @@ namespace Opc.Ua
             X509Certificate2 signingCertificate,
             AsymmetricSignatureAlgorithm algorithm)
         {
+            if (signingCertificate == null)
+            {
+                if (signature != null && signature.Length > 0)
+                {
+                    throw new ArgumentNullException(nameof(signingCertificate), "Cannot verify signature without a signing certificate.");
+                }
+
+                return true;
+            }
+
             switch (algorithm)
             {
                 case AsymmetricSignatureAlgorithm.None:

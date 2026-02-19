@@ -220,7 +220,8 @@ namespace Opc.Ua.Server
                 }
 
                 // create server nonce.
-                var serverNonceObject = Nonce.CreateNonce(0);
+                var serverNonceObject = Nonce.CreateNonce(
+                    context.ChannelContext.EndpointDescription.SecurityPolicyUri);
 
                 // assign client name.
                 if (string.IsNullOrEmpty(sessionName))

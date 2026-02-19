@@ -69,7 +69,9 @@ namespace Opc.Ua.Server.Tests
             var secureChannelContext = new SecureChannelContext(
                 sessionName,
                 endpoint,
-                RequestEncoding.Binary);
+                RequestEncoding.Binary,
+                null,
+                null);
             var requestHeader = new RequestHeader();
 
             CreateSessionResponse createResponse = await m_server.CreateSessionAsync(
@@ -133,7 +135,9 @@ namespace Opc.Ua.Server.Tests
             var secureChannelContext = new SecureChannelContext(
                 sessionName,
                 endpoint,
-                RequestEncoding.Binary);
+                RequestEncoding.Binary,
+                null,
+                null);
             var requestHeader = new RequestHeader();
 
             CreateSessionResponse createResponse = await m_server.CreateSessionAsync(
@@ -231,7 +235,9 @@ namespace Opc.Ua.Server.Tests
             var secureChannelContext = new SecureChannelContext(
                 sessionName,
                 endpoint,
-                RequestEncoding.Binary);
+                RequestEncoding.Binary,
+                null,
+                null);
             var requestHeader = new RequestHeader();
 
             CreateSessionResponse createResponse = await m_server.CreateSessionAsync(

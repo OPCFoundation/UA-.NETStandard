@@ -1253,7 +1253,7 @@ namespace Opc.Ua.Client
                     clientCertificateData,
                     clientCertificateChainData,
                     m_clientNonce,
-                    serverNonce);
+                    serverNonce ?? []);
 
                 //  process additional header
                 ProcessResponseAdditionalHeader(response.ResponseHeader, serverCertificate);
@@ -1293,7 +1293,7 @@ namespace Opc.Ua.Client
 
                 SignatureData? userTokenSignature = null;
 
-                if (identityToken is X509IdentityToken)
+                if (identityToken.TokenType == UserTokenType.Certificate)
                 {
                     // sign data with user token.
                     dataToSign = securityPolicy.GetUserTokenSignatureData(
@@ -2367,7 +2367,7 @@ namespace Opc.Ua.Client
                 //
                 await LoadInstanceCertificateAsync(true, ct).ConfigureAwait(false);
 
-                string securityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
+                var securityPolicyUri = m_endpoint?.Description?.SecurityPolicyUri;
                 SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
 
                 // create the client signature.
@@ -2379,10 +2379,10 @@ namespace Opc.Ua.Client
                     TransportChannel.ClientChannelCertificate,
                     m_clientNonce ?? []);
 
-                EndpointDescription endpoint = m_endpoint.Description;
+                var endpoint = m_endpoint?.Description;
 
                 SignatureData clientSignature = SecurityPolicies.CreateSignatureData(
-                    endpoint.SecurityPolicyUri,
+                    endpoint?.SecurityPolicyUri,
                     m_instanceCertificate,
                     dataToSign);
 
@@ -2390,7 +2390,7 @@ namespace Opc.Ua.Client
                 UserTokenPolicy identityPolicy = endpoint.FindUserTokenPolicy(
                     m_identity.TokenType,
                     m_identity.IssuedTokenType,
-                    endpoint.SecurityPolicyUri);
+                    endpoint?.SecurityPolicyUri);
 
                 if (identityPolicy == null)
                 {
@@ -2406,7 +2406,7 @@ namespace Opc.Ua.Client
                 string? tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
                 if (string.IsNullOrEmpty(tokenSecurityPolicyUri))
                 {
-                    tokenSecurityPolicyUri = endpoint.SecurityPolicyUri;
+                    tokenSecurityPolicyUri = endpoint?.SecurityPolicyUri;
                 }
                 m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
 
@@ -2416,7 +2416,7 @@ namespace Opc.Ua.Client
                     m_serverNonce,
                     tokenSecurityPolicyUri,
                     m_previousServerNonce,
-                    m_endpoint.Description.SecurityMode);
+                    m_endpoint?.Description.SecurityMode ?? MessageSecurityMode.None);
 
                 // sign data with user token.
                 using var identityToken = (IUserIdentityTokenHandler)m_identity.TokenHandler.Clone();
@@ -2444,7 +2444,7 @@ namespace Opc.Ua.Client
                     m_eccServerEphemeralKey,
                     m_instanceCertificate,
                     m_instanceCertificateChain,
-                    m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
+                    m_endpoint?.Description.SecurityMode != MessageSecurityMode.None);
 
                 // send the software certificates assigned to the client.
                 SignedSoftwareCertificateCollection clientSoftwareCertificates = new();
@@ -2467,8 +2467,8 @@ namespace Opc.Ua.Client
                         transportChannel = await UaChannelBase.CreateUaBinaryChannelAsync(
                             m_configuration,
                             connection,
-                            m_endpoint.Description,
-                            m_endpoint.Configuration,
+                            m_endpoint?.Description,
+                            m_endpoint?.Configuration,
                             m_instanceCertificate,
                             m_configuration.SecurityConfiguration.SendCertificateChain
                                 ? m_instanceCertificateChain
@@ -2499,8 +2499,8 @@ namespace Opc.Ua.Client
                         // initialize the channel which will be created with the server.
                         transportChannel = await UaChannelBase.CreateUaBinaryChannelAsync(
                             m_configuration,
-                            m_endpoint.Description,
-                            m_endpoint.Configuration,
+                            m_endpoint?.Description,
+                            m_endpoint?.Configuration,
                             m_instanceCertificate,
                             m_configuration.SecurityConfiguration.SendCertificateChain
                                 ? m_instanceCertificateChain
@@ -4873,7 +4873,10 @@ namespace Opc.Ua.Client
             {
                 var parameters = new AdditionalParametersType();
                 parameters.Parameters.Add(
-                    new KeyValuePair { Key = AdditionalParameterNames.ECDHPolicyUri, Value = userTokenSecurityPolicyUri });
+                    new KeyValuePair {
+                        Key = new QualifiedName(AdditionalParameterNames.ECDHPolicyUri),
+                        Value = userTokenSecurityPolicyUri
+                    });
                 requestHeader.AdditionalHeader = new ExtensionObject(parameters);
 
                 m_logger.LogWarning("Request EphemeralKey for {Policy}.", userTokenSecurityPolicyUri);
@@ -4884,7 +4887,7 @@ namespace Opc.Ua.Client
 
         private RequestHeader? CreateRequestHeaderForActivateSession(
             SecurityPolicyInfo securityPolicy,
-            string userTokenSecurityPolicyUri)
+            string? userTokenSecurityPolicyUri)
         {
             var requestHeader = new RequestHeader();
             var parameters = new AdditionalParametersType();
@@ -4898,7 +4901,7 @@ namespace Opc.Ua.Client
                     parameters.Parameters.Add(
                         new KeyValuePair
                         {
-                            Key = AdditionalParameterNames.ECDHPolicyUri,
+                            Key = new QualifiedName(AdditionalParameterNames.ECDHPolicyUri),
                             Value = userTokenSecurityPolicyUri
                         });
 

@@ -1072,7 +1072,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.UserIdentityToken,
-                    Utils.Clone(session?.IdentityToken.Token),
+                    Utils.Clone(session?.IdentityToken?.Token),
                     false);
 
                 server.ReportAuditEvent(systemContext, e);
