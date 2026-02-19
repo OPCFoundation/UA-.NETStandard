@@ -3249,6 +3249,226 @@ namespace Opc.Ua.Server.Tests
             Assert.That(m_mockServer.Object.TypeTree.IsKnown(objectNode.NodeId), Is.False);
         }
 
+        [Test]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5394:Do not use insecure randomness", Justification = "Not used for security purposes")]
+        public async Task ChaosTest_ConcurrentReadWriteBrowseAndMonitoredItemOperationsDoNotThrowAsync()
+        {
+            using TestableAsyncCustomNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            const int nodeCount = 20;
+            const int workerCount = 10;
+            const int operationsPerWorker = 100;
+
+            // Build the address space: a folder containing nodeCount read/write variable nodes
+            var folder = new FolderState(null);
+            folder.CreateAsPredefinedNode(context);
+            folder.NodeId = new NodeId("ChaosFolder", nsIdx);
+            folder.BrowseName = new QualifiedName("ChaosFolder", nsIdx);
+            folder.DisplayName = new LocalizedText("ChaosFolder");
+            await manager.AddNodeAsync(context, default, folder).ConfigureAwait(false);
+
+            var variables = new BaseDataVariableState[nodeCount];
+            for (int i = 0; i < nodeCount; i++)
+            {
+                var variable = new BaseDataVariableState(null);
+                variable.CreateAsPredefinedNode(context);
+                variable.NodeId = new NodeId($"ChaosVar_{i}", nsIdx);
+                variable.BrowseName = new QualifiedName($"ChaosVar_{i}", nsIdx);
+                variable.Value = i * 10;
+                variable.DataType = DataTypeIds.Int32;
+                variable.ValueRank = ValueRanks.Scalar;
+                variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                await manager.AddNodeAsync(context, folder.NodeId, variable).ConfigureAwait(false);
+                variables[i] = variable;
+            }
+
+            // Single shared factory: MonitoredItemIdFactory uses Interlocked.Increment internally
+            var idFactory = new MonitoredItemIdFactory();
+            var activeItems = new ConcurrentDictionary<uint, IMonitoredItem>();
+            var unexpectedExceptions = new ConcurrentBag<Exception>();
+
+            async Task WorkerAsync(int workerId)
+            {
+                var rng = new Random(workerId * 31337);
+                for (int op = 0; op < operationsPerWorker; op++)
+                {
+                    int nodeIndex = rng.Next(nodeCount);
+                    BaseDataVariableState node = variables[nodeIndex];
+                    try
+                    {
+                        switch (rng.Next(7))
+                        {
+                            case 0: // Read value attribute
+                            {
+                                var nodesToRead = new List<ReadValueId>
+                                {
+                                    new() { NodeId = node.NodeId, AttributeId = Attributes.Value }
+                                };
+                                var values = new List<DataValue> { null };
+                                var errors = new List<ServiceResult> { null };
+                                await manager.ReadAsync(
+                                    new OperationContext(new RequestHeader(), null, RequestType.Read),
+                                    0, nodesToRead, values, errors).ConfigureAwait(false);
+                                break;
+                            }
+                            case 1: // Write value attribute
+                            {
+                                var nodesToWrite = new List<WriteValue>
+                                {
+                                    new() {
+                                        NodeId = node.NodeId,
+                                        AttributeId = Attributes.Value,
+                                        Value = new DataValue(new Variant(rng.Next(1000)))
+                                    }
+                                };
+                                var errors = new List<ServiceResult> { null };
+                                await manager.WriteAsync(
+                                    new OperationContext(new RequestHeader(), null, RequestType.Write),
+                                    nodesToWrite, errors).ConfigureAwait(false);
+                                break;
+                            }
+                            case 2: // Browse folder for children
+                                object browseHandle = await manager.GetManagerHandleAsync(folder.NodeId).ConfigureAwait(false);
+                                if (browseHandle != null)
+                                {
+                                    var cp = new ContinuationPoint
+                                    {
+                                        NodeToBrowse = browseHandle,
+                                        Manager = manager,
+                                        View = new ViewDescription(),
+                                        BrowseDirection = BrowseDirection.Forward,
+                                        IncludeSubtypes = true,
+                                        ResultMask = BrowseResultMask.All
+                                    };
+                                    var browseRefs = new List<ReferenceDescription>();
+                                    await manager.BrowseAsync(
+                                        new OperationContext(new RequestHeader(), null, RequestType.Browse),
+                                        cp, browseRefs).ConfigureAwait(false);
+                                }
+                                break;
+                            case 3: // Create a monitored item on the selected node
+                                var itemToCreate = new MonitoredItemCreateRequest
+                                {
+                                    ItemToMonitor = new ReadValueId { NodeId = node.NodeId, AttributeId = Attributes.Value },
+                                    MonitoringMode = MonitoringMode.Reporting,
+                                    RequestedParameters = new MonitoringParameters
+                                    {
+                                        ClientHandle = (uint)workerId,
+                                        SamplingInterval = 100,
+                                        QueueSize = 5
+                                    }
+                                };
+                                var itemsToCreate = new List<MonitoredItemCreateRequest> { itemToCreate };
+                                var createErrors = new List<ServiceResult> { null };
+                                var filterErrors = new List<MonitoringFilterResult> { null };
+                                var createdItems = new List<IMonitoredItem> { null };
+                                await manager.CreateMonitoredItemsAsync(
+                                    CreateMonitoredItemsContext(),
+                                    1, 1000, TimestampsToReturn.Both,
+                                    itemsToCreate, createErrors, filterErrors, createdItems,
+                                    false, idFactory).ConfigureAwait(false);
+                                if (ServiceResult.IsGood(createErrors[0]) && createdItems[0] != null)
+                                {
+                                    activeItems[createdItems[0].Id] = createdItems[0];
+                                }
+                                break;
+                            case 4: // Modify a random active monitored item
+                            {
+                                IMonitoredItem[] snapshot = [.. activeItems.Values];
+                                if (snapshot.Length > 0)
+                                {
+                                    IMonitoredItem item = snapshot[rng.Next(snapshot.Length)];
+                                    var modifyRequests = new List<MonitoredItemModifyRequest>
+                                    {
+                                        new() {
+                                            MonitoredItemId = item.Id,
+                                            RequestedParameters = new MonitoringParameters
+                                            {
+                                                ClientHandle = item.ClientHandle,
+                                                SamplingInterval = rng.Next(100, 500),
+                                                QueueSize = 5
+                                            }
+                                        }
+                                    };
+                                    var modifyErrors = new List<ServiceResult> { null };
+                                    var modifyFilterErrors = new List<MonitoringFilterResult> { null };
+                                    await manager.ModifyMonitoredItemsAsync(
+                                        new OperationContext(new RequestHeader(), null, RequestType.ModifyMonitoredItems, m_mockSession.Object),
+                                        TimestampsToReturn.Both,
+                                        [item],
+                                        modifyRequests, modifyErrors, modifyFilterErrors).ConfigureAwait(false);
+                                }
+                                break;
+                            }
+                            case 5: // Delete a random active monitored item
+                            {
+                                IMonitoredItem[] snapshot = [.. activeItems.Values];
+                                if (snapshot.Length > 0)
+                                {
+                                    IMonitoredItem item = snapshot[rng.Next(snapshot.Length)];
+                                    if (activeItems.TryRemove(item.Id, out _))
+                                    {
+                                        var toDelete = new List<IMonitoredItem> { item };
+                                        var processed = new List<bool> { false };
+                                        var deleteErrors = new List<ServiceResult> { null };
+                                        await manager.DeleteMonitoredItemsAsync(
+                                            new OperationContext(new RequestHeader(), null, RequestType.DeleteMonitoredItems),
+                                            toDelete, processed, deleteErrors).ConfigureAwait(false);
+                                    }
+                                }
+                                break;
+                            }
+                            case 6: // Toggle monitoring mode on a random active monitored item
+                            {
+                                IMonitoredItem[] snapshot = [.. activeItems.Values];
+                                if (snapshot.Length > 0)
+                                {
+                                    IMonitoredItem item = snapshot[rng.Next(snapshot.Length)];
+                                    MonitoringMode mode = rng.Next(2) == 0
+                                        ? MonitoringMode.Reporting
+                                        : MonitoringMode.Sampling;
+                                    var modeItems = new List<IMonitoredItem> { item };
+                                    var processed = new List<bool> { false };
+                                    var modeErrors = new List<ServiceResult> { null };
+                                    await manager.SetMonitoringModeAsync(
+                                        new OperationContext(new RequestHeader(), null, RequestType.SetMonitoringMode),
+                                        mode, modeItems, processed, modeErrors).ConfigureAwait(false);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        unexpectedExceptions.Add(ex);
+                    }
+                }
+            }
+
+            // Run all workers concurrently on thread pool threads
+            Task[] tasks = [.. Enumerable.Range(0, workerCount).Select(i => Task.Run(() => WorkerAsync(i)))];
+            await Task.WhenAll(tasks).ConfigureAwait(false);
+
+            // Clean up any remaining active monitored items
+            foreach (IMonitoredItem item in activeItems.Values)
+            {
+                var toDelete = new List<IMonitoredItem> { item };
+                var processed = new List<bool> { false };
+                var errors = new List<ServiceResult> { null };
+                await manager.DeleteMonitoredItemsAsync(
+                    new OperationContext(new RequestHeader(), null, RequestType.DeleteMonitoredItems),
+                    toDelete, processed, errors).ConfigureAwait(false);
+            }
+
+            Assert.That(
+                unexpectedExceptions,
+                Is.Empty,
+                "Unexpected exceptions during chaos operations: " +
+                string.Join("; ", unexpectedExceptions.Select(e => $"{e.GetType().Name}: {e.Message}")));
+        }
+
         private AggregateManager CreateAndSetupAggregateManager(double minimumProcessingInterval = 1000.0)
         {
             var mockDiagnosticsNodeManager = new Mock<IDiagnosticsNodeManager>();
