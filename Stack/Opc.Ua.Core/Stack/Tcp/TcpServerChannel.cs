@@ -696,6 +696,12 @@ namespace Opc.Ua.Bindings
                 token = CreateToken();
                 token.TokenId = GetNewTokenId();
                 token.ServerNonce = CreateNonce(ServerCertificate);
+
+                CryptoTrace.Start(ConsoleColor.Red, $"PreviousSecret");
+                CryptoTrace.WriteLine($"PreviousSecret={CryptoTrace.KeyToString(token.PreviousSecret)}");
+                CryptoTrace.WriteLine($"CurrentSecret={CryptoTrace.KeyToString(CurrentToken?.Secret)}");
+                CryptoTrace.Finish($"PreviousSecret");
+
                 token.PreviousSecret = CurrentToken?.Secret;
 
                 // check the client nonce.
