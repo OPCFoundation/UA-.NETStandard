@@ -3451,32 +3451,131 @@ namespace Opc.Ua
             ISystemContext context,
             params uint[] attributeIds)
         {
-            var values = new List<object>();
-
-            if (attributeIds != null)
+            if (attributeIds == null)
             {
-                for (int ii = 0; ii < attributeIds.Length; ii++)
-                {
-                    var value = new DataValue();
+                return [];
+            }
 
-                    ServiceResult result = ReadAttribute(
-                        context,
-                        attributeIds[ii],
-                        NumericRange.Empty,
-                        default,
-                        value);
+            var values = new List<object>(attributeIds.Length);
+            var scratch = new DataValue();
 
-                    if (ServiceResult.IsBad(result))
-                    {
-                        values.Add(null);
-                        continue;
-                    }
+            for (int ii = 0; ii < attributeIds.Length; ii++)
+            {
+                // Reset the reusable DataValue so ReadNonValueAttribute sees Variant.Null
+                // as the initial valueToRead (required for !value.IsNull guard logic).
+                scratch.WrappedValue = Variant.Null;
 
-                    values.Add(value.Value);
-                }
+                ServiceResult result = ReadAttribute(
+                    context,
+                    attributeIds[ii],
+                    NumericRange.Empty,
+                    default,
+                    scratch);
+
+                values.Add(ServiceResult.IsBad(result) ? null : scratch.Value);
             }
 
             return values;
+        }
+
+        /// <summary>
+        /// Reads the values for a set of attributes.
+        /// </summary>
+        /// <param name="context">The context for the current operation.</param>
+        /// <param name="values">The array to store the values.</param>
+        /// <param name="attributeIds">The attributes to read.</param>
+        /// <exception cref="ArgumentException"></exception>
+        public virtual void ReadAttributes(
+            ISystemContext context,
+            ref Variant[] values,
+            params uint[] attributeIds)
+        {
+            if (attributeIds == null)
+            {
+                return;
+            }
+
+            if (values.Length != attributeIds.Length)
+            {
+                throw new ArgumentException("Values array must be the same length as the attributeIds array.");
+            }
+
+            DateTime sourceTimeStamp = DateTime.MinValue;
+
+            for (int ii = 0; ii < attributeIds.Length; ii++)
+            {
+                ReadAttribute(
+                    context,
+                    attributeIds[ii],
+                    ref values[ii],
+                    ref sourceTimeStamp);
+            }
+        }
+
+        /// <summary>
+        /// Reads the value of an attribute.
+        /// </summary>
+        /// <param name="context">The context for the current operation.</param>
+        /// <param name="attributeId">The attribute id.</param>
+        /// <param name="value">The value.</param>
+        /// <param name="sourceTimestamp">The source timestamp.</param>
+        /// <param name="indexRange">The index range.</param>
+        /// <param name="dataEncoding">The data encoding.</param>
+        /// <returns>
+        /// </returns>
+        public virtual ServiceResult ReadAttribute(
+            ISystemContext context,
+            uint attributeId,
+            ref Variant value,
+            ref DateTime sourceTimestamp,
+            NumericRange indexRange = default,
+            QualifiedName dataEncoding = default)
+        {
+            ServiceResult serviceResult;
+
+            // read value attribute.
+            if (attributeId == Attributes.Value)
+            {
+                try
+                {
+                    serviceResult = ReadValueAttribute(
+                        context,
+                        indexRange,
+                        dataEncoding,
+                        ref value,
+                        ref sourceTimestamp);
+                }
+                catch (Exception e)
+                {
+                    serviceResult = ServiceResult.Create(
+                        e,
+                        StatusCodes.BadUnexpectedError,
+                        "Failed to read value attribute from node.");
+                }
+            }
+            // read any non-value attribute.
+            else
+            {
+                try
+                {
+                    serviceResult = ReadNonValueAttribute(context, attributeId, ref value);
+                }
+                catch (Exception e)
+                {
+                    serviceResult = ServiceResult.Create(
+                        e,
+                        StatusCodes.BadUnexpectedError,
+                        "Failed to read non value attribute from node.");
+                }
+            }
+
+            // update value.
+            if (ServiceResult.IsBad(serviceResult))
+            {
+                value = Variant.Null;
+            }
+
+            return serviceResult;
         }
 
         /// <summary>
@@ -3595,192 +3694,169 @@ namespace Opc.Ua
             {
                 case Attributes.NodeId:
                     NodeId nodeId = m_nodeId;
-
                     NodeAttributeEventHandler<NodeId> onReadNodeId = OnReadNodeId;
-
                     if (onReadNodeId != null)
                     {
                         result = onReadNodeId(context, this, ref nodeId);
+                        if (!ServiceResult.IsGood(result))
+                        {
+                            return result;
+                        }
                     }
-
-                    if (ServiceResult.IsGood(result))
-                    {
-                        value = nodeId;
-                    }
-
+                    value = nodeId;
                     return result;
                 case Attributes.NodeClass:
                     NodeClass nodeClass = NodeClass;
-
                     NodeAttributeEventHandler<NodeClass> onReadNodeClass = OnReadNodeClass;
-
                     if (onReadNodeClass != null)
                     {
                         result = onReadNodeClass(context, this, ref nodeClass);
+                        if (!ServiceResult.IsGood(result))
+                        {
+                            return result;
+                        }
                     }
-
-                    if (ServiceResult.IsGood(result))
-                    {
-                        value = Variant.From(nodeClass);
-                    }
-
+                    value = Variant.From(nodeClass);
                     return result;
                 case Attributes.BrowseName:
                     QualifiedName browseName = m_browseName;
-
                     NodeAttributeEventHandler<QualifiedName> onReadBrowseName = OnReadBrowseName;
-
                     if (onReadBrowseName != null)
                     {
                         result = onReadBrowseName(context, this, ref browseName);
+                        if (!ServiceResult.IsGood(result))
+                        {
+                            return result;
+                        }
                     }
-
-                    if (ServiceResult.IsGood(result))
-                    {
-                        value = browseName;
-                    }
-
+                    value = browseName;
                     return result;
                 case Attributes.DisplayName:
                     LocalizedText displayName = m_displayName;
-
                     NodeAttributeEventHandler<LocalizedText> onReadDisplayName = OnReadDisplayName;
-
                     if (onReadDisplayName != null)
                     {
                         result = onReadDisplayName(context, this, ref displayName);
+                        if (!ServiceResult.IsGood(result))
+                        {
+                            return result;
+                        }
                     }
-
-                    if (ServiceResult.IsGood(result))
-                    {
-                        value = displayName;
-                    }
-
+                    value = displayName;
                     if (!value.IsNull || result != null)
                     {
                         return result;
                     }
-
                     break;
                 case Attributes.Description:
                     LocalizedText description = m_description;
-
                     NodeAttributeEventHandler<LocalizedText> onReadDescription = OnReadDescription;
-
                     if (onReadDescription != null)
                     {
                         result = onReadDescription(context, this, ref description);
+                        if (!ServiceResult.IsGood(result))
+                        {
+                            return result;
+                        }
                     }
-
-                    if (ServiceResult.IsGood(result))
-                    {
-                        value = description;
-                    }
-
+                    value = description;
                     if (!value.IsNull || result != null)
                     {
                         return result;
                     }
-
                     break;
                 case Attributes.WriteMask:
                     AttributeWriteMask writeMask = m_writeMask;
-
                     NodeAttributeEventHandler<AttributeWriteMask> onReadWriteMask = OnReadWriteMask;
-
                     if (onReadWriteMask != null)
                     {
                         result = onReadWriteMask(context, this, ref writeMask);
+                        if (!ServiceResult.IsGood(result))
+                        {
+                            return result;
+                        }
                     }
-
-                    if (ServiceResult.IsGood(result))
-                    {
-                        value = (uint)writeMask;
-                    }
-
+                    value = (uint)writeMask;
                     return result;
                 case Attributes.UserWriteMask:
                     AttributeWriteMask userWriteMask = m_userWriteMask;
-
                     NodeAttributeEventHandler<AttributeWriteMask> onReadUserWriteMask
                         = OnReadUserWriteMask;
-
                     if (onReadUserWriteMask != null)
                     {
                         result = onReadUserWriteMask(context, this, ref userWriteMask);
+                        if (!ServiceResult.IsGood(result))
+                        {
+                            return result;
+                        }
                     }
-
-                    if (ServiceResult.IsGood(result))
-                    {
-                        value = (uint)userWriteMask;
-                    }
-
+                    value = (uint)userWriteMask;
                     return result;
                 case Attributes.RolePermissions:
                     RolePermissionTypeCollection rolePermissions = m_rolePermissions;
-
                     NodeAttributeEventHandler<RolePermissionTypeCollection> onReadRolePermissions =
                         OnReadRolePermissions;
-
                     if (onReadRolePermissions != null)
                     {
                         result = onReadRolePermissions(context, this, ref rolePermissions);
+                        if (!ServiceResult.IsGood(result))
+                        {
+                            return result;
+                        }
                     }
-
-                    if (ServiceResult.IsGood(result))
+                    if (rolePermissions != null)
                     {
                         value = Variant.FromStructure(rolePermissions);
+                        return result;
                     }
-
-                    if (!value.IsNull || result != null)
+                    if (result != null)
                     {
                         return result;
                     }
-
                     break;
                 case Attributes.UserRolePermissions:
                     RolePermissionTypeCollection userRolePermissions = m_userRolePermissions;
-
                     NodeAttributeEventHandler<RolePermissionTypeCollection> onReadUserRolePermissions =
                         OnReadUserRolePermissions;
-
                     if (onReadUserRolePermissions != null)
                     {
                         result = onReadUserRolePermissions(context, this, ref userRolePermissions);
+                        if (!ServiceResult.IsGood(result))
+                        {
+                            return result;
+                        }
                     }
-
-                    if (ServiceResult.IsGood(result))
+                    if (userRolePermissions != null)
                     {
                         value = Variant.FromStructure(userRolePermissions);
+                        return result;
                     }
-
-                    if (!value.IsNull || result != null)
+                    if (result != null)
                     {
                         return result;
                     }
-
                     break;
                 case Attributes.AccessRestrictions:
                     AccessRestrictionType? accessRestrictions = m_accessRestrictions;
-
                     NodeAttributeEventHandler<AccessRestrictionType?> onReadAccessRestrictions =
                         OnReadAccessRestrictions;
-
                     if (onReadAccessRestrictions != null)
                     {
                         result = onReadAccessRestrictions(context, this, ref accessRestrictions);
+                        if (!ServiceResult.IsGood(result))
+                        {
+                            return result;
+                        }
                     }
-
-                    if (ServiceResult.IsGood(result) && accessRestrictions != null)
+                    if (accessRestrictions.HasValue)
                     {
-                        value = (ushort)accessRestrictions;
+                        value = (ushort)accessRestrictions.GetValueOrDefault();
+                        return result;
                     }
-
-                    if (!value.IsNull || result != null)
+                    if (result != null)
                     {
                         return result;
                     }
-
                     break;
             }
 

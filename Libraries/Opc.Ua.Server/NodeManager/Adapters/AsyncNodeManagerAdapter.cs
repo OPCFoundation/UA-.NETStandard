@@ -306,7 +306,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             object targetHandle,
             BrowseResultMask resultMask,
-            Dictionary<NodeId, List<object>> uniqueNodesServiceAttributesCache,
+            Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributesCache,
             bool permissionsOnly,
             CancellationToken cancellationToken = default)
         {
@@ -326,7 +326,7 @@ namespace Opc.Ua.Server
                     context,
                     targetHandle,
                     resultMask,
-                    uniqueNodesServiceAttributesCache,
+                    null,
                     permissionsOnly);
                 return new ValueTask<NodeMetadata>(nodeMetadata);
             }

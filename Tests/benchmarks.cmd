@@ -22,4 +22,6 @@ cd ..\Opc.Ua.Server.Tests
 dotnet run -v n --configuration Release  --framework %framework% -- --filter %filter% --runtimes %runtimes%
 cd ..\Opc.Ua.Client.Tests
 dotnet run -v n --configuration Release  --framework %framework% -- --filter %filter% --runtimes %runtimes%
+cd ..\Opc.Ua.Types.Tests
+dotnet run -v n --configuration Release  --framework %framework% -- --filter %filter% --runtimes %runtimes%
 cd ..

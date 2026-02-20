@@ -826,7 +826,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             object targetHandle,
             BrowseResultMask resultMask,
-            Dictionary<NodeId, List<object>> uniqueNodesServiceAttributesCache,
+            Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributesCache,
             bool permissionsOnly,
             CancellationToken cancellationToken = default);
 

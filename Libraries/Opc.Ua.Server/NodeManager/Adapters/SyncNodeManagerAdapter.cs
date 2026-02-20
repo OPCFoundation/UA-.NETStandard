@@ -284,7 +284,7 @@ namespace Opc.Ua.Server
             Dictionary<NodeId, List<object>> uniqueNodesServiceAttributesCache,
             bool permissionsOnly)
         {
-            return m_nodeManager.GetPermissionMetadataAsync(context, targetHandle, resultMask, uniqueNodesServiceAttributesCache, permissionsOnly)
+            return m_nodeManager.GetPermissionMetadataAsync(context, targetHandle, resultMask, null, permissionsOnly)
                 .AsTask().GetAwaiter().GetResult();
         }
 

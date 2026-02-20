@@ -240,9 +240,15 @@ namespace Opc.Ua.Server
                     if (monitoredItem.AttributeId == Attributes.Value &&
                         (changes & NodeStateChangeMasks.Value) != 0)
                     {
+                        if (!m_operationContextCache.TryGetValue(monitoredItem.Id, out OperationContext operationContext))
+                        {
+                            operationContext = new OperationContext(monitoredItem);
+                            m_operationContextCache[monitoredItem.Id] = operationContext;
+                        }
+
                         // validate if the monitored item has the required role permissions to read the value
                         ServiceResult validationResult = NodeManager.ValidateRolePermissions(
-                            new OperationContext(monitoredItem),
+                            operationContext,
                             node.NodeId,
                             PermissionType.Read);
 
@@ -315,6 +321,7 @@ namespace Opc.Ua.Server
         {
             uint monitoredItemId = monitoredItem.Id;
             int currentTicks = HiResClock.TickCount;
+            OperationContext operationContext;
 
             // Check if the context already exists in the cache
             if (m_contextCache.TryGetValue(
@@ -327,8 +334,11 @@ namespace Opc.Ua.Server
                         .EffectiveIdentity ||
                     (currentTicks - cachedEntry.CreatedAtTicks) > m_cacheLifetimeTicks)
                 {
+                    operationContext = new OperationContext(monitoredItem);
+                    m_operationContextCache[monitoredItemId] = operationContext;
+
                     ServerSystemContext updatedContext = context.Copy(
-                        new OperationContext(monitoredItem));
+                        operationContext);
                     m_contextCache[monitoredItemId] = (updatedContext, currentTicks);
 
                     return updatedContext;
@@ -338,13 +348,18 @@ namespace Opc.Ua.Server
             }
 
             // Create a new context and add it to the cache
-            ServerSystemContext newContext = context.Copy(new OperationContext(monitoredItem));
+            operationContext = new OperationContext(monitoredItem);
+            ServerSystemContext newContext = context.Copy(operationContext);
             m_contextCache.TryAdd(monitoredItemId, (newContext, currentTicks));
+            m_operationContextCache[monitoredItemId] = operationContext;
 
             return newContext;
         }
 
         private readonly ConcurrentDictionary<uint, (ServerSystemContext Context, int CreatedAtTicks)> m_contextCache =
+            new();
+
+        private readonly ConcurrentDictionary<uint, OperationContext> m_operationContextCache =
             new();
 
         private readonly int m_cacheLifetimeTicks = (int)TimeSpan.FromMinutes(5).TotalMilliseconds;
