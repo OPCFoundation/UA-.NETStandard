@@ -33,6 +33,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
+using System.Xml;
 
 namespace Opc.Ua
 {
@@ -78,6 +79,11 @@ namespace Opc.Ua
         Type Type { get; }
 
         /// <summary>
+        /// Get the xml qualified name for the type.
+        /// </summary>
+        System.Xml.XmlQualifiedName XmlName { get; }
+
+        /// <summary>
         /// Create instance of structure type during
         /// decoding. Will change in future iterations.
         /// </summary>
@@ -96,6 +102,9 @@ namespace Opc.Ua
         public Type Type => typeof(T);
 
         /// <inheritdoc/>
+        public abstract XmlQualifiedName XmlName { get; }
+
+        /// <inheritdoc/>
         public abstract IEncodeable CreateInstance();
     }
 
@@ -105,13 +114,22 @@ namespace Opc.Ua
     public interface IEncodeableTypeLookup
     {
         /// <summary>
-        /// Returns the system type for the specified type id.
+        /// Returns the activator for the specified type id.
         /// </summary>
         /// <param name="typeId">The type id to return the type of</param>
         /// <param name="encodeableType">The encodeable type found</param>
         /// <returns><c>True</c> if found.</returns>
         bool TryGetEncodeableType(
             ExpandedNodeId typeId,
+            [NotNullWhen(true)] out IEncodeableType? encodeableType);
+
+        /// <summary>
+        /// Returns the activator for the specified type.
+        /// </summary>
+        /// <param name="encodeableType">The encodeable type found</param>
+        /// <returns><c>True</c> if found.</returns>
+        /// <typeparam name="T">The type to look up</typeparam>
+        bool TryGetEncodeableType<T>(
             [NotNullWhen(true)] out IEncodeableType? encodeableType);
     }
 

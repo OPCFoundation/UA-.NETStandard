@@ -284,7 +284,7 @@ namespace Opc.Ua.PubSub.Transport
                                     dataSet.DataSetMetaData,
                                     m_logger)
                                 {
-                                    PublisherId = PubSubConnectionConfiguration.PublisherId.Value,
+                                    PublisherId = PubSubConnectionConfiguration.PublisherId,
                                     DataSetWriterId = dataSetWriter.DataSetWriterId
                                 });
                         }
@@ -332,7 +332,7 @@ namespace Opc.Ua.PubSub.Transport
                 (UadpNetworkMessageContentMask)messageSettings.NetworkMessageContentMask);
             uadpNetworkMessage.WriterGroupId = writerGroupConfiguration.WriterGroupId;
             // Network message header
-            uadpNetworkMessage.PublisherId = PubSubConnectionConfiguration.PublisherId.Value;
+            uadpNetworkMessage.PublisherId = PubSubConnectionConfiguration.PublisherId;
             uadpNetworkMessage.SequenceNumber = (ushort)(
                 Utils.IncrementIdentifier(ref s_sequenceNumber) % ushort.MaxValue);
 
@@ -372,7 +372,7 @@ namespace Opc.Ua.PubSub.Transport
                         {
                             var networkMessage = new UadpNetworkMessage(writerGroup, metaData, m_logger)
                             {
-                                PublisherId = PubSubConnectionConfiguration.PublisherId.Value,
+                                PublisherId = PubSubConnectionConfiguration.PublisherId,
                                 DataSetWriterId = dataSetWriterId
                             };
 
@@ -404,7 +404,7 @@ namespace Opc.Ua.PubSub.Transport
                     response.StatusCodes,
                     m_logger)
                 {
-                    PublisherId = PubSubConnectionConfiguration.PublisherId.Value
+                    PublisherId = PubSubConnectionConfiguration.PublisherId
                 };
                 networkMessage.MessageStatusCodes.ToList().AddRange(response.StatusCodes);
                 networkMessages.Add(networkMessage);
@@ -497,7 +497,7 @@ namespace Opc.Ua.PubSub.Transport
         public UaNetworkMessage CreatePublisherEndpointsNetworkMessage(
             EndpointDescription[] endpoints,
             StatusCode publisherProvideEndpointsStatusCode,
-            object publisherId)
+            Variant publisherId)
         {
             if (PubSubConnectionConfiguration != null &&
                 PubSubConnectionConfiguration.TransportProfileUri == Profiles

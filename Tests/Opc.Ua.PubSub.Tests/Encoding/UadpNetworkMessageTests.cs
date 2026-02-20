@@ -128,6 +128,21 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             m_firstDataSetReadersType = GetFirstDataSetReaders();
         }
 
+        private static readonly Variant[] s_validPublisherIds =
+        [
+            Variant.From((byte)10),
+            Variant.From((ushort)10),
+            Variant.From((uint)10),
+            Variant.From((ulong)10),
+            Variant.From((sbyte)10),
+            Variant.From((short)10),
+            Variant.From((int)10),
+            Variant.From((long)10),
+            Variant.From("abc"),
+            Variant.From("Test$!#$%^&*87"),
+            Variant.From("Begrüßung")
+        ];
+
         [Test(Description = "Validate PublisherId with supported data types")]
         public void ValidatePublisherId(
             [Values(
@@ -167,14 +182,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values(
-                (byte)10,
-                (ushort)10,
-                (uint)10,
-                (ulong)10,
-                "abc",
-                "Test$!#$%^&*87",
-                "Begrüßung")] object publisherId)
+            [ValueSource(nameof(s_validPublisherIds))]
+                Variant publisherId)
         {
             // Arrange
             UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
@@ -189,6 +198,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             ILogger logger = m_telemetry.CreateLogger<UadpNetworkMessageTests>();
             CompareEncodeDecode(uaNetworkMessage, logger);
         }
+
+        private static readonly Variant[] s_invalidPublisherIds =
+        [
+            Variant.From((float)10),
+            Variant.From((double)10),
+            Variant.From(ByteString.From(10, 20))
+        ];
 
         [Test(Description = "Invalidate PublisherId with wrong data type")]
         public void InvalidatePublisherId(
@@ -229,7 +245,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((float)10, (double)10)] object publisherId)
+            [ValueSource(nameof(s_invalidPublisherIds))]
+                Variant publisherId)
         {
             // Arrange
             UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);

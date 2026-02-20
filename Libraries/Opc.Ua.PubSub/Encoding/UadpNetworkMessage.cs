@@ -50,7 +50,7 @@ namespace Opc.Ua.PubSub.Encoding
         private const byte kPublishedIdResetMask = 0xFC;
 
         private byte m_uadpVersion;
-        private object m_publisherId;
+        private Variant m_publisherId;
 
         /// <summary>
         /// Create new instance of UadpNetworkMessage
@@ -222,58 +222,59 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Get and Set PublisherId type
         /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public object PublisherId
+        /// <exception cref="ArgumentException"></exception>
+        public Variant PublisherId
         {
             get => m_publisherId;
             set
             {
-                // Just in case value is a positive signed Integer
-                // Try to bring it to an accepted type (will overflow if value doesn't fit)
-                switch (value)
-                {
-                    case short int16Value:
-                        m_publisherId = int16Value > 0 ? (ushort)int16Value : value;
-                        break;
-                    case int int32Value:
-                        m_publisherId = int32Value > 0 ? (uint)int32Value : value;
-                        break;
-                    case long int64Value:
-                        m_publisherId = int64Value > 0 ? (ulong)int64Value : value;
-                        break;
-                    default:
-                        m_publisherId = value;
-                        break;
-                }
-
-                // Remove previous PublisherId data type
-                ExtendedFlags1 &= (ExtendedFlags1EncodingMask)kPublishedIdResetMask;
-
                 // ExtendedFlags1: Bit range 0-2: PublisherId Type
                 PublisherIdTypeEncodingMask publishedIdTypeType
                     = PublisherIdTypeEncodingMask.Reserved;
 
-                if (m_publisherId is byte)
+                if (value.TryGet(out byte _))
                 {
                     publishedIdTypeType = PublisherIdTypeEncodingMask.Byte;
                 }
-                else if (m_publisherId is ushort)
+                else if (value.TryGet(out sbyte i8Value))
+                {
+                    value = Variant.From((byte)i8Value);
+                    publishedIdTypeType = PublisherIdTypeEncodingMask.Byte;
+                }
+                else if (value.TryGet(out ushort _))
                 {
                     publishedIdTypeType = PublisherIdTypeEncodingMask.UInt16;
                 }
-                else if (m_publisherId is uint)
+                else if (value.TryGet(out short i16Value))
+                {
+                    value = Variant.From((ushort)i16Value);
+                    publishedIdTypeType = PublisherIdTypeEncodingMask.UInt16;
+                }
+                else if (value.TryGet(out uint _))
                 {
                     publishedIdTypeType = PublisherIdTypeEncodingMask.UInt32;
                 }
-                else if (m_publisherId is ulong)
+                else if (value.TryGet(out int i32Value))
+                {
+                    value = Variant.From((uint)i32Value);
+                    publishedIdTypeType = PublisherIdTypeEncodingMask.UInt32;
+                }
+                else if (value.TryGet(out ulong _))
                 {
                     publishedIdTypeType = PublisherIdTypeEncodingMask.UInt64;
                 }
-                else if (m_publisherId is string)
+                else if (value.TryGet(out long i64Value))
+                {
+                    value = Variant.From((ulong)i64Value);
+                    publishedIdTypeType = PublisherIdTypeEncodingMask.UInt64;
+                }
+                else if (value.TryGet(out string _))
                 {
                     publishedIdTypeType = PublisherIdTypeEncodingMask.String;
                 }
-
+                m_publisherId = value;
+                // Remove previous PublisherId data type
+                ExtendedFlags1 &= (ExtendedFlags1EncodingMask)kPublishedIdResetMask;
                 ExtendedFlags1 |= (ExtendedFlags1EncodingMask)publishedIdTypeType;
             }
         }
@@ -714,8 +715,7 @@ namespace Opc.Ua.PubSub.Encoding
                 {
                     //check Enabled & publisher id
                     if (dataSetReader.PublisherId.IsNull ||
-                        (PublisherId != null &&
-                            PublisherId.Equals(dataSetReader.PublisherId.AsBoxedObject()))) // TODO: Make PublisherId field a Variant to avoid boxing
+                        (!PublisherId.IsNull && PublisherId.Equals(dataSetReader.PublisherId)))
                     {
                         dataSetReadersFiltered.Add(dataSetReader);
                     }
@@ -908,7 +908,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             if ((UADPFlags & UADPFlagsEncodingMask.PublisherId) != 0)
             {
-                if (PublisherId == null)
+                if (PublisherId.IsNull)
                 {
                     m_logger.LogError(
                         Utils.TraceMasks.Error,
@@ -923,27 +923,27 @@ namespace Opc.Ua.PubSub.Encoding
                         case PublisherIdTypeEncodingMask.Byte:
                             encoder.WriteByte(
                                 "PublisherId",
-                                Convert.ToByte(PublisherId, CultureInfo.InvariantCulture));
+                                PublisherId.GetByte());
                             break;
                         case PublisherIdTypeEncodingMask.UInt16:
                             encoder.WriteUInt16(
                                 "PublisherId",
-                                Convert.ToUInt16(PublisherId, CultureInfo.InvariantCulture));
+                                PublisherId.GetUInt16());
                             break;
                         case PublisherIdTypeEncodingMask.UInt32:
                             encoder.WriteUInt32(
                                 "PublisherId",
-                                Convert.ToUInt32(PublisherId, CultureInfo.InvariantCulture));
+                                PublisherId.GetUInt32());
                             break;
                         case PublisherIdTypeEncodingMask.UInt64:
                             encoder.WriteUInt64(
                                 "PublisherId",
-                                Convert.ToUInt64(PublisherId, CultureInfo.InvariantCulture));
+                                PublisherId.GetUInt64());
                             break;
                         case PublisherIdTypeEncodingMask.String:
                             encoder.WriteString(
                                 "PublisherId",
-                                Convert.ToString(PublisherId, CultureInfo.InvariantCulture));
+                                PublisherId.GetString());
                             break;
                         case PublisherIdTypeEncodingMask.Reserved:
                             break;

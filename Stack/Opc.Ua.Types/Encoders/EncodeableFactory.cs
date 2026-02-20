@@ -33,9 +33,12 @@ using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Serialization;
 using System.Threading;
+using System.Xml;
 
 namespace Opc.Ua
 {
@@ -117,6 +120,14 @@ namespace Opc.Ua
                 return false;
             }
             return m_encodeableTypes.TryGetValue(typeId, out encodeableType);
+        }
+
+        /// <inheritdoc/>
+        public bool TryGetEncodeableType<T>(
+            [NotNullWhen(true)] out IEncodeableType? encodeableType)
+        {
+            encodeableType = m_encodeableTypes.Values.FirstOrDefault(t => t.Type == typeof(T));
+            return encodeableType != null;
         }
 
         /// <inheritdoc/>
@@ -260,15 +271,27 @@ namespace Opc.Ua
             /// <inheritdoc/>
             public bool TryGetEncodeableType(
                 ExpandedNodeId typeId,
-                [NotNullWhen(true)] out IEncodeableType? systemType)
+                [NotNullWhen(true)] out IEncodeableType? encodeableType)
             {
                 if (typeId.IsNull)
                 {
-                    systemType = null;
+                    encodeableType = null;
                     return false;
                 }
-                return m_encodeableTypes.TryGetValue(typeId, out systemType) ||
-                    m_factory.TryGetEncodeableType(typeId, out systemType);
+                return m_encodeableTypes.TryGetValue(typeId, out encodeableType) ||
+                    m_factory.TryGetEncodeableType(typeId, out encodeableType);
+            }
+
+            /// <inheritdoc/>
+            public bool TryGetEncodeableType<T>(
+                [NotNullWhen(true)] out IEncodeableType? encodeableType)
+            {
+                encodeableType = m_encodeableTypes.Values.FirstOrDefault(t => t.Type == typeof(T));
+                if (encodeableType == null)
+                {
+                    return m_factory.TryGetEncodeableType<T>(out encodeableType);
+                }
+                return true;
             }
 
             /// <summary>
@@ -436,13 +459,16 @@ namespace Opc.Ua
         /// </summary>
         internal sealed class ReflectionBasedType : IEncodeableType
         {
-            /// <inheritdoc/>
-            public Type Type { get; }
-
             private ReflectionBasedType(Type type)
             {
                 Type = type;
             }
+
+            /// <inheritdoc/>
+            public Type Type { get; }
+
+            /// <inheritdoc/>
+            public XmlQualifiedName XmlName => field ??= GetXmlName();
 
             /// <summary>
             /// Create type wrapper from system type.
@@ -494,6 +520,25 @@ namespace Opc.Ua
             public override int GetHashCode()
             {
                 return Type.GetHashCode();
+            }
+
+            /// <summary>
+            /// Get lazy as it is only needed for XML encoding and we want to
+            /// avoid the overhead of reflection on registration if not needed
+            /// </summary>
+            /// <returns></returns>
+            private XmlQualifiedName GetXmlName()
+            {
+                foreach (DataContractAttribute contract in
+                    Type.GetTypeInfo().GetCustomAttributes<DataContractAttribute>(true))
+                {
+                    if (string.IsNullOrEmpty(contract.Name))
+                    {
+                        return new XmlQualifiedName(Type.Name, contract.Namespace);
+                    }
+                    return new XmlQualifiedName(contract.Name, contract.Namespace);
+                }
+                return new XmlQualifiedName(Type.FullName);
             }
         }
 

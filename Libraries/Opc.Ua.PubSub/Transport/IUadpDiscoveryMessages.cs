@@ -52,7 +52,7 @@ namespace Opc.Ua.PubSub
         UaNetworkMessage CreatePublisherEndpointsNetworkMessage(
             EndpointDescription[] endpoints,
             StatusCode publisherProvideEndpointsStatusCode,
-            object publisherId);
+            Variant publisherId);
 
         /// <summary>
         /// Create and return the list of DataSetMetaData response messages

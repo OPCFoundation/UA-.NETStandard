@@ -304,7 +304,7 @@ namespace Opc.Ua.Export
                     if (!o.Value.IsNull)
                     {
                         using XmlEncoder encoder = CreateEncoder(context);
-                        encoder.WriteVariantContents(o.Value);
+                        encoder.WriteVariantValue(null, o.Value);
 
                         var document = new XmlDocument();
                         document.LoadInnerXml(encoder.CloseAndReturnText());
@@ -369,7 +369,7 @@ namespace Opc.Ua.Export
                     if (!o.Value.IsNull)
                     {
                         using XmlEncoder encoder = CreateEncoder(context);
-                        encoder.WriteVariantContents(o.Value);
+                        encoder.WriteVariantValue(null, o.Value);
 
                         var document = new XmlDocument();
                         document.LoadInnerXml(encoder.CloseAndReturnText());
@@ -443,7 +443,7 @@ namespace Opc.Ua.Export
             exportedNode.ReleaseStatus = node.ReleaseStatus;
             exportedNode.WriteMask = (uint)node.WriteMask;
             exportedNode.UserWriteMask = (uint)node.UserWriteMask;
-            exportedNode.Extensions = [.. node.Extensions.Select(x => x.AsXmlElement())];
+            exportedNode.Extensions = node.Extensions?.Select(x => x.AsXmlElement()).ToArray();
             exportedNode.RolePermissions = null;
             exportedNode.AccessRestrictions = 0;
             exportedNode.AccessRestrictionsSpecified = false;

@@ -4023,7 +4023,7 @@ namespace Opc.Ua.Schema.Model
                 if (variable.DefaultValue != null)
                 {
                     var decoder = new XmlDecoder(variable.DefaultValue, m_context);
-                    var variant = decoder.ReadVariantContents();
+                    Variant variant = decoder.ReadVariantContents();
                     if (!variant.TypeInfo.IsUnknown)
                     {
                         variable.ValueRank =

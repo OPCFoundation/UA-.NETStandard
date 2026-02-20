@@ -2415,7 +2415,7 @@ namespace Opc.Ua.Schema.Model
                 !variant.IsNull)
             {
                 using var encoder = new XmlEncoder(context);
-                encoder.WriteVariantContents(variant);
+                encoder.WriteVariantValue(null, variant);
                 var xmlDoc = new XmlDocument();
                 xmlDoc.LoadInnerXml(encoder.CloseAndReturnText());
                 return xmlDoc.DocumentElement;

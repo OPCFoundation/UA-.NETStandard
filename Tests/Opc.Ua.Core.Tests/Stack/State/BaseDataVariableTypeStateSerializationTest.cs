@@ -160,9 +160,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
             // Get the WrappedValue and verify it's a Byte array, not ByteString
             Variant wrappedValue = variableState.WrappedValue;
 
-            Assert.AreEqual(BuiltInType.ByteString, wrappedValue.TypeInfo.BuiltInType, "BuiltInType should be ByteString");
-            Assert.AreEqual(ValueRanks.Scalar, wrappedValue.TypeInfo.ValueRank, "ValueRank should be Scalar");
-            Assert.AreEqual(testValue, wrappedValue.GetByteString(), "Value should match the original byte array");
+            Assert.AreEqual(BuiltInType.Byte, wrappedValue.TypeInfo.BuiltInType, "BuiltInType should be ByteString");
+            Assert.AreEqual(ValueRanks.OneDimension, wrappedValue.TypeInfo.ValueRank, "ValueRank should be Scalar");
+            Assert.AreEqual(testValue, wrappedValue.GetByteArray().ToArray(), "Value should match the original byte array");
         }
 
         /// <summary>
@@ -174,7 +174,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Create a BaseDataVariableState for ByteString testing
-            var variableState = new BaseDataVariableState<byte[]>(null);
+            var variableState = new BaseDataVariableState<ByteString>(null);
             var serviceMessageContext = new ServiceMessageContext(telemetry);
             var systemContext = new SystemContext(telemetry)
             {
@@ -193,7 +193,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             variableState.ValueRank = ValueRanks.Scalar;
 
             // Set a byte array value (which represents a ByteString)
-            byte[] testValue = [1, 2, 3, 4, 5];
+            ByteString testValue = ByteString.From([1, 2, 3, 4, 5]);
             variableState.Value = testValue;
 
             // Get the WrappedValue and verify it's a ByteString

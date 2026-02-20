@@ -919,14 +919,15 @@ namespace Opc.Ua
                 else if (dstTypeInfo.BuiltInType == BuiltInType.ByteString)
                 {
                     ByteString srcString = element1 is ByteString bs1 ? bs1 : default;
-                    byte[] dstString = new byte[srcString.Length];
+                    ByteString dstString = element2 is ByteString bs2 ? bs2 : default;
+                    byte[] dstBuffer = dstString.ToArray();
 
                     for (int jj = 0; jj < srcString.Length; jj++)
                     {
-                        dstString[finalRange.Value.m_begin + jj] = srcString[jj];
+                        dstBuffer[finalRange.Value.m_begin + jj] = srcString[jj];
                     }
 
-                    dstArray.SetValue(ByteString.From(dstString), dstIndexes);
+                    dstArray.SetValue(ByteString.From(dstBuffer), dstIndexes);
                 }
             }
 

@@ -1185,7 +1185,7 @@ namespace Opc.Ua.PubSub.Transport
                 // return UADP metadata network message
                 return new Encoding.JsonNetworkMessage(writerGroup, dataSetMetaData, Logger)
                 {
-                    PublisherId = MqttConnection.PubSubConnectionConfiguration.PublisherId.Value.ToString(),
+                    PublisherId = MqttConnection.PubSubConnectionConfiguration.PublisherId.ToString(),
                     DataSetWriterId = dataSetWriterId
                 };
             }
@@ -1302,9 +1302,8 @@ namespace Opc.Ua.PubSub.Transport
                     (UadpNetworkMessageContentMask)uadpMessageSettings?.NetworkMessageContentMask);
 
                 // Network message header
-                uadpNetworkMessage.PublisherId = MqttConnection.PubSubConnectionConfiguration
-                    .PublisherId
-                    .Value;
+                uadpNetworkMessage.PublisherId =
+                    MqttConnection.PubSubConnectionConfiguration.PublisherId;
                 uadpNetworkMessage.WriterGroupId = writerGroupConfiguration.WriterGroupId;
 
                 // Writer group header
@@ -1327,7 +1326,7 @@ namespace Opc.Ua.PubSub.Transport
                 // return UADP metadata network message
                 return new UadpNetworkMessage(writerGroup, dataSetMetaData, Logger)
                 {
-                    PublisherId = MqttConnection.PubSubConnectionConfiguration.PublisherId.Value,
+                    PublisherId = MqttConnection.PubSubConnectionConfiguration.PublisherId,
                     DataSetWriterId = dataSetWriterId
                 };
             }

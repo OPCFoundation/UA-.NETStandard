@@ -235,10 +235,10 @@ namespace Opc.Ua
             encoder.WriteLocalizedText("Description", Description);
             encoder.WriteUInt32("WriteMask", WriteMask);
             encoder.WriteUInt32("UserWriteMask", UserWriteMask);
-            encoder.WriteEncodeableArray("RolePermissions", [.. RolePermissions], typeof(RolePermissionType));
-            encoder.WriteEncodeableArray("UserRolePermissions", [.. UserRolePermissions], typeof(RolePermissionType));
+            encoder.WriteEncodeableArray("RolePermissions", [.. RolePermissions]);
+            encoder.WriteEncodeableArray("UserRolePermissions", [.. UserRolePermissions]);
             encoder.WriteUInt16("AccessRestrictions", AccessRestrictions);
-            encoder.WriteEncodeableArray("References", [.. References], typeof(ReferenceNode));
+            encoder.WriteEncodeableArray("References", [.. References]);
 
             encoder.PopNamespace();
         }

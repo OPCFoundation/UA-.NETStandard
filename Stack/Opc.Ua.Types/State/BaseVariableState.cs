@@ -305,8 +305,7 @@ namespace Opc.Ua
                 state.AccessLevel == AccessLevel &&
                 state.UserAccessLevel == UserAccessLevel &&
                 state.MinimumSamplingInterval == MinimumSamplingInterval &&
-                state.Historizing == Historizing &&
-                state.IsValueType == IsValueType
+                state.Historizing == Historizing
                 ;
         }
 
@@ -325,7 +324,6 @@ namespace Opc.Ua
             hash.Add(UserAccessLevel);
             hash.Add(MinimumSamplingInterval);
             hash.Add(Historizing);
-            hash.Add(IsValueType);
             return hash.ToHashCode();
         }
 
@@ -345,15 +343,9 @@ namespace Opc.Ua
                 state.UserAccessLevel = UserAccessLevel;
                 state.MinimumSamplingInterval = MinimumSamplingInterval;
                 state.Historizing = Historizing;
-                state.IsValueType = IsValueType;
             }
             base.CopyTo(target);
         }
-
-        /// <summary>
-        /// Whether the value can be set to null.
-        /// </summary>
-        public bool IsValueType { get; set; }
 
         /// <summary>
         /// The value of the variable as a Variant.
@@ -1893,7 +1885,6 @@ namespace Opc.Ua
             : base(parent)
         {
             Value = default;
-            IsValueType = !typeof(T).GetTypeInfo().IsValueType;
         }
 
         /// <summary>
@@ -2113,7 +2104,6 @@ namespace Opc.Ua
             : base(parent)
         {
             Value = default;
-            IsValueType = !typeof(T).GetTypeInfo().IsValueType;
         }
 
         /// <summary>

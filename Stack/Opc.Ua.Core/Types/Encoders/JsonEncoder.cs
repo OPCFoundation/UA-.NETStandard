@@ -280,11 +280,8 @@ namespace Opc.Ua
             return new ArraySegment<byte>(buffer, 0, length);
         }
 
-        /// <summary>
-        /// Encodes a message with its header.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="message"/> is <c>null</c>.</exception>
-        public void EncodeMessage(IEncodeable message)
+        /// <inheritdoc/>
+        public void EncodeMessage<T>(T message) where T : IEncodeable
         {
             if (message == null)
             {
@@ -298,7 +295,7 @@ namespace Opc.Ua
             WriteNodeId("TypeId", typeId);
 
             // write the message.
-            WriteEncodeable("Body", message, message.GetType());
+            WriteEncodeable("Body", message);
         }
 
         /// <summary>
@@ -1864,11 +1861,8 @@ namespace Opc.Ua
             PopStructure();
         }
 
-        /// <summary>
-        /// Writes an encodeable object to the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public void WriteEncodeable(string fieldName, IEncodeable value, Type systemType)
+        /// <inheritdoc/>
+        public void WriteEncodeable<T>(string fieldName, T value) where T : IEncodeable
         {
             bool isNull = value == null;
 
@@ -1915,10 +1909,8 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// Writes an enumerated value to the stream.
-        /// </summary>
-        public void WriteEnumerated(string fieldName, Enum value)
+        /// <inheritdoc/>
+        public void WriteEnumerated<T>(string fieldName, T value) where T : Enum
         {
             int numeric = Convert.ToInt32(value, CultureInfo.InvariantCulture);
             string numericString = numeric.ToString(CultureInfo.InvariantCulture);
@@ -2654,14 +2646,8 @@ namespace Opc.Ua
             PopArray();
         }
 
-        /// <summary>
-        /// Writes an encodeable object array to the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public void WriteEncodeableArray(
-            string fieldName,
-            ArrayOf<IEncodeable> values,
-            Type systemType)
+        /// <inheritdoc/>
+        public void WriteEncodeableArray<T>(string fieldName, ArrayOf<T> values) where T : IEncodeable
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2719,9 +2705,9 @@ namespace Opc.Ua
         /// Writes an enumerated value array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteEnumeratedArray(string fieldName, Array values, Type systemType)
+        public void WriteEnumeratedArray<T>(string fieldName, ArrayOf<T> values) where T : Enum
         {
-            if (values == null || values.Length == 0)
+            if (values.IsNull || values.Count == 0)
             {
                 WriteSimpleFieldNull(fieldName);
                 return;
@@ -2730,34 +2716,15 @@ namespace Opc.Ua
             PushArray(fieldName);
 
             // check the length.
-            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Length)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
 
             // encode each element in the array.
-            Type arrayType = values.GetType().GetElementType();
-            if (arrayType.IsEnum)
+            foreach (var value in values)
             {
-                foreach (Enum value in values)
-                {
-                    WriteEnumerated(null, value);
-                }
-            }
-            else
-            {
-                if (arrayType != typeof(int))
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadEncodingError,
-                        Utils.Format(
-                            "Type '{0}' is not allowed in an Enumeration.",
-                            arrayType.FullName));
-                }
-                foreach (int value in values)
-                {
-                    WriteEnumerated(null, value);
-                }
+                WriteEnumerated(null, value);
             }
 
             PopArray();

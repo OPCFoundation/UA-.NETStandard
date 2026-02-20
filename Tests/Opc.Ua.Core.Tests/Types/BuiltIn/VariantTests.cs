@@ -142,15 +142,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 100,
                 false);
             var variant1 = new Variant(randomData);
-            if (builtInType == BuiltInType.Byte)
-            {
-                // Without hint, byte array can not be distinguished from bytestring
-                Assert.AreEqual(BuiltInType.ByteString, variant1.TypeInfo.BuiltInType);
-            }
-            else
-            {
-                Assert.AreEqual(builtInType, variant1.TypeInfo.BuiltInType);
-            }
+            Assert.AreEqual(builtInType, variant1.TypeInfo.BuiltInType);
             var variant2 = new Variant(randomData, TypeInfo.Create(builtInType, ValueRanks.OneDimension));
             Assert.AreEqual(builtInType, variant2.TypeInfo.BuiltInType);
         }

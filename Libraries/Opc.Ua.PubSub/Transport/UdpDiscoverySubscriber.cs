@@ -131,7 +131,7 @@ namespace Opc.Ua.PubSub.Transport
                 m_logger)
             {
                 DataSetWriterIds = dataSetWriterIds,
-                PublisherId = m_udpConnection.PubSubConnectionConfiguration.PublisherId.Value
+                PublisherId = m_udpConnection.PubSubConnectionConfiguration.PublisherId
             };
 
             byte[] bytes = discoveryRequestDataSetWriterConfiguration.Encode(MessageContext);
@@ -183,7 +183,7 @@ namespace Opc.Ua.PubSub.Transport
                 UADPNetworkMessageDiscoveryType.PublisherEndpoint,
                 m_logger)
             {
-                PublisherId = m_udpConnection.PubSubConnectionConfiguration.PublisherId.Value
+                PublisherId = m_udpConnection.PubSubConnectionConfiguration.PublisherId
             };
 
             byte[] bytes = discoveryRequestPublisherEndpoints.Encode(MessageContext);
@@ -234,7 +234,7 @@ namespace Opc.Ua.PubSub.Transport
                 m_logger)
             {
                 DataSetWriterIds = dataSetWriterIds,
-                PublisherId = m_udpConnection.PubSubConnectionConfiguration.PublisherId.Value
+                PublisherId = m_udpConnection.PubSubConnectionConfiguration.PublisherId
             };
 
             byte[] bytes = discoveryRequestMetaDataMessage.Encode(MessageContext);

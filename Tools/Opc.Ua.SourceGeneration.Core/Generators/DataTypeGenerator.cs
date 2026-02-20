@@ -157,6 +157,10 @@ namespace Opc.Ua.SourceGeneration
             }
             context.Template.AddReplacement(Tokens.ClassName, dataType.SymbolicName.Name);
             context.Template.AddReplacement(Tokens.BrowseName, dataType.SymbolicName.Name);
+            context.Template.AddReplacement(
+                Tokens.XmlNamespaceUri,
+                m_context.ModelDesign.Namespaces.GetConstantSymbolForNamespace(
+                    dataType.SymbolicName.Namespace));
             AddEncodingIdReplacements(context, dataType);
             return context.Template.Render();
         }
@@ -768,7 +772,6 @@ namespace Opc.Ua.SourceGeneration
             }
 
             string functionName = field.DataTypeNode.BasicDataType.ToString();
-            string elementName = null;
             string fieldName = isUnion ? $"fieldName ?? \"{field.Name}\"" : $"\"{field.Name}\"";
 
             switch (field.DataTypeNode.BasicDataType)
@@ -795,12 +798,6 @@ namespace Opc.Ua.SourceGeneration
                             new XmlQualifiedName("OptionSet", Namespaces.OpcUa))
                         {
                             functionName = "Encodeable";
-                            elementName = field.DataTypeNode.GetDotNetTypeName(
-                                ValueRank.Scalar,
-                                m_context.ModelDesign.TargetNamespace.Value,
-                                m_context.ModelDesign.Namespaces,
-                                nullable: NullableAnnotation.NonNullable,
-                                useArrayTypeInsteadOfCollection: isServiceType);
                             break;
                         }
 
@@ -813,17 +810,11 @@ namespace Opc.Ua.SourceGeneration
 
                     if (field.ValueRank == ValueRank.Array)
                     {
-                        elementName = field.DataTypeNode.GetDotNetTypeName(
-                            ValueRank.Scalar,
-                            m_context.ModelDesign.TargetNamespace.Value,
-                            m_context.ModelDesign.Namespaces,
-                            nullable: NullableAnnotation.NonNullable,
-                            useArrayTypeInsteadOfCollection: isServiceType);
                         context.Out.WriteLine(
-                            "encoder.WriteEnumeratedArray({0}, {1}.ToArray(), typeof({2}));",
+                            "encoder.WriteEnumeratedArray({0}, {1}{2});",
                             fieldName,
                             field.Name,
-                            elementName);
+                            isServiceType ? string.Empty : ".ToArrayOf()");
                         if (isUnion)
                         {
                             context.Out.WriteLine("break;");
@@ -884,19 +875,13 @@ namespace Opc.Ua.SourceGeneration
                     }
 
                     functionName = "Encodeable";
-                    elementName = field.DataTypeNode.GetDotNetTypeName(
-                        ValueRank.Scalar,
-                        m_context.ModelDesign.TargetNamespace.Value,
-                        m_context.ModelDesign.Namespaces,
-                        nullable: NullableAnnotation.NonNullable,
-                        useArrayTypeInsteadOfCollection: isServiceType);
                     if (field.ValueRank == ValueRank.Array)
                     {
                         context.Out.WriteLine(
-                            "encoder.WriteEncodeableArray({0}, {1}.ToArray(), typeof({2}));",
+                            "encoder.WriteEncodeableArray({0}, {1}{2});",
                             fieldName,
                             field.Name,
-                            elementName);
+                            isServiceType ? string.Empty : ".ToArrayOf()");
 
                         if (isUnion)
                         {
@@ -915,15 +900,9 @@ namespace Opc.Ua.SourceGeneration
             else if (field.ValueRank != ValueRank.Scalar)
             {
                 functionName = "Variant";
-                elementName = null;
             }
 
             context.Out.Write($"encoder.Write{functionName}({fieldName}, {field.Name}");
-
-            if (elementName != null)
-            {
-                context.Out.Write($", typeof({elementName})");
-            }
 
             context.Out.WriteLine(");");
 

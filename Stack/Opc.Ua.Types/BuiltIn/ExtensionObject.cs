@@ -699,14 +699,14 @@ namespace Opc.Ua
             Order = 2,
             IsRequired = false,
             EmitDefaultValue = true)]
-        internal XmlElement XmlEncodedBody
+        internal System.Xml.XmlElement XmlEncodedBody
         {
             get
             {
                 // check for null.
                 if (Value.IsNull)
                 {
-                    return XmlElement.Empty;
+                    return null;
                 }
 
                 // create encoder.
@@ -714,12 +714,18 @@ namespace Opc.Ua
                 using var encoder = new XmlEncoder(context);
                 // write body.
                 encoder.WriteExtensionObjectBody(Value);
-                return new XmlElement(encoder.CloseAndReturnText());
+
+                // create document from encoder.
+                var document = new XmlDocument();
+                document.LoadInnerXml(encoder.CloseAndReturnText());
+
+                // return root element.
+                return document.DocumentElement;
             }
             set
             {
                 // check null bodies.
-                if (value.IsEmpty)
+                if (value == null)
                 {
                     Value = new ExtensionObject(Value.TypeId);
                     return;

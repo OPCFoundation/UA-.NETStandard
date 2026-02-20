@@ -1174,7 +1174,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     networkMessage = publisherConnection.CreatePublisherEndpointsNetworkMessage(
                         [.. endpointDescriptions],
                         StatusCodes.Good,
-                        publisherConnection.PubSubConnectionConfiguration.PublisherId.Value);
+                        publisherConnection.PubSubConnectionConfiguration.PublisherId);
                     Assert.IsNotNull(networkMessage, "uaNetworkMessage shall not return null");
 
                     return networkMessage.Encode(m_messageContext);

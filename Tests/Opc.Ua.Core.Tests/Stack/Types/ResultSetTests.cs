@@ -68,8 +68,9 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             var resultSet = ResultSet.From(results, errors);
 
             // Assert
-            Assert.That(resultSet.Results, Is.EquivalentTo(results));
-            Assert.That(resultSet.Errors, Is.EquivalentTo(errors));
+            Assert.That(resultSet.Results, Is.EqualTo(ArrayOf.Wrapped(1, 2, 3)));
+            Assert.That(resultSet.Errors, Is.EqualTo(
+                ArrayOf.Wrapped(ServiceResult.Good)));
         }
 
         [Test]
@@ -87,15 +88,15 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         public void ResultSetFromShouldInitializePropertiesWithoutErrorList()
         {
             // Arrange
-            IReadOnlyList<int> results = [1, 2, 3];
+            ArrayOf<int> results = [1, 2, 3];
 
             // Act
             var resultSet = ResultSet.From(results);
 
             // Assert
-            Assert.That(resultSet.Results, Is.EquivalentTo(results));
+            Assert.That(resultSet.Results, Is.EqualTo(results));
             Assert.That(resultSet.Errors.Count, Is.EqualTo(3));
-            Assert.That(resultSet.Errors, Is.All.EqualTo(ServiceResult.Good));
+            Assert.That(resultSet.Errors.ToList(), Is.All.EqualTo(ServiceResult.Good));
         }
 
         [Test]
@@ -108,9 +109,9 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             var resultSet = ResultSet.From(results);
 
             // Assert
-            Assert.That(resultSet.Results, Is.EquivalentTo(results));
+            Assert.That(resultSet.Results, Is.EqualTo(ArrayOf.Wrapped(1, 2, 3)));
             Assert.That(resultSet.Errors.Count, Is.EqualTo(3));
-            Assert.That(resultSet.Errors, Is.All.EqualTo(ServiceResult.Good));
+            Assert.That(resultSet.Errors.ToList(), Is.All.EqualTo(ServiceResult.Good));
         }
 
         [Test]
@@ -121,8 +122,8 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             ResultSet<int> emptyResultSet2 = ResultSet<int>.Empty;
 
             // Assert
-            Assert.That(emptyResultSet2.Results, Is.SameAs(emptyResultSet1.Results));
-            Assert.That(emptyResultSet2.Errors, Is.SameAs(emptyResultSet1.Errors));
+            Assert.That(emptyResultSet2.Results, Is.EqualTo(emptyResultSet1.Results));
+            Assert.That(emptyResultSet2.Errors, Is.EqualTo(emptyResultSet1.Errors));
         }
 
         [Test]
@@ -137,8 +138,8 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             ResultSet<int> resultSet2 = resultSet1;
 
             // Assert
-            Assert.That(resultSet2.Results, Is.SameAs(resultSet1.Results));
-            Assert.That(resultSet2.Errors, Is.SameAs(resultSet1.Errors));
+            Assert.That(resultSet2.Results, Is.EqualTo(resultSet1.Results));
+            Assert.That(resultSet2.Errors, Is.EqualTo(resultSet1.Errors));
         }
     }
 }

@@ -545,7 +545,9 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 builtInType = BuiltInType.Enumeration;
             }
-            encoder.WriteArray(name, property.GetValue(this), valueRank, builtInType);
+            Variant value = VariantHelper.CastFromWithReflectionFallback(
+                property.GetValue(this));
+            encoder.WriteVariantValue(name, value);
         }
 
         /// <summary>

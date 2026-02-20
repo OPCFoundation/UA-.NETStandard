@@ -39,7 +39,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Get the received Publisher identifier.
         /// </summary>
-        public object PublisherId { get; internal set; }
+        public Variant PublisherId { get; internal set; }
 
         /// <summary>
         /// Get the source information

@@ -52,7 +52,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         internal const string UaMetaDataMessageType = "ua-metadata";
 
-        private static readonly bool[] s_elements =
+        private static readonly ArrayOf<bool> s_elements =
         [
             true,
             false,
@@ -80,8 +80,21 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             false
         ];
 
-        private static readonly double[] s_elementsArray = [11000.5, 12000.6, 13000.7, 14000.8];
-        private static readonly string[] s_elementsArray0 = ["1a", "2b", "3c", "4d"];
+        private static readonly ArrayOf<double> s_elementsArray =
+        [
+            11000.5,
+            12000.6,
+            13000.7,
+            14000.8
+        ];
+
+        private static readonly ArrayOf<string> s_elementsArray0 =
+        [
+            "1a",
+            "2b",
+            "3c",
+            "4d"
+        ];
 
         /// <summary>
         /// PubSub options
@@ -98,21 +111,17 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         internal static PubSubConnectionDataType CreatePubSubConnection(
             string transportProfileUri,
             string addressUrl,
-            object publisherId,
+            Variant publisherId,
             PubSubType pubSubType = PubSubType.Publisher)
         {
             // Define a PubSub connection with PublisherId
             var pubSubConnection = new PubSubConnectionDataType
             {
                 Name = $"Connection {pubSubType} PubId:" + publisherId,
-                Enabled = true
+                Enabled = true,
+                PublisherId = publisherId,
+                TransportProfileUri = transportProfileUri
             };
-            if (publisherId != null)
-            {
-                pubSubConnection.PublisherId = new Variant(publisherId);
-            }
-            pubSubConnection.PublisherId = new Variant(publisherId);
-            pubSubConnection.TransportProfileUri = transportProfileUri;
 
             var address = new NetworkAddressUrlDataType
             {
@@ -132,7 +141,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         public static PubSubConnectionDataType GetConnection(
             PubSubConfigurationDataType pubSubConfiguration,
-            object publisherId)
+            Variant publisherId)
         {
             if (pubSubConfiguration != null)
             {
@@ -199,7 +208,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         private static PubSubConfigurationDataType CreatePublisherConfiguration(
             string transportProfileUri,
             string addressUrl,
-            object publisherId,
+            Variant publisherId,
             ushort writerGroupId,
             uint networkMessageContentMask,
             uint dataSetMessageContentMask,
@@ -375,7 +384,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public static PubSubConfigurationDataType CreatePublisherConfiguration(
             string transportProfileUri,
             string addressUrl,
-            object publisherId,
+            Variant publisherId,
             ushort writerGroupId,
             JsonNetworkMessageContentMask jsonNetworkMessageContentMask,
             JsonDataSetMessageContentMask jsonDataSetMessageContentMask,
@@ -405,11 +414,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public static PubSubConfigurationDataType CreateUdpPlusMqttPublisherConfiguration(
             string udpTransportProfileUri,
             string udpAddressUrl,
-            object udpPublisherId,
+            Variant udpPublisherId,
             ushort udpWriterGroupId,
             string mqttTransportProfileUri,
             string mqttAddressUrl,
-            object mqttPublisherId,
+            Variant mqttPublisherId,
             ushort mqttWriterGroupId,
             UadpNetworkMessageContentMask uadpNetworkMessageContentMask,
             UadpDataSetMessageContentMask uadpDataSetMessageContentMask,
@@ -459,7 +468,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public static PubSubConfigurationDataType CreateAzurePublisherConfiguration(
             string transportProfileUri,
             string addressUrl,
-            object publisherId,
+            Variant publisherId,
             ushort writerGroupId,
             JsonNetworkMessageContentMask jsonNetworkMessageContentMask,
             JsonDataSetMessageContentMask jsonDataSetMessageContentMask,
@@ -500,7 +509,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public static PubSubConfigurationDataType CreatePublisherConfiguration(
             string transportProfileUri,
             string addressUrl,
-            object publisherId,
+            Variant publisherId,
             ushort writerGroupId,
             UadpNetworkMessageContentMask uadpNetworkMessageContentMask,
             UadpDataSetMessageContentMask uadpDataSetMessageContentMask,
@@ -650,7 +659,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             PubSubConnectionDataType pubSubConnection = CreatePubSubConnection(
                 transportProfileUri,
                 addressUrl,
-                publisherId: 1);
+                publisherId: Variant.From(1));
             pubSubConnection.WriterGroups.Add(writerGroup);
 
             //create  the PubSub configuration root object
@@ -869,7 +878,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public static PubSubConfigurationDataType CreateSubscriberConfiguration(
             string transportProfileUri,
             string addressUrl,
-            object publisherId,
+            Variant publisherId,
             ushort writerGroupId,
             bool setDataSetWriterId,
             JsonNetworkMessageContentMask jsonNetworkMessageContentMask,
@@ -899,7 +908,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         private static PubSubConfigurationDataType CreateSubscriberConfiguration(
             string transportProfileUri,
             string addressUrl,
-            object publisherId,
+            Variant publisherId,
             ushort writerGroupId,
             bool setDataSetWriterId,
             uint networkMessageContentMask,
@@ -934,22 +943,18 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
                 var dataSetReader = new DataSetReaderDataType
                 {
-                    Name = "dataSetReader:" + dataSetWriterId
+                    Name = "dataSetReader:" + dataSetWriterId,
+                    PublisherId = publisherId,
+                    WriterGroupId = writerGroupId,
+                    Enabled = true,
+                    DataSetFieldContentMask = (uint)dataSetFieldContentMask,
+                    KeyFrameCount = keyFrameCount,
+                    DataSetMetaData = dataSetMetaData
                 };
-                if (publisherId != null)
-                {
-                    dataSetReader.PublisherId = new Variant(publisherId);
-                }
-                dataSetReader.WriterGroupId = writerGroupId;
                 if (setDataSetWriterId)
                 {
                     dataSetReader.DataSetWriterId = dataSetWriterId;
                 }
-                dataSetReader.Enabled = true;
-                dataSetReader.DataSetFieldContentMask = (uint)dataSetFieldContentMask;
-                dataSetReader.KeyFrameCount = keyFrameCount;
-                dataSetReader.DataSetMetaData = dataSetMetaData;
-
                 DataSetReaderMessageDataType dataSetReaderMessageSettings = null;
                 DataSetReaderTransportDataType dataSetReaderTransportSettings = null;
                 switch (transportProfileUri)
@@ -1022,7 +1027,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public static PubSubConfigurationDataType CreateSubscriberConfiguration(
             string transportProfileUri,
             string addressUrl,
-            object publisherId,
+            Variant publisherId,
             ushort writerGroupId,
             bool setDataSetWriterId,
             UadpNetworkMessageContentMask uadpNetworkMessageContentMask,
@@ -1052,11 +1057,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public static PubSubConfigurationDataType CreateUdpPlusMqttSubscriberConfiguration(
             string udpTransportProfileUri,
             string udpAddressUrl,
-            object udpPublisherId,
+            Variant udpPublisherId,
             ushort udpWriterGroupId,
             string mqttTransportProfileUri,
             string mqttAddressUrl,
-            object mqttPublisherId,
+            Variant mqttPublisherId,
             ushort mqttWriterGroupId,
             bool setDataSetWriterId,
             UadpNetworkMessageContentMask uadpNetworkMessageContentMask,
@@ -1106,7 +1111,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public static PubSubConfigurationDataType CreateAzureSubscriberConfiguration(
             string transportProfileUri,
             string addressUrl,
-            object publisherId,
+            Variant publisherId,
             ushort writerGroupId,
             bool setDataSetWriterId,
             JsonNetworkMessageContentMask jsonNetworkMessageContentMask,
@@ -1166,7 +1171,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     MajorVersion = majorVersion,
                     MinorVersion = minorVersion
                 },
-
                 Description = LocalizedText.Null
             };
         }
@@ -2576,77 +2580,77 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             ushort namespaceIndexAllTypes)
         {
             // DataSet fill with primitive data
-            var boolToggle = new DataValue(new Variant(false));
+            var boolToggle = new DataValue(Variant.From(false));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("BoolToggle", namespaceIndexAllTypes),
                 Attributes.Value,
                 boolToggle);
-            var byteValue = new DataValue(new Variant((byte)10));
+            var byteValue = new DataValue(Variant.From((byte)10));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("Byte", namespaceIndexAllTypes),
                 Attributes.Value,
                 byteValue);
-            var int16Value = new DataValue(new Variant((short)100));
+            var int16Value = new DataValue(Variant.From((short)100));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("Int16", namespaceIndexAllTypes),
                 Attributes.Value,
                 int16Value);
-            var int32Value = new DataValue(new Variant(1000));
+            var int32Value = new DataValue(Variant.From(1000));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("Int32", namespaceIndexAllTypes),
                 Attributes.Value,
                 int32Value);
-            var int64Value = new DataValue(new Variant((long)10000));
+            var int64Value = new DataValue(Variant.From((long)10000));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("Int64", namespaceIndexAllTypes),
                 Attributes.Value,
                 int64Value);
-            var sByteValue = new DataValue(new Variant((sbyte)11));
+            var sByteValue = new DataValue(Variant.From((sbyte)11));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("SByte", namespaceIndexAllTypes),
                 Attributes.Value,
                 sByteValue);
-            var uInt16Value = new DataValue(new Variant((ushort)110));
+            var uInt16Value = new DataValue(Variant.From((ushort)110));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("UInt16", namespaceIndexAllTypes),
                 Attributes.Value,
                 uInt16Value);
-            var uInt32Value = new DataValue(new Variant((uint)1100));
+            var uInt32Value = new DataValue(Variant.From((uint)1100));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("UInt32", namespaceIndexAllTypes),
                 Attributes.Value,
                 uInt32Value);
-            var uInt64Value = new DataValue(new Variant((ulong)11100));
+            var uInt64Value = new DataValue(Variant.From((ulong)11100));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("UInt64", namespaceIndexAllTypes),
                 Attributes.Value,
                 uInt64Value);
-            var floatValue = new DataValue(new Variant((float)1100.5));
+            var floatValue = new DataValue(Variant.From((float)1100.5));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("Float", namespaceIndexAllTypes),
                 Attributes.Value,
                 floatValue);
-            var doubleValue = new DataValue(new Variant((double)1100));
+            var doubleValue = new DataValue(Variant.From((double)1100));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("Double", namespaceIndexAllTypes),
                 Attributes.Value,
                 doubleValue);
-            var stringValue = new DataValue(new Variant("String info"));
+            var stringValue = new DataValue(Variant.From("String info"));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("String", namespaceIndexAllTypes),
                 Attributes.Value,
                 stringValue);
-            var dateTimeVal = new DataValue(new Variant(DateTime.UtcNow));
+            var dateTimeVal = new DataValue(Variant.From(DateTime.UtcNow));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("DateTime", namespaceIndexAllTypes),
                 Attributes.Value,
                 dateTimeVal);
-            var guidValue = new DataValue(new Variant(new Uuid()));
+            var guidValue = new DataValue(Variant.From(new Uuid()));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("Guid", namespaceIndexAllTypes),
                 Attributes.Value,
                 guidValue);
-            var byteStringValue = new DataValue(new Variant(ByteString.From([1, 2, 3])));
+            var byteStringValue = new DataValue(Variant.From(ByteString.From([1, 2, 3])));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ByteString", namespaceIndexAllTypes),
                 Attributes.Value,
@@ -2654,74 +2658,74 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var document = new XmlDocument();
             System.Xml.XmlElement xmlElement = document.CreateElement("test");
             xmlElement.InnerText = "Text";
-            var xmlElementValue = new DataValue(new Variant(XmlElement.From(xmlElement)));
+            var xmlElementValue = new DataValue(Variant.From(XmlElement.From(xmlElement)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("XmlElement", namespaceIndexAllTypes),
                 Attributes.Value,
                 xmlElementValue);
-            var nodeIdValue = new DataValue(new Variant(new NodeId(30, 1)));
+            var nodeIdValue = new DataValue(Variant.From(new NodeId(30, 1)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("NodeId", namespaceIndexAllTypes),
                 Attributes.Value,
                 nodeIdValue);
-            nodeIdValue = new DataValue(new Variant(new NodeId(30, 1)));
+            nodeIdValue = new DataValue(Variant.From(new NodeId(30, 1)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("NodeIdNumeric", namespaceIndexAllTypes),
                 Attributes.Value,
                 nodeIdValue);
-            nodeIdValue = new DataValue(new Variant(new NodeId(Uuid.NewUuid(), 2)));
+            nodeIdValue = new DataValue(Variant.From(new NodeId(Uuid.NewUuid(), 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("NodeIdGuid", namespaceIndexAllTypes),
                 Attributes.Value,
                 nodeIdValue);
-            nodeIdValue = new DataValue(new Variant(new NodeId("NodeIdentifier", 3)));
+            nodeIdValue = new DataValue(Variant.From(new NodeId("NodeIdentifier", 3)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("NodeIdString", namespaceIndexAllTypes),
                 Attributes.Value,
                 nodeIdValue);
-            nodeIdValue = new DataValue(new Variant(new NodeId(ByteString.From([1, 2, 3]), 0)));
+            nodeIdValue = new DataValue(Variant.From(new NodeId(ByteString.From([1, 2, 3]), 0)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("NodeIdOpaque", namespaceIndexAllTypes),
                 Attributes.Value,
                 nodeIdValue);
-            var expandedNodeId = new DataValue(new Variant(new ExpandedNodeId(30, 1)));
+            var expandedNodeId = new DataValue(Variant.From(new ExpandedNodeId(30, 1)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ExpandedNodeId", namespaceIndexAllTypes),
                 Attributes.Value,
                 expandedNodeId);
-            expandedNodeId = new DataValue(new Variant(new ExpandedNodeId(30, 1)));
+            expandedNodeId = new DataValue(Variant.From(new ExpandedNodeId(30, 1)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ExpandedNodeIdNumeric", namespaceIndexAllTypes),
                 Attributes.Value,
                 expandedNodeId);
-            expandedNodeId = new DataValue(new Variant(new ExpandedNodeId(Uuid.NewUuid(), 2)));
+            expandedNodeId = new DataValue(Variant.From(new ExpandedNodeId(Uuid.NewUuid(), 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ExpandedNodeIdGuid", namespaceIndexAllTypes),
                 Attributes.Value,
                 expandedNodeId);
-            expandedNodeId = new DataValue(new Variant(new ExpandedNodeId("NodeIdGuid", 3)));
+            expandedNodeId = new DataValue(Variant.From(new ExpandedNodeId("NodeIdGuid", 3)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ExpandedNodeIdString", namespaceIndexAllTypes),
                 Attributes.Value,
                 expandedNodeId);
-            expandedNodeId = new DataValue(new Variant(new ExpandedNodeId(ByteString.From([1, 2, 3]), 0)));
+            expandedNodeId = new DataValue(Variant.From(new ExpandedNodeId(ByteString.From([1, 2, 3]), 0)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ExpandedNodeIdOpaque", namespaceIndexAllTypes),
                 Attributes.Value,
                 expandedNodeId);
             var statusCode = new DataValue(
-                new Variant(StatusCodes.BadAggregateInvalidInputs));
+                Variant.From(StatusCodes.BadAggregateInvalidInputs));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("StatusCode", namespaceIndexAllTypes),
                 Attributes.Value,
                 statusCode);
-            statusCode = new DataValue(new Variant(StatusCodes.Good));
+            statusCode = new DataValue(Variant.From(StatusCodes.Good));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("StatusCodeGood", namespaceIndexAllTypes),
                 Attributes.Value,
                 statusCode);
             statusCode = new DataValue(
-                new Variant(StatusCodes.BadAttributeIdInvalid));
+                Variant.From(StatusCodes.BadAttributeIdInvalid));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("StatusCodeBad", namespaceIndexAllTypes),
                 Attributes.Value,
@@ -2733,27 +2737,27 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Url = "opc.udp://localhost:4840"
             };
             var extensionObject = new DataValue(
-                new Variant(
+                Variant.From(
                     new ExtensionObject(DataTypeIds.NetworkAddressUrlDataType, publisherAddress)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ExtensionObject", namespaceIndexAllTypes),
                 Attributes.Value,
                 extensionObject);
 
-            var qualifiedValue = new DataValue(new Variant(new QualifiedName("wererwerw", 3)));
+            var qualifiedValue = new DataValue(Variant.From(new QualifiedName("wererwerw", 3)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("QualifiedName", namespaceIndexAllTypes),
                 Attributes.Value,
                 qualifiedValue);
             var localizedTextValue = new DataValue(
-                new Variant(new LocalizedText("Localized_abcd")));
+                Variant.From(new LocalizedText("Localized_abcd")));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("LocalizedText", namespaceIndexAllTypes),
                 Attributes.Value,
                 localizedTextValue);
             var dataValue = new DataValue(
-                new Variant(
-                    new DataValue(new Variant("DataValue_info"), StatusCodes.BadBoundNotFound)));
+                Variant.From(
+                    new DataValue(Variant.From("DataValue_info"), StatusCodes.BadBoundNotFound)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("DataValue", namespaceIndexAllTypes),
                 Attributes.Value,
@@ -2761,97 +2765,98 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             // DataSet 'AllTypes' fill with data array
             var boolToggleArray = new DataValue(
-                new Variant(new BooleanCollection { true, false, true }));
+                Variant.From([true, false, true]));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("BoolToggleArray", namespaceIndexAllTypes),
                 Attributes.Value,
                 boolToggleArray);
-            var byteValueArray = new DataValue(new Variant(new byte[] { 127, 101, 1 }.ToArrayOf()));
+            var byteValueArray = new DataValue(
+                Variant.From(ArrayOf.Wrapped((byte)127, (byte)101, (byte)1)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ByteArray", namespaceIndexAllTypes),
                 Attributes.Value,
                 byteValueArray);
             var int16ValueArray = new DataValue(
-                new Variant(new Int16Collection { -100, -200, 300 }));
+                Variant.From(ArrayOf.Wrapped((short)-100, (short)-200, (short)300)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("Int16Array", namespaceIndexAllTypes),
                 Attributes.Value,
                 int16ValueArray);
             var int32ValueArray = new DataValue(
-                new Variant(new Int32Collection { -1000, -2000, 3000 }));
+                Variant.From([-1000, -2000, 3000]));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("Int32Array", namespaceIndexAllTypes),
                 Attributes.Value,
                 int32ValueArray);
             var int64ValueArray = new DataValue(
-                new Variant(new Int64Collection { -10000, -20000, 30000 }));
+                Variant.From([-10000L, -20000L, 30000L]));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("Int64Array", namespaceIndexAllTypes),
                 Attributes.Value,
                 int64ValueArray);
-            var sByteValueArray = new DataValue(new Variant(new SByteCollection { 1, -2, -3 }));
+            var sByteValueArray = new DataValue(
+                Variant.From([(sbyte)1, (sbyte)-2, (sbyte)-3]));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("SByteArray", namespaceIndexAllTypes),
                 Attributes.Value,
                 sByteValueArray);
             var uInt16ValueArray = new DataValue(
-                new Variant(new UInt16Collection { 110, 120, 130 }));
+                Variant.From([(ushort)110, (ushort)120, (ushort)130]));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("UInt16Array", namespaceIndexAllTypes),
                 Attributes.Value,
                 uInt16ValueArray);
             var uInt32ValueArray = new DataValue(
-                new Variant(new UInt32Collection { 1100, 1200, 1300 }));
+                Variant.From([1100u, 1200u, 1300u]));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("UInt32Array", namespaceIndexAllTypes),
                 Attributes.Value,
                 uInt32ValueArray);
             var uInt64ValueArray = new DataValue(
-                new Variant(new UInt64Collection { 11100, 11200, 11300 }));
+                Variant.From([11100UL, 11200UL, 11300UL]));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("UInt64Array", namespaceIndexAllTypes),
                 Attributes.Value,
                 uInt64ValueArray);
             var floatValueArray = new DataValue(
-                new Variant(new FloatCollection { 1100, 5, 1200, 5, 1300, 5 }));
+                Variant.From([1100f, 5f, 1200f, 5f, 1300f, 5f]));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("FloatArray", namespaceIndexAllTypes),
                 Attributes.Value,
                 floatValueArray);
             var doubleValueArray = new DataValue(
-                new Variant(new DoubleCollection { 11000.5, 12000.6, 13000.7 }));
+                Variant.From([11000.5, 12000.6, 13000.7]));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("DoubleArray", namespaceIndexAllTypes),
                 Attributes.Value,
                 doubleValueArray);
             var stringValueArray = new DataValue(
-                new Variant(new StringCollection { "1a", "2b", "3c" }));
+                Variant.From(["1a", "2b", "3c"]));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("StringArray", namespaceIndexAllTypes),
                 Attributes.Value,
                 stringValueArray);
             var dateTimeValArray = new DataValue(
-                new Variant(
-                    new DateTimeCollection
-                    {
-                        new DateTime(2020, 3, 11).ToUniversalTime(),
-                        new DateTime(2021, 2, 17).ToUniversalTime()
-                    }));
+                Variant.From(
+                [
+                    new DateTime(2020, 3, 11).ToUniversalTime(),
+                    new DateTime(2021, 2, 17).ToUniversalTime()
+                ]));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("DateTimeArray", namespaceIndexAllTypes),
                 Attributes.Value,
                 dateTimeValArray);
             var guidValueArray = new DataValue(
-                new Variant(new UuidCollection { new Uuid(), new Uuid() }));
+                Variant.From([new Uuid(), new Uuid()]));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("GuidArray", namespaceIndexAllTypes),
                 Attributes.Value,
                 guidValueArray);
-            var byteStringValueArray = new DataValue(new Variant(new ByteStringCollection
-            {
+            var byteStringValueArray = new DataValue(Variant.From(
+            [
                 ByteString.From(new byte[] { 1, 2, 3 }),
                 ByteString.From(new byte[] { 5, 6, 7 })
-            }));
+            ]));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ByteStringArray", namespaceIndexAllTypes),
                 Attributes.Value,
@@ -2861,61 +2866,68 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             xmlElement1.InnerText = "Text_2";
             System.Xml.XmlElement xmlElement2 = document.CreateElement("test2");
             xmlElement2.InnerText = "Text_2";
-            var xmlElementValueArray = new DataValue(new Variant(new XmlElementCollection
-            {
+            var xmlElementValueArray = new DataValue(Variant.From(
+            [
                 XmlElement.From(xmlElement1),
                 XmlElement.From(xmlElement2)
-            }));
+            ]));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("XmlElementArray", namespaceIndexAllTypes),
                 Attributes.Value,
                 xmlElementValueArray);
             var nodeIdValueArray = new DataValue(
-                new Variant(new NodeIdCollection { new NodeId(30, 1), new NodeId(20, 3) }));
+                Variant.From([new NodeId(30, 1), new NodeId(20, 3)]));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("NodeIdArray", namespaceIndexAllTypes),
                 Attributes.Value,
                 nodeIdValueArray);
             var expandedNodeIdArray = new DataValue(
-                new Variant(new ExpandedNodeIdCollection {
+                Variant.From(
+                [
                     new ExpandedNodeId(50, 1),
-                    new ExpandedNodeId(70, 9) }));
+                    new ExpandedNodeId(70, 9)
+                ]));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ExpandedNodeIdArray", namespaceIndexAllTypes),
                 Attributes.Value,
                 expandedNodeIdArray);
             var statusCodeArray = new DataValue(
-                new Variant(new StatusCodeCollection {
+                Variant.From(
+                [
                     StatusCodes.Good,
                     StatusCodes.Bad,
-                    StatusCodes.Uncertain }));
+                    StatusCodes.Uncertain
+                ]));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("StatusCodeArray", namespaceIndexAllTypes),
                 Attributes.Value,
                 statusCodeArray);
             var qualifiedValueArray = new DataValue(
-                new Variant(new QualifiedNameCollection {
+                Variant.From(
+                [
                     QualifiedName.From("123"),
-                    QualifiedName.From("abc") }));
+                    QualifiedName.From("abc")
+                ]));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("QualifiedNameArray", namespaceIndexAllTypes),
                 Attributes.Value,
                 qualifiedValueArray);
             var localizedTextValueArray = new DataValue(
-                new Variant(new LocalizedTextCollection {
+                Variant.From(
+                [
                     new LocalizedText("1234"),
-                    new LocalizedText("abcd") }));
+                    new LocalizedText("abcd")
+                ]));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("LocalizedTextArray", namespaceIndexAllTypes),
                 Attributes.Value,
                 localizedTextValueArray);
             var dataValueArray = new DataValue(
-                new Variant(
-                    new DataValueCollection
-                    {
-                        new DataValue(new Variant("DataValue_info1"), StatusCodes.BadBoundNotFound),
-                        new DataValue(new Variant("DataValue_info2"), StatusCodes.BadNoData)
-                    }));
+                Variant.From(
+                [
+                    new DataValue(Variant.From("DataValue_info1"), StatusCodes.BadBoundNotFound),
+                    new DataValue(Variant.From("DataValue_info2"), StatusCodes.BadNoData)
+                ]));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("DataValueArray", namespaceIndexAllTypes),
                 Attributes.Value,
@@ -2923,137 +2935,123 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             // DataSet 'AllTypes' fill with matrix data
             var boolToggleMatrix = new DataValue(
-                new Variant(new Matrix(s_elements, BuiltInType.Boolean, 2, 3, 4)));
+                Variant.From(s_elements.ToMatrix(2, 3, 4)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("BoolToggleMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
                 boolToggleMatrix);
             var byteValueMatrix = new DataValue(
-                new Variant(
-                    new Matrix(new byte[] { 127, 128, 101, 102 }, BuiltInType.Byte, 2, 2, 1)));
+                Variant.From(
+                    new byte[] { 127, 128, 101, 102 }.ToMatrixOf(2, 2, 1)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ByteMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
                 byteValueMatrix);
             var int16ValueMatrix = new DataValue(
-                new Variant(
-                    new Matrix(
-                        new short[] { -100, -101, -200, -201, -100, -101, -200, -201 },
-                        BuiltInType.Int16,
-                        2,
-                        2,
-                        2)));
+                Variant.From(
+                    new short[] { -100, -101, -200, -201, -100, -101, -200, -201 }
+                    .ToMatrixOf(2, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("Int16Matrix", namespaceIndexAllTypes),
                 Attributes.Value,
                 int16ValueMatrix);
             var int32ValueMatrix = new DataValue(
-                new Variant(
-                    new Matrix(new int[] { -1000, -1001, -2000, -2001 }, BuiltInType.Int32, 2, 2)));
+                Variant.From(
+                    new int[] { -1000, -1001, -2000, -2001 }
+                    .ToMatrixOf(2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("Int32Matrix", namespaceIndexAllTypes),
                 Attributes.Value,
                 int32ValueMatrix);
             var int64ValueMatrix = new DataValue(
-                new Variant(new Matrix(
-                    new long[] { -10000, -10001, -20000, -20001 },
-                    BuiltInType.Int64,
-                    2,
-                    2)));
+                Variant.From(
+                    new long[] { -10000, -10001, -20000, -20001 }
+                    .ToMatrixOf(2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("Int64Matrix", namespaceIndexAllTypes),
                 Attributes.Value,
                 int64ValueMatrix);
             var sByteValueMatrix = new DataValue(
-                new Variant(new Matrix(new sbyte[] { 1, 2, -2, -3 }, BuiltInType.SByte, 2, 2)));
+                Variant.From(
+                    new sbyte[] { 1, 2, -2, -3 }
+                    .ToMatrixOf(2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("SByteMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
                 sByteValueMatrix);
             var uInt16ValueMatrix = new DataValue(
-                new Variant(
-                    new Matrix(new ushort[] { 110, 120, 130, 140 }, BuiltInType.UInt16, 2, 2)));
+                Variant.From(
+                    new ushort[] { 110, 120, 130, 140 }
+                    .ToMatrixOf(2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("UInt16Matrix", namespaceIndexAllTypes),
                 Attributes.Value,
                 uInt16ValueMatrix);
             var uInt32ValueMatrix = new DataValue(
-                new Variant(
-                    new Matrix(new uint[] { 1100, 1200, 1300, 1400 }, BuiltInType.UInt32, 2, 2)));
+                Variant.From(
+                    new uint[] { 1100, 1200, 1300, 1400 }
+                    .ToMatrixOf(2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("UInt32Matrix", namespaceIndexAllTypes),
                 Attributes.Value,
                 uInt32ValueMatrix);
             var uInt64ValueMatrix = new DataValue(
-                new Variant(
-                    new Matrix(
-                        new ulong[] { 11100, 11200, 11300, 11400 },
-                        BuiltInType.UInt64,
-                        2,
-                        2)));
+                Variant.From(
+                    new ulong[] { 11100, 11200, 11300, 11400 }
+                    .ToMatrixOf(2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("UInt64Matrix", namespaceIndexAllTypes),
                 Attributes.Value,
                 uInt64ValueMatrix);
             var floatValueMatrix = new DataValue(
-                new Variant(new Matrix(new float[] { 1100, 5, 1200, 7 }, BuiltInType.Float, 2, 2)));
+                Variant.From(
+                    new float[] { 1100, 5, 1200, 7 }
+                    .ToMatrixOf(2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("FloatMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
                 floatValueMatrix);
             var doubleValueMatrix = new DataValue(
-                new Variant(new Matrix(s_elementsArray, BuiltInType.Double, 2, 2)));
+                Variant.From(s_elementsArray.ToMatrix(2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("DoubleMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
                 doubleValueMatrix);
             var stringValueMatrix = new DataValue(
-                new Variant(new Matrix(s_elementsArray0, BuiltInType.String, 2, 2)));
+                Variant.From(s_elementsArray0.ToMatrix(2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("StringMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
                 stringValueMatrix);
             var dateTimeValMatrix = new DataValue(
-                new Variant(
-                    new Matrix(
-                        new DateTime[]
-                        {
-                            new DateTime(2020, 3, 11).ToUniversalTime(),
-                            new DateTime(2021, 2, 17).ToUniversalTime(),
-                            new DateTime(2021, 5, 21).ToUniversalTime(),
-                            new DateTime(2020, 7, 23).ToUniversalTime()
-                        },
-                        BuiltInType.DateTime,
-                        2,
-                        2)));
+                Variant.From(
+                    new DateTime[]
+                    {
+                        new DateTime(2020, 3, 11).ToUniversalTime(),
+                        new DateTime(2021, 2, 17).ToUniversalTime(),
+                        new DateTime(2021, 5, 21).ToUniversalTime(),
+                        new DateTime(2020, 7, 23).ToUniversalTime()
+                    }.ToMatrixOf(2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("DateTimeMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
                 dateTimeValMatrix);
             var guidValueMatrix = new DataValue(
-                new Variant(
-                    new Matrix(
-                        new Uuid[]
-                        {
-                            new(),
-                            new(),
-                            new(),
-                            new()
-                        },
-                        BuiltInType.Guid,
-                        2,
-                        2)));
+                Variant.From(
+                    new Uuid[]
+                    {
+                        new(),
+                        new(),
+                        new(),
+                        new()
+                    }.ToMatrixOf(2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("GuidMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
                 guidValueMatrix);
             var byteStringValueMatrix = new DataValue(
-                new Variant(
-                    new Matrix(
-                        new byte[][] { [1, 2], [11, 12], [21, 22], [31, 32] },
-                        BuiltInType.ByteString,
-                        2,
-                        2)));
+                new ByteString[] { [1, 2], [11, 12], [21, 22], [31, 32] }
+                .ToMatrixOf(2, 2));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ByteStringMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
@@ -3072,96 +3070,72 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             xmlElement4m.InnerText = "Text_4m";
 
             var xmlElementValueMatrix = new DataValue(
-                new Variant(
-                    new Matrix(
-                        new XmlElement[]
-                        {
-                            XmlElement.From(xmlElement1m),
-                            XmlElement.From(xmlElement2m),
-                            XmlElement.From(xmlElement3m),
-                            XmlElement.From(xmlElement4m)
-                        },
-                        BuiltInType.XmlElement,
-                        2,
-                        2)));
+                Variant.From(
+                    new XmlElement[]
+                    {
+                        XmlElement.From(xmlElement1m),
+                        XmlElement.From(xmlElement2m),
+                        XmlElement.From(xmlElement3m),
+                        XmlElement.From(xmlElement4m)
+                    }.ToMatrixOf(2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("XmlElementMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
                 xmlElementValueMatrix);
             var nodeIdValueMatrix = new DataValue(
-                new Variant(
-                    new Matrix(
-                        new NodeId[] { new(30, 1), new(20, 3), new(10, 3), new(50, 7) },
-                        BuiltInType.NodeId,
-                        2,
-                        2)));
+                Variant.From(
+                    new NodeId[] { new(30, 1), new(20, 3), new(10, 3), new(50, 7) }
+                    .ToMatrixOf(2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("NodeIdMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
                 nodeIdValueMatrix);
             var expandedNodeIdMatrix = new DataValue(
-                new Variant(
-                    new Matrix(
-                        new ExpandedNodeId[] { new(50, 1), new(70, 9), new(30, 2), new(80, 3) },
-                        BuiltInType.ExpandedNodeId,
-                        2,
-                        2)));
+                Variant.From(
+                    new ExpandedNodeId[] { new(50, 1), new(70, 9), new(30, 2), new(80, 3) }
+                    .ToMatrixOf(2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ExpandedNodeIdMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
                 expandedNodeIdMatrix);
             var statusCodeMatrix = new DataValue(
-                new Variant(
-                    new Matrix(
-                        new StatusCode[]
-                        {
-                            StatusCodes.Good,
-                            StatusCodes.Uncertain,
-                            StatusCodes.BadCertificateInvalid,
-                            StatusCodes.Uncertain
-                        },
-                        BuiltInType.StatusCode,
-                        2,
-                        2)));
+                Variant.From(
+                    new StatusCode[]
+                    {
+                        StatusCodes.Good,
+                        StatusCodes.Uncertain,
+                        StatusCodes.BadCertificateInvalid,
+                        StatusCodes.Uncertain
+                    }.ToMatrixOf(2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("StatusCodeMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
                 statusCodeMatrix);
             var qualifiedValueMatrix = new DataValue(
-                new Variant(
-                    new Matrix(
-                        new QualifiedName[] { new("123"), new("abc"), new("456"), new("xyz") },
-                        BuiltInType.QualifiedName,
-                        2,
-                        2)));
+                Variant.From(
+                    new QualifiedName[] { new("123"), new("abc"), new("456"), new("xyz") }
+                    .ToMatrixOf(2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("QualifiedNameMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
                 qualifiedValueMatrix);
             var localizedTextValueMatrix = new DataValue(
-                new Variant(
-                    new Matrix(
-                        new LocalizedText[] { new("1234"), new("abcd"), new("5678"), new("efgh") },
-                        BuiltInType.LocalizedText,
-                        2,
-                        2)));
+                Variant.From(
+                    new LocalizedText[] { new("1234"), new("abcd"), new("5678"), new("efgh") }
+                    .ToMatrixOf(2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("LocalizedTextMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
                 localizedTextValueMatrix);
             var dataValueMatrix = new DataValue(
-                new Variant(
-                    new Matrix(
-                        new DataValue[]
-                        {
-                            new(new Variant("DataValue_info1"), StatusCodes.BadBoundNotFound),
-                            new(new Variant("DataValue_info2"), StatusCodes.BadNoData),
-                            new(new Variant("DataValue_info3"), StatusCodes.BadCertificateInvalid),
-                            new(new Variant("DataValue_info4"), StatusCodes.GoodCallAgain)
-                        },
-                        BuiltInType.DataValue,
-                        2,
-                        2)));
+                Variant.From(
+                    new DataValue[]
+                    {
+                        new(Variant.From("DataValue_info1"), StatusCodes.BadBoundNotFound),
+                        new(Variant.From("DataValue_info2"), StatusCodes.BadNoData),
+                        new(Variant.From("DataValue_info3"), StatusCodes.BadCertificateInvalid),
+                        new(Variant.From("DataValue_info4"), StatusCodes.GoodCallAgain)
+                    }.ToMatrixOf(2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("DataValueMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
@@ -3345,7 +3319,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     Attributes.Value,
                     doubleValue);
             }
-            var dateTimeValue = new DataValue(new Variant(DateTime.UtcNow));
+            var dateTimeValue = new DataValue(Variant.From(DateTime.UtcNow));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("DateTime", namespaceIndexAllTypes),
                 Attributes.Value,

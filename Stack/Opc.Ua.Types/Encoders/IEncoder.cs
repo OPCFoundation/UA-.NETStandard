@@ -87,7 +87,7 @@ namespace Opc.Ua
         /// <summary>
         /// Encodes a message with its header.
         /// </summary>
-        void EncodeMessage(IEncodeable message);
+        void EncodeMessage<T>(T message) where T : IEncodeable;
 
         /// <summary>
         /// Writes a boolean to the stream.
@@ -229,12 +229,14 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an encodeable object to the stream.
         /// </summary>
-        void WriteEncodeable(string fieldName, IEncodeable value, Type systemType);
+        /// <typeparam name="T">The type of the encodeable</typeparam>
+        void WriteEncodeable<T>(string fieldName, T value) where T : IEncodeable;
 
         /// <summary>
         /// Writes an enumerated value array to the stream.
         /// </summary>
-        void WriteEnumerated(string fieldName, Enum value);
+        /// <typeparam name="T">The type of the enumeration</typeparam>
+        void WriteEnumerated<T>(string fieldName, T value) where T : Enum;
 
         /// <summary>
         /// Writes a boolean array to the stream.
@@ -364,23 +366,39 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an encodeable object array to the stream.
         /// </summary>
-        void WriteEncodeableArray(string fieldName, ArrayOf<IEncodeable> values, Type systemType);
+        /// <typeparam name="T">The type of the array elements</typeparam>
+        void WriteEncodeableArray<T>(string fieldName, ArrayOf<T> values)
+            where T : IEncodeable;
 
         /// <summary>
         /// Writes an enumerated value array to the stream.
         /// </summary>
-        void WriteEnumeratedArray(string fieldName, Array values, Type systemType);
+        /// <typeparam name="T">The type of the array elements</typeparam>
+        void WriteEnumeratedArray<T>(string fieldName, ArrayOf<T> values)
+            where T : Enum;
 
         /// <summary>
-        /// Encode an array according to its valueRank and BuiltInType
+        /// Writes just the value inside the variant. In essence
+        /// invokes the apropriate Write method for the value contained
+        /// in the variant If a field name is provided, the value is
+        /// the value of said field or element. If not, the value is
+        /// written as just the info contained in the Variant.
         /// </summary>
-        void WriteArray(string fieldName, object array, int valueRank, BuiltInType builtInType);
+        /// <remarks>
+        /// This replaces the previously available WriteArray method
+        /// which has been removed because it could not be implemented in a
+        /// type safe manner and did essentially the same here just for
+        /// arrays while this method also handles scalar values.
+        /// </remarks>
+        void WriteVariantValue(string fieldName, Variant value);
 
         /// <summary>
         /// Encode the switch field for a union.
         /// </summary>
         /// <params name="switchField">The switch field </params>
-        /// <params name="fieldName">Returns an alternate fieldName for the encoded union property if the encoder requires it, null otherwise.</params>
+        /// <params name="fieldName">Returns an alternate fieldName for the
+        /// encoded union property if the encoder requires it, null otherwise.
+        /// </params>
         void WriteSwitchField(uint switchField, out string fieldName);
 
         /// <summary>

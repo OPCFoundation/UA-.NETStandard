@@ -167,7 +167,7 @@ namespace Opc.Ua.PubSub
                         continue;
                     }
 
-                    if (!Utils.IsEqual(field1.Value.WrappedValue, field2.Value.WrappedValue))
+                    if (field1.Value.WrappedValue != field2.Value.WrappedValue)
                     {
                         changed = true;
                         continue;

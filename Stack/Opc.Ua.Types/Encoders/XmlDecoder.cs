@@ -354,6 +354,10 @@ namespace Opc.Ua
                     switch (typeName)
                     {
                         case "Null":
+                            if (BeginField(typeName, true))
+                            {
+                                EndField(typeName);
+                            }
                             return Variant.Null;
                         case "Boolean":
                             return ReadBoolean(typeName);

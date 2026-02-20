@@ -60,6 +60,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         internal const string MetaDataPublisherId = "PublisherId";
         internal const string MetaDataDataSetWriterId = "DataSetWriterId";
 
+        private static readonly Variant[] s_validPublisherIds =
+        [
+            Variant.From(1),
+            Variant.From("abc")
+        ];
         [Flags]
         private enum MetaDataFailOptions
         {
@@ -212,7 +217,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 JsonNetworkMessageContentMask.ReplyTo | JsonNetworkMessageContentMask.DataSetClassId
             )]
                 JsonNetworkMessageContentMask jsonNetworkMessageContentMask,
-            [Values(1, "abc")] object publisherId)
+            [ValueSource(nameof(s_validPublisherIds))]
+                Variant publisherId)
         {
             // Arrange
             jsonNetworkMessageContentMask =
@@ -511,7 +517,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 .CreateSubscriberConfiguration(
                     Profiles.PubSubMqttJsonTransport,
                     kMqttAddressUrl,
-                    publisherId: null,
+                    publisherId: default,
                     writerGroupId: 1,
                     setDataSetWriterId: hasDataSetWriterId, // the writer header is saved
                     jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
@@ -719,7 +725,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 .CreateSubscriberConfiguration(
                     Profiles.PubSubMqttJsonTransport,
                     kMqttAddressUrl,
-                    publisherId: null,
+                    publisherId: default,
                     writerGroupId: 1,
                     setDataSetWriterId: hasDataSetWriterId, // the writer header is saved
                     jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
@@ -845,7 +851,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 JsonDataSetMessageContentMask.Status
             )]
                 JsonDataSetMessageContentMask jsonDataSetMessageContentMask,
-            [Values(1, "abc")] object publisherId)
+            [ValueSource(nameof(s_validPublisherIds))]
+                Variant publisherId)
         {
             // Arrange
             const JsonNetworkMessageContentMask jsonNetworkMessageContentMask =
@@ -1124,7 +1131,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 .CreateSubscriberConfiguration(
                     Profiles.PubSubMqttJsonTransport,
                     kMqttAddressUrl,
-                    publisherId: null,
+                    publisherId: default,
                     writerGroupId: 1,
                     setDataSetWriterId: hasDataSetWriterId, // the writer header is saved
                     jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
@@ -1330,7 +1337,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 .CreateSubscriberConfiguration(
                     Profiles.PubSubMqttJsonTransport,
                     kMqttAddressUrl,
-                    publisherId: null,
+                    publisherId: default,
                     writerGroupId: 1,
                     setDataSetWriterId: hasDataSetWriterId, // no headers hence the values
                     jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,

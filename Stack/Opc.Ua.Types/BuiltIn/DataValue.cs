@@ -329,7 +329,7 @@ namespace Opc.Ua
         //[Obsolete("Use WrappedValue to access The value.")]
         public object Value
         {
-            get => m_value.AsBoxedObject();
+            get => m_value.AsBoxedObject(true);
             set => VariantHelper.TryCastFrom(value, out m_value);
         }
 

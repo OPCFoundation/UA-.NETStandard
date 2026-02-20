@@ -47,6 +47,7 @@ namespace Opc.Ua
     /// <typeparam name="T"></typeparam>
     public readonly struct MatrixOf<T> :
         IConvertableToArray,
+        IConvertableToMatrix,
         IEquatable<MatrixOf<T>>,
         IEquatable<Array>,
         IEquatable<ArrayOf<T>>
@@ -453,6 +454,12 @@ namespace Opc.Ua
             return CreateArrayInstance();
         }
 
+        /// <inheritdoc/>
+        Matrix IConvertableToMatrix.ToMatrix(BuiltInType builtInType)
+        {
+            return new Matrix(CreateArrayInstance(), builtInType, m_dimensions);
+        }
+
         /// <summary>
         /// To array of
         /// </summary>
@@ -533,6 +540,17 @@ namespace Opc.Ua
     }
 
     /// <summary>
+    /// Marks types as convertable to <see cref="Matrix"/>
+    /// </summary>
+    public interface IConvertableToMatrix
+    {
+        /// <summary>
+        /// Convert to matrix
+        /// </summary>
+        Matrix ToMatrix(BuiltInType builtInType);
+    }
+
+    /// <summary>
     /// MatrixOf extensions
     /// </summary>
     public static class MatrixOf
@@ -572,7 +590,7 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         public static MatrixOf<T> ToMatrixOf<T>(
             this IEnumerable<T> values,
-            int[] dimensions)
+            params int[] dimensions)
         {
             return new(values.ToArray(), dimensions);
         }

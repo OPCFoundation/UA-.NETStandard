@@ -152,7 +152,7 @@ csharp_style_prefer_readonly_struct                                           = 
 csharp_style_prefer_readonly_struct_member                                    = true:suggestion
 
 # Style - pattern matching
-csharp_style_prefer_switch_expression                                         = false:silent
+csharp_style_prefer_switch_expression                                         = false:suggestion
 csharp_style_prefer_pattern_matching                                          = true:silent
 csharp_style_prefer_not_pattern                                               = true:suggestion
 csharp_style_prefer_extended_property_pattern                                 = true:suggestion

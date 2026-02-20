@@ -175,6 +175,10 @@ namespace Opc.Ua.SourceGeneration
                     = new {{Tokens.ClassName}}Activator();
 
                 /// <inheritdoc/>
+                public override global::System.Xml.XmlQualifiedName XmlName { get; } =
+                    new global::System.Xml.XmlQualifiedName("{{Tokens.ClassName}}", {{Tokens.XmlNamespaceUri}});
+
+                /// <inheritdoc/>
                 public override global::Opc.Ua.IEncodeable CreateInstance()
                 {
                     return new {{Tokens.ClassName}}();
@@ -214,7 +218,7 @@ namespace Opc.Ua.SourceGeneration
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
-            [global::System.Runtime.Serialization.DataContract(Namespace = {{Tokens.XmlNamespaceUri}})]
+            [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})]
             public partial class {{Tokens.ClassName}} :
                 global::Opc.Ua.IEncodeable, global::Opc.Ua.IJsonEncodeable
             {
@@ -386,7 +390,7 @@ namespace Opc.Ua.SourceGeneration
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
-            [global::System.Runtime.Serialization.DataContract(Namespace = {{Tokens.XmlNamespaceUri}})]
+            [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})]
             public partial class {{Tokens.ClassName}} : {{Tokens.BaseType}}
             {
                 /// <summary>
@@ -520,7 +524,7 @@ namespace Opc.Ua.SourceGeneration
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
-            [global::System.Runtime.Serialization.DataContract(Namespace = {{Tokens.XmlNamespaceUri}})]
+            [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})]
             public partial class {{Tokens.ClassName}} :
                 global::Opc.Ua.IEncodeable, global::Opc.Ua.IJsonEncodeable
             {
@@ -645,7 +649,7 @@ namespace Opc.Ua.SourceGeneration
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
-            [global::System.Runtime.Serialization.DataContract(Namespace = {{Tokens.XmlNamespaceUri}})]
+            [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})]
             public {{Tokens.IsAbstract}}partial class {{Tokens.ClassName}} :
                 {{Tokens.ExtraInterfaces}}global::Opc.Ua.IEncodeable, global::Opc.Ua.IJsonEncodeable
             {
@@ -753,7 +757,7 @@ namespace Opc.Ua.SourceGeneration
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
-            [global::System.Runtime.Serialization.DataContract(Namespace = {{Tokens.XmlNamespaceUri}})]
+            [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})]
             public partial class {{Tokens.ClassName}} : {{Tokens.BaseType}}
             {
                 /// <summary>
@@ -861,7 +865,7 @@ namespace Opc.Ua.SourceGeneration
             /// The {{Tokens.BrowseName}} DataType.
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
-            [global::System.Runtime.Serialization.DataContract(Namespace = {{Tokens.XmlNamespaceUri}})] {{Tokens.Flags}}
+            [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})] {{Tokens.Flags}}
             public enum {{Tokens.ClassName}}{{Tokens.BasicType}}
             {
                 {{Tokens.ListOfProperties}}
@@ -881,7 +885,7 @@ namespace Opc.Ua.SourceGeneration
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
-            [global::System.Runtime.Serialization.CollectionDataContract(
+            [global::System.Runtime.Serialization.CollectionDataContractAttribute(
                 Name = "ListOf{{Tokens.BrowseName}}",
                 Namespace = {{Tokens.XmlNamespaceUri}},
                 ItemName = "{{Tokens.BrowseName}}")]

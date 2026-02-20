@@ -122,7 +122,7 @@ namespace Opc.Ua
             encoder.WriteNodeId("DefaultEncodingId", DefaultEncodingId);
             encoder.WriteNodeId("BaseDataType", BaseDataType);
             encoder.WriteEnumerated("StructureType", StructureType);
-            encoder.WriteEncodeableArray("Fields", [.. Fields], typeof(StructureField));
+            encoder.WriteEncodeableArray("Fields", [.. Fields]);
 
             encoder.PopNamespace();
         }

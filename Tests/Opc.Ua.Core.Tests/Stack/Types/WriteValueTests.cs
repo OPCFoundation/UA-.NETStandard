@@ -87,13 +87,14 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 IndexRange = "1,1"
             };
 
+            ServiceResult validateResult = WriteValue.Validate(writeValue);
             Assert.True(
-                ServiceResult.IsGood(WriteValue.Validate(writeValue)),
+                ServiceResult.IsGood(validateResult),
                 "WriteValue.Validate result was not Good");
 
             // Test that Matrix value is not allowed when IndexRange is for one-dimensional array
             writeValue.IndexRange = "1";
-            ServiceResult validateResult = WriteValue.Validate(writeValue);
+            validateResult = WriteValue.Validate(writeValue);
             Assert.True(
                 ServiceResult.IsBad(validateResult),
                 "WriteValue.Validate result was not Bad");
@@ -164,13 +165,14 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 IndexRange = "0:4"
             };
 
+            ServiceResult validateResult = WriteValue.Validate(writeValue);
             Assert.True(
-                ServiceResult.IsGood(WriteValue.Validate(writeValue)),
+                ServiceResult.IsGood(validateResult),
                 "WriteValue.Validate result was not Good");
 
             // Test with range that does not match the length of the array
             writeValue.IndexRange = "0:5";
-            ServiceResult validateResult = WriteValue.Validate(writeValue);
+            validateResult = WriteValue.Validate(writeValue);
             Assert.True(
                 ServiceResult.IsBad(validateResult),
                 "WriteValue.Validate result was not Bad");

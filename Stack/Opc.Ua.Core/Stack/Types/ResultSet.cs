@@ -76,7 +76,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public static ResultSet<T> From<T>(IEnumerable<T> results)
         {
-            return From(results.ToArray());
+            return From(results.ToArrayOf());
         }
 
         /// <summary>
@@ -106,7 +106,7 @@ namespace Opc.Ua
             IEnumerable<T> results,
             IEnumerable<ServiceResult> errors)
         {
-            return new([.. results], [.. errors]);
+            return new(results.ToArrayOf(), errors.ToArrayOf());
         }
     }
 }

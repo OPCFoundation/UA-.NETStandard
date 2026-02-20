@@ -63,7 +63,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             //Arrange
-            object publisherId = 1;
+            Variant publisherId = 1;
             const ushort writerGroupId = 1;
 
             const string addressUrl = "http://localhost:1883";

@@ -2574,12 +2574,6 @@ namespace Opc.Ua
                     }
                 }
             }
-
-            if (systemType == typeof(byte[]))
-            {
-                return new XmlQualifiedName("ByteString");
-            }
-
             return new XmlQualifiedName(systemType.FullName);
         }
 

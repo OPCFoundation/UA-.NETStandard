@@ -899,7 +899,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var variant = new Variant(ByteString.From([0x0A, 0xFF]));
 
-            Assert.That(variant.ToString(), Is.EqualTo("0AFF|ByteString"));
+            Assert.That(variant.ToString(), Is.EqualTo("0AFF"));
         }
 
         [Test]
@@ -908,7 +908,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             XmlElement element = CreateXmlElement("Alpha");
             var variant = new Variant(element);
 
-            Assert.That(variant.ToString(), Is.EqualTo(element.OuterXml + "|XmlElement"));
+            Assert.That(variant.ToString(), Is.EqualTo(element.OuterXml));
         }
 
         [Test]
@@ -916,7 +916,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var variant = new Variant(Array(1, 2, 3));
 
-            Assert.That(variant.ToString(), Is.EqualTo("[ 1 2 3 ]|Int32[]"));
+            Assert.That(variant.ToString(), Is.EqualTo("[ 1 2 3 ]"));
         }
 
         [Test]

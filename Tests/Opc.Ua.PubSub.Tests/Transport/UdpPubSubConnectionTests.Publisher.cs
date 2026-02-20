@@ -643,7 +643,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 .CreatePublisherEndpointsNetworkMessage(
                     [.. endpointDescriptions],
                     StatusCodes.Good,
-                    publisherConnection.PubSubConnectionConfiguration.PublisherId.Value);
+                    publisherConnection.PubSubConnectionConfiguration.PublisherId);
             Assert.IsNotNull(uaNetworkMessage, "uaNetworkMessage shall not return null");
 
             //Act
