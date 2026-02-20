@@ -79,7 +79,7 @@ namespace Opc.Ua.Server
                 if (CertificateValidator != null)
                 {
                     CertificateValidator.CertificateUpdate -= OnCertificateUpdateAsync;
-                }
+            }
             }
 
             base.Dispose(disposing);
@@ -499,10 +499,19 @@ namespace Opc.Ua.Server
                     //  sign the client nonce (if provided).
                     if (parsedClientCertificate != null && clientNonce != null)
                     {
-                        byte[] dataToSign = Utils.Append(parsedClientCertificate.RawData, clientNonce);
-                        serverSignature = SecurityPolicies.Sign(
-                            instanceCertificate,
+                        SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(context.SecurityPolicyUri);
+
+                        byte[] dataToSign = securityPolicy.GetServerSignatureData(
+                            context.ChannelContext.ChannelThumbprint,
+                            clientNonce,
+                            context.ChannelContext.ServerChannelCertificate,
+                            parsedClientCertificate.RawData,
+                            context.ChannelContext.ClientChannelCertificate,
+                            serverNonce);
+
+                        serverSignature = SecurityPolicies.CreateSignatureData(
                             context.SecurityPolicyUri,
+                            instanceCertificate,
                             dataToSign);
                     }
                 }
@@ -601,29 +610,36 @@ namespace Opc.Ua.Server
 
                 foreach (KeyValuePair ii in parameters.Parameters)
                 {
-                    if (ii.Key == "ECDHPolicyUri")
+                    if (ii.Key == AdditionalParameterNames.ECDHPolicyUri)
                     {
                         string policyUri = ii.Value.ToString();
+                        m_logger.LogWarning("Received request for new EphmeralKey using {SecurityPolicyUri}.", policyUri);
 
-                        if (EccUtils.IsEccPolicy(policyUri))
+                        var securityPolicy = SecurityPolicies.GetInfo(policyUri);
+
+                        if (securityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
                         {
-                            session.SetEccUserTokenSecurityPolicy(policyUri);
-                            EphemeralKeyType key = session.GetNewEccKey();
+                            session.SetUserTokenSecurityPolicy(policyUri);
+                            EphemeralKeyType key = session.GetNewEphemeralKey();
                             response.Parameters.Add(
                                 new KeyValuePair
                                 {
-                                    Key = QualifiedName.From("ECDHKey"),
+                                    Key = new QualifiedName(AdditionalParameterNames.ECDHKey),
                                     Value = new ExtensionObject(key)
                                 });
+
+                            m_logger.LogWarning("Returning new EphmeralKey: {PublicKey} bytes.", key.PublicKey?.Length ?? 0);
                         }
                         else
                         {
                             response.Parameters.Add(
                                 new KeyValuePair
                                 {
-                                    Key = QualifiedName.From("ECDHKey"),
+                                    Key = new QualifiedName(AdditionalParameterNames.ECDHKey),
                                     Value = StatusCodes.BadSecurityPolicyRejected
                                 });
+
+                            m_logger.LogWarning("Rejecting request for new EphmeralKey using {SecurityPolicyUri}.", policyUri);
                         }
                     }
                 }
@@ -644,16 +660,18 @@ namespace Opc.Ua.Server
         {
             AdditionalParametersType response = null;
 
-            EphemeralKeyType key = session.GetNewEccKey();
+            EphemeralKeyType key = session.GetNewEphemeralKey();
 
             if (key != null)
             {
                 response = new AdditionalParametersType();
-                response.Parameters.Add(new KeyValuePair
-                {
-                    Key = QualifiedName.From("ECDHKey"),
-                    Value = new ExtensionObject(key)
-                });
+                response.Parameters
+                    .Add(new KeyValuePair {
+                        Key = new QualifiedName(AdditionalParameterNames.ECDHKey),
+                        Value = new ExtensionObject(key)
+                    });
+
+                m_logger.LogWarning("Returning new EphmeralKey: {PublicKey} bytes.", key.PublicKey?.Length ?? 0);
             }
 
             return response;
@@ -696,6 +714,7 @@ namespace Opc.Ua.Server
 
                 ISession session = ServerInternal.SessionManager
                     .GetSession(requestHeader.AuthenticationToken);
+
                 var parameters =
                     ExtensionObject.ToEncodeable(
                         requestHeader.AdditionalHeader) as AdditionalParametersType;
@@ -794,7 +813,7 @@ namespace Opc.Ua.Server
                 error == StatusCodes.BadCertificateHostNameInvalid ||
                 error == StatusCodes.BadCertificatePolicyCheckFailed ||
                 error == StatusCodes.BadApplicationSignatureInvalid;
-        }
+            }
 
         /// <summary>
         /// Creates the response header.
@@ -2105,7 +2124,7 @@ namespace Opc.Ua.Server
         {
             var configuration = new ApplicationConfiguration(Configuration)
             {
-                // use a dedicated certificate validator with the registration, but derive behavior from server config
+            // use a dedicated certificate validator with the registration, but derive behavior from server config
                 CertificateValidator = new CertificateValidator(MessageContext.Telemetry)
             };
             await configuration
@@ -2119,109 +2138,109 @@ namespace Opc.Ua.Server
             if (m_registrationEndpoints != null)
             {
                 foreach (ConfiguredEndpoint endpoint in m_registrationEndpoints.Endpoints)
-                {
-                    RegistrationClient client = null;
-                    int i = 0;
-
-                    while (i++ < 2)
                     {
-                        try
+                        RegistrationClient client = null;
+                        int i = 0;
+
+                        while (i++ < 2)
                         {
-                            // update from the server.
-                            bool updateRequired = true;
-
-                            lock (m_registrationLock)
+                            try
                             {
-                                updateRequired = endpoint.UpdateBeforeConnect;
-                            }
+                                // update from the server.
+                                bool updateRequired = true;
 
-                            if (updateRequired)
-                            {
-                                await endpoint.UpdateFromServerAsync(MessageContext.Telemetry, ct).ConfigureAwait(false);
-                            }
-
-                            lock (m_registrationLock)
-                            {
-                                endpoint.UpdateBeforeConnect = false;
-                            }
-
-                            var requestHeader = new RequestHeader
-                            {
-                                Timestamp = DateTime.UtcNow
-                            };
-
-                            // create the client.
-                            X509Certificate2 instanceCertificate =
-                                InstanceCertificateTypesProvider.GetInstanceCertificate(
-                                    endpoint.Description?.SecurityPolicyUri ??
-                                    SecurityPolicies.None);
-                            client = await RegistrationClient.CreateAsync(
-                                configuration,
-                                endpoint.Description,
-                                endpoint.Configuration,
-                                instanceCertificate,
-                                ct: ct).ConfigureAwait(false);
-
-                            client.OperationTimeout = 10000;
-
-                            // register the server.
-                            if (m_useRegisterServer2)
-                            {
-                                var discoveryConfiguration = new ExtensionObjectCollection();
-                                var mdnsDiscoveryConfig = new MdnsDiscoveryConfiguration
+                                lock (m_registrationLock)
                                 {
-                                    ServerCapabilities = configuration.ServerConfiguration
-                                        .ServerCapabilities,
-                                    MdnsServerName = Utils.GetHostName()
-                                };
-                                var extensionObject = new ExtensionObject(mdnsDiscoveryConfig);
-                                discoveryConfiguration.Add(extensionObject);
-                                await client.RegisterServer2Async(
-                                    requestHeader,
-                                    m_registrationInfo,
-                                    discoveryConfiguration,
-                                    ct).ConfigureAwait(false);
-                            }
-                            else
-                            {
-                                await client.RegisterServerAsync(
-                                    requestHeader,
-                                    m_registrationInfo,
-                                    ct)
-                                    .ConfigureAwait(false);
-                            }
-
-                            m_registeredWithDiscoveryServer = m_registrationInfo.IsOnline;
-                            return true;
-                        }
-                        catch (Exception e)
-                        {
-                            m_logger.LogWarning(
-                                "RegisterServer{Api} failed for {EndpointUrl}. Exception={ErrorMessage}",
-                                m_useRegisterServer2 ? "2" : string.Empty,
-                                endpoint.EndpointUrl,
-                                e.Message);
-                            m_useRegisterServer2 = !m_useRegisterServer2;
-                        }
-                        finally
-                        {
-                            if (client != null)
-                            {
-                                try
-                                {
-                                    await client.CloseAsync(ct).ConfigureAwait(false);
-                                    client = null;
+                                    updateRequired = endpoint.UpdateBeforeConnect;
                                 }
-                                catch (Exception e)
+
+                                if (updateRequired)
                                 {
-                                    m_logger.LogWarning(
-                                        "Could not cleanly close connection with LDS. Exception={ErrorMessage}",
-                                        e.Message);
+                                    await endpoint.UpdateFromServerAsync(MessageContext.Telemetry, ct).ConfigureAwait(false);
+                                }
+
+                                lock (m_registrationLock)
+                                {
+                                    endpoint.UpdateBeforeConnect = false;
+                                }
+
+                                var requestHeader = new RequestHeader
+                                {
+                                    Timestamp = DateTime.UtcNow
+                                };
+
+                                // create the client.
+                                X509Certificate2 instanceCertificate =
+                                    InstanceCertificateTypesProvider.GetInstanceCertificate(
+                                        endpoint.Description?.SecurityPolicyUri ??
+                                        SecurityPolicies.None);
+                                client = await RegistrationClient.CreateAsync(
+                                    configuration,
+                                    endpoint.Description,
+                                    endpoint.Configuration,
+                                    instanceCertificate,
+                                    ct: ct).ConfigureAwait(false);
+
+                                client.OperationTimeout = 10000;
+
+                                // register the server.
+                                if (m_useRegisterServer2)
+                                {
+                                    var discoveryConfiguration = new ExtensionObjectCollection();
+                                    var mdnsDiscoveryConfig = new MdnsDiscoveryConfiguration
+                                    {
+                                        ServerCapabilities = configuration.ServerConfiguration
+                                            .ServerCapabilities,
+                                        MdnsServerName = Utils.GetHostName()
+                                    };
+                                    var extensionObject = new ExtensionObject(mdnsDiscoveryConfig);
+                                    discoveryConfiguration.Add(extensionObject);
+                                    await client.RegisterServer2Async(
+                                        requestHeader,
+                                        m_registrationInfo,
+                                        discoveryConfiguration,
+                                        ct).ConfigureAwait(false);
+                                }
+                                else
+                                {
+                                    await client.RegisterServerAsync(
+                                        requestHeader,
+                                        m_registrationInfo,
+                                        ct)
+                                        .ConfigureAwait(false);
+                                }
+
+                                m_registeredWithDiscoveryServer = m_registrationInfo.IsOnline;
+                                return true;
+                            }
+                            catch (Exception e)
+                            {
+                                m_logger.LogWarning(
+                                    "RegisterServer{Api} failed for {EndpointUrl}. Exception={ErrorMessage}",
+                                    m_useRegisterServer2 ? "2" : string.Empty,
+                                    endpoint.EndpointUrl,
+                                    e.Message);
+                                m_useRegisterServer2 = !m_useRegisterServer2;
+                            }
+                            finally
+                            {
+                                if (client != null)
+                                {
+                                    try
+                                    {
+                                        await client.CloseAsync(ct).ConfigureAwait(false);
+                                        client = null;
+                                    }
+                                    catch (Exception e)
+                                    {
+                                        m_logger.LogWarning(
+                                            "Could not cleanly close connection with LDS. Exception={ErrorMessage}",
+                                            e.Message);
+                                    }
                                 }
                             }
                         }
                     }
-                }
                 // retry to start with RegisterServer2 if both failed
                 m_useRegisterServer2 = true;
             }

@@ -117,6 +117,21 @@ namespace Opc.Ua
         EndpointConfiguration EndpointConfiguration { get; }
 
         /// <summary>
+        /// The unique identifier for the secure channel.
+        /// </summary>
+        byte[] ChannelThumbprint { get; }
+
+        /// <summary>
+        /// The client certificate used to establsih the secure channel.
+        /// </summary>
+        byte[] ClientChannelCertificate { get; }
+
+        /// <summary>
+        /// The server certificate used to establsih the secure channel.
+        /// </summary>
+        byte[] ServerChannelCertificate { get; }
+
+        /// <summary>
         /// Gets the context used when serializing messages exchanged
         /// via the channel. Throws if the channel is not yet opened.
         /// </summary>

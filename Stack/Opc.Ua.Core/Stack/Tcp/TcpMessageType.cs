@@ -27,6 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Globalization;
+using System.Text;
+using Microsoft.Extensions.Logging;
+
 namespace Opc.Ua.Bindings
 {
     /// <summary>
@@ -157,6 +162,23 @@ namespace Opc.Ua.Bindings
                     }
 
             }
+        }
+
+        internal static string GetTypeAndSize(ArraySegment<byte> chunk)
+        {
+            StringBuilder sb = new StringBuilder();
+
+            for (int ii = 0; ii < 1; ii++)
+            {
+                uint size = BitConverter.ToUInt32(chunk.Array ?? [], 4);
+                sb.Append(Encoding.ASCII.GetString(chunk.Array ?? [], 0, 4));
+                sb.Append("=>");
+                sb.Append(BitConverter.ToUInt32(chunk.Array ?? [], 4));
+                sb.Append((size != chunk.Count) ? " X " : " O ");
+                sb.Append(chunk.Count);
+            }
+
+            return sb.ToString();
         }
     }
 

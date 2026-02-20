@@ -121,7 +121,16 @@ namespace Opc.Ua.Bindings
             => m_quotas?.MessageContext ?? throw BadNotConnected();
 
         /// <inheritdoc/>
-        public ChannelToken? CurrentToken => m_channel?.CurrentToken;
+        public ChannelToken CurrentToken => m_channel?.CurrentToken ?? new();
+
+        /// <inheritdoc/>
+        public byte[] ChannelThumbprint => m_channel?.ChannelThumbprint ?? [];
+
+        /// <inheritdoc/>
+        public byte[] ClientChannelCertificate => m_channel?.ClientChannelCertificate ?? [];
+
+        /// <inheritdoc/>
+        public byte[] ServerChannelCertificate => m_channel?.ServerChannelCertificate ?? [];
 
         /// <inheritdoc/>
         public int OperationTimeout { get; set; }
@@ -444,6 +453,8 @@ namespace Opc.Ua.Bindings
                         "Waiting Connection Handle is not of type IMessageSocket.");
                 }
             }
+
+            var id = Guid.NewGuid().ToString();
 
             // create the channel.
             var channel = new UaSCUaBinaryClientChannel(

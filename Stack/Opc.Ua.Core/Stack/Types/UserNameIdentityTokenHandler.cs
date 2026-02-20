@@ -114,7 +114,9 @@ namespace Opc.Ua
             }
 
             // handle RSA encryption.
-            if (!EccUtils.IsEccPolicy(securityPolicyUri))
+            var securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
+
+            if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
                 byte[] dataToEncrypt = Utils.Append(DecryptedPassword, receiverNonce);
 
@@ -129,7 +131,8 @@ namespace Opc.Ua
                 m_token.EncryptionAlgorithm = encryptedData.Algorithm;
                 Array.Clear(dataToEncrypt, 0, dataToEncrypt.Length);
             }
-            // handle ECC encryption.
+
+            // handle ECC and RSADH encryption.
             else
             {
                 // check if the complete chain is included in the sender issuers.
@@ -154,7 +157,7 @@ namespace Opc.Ua
                     receiverCertificate,
                     receiverEphemeralKey,
                     senderCertificate,
-                    Nonce.CreateNonce(securityPolicyUri),
+                    Nonce.CreateNonce(securityPolicy),
                     null,
                     doNotEncodeSenderCertificate);
 
@@ -190,7 +193,9 @@ namespace Opc.Ua
             }
 
             // handle RSA encryption.
-            if (!EccUtils.IsEccPolicy(securityPolicyUri))
+            var securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
+
+            if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
                 var encryptedData = new EncryptedData
                 {
@@ -234,7 +239,8 @@ namespace Opc.Ua
                 Array.Copy(decryptedPassword, DecryptedPassword, startOfNonce);
                 Array.Clear(decryptedPassword, 0, decryptedPassword.Length);
             }
-            // handle ECC encryption.
+
+            // handle ECC and RSADH encryption.
             else
             {
                 var secret = new EncryptedSecret(

@@ -39,146 +39,146 @@ namespace Opc.Ua
     {
         extension(EndpointDescription endpointDescription)
         {
-            /// <summary>
-            /// The encodings supported by the configuration.
-            /// </summary>
-            public BinaryEncodingSupport EncodingSupport
+        /// <summary>
+        /// The encodings supported by the configuration.
+        /// </summary>
+        public BinaryEncodingSupport EncodingSupport
+        {
+            get
             {
-                get
-                {
                     if (!string.IsNullOrEmpty(endpointDescription.EndpointUrl) &&
                         endpointDescription.EndpointUrl.StartsWith(
                             Utils.UriSchemeOpcTcp,
                             StringComparison.Ordinal))
-                    {
-                        return BinaryEncodingSupport.Required;
-                    }
+                {
+                    return BinaryEncodingSupport.Required;
+                }
 
                     endpointDescription.TransportProfileUri =
                         Profiles.NormalizeUri(endpointDescription.TransportProfileUri);
                     return endpointDescription.TransportProfileUri == Profiles.HttpsBinaryTransport ?
-                        BinaryEncodingSupport.Required : BinaryEncodingSupport.None;
+                    BinaryEncodingSupport.Required : BinaryEncodingSupport.None;
+            }
+        }
+
+        /// <summary>
+        /// Finds the user token policy with the specified id and securtyPolicyUri
+        /// </summary>
+        public UserTokenPolicy FindUserTokenPolicy(string policyId, string tokenSecurityPolicyUri)
+        {
+            UserTokenPolicy sameEncryptionAlgorithm = null;
+            UserTokenPolicy unspecifiedSecPolicy = null;
+            // The specified security policies take precedence
+                foreach (UserTokenPolicy policy in endpointDescription.UserIdentityTokens)
+            {
+                if (policy.PolicyId == policyId)
+                {
+                    if (policy.SecurityPolicyUri == tokenSecurityPolicyUri)
+                    {
+                        return policy;
+                    }
+                    else if ((
+                            policy.SecurityPolicyUri != null &&
+                            tokenSecurityPolicyUri != null &&
+                            CryptoUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
+                            CryptoUtils.IsEccPolicy(tokenSecurityPolicyUri)
+                        ) ||
+                        (
+                            !CryptoUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
+                            !CryptoUtils.IsEccPolicy(tokenSecurityPolicyUri)))
+                    {
+                        sameEncryptionAlgorithm ??= policy;
+                    }
+                    else if (policy.SecurityPolicyUri == null)
+                    {
+                        unspecifiedSecPolicy = policy;
+                    }
                 }
             }
-
-            /// <summary>
-            /// Finds the user token policy with the specified id and securtyPolicyUri
-            /// </summary>
-            public UserTokenPolicy FindUserTokenPolicy(string policyId, string tokenSecurityPolicyUri)
+            // The first token with the same encryption algorithm (RSA/ECC) follows
+            if (sameEncryptionAlgorithm != null)
             {
-                UserTokenPolicy sameEncryptionAlgorithm = null;
-                UserTokenPolicy unspecifiedSecPolicy = null;
-                // The specified security policies take precedence
+                return sameEncryptionAlgorithm;
+            }
+            // The first token with unspecified security policy follows / no policy
+            return unspecifiedSecPolicy;
+        }
+
+        /// <summary>
+        /// Finds a token policy that matches the user identity specified.
+        /// </summary>
+        public UserTokenPolicy FindUserTokenPolicy(
+            UserTokenType tokenType,
+            XmlQualifiedName issuedTokenType,
+            string tokenSecurityPolicyUri)
+        {
+            if (issuedTokenType == null)
+            {
+                    return endpointDescription.FindUserTokenPolicy(
+                        tokenType,
+                        (string)null,
+                        tokenSecurityPolicyUri);
+            }
+
+                return endpointDescription.FindUserTokenPolicy(
+                tokenType,
+                issuedTokenType.Namespace,
+                tokenSecurityPolicyUri);
+        }
+
+        /// <summary>
+        /// Finds a token policy that matches the user identity specified.
+        /// </summary>
+        public UserTokenPolicy FindUserTokenPolicy(
+            UserTokenType tokenType,
+            string issuedTokenType,
+            string tokenSecurityPolicyUri)
+        {
+            // construct issuer type.
+            string issuedTokenTypeText = issuedTokenType;
+
+            UserTokenPolicy sameEncryptionAlgorithm = null;
+            UserTokenPolicy unspecifiedSecPolicy = null;
+            // The specified security policies take precedence
                 foreach (UserTokenPolicy policy in endpointDescription.UserIdentityTokens)
+            {
+                if ((policy.TokenType == tokenType) &&
+                    (issuedTokenTypeText == policy.IssuedTokenType))
                 {
-                    if (policy.PolicyId == policyId)
+                    if ((policy.SecurityPolicyUri == tokenSecurityPolicyUri) ||
+                        (tokenType == UserTokenType.Anonymous))
                     {
-                        if (policy.SecurityPolicyUri == tokenSecurityPolicyUri)
-                        {
-                            return policy;
-                        }
-                        else if ((
-                                policy.SecurityPolicyUri != null &&
-                                tokenSecurityPolicyUri != null &&
-                                EccUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
-                                EccUtils.IsEccPolicy(tokenSecurityPolicyUri)
-                            ) ||
-                            (
-                                !EccUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
-                                !EccUtils.IsEccPolicy(tokenSecurityPolicyUri)))
-                        {
-                            sameEncryptionAlgorithm ??= policy;
-                        }
-                        else if (policy.SecurityPolicyUri == null)
+                        return policy;
+                    }
+                    else if ((
+                            policy.SecurityPolicyUri != null &&
+                            tokenSecurityPolicyUri != null &&
+                            CryptoUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
+                            CryptoUtils.IsEccPolicy(tokenSecurityPolicyUri)
+                        ) ||
+                        (
+                            !CryptoUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
+                            !CryptoUtils.IsEccPolicy(tokenSecurityPolicyUri)))
+                    {
+                        sameEncryptionAlgorithm ??= policy;
+                    }
+                    else if (policy.SecurityPolicyUri == null)
+                    {
+                        if (sameEncryptionAlgorithm == null)
                         {
                             unspecifiedSecPolicy = policy;
                         }
                     }
                 }
-                // The first token with the same encryption algorithm (RSA/ECC) follows
-                if (sameEncryptionAlgorithm != null)
-                {
-                    return sameEncryptionAlgorithm;
-                }
-                // The first token with unspecified security policy follows / no policy
-                return unspecifiedSecPolicy;
             }
-
-            /// <summary>
-            /// Finds a token policy that matches the user identity specified.
-            /// </summary>
-            public UserTokenPolicy FindUserTokenPolicy(
-                UserTokenType tokenType,
-                XmlQualifiedName issuedTokenType,
-                string tokenSecurityPolicyUri)
+            // The first token with the same encryption algorithm (RSA/ECC) follows
+            if (sameEncryptionAlgorithm != null)
             {
-                if (issuedTokenType == null)
-                {
-                    return endpointDescription.FindUserTokenPolicy(
-                        tokenType,
-                        (string)null,
-                        tokenSecurityPolicyUri);
-                }
-
-                return endpointDescription.FindUserTokenPolicy(
-                    tokenType,
-                    issuedTokenType.Namespace,
-                    tokenSecurityPolicyUri);
+                return sameEncryptionAlgorithm;
             }
-
-            /// <summary>
-            /// Finds a token policy that matches the user identity specified.
-            /// </summary>
-            public UserTokenPolicy FindUserTokenPolicy(
-                UserTokenType tokenType,
-                string issuedTokenType,
-                string tokenSecurityPolicyUri)
-            {
-                // construct issuer type.
-                string issuedTokenTypeText = issuedTokenType;
-
-                UserTokenPolicy sameEncryptionAlgorithm = null;
-                UserTokenPolicy unspecifiedSecPolicy = null;
-                // The specified security policies take precedence
-                foreach (UserTokenPolicy policy in endpointDescription.UserIdentityTokens)
-                {
-                    if ((policy.TokenType == tokenType) &&
-                        (issuedTokenTypeText == policy.IssuedTokenType))
-                    {
-                        if ((policy.SecurityPolicyUri == tokenSecurityPolicyUri) ||
-                            (tokenType == UserTokenType.Anonymous))
-                        {
-                            return policy;
-                        }
-                        else if ((
-                                policy.SecurityPolicyUri != null &&
-                                tokenSecurityPolicyUri != null &&
-                                EccUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
-                                EccUtils.IsEccPolicy(tokenSecurityPolicyUri)
-                            ) ||
-                            (
-                                !EccUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
-                                !EccUtils.IsEccPolicy(tokenSecurityPolicyUri)))
-                        {
-                            sameEncryptionAlgorithm ??= policy;
-                        }
-                        else if (policy.SecurityPolicyUri == null)
-                        {
-                            if (sameEncryptionAlgorithm == null)
-                            {
-                                unspecifiedSecPolicy = policy;
-                            }
-                        }
-                    }
-                }
-                // The first token with the same encryption algorithm (RSA/ECC) follows
-                if (sameEncryptionAlgorithm != null)
-                {
-                    return sameEncryptionAlgorithm;
-                }
-                // The first token with unspecified security policy follows / no policy
-                return unspecifiedSecPolicy;
-            }
+            // The first token with unspecified security policy follows / no policy
+            return unspecifiedSecPolicy;
         }
     }
+}
 }

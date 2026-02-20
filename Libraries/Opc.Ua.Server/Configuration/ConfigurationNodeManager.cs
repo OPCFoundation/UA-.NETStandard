@@ -392,6 +392,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1725:Parameter names should match base declaration", Justification = "<Pending>")]
         public void HasApplicationSecureAdminAccess(
             ISystemContext context,
             CertificateStoreIdentifier trustedStore)
@@ -950,7 +951,7 @@ namespace Opc.Ua.Server
             else
             {
                 ECCurve? curve =
-                    EccUtils.GetCurveFromCertificateTypeId(certificateTypeId)
+                    CryptoUtils.GetCurveFromCertificateTypeId(certificateTypeId)
                     ?? throw new ServiceResultException(
                         StatusCodes.BadNotSupported,
                         "The Ecc certificate type is not supported.");

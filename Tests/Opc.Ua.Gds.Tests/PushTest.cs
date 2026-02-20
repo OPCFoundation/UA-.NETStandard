@@ -764,7 +764,7 @@ namespace Opc.Ua.Gds.Tests
 
             X509Certificate2 newCert;
 
-            ECCurve? curve = EccUtils.GetCurveFromCertificateTypeId(m_certificateType);
+            ECCurve? curve = CryptoUtils.GetCurveFromCertificateTypeId(m_certificateType);
 
             if (curve != null)
             {
@@ -1287,7 +1287,7 @@ namespace Opc.Ua.Gds.Tests
             var certificateStoreIdentifier = new CertificateStoreIdentifier(tempStorePath, false);
             Assert.IsTrue(EraseStore(certificateStoreIdentifier, telemetry));
             const string subjectName = "CN=CA Test Cert, O=OPC Foundation";
-            ECCurve? curve = EccUtils.GetCurveFromCertificateTypeId(m_certificateType);
+            ECCurve? curve = CryptoUtils.GetCurveFromCertificateTypeId(m_certificateType);
 
             if (curve != null)
             {

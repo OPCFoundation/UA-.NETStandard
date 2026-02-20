@@ -445,12 +445,12 @@ namespace Opc.Ua.Configuration
                 if (!DisableCertificateAutoCreation)
                 {
                     certificate = await CreateApplicationInstanceCertificateAsync(
-                        configuration,
-                        id,
+                            configuration,
+                            id,
                         minimumKeySize,
-                        lifeTimeInMonths,
-                        ct)
-                    .ConfigureAwait(false);
+                            lifeTimeInMonths,
+                            ct)
+                        .ConfigureAwait(false);
                 }
                 else
                 {
@@ -868,7 +868,7 @@ namespace Opc.Ua.Configuration
             else
             {
                 ECCurve? curve =
-                    EccUtils.GetCurveFromCertificateTypeId(id.CertificateType)
+                    CryptoUtils.GetCurveFromCertificateTypeId(id.CertificateType)
                     ?? throw ServiceResultException.ConfigurationError("The Ecc certificate type is not supported.");
 
                 id.Certificate = builder.SetECCurve(curve.Value).CreateForECDsa();

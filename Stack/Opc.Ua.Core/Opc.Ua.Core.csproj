@@ -10,6 +10,9 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="Stack\Types\X509IdentityToken.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
