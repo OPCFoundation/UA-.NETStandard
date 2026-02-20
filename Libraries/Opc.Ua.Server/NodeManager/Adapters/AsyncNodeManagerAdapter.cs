@@ -133,7 +133,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask ConditionRefreshAsync(
+        public ValueTask<ServiceResult> ConditionRefreshAsync(
             OperationContext context,
             IList<IEventMonitoredItem> monitoredItems,
             CancellationToken cancellationToken = default)
@@ -607,11 +607,14 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask<ServiceResult> ValidateEventRolePermissionsAsync(IEventMonitoredItem monitoredItem, IFilterTarget filterTarget)
+        public ValueTask<ServiceResult> ValidateEventRolePermissionsAsync(
+            IEventMonitoredItem monitoredItem,
+            IFilterTarget filterTarget,
+            CancellationToken cancellationToken = default)
         {
             if (SyncNodeManager is IAsyncNodeManager asyncNodeManager)
             {
-                return asyncNodeManager.ValidateEventRolePermissionsAsync(monitoredItem, filterTarget);
+                return asyncNodeManager.ValidateEventRolePermissionsAsync(monitoredItem, filterTarget, cancellationToken);
             }
 
             if (SyncNodeManager is INodeManager3 nodeManager2)
@@ -623,11 +626,15 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask<ServiceResult> ValidateRolePermissionsAsync(OperationContext operationContext, NodeId nodeId, PermissionType requestedPermission)
+        public ValueTask<ServiceResult> ValidateRolePermissionsAsync(
+            OperationContext operationContext,
+            NodeId nodeId,
+            PermissionType requestedPermission,
+            CancellationToken cancellationToken = default)
         {
             if (SyncNodeManager is IAsyncNodeManager asyncNodeManager)
             {
-                return asyncNodeManager.ValidateRolePermissionsAsync(operationContext, nodeId, requestedPermission);
+                return asyncNodeManager.ValidateRolePermissionsAsync(operationContext, nodeId, requestedPermission, cancellationToken);
             }
 
             if (SyncNodeManager is INodeManager3 nodeManager2)
