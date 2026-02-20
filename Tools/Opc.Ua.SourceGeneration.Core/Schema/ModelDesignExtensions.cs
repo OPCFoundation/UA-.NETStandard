@@ -2411,7 +2411,7 @@ namespace Opc.Ua.Schema.Model
             object value,
             IServiceMessageContext context)
         {
-            if (VariantHelper.TryConvertWithReflectionFallback(value, out Variant variant) &&
+            if (VariantHelper.TryCastFromWithReflectionFallback(value, out Variant variant) &&
                 !variant.IsNull)
             {
                 using var encoder = new XmlEncoder(context);

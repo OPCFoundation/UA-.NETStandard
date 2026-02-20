@@ -424,7 +424,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="dimensions"></param>
         /// <returns></returns>
-        public MatrixOf<T> ToMatrix(int[] dimensions)
+        public MatrixOf<T> ToMatrix(params int[] dimensions)
         {
             return new(m_memory, dimensions);
         }

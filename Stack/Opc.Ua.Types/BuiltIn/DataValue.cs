@@ -330,7 +330,7 @@ namespace Opc.Ua
         public object Value
         {
             get => m_value.AsBoxedObject();
-            set => VariantHelper.TryConvert(value, out m_value);
+            set => VariantHelper.TryCastFrom(value, out m_value);
         }
 
         /// <summary>

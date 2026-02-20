@@ -279,57 +279,6 @@ namespace Opc.Ua
             return null;
         }
 
-        /// <summary>
-        /// Checks the data type of a value before casting it to the type <typeparamref name="T"/>.
-        /// </summary>
-        /// <typeparam name="T">The framework type of value contained in the variable.</typeparam>
-        /// <param name="value">The value.</param>
-        /// <param name="throwOnError">if set to <c>true</c> <see cref="ServiceResultException"/> is thrown on error.</param>
-        /// <returns>Returns <paramref name="value"/> or default for <typeparamref name="T"/></returns>
-        /// <exception cref="ServiceResultException"> if it is impossible to cast the value or the value is null
-        /// and <see cref="IsValueType"/> for the type <typeparamref name="T"/> returns true. </exception>
-        public static T CheckTypeBeforeCast<T>(Variant value, bool throwOnError)
-        {
-            if (value.IsNull)
-            {
-                // Use default either null or default value of value type
-                return default;
-            }
-
-            object boxedValue = value.AsBoxedObject();
-            if (boxedValue is T typedValue)
-            {
-                // Can convert
-                return typedValue;
-            }
-
-            if (boxedValue is ExtensionObject eo &&
-                ExtensionObject.ToEncodeable(eo) is T encodeable)
-            {
-                // Can convert extension object
-                return encodeable;
-            }
-
-            if (boxedValue is ExtensionObject[] eos &&
-                typeof(T).IsArray &&
-                ExtensionObject.ToArray(eos, typeof(T).GetElementType()) is T encodeables)
-            {
-                // Can convert extension object
-                return encodeables;
-            }
-
-            // Otherwise check if we need to throw and throw or return default
-            if (throwOnError)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadTypeMismatch,
-                    "Cannot convert '{0}' to a {1}.",
-                    value,
-                    typeof(T).Name);
-            }
-            return default;
-        }
-
         /// <inheritdoc/>
         public override object Clone()
         {
@@ -1842,7 +1791,7 @@ namespace Opc.Ua
                         return result;
                     }
 
-                    value = VariantHelper.Convert(target);
+                    value = VariantHelper.CastFrom(target);
                 }
             }
 
@@ -1961,8 +1910,8 @@ namespace Opc.Ua
         /// </summary>
         public new T Value
         {
-            get => CheckTypeBeforeCast<T>(base.Value, true);
-            set => base.Value = VariantHelper.Convert(value);
+            get => VariantHelper.CastTo<T>(base.Value, true);
+            set => base.Value = VariantHelper.CastFrom(value);
         }
     }
 
@@ -2182,8 +2131,8 @@ namespace Opc.Ua
         /// </summary>
         public new T Value
         {
-            get => CheckTypeBeforeCast<T>(base.Value, true);
-            set => base.Value = VariantHelper.Convert(value);
+            get => VariantHelper.CastTo<T>(base.Value, true);
+            set => base.Value = VariantHelper.CastFrom(value);
         }
     }
 

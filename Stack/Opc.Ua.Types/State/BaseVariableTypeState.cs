@@ -807,8 +807,8 @@ namespace Opc.Ua
         /// </summary>
         public new T Value
         {
-            get => BaseVariableState.CheckTypeBeforeCast<T>(base.Value, true);
-            set => base.Value = VariantHelper.Convert(value);
+            get => VariantHelper.CastTo<T>(base.Value, true);
+            set => base.Value = VariantHelper.CastFrom(value);
         }
     }
 
@@ -896,8 +896,8 @@ namespace Opc.Ua
         /// </summary>
         public new T Value
         {
-            get => BaseVariableState.CheckTypeBeforeCast<T>(base.Value, true);
-            set => base.Value = VariantHelper.Convert(value);
+            get => VariantHelper.CastTo<T>(base.Value, true);
+            set => base.Value = VariantHelper.CastFrom(value);
         }
     }
 }

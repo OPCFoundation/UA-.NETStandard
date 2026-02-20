@@ -927,9 +927,9 @@ namespace Opc.Ua
         /// <param name="value">The value to store.</param>
         /// <param name="typeInfo">The type information for the value.</param>
         [JsonConstructor]
-        internal Variant(object value, TypeInfo typeInfo)
+        public Variant(object value, TypeInfo typeInfo)
         {
-            VariantHelper.TryConvert(value, out Variant variant);
+            VariantHelper.TryCastFrom(value, out Variant variant);
             this = variant;
             m_typeInfo = typeInfo;
         }
@@ -942,7 +942,7 @@ namespace Opc.Ua
         //[Obsolete("Use TryGet pattern to access values or AsBoxedObject.")]
         public Variant(object value)
         {
-            VariantHelper.TryConvertWithReflectionFallback(value, out Variant variant);
+            VariantHelper.TryCastFromWithReflectionFallback(value, out Variant variant);
             this = variant;
         }
 
@@ -1956,10 +1956,7 @@ namespace Opc.Ua
             }
             if (TryGet(out int int32Value))
             {
-                value = (T)Convert.ChangeType(
-                    int32Value,
-                    typeof(T),
-                    CultureInfo.InvariantCulture);
+                value = FromInt<T>(int32Value);
                 return true;
             }
             value = default;
@@ -2276,7 +2273,9 @@ namespace Opc.Ua
         /// </param>
         public bool TryGet(out ArrayOf<int> value)
         {
-            return TryGetArray(out value, BuiltInType.Int32);
+            return
+                TryGetArray(out value, BuiltInType.Int32) ||
+                TryGetArray(out value, BuiltInType.Enumeration);
         }
 
         /// <summary>
@@ -2328,7 +2327,15 @@ namespace Opc.Ua
         /// <param name="value">The value to get</param>
         public bool TryGet<T>(out ArrayOf<T> value) where T : Enum
         {
-            return TryGetArray(out value, BuiltInType.Enumeration);
+            // All enum values are stored as integer arrays with type lost
+            if (TryGetArray(out ArrayOf<int> int32Values, BuiltInType.Enumeration) ||
+                TryGetArray(out int32Values, BuiltInType.Int32))
+            {
+                value = int32Values.ConvertAll(e => FromInt<T>(e));
+                return true;
+            }
+            value = default;
+            return false;
         }
 
         /// <summary>
@@ -2517,24 +2524,19 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         public bool TryGetArray<T>(out ArrayOf<T> value, BuiltInType expectedType)
         {
-            if (m_value == null)
+            if (TypeInfo.BuiltInType == expectedType)
             {
-                value = default;
-                return false;
-            }
-            if (TypeInfo.BuiltInType != expectedType || TypeInfo.IsScalar)
-            {
-                if (!IsConvertible(TypeInfo, new TypeInfo(expectedType, TypeInfo.ValueRank)))
+                if (m_value is ArrayOf<T> array)
                 {
-                    value = default;
-                    return false;
+                    value = array;
+                    return true;
                 }
-            }
-            // Leave else we need to convert between enum/int array types
-            else if (m_value is ArrayOf<T> variable)
-            {
-                value = variable;
-                return true;
+
+                if (m_value is MatrixOf<T> matrix && matrix.Dimensions.Length == 1)
+                {
+                    value = matrix.ToArrayOf();
+                    return true;
+                }
             }
             value = default;
             return false;
@@ -2597,7 +2599,9 @@ namespace Opc.Ua
         /// </param>
         public bool TryGet(out MatrixOf<int> value)
         {
-            return TryGetMatrix(out value, BuiltInType.Int32);
+            return
+                TryGetMatrix(out value, BuiltInType.Int32) ||
+                TryGetMatrix(out value, BuiltInType.Enumeration);
         }
 
         /// <summary>
@@ -2649,7 +2653,15 @@ namespace Opc.Ua
         /// <param name="value">The value to get</param>
         public bool TryGet<T>(out MatrixOf<T> value) where T : Enum
         {
-            return TryGetMatrix(out value, BuiltInType.Enumeration);
+            // All enum values are stored as integer matrices with type lost
+            if (TryGetMatrix(out MatrixOf<int> int32Values, BuiltInType.Enumeration) ||
+                TryGetMatrix(out int32Values, BuiltInType.Int32))
+            {
+                value = int32Values.ConvertAll(e => FromInt<T>(e));
+                return true;
+            }
+            value = default;
+            return false;
         }
 
         /// <summary>
@@ -2921,6 +2933,7 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         /// <param name="value">The Enum value to set
         /// this Variant to</param>
+        /// <exception cref="ServiceResultException"></exception>
         public static Variant From<T>(T value) where T : Enum
         {
 #if NET8_0_OR_GREATER
@@ -3007,7 +3020,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(string value)
         {
-            return new Variant(value);
+            return value is null ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3037,7 +3050,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ByteString value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3120,7 +3133,7 @@ namespace Opc.Ua
         public static Variant FromStructure<T>(T value, bool copy = false)
             where T : IEncodeable
         {
-            return new Variant(new ExtensionObject(value, copy));
+            return value is null ? default : new Variant(new ExtensionObject(value, copy));
         }
 
         /// <summary>
@@ -3130,7 +3143,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(DataValue value)
         {
-            return new Variant(value);
+            return value is null ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3140,7 +3153,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<bool> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3150,7 +3163,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<sbyte> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3160,7 +3173,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<byte> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3170,7 +3183,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<short> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3180,7 +3193,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<ushort> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3190,7 +3203,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<int> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3201,7 +3214,12 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From<T>(ArrayOf<T> value) where T : Enum
         {
-            return new Variant(value, TypeInfo.Arrays.Enumeration);
+            // All enum arrays are stored as int32 arrays, so we
+            // need to convert them to int32 if needed.
+            return value.IsNull ? default : new Variant(
+                default,
+                TypeInfo.Arrays.Enumeration,
+                value.ConvertAll(e => Convert.ToInt32(e, CultureInfo.InvariantCulture)));
         }
 
         /// <summary>
@@ -3212,7 +3230,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From<T>(T[] value) where T : Enum
         {
-            return new Variant(value.ToArrayOf(), TypeInfo.Arrays.Enumeration);
+            return From(value.ToArrayOf());
         }
 
         /// <summary>
@@ -3222,7 +3240,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<uint> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3232,7 +3250,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<long> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3242,7 +3260,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<ulong> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3252,7 +3270,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<float> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3262,7 +3280,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<double> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3272,7 +3290,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<string> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3282,7 +3300,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<DateTime> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3292,7 +3310,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<Uuid> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3302,7 +3320,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<ByteString> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3312,7 +3330,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<XmlElement> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3322,7 +3340,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<NodeId> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3332,7 +3350,7 @@ namespace Opc.Ua
         /// set this Variant to</param>
         public static Variant From(ArrayOf<ExpandedNodeId> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3342,7 +3360,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<StatusCode> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3352,7 +3370,7 @@ namespace Opc.Ua
         /// set this Variant to</param>
         public static Variant From(ArrayOf<QualifiedName> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3362,7 +3380,7 @@ namespace Opc.Ua
         /// set this Variant to</param>
         public static Variant From(ArrayOf<LocalizedText> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3372,7 +3390,7 @@ namespace Opc.Ua
         /// set this Variant to</param>
         public static Variant From(ArrayOf<ExtensionObject> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3385,7 +3403,8 @@ namespace Opc.Ua
         public static Variant FromStructure<T>(ArrayOf<T> value, bool copy = false)
             where T : IEncodeable
         {
-            return new Variant(value.ConvertAll(b => new ExtensionObject(b, copy)));
+            return value.IsNull ? default :
+                new Variant(value.ConvertAll(b => new ExtensionObject(b, copy)));
         }
 
         /// <summary>
@@ -3395,7 +3414,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<DataValue> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3405,7 +3424,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(ArrayOf<Variant> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3415,7 +3434,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<bool> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3425,7 +3444,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<sbyte> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3435,7 +3454,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<byte> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3445,7 +3464,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<short> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3455,7 +3474,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<ushort> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3465,7 +3484,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<int> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3476,7 +3495,12 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From<T>(MatrixOf<T> value) where T : Enum
         {
-            return new Variant(value, TypeInfo.Arrays.Enumeration);
+            // All enum matrices are stored as int32 matrices, so we
+            // need to convert them to int32
+            return value.IsNull ? default : new Variant(
+                default,
+                TypeInfo.Create(BuiltInType.Enumeration, value.Dimensions.Length),
+                value.ConvertAll(e => Convert.ToInt32(e, CultureInfo.InvariantCulture)));
         }
 
         /// <summary>
@@ -3486,7 +3510,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<uint> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3496,7 +3520,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<long> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3506,7 +3530,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<ulong> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3516,7 +3540,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<float> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3526,7 +3550,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<double> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3536,7 +3560,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<string> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3546,7 +3570,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<DateTime> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3556,7 +3580,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<Uuid> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3566,7 +3590,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<ByteString> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3576,7 +3600,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<XmlElement> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3586,7 +3610,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<NodeId> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3596,7 +3620,7 @@ namespace Opc.Ua
         /// set this Variant to</param>
         public static Variant From(MatrixOf<ExpandedNodeId> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3606,7 +3630,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<StatusCode> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3616,7 +3640,7 @@ namespace Opc.Ua
         /// set this Variant to</param>
         public static Variant From(MatrixOf<QualifiedName> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3626,7 +3650,7 @@ namespace Opc.Ua
         /// set this Variant to</param>
         public static Variant From(MatrixOf<LocalizedText> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3636,7 +3660,7 @@ namespace Opc.Ua
         /// set this Variant to</param>
         public static Variant From(MatrixOf<ExtensionObject> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3649,7 +3673,8 @@ namespace Opc.Ua
         public static Variant FromStructure<T>(MatrixOf<T> value, bool copy = false)
             where T : IEncodeable
         {
-            return new Variant(value.ConvertAll(b => new ExtensionObject(b, copy)));
+            return value.IsNull ? default :
+                new Variant(value.ConvertAll(b => new ExtensionObject(b, copy)));
         }
 
         /// <summary>
@@ -3659,7 +3684,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<DataValue> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -3669,7 +3694,7 @@ namespace Opc.Ua
         /// this Variant to</param>
         public static Variant From(MatrixOf<Variant> value)
         {
-            return new Variant(value);
+            return value.IsNull ? default : new Variant(value);
         }
 
         /// <summary>
@@ -7599,6 +7624,22 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Cast to enum
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        private static T FromInt<T>(int value) where T : Enum
+        {
+#if NET8_0_OR_GREATER
+            if (Unsafe.SizeOf<T>() <= sizeof(int))
+            {
+                int i32 = value;
+                return Unsafe.As<int, T>(ref i32);
+            }
+#endif
+            return (T)(object)value;
+        }
+
+        /// <summary>
         /// Returns true if for sake of variant these type infos are equivalent
         /// </summary>
         /// <param name="typeInfo1"></param>
@@ -7698,17 +7739,448 @@ namespace Opc.Ua
     public static class VariantHelper
     {
         /// <summary>
+        /// Try cast to type T
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        public static bool TryCastTo<T>(this Variant value, out T result)
+        {
+            if (value.IsNull)
+            {
+                // Use default either null or default value of value type
+                result = default;
+                return true;
+            }
+            switch (typeof(T))
+            {
+                // Cannot handle multi dim without reflection.
+                case Type t when t == typeof(Variant):
+                    result = AsT(value);
+                    break;
+                case Type t when t.IsEnum:
+                    result = AsT(value.GetInt32());
+                    break;
+                case Type t when t == typeof(bool):
+                    result = AsT(value.GetBoolean());
+                    break;
+                case Type t when t == typeof(byte):
+                    result = AsT(value.GetByte());
+                    break;
+                case Type t when t == typeof(sbyte):
+                    result = AsT(value.GetSByte());
+                    break;
+                case Type t when t == typeof(ushort):
+                    result = AsT(value.GetUInt16());
+                    break;
+                case Type t when t == typeof(short):
+                    result = AsT(value.GetInt16());
+                    break;
+                case Type t when t == typeof(uint):
+                    result = AsT(value.GetUInt32());
+                    break;
+                case Type t when t == typeof(int):
+                    result = AsT(value.GetInt32());
+                    break;
+                case Type t when t == typeof(ulong):
+                    result = AsT(value.GetUInt64());
+                    break;
+                case Type t when t == typeof(long):
+                    result = AsT(value.GetInt64());
+                    break;
+                case Type t when t == typeof(double):
+                    result = AsT(value.GetDouble());
+                    break;
+                case Type t when t == typeof(float):
+                    result = AsT(value.GetFloat());
+                    break;
+                case Type t when t == typeof(string):
+                    result = AsRefT(value.GetString());
+                    break;
+                case Type t when t == typeof(DateTime):
+                    result = AsT(value.GetDateTime());
+                    break;
+                case Type t when t == typeof(Guid):
+                    result = AsT<Uuid>(value.GetGuid().Guid);
+                    break;
+                case Type t when t == typeof(Uuid):
+                    result = AsT(value.GetGuid());
+                    break;
+                case Type t when t == typeof(ByteString):
+                    result = AsT(value.GetByteString());
+                    break;
+                case Type t when t == typeof(XmlElement):
+                    result = AsT(value.GetXmlElement());
+                    break;
+                case Type t when t == typeof(NodeId):
+                    result = AsT(value.GetNodeId());
+                    break;
+                case Type t when t == typeof(ExpandedNodeId):
+                    result = AsT(value.GetExpandedNodeId());
+                    break;
+                case Type t when t == typeof(LocalizedText):
+                    result = AsT(value.GetLocalizedText());
+                    break;
+                case Type t when t == typeof(QualifiedName):
+                    result = AsT(value.GetQualifiedName());
+                    break;
+                case Type t when t == typeof(StatusCode):
+                    result = AsT(value.GetStatusCode());
+                    break;
+                case Type t when t == typeof(DataValue):
+                    result = AsRefT(value.GetDataValue());
+                    break;
+                case Type t when t == typeof(ExtensionObject):
+                    result = AsT(value.GetExtensionObject());
+                    break;
+                case Type t when typeof(IEncodeable).IsAssignableFrom(t):
+                    if (!value.GetExtensionObject()
+                        .TryGetEncodeable(out IEncodeable encodeable))
+                    {
+                        result = default;
+                        return false;
+                    }
+                    result = (T)(object)encodeable;
+                    break;
+                case Type t when t == typeof(ArrayOf<bool>):
+                    result = AsT(value.GetBooleanArray());
+                    break;
+                case Type t when t == typeof(ArrayOf<sbyte>):
+                    result = AsT(value.GetSByteArray());
+                    break;
+                case Type t when t == typeof(ArrayOf<byte>):
+                    result = AsT(value.GetByteArray());
+                    break;
+                case Type t when t == typeof(ArrayOf<short>):
+                    result = AsT(value.GetInt16Array());
+                    break;
+                case Type t when t == typeof(ArrayOf<ushort>):
+                    result = AsT(value.GetUInt16Array());
+                    break;
+                case Type t when t == typeof(ArrayOf<int>):
+                    result = AsT(value.GetInt32Array());
+                    break;
+                case Type t when t == typeof(ArrayOf<uint>):
+                    result = AsT(value.GetUInt32Array());
+                    break;
+                case Type t when t == typeof(ArrayOf<long>):
+                    result = AsT(value.GetInt64Array());
+                    break;
+                case Type t when t == typeof(ArrayOf<ulong>):
+                    result = AsT(value.GetUInt64Array());
+                    break;
+                case Type t when t == typeof(ArrayOf<float>):
+                    result = AsT(value.GetFloatArray());
+                    break;
+                case Type t when t == typeof(ArrayOf<double>):
+                    result = AsT(value.GetDoubleArray());
+                    break;
+                case Type t when t == typeof(ArrayOf<string>):
+                    result = AsT(value.GetStringArray());
+                    break;
+                case Type t when t == typeof(ArrayOf<DateTime>):
+                    result = AsT(value.GetDateTimeArray());
+                    break;
+                case Type t when t == typeof(ArrayOf<Guid>):
+                    result = AsT(value.GetGuidArray().ConvertAll(g => g.Guid));
+                    break;
+                case Type t when t == typeof(ArrayOf<Uuid>):
+                    result = AsT(value.GetGuidArray());
+                    break;
+                case Type t when t == typeof(ArrayOf<ByteString>):
+                    result = AsT(value.GetByteStringArray());
+                    break;
+                case Type t when t == typeof(ArrayOf<XmlElement>):
+                    result = AsT(value.GetXmlElementArray());
+                    break;
+                case Type t when t == typeof(ArrayOf<NodeId>):
+                    result = AsT(value.GetNodeIdArray());
+                    break;
+                case Type t when t == typeof(ArrayOf<ExpandedNodeId>):
+                    result = AsT(value.GetExpandedNodeIdArray());
+                    break;
+                case Type t when t == typeof(ArrayOf<LocalizedText>):
+                    result = AsT(value.GetLocalizedTextArray());
+                    break;
+                case Type t when t == typeof(ArrayOf<QualifiedName>):
+                    result = AsT(value.GetQualifiedNameArray());
+                    break;
+                case Type t when t == typeof(ArrayOf<StatusCode>):
+                    result = AsT(value.GetStatusCodeArray());
+                    break;
+                case Type t when t == typeof(ArrayOf<DataValue>):
+                    result = AsT(value.GetDataValueArray());
+                    break;
+                case Type t when t == typeof(ArrayOf<Variant>):
+                    result = AsT(value.GetVariantArray());
+                    break;
+                case Type t when t == typeof(ArrayOf<ExtensionObject>):
+                    result = AsT(value.GetExtensionObjectArray());
+                    break;
+                case Type t when t == typeof(MatrixOf<bool>):
+                    result = AsT(value.GetBooleanMatrix());
+                    break;
+                case Type t when t == typeof(MatrixOf<sbyte>):
+                    result = AsT(value.GetSByteMatrix());
+                    break;
+                case Type t when t == typeof(MatrixOf<byte>):
+                    result = AsT(value.GetByteMatrix());
+                    break;
+                case Type t when t == typeof(MatrixOf<short>):
+                    result = AsT(value.GetInt16Matrix());
+                    break;
+                case Type t when t == typeof(MatrixOf<ushort>):
+                    result = AsT(value.GetUInt16Matrix());
+                    break;
+                case Type t when t == typeof(MatrixOf<int>):
+                    result = AsT(value.GetInt32Matrix());
+                    break;
+                case Type t when t == typeof(MatrixOf<uint>):
+                    result = AsT(value.GetUInt32Matrix());
+                    break;
+                case Type t when t == typeof(MatrixOf<long>):
+                    result = AsT(value.GetInt64Matrix());
+                    break;
+                case Type t when t == typeof(MatrixOf<ulong>):
+                    result = AsT(value.GetUInt64Matrix());
+                    break;
+                case Type t when t == typeof(MatrixOf<float>):
+                    result = AsT(value.GetFloatMatrix());
+                    break;
+                case Type t when t == typeof(MatrixOf<double>):
+                    result = AsT(value.GetDoubleMatrix());
+                    break;
+                case Type t when t == typeof(MatrixOf<string>):
+                    result = AsT(value.GetStringMatrix());
+                    break;
+                case Type t when t == typeof(MatrixOf<DateTime>):
+                    result = AsT(value.GetDateTimeMatrix());
+                    break;
+                case Type t when t == typeof(MatrixOf<Guid>):
+                    result = AsT(value.GetGuidMatrix().ConvertAll(g => g.Guid));
+                    break;
+                case Type t when t == typeof(MatrixOf<Uuid>):
+                    result = AsT(value.GetGuidMatrix());
+                    break;
+                case Type t when t == typeof(MatrixOf<ByteString>):
+                    result = AsT(value.GetByteStringMatrix());
+                    break;
+                case Type t when t == typeof(MatrixOf<XmlElement>):
+                    result = AsT(value.GetXmlElementMatrix());
+                    break;
+                case Type t when t == typeof(MatrixOf<NodeId>):
+                    result = AsT(value.GetNodeIdMatrix());
+                    break;
+                case Type t when t == typeof(MatrixOf<ExpandedNodeId>):
+                    result = AsT(value.GetExpandedNodeIdMatrix());
+                    break;
+                case Type t when t == typeof(MatrixOf<LocalizedText>):
+                    result = AsT(value.GetLocalizedTextMatrix());
+                    break;
+                case Type t when t == typeof(MatrixOf<QualifiedName>):
+                    result = AsT(value.GetQualifiedNameMatrix());
+                    break;
+                case Type t when t == typeof(MatrixOf<StatusCode>):
+                    result = AsT(value.GetStatusCodeMatrix());
+                    break;
+                case Type t when t == typeof(MatrixOf<DataValue>):
+                    result = AsT(value.GetDataValueMatrix());
+                    break;
+                case Type t when t == typeof(MatrixOf<Variant>):
+                    result = AsT(value.GetVariantMatrix());
+                    break;
+                case Type t when t == typeof(MatrixOf<ExtensionObject>):
+                    result = AsT(value.GetExtensionObjectMatrix());
+                    break;
+                case Type t when t == typeof(bool[]):
+                    result = AsRefT(value.GetBooleanArray().ToArray());
+                    break;
+                case Type t when t == typeof(byte[]):
+                    result = AsRefT(value.GetByteArray().ToArray());
+                    break;
+                case Type t when t == typeof(sbyte[]):
+                    result = AsRefT(value.GetSByteArray().ToArray());
+                    break;
+                case Type t when t == typeof(ushort[]):
+                    result = AsRefT(value.GetUInt16Array().ToArray());
+                    break;
+                case Type t when t == typeof(short[]):
+                    result = AsRefT(value.GetInt16Array().ToArray());
+                    break;
+                case Type t when t == typeof(uint[]):
+                    result = AsRefT(value.GetUInt32Array().ToArray());
+                    break;
+                case Type t when t == typeof(int[]):
+                    result = AsRefT(value.GetInt32Array().ToArray());
+                    break;
+                case Type t when t == typeof(ulong[]):
+                    result = AsRefT(value.GetUInt64Array().ToArray());
+                    break;
+                case Type t when t == typeof(long[]):
+                    result = AsRefT(value.GetInt64Array().ToArray());
+                    break;
+                case Type t when t == typeof(double[]):
+                    result = AsRefT(value.GetDoubleArray().ToArray());
+                    break;
+                case Type t when t == typeof(float[]):
+                    result = AsRefT(value.GetFloatArray().ToArray());
+                    break;
+                case Type t when t == typeof(string[]):
+                    result = AsRefT(value.GetStringArray().ToArray());
+                    break;
+                case Type t when t == typeof(DateTime[]):
+                    result = AsRefT(value.GetDateTimeArray().ToArray());
+                    break;
+                case Type t when t == typeof(Uuid[]):
+                    result = AsRefT(value.GetGuidArray().ToArray());
+                    break;
+                case Type t when t == typeof(ByteString[]):
+                    result = AsRefT(value.GetByteStringArray().ToArray());
+                    break;
+                case Type t when t == typeof(XmlElement[]):
+                    result = AsRefT(value.GetXmlElementArray().ToArray());
+                    break;
+                case Type t when t == typeof(NodeId[]):
+                    result = AsRefT(value.GetNodeIdArray().ToArray());
+                    break;
+                case Type t when t == typeof(ExpandedNodeId[]):
+                    result = AsRefT(value.GetExpandedNodeIdArray().ToArray());
+                    break;
+                case Type t when t == typeof(LocalizedText[]):
+                    result = AsRefT(value.GetLocalizedTextArray().ToArray());
+                    break;
+                case Type t when t == typeof(QualifiedName[]):
+                    result = AsRefT(value.GetQualifiedNameArray().ToArray());
+                    break;
+                case Type t when t == typeof(StatusCode[]):
+                    result = AsRefT(value.GetStatusCodeArray().ToArray());
+                    break;
+                case Type t when t == typeof(DataValue[]):
+                    result = AsRefT(value.GetDataValueArray().ToArray());
+                    break;
+                case Type t when t == typeof(Variant[]):
+                    result = AsRefT(value.GetVariantArray().ToArray());
+                    break;
+                case Type t when t == typeof(ExtensionObject[]):
+                    result = AsRefT(value.GetExtensionObjectArray().ToArray());
+                    break;
+                case Type t when t == typeof(Guid[]):
+                    result = AsRefT(value.GetGuidArray().ConvertAll(g => g.Guid).ToArray());
+                    break;
+                case Type t when typeof(IEncodeable[]).IsAssignableFrom(t):
+                    ArrayOf<ExtensionObject> extensionObjects = value.GetExtensionObjectArray();
+                    var encodeables = new IEncodeable[extensionObjects.Count];
+                    for (int ii = 0; ii < encodeables.Length; ii++)
+                    {
+                        if (!extensionObjects[ii].TryGetEncodeable(out encodeables[ii]))
+                        {
+                            result = default;
+                            return false;
+                        }
+                    }
+                    result = AsRefT(encodeables);
+                    break;
+                case Type t when t.IsArray && t.GetArrayRank() == 1 && t.GetElementType().IsEnum:
+                    ArrayOf<int> enumValues = value.GetInt32Array();
+                    result = AsRefT(enumValues.ToArray());
+                    break;
+                default:
+                    result = default;
+                    return false;
+            }
+            return true;
+
+            // Helper to treat U as T which are the same
+            static T AsRefT<U>(U value) where U : class
+            {
+                Debug.Assert(typeof(U) == typeof(T));
+                return (T)(object)value;
+            }
+
+            // Helper to treat U as T which are the same
+            static T AsT<U>(U value) where U : struct
+            {
+                Debug.Assert(typeof(U) == typeof(T));
+#if NET8_0_OR_GREATER
+                Debug.Assert(Unsafe.SizeOf<T>() == Unsafe.SizeOf<U>());
+                return Unsafe.As<U, T>(ref value);
+#else
+                return (T)(object)value;
+#endif
+            }
+        }
+
+        /// <summary>
+        /// Casts the variant to a <typeparamref name="T"/>.
+        /// </summary>
+        /// <typeparam name="T">The type to cast to.</typeparam>
+        /// <param name="value">The variant.</param>
+        /// <param name="throwOnError"></param>
+        /// <exception cref="ServiceResultException"></exception>
+        public static T CastTo<T>(this Variant value, bool throwOnError = true)
+        {
+            if (!TryCastTo(value, out T result) && throwOnError)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTypeMismatch,
+                    "Cannot convert '{0}' to a {1}.",
+                    value,
+                    typeof(T).Name);
+            }
+            return result;
+        }
+
+        /// <summary>
         /// Convert with reflection fallback and throws if it cannot
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public static Variant ConvertWithReflectionFallback(object value)
+        public static Variant CastFromWithReflectionFallback(object value)
         {
-            if (!TryConvertWithReflectionFallback(value, out var variant))
+            if (!TryCastFromWithReflectionFallback(value, out var variant))
             {
                 throw ServiceResultException.Create(StatusCodes.BadTypeMismatch,
                     "Failed to convert type {0} to Variant.", value?.GetType().FullName);
             }
             return variant;
+        }
+
+        /// <summary>
+        /// Overloads to catch the enums
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static Variant CastFromWithReflectionFallback<T>(T value)
+            where T : Enum
+        {
+            return Variant.From(value);
+        }
+
+        /// <summary>
+        /// Overloads to catch the enums
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static Variant CastFromWithReflectionFallback<T>(ArrayOf<T> value)
+            where T : Enum
+        {
+            return Variant.From(value);
+        }
+
+        /// <summary>
+        /// Overloads to catch the enums
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static Variant CastFromWithReflectionFallback<T>(MatrixOf<T> value)
+            where T : Enum
+        {
+            return Variant.From(value);
+        }
+
+        /// <summary>
+        /// Overloads to catch the enums
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static Variant CastFromWithReflectionFallback<T>(IEnumerable<T> value)
+            where T : Enum
+        {
+            return Variant.From(value.ToArrayOf());
         }
 
         /// <summary>
@@ -7717,24 +8189,63 @@ namespace Opc.Ua
         /// <param name="value"></param>
         /// <param name="variant"></param>
         /// <returns></returns>
-        public static bool TryConvertWithReflectionFallback(
+        public static bool TryCastFromWithReflectionFallback(
             object value,
             out Variant variant)
         {
-            if (TryConvert(value, out variant))
+            if (TryCastFrom(value, out variant))
             {
                 return true;
             }
-            return TryConvertWithReflection(value, out variant);
+            return TryCastFromWithReflection(value, out variant);
+        }
+
+        /// <summary>
+        /// Overloads to catch the enums
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static bool TryCastFromWithReflectionFallback<T>(
+            ArrayOf<T> value,
+            out Variant variant)
+            where T : Enum
+        {
+            variant = Variant.From(value);
+            return true;
+        }
+
+        /// <summary>
+        /// Overloads to catch the enums
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static bool TryCastFromWithReflectionFallback<T>(
+            MatrixOf<T> value,
+            out Variant variant)
+            where T : Enum
+        {
+            variant = Variant.From(value);
+            return true;
+        }
+
+        /// <summary>
+        /// Overloads to catch the enums
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static bool TryCastFromWithReflectionFallback<T>(
+            IEnumerable<T> value,
+            out Variant variant)
+            where T : Enum
+        {
+            variant = Variant.From(value.ToArrayOf());
+            return true;
         }
 
         /// <summary>
         /// Convert and throws if it cannot
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public static Variant Convert(object value)
+        public static Variant CastFrom(object value)
         {
-            if (!TryConvert(value, out var variant))
+            if (!TryCastFrom(value, out Variant variant))
             {
                 throw ServiceResultException.Create(StatusCodes.BadTypeMismatch,
                     "Failed to convert type {0} to Variant.", value?.GetType().FullName);
@@ -7743,10 +8254,46 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Overloads to catch the enums
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static Variant CastFrom<T>(T value) where T : Enum
+        {
+            return Variant.From(value);
+        }
+
+        /// <summary>
+        /// Overloads to catch the enums
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static Variant CastFrom<T>(ArrayOf<T> value) where T : Enum
+        {
+            return Variant.From(value);
+        }
+
+        /// <summary>
+        /// Overloads to catch the enums
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static Variant CastFrom<T>(MatrixOf<T> value) where T : Enum
+        {
+            return Variant.From(value);
+        }
+
+        /// <summary>
+        /// Overloads to catch the enums
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static Variant CastFrom<T>(IEnumerable<T> value) where T : Enum
+        {
+            return Variant.From(value.ToArrayOf());
+        }
+
+        /// <summary>
         /// Try convert object to variant
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public static bool TryConvert(object value, out Variant variant)
+        public static bool TryCastFrom(object value, out Variant variant)
         {
             if (value is null)
             {
@@ -7763,16 +8310,16 @@ namespace Opc.Ua
                 Array o when o.Rank > 1 => Variant.Null,
                 Variant o => o,
                 bool o => Variant.From(o),
-                sbyte o => Variant.From(o),
                 byte o => Variant.From(o),
-                short o => Variant.From(o),
+                sbyte o => Variant.From(o),
                 ushort o => Variant.From(o),
-                int o => Variant.From(o),
+                short o => Variant.From(o),
                 uint o => Variant.From(o),
-                long o => Variant.From(o),
+                int o => Variant.From(o),
                 ulong o => Variant.From(o),
-                float o => Variant.From(o),
+                long o => Variant.From(o),
                 double o => Variant.From(o),
+                float o => Variant.From(o),
                 string o => Variant.From(o),
                 DateTime o => Variant.From(o),
                 Guid o => Variant.From(new Uuid(o)),
@@ -7786,7 +8333,7 @@ namespace Opc.Ua
                 StatusCode o => Variant.From(o),
                 DataValue o => Variant.From(o),
                 ExtensionObject o => Variant.From(o),
-                IEncodeable o => Variant.FromStructure(o),
+                IEncodeable o => Variant.From(new ExtensionObject(o, true)),
                 ArrayOf<bool> o => Variant.From(o),
                 ArrayOf<sbyte> o => Variant.From(o),
                 ArrayOf<byte> o => Variant.From(o),
@@ -7837,17 +8384,44 @@ namespace Opc.Ua
                 MatrixOf<DataValue> o => Variant.From(o),
                 MatrixOf<Variant> o => Variant.From(o),
                 MatrixOf<ExtensionObject> o => Variant.From(o),
+                bool[] o => Variant.From(o.ToArrayOf()),
+                byte[] o when o.GetType() == typeof(byte[]) => Variant.From(o.ToArrayOf()),
+                sbyte[] o when o.GetType() == typeof(sbyte[]) => Variant.From(o.ToArrayOf()),
+                ushort[] o when o.GetType() == typeof(ushort[]) => Variant.From(o.ToArrayOf()),
+                short[] o when o.GetType() == typeof(short[]) => Variant.From(o.ToArrayOf()),
+                uint[] o when o.GetType() == typeof(uint[]) => Variant.From(o.ToArrayOf()),
+                int[] o when o.GetType() == typeof(int[]) => Variant.From(o.ToArrayOf()),
+                ulong[] o when o.GetType() == typeof(ulong[]) => Variant.From(o.ToArrayOf()),
+                long[] o when o.GetType() == typeof(long[]) => Variant.From(o.ToArrayOf()),
+                double[] o when o.GetType() == typeof(double[]) => Variant.From(o.ToArrayOf()),
+                float[] o => Variant.From(o.ToArrayOf()),
+                string[] o => Variant.From(o.ToArrayOf()),
+                DateTime[] o => Variant.From(o.ToArrayOf()),
+                Guid[] o => Variant.From(o.ToArrayOf(g => new Uuid(g))),
+                Uuid[] o => Variant.From(o.ToArrayOf()),
+                ByteString[] o => Variant.From(o.ToArrayOf()),
+                XmlElement[] o => Variant.From(o.ToArrayOf()),
+                NodeId[] o => Variant.From(o.ToArrayOf()),
+                ExpandedNodeId[] o => Variant.From(o.ToArrayOf()),
+                LocalizedText[] o => Variant.From(o.ToArrayOf()),
+                QualifiedName[] o => Variant.From(o.ToArrayOf()),
+                StatusCode[] o => Variant.From(o.ToArrayOf()),
+                DataValue[] o => Variant.From(o.ToArrayOf()),
+                Variant[] o => Variant.From(o.ToArrayOf()),
+                ExtensionObject[] o => Variant.From(o.ToArrayOf()),
+                IEncodeable[] o => Variant.From(o.ToArrayOf(o => new ExtensionObject(o))),
+                object[] o => FromObjects(o),
                 IEnumerable<bool> o => Variant.From(o.ToArrayOf()),
-                IEnumerable<sbyte> o => Variant.From(o.ToArrayOf()),
-                IEnumerable<byte> o => Variant.From(o.ToArrayOf()),
-                IEnumerable<short> o => Variant.From(o.ToArrayOf()),
-                IEnumerable<ushort> o => Variant.From(o.ToArrayOf()),
-                IEnumerable<int> o => Variant.From(o.ToArrayOf()),
-                IEnumerable<uint> o => Variant.From(o.ToArrayOf()),
-                IEnumerable<long> o => Variant.From(o.ToArrayOf()),
-                IEnumerable<ulong> o => Variant.From(o.ToArrayOf()),
-                IEnumerable<float> o => Variant.From(o.ToArrayOf()),
-                IEnumerable<double> o => Variant.From(o.ToArrayOf()),
+                IEnumerable<byte> o when CheckType<byte>(o) => Variant.From(o.ToArrayOf()),
+                IEnumerable<sbyte> o when CheckType<sbyte>(o) => Variant.From(o.ToArrayOf()),
+                IEnumerable<ushort> o when CheckType<ushort>(o) => Variant.From(o.ToArrayOf()),
+                IEnumerable<short> o when CheckType<short>(o) => Variant.From(o.ToArrayOf()),
+                IEnumerable<uint> o when CheckType<uint>(o) => Variant.From(o.ToArrayOf()),
+                IEnumerable<int> o when CheckType<int>(o) => Variant.From(o.ToArrayOf()),
+                IEnumerable<ulong> o when CheckType<ulong>(o) => Variant.From(o.ToArrayOf()),
+                IEnumerable<long> o when CheckType<long>(o) => Variant.From(o.ToArrayOf()),
+                IEnumerable<double> o when CheckType<double>(o) => Variant.From(o.ToArrayOf()),
+                IEnumerable<float> o when CheckType<float>(o) => Variant.From(o.ToArrayOf()),
                 IEnumerable<string> o => Variant.From(o.ToArrayOf()),
                 IEnumerable<DateTime> o => Variant.From(o.ToArrayOf()),
                 IEnumerable<Guid> o => Variant.From(o.ToArrayOf(g => new Uuid(g))),
@@ -7862,23 +8436,64 @@ namespace Opc.Ua
                 IEnumerable<DataValue> o => Variant.From(o.ToArrayOf()),
                 IEnumerable<Variant> o => Variant.From(o.ToArrayOf()),
                 IEnumerable<ExtensionObject> o => Variant.From(o.ToArrayOf()),
-                IEnumerable<IEncodeable> o => Variant.FromStructure(o.ToArrayOf()),
+                IEnumerable<IEncodeable> o => Variant.From(o.ToArrayOf(o => new ExtensionObject(o))),
                 IEnumerable<object> o => FromObjects(o),
                 _ => Variant.Null
             };
+
+            // Check the pattern match is not against a covariant
+            static bool CheckType<TArg>(object o)
+            {
+                return o.GetType().GetGenericArguments()[0] == typeof(TArg);
+            }
             return !variant.IsNull;
+        }
+
+        /// <summary>
+        /// Overloads to catch the enums
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static bool TryCastFrom<T>(ArrayOf<T> value, out Variant variant)
+            where T : Enum
+        {
+            variant = Variant.From(value);
+            return true;
+        }
+
+        /// <summary>
+        /// Overloads to catch the enums
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static bool TryCastFrom<T>(MatrixOf<T> value, out Variant variant)
+            where T : Enum
+        {
+            variant = Variant.From(value);
+            return true;
+        }
+
+        /// <summary>
+        /// Overloads to catch the enums
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static bool TryCastFrom<T>(IEnumerable<T> value, out Variant variant)
+            where T : Enum
+        {
+            variant = Variant.From(value.ToArrayOf());
+            return true;
         }
 
         /// <summary>
         /// Use reflection to cast
         /// </summary>
-        private static bool TryConvertWithReflection(object value, out Variant variant)
+        private static bool TryCastFromWithReflection(object value, out Variant variant)
         {
             // Convert from ArrayOf<T> where T : IEncodeable or T : Enum
-            if (value.GetType().GetGenericTypeDefinition() == typeof(ArrayOf<>))
+            var valueType = value.GetType();
+            if (valueType.IsGenericType &&
+                valueType.GetGenericTypeDefinition() == typeof(ArrayOf<>))
             {
-                Type genericArg = value.GetType().GetGenericArguments()[0];
-                var isEncodeable = genericArg.IsInstanceOfType(typeof(IEncodeable));
+                Type genericArg = valueType.GetGenericArguments()[0];
+                bool isEncodeable = typeof(IEncodeable).IsAssignableFrom(genericArg);
                 try
                 {
                     MethodInfo variantFrom = typeof(VariantHelper).GetMethod(
@@ -7907,7 +8522,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            Type elementType = array.GetType().GetElementType();
+            Type elementType = valueType.GetElementType();
             if (TypeInfo.Construct(elementType).IsUnknown)
             {
                 variant = default;
@@ -7918,9 +8533,9 @@ namespace Opc.Ua
                 MethodInfo matrixFromArray = typeof(MatrixOf).GetMethod(
                     nameof(MatrixOf.From),
                     BindingFlags.Static | BindingFlags.Public)
-                    .MakeGenericMethod([array.GetType().GetElementType()]);
+                    .MakeGenericMethod([elementType]);
                 Type matrixType = typeof(MatrixOf<>)
-                    .MakeGenericType(array.GetType().GetElementType());
+                    .MakeGenericType(elementType);
                 MethodInfo variantFromMatrix = typeof(Variant).GetMethod(
                     nameof(Variant.From),
                     BindingFlags.Static | BindingFlags.Public,
@@ -7943,7 +8558,7 @@ namespace Opc.Ua
             var variants = new List<Variant>();
             foreach (var value in values)
             {
-                if (!TryConvert(value, out Variant variant))
+                if (!TryCastFrom(value, out Variant variant))
                 {
                     return Variant.Null;
                 }

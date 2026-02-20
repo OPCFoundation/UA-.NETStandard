@@ -2072,8 +2072,10 @@ namespace Opc.Ua
 
                     if (BeginField("Matrix", variant.IsNull, true, true))
                     {
+                        const string fieldName = "Elements";
+                        void WriteDimensions<T>(MatrixOf<T> matrix)
+                            => WriteInt32Array("Dimensions", matrix.Dimensions);
                         PushNamespace(Namespaces.OpcUaXsd);
-
                         if (!variant.IsNull)
                         {
                             switch (variant.TypeInfo.BuiltInType)
@@ -2082,175 +2084,175 @@ namespace Opc.Ua
                                 {
                                     MatrixOf<bool> matrix = variant.GetBooleanMatrix();
                                     WriteDimensions(matrix);
-                                    WriteBooleanArray(null, matrix.ToArrayOf());
+                                    WriteBooleanArray(fieldName, matrix.ToArrayOf());
                                     break;
                                 }
                                 case BuiltInType.SByte:
                                 {
                                     MatrixOf<sbyte> matrix = variant.GetSByteMatrix();
                                     WriteDimensions(matrix);
-                                    WriteSByteArray(null, matrix.ToArrayOf());
+                                    WriteSByteArray(fieldName, matrix.ToArrayOf());
                                     break;
                                 }
                                 case BuiltInType.Byte:
                                 {
                                     MatrixOf<byte> matrix = variant.GetByteMatrix();
                                     WriteDimensions(matrix);
-                                    WriteByteArray(null, matrix.ToArrayOf());
+                                    WriteByteArray(fieldName, matrix.ToArrayOf());
                                     break;
                                 }
                                 case BuiltInType.Int16:
                                 {
                                     MatrixOf<short> matrix = variant.GetInt16Matrix();
                                     WriteDimensions(matrix);
-                                    WriteInt16Array(null, matrix.ToArrayOf());
+                                    WriteInt16Array(fieldName, matrix.ToArrayOf());
                                     break;
                                 }
                                 case BuiltInType.UInt16:
                                 {
                                     MatrixOf<ushort> matrix = variant.GetUInt16Matrix();
                                     WriteDimensions(matrix);
-                                    WriteUInt16Array(null, matrix.ToArrayOf());
+                                    WriteUInt16Array(fieldName, matrix.ToArrayOf());
                                     break;
                                 }
                                 case BuiltInType.Int32:
                                 {
                                     MatrixOf<int> matrix = variant.GetInt32Matrix();
                                     WriteDimensions(matrix);
-                                    WriteInt32Array(null, matrix.ToArrayOf());
+                                    WriteInt32Array(fieldName, matrix.ToArrayOf());
                                     break;
                                 }
                                 case BuiltInType.UInt32:
                                 {
                                     MatrixOf<uint> matrix = variant.GetUInt32Matrix();
                                     WriteDimensions(matrix);
-                                    WriteUInt32Array(null, matrix.ToArrayOf());
+                                    WriteUInt32Array(fieldName, matrix.ToArrayOf());
                                     break;
                                 }
                                 case BuiltInType.Int64:
                                 {
                                     MatrixOf<long> matrix = variant.GetInt64Matrix();
                                     WriteDimensions(matrix);
-                                    WriteInt64Array(null, matrix.ToArrayOf());
+                                    WriteInt64Array(fieldName, matrix.ToArrayOf());
                                     break;
                                 }
                                 case BuiltInType.UInt64:
                                 {
                                     MatrixOf<ulong> matrix = variant.GetUInt64Matrix();
                                     WriteDimensions(matrix);
-                                    WriteUInt64Array(null, matrix.ToArrayOf());
+                                    WriteUInt64Array(fieldName, matrix.ToArrayOf());
                                     break;
                                 }
                                 case BuiltInType.Float:
                                 {
                                     MatrixOf<float> matrix = variant.GetFloatMatrix();
                                     WriteDimensions(matrix);
-                                    WriteFloatArray(null, matrix.ToArrayOf());
+                                    WriteFloatArray(fieldName, matrix.ToArrayOf());
                                     break;
                                 }
                                 case BuiltInType.Double:
                                 {
                                     MatrixOf<double> matrix = variant.GetDoubleMatrix();
                                     WriteDimensions(matrix);
-                                    WriteDoubleArray(null, matrix.ToArrayOf());
+                                    WriteDoubleArray(fieldName, matrix.ToArrayOf());
                                     break;
                                 }
                                 case BuiltInType.String:
                                 {
                                     MatrixOf<string> matrix = variant.GetStringMatrix();
                                     WriteDimensions(matrix);
-                                    WriteStringArray(null, matrix.ToArrayOf());
+                                    WriteStringArray(fieldName, matrix.ToArrayOf());
                                     break;
                                 }
                                 case BuiltInType.DateTime:
                                 {
                                     MatrixOf<DateTime> matrix = variant.GetDateTimeMatrix();
                                     WriteDimensions(matrix);
-                                    WriteDateTimeArray(null, matrix.ToArrayOf());
+                                    WriteDateTimeArray(fieldName, matrix.ToArrayOf());
                                     break;
                                 }
                                 case BuiltInType.Guid:
                                 {
                                     MatrixOf<Uuid> matrix = variant.GetGuidMatrix();
                                     WriteDimensions(matrix);
-                                    WriteGuidArray(null, matrix.ToArrayOf());
+                                    WriteGuidArray(fieldName, matrix.ToArrayOf());
                                     break;
                                 }
                                 case BuiltInType.ByteString:
                                 {
                                     MatrixOf<ByteString> matrix = variant.GetByteStringMatrix();
                                     WriteDimensions(matrix);
-                                    WriteByteStringArray(null, matrix.ToArrayOf());
+                                    WriteByteStringArray(fieldName, matrix.ToArrayOf());
                                     break;
                                 }
                                 case BuiltInType.XmlElement:
                                 {
                                     MatrixOf<XmlElement> matrix = variant.GetXmlElementMatrix();
                                     WriteDimensions(matrix);
-                                    WriteXmlElementArray(null, matrix.ToArrayOf());
+                                    WriteXmlElementArray(fieldName, matrix.ToArrayOf());
                                     break;
                                 }
                                 case BuiltInType.NodeId:
                                 {
                                     MatrixOf<NodeId> matrix = variant.GetNodeIdMatrix();
                                     WriteDimensions(matrix);
-                                    WriteNodeIdArray(null, matrix.ToArrayOf());
+                                    WriteNodeIdArray(fieldName, matrix.ToArrayOf());
                                     break;
                                 }
                                 case BuiltInType.ExpandedNodeId:
                                 {
                                     MatrixOf<ExpandedNodeId> matrix = variant.GetExpandedNodeIdMatrix();
                                     WriteDimensions(matrix);
-                                    WriteExpandedNodeIdArray(null, matrix.ToArrayOf());
+                                    WriteExpandedNodeIdArray(fieldName, matrix.ToArrayOf());
                                     break;
                                 }
                                 case BuiltInType.StatusCode:
                                 {
                                     MatrixOf<StatusCode> matrix = variant.GetStatusCodeMatrix();
                                     WriteDimensions(matrix);
-                                    WriteStatusCodeArray(null, matrix.ToArrayOf());
+                                    WriteStatusCodeArray(fieldName, matrix.ToArrayOf());
                                     break;
                                 }
                                 case BuiltInType.QualifiedName:
                                 {
                                     MatrixOf<QualifiedName> matrix = variant.GetQualifiedNameMatrix();
                                     WriteDimensions(matrix);
-                                    WriteQualifiedNameArray(null, matrix.ToArrayOf());
+                                    WriteQualifiedNameArray(fieldName, matrix.ToArrayOf());
                                     break;
                                 }
                                 case BuiltInType.LocalizedText:
                                 {
                                     MatrixOf<LocalizedText> matrix = variant.GetLocalizedTextMatrix();
                                     WriteDimensions(matrix);
-                                    WriteLocalizedTextArray(null, matrix.ToArrayOf());
+                                    WriteLocalizedTextArray(fieldName, matrix.ToArrayOf());
                                     break;
                                 }
                                 case BuiltInType.ExtensionObject:
                                 {
                                     MatrixOf<ExtensionObject> matrix = variant.GetExtensionObjectMatrix();
                                     WriteDimensions(matrix);
-                                    WriteExtensionObjectArray(null, matrix.ToArrayOf());
+                                    WriteExtensionObjectArray(fieldName, matrix.ToArrayOf());
                                     break;
                                 }
                                 case BuiltInType.DataValue:
                                 {
                                     MatrixOf<DataValue> matrix = variant.GetDataValueMatrix();
                                     WriteDimensions(matrix);
-                                    WriteDataValueArray(null, matrix.ToArrayOf());
+                                    WriteDataValueArray(fieldName, matrix.ToArrayOf());
                                     break;
                                 }
                                 case BuiltInType.Enumeration:
                                 {
                                     MatrixOf<int> matrix = variant.GetInt32Matrix();
                                     WriteDimensions(matrix);
-                                    WriteInt32Array(null, matrix.ToArrayOf());
+                                    WriteInt32Array(fieldName, matrix.ToArrayOf());
                                     break;
                                 }
                                 case BuiltInType.Variant:
                                 {
                                     MatrixOf<Variant> matrix = variant.GetVariantMatrix();
                                     WriteDimensions(matrix);
-                                    WriteVariantArray(null, matrix.ToArrayOf());
+                                    WriteVariantArray(fieldName, matrix.ToArrayOf());
                                     break;
                                 }
                                 case BuiltInType.DiagnosticInfo:
@@ -2274,8 +2276,6 @@ namespace Opc.Ua
                     }
 
                     m_nestingLevel--;
-                    void WriteDimensions<T>(MatrixOf<T> matrix)
-                        => WriteInt32Array("Dimensions", matrix.Dimensions);
                     return;
                 }
             }

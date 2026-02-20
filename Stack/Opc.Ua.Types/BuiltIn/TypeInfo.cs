@@ -193,7 +193,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a static or allocated type info object for a scalar of the specified type.
         /// </summary>
-        private static TypeInfo CreateScalar(BuiltInType builtInType)
+        public static TypeInfo CreateScalar(BuiltInType builtInType)
         {
             return new TypeInfo(builtInType, ValueRanks.Scalar);
         }

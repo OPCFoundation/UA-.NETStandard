@@ -65,7 +65,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 #pragma warning restore IDE0079 // Remove unnecessary suppression
 #endif
 
-        private static readonly int[] s_elements = [1, 2, 3, 4];
+        private static readonly ArrayOf<int> s_elements = [1, 2, 3, 4];
         private static readonly int[] s_dimensions = [2, 2];
 
         /// <summary>
@@ -175,11 +175,31 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void EncodeDecodeVariantMatrix()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var value = new Matrix(s_elements, BuiltInType.Int32, s_dimensions);
+            MatrixOf<int> value = s_elements.ToMatrix(s_dimensions);
             var variant = new Variant(value);
 
             const string expected =
-                "<?xml version=\"1.0\" encoding=\"utf-16\"?>\r\n<uax:VariantTest xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\r\n  <uax:Test>\r\n    <uax:Value>\r\n      <uax:Matrix>\r\n        <uax:Dimensions>\r\n          <uax:Int32>2</uax:Int32>\r\n          <uax:Int32>2</uax:Int32>\r\n        </uax:Dimensions>\r\n        <uax:Elements>\r\n          <uax:Int32>1</uax:Int32>\r\n          <uax:Int32>2</uax:Int32>\r\n          <uax:Int32>3</uax:Int32>\r\n          <uax:Int32>4</uax:Int32>\r\n        </uax:Elements>\r\n      </uax:Matrix>\r\n    </uax:Value>\r\n  </uax:Test>\r\n</uax:VariantTest>";
+                """
+                <?xml version="1.0" encoding="utf-16"?>
+                <uax:VariantTest xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                  <uax:Test>
+                    <uax:Value>
+                      <uax:Matrix>
+                        <uax:Dimensions>
+                          <uax:Int32>2</uax:Int32>
+                          <uax:Int32>2</uax:Int32>
+                        </uax:Dimensions>
+                        <uax:Elements>
+                          <uax:Int32>1</uax:Int32>
+                          <uax:Int32>2</uax:Int32>
+                          <uax:Int32>3</uax:Int32>
+                          <uax:Int32>4</uax:Int32>
+                        </uax:Elements>
+                      </uax:Matrix>
+                    </uax:Value>
+                  </uax:Test>
+                </uax:VariantTest>
+                """;
 
             // Encode
             var context = new ServiceMessageContext(telemetry);

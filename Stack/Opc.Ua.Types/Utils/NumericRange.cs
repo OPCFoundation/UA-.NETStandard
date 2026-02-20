@@ -952,7 +952,7 @@ namespace Opc.Ua
             // TODO: Make it work on array types without boxing.
             object boxed = value.AsBoxedObject();
             StatusCode result = ApplyRange(ref boxed);
-            value = VariantHelper.Convert(boxed);
+            value = VariantHelper.CastFrom(boxed);
             return result;
         }
 

@@ -106,7 +106,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 yield return CreateConstructorCase("ScalarGuid",
                     () => Uuid.NewUuid(), TypeInfo.Scalars.Guid);
                 yield return CreateConstructorCase("ScalarByteString",
-                    () => Bytes(1, 2, 3), TypeInfo.Scalars.ByteString);
+                    () => ByteString.From(1, 2, 3), TypeInfo.Scalars.ByteString);
                 yield return CreateConstructorCase("ScalarXmlElement",
                     () => CreateXmlElement("Scalar"), TypeInfo.Scalars.XmlElement);
                 yield return CreateConstructorCase("ScalarNodeId",
@@ -161,7 +161,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                         new Uuid(Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeee1")),
                         new Uuid(Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeee2"))), TypeInfo.Arrays.Guid);
                 yield return CreateConstructorCase("ArrayByteString",
-                    () => Array(Bytes(1), Bytes(2, 3)), TypeInfo.Arrays.ByteString);
+                    () => Array(ByteString.From(1), ByteString.From(2, 3)), TypeInfo.Arrays.ByteString);
                 yield return CreateConstructorCase("ArrayXmlElement",
                     () => Array(CreateXmlElement("A"), CreateXmlElement("B")), TypeInfo.Arrays.XmlElement);
                 yield return CreateConstructorCase("ArrayNodeId",
@@ -565,45 +565,44 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             Assert.That(variant.TypeInfo.ValueRank, Is.EqualTo(2));
             Assert.That(variant.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Int32));
-            Assert.That(variant.AsBoxedObject(), Is.TypeOf<Matrix>());
-            var matrix = (Matrix)variant.Value;
-            Assert.That(data.Cast<int>().ToArray(), Is.EquivalentTo(matrix.Elements.Cast<int>().ToArray()));
+            Assert.That(variant.AsBoxedObject(), Is.TypeOf<MatrixOf<int>>());
+            var matrix = (MatrixOf<int>)variant;
+            Assert.That(data.Cast<int>().ToArray(), Is.EquivalentTo(matrix.Span.ToArray()));
         }
 
         [Test]
         public void MatrixConstructor_PreservesMatrixTypeInfo()
         {
-            var matrix = new Matrix(Array(1, 2, 3, 4), BuiltInType.Int32, 2, 2);
+            var matrix = ArrayOf.Wrapped(1, 2, 3, 4).ToMatrix([2, 2]);
             var variant = new Variant(matrix);
 
-            AssertTypeInfo(matrix.TypeInfo, variant.TypeInfo);
-            Assert.That(variant.Value, Is.SameAs(matrix));
+            Assert.That(variant.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Int32));
+            Assert.That(variant.TypeInfo.ValueRank, Is.EqualTo(2));
+            Assert.That(variant.GetInt32Matrix(), Is.EqualTo(matrix));
         }
 
         [Test]
-        public void ObjectConstructorWithTypeInfo_CoercesEnumerationValue()
-        {
-            const EnumValue value = EnumValue.Two;
-            var variant = new Variant(value, TypeInfo.Scalars.Enumeration);
-
-            Assert.That(variant.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
-            Assert.That(variant.GetInt32(), Is.EqualTo(Convert.ToInt32(value, CultureInfo.InvariantCulture)));
-            Assert.That(variant.GetEnumeration<EnumValue>(), Is.EqualTo(value));
-            Assert.That(variant.Value, Is.EqualTo(value));
-        }
-
-        [Test]
-        public void ArrayConstructorWithTypeInfo_CoercesEnumerationArray()
+        public void FromEnumerationArray_ReturnsEnumerationArray()
         {
             EnumValue[] values = [EnumValue.Zero, EnumValue.One];
-            var typeInfo = TypeInfo.Create(BuiltInType.Enumeration, ValueRanks.OneDimension);
-            var variant = new Variant(values, typeInfo);
+            var variant = Variant.From(values);
 
             Assert.That(variant.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
-            Assert.That(variant.Value, Is.EqualTo(values));
             Assert.That(variant.GetEnumerationArray<EnumValue>(), Is.EqualTo(values));
             Assert.That(variant.GetInt32Array(), Is.EqualTo(
                 values.Select(v => Convert.ToInt32(v, CultureInfo.InvariantCulture)).ToArray()));
+        }
+
+        [Test]
+        public void FromIntArray_ReturnsEnumerationArray()
+        {
+            ArrayOf<EnumValue> values = [EnumValue.Zero, EnumValue.One];
+            var asInt32 = ArrayOf.Wrapped(0, 1);
+            var variant = Variant.From(asInt32);
+
+            Assert.That(variant.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Int32));
+            Assert.That(variant.GetEnumerationArray<EnumValue>(), Is.EqualTo(values));
+            Assert.That(variant.GetInt32Array(), Is.EqualTo(asInt32));
         }
 
         [Test]
@@ -625,7 +624,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var variant = Variant.From(values);
 
             Assert.That(variant.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
-            Assert.That(variant.Value, Is.EqualTo(values));
             Assert.That(variant.GetEnumerationArray<EnumValue>(), Is.EqualTo(values));
             Assert.That(variant.GetInt32Array(), Is.EqualTo(
                 values.Select(v => Convert.ToInt32(v, CultureInfo.InvariantCulture)).ToArray()));
@@ -646,7 +644,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [TestCaseSource(nameof(ArrayDescriptorCases))]
         public void TryGetArray_Succeeds(VariantDescriptor descriptor)
         {
-            var values = (Array)descriptor.CreateValue();
+            var values = descriptor.CreateValue();
             var variant = new Variant(values);
             MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGet), Array(descriptor.ValueType.MakeByRefType()));
             object[] args = Array(CreateDefaultValue(descriptor.ValueType));
@@ -676,7 +674,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [TestCaseSource(nameof(ArrayDescriptorCases))]
         public void GetArray_ReturnsStoredValue(VariantDescriptor descriptor)
         {
-            var values = (Array)descriptor.CreateValue();
+            var values = descriptor.CreateValue();
             var variant = new Variant(values);
             MethodInfo method = typeof(Variant).GetMethod(descriptor.GetMethodName, Array(descriptor.ValueType));
             object[] args = Array(CreateDefaultValue(descriptor.ValueType));
@@ -783,15 +781,15 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryGetMatrix_ReturnsMatrix()
         {
-            var matrix = new Matrix(Array(1f, 2f, 3f, 4f), BuiltInType.Float, 2, 2);
-            var variant = new Variant(matrix);
+            var matrix = ArrayOf.Wrapped(1f, 2f, 3f, 4f).ToMatrix(2, 2);
+            var variant = Variant.From(matrix);
             object[] args = Array<object>(null, BuiltInType.Float);
             MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGetMatrix))
                 .MakeGenericMethod(typeof(float));
 
             bool success = (bool)method.Invoke(variant, args);
             Assert.That(success, Is.True);
-            Assert.That(args[0], Is.SameAs(matrix));
+            Assert.That(args[0], Is.EqualTo(matrix));
         }
 
         [Test]
@@ -809,7 +807,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             bool success = (bool)method.Invoke(variant, args);
             Assert.That(success, Is.True);
-            Assert.That(args[0], Is.TypeOf<Matrix>());
+            Assert.That(args[0], Is.TypeOf<MatrixOf<double>>());
         }
 
         [Test]
@@ -994,12 +992,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void VariantFromUIntArrayWithStatusCodeTypeInfo()
         {
             // Test array StatusCode creation from uint[]
-            uint[] statusCodeValues =
+            ArrayOf<StatusCode> statusCodeValues =
             [
-                (uint)StatusCodes.Good,
-                (uint)StatusCodes.BadNodeIdInvalid,
-                (uint)StatusCodes.BadUnexpectedError,
-                (uint)StatusCodes.BadAttributeIdInvalid
+                StatusCodes.Good,
+                StatusCodes.BadNodeIdInvalid,
+                StatusCodes.BadUnexpectedError,
+                StatusCodes.BadAttributeIdInvalid
             ];
 
             var variant = new Variant(statusCodeValues, TypeInfo.Arrays.StatusCode);
@@ -1009,30 +1007,30 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(variant.Value, Is.InstanceOf<StatusCode[]>());
 
             // Cast the Value to StatusCode array
-            var statusCodes = (StatusCode[])variant.Value;
-            Assert.That(statusCodes.Length, Is.EqualTo(statusCodeValues.Length));
+            var statusCodes = (ArrayOf<StatusCode>)variant;
+            Assert.That(statusCodes.Count, Is.EqualTo(statusCodeValues.Count));
 
-            for (int i = 0; i < statusCodeValues.Length; i++)
+            for (int i = 0; i < statusCodeValues.Count; i++)
             {
-                Assert.That(statusCodes[i].Code, Is.EqualTo(statusCodeValues[i]));
+                Assert.That(statusCodes[i], Is.EqualTo(statusCodeValues[i]));
             }
 
             // Test empty array
-            uint[] emptyArray = [];
-            var variant2 = new Variant(emptyArray, TypeInfo.Arrays.StatusCode);
+            ArrayOf<StatusCode> emptyArray = [];
+            var variant2 = new Variant(emptyArray);
 
             Assert.That(variant2.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.StatusCode));
             var emptyStatusCodes = (StatusCode[])variant2.Value;
             Assert.That(emptyStatusCodes.Length, Is.EqualTo(0));
 
             // Test single element array
-            uint[] singleElement = [(uint)StatusCodes.BadNodeIdInvalid];
-            var variant3 = new Variant(singleElement, TypeInfo.Arrays.StatusCode);
+            ArrayOf<StatusCode> singleElement = [StatusCodes.BadNodeIdInvalid];
+            var variant3 = new Variant(singleElement);
 
             Assert.That(variant3.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.StatusCode));
             var singleStatusCode = (StatusCode[])variant3.Value;
             Assert.That(singleStatusCode.Length, Is.EqualTo(1));
-            Assert.That(singleStatusCode[0].Code, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
+            Assert.That(singleStatusCode[0], Is.EqualTo(StatusCodes.BadNodeIdInvalid));
         }
 
         private static Variant InvokeVariantFrom(object value)

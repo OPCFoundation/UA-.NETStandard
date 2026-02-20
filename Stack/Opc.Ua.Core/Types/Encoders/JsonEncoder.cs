@@ -3731,7 +3731,7 @@ namespace Opc.Ua
                     {
                         m_writer.Write(kComma);
                     }
-                    WriteVariantContents(copy, TypeInfo.CreateArray(typeInfo.BuiltInType));
+                    WriteVariantContents(copy, TypeInfo.Create(typeInfo.BuiltInType, ValueRanks.OneDimension));
                     index += arrayLen;
                 }
                 else

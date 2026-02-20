@@ -2512,56 +2512,56 @@ namespace Opc.Ua
             Variant ReadMatrix(int[] dimensions)
             {
                 var typeName = m_reader.LocalName;
-                switch (typeName["ListOf".Length..])
+                switch (typeName)
                 {
                     case "Boolean":
-                        return Variant.From(ReadBooleanArray(typeName).ToMatrixOf(dimensions));
+                        return Variant.From(ReadBooleanArray(null).ToMatrixOf(dimensions));
                     case "SByte":
-                        return Variant.From(ReadSByteArray(typeName).ToMatrixOf(dimensions));
+                        return Variant.From(ReadSByteArray(null).ToMatrixOf(dimensions));
                     case "Byte":
-                        return Variant.From(ReadByteArray(typeName).ToMatrixOf(dimensions));
+                        return Variant.From(ReadByteArray(null).ToMatrixOf(dimensions));
                     case "Int16":
-                        return Variant.From(ReadInt16Array(typeName).ToMatrixOf(dimensions));
+                        return Variant.From(ReadInt16Array(null).ToMatrixOf(dimensions));
                     case "UInt16":
-                        return Variant.From(ReadUInt16Array(typeName).ToMatrixOf(dimensions));
+                        return Variant.From(ReadUInt16Array(null).ToMatrixOf(dimensions));
                     case "Int32":
-                        return Variant.From(ReadInt32Array(typeName).ToMatrixOf(dimensions));
+                        return Variant.From(ReadInt32Array(null).ToMatrixOf(dimensions));
                     case "UInt32":
-                        return Variant.From(ReadUInt32Array(typeName).ToMatrixOf(dimensions));
+                        return Variant.From(ReadUInt32Array(null).ToMatrixOf(dimensions));
                     case "Int64":
-                        return Variant.From(ReadInt64Array(typeName).ToMatrixOf(dimensions));
+                        return Variant.From(ReadInt64Array(null).ToMatrixOf(dimensions));
                     case "UInt64":
-                        return Variant.From(ReadUInt64Array(typeName).ToMatrixOf(dimensions));
+                        return Variant.From(ReadUInt64Array(null).ToMatrixOf(dimensions));
                     case "Float":
-                        return Variant.From(ReadFloatArray(typeName).ToMatrixOf(dimensions));
+                        return Variant.From(ReadFloatArray(null).ToMatrixOf(dimensions));
                     case "Double":
-                        return Variant.From(ReadDoubleArray(typeName).ToMatrixOf(dimensions));
+                        return Variant.From(ReadDoubleArray(null).ToMatrixOf(dimensions));
                     case "String":
-                        return Variant.From(ReadStringArray(typeName).ToMatrixOf(dimensions));
+                        return Variant.From(ReadStringArray(null).ToMatrixOf(dimensions));
                     case "DateTime":
-                        return Variant.From(ReadDateTimeArray(typeName).ToMatrixOf(dimensions));
+                        return Variant.From(ReadDateTimeArray(null).ToMatrixOf(dimensions));
                     case "Guid":
-                        return Variant.From(ReadGuidArray(typeName).ToMatrixOf(dimensions));
+                        return Variant.From(ReadGuidArray(null).ToMatrixOf(dimensions));
                     case "ByteString":
-                        return Variant.From(ReadByteStringArray(typeName).ToMatrixOf(dimensions));
+                        return Variant.From(ReadByteStringArray(null).ToMatrixOf(dimensions));
                     case "XmlElement":
-                        return Variant.From(ReadXmlElementArray(typeName).ToMatrixOf(dimensions));
+                        return Variant.From(ReadXmlElementArray(null).ToMatrixOf(dimensions));
                     case "NodeId":
-                        return Variant.From(ReadNodeIdArray(typeName).ToMatrixOf(dimensions));
+                        return Variant.From(ReadNodeIdArray(null).ToMatrixOf(dimensions));
                     case "ExpandedNodeId":
-                        return Variant.From(ReadExpandedNodeIdArray(typeName).ToMatrixOf(dimensions));
+                        return Variant.From(ReadExpandedNodeIdArray(null).ToMatrixOf(dimensions));
                     case "StatusCode":
-                        return Variant.From(ReadStatusCodeArray(typeName).ToMatrixOf(dimensions));
+                        return Variant.From(ReadStatusCodeArray(null).ToMatrixOf(dimensions));
                     case "QualifiedName":
-                        return Variant.From(ReadQualifiedNameArray(typeName).ToMatrixOf(dimensions));
+                        return Variant.From(ReadQualifiedNameArray(null).ToMatrixOf(dimensions));
                     case "LocalizedText":
-                        return Variant.From(ReadLocalizedTextArray(typeName).ToMatrixOf(dimensions));
+                        return Variant.From(ReadLocalizedTextArray(null).ToMatrixOf(dimensions));
                     case "ExtensionObject":
-                        return Variant.From(ReadExtensionObjectArray(typeName).ToMatrixOf(dimensions));
+                        return Variant.From(ReadExtensionObjectArray(null).ToMatrixOf(dimensions));
                     case "DataValue":
-                        return Variant.From(ReadDataValueArray(typeName).ToMatrixOf(dimensions));
+                        return Variant.From(ReadDataValueArray(null).ToMatrixOf(dimensions));
                     case "Variant":
-                        return Variant.From(ReadVariantArray(typeName).ToMatrixOf(dimensions));
+                        return Variant.From(ReadVariantArray(null).ToMatrixOf(dimensions));
                     default:
                         throw ServiceResultException.Create(
                             StatusCodes.BadDecodingError,

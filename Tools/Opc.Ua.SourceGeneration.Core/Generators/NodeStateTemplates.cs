@@ -613,8 +613,8 @@ namespace Opc.Ua.SourceGeneration
                 /// <inheritdoc/>
                 public new T Value
                 {
-                    get => CheckTypeBeforeCast<T>(((global::Opc.Ua.BaseVariableState)this).Value, true);
-                    set => ((global::Opc.Ua.BaseVariableState)this).Value = new global::Opc.Ua.Variant(value);
+                    get => global::Opc.Ua.VariantHelper.CastTo<T>(((global::Opc.Ua.BaseVariableState)this).Value, true);
+                    set => ((global::Opc.Ua.BaseVariableState)this).Value = global::Opc.Ua.VariantHelper.CastFrom(value);
                 }
 
                 /// <inheritdoc/>
