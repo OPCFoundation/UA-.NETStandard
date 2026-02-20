@@ -810,11 +810,20 @@ namespace Opc.Ua.SourceGeneration
 
                     if (field.ValueRank == ValueRank.Array)
                     {
-                        context.Out.WriteLine(
-                            "encoder.WriteEnumeratedArray({0}, {1}{2});",
-                            fieldName,
-                            field.Name,
-                            isServiceType ? string.Empty : ".ToArrayOf()");
+                        if (isServiceType)
+                        {
+                            context.Out.WriteLine(
+                                "encoder.WriteEnumeratedArray({0}, {1});",
+                                fieldName,
+                                field.Name);
+                        }
+                        else
+                        {
+                            context.Out.WriteLine(
+                                "global::Opc.Ua.ArrayOf.ToArrayOf(encoder.WriteEnumeratedArray({0}, {1}));",
+                                fieldName,
+                                field.Name);
+                        }
                         if (isUnion)
                         {
                             context.Out.WriteLine("break;");
@@ -877,12 +886,20 @@ namespace Opc.Ua.SourceGeneration
                     functionName = "Encodeable";
                     if (field.ValueRank == ValueRank.Array)
                     {
-                        context.Out.WriteLine(
-                            "encoder.WriteEncodeableArray({0}, {1}{2});",
-                            fieldName,
-                            field.Name,
-                            isServiceType ? string.Empty : ".ToArrayOf()");
-
+                        if (isServiceType)
+                        {
+                            context.Out.WriteLine(
+                                "encoder.WriteEncodeableArray({0}, {1});",
+                                fieldName,
+                                field.Name);
+                        }
+                        else
+                        {
+                            context.Out.WriteLine(
+                                "global::Opc.Ua.ArrayOf.ToArrayOf(encoder.WriteEncodeableArray({0}, {1}));",
+                                fieldName,
+                                field.Name);
+                        }
                         if (isUnion)
                         {
                             context.Out.WriteLine("break;");

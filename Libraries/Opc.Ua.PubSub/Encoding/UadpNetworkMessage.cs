@@ -481,7 +481,7 @@ namespace Opc.Ua.PubSub.Encoding
                 m_logger.LogInformation(
                     "The UADP DiscoveryResponse DataSetMetaData message cannot be encoded: The MetaData property is missing. Value null will be used.");
             }
-            binaryEncoder.WriteEncodeable("MetaData", m_metadata, typeof(DataSetMetaDataType));
+            binaryEncoder.WriteEncodeable("MetaData", m_metadata);
 
             binaryEncoder.WriteStatusCode("StatusCode", StatusCodes.Good);
         }
@@ -511,8 +511,7 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 binaryEncoder.WriteEncodeable(
                     "DataSetWriterConfiguration",
-                    DataSetWriterConfiguration,
-                    typeof(WriterGroupDataType));
+                    DataSetWriterConfiguration);
             }
 
             binaryEncoder.WriteStatusCodeArray("StatusCodes", MessageStatusCodes);
@@ -525,8 +524,7 @@ namespace Opc.Ua.PubSub.Encoding
         {
             binaryEncoder.WriteEncodeableArray(
                 "Endpoints",
-                PublisherEndpoints,
-                typeof(EndpointDescription));
+                PublisherEndpoints);
 
             binaryEncoder.WriteStatusCode("statusCode", PublisherProvideEndpoints);
         }

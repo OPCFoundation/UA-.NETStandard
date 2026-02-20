@@ -190,7 +190,7 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 EncodeNetworkMessageHeader(encoder);
 
-                encoder.WriteEncodeable(kFieldMetaData, m_metadata, null);
+                encoder.WriteEncodeable(kFieldMetaData, m_metadata);
 
                 return;
             }

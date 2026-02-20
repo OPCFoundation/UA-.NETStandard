@@ -1393,6 +1393,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 return m_inner.TryGetEncodeableType(typeId, out encodeableType);
             }
 
+            public bool TryGetEncodeableType<T>([NotNullWhen(true)] out IEncodeableType encodeableType)
+            {
+                return m_inner.TryGetEncodeableType<T>(out encodeableType);
+            }
+
             private readonly IEncodeableFactory m_inner;
             private readonly Dictionary<ExpandedNodeId, DynamicEncodeable> m_dynamicEncodeables = [];
         }

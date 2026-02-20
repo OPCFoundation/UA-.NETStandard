@@ -514,10 +514,11 @@ namespace Opc.Ua.Client.ComplexTypes
                 case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                     if (typeof(IEncodeable).IsAssignableFrom(propertyType))
                     {
-                        encoder.WriteEncodeable(
-                            name,
-                            (IEncodeable)property.GetValue(this),
-                            propertyType);
+                        // Make a generic version of the WriteEncodeable method using reflection
+                        MethodInfo method = encoder.GetType()
+                            .GetMethod(nameof(IEncoder.WriteEncodeable))
+                            .MakeGenericMethod(propertyType);
+                        method.Invoke(encoder, [name, property.GetValue(this)]);
                         break;
                     }
                     throw ServiceResultException.Create(

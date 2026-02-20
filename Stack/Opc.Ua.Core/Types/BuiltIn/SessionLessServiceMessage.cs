@@ -120,7 +120,7 @@ namespace Opc.Ua
                 }
 
                 encoder.WriteUInt32("ServiceId", numericId);
-                encoder.WriteEncodeable("Body", Message, null);
+                encoder.WriteEncodeable("Body", Message);
             }
             else
             {

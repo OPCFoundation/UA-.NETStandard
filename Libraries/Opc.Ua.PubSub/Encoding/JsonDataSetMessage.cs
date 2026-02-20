@@ -445,8 +445,7 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 encoder.WriteEncodeable(
                     nameof(MetaDataVersion),
-                    MetaDataVersion,
-                    typeof(ConfigurationVersionDataType));
+                    MetaDataVersion);
             }
 
             if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.Timestamp) != 0)

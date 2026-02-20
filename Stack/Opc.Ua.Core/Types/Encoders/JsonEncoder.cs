@@ -1833,7 +1833,7 @@ namespace Opc.Ua
 
             if (encodeable != null)
             {
-                WriteEncodeable("Body", encodeable, null);
+                WriteEncodeable("Body", encodeable);
             }
             else if (value.Body is JObject json)
             {
@@ -2667,7 +2667,7 @@ namespace Opc.Ua
 
                 for (int ii = 0; ii < values.Count; ii++)
                 {
-                    WriteEncodeable(null, values[ii], systemType);
+                    WriteEncodeable(null, values[ii]);
                 }
 
                 PopArray();
@@ -2694,7 +2694,7 @@ namespace Opc.Ua
 
                 for (int ii = 0; ii < values.Count; ii++)
                 {
-                    WriteEncodeable(null, values[ii], systemType);
+                    WriteEncodeable(null, values[ii]);
                 }
 
                 PopArray();
@@ -2729,7 +2729,7 @@ namespace Opc.Ua
 
             PopArray();
         }
-
+#if FALSE
         /// <summary>
         /// Encode an array according to its valueRank and BuiltInType
         /// </summary>
@@ -2911,6 +2911,7 @@ namespace Opc.Ua
                 // field is omitted
             }
         }
+#endif
 
         /// <summary>
         /// Writes a raw value.
@@ -3305,7 +3306,7 @@ namespace Opc.Ua
                         value = matrix.Elements;
                         valueRank = ValueRanks.OneDimension;
                     }
-                    WriteArray(null, value, valueRank, typeInfo.BuiltInType);
+                    // TODO: WriteArray(null, value, valueRank, typeInfo.BuiltInType);
                 }
             }
             finally
@@ -3652,7 +3653,7 @@ namespace Opc.Ua
 
             PushStructure(fieldName);
             WriteInt32Array("Dimensions", matrix.Dimensions);
-            WriteArray("Array", matrix.Elements, 1, builtInType);
+            // TODO: WriteArray("Array", matrix.Elements, 1, builtInType);
             PopStructure();
         }
 
@@ -3828,5 +3829,16 @@ namespace Opc.Ua
             return valueString;
         }
 #endif
+
+        /// <summary>
+        ///TODO
+        /// </summary>
+        /// <param name="fieldName"></param>
+        /// <param name="value"></param>
+        /// <exception cref="NotImplementedException"></exception>
+        public void WriteVariantValue(string fieldName, Variant value)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
