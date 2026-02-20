@@ -30,6 +30,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
@@ -547,6 +548,8 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             Variant value = VariantHelper.CastFromWithReflectionFallback(
                 property.GetValue(this));
+            Debug.Assert(value.TypeInfo.BuiltInType == builtInType);
+            Debug.Assert(value.TypeInfo.ValueRank == valueRank);
             encoder.WriteVariantValue(name, value);
         }
 
