@@ -879,7 +879,7 @@ namespace Opc.Ua.Sample
                 }
 
                 // read the attributes.
-                List<object> values = target.ReadAttributes(
+                var values = target.ReadAttributes(
                     systemContext,
                     Attributes.WriteMask,
                     Attributes.UserWriteMask,
@@ -901,34 +901,39 @@ namespace Opc.Ua.Sample
                     DisplayName = target.DisplayName
                 };
 
-                if (values[0] != null && values[1] != null)
+
+                if (values[0].TryGet(out uint writeMask) &&
+                    values[1].TryGet(out uint userWriteMask))
                 {
-                    metadata.WriteMask = (AttributeWriteMask)(((uint)values[0]) &
-                        ((uint)values[1]));
+                    metadata.WriteMask = (AttributeWriteMask)(writeMask & userWriteMask);
+                }
+                if (values[2].TryGet(out NodeId dataType))
+                {
+                    metadata.DataType = dataType;
+                }
+                if (values[3].TryGet(out int valueRank))
+                {
+                    metadata.ValueRank = valueRank;
+                }
+                if (values[4].TryGet(out ArrayOf<uint> arrayDimensions))
+                {
+                    metadata.ArrayDimensions = arrayDimensions;
+                }
+                if (values[5].TryGet(out byte accessLevel) &&
+                    values[6].TryGet(out byte userAccessLevel))
+                {
+                    metadata.AccessLevel = (byte)(accessLevel & userAccessLevel);
                 }
 
-                metadata.DataType = values[2] is NodeId nodeId ? nodeId : default;
-
-                if (values[3] != null)
+                if (values[7].TryGet(out byte eventNotifier))
                 {
-                    metadata.ValueRank = (int)values[3];
+                    metadata.EventNotifier = eventNotifier;
                 }
 
-                metadata.ArrayDimensions = (ArrayOf<uint>)values[4];
-
-                if (values[5] != null && values[6] != null)
+                if (values[8].TryGet(out bool executable) &&
+                    values[9].TryGet(out bool userExecutable))
                 {
-                    metadata.AccessLevel = (byte)(((byte)values[5]) & ((byte)values[6]));
-                }
-
-                if (values[7] != null)
-                {
-                    metadata.EventNotifier = (byte)values[7];
-                }
-
-                if (values[8] != null && values[9] != null)
-                {
-                    metadata.Executable = ((bool)values[8]) && ((bool)values[9]);
+                    metadata.Executable = executable && userExecutable;
                 }
 
                 // get instance references.

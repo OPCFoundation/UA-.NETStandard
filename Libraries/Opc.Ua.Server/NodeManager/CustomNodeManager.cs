@@ -1055,7 +1055,7 @@ namespace Opc.Ua.Server
                 }
 
                 // read the attributes.
-                List<object> values = target.ReadAttributes(
+                ArrayOf<Variant> values = target.ReadAttributes(
                     systemContext,
                     Attributes.WriteMask,
                     Attributes.UserWriteMask,
@@ -1079,52 +1079,56 @@ namespace Opc.Ua.Server
                     DisplayName = target.DisplayName
                 };
 
-                if (values[0] != null && values[1] != null)
+
+                if (values[0].TryGet(out uint writeMask) &&
+                    values[1].TryGet(out uint userWriteMask))
                 {
-                    metadata.WriteMask = (AttributeWriteMask)(((uint)values[0]) &
-                        ((uint)values[1]));
+                    metadata.WriteMask = (AttributeWriteMask)(writeMask & userWriteMask);
+                }
+                if (values[2].TryGet(out NodeId dataType))
+                {
+                    metadata.DataType = dataType;
+                }
+                if (values[3].TryGet(out int valueRank))
+                {
+                    metadata.ValueRank = valueRank;
+                }
+                if (values[4].TryGet(out ArrayOf<uint> arrayDimensions))
+                {
+                    metadata.ArrayDimensions = arrayDimensions;
+                }
+                if (values[5].TryGet(out byte accessLevel) &&
+                    values[6].TryGet(out byte userAccessLevel))
+                {
+                    metadata.AccessLevel = (byte)(accessLevel & userAccessLevel);
                 }
 
-                metadata.DataType = values[2] is NodeId nodeId ? nodeId : default;
-
-                if (values[3] != null)
+                if (values[7].TryGet(out byte eventNotifier))
                 {
-                    metadata.ValueRank = (int)values[3];
+                    metadata.EventNotifier = eventNotifier;
                 }
 
-                metadata.ArrayDimensions = values[4] is ArrayOf<uint> arrayDimensions ? arrayDimensions : default;
-
-                if (values[5] != null && values[6] != null)
+                if (values[8].TryGet(out bool executable) &&
+                    values[9].TryGet(out bool userExecutable))
                 {
-                    metadata.AccessLevel = (byte)(((byte)values[5]) & ((byte)values[6]));
+                    metadata.Executable = executable && userExecutable;
                 }
 
-                if (values[7] != null)
+                if (values[10].TryGet(out AccessRestrictionType accessRestriction))
                 {
-                    metadata.EventNotifier = (byte)values[7];
+                    metadata.AccessRestrictions = accessRestriction;
                 }
 
-                if (values[8] != null && values[9] != null)
+                if (values[11].TryGetStructure(
+                    out ArrayOf<RolePermissionType> rolePermissions))
                 {
-                    metadata.Executable = ((bool)values[8]) && ((bool)values[9]);
+                    metadata.RolePermissions = rolePermissions;
                 }
 
-                if (values[10] != null)
+                if (values[12].TryGetStructure(
+                    out ArrayOf<RolePermissionType> userRolePermissions))
                 {
-                    metadata.AccessRestrictions = (AccessRestrictionType)
-                        Enum.ToObject(typeof(AccessRestrictionType), values[10]);
-                }
-
-                if (values[11] != null)
-                {
-                    metadata.RolePermissions = [.. ExtensionObject.ToList<RolePermissionType>(
-                        values[11])];
-                }
-
-                if (values[12] != null)
-                {
-                    metadata.UserRolePermissions = [.. ExtensionObject.ToList<RolePermissionType>(
-                        values[12])];
+                    metadata.UserRolePermissions = userRolePermissions;
                 }
 
                 SetDefaultPermissions(systemContext, target, metadata);
@@ -1144,22 +1148,23 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Sets the AccessRestrictions, RolePermissions and UserRolePermissions values in the metadata
         /// </summary>
-        private static void SetAccessAndRolePermissions(List<object> values, NodeMetadata metadata)
+        private static void SetAccessAndRolePermissions(ArrayOf<Variant> values, NodeMetadata metadata)
         {
-            if (values[0] != null)
+            if (values[0].TryGet(out AccessRestrictionType accessRestrictions))
             {
-                metadata.AccessRestrictions = (AccessRestrictionType)
-                    Enum.ToObject(typeof(AccessRestrictionType), values[0]);
+                metadata.AccessRestrictions = accessRestrictions;
             }
-            if (values[1] != null)
+
+            if (values[1].TryGetStructure(
+                out ArrayOf<RolePermissionType> rolePermissions))
             {
-                metadata.RolePermissions = [.. ExtensionObject.ToList<RolePermissionType>(
-                    values[1])];
+                metadata.RolePermissions = rolePermissions;
             }
-            if (values[2] != null)
+
+            if (values[2].TryGetStructure(
+                out ArrayOf<RolePermissionType> userRolePermissions))
             {
-                metadata.UserRolePermissions = [.. ExtensionObject.ToList<RolePermissionType>(
-                    values[2])];
+                metadata.UserRolePermissions = userRolePermissions;
             }
         }
 
@@ -1171,13 +1176,13 @@ namespace Opc.Ua.Server
         /// <param name="target">The target for which the attributes are read and cached</param>
         /// <param name="key">The key representing the NodeId for which the cache is kept</param>
         /// <returns>The values of the attributes</returns>
-        private static List<object> ReadAndCacheValidationAttributes(
-            Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes,
+        private static ArrayOf<Variant> ReadAndCacheValidationAttributes(
+            Dictionary<NodeId, ArrayOf<Variant>> uniqueNodesServiceAttributes,
             ServerSystemContext systemContext,
             NodeState target,
             NodeId key)
         {
-            List<object> values = ReadValidationAttributes(systemContext, target);
+            ArrayOf<Variant> values = ReadValidationAttributes(systemContext, target);
             uniqueNodesServiceAttributes[key] = values;
 
             return values;
@@ -1189,7 +1194,7 @@ namespace Opc.Ua.Server
         /// <param name="systemContext">The context</param>
         /// <param name="target">The target for which the attributes are read and cached</param>
         /// <returns>The values of the attributes</returns>
-        private static List<object> ReadValidationAttributes(
+        private static ArrayOf<Variant> ReadValidationAttributes(
             ServerSystemContext systemContext,
             NodeState target)
         {
@@ -4773,7 +4778,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             object targetHandle,
             BrowseResultMask resultMask,
-            Dictionary<NodeId, List<object>> uniqueNodesServiceAttributesCache,
+            Dictionary<NodeId, ArrayOf<Variant>> uniqueNodesServiceAttributesCache,
             bool permissionsOnly)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
@@ -4796,7 +4801,7 @@ namespace Opc.Ua.Server
                     return null;
                 }
 
-                List<object> values = null;
+                ArrayOf<Variant> values = null;
 
                 // construct the meta-data object.
                 var metadata = new NodeMetadata(target, target.NodeId);
@@ -4859,22 +4864,17 @@ namespace Opc.Ua.Server
 
             if (namespaceMetadataState != null)
             {
-                List<object> namespaceMetadataValues;
+                ArrayOf<Variant> namespaceMetadataValues;
 
                 if (namespaceMetadataState.DefaultAccessRestrictions != null)
                 {
                     // get DefaultAccessRestrictions for Namespace
                     namespaceMetadataValues = namespaceMetadataState.DefaultAccessRestrictions
-                        .ReadAttributes(
-                            systemContext,
-                            Attributes.Value);
+                        .ReadAttributes(systemContext, Attributes.Value);
 
-                    if (namespaceMetadataValues[0] != null)
+                    if (namespaceMetadataValues[0].TryGet(out AccessRestrictionType accessRestrictions))
                     {
-                        metadata.DefaultAccessRestrictions = (AccessRestrictionType)
-                            Enum.ToObject(
-                                typeof(AccessRestrictionType),
-                                namespaceMetadataValues[0]);
+                        metadata.DefaultAccessRestrictions = accessRestrictions;
                     }
                 }
 
@@ -4882,17 +4882,12 @@ namespace Opc.Ua.Server
                 {
                     // get DefaultRolePermissions for Namespace
                     namespaceMetadataValues = namespaceMetadataState.DefaultRolePermissions
-                        .ReadAttributes(
-                            systemContext,
-                            Attributes.Value);
+                        .ReadAttributes(systemContext, Attributes.Value);
 
-                    if (namespaceMetadataValues[0] != null)
+                    if (namespaceMetadataValues[0].TryGetStructure(
+                            out ArrayOf<RolePermissionType> rolePermissions))
                     {
-                        metadata.DefaultRolePermissions =
-                        [
-                            .. ExtensionObject.ToList<RolePermissionType>(
-                                namespaceMetadataValues[0])
-                        ];
+                        metadata.DefaultRolePermissions = rolePermissions;
                     }
                 }
 
@@ -4900,17 +4895,12 @@ namespace Opc.Ua.Server
                 {
                     // get DefaultUserRolePermissions for Namespace
                     namespaceMetadataValues = namespaceMetadataState.DefaultUserRolePermissions
-                        .ReadAttributes(
-                            systemContext,
-                            Attributes.Value);
+                        .ReadAttributes(systemContext, Attributes.Value);
 
-                    if (namespaceMetadataValues[0] != null)
+                    if (namespaceMetadataValues[0].TryGetStructure(
+                            out ArrayOf<RolePermissionType> rolePermissions))
                     {
-                        metadata.DefaultUserRolePermissions =
-                        [
-                            .. ExtensionObject.ToList<RolePermissionType>(
-                                namespaceMetadataValues[0])
-                        ];
+                        metadata.DefaultUserRolePermissions = rolePermissions;
                     }
                 }
             }

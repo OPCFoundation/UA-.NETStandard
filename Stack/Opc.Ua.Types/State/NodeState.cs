@@ -3447,11 +3447,11 @@ namespace Opc.Ua
         /// A list of values.
         /// If any error occurs for an attribute the value will be null.
         /// </returns>
-        public virtual List<object> ReadAttributes(
+        public virtual ArrayOf<Variant> ReadAttributes(
             ISystemContext context,
             params uint[] attributeIds)
         {
-            var values = new List<object>();
+            var values = new List<Variant>();
 
             if (attributeIds != null)
             {
@@ -3468,15 +3468,15 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsBad(result))
                     {
-                        values.Add(null);
+                        values.Add(Variant.From(result.StatusCode));
                         continue;
                     }
 
-                    values.Add(value.Value);
+                    values.Add(value.WrappedValue);
                 }
             }
 
-            return values;
+            return values.ToArrayOf();
         }
 
         /// <summary>

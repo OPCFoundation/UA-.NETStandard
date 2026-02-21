@@ -57,8 +57,8 @@ namespace Opc.Ua.Server.Tests
         private NamespaceTable m_namespaceTable;
         private readonly string m_testNamespaceUri = "http://test.org/UA/Data/";
         private readonly bool m_useSamplingGroups;
-        private static readonly double[] s_value = [10.0, 200.0, 30.0];
-        private static readonly double[] s_expected = [10.0, 20.0, 30.0];
+        private static readonly ArrayOf<double> s_value = [10.0, 200.0, 30.0];
+        private static readonly ArrayOf<double> s_expected = [10.0, 20.0, 30.0];
 
         public enum AsyncCustomNodeManagerType
         {
@@ -559,10 +559,10 @@ namespace Opc.Ua.Server.Tests
             variable.CreateAsPredefinedNode(context);
             variable.NodeId = new NodeId("AnalogArrayVar", nsIdx);
             variable.BrowseName = new QualifiedName("AnalogArrayVar", nsIdx);
-            variable.Value = new double[] { 10.0, 20.0, 30.0 };
+            variable.Value = ArrayOf.Wrapped(10.0, 20.0, 30.0);
             variable.DataType = DataTypeIds.Double;
             variable.ValueRank = ValueRanks.OneDimension;
-            variable.ArrayDimensions = new ReadOnlyList<uint>([0]);
+            variable.ArrayDimensions = [0];
             variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
             variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
             variable.InstrumentRange = new PropertyState<Range>(variable)
@@ -589,7 +589,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(nodesToWrite[0].Processed, Is.True);
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
-            Assert.That((double[])variable.Value, Is.EqualTo(s_expected));
+            Assert.That(variable.Value.GetDoubleArray(), Is.EqualTo(s_expected));
         }
 
         [Test]
@@ -1484,9 +1484,9 @@ namespace Opc.Ua.Server.Tests
             await manager.AddNodeAsync(context, default, node).ConfigureAwait(false);
 
             object handle = await manager.GetManagerHandleAsync(node.NodeId).ConfigureAwait(false);
-            var cache = new Dictionary<NodeId, List<object>>
+            var cache = new Dictionary<NodeId, ArrayOf<Variant>>
             {
-                [node.NodeId] = []
+                [node.NodeId] = ArrayOf.Empty<Variant>()
             };
             var opContext = new OperationContext(new RequestHeader(), null, RequestType.Read);
 
