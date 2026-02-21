@@ -113,7 +113,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             const string objectName = "Array";
-            const BuiltInType builtInType = BuiltInType.Variant;
 
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
@@ -127,7 +126,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         jsonEncodingType))
                 {
                     encoder.PushNamespace("urn:This:is:another:namespace");
-                    encoder.WriteArray(objectName, array, ValueRanks.OneDimension, builtInType);
+                    encoder.WriteVariantValue(objectName, VariantHelper.CastFromWithReflectionFallback(array));
                     encoder.PopNamespace();
                 }
                 buffer = encoderStream.ToArray();
@@ -172,7 +171,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             TestContext.Out.WriteLine("Result:");
             TestContext.Out.WriteLine(result);
-            object expected = AdjustExpectedBoundaryValues(encoderType, builtInType, array);
+
+            object expected = VariantHelper.CastFromWithReflectionFallback(array);
 
             string encodeInfo =
                 $"Encoder: {encoderType} Type: Array of {systemType}. Expected is different from result.";
@@ -189,7 +189,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             [ValueSource(
                 nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
-            bool encodeAsMatrix,
             Type systemType)
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
@@ -227,22 +226,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         systemType,
                         jsonEncodingType))
                 {
-                    if (encodeAsMatrix)
-                    {
-                        encoder.WriteArray(
-                            objectName,
-                            matrix,
-                            matrix.TypeInfo.ValueRank,
-                            builtInType);
-                    }
-                    else
-                    {
-                        encoder.WriteArray(
-                            objectName,
-                            matrix.ToArray(),
-                            matrix.TypeInfo.ValueRank,
-                            builtInType);
-                    }
+                    encoder.WriteVariantValue(
+                        objectName,
+                        VariantHelper.CastFromWithReflectionFallback(matrix.ToArray()));
+
                 }
                 buffer = encoderStream.ToArray();
             }
@@ -270,15 +257,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             TestContext.Out.WriteLine("Result:");
             TestContext.Out.WriteLine(result);
-            object expected = AdjustExpectedBoundaryValues(encoderType, builtInType, matrix);
 
             string encodeInfo =
                 $"Encoder: {encoderType} Type: Matrix of {systemType}. Expected is different from result.";
 
             // note: Array.Equals just compares the references, so check the matrix
-            var resultMatrix = new Matrix(result, BuiltInType.Variant);
-
-            Assert.AreEqual(matrix, resultMatrix, encodeInfo);
+            var expected = VariantHelper.CastFromWithReflectionFallback(result);
             Assert.IsTrue(
                 Utils.IsEqual(expected, result),
                 "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);

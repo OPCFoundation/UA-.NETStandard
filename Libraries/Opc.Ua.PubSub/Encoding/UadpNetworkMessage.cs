@@ -352,7 +352,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Discovery Publisher Endpoints message
         /// </summary>
-        internal EndpointDescription[] PublisherEndpoints { get; set; }
+        internal ArrayOf<EndpointDescription> PublisherEndpoints { get; set; }
 
         /// <summary>
         /// StatusCode that specifies if a Discovery message provides PublisherEndpoints

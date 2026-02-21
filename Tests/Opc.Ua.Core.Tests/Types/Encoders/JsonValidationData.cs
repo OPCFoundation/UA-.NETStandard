@@ -58,21 +58,19 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             };
         }
 
-        public BuiltInType BuiltInType;
-        public object Instance;
-        public string ExpectedCompact;
-        public string ExpectedVerbose;
-        public string ExpectedReversible;
-        public string ExpectedNonReversible;
-        public bool IncludeDefaultValue;
+        public BuiltInType BuiltInType { get; set; }
+        public Variant Instance { get; set; }
+        public string ExpectedCompact { get; set; }
+        public string ExpectedVerbose { get; set; }
+        public string ExpectedReversible { get; set; }
+        public string ExpectedNonReversible { get; set; }
+        public bool IncludeDefaultValue{ get; set; }
 
         public string ToString(string format, IFormatProvider formatProvider)
         {
-            if (BuiltInType == BuiltInType.Variant &&
-                Instance is Variant variant &&
-                !variant.TypeInfo.IsUnknown)
+            if (BuiltInType == BuiltInType.Variant)
             {
-                return $"Variant:{variant.TypeInfo.BuiltInType}:{Instance}" +
+                return $"Variant:{Instance.TypeInfo.BuiltInType}:{Instance}" +
                     (IncludeDefaultValue
                         ? ":Default"
                         : string.Empty);
@@ -113,7 +111,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 new JsonValidationData
                 {
                     BuiltInType = builtInType,
-                    Instance = instance,
+                    Instance = VariantHelper.CastFromWithReflectionFallback(instance),
                     ExpectedReversible = expectedReversible,
                     ExpectedNonReversible = expectedNonReversible,
                     ExpectedCompact = expectedReversible,
@@ -133,7 +131,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 new JsonValidationData
                 {
                     BuiltInType = builtInType,
-                    Instance = instance,
+                    Instance = VariantHelper.CastFromWithReflectionFallback(instance),
                     ExpectedReversible = expectedReversible,
                     ExpectedNonReversible = expectedNonReversible,
                     ExpectedCompact = expectedCompact,
@@ -152,7 +150,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 new JsonValidationData
                 {
                     BuiltInType = builtInType,
-                    Instance = instance,
+                    Instance = VariantHelper.CastFromWithReflectionFallback(instance),
                     ExpectedReversible = expectedReversible,
                     ExpectedNonReversible = expectedNonReversible,
                     ExpectedCompact = expectedReversible,
@@ -174,7 +172,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 new JsonValidationData
                 {
                     BuiltInType = builtInType,
-                    Instance = instance,
+                    Instance = VariantHelper.CastFromWithReflectionFallback(instance),
                     ExpectedReversible = expectedReversible,
                     ExpectedNonReversible = expectedNonReversible,
                     ExpectedCompact = expectedCompact,

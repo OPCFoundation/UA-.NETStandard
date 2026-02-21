@@ -594,5 +594,86 @@ namespace Opc.Ua
         {
             return new(values.ToArray(), dimensions);
         }
+
+        /// <summary>
+        /// Convert 2-d array to matrix of T
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static MatrixOf<T> ToMatrixOf<T>(this T[,] array)
+        {
+            return MatrixOf<T>.CreateFromArray(array);
+        }
+
+        /// <summary>
+        /// Convert 2-d array to matrix of T
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static MatrixOf<T> ToMatrixOf<T>(this T[,,] array)
+        {
+            return MatrixOf<T>.CreateFromArray(array);
+        }
+
+        /// <summary>
+        /// Convert 2-d array to matrix of T
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static MatrixOf<T> ToMatrixOf<T>(this T[,,,] array)
+        {
+            return MatrixOf<T>.CreateFromArray(array);
+        }
+
+        /// <summary>
+        /// Convert 2-d array to matrix of T
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static MatrixOf<T> ToMatrixOf<T>(this T[,,,,] array)
+        {
+            return MatrixOf<T>.CreateFromArray(array);
+        }
+
+        /// <summary>
+        /// Convert 2-d array to matrix of T
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static MatrixOf<T> ToMatrixOf<T>(this T[,,,,,] array)
+        {
+            return MatrixOf<T>.CreateFromArray(array);
+        }
+
+        /// <summary>
+        /// Convert 2-d array to matrix of T
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static MatrixOf<T> ToMatrixOf<T>(this T[,,,,,,] array)
+        {
+            return MatrixOf<T>.CreateFromArray(array);
+        }
+
+        /// <summary>
+        /// Convert 2-d array to matrix of T
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static MatrixOf<T> ToMatrixOf<T>(this T[,,,,,,,] array)
+        {
+            return MatrixOf<T>.CreateFromArray(array);
+        }
+
+        /// <summary>
+        /// Convert 2-d array to matrix of T
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static MatrixOf<T> ToMatrixOf<T>(this T[,,,,,,,,] array)
+        {
+            return MatrixOf<T>.CreateFromArray(array);
+        }
+
+        /// <summary>
+        /// Convert 2-d array to matrix of T
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static MatrixOf<T> ToMatrixOf<T>(this T[,,,,,,,,,] array)
+        {
+            return MatrixOf<T>.CreateFromArray(array);
+        }
     }
 }

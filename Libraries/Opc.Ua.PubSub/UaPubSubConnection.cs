@@ -410,7 +410,7 @@ namespace Opc.Ua.PubSub
 
                         m_logger.LogInformation(
                             "Connection '{Source}' - RaisePublisherEndpointsReceivedEvent() from source={Source}, with {Count} PublisherEndpoints",
-                            source, source, publisherEndpointsEventArgs.PublisherEndpoints.Length);
+                            source, source, publisherEndpointsEventArgs.PublisherEndpoints.Count);
                     }
                 }
             }

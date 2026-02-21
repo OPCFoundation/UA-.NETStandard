@@ -34,6 +34,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Security.AccessControl;
 using System.Text;
 using System.Xml;
 using Newtonsoft.Json;
@@ -168,7 +169,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 jsonEncodingType,
                 builtInType,
                 MemoryStreamType.ArraySegmentStream,
-                randomData);
+                VariantHelper.CastFromWithReflectionFallback(randomData));
         }
 
         /// <summary>
@@ -195,7 +196,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 jsonEncodingType,
                 builtInType,
                 MemoryStreamType.RecyclableMemoryStream,
-                randomData);
+                VariantHelper.CastFromWithReflectionFallback(randomData));
         }
 
         /// <summary>
@@ -221,7 +222,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     jsonEncodingType,
                     builtInType,
                     MemoryStreamType.MemoryStream,
-                    boundaryValue);
+                    VariantHelper.CastFromWithReflectionFallback(boundaryValue));
             }
         }
 
@@ -656,11 +657,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         jsonEncodingType,
                         false))
                 {
-                    encoder.WriteArray(
+                    encoder.WriteVariantValue(
                         builtInType.ToString(),
-                        randomData,
-                        ValueRanks.OneDimension,
-                        builtInType);
+                        VariantHelper.CastFromWithReflectionFallback(randomData));
                 }
                 buffer = encoderStream.ToArray();
             }
@@ -684,21 +683,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             TestContext.Out.WriteLine("Result:");
             TestContext.Out.WriteLine(result);
-            object expected = AdjustExpectedBoundaryValues(encoderType, builtInType, randomData);
+            var expected = VariantHelper.CastFromWithReflectionFallback(randomData);
 
             // strip the locale information from localized text for non reversible
             if (builtInType == BuiltInType.LocalizedText &&
                 jsonEncodingType == JsonEncodingType.NonReversible)
             {
-                var localizedTextCollection = new LocalizedTextCollection(randomData.Length);
-                foreach (object entry in randomData)
-                {
-                    if (entry is LocalizedText localizedText)
-                    {
-                        localizedTextCollection.Add(new LocalizedText(null, localizedText.Text));
-                    }
-                }
-                expected = localizedTextCollection.ToArray();
+                expected = expected.GetLocalizedTextArray().ConvertAll(l => new LocalizedText(l.Text));
             }
 
             Assert.AreEqual(expected, result, encodeInfo);
@@ -740,11 +731,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         jsonEncodingType,
                         false))
                 {
-                    encoder.WriteArray(
+                    encoder.WriteVariantValue(
                         builtInType.ToString(),
-                        nullArray,
-                        ValueRanks.OneDimension,
-                        builtInType);
+                        VariantHelper.CastFromWithReflectionFallback(nullArray));
                 }
                 buffer = encoderStream.ToArray();
             }
@@ -874,11 +863,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     type,
                     jsonEncodingType))
                 {
-                    encoder.WriteArray(
+                    encoder.WriteVariantValue(
                         builtInType.ToString(),
-                        matrix,
-                        matrix.TypeInfo.ValueRank,
-                        builtInType);
+                        VariantHelper.CastFromWithReflectionFallback(randomData));
                 }
                 buffer = encoderStream.ToArray();
             }
@@ -902,27 +889,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             TestContext.Out.WriteLine("Result:");
             TestContext.Out.WriteLine(result);
-            object expected = AdjustExpectedBoundaryValues(encoderType, builtInType, matrix);
+            var expected = VariantHelper.CastFromWithReflectionFallback(randomData);
 
             // strip the locale information from localized text for non reversible
             if (builtInType == BuiltInType.LocalizedText &&
                 jsonEncodingType == JsonEncodingType.NonReversible)
             {
-                var localizedTextCollection = new LocalizedTextCollection(randomData.Length);
-                foreach (object entry in matrix.Elements)
-                {
-                    if (entry is LocalizedText localizedText)
-                    {
-                        localizedTextCollection.Add(new LocalizedText(null, localizedText.Text));
-                    }
-                }
-
-                // only compare the text portion
-                if (result is Array resultArray)
-                {
-                    expected = localizedTextCollection.ToArray();
-                    result = resultArray.OfType<LocalizedText>().ToArray();
-                }
+                expected = expected.GetLocalizedTextMatrix().ConvertAll(l => new LocalizedText(l.Text));
             }
 
             Assert.AreEqual(expected, result, encodeInfo);
@@ -1171,18 +1144,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                             // check such matrix cannot be initialized when encoded into Json format
                             // the exception is thrown while trying to WriteStructureMatrix into the arrray
                             NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                                encoder.WriteArray(
+                                encoder.WriteVariantValue(
                                     builtInType.ToString(),
-                                    matrix,
-                                    matrix.TypeInfo.ValueRank,
-                                    builtInType));
+                                    VariantHelper.CastFromWithReflectionFallback(randomData)));
                             return;
                     }
-                    encoder.WriteArray(
+                    encoder.WriteVariantValue(
                         builtInType.ToString(),
-                        matrix,
-                        matrix.TypeInfo.ValueRank,
-                        builtInType);
+                        VariantHelper.CastFromWithReflectionFallback(randomData));
                 }
                 buffer = encoderStream.ToArray();
             }

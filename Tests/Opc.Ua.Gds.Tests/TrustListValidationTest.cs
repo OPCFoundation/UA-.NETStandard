@@ -298,7 +298,7 @@ namespace Opc.Ua.Gds.Tests
         {
             using var stream = new System.IO.MemoryStream();
             using var encoder = new BinaryEncoder(stream, m_pushClient.PushClient.Session.MessageContext, false);
-            encoder.WriteEncodeable(null, trustList, trustList.GetType());
+            encoder.WriteEncodeable(null, trustList);
             return stream.Length;
         }
     }

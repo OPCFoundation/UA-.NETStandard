@@ -49,7 +49,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Get the received Publisher Endpoints.
         /// </summary>
-        public EndpointDescription[] PublisherEndpoints { get; internal set; }
+        public ArrayOf<EndpointDescription> PublisherEndpoints { get; internal set; }
 
         /// <summary>
         /// Get the status code of the DataSetWriter

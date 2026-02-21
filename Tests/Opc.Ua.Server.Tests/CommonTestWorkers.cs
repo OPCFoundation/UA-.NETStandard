@@ -291,7 +291,7 @@ namespace Opc.Ua.Server.Tests
                 do
                 {
                     ArrayOf<BrowseDescription> browseCollection =
-                        maxNodesPerBrowse == 0
+                        maxNodesPerBrowse == 0 || maxNodesPerBrowse >= browseDescriptionCollection.Count
                             ? browseDescriptionCollection
                             : browseDescriptionCollection[..(int)maxNodesPerBrowse];
                     repeatBrowse = false;
@@ -334,7 +334,9 @@ namespace Opc.Ua.Server.Tests
                 }
                 else
                 {
-                    browseDescriptionCollection = browseDescriptionCollection[(int)maxNodesPerBrowse..];
+                    browseDescriptionCollection = maxNodesPerBrowse >= browseDescriptionCollection.Count
+                        ? browseDescriptionCollection
+                        : browseDescriptionCollection[(int)maxNodesPerBrowse..];
                 }
 
                 // Browse next
@@ -437,9 +439,10 @@ namespace Opc.Ua.Server.Tests
                         sre.StatusCode);
                 }
                 ArrayOf<BrowsePath> browsePathSnippet =
-                    operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds > 0
-                        ? browsePaths[..(int)operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds]
-                        : browsePaths;
+                    operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds == 0 ||
+                        browsePaths.Count >= operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds
+                        ? browsePaths
+                        : browsePaths[..(int)operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds];
                 TranslateBrowsePathsToNodeIdsResponse translateResponse = await services.TranslateBrowsePathsToNodeIdsAsync(
                     requestHeader,
                     browsePathSnippet).ConfigureAwait(false);

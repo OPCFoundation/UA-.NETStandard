@@ -1359,7 +1359,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             using var encodeable = new FooBarEncodeable();
             using var encoder = new JsonEncoder(Context, true, topLevelIsArray);
-            encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
+            encoder.WriteEncodeable(null, encodeable);
 
             string encoded = encoder.CloseAndReturnText();
 
@@ -1385,7 +1385,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             using var encodeable = new FooBarEncodeable();
             using var encoder = new JsonEncoder(Context, true, false);
-            encoder.WriteEncodeable(encodeable.Foo, encodeable, typeof(FooBarEncodeable));
+            encoder.WriteEncodeable(encodeable.Foo, encodeable);
 
             string encoded = encoder.CloseAndReturnText();
 
@@ -1421,7 +1421,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     { "Foo", (1, "bar_1") }
                 });
             using var encoder = new JsonEncoder(Context, true, false);
-            encoder.WriteEncodeable("bar_1", encodeable, typeof(DynamicEncodeable));
+            encoder.WriteEncodeable("bar_1", encodeable);
 
             string encoded = encoder.CloseAndReturnText();
 
@@ -1547,7 +1547,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var encodeable = new FooBarEncodeable();
             using var encoder = new JsonEncoder(Context, true, true);
             NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                encoder.WriteEncodeable(encodeable.Foo, encodeable, typeof(FooBarEncodeable)));
+                encoder.WriteEncodeable(encodeable.Foo, encodeable));
         }
 
         /// <summary>
@@ -1563,9 +1563,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var encoder = new JsonEncoder(Context, true, false);
             NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
             {
-                encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
-                encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
-                encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
+                encoder.WriteEncodeable(null, encodeable);
+                encoder.WriteEncodeable(null, encodeable);
+                encoder.WriteEncodeable(null, encodeable);
             });
         }
 
@@ -1589,7 +1589,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 using var encoder = new JsonEncoder(Context, true, topLevelIsArray);
                 foreach (FooBarEncodeable encodeable in encodeables)
                 {
-                    encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
+                    encoder.WriteEncodeable(null, encodeable);
                 }
 
                 string encoded = encoder.CloseAndReturnText();
@@ -1625,7 +1625,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 using var encoder = new JsonEncoder(Context, true, false);
                 foreach (FooBarEncodeable encodeable in encodeables)
                 {
-                    encoder.WriteEncodeable(encodeable.Foo, encodeable, typeof(FooBarEncodeable));
+                    encoder.WriteEncodeable(encodeable.Foo, encodeable);
                 }
 
                 string encoded = encoder.CloseAndReturnText();
@@ -1736,7 +1736,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             using var encodeable = new FooBarEncodeable(fieldname, foo);
             using var encoder = new JsonEncoder(Context, true);
-            encoder.WriteEncodeable(encodeable.FieldName, encodeable, typeof(FooBarEncodeable));
+            encoder.WriteEncodeable(encodeable.FieldName, encodeable);
 
             string encoded = encoder.CloseAndReturnText();
             TestContext.Out.WriteLine("Encoded:");
@@ -1766,9 +1766,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             _ = PrettifyAndValidateJson(expected);
 
             using var encodeable = new FooBarEncodeable(fieldname, foo);
-            ArrayOf<IEncodeable> list = [encodeable, encodeable];
+            ArrayOf<FooBarEncodeable> list = [encodeable, encodeable];
             using var encoder = new JsonEncoder(Context, true);
-            encoder.WriteEncodeableArray(encodeable.FieldName, list, typeof(FooBarEncodeable));
+            encoder.WriteEncodeableArray(encodeable.FieldName, list);
 
             string encoded = encoder.CloseAndReturnText();
             TestContext.Out.WriteLine("Encoded:");
@@ -2023,8 +2023,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 using var encoder = new JsonEncoder(Context, true, topLevelIsArray);
                 encoder.WriteEncodeableArray(
                     fieldName,
-                    [.. encodeables.Cast<IEncodeable>()],
-                    typeof(FooBarEncodeable));
+                    encodeables.ToArrayOf());
 
                 string encoded = encoder.CloseAndReturnText();
                 TestContext.Out.WriteLine("Encoded:");

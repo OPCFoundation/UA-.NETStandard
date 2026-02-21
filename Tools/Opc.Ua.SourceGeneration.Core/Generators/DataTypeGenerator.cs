@@ -820,7 +820,7 @@ namespace Opc.Ua.SourceGeneration
                         else
                         {
                             context.Out.WriteLine(
-                                "global::Opc.Ua.ArrayOf.ToArrayOf(encoder.WriteEnumeratedArray({0}, {1}));",
+                                "encoder.WriteEnumeratedArray({0}, global::Opc.Ua.ArrayOf.ToArrayOf({1}));",
                                 fieldName,
                                 field.Name);
                         }
@@ -896,7 +896,7 @@ namespace Opc.Ua.SourceGeneration
                         else
                         {
                             context.Out.WriteLine(
-                                "global::Opc.Ua.ArrayOf.ToArrayOf(encoder.WriteEncodeableArray({0}, {1}));",
+                                "encoder.WriteEncodeableArray({0}, global::Opc.Ua.ArrayOf.ToArrayOf({1}));",
                                 fieldName,
                                 field.Name);
                         }

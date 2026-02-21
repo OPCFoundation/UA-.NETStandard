@@ -1486,16 +1486,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var context = new ServiceMessageContext(telemetry);
 
             using var encoder = new JsonEncoder(context, jsonEncoding);
-            encoder.WriteArray(
+            encoder.WriteVariantValue(
                 "D0",
                 new int[,]
                 {
                     { 1, 2, 3 },
                     { 4, 5, 6 }
-                },
-                2,
-                BuiltInType.Int32);
-            encoder.WriteArray(
+                }.ToMatrixOf());
+            encoder.WriteVariantValue(
                 "D1",
                 new int[,,]
                 {
@@ -1503,9 +1501,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         { 1, 2, 3 },
                         { 4, 5, 6 }
                     }
-                },
-                3,
-                BuiltInType.Int32);
+                }.ToMatrixOf());
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
@@ -1568,16 +1564,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var context = new ServiceMessageContext(telemetry);
 
             using var encoder = new JsonEncoder(context, jsonEncoding);
-            encoder.WriteArray(
+            encoder.WriteVariantValue(
                 "D0",
                 new int[,]
                 {
                     { 1, 2, 3 },
                     { 4, 5, 6 }
-                },
-                2,
-                BuiltInType.Int32);
-            encoder.WriteArray(
+                }.ToMatrixOf());
+            encoder.WriteVariantValue(
                 "D1",
                 new int[,,]
                 {
@@ -1585,9 +1579,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         { 1, 2, 3 },
                         { 4, 5, 6 }
                     }
-                },
-                3,
-                BuiltInType.Int32);
+                }.ToMatrixOf());
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);

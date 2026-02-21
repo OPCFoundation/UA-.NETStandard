@@ -304,7 +304,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     encoderStream,
                     carType))
                 {
-                    encoder.WriteEncodeable("Car", car, carType);
+                    encoder.WriteEncodeable("Car", car);
                 }
                 buffer = encoderStream.ToArray();
             }
@@ -543,7 +543,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     encoderStream,
                     arraysTypes))
                 {
-                    encoder.WriteEncodeable("Arrays", arrays, arraysTypes);
+                    encoder.WriteEncodeable("Arrays", arrays);
                 }
                 buffer = encoderStream.ToArray();
             }
@@ -761,7 +761,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     encoderStream,
                     arraysTypes))
                 {
-                    encoder.WriteEncodeable("TestType", testType, arraysTypes);
+                    encoder.WriteEncodeable("TestType", testType);
                 }
                 buffer = encoderStream.ToArray();
             }

@@ -1090,10 +1090,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
             {
                 Assert.AreEqual(
                     3,
-                    e.PublisherEndpoints.Length,
+                    e.PublisherEndpoints.Count,
                     "Send PublisherEndpoints: {0} and received PublisherEndpoints: {1} are not equal",
                     3,
-                    e.PublisherEndpoints.Length);
+                    e.PublisherEndpoints.Count);
 
                 foreach (EndpointDescription ep in e.PublisherEndpoints)
                 {
