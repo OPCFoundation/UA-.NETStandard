@@ -510,7 +510,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Tells the NodeManager to refresh any conditions.
         /// </summary>
-        ValueTask ConditionRefreshAsync(
+        ValueTask<ServiceResult> ConditionRefreshAsync(
             OperationContext context,
             IList<IEventMonitoredItem> monitoredItems,
             CancellationToken cancellationToken = default);
@@ -873,7 +873,8 @@ namespace Opc.Ua.Server
         /// </summary>
         ValueTask <ServiceResult> ValidateEventRolePermissionsAsync(
             IEventMonitoredItem monitoredItem,
-            IFilterTarget filterTarget);
+            IFilterTarget filterTarget,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Validates Role permissions for the specified NodeId
@@ -881,7 +882,8 @@ namespace Opc.Ua.Server
         ValueTask<ServiceResult> ValidateRolePermissionsAsync(
            OperationContext operationContext,
            NodeId nodeId,
-           PermissionType requestedPermission);
+           PermissionType requestedPermission,
+           CancellationToken cancellationToken = default);
     }
 
     /// <summary>

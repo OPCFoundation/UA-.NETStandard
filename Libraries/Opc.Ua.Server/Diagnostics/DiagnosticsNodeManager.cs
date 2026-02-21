@@ -773,7 +773,7 @@ namespace Opc.Ua.Server
 
                 // create a new instance and assign ids.
                 nodeId = CreateNode(
-                    systemContext,
+                    SystemContext,
                     default,
                     ReferenceTypeIds.HasComponent,
                     QualifiedName.From(diagnostics.SessionName),
@@ -805,7 +805,7 @@ namespace Opc.Ua.Server
 
                 // initialize diagnostics node.
                 var diagnosticsNode =
-                    sessionNode.CreateChild(systemContext, QualifiedName.From(BrowseNames.SessionDiagnostics)) as
+                    sessionNode.CreateChild(SystemContext, QualifiedName.From(BrowseNames.SessionDiagnostics)) as
                     SessionDiagnosticsVariableState;
 
                 // wrap diagnostics in a thread safe object.
@@ -824,7 +824,7 @@ namespace Opc.Ua.Server
                 // initialize security diagnostics node.
                 var securityDiagnosticsNode =
                     sessionNode.CreateChild(
-                        systemContext,
+                        SystemContext,
                         QualifiedName.From(BrowseNames.SessionSecurityDiagnostics)) as
                     SessionSecurityDiagnosticsState;
 
@@ -881,7 +881,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            DeleteNode(systemContext, nodeId);
+            DeleteNode(SystemContext, nodeId);
         }
 
         /// <inheritdoc/>
@@ -904,7 +904,7 @@ namespace Opc.Ua.Server
 
                 // create a new instance and assign ids.
                 nodeId = CreateNode(
-                    systemContext,
+                    SystemContext,
                     default,
                     ReferenceTypeIds.HasComponent,
                     QualifiedName.From(
@@ -958,7 +958,7 @@ namespace Opc.Ua.Server
                     // add reference from subscription array.
                     array = (SubscriptionDiagnosticsArrayState)
                         sessionNode.CreateChild(
-                            systemContext,
+                            SystemContext,
                             QualifiedName.From(BrowseNames.SubscriptionDiagnosticsArray));
 
                     array?.AddReference(
@@ -991,7 +991,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            DeleteNode(systemContext, nodeId);
+            DeleteNode(SystemContext, nodeId);
         }
 
         /// <inheritdoc/>

@@ -36,6 +36,7 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 * **Type safe built in types**
 * Source generator generated code behind during build
 * See [MigrationGuide](Docs/MigrationGuide.md) for details.
+* New AsyncCustomNodeManager (successor of CustomNodeManager2) with improved Locking Strategy, see [Server Async (TAP) Support](Docs/AsyncServerSupport.md)
 
 #### **New in 1.05.378**
 

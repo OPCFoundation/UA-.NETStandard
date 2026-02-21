@@ -169,6 +169,7 @@ namespace Opc.Ua.Server
                 copy.ServerUris = context.ServerUris;
                 copy.TypeTable = context.TypeTable;
                 copy.EncodeableFactory = context.EncodeableFactory;
+                copy.NodeIdFactory = context.NodeIdFactory;
             }
 
             return copy;
