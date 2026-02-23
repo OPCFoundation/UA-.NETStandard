@@ -224,7 +224,9 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Skips to the end of the specified element.
+        /// Skips to the end of the specified element. Assumes we are already in
+        /// the element to skip. Will skip all nested elements with the same name
+        /// as well.
         /// </summary>
         /// <param name="qname">The qualified name of the element to skip.</param>
         /// <exception cref="ServiceResultException"></exception>
@@ -236,7 +238,8 @@ namespace Opc.Ua
 
                 int depth = 1;
 
-                while (depth > 0)
+                // Skip to end passing all nested elements with the same name.
+                while (depth > 0 && m_reader.NodeType != XmlNodeType.None)
                 {
                     if (m_reader.NodeType == XmlNodeType.EndElement)
                     {
