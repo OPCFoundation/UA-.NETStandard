@@ -1130,47 +1130,49 @@ namespace Opc.Ua.Server
                 DisplayName = target.DisplayName
             };
 
-            if (!nodeMetadataValues[0].IsNull && !nodeMetadataValues[1].IsNull)
+            if (nodeMetadataValues[0].TryGet(out uint writeMask) &&
+                nodeMetadataValues[1].TryGet(out uint userWriteMask))
             {
-                metadata.WriteMask = (AttributeWriteMask)(((uint)nodeMetadataValues[0]) &
-                    ((uint)nodeMetadataValues[1]));
+                metadata.WriteMask = (AttributeWriteMask)(writeMask & userWriteMask);
             }
 
             metadata.DataType = nodeMetadataValues[2].GetNodeId();
 
-            if (!nodeMetadataValues[3].IsNull)
+            if (nodeMetadataValues[3].TryGet(out int valueRank))
             {
-                metadata.ValueRank = (int)nodeMetadataValues[3];
+                metadata.ValueRank = valueRank;
             }
 
             metadata.ArrayDimensions = nodeMetadataValues[4].GetUInt32Array();
 
-            if (!nodeMetadataValues[5].IsNull && !nodeMetadataValues[6].IsNull)
+            if (nodeMetadataValues[5].TryGet(out byte accessLevel) &&
+                nodeMetadataValues[6].TryGet(out byte userAccessLevel))
             {
-                metadata.AccessLevel = (byte)(((byte)nodeMetadataValues[5]) & ((byte)nodeMetadataValues[6]));
+                metadata.AccessLevel = (byte)(accessLevel & userAccessLevel);
             }
 
-            if (!nodeMetadataValues[7].IsNull)
+            if (nodeMetadataValues[7].TryGet(out byte eventNotifier))
             {
-                metadata.EventNotifier = (byte)nodeMetadataValues[7];
+                metadata.EventNotifier = eventNotifier;
             }
 
-            if (!nodeMetadataValues[8].IsNull && !nodeMetadataValues[9].IsNull)
+            if (nodeMetadataValues[8].TryGet(out bool executeAble) &&
+                nodeMetadataValues[9].TryGet(out bool userExecuteable))
             {
-                metadata.Executable = ((bool)nodeMetadataValues[8]) && ((bool)nodeMetadataValues[9]);
+                metadata.Executable = executeAble && userExecuteable;
             }
 
-            if (!nodeMetadataValues[10].IsNull)
+            if (nodeMetadataValues[10].TryGet(out AccessRestrictionType accessRestrictionType))
             {
-                metadata.AccessRestrictions = nodeMetadataValues[10].GetEnumeration<AccessRestrictionType>();
+                metadata.AccessRestrictions = accessRestrictionType;
             }
 
-            if (!nodeMetadataValues[11].IsNull && nodeMetadataValues[11].TryGetStructure(out RolePermissionType[] rolePermissions))
+            if (nodeMetadataValues[11].TryGetStructure(out RolePermissionType[] rolePermissions))
             {
                 metadata.RolePermissions = [.. rolePermissions];
             }
 
-            if (!nodeMetadataValues[12].IsNull && nodeMetadataValues[12].TryGetStructure(out RolePermissionType[] userRolePermissions))
+            if (nodeMetadataValues[12].TryGetStructure(out RolePermissionType[] userRolePermissions))
             {
                 metadata.UserRolePermissions = [.. userRolePermissions];
             }
@@ -1191,17 +1193,24 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Sets the AccessRestrictions, RolePermissions and UserRolePermissions values in the metadata
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         private static void SetAccessAndRolePermissions(Variant[] values, NodeMetadata metadata)
         {
-            if (values[0].IsNull && values[0].TryGet(out AccessRestrictionType accessRestrictions))
+            if (values.Length != 3)
+            {
+                throw new ArgumentException("Values need to have a length of 3 to contain Access and Rolepermissions",
+                    nameof(values));
+            }
+
+            if (values[0].TryGet(out AccessRestrictionType accessRestrictions))
             {
                 metadata.AccessRestrictions = accessRestrictions;
             }
-            if (values[1].IsNull && values[1].TryGetStructure(out RolePermissionType[] rolePermissions))
+            if (values[1].TryGetStructure(out RolePermissionType[] rolePermissions))
             {
                 metadata.RolePermissions = [.. rolePermissions];
             }
-            if (values[2].IsNull && values[2].TryGetStructure(out RolePermissionType[] userRolePermissions))
+            if (values[2].TryGetStructure(out RolePermissionType[] userRolePermissions))
             {
                 metadata.UserRolePermissions = [.. userRolePermissions];
             }
@@ -4976,7 +4985,7 @@ namespace Opc.Ua.Server
                 NodeId key = handle.NodeId;
                 if (uniqueNodesServiceAttributesCache.ContainsKey(key))
                 {
-                    if (uniqueNodesServiceAttributesCache[key].Length == 0)
+                    if (uniqueNodesServiceAttributesCache[key].Length != 3)
                     {
                         ReadAndCacheValidationAttributes(
                             uniqueNodesServiceAttributesCache,
