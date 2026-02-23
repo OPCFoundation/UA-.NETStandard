@@ -75,6 +75,11 @@ namespace Opc.Ua.Server
                     Utils.SilentDispose(m_serverInternal);
                     m_serverInternal = null;
                 }
+
+                if (CertificateValidator != null)
+                {
+                    CertificateValidator.CertificateUpdate -= OnCertificateUpdateAsync;
+                }
             }
 
             base.Dispose(disposing);
@@ -2824,7 +2829,7 @@ namespace Opc.Ua.Server
 
                 // create the master node manager.
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateMasterNodeManager.");
-                MasterNodeManager masterNodeManager = CreateMasterNodeManager(
+                IMasterNodeManager masterNodeManager = CreateMasterNodeManager(
                     m_serverInternal,
                     configuration);
 
@@ -3404,7 +3409,7 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="configuration">The configuration.</param>
         /// <returns>Returns the master node manager for the server, the return type is <seealso cref="MasterNodeManager"/>.</returns>
-        protected virtual MasterNodeManager CreateMasterNodeManager(
+        protected virtual IMasterNodeManager CreateMasterNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration)
         {

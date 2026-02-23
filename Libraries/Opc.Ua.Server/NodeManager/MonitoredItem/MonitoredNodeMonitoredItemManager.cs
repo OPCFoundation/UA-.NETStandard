@@ -39,9 +39,10 @@ namespace Opc.Ua.Server
     public class MonitoredNodeMonitoredItemManager : IMonitoredItemManager
     {
         /// <inheritdoc/>
-        public MonitoredNodeMonitoredItemManager(CustomNodeManager2 nodeManager)
+        public MonitoredNodeMonitoredItemManager(INodeManager3 nodeManager, IServerInternal server)
         {
             m_nodeManager = nodeManager;
+            m_server = server;
             MonitoredNodes = [];
             MonitoredItems = new ConcurrentDictionary<uint, IMonitoredItem>();
         }
@@ -77,7 +78,7 @@ namespace Opc.Ua.Server
             {
                 NodeState cachedNode = addNodeToComponentCache(context, handle, handle.Node);
                 MonitoredNodes[handle.Node.NodeId]
-                    = monitoredNode = new MonitoredNode2(m_nodeManager, cachedNode);
+                    = monitoredNode = new MonitoredNode2(m_nodeManager, m_server, cachedNode);
             }
 
             handle.Node = monitoredNode.Node;
@@ -201,7 +202,7 @@ namespace Opc.Ua.Server
             {
                 NodeState cachedNode = addNodeToComponentCache(context, handle, handle.Node);
                 MonitoredNodes[handle.Node.NodeId]
-                    = monitoredNode = new MonitoredNode2(m_nodeManager, cachedNode);
+                    = monitoredNode = new MonitoredNode2(m_nodeManager, m_server, cachedNode);
             }
 
             handle.Node = monitoredNode.Node;
@@ -255,7 +256,7 @@ namespace Opc.Ua.Server
             IEventMonitoredItem monitoredItem,
             bool unsubscribe)
         {
-            MonitoredNode2 monitoredNode = null;
+            MonitoredNode2 monitoredNode;
             // handle unsubscribe.
             if (unsubscribe)
             {
@@ -292,12 +293,12 @@ namespace Opc.Ua.Server
             if (!MonitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
             {
                 MonitoredNodes[source.NodeId]
-                    = monitoredNode = new MonitoredNode2(m_nodeManager, source);
+                    = monitoredNode = new MonitoredNode2(m_nodeManager, m_server, source);
             }
 
             // remove existing monitored items with the same Id prior to insertion in order to avoid duplicates
             // this is necessary since the SubscribeToEvents method is called also from ModifyMonitoredItemsForEvents
-            monitoredNode.EventMonitoredItems?.RemoveAll(e => e.Id == monitoredItem.Id);
+            monitoredNode.EventMonitoredItems.TryRemove(monitoredItem.Id, out _);
 
             // this links the node to specified monitored item and ensures all events
             // reported by the node are added to the monitored item's queue.
@@ -310,6 +311,7 @@ namespace Opc.Ua.Server
             return (monitoredNode, ServiceResult.Good);
         }
 
-        private readonly CustomNodeManager2 m_nodeManager;
+        private readonly INodeManager3 m_nodeManager;
+        private readonly IServerInternal m_server;
     }
 }

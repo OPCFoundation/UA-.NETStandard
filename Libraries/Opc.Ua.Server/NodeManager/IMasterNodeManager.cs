@@ -47,17 +47,17 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns the configuration node manager.
         /// </summary>
-        ConfigurationNodeManager ConfigurationNodeManager { get; }
+        IConfigurationNodeManager ConfigurationNodeManager { get; }
 
         /// <summary>
         /// Returns the core node manager.
         /// </summary>
-        CoreNodeManager CoreNodeManager { get; }
+        ICoreNodeManager CoreNodeManager { get; }
 
         /// <summary>
         /// Returns the diagnostics node manager.
         /// </summary>
-        DiagnosticsNodeManager DiagnosticsNodeManager { get; }
+        IDiagnosticsNodeManager DiagnosticsNodeManager { get; }
 
         /// <summary>
         /// The node managers being managed.
@@ -140,6 +140,12 @@ namespace Opc.Ua.Server
         /// Deletes the references to the target.
         /// </summary>
         ValueTask DeleteReferencesAsync(NodeId targetId, IList<IReference> references, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Searches the node id in all node managers,
+        /// returns the node state if found (and node Manager supports it), otherwise returns null.
+        /// </summary>
+        ValueTask<NodeState> FindNodeInAddressSpaceAsync(NodeId nodeId);
 
         /// <summary>
         /// Returns node handle and its node manager.

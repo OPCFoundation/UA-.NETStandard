@@ -42,9 +42,9 @@ namespace Opc.Ua.Server
         /// if the NodeManager does not implement the interface uses the <see cref="SyncNodeManagerAdapter"/>
         /// to create an ISyncNodeManager compatible object
         /// </summary>
-        public static INodeManager2 ToSyncNodeManager(this IAsyncNodeManager nodeManager)
+        public static INodeManager ToSyncNodeManager(this IAsyncNodeManager nodeManager)
         {
-            if (nodeManager is INodeManager2 syncNodeManager)
+            if (nodeManager is INodeManager syncNodeManager)
             {
                 return syncNodeManager;
             }
@@ -59,7 +59,7 @@ namespace Opc.Ua.Server
     /// This allows asynchronous nodeManagers to be treated as synchronous, which can help
     /// compatibility with existing code.
     /// </remarks>
-    public class SyncNodeManagerAdapter : INodeManager2
+    public class SyncNodeManagerAdapter : INodeManager3
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="SyncNodeManagerAdapter"/> class.
@@ -286,6 +286,18 @@ namespace Opc.Ua.Server
         {
             return m_nodeManager.GetPermissionMetadataAsync(context, targetHandle, resultMask, uniqueNodesServiceAttributesCache, permissionsOnly)
                 .AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <inheritdoc/>
+        public ServiceResult ValidateEventRolePermissions(IEventMonitoredItem monitoredItem, IFilterTarget filterTarget)
+        {
+            return m_nodeManager.ValidateEventRolePermissionsAsync(monitoredItem, filterTarget).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <inheritdoc/>
+        public ServiceResult ValidateRolePermissions(OperationContext operationContext, NodeId nodeId, PermissionType requestedPermission)
+        {
+            return m_nodeManager.ValidateRolePermissionsAsync(operationContext, nodeId, requestedPermission).AsTask().GetAwaiter().GetResult();
         }
 
         private readonly IAsyncNodeManager m_nodeManager;

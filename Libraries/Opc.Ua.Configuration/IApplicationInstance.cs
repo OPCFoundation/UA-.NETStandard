@@ -93,7 +93,7 @@ namespace Opc.Ua.Configuration
         /// Gets the server.
         /// </summary>
         /// <value>The server.</value>
-        ServerBase Server { get; }
+        IServerBase Server { get; }
 
         /// <summary>
         /// Adds a Certificate to the Trusted Store of the Application, needed e.g. for the GDS to trust it´s own CA
@@ -143,7 +143,7 @@ namespace Opc.Ua.Configuration
         /// Starts the UA server.
         /// </summary>
         /// <param name="server">The server.</param>
-        Task StartAsync(ServerBase server);
+        Task StartAsync(IServerBase server);
 
         /// <summary>
         /// Stops the UA server.

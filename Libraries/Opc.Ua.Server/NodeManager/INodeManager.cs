@@ -376,7 +376,28 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// An asynchronous version of the "Call" method defined on the <see cref="INodeManager2"/> interface.
+    /// An interface to an object that manages a set of nodes in the address space.
+    /// </summary>
+    public interface INodeManager3 : INodeManager2
+    {
+        /// <summary>
+        /// Validates if the specified event monitored item has enough permissions to receive the specified event
+        /// </summary>
+        ServiceResult ValidateEventRolePermissions(
+            IEventMonitoredItem monitoredItem,
+            IFilterTarget filterTarget);
+
+        /// <summary>
+        /// Validates Role permissions for the specified NodeId
+        /// </summary>
+        ServiceResult ValidateRolePermissions(
+           OperationContext operationContext,
+           NodeId nodeId,
+           PermissionType requestedPermission);
+    }
+
+    /// <summary>
+    /// An asynchronous version of the "Call" method defined on the <see cref="INodeManager3"/> interface.
     /// </summary>
     public interface ICallAsyncNodeManager
     {
@@ -392,7 +413,7 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// An asynchronous version of the "Read" method defined on the <see cref="INodeManager2"/> interface.
+    /// An asynchronous version of the "Read" method defined on the <see cref="INodeManager3"/> interface.
     /// </summary>
     public interface IReadAsyncNodeManager
     {
@@ -427,7 +448,7 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// An asynchronous version of the "Write" method defined on the <see cref="INodeManager2"/> interface.
+    /// An asynchronous version of the "Write" method defined on the <see cref="INodeManager3"/> interface.
     /// </summary>
     public interface IWriteAsyncNodeManager
     {
@@ -446,7 +467,7 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// An asynchronous version of the "HistoryRead" method defined on the <see cref="INodeManager2"/> interface.
+    /// An asynchronous version of the "HistoryRead" method defined on the <see cref="INodeManager3"/> interface.
     /// </summary>
     public interface IHistoryReadAsyncNodeManager
     {
@@ -465,7 +486,7 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// An asynchronous version of the "HistoryUpdate" method defined on the <see cref="INodeManager2"/> interface.
+    /// An asynchronous version of the "HistoryUpdate" method defined on the <see cref="INodeManager3"/> interface.
     /// </summary>
     public interface IHistoryUpdateAsyncNodeManager
     {
@@ -482,21 +503,21 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// An asynchronous version of the "ConditionRefresh" method defined on the <see cref="INodeManager2"/> interface.
+    /// An asynchronous version of the "ConditionRefresh" method defined on the <see cref="INodeManager3"/> interface.
     /// </summary>
     public interface IConditionRefreshAsyncNodeManager
     {
         /// <summary>
         /// Tells the NodeManager to refresh any conditions.
         /// </summary>
-        ValueTask ConditionRefreshAsync(
+        ValueTask<ServiceResult> ConditionRefreshAsync(
             OperationContext context,
             IList<IEventMonitoredItem> monitoredItems,
             CancellationToken cancellationToken = default);
     }
 
     /// <summary>
-    /// An asynchronous version of the "TranslateBrowsePath" method defined on the <see cref="INodeManager2"/> interface.
+    /// An asynchronous version of the "TranslateBrowsePath" method defined on the <see cref="INodeManager3"/> interface.
     /// </summary>
     public interface ITranslateBrowsePathAsyncNodeManager
     {
@@ -527,7 +548,7 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// An asynchronous version of the "Browse" method defined on the <see cref="INodeManager2"/> interface.
+    /// An asynchronous version of the "Browse" method defined on the <see cref="INodeManager3"/> interface.
     /// </summary>
     public interface IBrowseAsyncNodeManager
     {
@@ -557,7 +578,7 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// An asynchronous version of the "SetMonitoringMode" method defined on the <see cref="INodeManager2"/> interface.
+    /// An asynchronous version of the "SetMonitoringMode" method defined on the <see cref="INodeManager3"/> interface.
     /// </summary>
     public interface ISetMonitoringModeAsyncNodeManager
     {
@@ -574,7 +595,7 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// An asynchronous version of the "TransferMonitoredItems" method defined on the <see cref="INodeManager2"/> interface.
+    /// An asynchronous version of the "TransferMonitoredItems" method defined on the <see cref="INodeManager3"/> interface.
     /// </summary>
     public interface ITransferMonitoredItemsAsyncNodeManager
     {
@@ -594,7 +615,7 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// An asynchronous version of the "DeleteMonitoredItems" method defined on the <see cref="INodeManager2"/> interface.
+    /// An asynchronous version of the "DeleteMonitoredItems" method defined on the <see cref="INodeManager3"/> interface.
     /// </summary>
     public interface IDeleteMonitoredItemsAsyncNodeManager
     {
@@ -610,7 +631,7 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// An asynchronous version of the "ModifyMonitoredItems" method defined on the <see cref="INodeManager2"/> interface.
+    /// An asynchronous version of the "ModifyMonitoredItems" method defined on the <see cref="INodeManager3"/> interface.
     /// </summary>
     public interface IModifyMonitoredItemsAsyncNodeManager
     {
@@ -628,7 +649,7 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// An asynchronous version of the "CreateMonitoredItems" method defined on the <see cref="INodeManager2"/> interface.
+    /// An asynchronous version of the "CreateMonitoredItems" method defined on the <see cref="INodeManager3"/> interface.
     /// </summary>
     public interface ICreateMonitoredItemsAsyncNodeManager
     {
@@ -672,11 +693,10 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// An asynchronous verison of the <see cref="INodeManager2"/> interface.
+    /// An asynchronous verison of the <see cref="INodeManager3"/> interface.
     /// This interface is in active development and will be extended in future releases.
     /// Please use the sub interfaces to implement async support for specific service calls.
     /// </summary>
-    [Experimental("UA_NETStandard_1")]
     public interface IAsyncNodeManager :
         ICallAsyncNodeManager,
         IReadAsyncNodeManager,
@@ -847,6 +867,23 @@ namespace Opc.Ua.Server
             IList<IMonitoredItem> monitoredItems,
             IUserIdentity savedOwnerIdentity,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Validates if the specified event monitored item has enough permissions to receive the specified event
+        /// </summary>
+        ValueTask <ServiceResult> ValidateEventRolePermissionsAsync(
+            IEventMonitoredItem monitoredItem,
+            IFilterTarget filterTarget,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Validates Role permissions for the specified NodeId
+        /// </summary>
+        ValueTask<ServiceResult> ValidateRolePermissionsAsync(
+           OperationContext operationContext,
+           NodeId nodeId,
+           PermissionType requestedPermission,
+           CancellationToken cancellationToken = default);
     }
 
     /// <summary>

@@ -184,7 +184,7 @@ namespace Opc.Ua.Server
                             }
                             else
                             {
-                                NodeState serverNode = FindNodeInAddressSpace(ObjectIds.Server);
+                                NodeState serverNode = Server.NodeManager.FindNodeInAddressSpaceAsync(ObjectIds.Server).AsTask().GetAwaiter().GetResult();
                                 serverNode?.ReplaceChild(context, activeNode);
                             }
                             // remove the reference to server node because it is set as parent
@@ -1193,8 +1193,8 @@ namespace Opc.Ua.Server
                         var nameSpaceNodeId = ExpandedNodeId.ToNodeId(
                             serverNamespacesReference.TargetId,
                             Server.NamespaceUris);
-                        if (FindNodeInAddressSpace(
-                            nameSpaceNodeId) is not NamespaceMetadataState namespaceMetadata)
+                        if (Server.NodeManager.FindNodeInAddressSpaceAsync(
+                            nameSpaceNodeId).AsTask().GetAwaiter().GetResult() is not NamespaceMetadataState namespaceMetadata)
                         {
                             continue;
                         }

@@ -133,7 +133,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask ConditionRefreshAsync(
+        public ValueTask<ServiceResult> ConditionRefreshAsync(
             OperationContext context,
             IList<IEventMonitoredItem> monitoredItems,
             CancellationToken cancellationToken = default)
@@ -604,6 +604,45 @@ namespace Opc.Ua.Server
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return default;
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<ServiceResult> ValidateEventRolePermissionsAsync(
+            IEventMonitoredItem monitoredItem,
+            IFilterTarget filterTarget,
+            CancellationToken cancellationToken = default)
+        {
+            if (SyncNodeManager is IAsyncNodeManager asyncNodeManager)
+            {
+                return asyncNodeManager.ValidateEventRolePermissionsAsync(monitoredItem, filterTarget, cancellationToken);
+            }
+
+            if (SyncNodeManager is INodeManager3 nodeManager2)
+            {
+                return new ValueTask<ServiceResult>(nodeManager2.ValidateEventRolePermissions(monitoredItem, filterTarget));
+            }
+
+            return new ValueTask<ServiceResult>(ServiceResult.Good);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<ServiceResult> ValidateRolePermissionsAsync(
+            OperationContext operationContext,
+            NodeId nodeId,
+            PermissionType requestedPermission,
+            CancellationToken cancellationToken = default)
+        {
+            if (SyncNodeManager is IAsyncNodeManager asyncNodeManager)
+            {
+                return asyncNodeManager.ValidateRolePermissionsAsync(operationContext, nodeId, requestedPermission, cancellationToken);
+            }
+
+            if (SyncNodeManager is INodeManager3 nodeManager2)
+            {
+                return new ValueTask<ServiceResult>(nodeManager2.ValidateRolePermissions(operationContext, nodeId, requestedPermission));
+            }
+
+            return new ValueTask<ServiceResult>(ServiceResult.Good);
         }
 
         /// <summary>
