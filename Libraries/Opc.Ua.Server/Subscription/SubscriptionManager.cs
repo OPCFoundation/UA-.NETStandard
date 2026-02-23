@@ -1766,7 +1766,7 @@ namespace Opc.Ua.Server
                 monitoredItemIds,
                 cancellationToken).ConfigureAwait(false);
 
-            int monitoredItemCountIncrement = subscription.MonitoredItemCount - 
+            int monitoredItemCountIncrement = subscription.MonitoredItemCount -
                 currentMonitoredItemCount;
 
             // update diagnostics.

@@ -3495,7 +3495,7 @@ namespace Opc.Ua
                 return;
             }
 
-            if (values.Length != attributeIds.Length)
+            if (values?.Length != attributeIds.Length)
             {
                 throw new ArgumentException("Values array must be the same length as the attributeIds array.");
             }
@@ -3504,6 +3504,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < attributeIds.Length; ii++)
             {
+                values[ii] = Variant.Null;
                 ReadAttribute(
                     context,
                     attributeIds[ii],
@@ -5115,6 +5116,8 @@ namespace Opc.Ua
             if (createOrReplace && replacement != null)
             {
                 AddChild(replacement);
+
+                return replacement;
             }
 
             return null;

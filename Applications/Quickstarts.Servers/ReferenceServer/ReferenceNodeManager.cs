@@ -4875,9 +4875,10 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Frees any resources allocated for the address space.
         /// </summary>
-        public override async ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
+        public override ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
         {
             // TBD
+            return new ValueTask();
         }
 
         /// <summary>
@@ -4911,7 +4912,7 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Verifies that the specified node exists.
         /// </summary>
-        protected override async ValueTask<NodeState> ValidateNodeAsync(
+        protected override ValueTask<NodeState> ValidateNodeAsync(
             ServerSystemContext context,
             NodeHandle handle,
             IDictionary<NodeId, NodeState> cache,
@@ -4920,18 +4921,18 @@ namespace Quickstarts.ReferenceServer
             // not valid if no root.
             if (handle == null)
             {
-                return null;
+                return new ValueTask<NodeState>(result: null);
             }
 
             // check if previously validated.
             if (handle.Validated)
             {
-                return handle.Node;
+                return new ValueTask<NodeState>(handle.Node);
             }
 
             // TBD
 
-            return null;
+            return new ValueTask<NodeState>(result: null);
         }
 
         private readonly SemaphoreSlim m_semaphore = new(1, 1);

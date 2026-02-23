@@ -122,6 +122,7 @@ namespace Opc.Ua.Server
             {
                 // Remove the cached context for the monitored item
                 m_contextCache.TryRemove(datachangeItem.Id, out _);
+                m_operationContextCache.TryRemove(datachangeItem.Id, out _);
             }
 
             if (DataChangeMonitoredItems.IsEmpty)

@@ -1782,9 +1782,6 @@ namespace Opc.Ua
             if (TypeInfo.IsScalar &&
                 TypeInfo.BuiltInType is
                 BuiltInType.Enumeration or
-                BuiltInType.UInt16 or
-                BuiltInType.Int16 or
-                BuiltInType.UInt32 or
                 BuiltInType.Int32)
             {
                 switch (Unsafe.SizeOf<T>())
@@ -1820,14 +1817,6 @@ namespace Opc.Ua
             {
                 value = (T)Convert.ChangeType(
                     int32Value,
-                    typeof(T),
-                    CultureInfo.InvariantCulture);
-                return true;
-            }
-            if (TryGet(out short int16Value))
-            {
-                value = (T)Convert.ChangeType(
-                    int16Value,
                     typeof(T),
                     CultureInfo.InvariantCulture);
                 return true;

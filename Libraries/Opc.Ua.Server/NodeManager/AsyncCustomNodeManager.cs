@@ -1162,9 +1162,9 @@ namespace Opc.Ua.Server
                 metadata.Executable = executeAble && userExecuteable;
             }
 
-            if (nodeMetadataValues[10].TryGet(out AccessRestrictionType accessRestrictionType))
+            if (nodeMetadataValues[10].TryGet(out ushort accessRestrictionType))
             {
-                metadata.AccessRestrictions = accessRestrictionType;
+                metadata.AccessRestrictions = (AccessRestrictionType)accessRestrictionType;
             }
 
             if (nodeMetadataValues[11].TryGetStructure(out RolePermissionType[] rolePermissions))
@@ -1202,9 +1202,9 @@ namespace Opc.Ua.Server
                     nameof(values));
             }
 
-            if (values[0].TryGet(out AccessRestrictionType accessRestrictions))
+            if (values[0].TryGet(out ushort accessRestrictions))
             {
-                metadata.AccessRestrictions = accessRestrictions;
+                metadata.AccessRestrictions = (AccessRestrictionType)accessRestrictions;
             }
             if (values[1].TryGetStructure(out RolePermissionType[] rolePermissions))
             {

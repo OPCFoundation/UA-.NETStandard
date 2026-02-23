@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -327,9 +328,15 @@ namespace Opc.Ua.Server
                 if (targetHandle is NodeHandle nodeHandle &&
                     uniqueNodesServiceAttributesCache?.TryGetValue(nodeHandle.NodeId, out Variant[] attributes) == true)
                 {
+                    List<object> boxedAttributes = new(attributes.Length);
+                    foreach (Variant value in attributes)
+                    {
+                        boxedAttributes.Add(value.AsBoxedObject());
+                    }
+
                     syncuniqueNodesServiceAttributesCache = new Dictionary<NodeId, List<object>>
                     {
-                        { nodeHandle.NodeId, [attributes] }
+                        { nodeHandle.NodeId, boxedAttributes }
                     };
                 }
 
@@ -349,6 +356,10 @@ namespace Opc.Ua.Server
                         if (attribute is Variant rawValue)
                         {
                             attributesArray.Add(rawValue);
+                        }
+                        else
+                        {
+                            attributesArray.Add(Variant.Null);
                         }
                     }
 
