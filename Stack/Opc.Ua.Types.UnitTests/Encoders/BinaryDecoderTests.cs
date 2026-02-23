@@ -1151,14 +1151,14 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             var logger = new Mock<Microsoft.Extensions.Logging.ILogger>();
             telemetry.Setup(t => t.GetLoggerFactory()).Returns(loggerFactory.Object);
             loggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(logger.Object);
-            
+
             var context = new ServiceMessageContext(telemetry.Object);
             context.Factory.AddEncodeableType(typeof(TestEncodeable));
-            
+
             using var encoder = new BinaryEncoder(context);
             var message = new TestEncodeable();
             encoder.EncodeMessage(message);
-            
+
             return encoder.CloseAndReturnBuffer();
         }
 
@@ -1504,7 +1504,7 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             byte[] buffer = new byte[lengthBytes.Length + stringBytes.Length];
             Array.Copy(lengthBytes, 0, buffer, 0, lengthBytes.Length);
             Array.Copy(stringBytes, 0, buffer, lengthBytes.Length, stringBytes.Length);
-            
+
             mockContext.Setup(c => c.MaxStringLength).Returns(0);
             var decoder = new BinaryDecoder(buffer, mockContext.Object);
 
@@ -1553,7 +1553,7 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             byte[] buffer = new byte[lengthBytes.Length + stringBytes.Length];
             Array.Copy(lengthBytes, 0, buffer, 0, lengthBytes.Length);
             Array.Copy(stringBytes, 0, buffer, lengthBytes.Length, stringBytes.Length);
-            
+
             var decoder = new BinaryDecoder(buffer, mockContext.Object);
 
             // Act & Assert
@@ -1571,7 +1571,7 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             byte[] buffer = new byte[lengthBytes.Length + stringBytes.Length];
             Array.Copy(lengthBytes, 0, buffer, 0, lengthBytes.Length);
             Array.Copy(stringBytes, 0, buffer, lengthBytes.Length, stringBytes.Length);
-            
+
             var decoder = new BinaryDecoder(buffer, mockContext.Object);
 
             // Act
@@ -1591,7 +1591,7 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             byte[] buffer = new byte[lengthBytes.Length + stringBytes.Length];
             Array.Copy(lengthBytes, 0, buffer, 0, lengthBytes.Length);
             Array.Copy(stringBytes, 0, buffer, lengthBytes.Length, stringBytes.Length);
-            
+
             var decoder = new BinaryDecoder(buffer, mockContext.Object);
 
             // Act
@@ -1611,7 +1611,7 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             byte[] buffer = new byte[lengthBytes.Length + stringBytes.Length];
             Array.Copy(lengthBytes, 0, buffer, 0, lengthBytes.Length);
             Array.Copy(stringBytes, 0, buffer, lengthBytes.Length, stringBytes.Length);
-            
+
             var decoder = new BinaryDecoder(buffer, mockContext.Object);
 
             // Act
@@ -1841,11 +1841,11 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             // Arrange - encoding type 0x01 (four byte), namespace 1, identifier 256
             byte[] buffer = new byte[] { 0x01, 0x01, 0x00, 0x01 };
             var decoder = new BinaryDecoder(buffer, mockContext.Object);
-            
+
             var namespaceTable = new NamespaceTable();
             namespaceTable.Append(Namespaces.OpcUa);
             namespaceTable.Append("http://test.namespace");
-            
+
             var contextNamespaceTable = new NamespaceTable();
             contextNamespaceTable.Append(Namespaces.OpcUa);
             for (int i = 1; i < 10; i++)
@@ -1853,7 +1853,7 @@ namespace Opc.Ua.Types.UnitTests.Encoders
                 contextNamespaceTable.Append($"http://context{i}");
             }
             contextNamespaceTable.Append("http://test.namespace");
-            
+
             mockContext.Setup(c => c.NamespaceUris).Returns(contextNamespaceTable);
             decoder.SetMappingTables(namespaceTable, null);
 
@@ -1875,19 +1875,19 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             byte encodingByte = 0x03; // Both Locale (0x01) and Text (0x02)
             string locale = "en-US";
             string text = "Hello, World!";
-            
+
             byte[] localeBytes = System.Text.Encoding.UTF8.GetBytes(locale);
             byte[] localeLengthBytes = BitConverter.GetBytes(localeBytes.Length);
             byte[] textBytes = System.Text.Encoding.UTF8.GetBytes(text);
             byte[] textLengthBytes = BitConverter.GetBytes(textBytes.Length);
-            
+
             List<byte> buffer = new();
             buffer.Add(encodingByte);
             buffer.AddRange(localeLengthBytes);
             buffer.AddRange(localeBytes);
             buffer.AddRange(textLengthBytes);
             buffer.AddRange(textBytes);
-            
+
             var decoder = new BinaryDecoder(buffer.ToArray(), mockContext.Object);
 
             // Act
@@ -1905,15 +1905,15 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             // Arrange
             byte encodingByte = 0x02; // Text only
             string text = "Bonjour";
-            
+
             byte[] textBytes = System.Text.Encoding.UTF8.GetBytes(text);
             byte[] textLengthBytes = BitConverter.GetBytes(textBytes.Length);
-            
+
             List<byte> buffer = new();
             buffer.Add(encodingByte);
             buffer.AddRange(textLengthBytes);
             buffer.AddRange(textBytes);
-            
+
             var decoder = new BinaryDecoder(buffer.ToArray(), mockContext.Object);
 
             // Act
@@ -1930,10 +1930,10 @@ namespace Opc.Ua.Types.UnitTests.Encoders
         {
             // Arrange
             byte encodingByte = 0x00; // Neither locale nor text
-            
+
             List<byte> buffer = new();
             buffer.Add(encodingByte);
-            
+
             var decoder = new BinaryDecoder(buffer.ToArray(), mockContext.Object);
 
             // Act
@@ -1956,11 +1956,11 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             byte encodingByte = 0x06; // Int32
             int value = 42;
             byte[] valueBytes = BitConverter.GetBytes(value);
-            
+
             List<byte> buffer = new();
             buffer.Add(encodingByte);
             buffer.AddRange(valueBytes);
-            
+
             var decoder = new BinaryDecoder(buffer.ToArray(), mockContext.Object);
 
             // Act
@@ -1978,12 +1978,12 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             string value = "Test String";
             byte[] stringBytes = System.Text.Encoding.UTF8.GetBytes(value);
             byte[] lengthBytes = BitConverter.GetBytes(stringBytes.Length);
-            
+
             List<byte> buffer = new();
             buffer.Add(encodingByte);
             buffer.AddRange(lengthBytes);
             buffer.AddRange(stringBytes);
-            
+
             var decoder = new BinaryDecoder(buffer.ToArray(), mockContext.Object);
 
             // Act
@@ -1998,10 +1998,10 @@ namespace Opc.Ua.Types.UnitTests.Encoders
         {
             // Arrange
             byte encodingByte = 0x00; // Null
-            
+
             List<byte> buffer = new();
             buffer.Add(encodingByte);
-            
+
             var decoder = new BinaryDecoder(buffer.ToArray(), mockContext.Object);
 
             // Act
@@ -2023,12 +2023,12 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             byte variantEncodingByte = 0x06; // Int32
             int value = 123;
             byte[] valueBytes = BitConverter.GetBytes(value);
-            
+
             List<byte> buffer = new();
             buffer.Add(encodingByte);
             buffer.Add(variantEncodingByte);
             buffer.AddRange(valueBytes);
-            
+
             var decoder = new BinaryDecoder(buffer.ToArray(), mockContext.Object);
 
             // Act
@@ -2052,12 +2052,12 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             byte[] timestampBytes = BitConverter.GetBytes(ticks);
             ushort picoseconds = 1234;
             byte[] picosecondsBytes = BitConverter.GetBytes(picoseconds);
-            
+
             List<byte> buffer = new();
             buffer.Add(encodingByte);
             buffer.AddRange(timestampBytes);
             buffer.AddRange(picosecondsBytes);
-            
+
             var decoder = new BinaryDecoder(buffer.ToArray(), mockContext.Object);
 
             // Act
@@ -2886,12 +2886,12 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             Guid guid1 = Guid.NewGuid();
             Guid guid2 = Guid.NewGuid();
             Guid guid3 = Guid.Empty;
-            
+
             byte[] lengthBytes = BitConverter.GetBytes(3);
             byte[] guid1Bytes = guid1.ToByteArray();
             byte[] guid2Bytes = guid2.ToByteArray();
             byte[] guid3Bytes = guid3.ToByteArray();
-            
+
             byte[] buffer = new byte[lengthBytes.Length + guid1Bytes.Length + guid2Bytes.Length + guid3Bytes.Length];
             int offset = 0;
             Array.Copy(lengthBytes, 0, buffer, offset, lengthBytes.Length);
@@ -3024,7 +3024,7 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             string xml2 = "<second>2</second>";
             byte[] xml1Bytes = System.Text.Encoding.UTF8.GetBytes(xml1);
             byte[] xml2Bytes = System.Text.Encoding.UTF8.GetBytes(xml2);
-            
+
             byte[] buffer = new byte[4 + 4 + xml1Bytes.Length + 4 + xml2Bytes.Length];
             int offset = 0;
             BitConverter.GetBytes(2).CopyTo(buffer, offset); // array length = 2
@@ -3036,7 +3036,7 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             BitConverter.GetBytes(xml2Bytes.Length).CopyTo(buffer, offset);
             offset += 4;
             xml2Bytes.CopyTo(buffer, offset);
-            
+
             var decoder = new BinaryDecoder(buffer, mockContext.Object);
 
             // Act
@@ -3146,10 +3146,10 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Count, Is.EqualTo(2));
-            
+
             Assert.That(result[0].TryGetIdentifier(out uint id0), Is.True);
             Assert.That(id0, Is.EqualTo(10u));
-            
+
             Assert.That(result[1].TryGetIdentifier(out uint id1), Is.True);
             Assert.That(id1, Is.EqualTo(20u));
         }
@@ -3242,7 +3242,7 @@ namespace Opc.Ua.Types.UnitTests.Encoders
         private static byte[] EncodeNodeId(NodeId nodeId)
         {
             List<byte> buffer = new();
-            
+
             // Two-byte format for small numeric identifiers
             if (nodeId.IdType == IdType.Numeric && nodeId.NamespaceIndex == 0)
             {
@@ -3256,7 +3256,7 @@ namespace Opc.Ua.Types.UnitTests.Encoders
                     }
                 }
             }
-            
+
             // Four-byte format for numeric identifiers
             if (nodeId.IdType == IdType.Numeric)
             {
@@ -3268,7 +3268,7 @@ namespace Opc.Ua.Types.UnitTests.Encoders
                     return buffer.ToArray();
                 }
             }
-            
+
             return buffer.ToArray();
         }
 

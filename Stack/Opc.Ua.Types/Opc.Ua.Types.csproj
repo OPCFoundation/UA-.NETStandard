@@ -14,6 +14,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Types.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.SourceGeneration.Core.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Types.UnitTests" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="System.Collections.Immutable" />
