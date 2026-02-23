@@ -23,6 +23,5 @@
   </Folder>
   <Folder Name="/Stack/">
     <Project Path="../Stack/Opc.Ua.Types/Opc.Ua.Types.csproj" />
-    <Project Path="../Tests/Opc.Ua.Types.Tests/Opc.Ua.Types.Tests.csproj" />
   </Folder>
 </Solution>

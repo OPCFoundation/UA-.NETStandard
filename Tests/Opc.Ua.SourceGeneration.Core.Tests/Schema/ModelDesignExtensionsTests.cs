@@ -3008,7 +3008,7 @@ namespace Opc.Ua.Schema.Model.Tests
             string result = mockVariable.GetNodeStateClassName("http://test.org", namespaces);
 
             // Assert
-            Assert.That(result, Is.EqualTo("BaseVariableTypeState<int[]>"));
+            Assert.That(result, Is.EqualTo("BaseVariableTypeState<global::Opc.Ua.ArrayOf<int>>"));
         }
 
         /// <summary>

@@ -1219,6 +1219,10 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(Tokens.ClassName, instance.GetNodeStateClassName(
                 m_context.ModelDesign.TargetNamespace.Value,
                 m_context.ModelDesign.Namespaces));
+            context.Template.AddReplacement(Tokens.ClassFactory, instance.GetNodeStateClassName(
+                m_context.ModelDesign.TargetNamespace.Value,
+                m_context.ModelDesign.Namespaces,
+                asFactory: true));
             context.Template.AddReplacement(Tokens.SymbolicId, instance.SymbolicId.Name);
             context.Template.AddReplacement(Tokens.ChildName, instance.SymbolicName.Name);
             context.Template.AddReplacement(Tokens.FieldName, instance.GetChildFieldName());
@@ -1688,6 +1692,16 @@ namespace Opc.Ua.SourceGeneration
             return context.Template.Render();
         }
 
+        private bool WriteTemplate_FactoriesForTypedVariableType(IWriteContext context)
+        {
+            if (context.Target is not TypeDesign typeDesign)
+            {
+                return false;
+            }
+            AddNodeStateClassTypeReplacements(context, typeDesign);
+            return context.Template.Render();
+        }
+
         private void AddNodeStateClassVariableTypeReplacements(
             IWriteContext context,
             VariableTypeDesign variableType)
@@ -1702,19 +1716,35 @@ namespace Opc.Ua.SourceGeneration
 
             if (!variableType.DataTypeNode.IsTemplateParameterRequired(variableType.ValueRank))
             {
+                // Overrides a variable type that does not require a template parameter so we
+                // need to add it
                 context.Template.AddReplacement(Tokens.BaseT, string.Empty);
             }
             else
             {
-                string parameter = GetTemplateParameter(variableType);
-
+                // Overrides a typed variable type where the base class requires a template
+                // parameter, so the same template parameter is needed plus the Variant builder
+                // to access the variant content of the type T.
+                string parameter = GetTemplateParameter(variableType, out string variantBuilder);
                 if (parameter == "<T>" && variableType.ValueRank != ValueRank.Scalar)
                 {
                     parameter = "<global::Opc.Ua.Variant>";
+                    variantBuilder = "global::Opc.Ua.VariantBuilder";
                 }
-
-                context.Template.AddReplacement(Tokens.BaseT, parameter);
-            }
+                if (string.IsNullOrEmpty(parameter))
+                {
+                    context.Template.AddReplacement(Tokens.BaseT, string.Empty);
+                }
+                else
+                {
+                    // The class extends from the generic one through its inner
+                    // Implementation<TBuilder> class to provide generic variant
+                    // value accessors
+                    context.Template.AddReplacement(
+                        Tokens.BaseT,
+                        CoreUtils.Format("{0}.Implementation<{1}>", parameter, variantBuilder));
+                }
+           }
 
             string valueRank = variableType.ValueRank.GetValueRankAsCode(
                 variableType.ArrayDimensions);
@@ -1877,6 +1907,9 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.StateClassName,
                 "global::Opc.Ua.BaseObjectTypeState");
+            context.Template.AddReplacement(
+                Tokens.StateClassFactory,
+                "new global::Opc.Ua.BaseObjectTypeState");
         }
 
         private void AddVariableTypeStateFactoryReplacements(
@@ -1891,6 +1924,9 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.StateClassName,
                 "global::Opc.Ua.BaseDataVariableTypeState");
+            context.Template.AddReplacement(
+                Tokens.StateClassFactory,
+                "new global::Opc.Ua.BaseDataVariableTypeState");
 
             context.Template.AddReplacement(Tokens.ValueCode, CoreUtils.Format(
                 "state.WrappedValue = {0};",
@@ -1933,6 +1969,12 @@ namespace Opc.Ua.SourceGeneration
                 node.GetNodeStateClassName(
                     m_context.ModelDesign.TargetNamespace.Value,
                     m_context.ModelDesign.Namespaces));
+            context.Template.AddReplacement(
+                Tokens.StateClassFactory,
+                node.GetNodeStateClassName(
+                    m_context.ModelDesign.TargetNamespace.Value,
+                    m_context.ModelDesign.Namespaces,
+                    asFactory: true));
             context.Template.AddReplacement(
                 Tokens.TypeDefinitionId,
                 node.TypeDefinitionNode.GetNodeIdAsCode(
@@ -2005,6 +2047,14 @@ namespace Opc.Ua.SourceGeneration
                     Tokens.ValueCode,
                     NodeStateTemplates.VariantArrayOfValue,
                     [args],
+                    WriteTemplate_ArgumentCollection);
+            }
+            else if (node.DecodedValue is ArrayOf<Argument> arguments)
+            {
+                context.Template.AddReplacement(
+                    Tokens.ValueCode,
+                    NodeStateTemplates.VariantArrayOfValue,
+                    [arguments.ToList()],
                     WriteTemplate_ArgumentCollection);
             }
             else
@@ -2081,6 +2131,12 @@ namespace Opc.Ua.SourceGeneration
                     m_context.ModelDesign.TargetNamespace.Value,
                     m_context.ModelDesign.Namespaces));
             context.Template.AddReplacement(
+                Tokens.StateClassFactory,
+                node.GetNodeStateClassName(
+                    m_context.ModelDesign.TargetNamespace.Value,
+                    m_context.ModelDesign.Namespaces,
+                    asFactory: true));
+            context.Template.AddReplacement(
                 Tokens.TypeDefinitionId,
                 node.TypeDefinitionNode.GetNodeIdAsCode(
                     m_context.ModelDesign.Namespaces,
@@ -2116,6 +2172,12 @@ namespace Opc.Ua.SourceGeneration
                 node.GetNodeStateClassName(
                     m_context.ModelDesign.TargetNamespace.Value,
                     m_context.ModelDesign.Namespaces));
+            context.Template.AddReplacement(
+                Tokens.StateClassFactory,
+                node.GetNodeStateClassName(
+                    m_context.ModelDesign.TargetNamespace.Value,
+                    m_context.ModelDesign.Namespaces,
+                    asFactory: true));
             context.Template.AddReplacement(
                 Tokens.ModellingRuleId,
                 GetModellingRuleReplacement(node.ModellingRule));
@@ -2749,8 +2811,9 @@ namespace Opc.Ua.SourceGeneration
             return instance.DataTypeNode.GetNodeIdAsCode(namespaceUris, kNamespaceTableContextVariable);
         }
 
-        private string GetTemplateParameter(TypeDesign type)
+        private string GetTemplateParameter(TypeDesign type, out string variantBuilder)
         {
+            variantBuilder = "global::Opc.Ua.VariantBuilder";
             if (type is not VariableTypeDesign variableType)
             {
                 return string.Empty;
@@ -2758,17 +2821,17 @@ namespace Opc.Ua.SourceGeneration
 
             if (type.BaseTypeNode == null)
             {
-                return CoreUtils.Format("<T>");
+                return "<T>";
             }
 
-            if (GetTemplateParameter(type.BaseTypeNode) != "<T>")
+            if (GetTemplateParameter(type.BaseTypeNode, out variantBuilder) != "<T>")
             {
                 return string.Empty;
             }
 
             BasicDataType basicType = variableType.DataTypeNode.BasicDataType;
 
-            if (basicType == BasicDataType.BaseDataType)
+            if (basicType == BasicDataType.BaseDataType) // == Variant, so any
             {
                 return "<T>";
             }
@@ -2779,6 +2842,7 @@ namespace Opc.Ua.SourceGeneration
                 case BasicDataType.UserDefined:
                     scalarName = variableType.DataTypeNode.GetClassName(
                         m_context.ModelDesign.Namespaces);
+                    variantBuilder = variableType.DataTypeNode.GetVariantBuilder(scalarName);
                     break;
                 default:
                     scalarName = variableType.DataTypeNode.GetDotNetTypeName(
@@ -2786,17 +2850,24 @@ namespace Opc.Ua.SourceGeneration
                         m_context.ModelDesign.Namespaces,
                         nullable: NullableAnnotation.NonNullable,
                         true);
+                    variantBuilder = variableType.DataTypeNode.GetVariantBuilder(scalarName);
                     break;
             }
 
-            if (variableType.ValueRank != ValueRank.Scalar)
+            if (variableType.ValueRank == ValueRank.Scalar)
             {
-                return variableType.ValueRank == ValueRank.Array ?
-                    $"<{scalarName}[]>" :
-                    "<global::Opc.Ua.Variant>";
+                return $"<{scalarName}>";
             }
-
-            return $"<{scalarName}>";
+            if (variableType.ValueRank == ValueRank.Array)
+            {
+                return $"<global::Opc.Ua.ArrayOf<{scalarName}>>";
+            }
+            if (variableType.ValueRank == ValueRank.OneOrMoreDimensions)
+            {
+                // TODO: matrixOf
+            }
+            variantBuilder = "global::Opc.Ua.VariantBuilder";
+            return "<global::Opc.Ua.Variant>";
         }
 
         private static void CollectMatchingFields(

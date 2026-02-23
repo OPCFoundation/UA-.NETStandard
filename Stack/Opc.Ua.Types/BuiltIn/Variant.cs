@@ -60,80 +60,80 @@ namespace Opc.Ua
     public readonly struct Variant :
         IFormattable,
         IEquatable<Variant>,
-        IEquatable<bool>, IVariantOf<bool>,
-        IEquatable<sbyte>, IVariantOf<sbyte>,
-        IEquatable<byte>, IVariantOf<byte>,
-        IEquatable<short>, IVariantOf<short>,
-        IEquatable<ushort>, IVariantOf<ushort>,
-        IEquatable<int>, IVariantOf<int>,
+        IEquatable<bool>,
+        IEquatable<sbyte>,
+        IEquatable<byte>,
+        IEquatable<short>,
+        IEquatable<ushort>,
+        IEquatable<int>,
         IEquatable<Enum>,
-        IEquatable<uint>, IVariantOf<uint>,
-        IEquatable<long>, IVariantOf<long>,
-        IEquatable<ulong>, IVariantOf<ulong>,
-        IEquatable<float>, IVariantOf<float>,
-        IEquatable<double>, IVariantOf<double>,
-        IEquatable<string>, IVariantOf<string>,
-        IEquatable<DateTime>, IVariantOf<DateTime>,
-        IEquatable<Uuid>, IVariantOf<Uuid>,
-        IEquatable<ByteString>, IVariantOf<ByteString>,
-        IEquatable<XmlElement>, IVariantOf<XmlElement>,
-        IEquatable<NodeId>, IVariantOf<NodeId>,
-        IEquatable<ExpandedNodeId>, IVariantOf<ExpandedNodeId>,
-        IEquatable<StatusCode>, IVariantOf<StatusCode>,
-        IEquatable<QualifiedName>, IVariantOf<QualifiedName>,
-        IEquatable<LocalizedText>, IVariantOf<LocalizedText>,
-        IEquatable<ExtensionObject>, IVariantOf<ExtensionObject>,
-        IEquatable<DataValue>, IVariantOf<DataValue>,
-        IEquatable<ArrayOf<bool>>, IVariantOf<ArrayOf<bool>>,
-        IEquatable<ArrayOf<sbyte>>, IVariantOf<ArrayOf<sbyte>>,
-        IEquatable<ArrayOf<byte>>, IVariantOf<ArrayOf<byte>>,
-        IEquatable<ArrayOf<short>>, IVariantOf<ArrayOf<short>>,
-        IEquatable<ArrayOf<ushort>>, IVariantOf<ArrayOf<ushort>>,
-        IEquatable<ArrayOf<int>>, IVariantOf<ArrayOf<int>>,
+        IEquatable<uint>,
+        IEquatable<long>,
+        IEquatable<ulong>,
+        IEquatable<float>,
+        IEquatable<double>,
+        IEquatable<string>,
+        IEquatable<DateTime>,
+        IEquatable<Uuid>,
+        IEquatable<ByteString>,
+        IEquatable<XmlElement>,
+        IEquatable<NodeId>,
+        IEquatable<ExpandedNodeId>,
+        IEquatable<StatusCode>,
+        IEquatable<QualifiedName>,
+        IEquatable<LocalizedText>,
+        IEquatable<ExtensionObject>,
+        IEquatable<DataValue>,
+        IEquatable<ArrayOf<bool>>,
+        IEquatable<ArrayOf<sbyte>>,
+        IEquatable<ArrayOf<byte>>,
+        IEquatable<ArrayOf<short>>,
+        IEquatable<ArrayOf<ushort>>,
+        IEquatable<ArrayOf<int>>,
         IEquatable<ArrayOf<Enum>>,
-        IEquatable<ArrayOf<uint>>, IVariantOf<ArrayOf<uint>>,
-        IEquatable<ArrayOf<long>>, IVariantOf<ArrayOf<long>>,
-        IEquatable<ArrayOf<ulong>>, IVariantOf<ArrayOf<ulong>>,
-        IEquatable<ArrayOf<float>>, IVariantOf<ArrayOf<float>>,
-        IEquatable<ArrayOf<double>>, IVariantOf<ArrayOf<double>>,
-        IEquatable<ArrayOf<string>>, IVariantOf<ArrayOf<string>>,
-        IEquatable<ArrayOf<DateTime>>, IVariantOf<ArrayOf<DateTime>>,
-        IEquatable<ArrayOf<Uuid>>, IVariantOf<ArrayOf<Uuid>>,
-        IEquatable<ArrayOf<ByteString>>, IVariantOf<ArrayOf<ByteString>>,
-        IEquatable<ArrayOf<XmlElement>>, IVariantOf<ArrayOf<XmlElement>>,
-        IEquatable<ArrayOf<NodeId>>, IVariantOf<ArrayOf<NodeId>>,
-        IEquatable<ArrayOf<ExpandedNodeId>>, IVariantOf<ArrayOf<ExpandedNodeId>>,
-        IEquatable<ArrayOf<StatusCode>>, IVariantOf<ArrayOf<StatusCode>>,
-        IEquatable<ArrayOf<QualifiedName>>, IVariantOf<ArrayOf<QualifiedName>>,
-        IEquatable<ArrayOf<LocalizedText>>, IVariantOf<ArrayOf<LocalizedText>>,
-        IEquatable<ArrayOf<ExtensionObject>>, IVariantOf<ArrayOf<ExtensionObject>>,
-        IEquatable<ArrayOf<DataValue>>, IVariantOf<ArrayOf<DataValue>>,
-        IEquatable<ArrayOf<Variant>>, IVariantOf<ArrayOf<Variant>>,
-        IEquatable<MatrixOf<bool>>, IVariantOf<MatrixOf<bool>>,
-        IEquatable<MatrixOf<sbyte>>, IVariantOf<MatrixOf<sbyte>>,
-        IEquatable<MatrixOf<byte>>, IVariantOf<MatrixOf<byte>>,
-        IEquatable<MatrixOf<short>>, IVariantOf<MatrixOf<short>>,
-        IEquatable<MatrixOf<ushort>>, IVariantOf<MatrixOf<ushort>>,
-        IEquatable<MatrixOf<int>>, IVariantOf<MatrixOf<int>>,
+        IEquatable<ArrayOf<uint>>,
+        IEquatable<ArrayOf<long>>,
+        IEquatable<ArrayOf<ulong>>,
+        IEquatable<ArrayOf<float>>,
+        IEquatable<ArrayOf<double>>,
+        IEquatable<ArrayOf<string>>,
+        IEquatable<ArrayOf<DateTime>>,
+        IEquatable<ArrayOf<Uuid>>,
+        IEquatable<ArrayOf<ByteString>>,
+        IEquatable<ArrayOf<XmlElement>>,
+        IEquatable<ArrayOf<NodeId>>,
+        IEquatable<ArrayOf<ExpandedNodeId>>,
+        IEquatable<ArrayOf<StatusCode>>,
+        IEquatable<ArrayOf<QualifiedName>>,
+        IEquatable<ArrayOf<LocalizedText>>,
+        IEquatable<ArrayOf<ExtensionObject>>,
+        IEquatable<ArrayOf<DataValue>>,
+        IEquatable<ArrayOf<Variant>>,
+        IEquatable<MatrixOf<bool>>,
+        IEquatable<MatrixOf<sbyte>>,
+        IEquatable<MatrixOf<byte>>,
+        IEquatable<MatrixOf<short>>,
+        IEquatable<MatrixOf<ushort>>,
+        IEquatable<MatrixOf<int>>,
         IEquatable<MatrixOf<Enum>>,
-        IEquatable<MatrixOf<uint>>, IVariantOf<MatrixOf<uint>>,
-        IEquatable<MatrixOf<long>>, IVariantOf<MatrixOf<long>>,
-        IEquatable<MatrixOf<ulong>>, IVariantOf<MatrixOf<ulong>>,
-        IEquatable<MatrixOf<float>>, IVariantOf<MatrixOf<float>>,
-        IEquatable<MatrixOf<double>>, IVariantOf<MatrixOf<double>>,
-        IEquatable<MatrixOf<string>>, IVariantOf<MatrixOf<string>>,
-        IEquatable<MatrixOf<DateTime>>, IVariantOf<MatrixOf<DateTime>>,
-        IEquatable<MatrixOf<Uuid>>, IVariantOf<MatrixOf<Uuid>>,
-        IEquatable<MatrixOf<ByteString>>, IVariantOf<MatrixOf<ByteString>>,
-        IEquatable<MatrixOf<XmlElement>>, IVariantOf<MatrixOf<XmlElement>>,
-        IEquatable<MatrixOf<NodeId>>, IVariantOf<MatrixOf<NodeId>>,
-        IEquatable<MatrixOf<ExpandedNodeId>>, IVariantOf<MatrixOf<ExpandedNodeId>>,
-        IEquatable<MatrixOf<StatusCode>>, IVariantOf<MatrixOf<StatusCode>>,
-        IEquatable<MatrixOf<QualifiedName>>, IVariantOf<MatrixOf<QualifiedName>>,
-        IEquatable<MatrixOf<LocalizedText>>, IVariantOf<MatrixOf<LocalizedText>>,
-        IEquatable<MatrixOf<ExtensionObject>>, IVariantOf<MatrixOf<ExtensionObject>>,
-        IEquatable<MatrixOf<DataValue>>, IVariantOf<MatrixOf<DataValue>>,
-        IEquatable<MatrixOf<Variant>>, IVariantOf<MatrixOf<Variant>>
+        IEquatable<MatrixOf<uint>>,
+        IEquatable<MatrixOf<long>>,
+        IEquatable<MatrixOf<ulong>>,
+        IEquatable<MatrixOf<float>>,
+        IEquatable<MatrixOf<double>>,
+        IEquatable<MatrixOf<string>>,
+        IEquatable<MatrixOf<DateTime>>,
+        IEquatable<MatrixOf<Uuid>>,
+        IEquatable<MatrixOf<ByteString>>,
+        IEquatable<MatrixOf<XmlElement>>,
+        IEquatable<MatrixOf<NodeId>>,
+        IEquatable<MatrixOf<ExpandedNodeId>>,
+        IEquatable<MatrixOf<StatusCode>>,
+        IEquatable<MatrixOf<QualifiedName>>,
+        IEquatable<MatrixOf<LocalizedText>>,
+        IEquatable<MatrixOf<ExtensionObject>>,
+        IEquatable<MatrixOf<DataValue>>,
+        IEquatable<MatrixOf<Variant>>
     {
         /// <summary>
         /// Creates a new Variant with a Boolean value.
@@ -2797,485 +2797,6 @@ namespace Opc.Ua
             }
             value = default;
             return false;
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<bool> IVariantOf<bool>.WithValue(bool value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<sbyte> IVariantOf<sbyte>.WithValue(sbyte value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<byte> IVariantOf<byte>.WithValue(byte value)
-        {
-            return new Variant(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<short> IVariantOf<short>.WithValue(short value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<ushort> IVariantOf<ushort>.WithValue(ushort value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<int> IVariantOf<int>.WithValue(int value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<uint> IVariantOf<uint>.WithValue(uint value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<long> IVariantOf<long>.WithValue(long value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<ulong> IVariantOf<ulong>.WithValue(ulong value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<float> IVariantOf<float>.WithValue(float value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<double> IVariantOf<double>.WithValue(double value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<string> IVariantOf<string>.WithValue(string value)
-        {
-            return value is null ? default : new Variant(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<DateTime> IVariantOf<DateTime>.WithValue(DateTime value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<Uuid> IVariantOf<Uuid>.WithValue(Uuid value)
-        {
-            return new Variant(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<ByteString> IVariantOf<ByteString>.WithValue(ByteString value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<XmlElement> IVariantOf<XmlElement>.WithValue(XmlElement value)
-        {
-            return new Variant(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<NodeId> IVariantOf<NodeId>.WithValue(NodeId value)
-        {
-            return new Variant(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<ExpandedNodeId> IVariantOf<ExpandedNodeId>.WithValue(
-            ExpandedNodeId value)
-        {
-            return new Variant(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<StatusCode> IVariantOf<StatusCode>.WithValue(
-            StatusCode value)
-        {
-            return new Variant(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<QualifiedName> IVariantOf<QualifiedName>.WithValue(
-            QualifiedName value)
-        {
-            return new Variant(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<LocalizedText> IVariantOf<LocalizedText>.WithValue(
-            LocalizedText value)
-        {
-            return new Variant(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<ExtensionObject> IVariantOf<ExtensionObject>.WithValue(
-            ExtensionObject value)
-        {
-            return new Variant(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<DataValue> IVariantOf<DataValue>.WithValue(DataValue value)
-        {
-            return value is null ? default : new Variant(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<ArrayOf<bool>> IVariantOf<ArrayOf<bool>>.WithValue(
-            ArrayOf<bool> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<ArrayOf<sbyte>> IVariantOf<ArrayOf<sbyte>>.WithValue(
-            ArrayOf<sbyte> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<ArrayOf<byte>> IVariantOf<ArrayOf<byte>>.WithValue(
-            ArrayOf<byte> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<ArrayOf<short>> IVariantOf<ArrayOf<short>>.WithValue(
-            ArrayOf<short> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<ArrayOf<ushort>> IVariantOf<ArrayOf<ushort>>.WithValue(
-            ArrayOf<ushort> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<ArrayOf<int>> IVariantOf<ArrayOf<int>>.WithValue(
-            ArrayOf<int> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<ArrayOf<uint>> IVariantOf<ArrayOf<uint>>.WithValue(
-            ArrayOf<uint> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<ArrayOf<long>> IVariantOf<ArrayOf<long>>.WithValue(
-            ArrayOf<long> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<ArrayOf<ulong>> IVariantOf<ArrayOf<ulong>>.WithValue(
-            ArrayOf<ulong> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<ArrayOf<float>> IVariantOf<ArrayOf<float>>.WithValue(
-            ArrayOf<float> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<ArrayOf<double>> IVariantOf<ArrayOf<double>>.WithValue(
-            ArrayOf<double> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<ArrayOf<string>> IVariantOf<ArrayOf<string>>.WithValue(
-            ArrayOf<string> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<ArrayOf<DateTime>> IVariantOf<ArrayOf<DateTime>>.WithValue(
-            ArrayOf<DateTime> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<ArrayOf<Uuid>> IVariantOf<ArrayOf<Uuid>>.WithValue(
-            ArrayOf<Uuid> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<ArrayOf<ByteString>> IVariantOf<ArrayOf<ByteString>>.WithValue(
-            ArrayOf<ByteString> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<ArrayOf<XmlElement>> IVariantOf<ArrayOf<XmlElement>>.WithValue(
-            ArrayOf<XmlElement> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<ArrayOf<NodeId>> IVariantOf<ArrayOf<NodeId>>.WithValue(
-            ArrayOf<NodeId> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<ArrayOf<ExpandedNodeId>> IVariantOf<ArrayOf<ExpandedNodeId>>.WithValue(
-            ArrayOf<ExpandedNodeId> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<ArrayOf<StatusCode>> IVariantOf<ArrayOf<StatusCode>>.WithValue(
-            ArrayOf<StatusCode> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<ArrayOf<QualifiedName>> IVariantOf<ArrayOf<QualifiedName>>.WithValue(
-            ArrayOf<QualifiedName> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<ArrayOf<LocalizedText>> IVariantOf<ArrayOf<LocalizedText>>.WithValue(
-            ArrayOf<LocalizedText> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<ArrayOf<ExtensionObject>> IVariantOf<ArrayOf<ExtensionObject>>.WithValue(
-            ArrayOf<ExtensionObject> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<ArrayOf<DataValue>> IVariantOf<ArrayOf<DataValue>>.WithValue(
-            ArrayOf<DataValue> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<ArrayOf<Variant>> IVariantOf<ArrayOf<Variant>>.WithValue(
-            ArrayOf<Variant> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<MatrixOf<bool>> IVariantOf<MatrixOf<bool>>.WithValue(
-            MatrixOf<bool> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<MatrixOf<sbyte>> IVariantOf<MatrixOf<sbyte>>.WithValue(
-            MatrixOf<sbyte> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<MatrixOf<byte>> IVariantOf<MatrixOf<byte>>.WithValue(
-            MatrixOf<byte> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<MatrixOf<short>> IVariantOf<MatrixOf<short>>.WithValue(
-            MatrixOf<short> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<MatrixOf<ushort>> IVariantOf<MatrixOf<ushort>>.WithValue(
-            MatrixOf<ushort> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<MatrixOf<int>> IVariantOf<MatrixOf<int>>.WithValue(
-            MatrixOf<int> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<MatrixOf<uint>> IVariantOf<MatrixOf<uint>>.WithValue(
-            MatrixOf<uint> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<MatrixOf<long>> IVariantOf<MatrixOf<long>>.WithValue(
-            MatrixOf<long> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<MatrixOf<ulong>> IVariantOf<MatrixOf<ulong>>.WithValue(
-            MatrixOf<ulong> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<MatrixOf<float>> IVariantOf<MatrixOf<float>>.WithValue(
-            MatrixOf<float> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<MatrixOf<double>> IVariantOf<MatrixOf<double>>.WithValue(
-            MatrixOf<double> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<MatrixOf<string>> IVariantOf<MatrixOf<string>>.WithValue(
-            MatrixOf<string> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<MatrixOf<DateTime>> IVariantOf<MatrixOf<DateTime>>.WithValue(
-            MatrixOf<DateTime> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<MatrixOf<Uuid>> IVariantOf<MatrixOf<Uuid>>.WithValue(
-            MatrixOf<Uuid> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<MatrixOf<ByteString>> IVariantOf<MatrixOf<ByteString>>.WithValue(
-            MatrixOf<ByteString> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<MatrixOf<XmlElement>> IVariantOf<MatrixOf<XmlElement>>.WithValue(
-            MatrixOf<XmlElement> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<MatrixOf<NodeId>> IVariantOf<MatrixOf<NodeId>>.WithValue(
-            MatrixOf<NodeId> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<MatrixOf<ExpandedNodeId>> IVariantOf<MatrixOf<ExpandedNodeId>>.WithValue(
-            MatrixOf<ExpandedNodeId> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<MatrixOf<StatusCode>> IVariantOf<MatrixOf<StatusCode>>.WithValue(
-            MatrixOf<StatusCode> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<MatrixOf<QualifiedName>> IVariantOf<MatrixOf<QualifiedName>>.WithValue(
-            MatrixOf<QualifiedName> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<MatrixOf<LocalizedText>> IVariantOf<MatrixOf<LocalizedText>>.WithValue(
-            MatrixOf<LocalizedText> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<MatrixOf<ExtensionObject>> IVariantOf<MatrixOf<ExtensionObject>>.WithValue(
-            MatrixOf<ExtensionObject> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<MatrixOf<DataValue>> IVariantOf<MatrixOf<DataValue>>.WithValue(
-            MatrixOf<DataValue> value)
-        {
-            return From(value);
-        }
-
-        /// <inheritdoc/>
-        IVariantOf<MatrixOf<Variant>> IVariantOf<MatrixOf<Variant>>.WithValue(
-            MatrixOf<Variant> value)
-        {
-            return From(value);
         }
 
         /// <summary>
@@ -8227,11 +7748,6 @@ namespace Opc.Ua
             return (T)(object)value;
         }
 
-        bool IVariantOf<sbyte>.TryGet(out sbyte value)
-        {
-            throw new NotImplementedException();
-        }
-
         [StructLayout(LayoutKind.Explicit, Size = 8)]
         internal struct Union
         {
@@ -8289,27 +7805,6 @@ namespace Opc.Ua
         private readonly Union m_union;
         private readonly TypeInfo m_typeInfo;
 #pragma warning restore IDE0032 // Use auto property
-    }
-
-    /// <summary>
-    /// VariantOf type T interface
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    public interface IVariantOf<T>
-    {
-        /// <summary>
-        /// Get type T from variant
-        /// </summary>
-        /// <param name="value"></param>
-        /// <returns></returns>
-        bool TryGet(out T value);
-
-        /// <summary>
-        /// Set value in variant and return new variant value
-        /// </summary>
-        /// <param name="value"></param>
-        /// <returns></returns>
-        IVariantOf<T> WithValue(T value);
     }
 
     /// <summary>

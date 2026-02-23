@@ -47,6 +47,7 @@ namespace Opc.Ua.SourceGeneration
         public static string ChildName => nameof(ChildName);
         public static string ChildPath => nameof(ChildPath);
         public static string ClassName => nameof(ClassName);
+        public static string ClassFactory => nameof(ClassFactory);
         public static string ClientApi => nameof(ClientApi);
         public static string ClientMethod => nameof(ClientMethod);
         public static string CodeName => nameof(CodeName);
@@ -185,6 +186,7 @@ namespace Opc.Ua.SourceGeneration
         public static string ReferenceTypeId => nameof(ReferenceTypeId);
         public static string ModellingRuleId => nameof(ModellingRuleId);
         public static string StateClassName => nameof(StateClassName);
+        public static string StateClassFactory => nameof(StateClassFactory);
         public static string DisplayName => nameof(DisplayName);
         public static string DataTypeDefinition => nameof(DataTypeDefinition);
         public static string DescriptionValue => nameof(DescriptionValue);

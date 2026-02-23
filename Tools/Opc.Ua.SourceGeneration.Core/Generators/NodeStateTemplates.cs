@@ -115,7 +115,8 @@ namespace Opc.Ua.SourceGeneration
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
-            public partial class {{Tokens.ClassName}}State : {{Tokens.BaseClassName}}State{{Tokens.BaseT}}
+            public partial class {{Tokens.ClassName}}State :
+                {{Tokens.BaseClassName}}State{{Tokens.BaseT}}
             {
                 /// <summary>
                 /// Initializes a new instance of the <see cref="{{Tokens.ClassName}}State"/> class.
@@ -400,7 +401,8 @@ namespace Opc.Ua.SourceGeneration
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
-            public partial class {{Tokens.ClassName}}State : {{Tokens.BaseClassName}}State{{Tokens.BaseT}}
+            public partial class {{Tokens.ClassName}}State :
+                {{Tokens.BaseClassName}}State{{Tokens.BaseT}}
             {
                 /// <summary>
                 /// Initializes a new instance of the <see cref="{{Tokens.ClassName}}State"/> class.
@@ -516,6 +518,115 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
+        /// Factory methods for variable states with typed values
+        /// </summary>
+        public static readonly TemplateString FactoriesForVariableTypeWithTypedValue = TemplateString.Parse(
+            $$"""
+            /// <summary>
+            /// Creates a new instance of the {{Tokens.ClassName}}State class with a built-in value type
+            /// and associated TBuilder to extract the value from the Variant and create a new Variant
+            /// from it.
+            /// </summary>
+            public static {{Tokens.ClassName}}State<T> For<T, TBuilder>(global::Opc.Ua.NodeState? parent)
+                where TBuilder : struct, global::Opc.Ua.IVariantBuilder<T>
+            {
+                return new {{Tokens.ClassName}}State<T>.Implementation<TBuilder>(parent);
+            }
+            """);
+
+        /// <summary>
+        /// Typed variable type node state
+        /// </summary>
+        public static readonly TemplateString VariableTypeWithTypedValue_Class = TemplateString.Parse(
+            $$"""
+            /// <summary>
+            /// The {{Tokens.ClassName}} VariableType state.
+            /// </summary>
+            [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            public abstract class {{Tokens.ClassName}}State<T> :
+                {{Tokens.ClassName}}State
+            {
+                /// <summary>
+                /// Initializes a new instance of the <see cref="{{Tokens.ClassName}}State{T}"/> class.
+                /// </summary>
+                protected {{Tokens.ClassName}}State(global::Opc.Ua.NodeState? parent)
+                    : base(parent)
+                {
+                }
+
+                /// <summary>
+                /// Creates a new instance of the <see cref="{{Tokens.ClassName}}State{T}"/>
+                /// class with a built-in value type and associated TBuilder to extract the
+                /// value from the Variant and create a new Variant from it.
+                /// </summary>
+                /// <typeparam name="TBuilder">The builder to use for T</typeparam>
+                public static {{Tokens.ClassName}}State<T> With<TBuilder>(
+                    global::Opc.Ua.NodeState? parent = null)
+                    where TBuilder : struct, global::Opc.Ua.IVariantBuilder<T>
+                {
+                    return new Implementation<TBuilder>(parent);
+                }
+
+                /// <inheritdoc/>
+                public new abstract T Value { get; set; }
+
+                /// <inheritdoc/>
+                protected override void Initialize(global::Opc.Ua.ISystemContext context)
+                {
+                    base.Initialize(context);
+                    base.Initialize<T>(context);
+                }
+
+                /// <inheritdoc/>
+                protected override void Initialize(
+                    global::Opc.Ua.ISystemContext context,
+                    global::Opc.Ua.NodeState source)
+                {
+                    InitializeOptionalChildren(context);
+                    base.Initialize(context, source);
+                }
+
+                /// <summary>
+                /// Adds builder which extracts T from Variant or creates new Variant with type T
+                /// This is public so it can be overridden by classes outside of the namespace
+                /// </summary>
+                /// <typeparam name="TBuilder">The builder to use for T</typeparam>
+                public class Implementation<TBuilder> : {{Tokens.ClassName}}State<T>
+                    where TBuilder : struct, global::Opc.Ua.IVariantBuilder<T>
+                {
+                    /// <summary>
+                    /// Initializes a new instance of the <see cref="{{Tokens.ClassName}}State{T}"/> class.
+                    /// </summary>
+                    public Implementation(global::Opc.Ua.NodeState? parent)
+                        : base(parent)
+                    {
+                        m_builder = new TBuilder();
+                        Value = default(T);
+                    }
+
+                    /// <inheritdoc/>
+                    public override T Value
+                    {
+                        get => m_builder.GetValue(WrappedValue);
+                        set => WrappedValue = m_builder.WithValue(value);
+                    }
+
+                    /// <inheritdoc/>
+                    public override object Clone()
+                    {
+                        Implementation<TBuilder> clone = new Implementation<TBuilder>(null);
+                        CopyTo(clone);
+                        return clone;
+                    }
+
+                    private readonly TBuilder m_builder;
+                }
+            }
+
+            """);
+
+        /// <summary>
         /// Variable type value field methods
         /// </summary>
         public static readonly TemplateString VariableType_ValueMethods = TemplateString.Parse(
@@ -585,61 +696,6 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 return global::Opc.Ua.ServiceResult.Good;
-            }
-
-            """);
-
-        /// <summary>
-        /// Typed variable type node state
-        /// </summary>
-        public static readonly TemplateString VariableTypeWithTypedValue_Class = TemplateString.Parse(
-            $$"""
-            /// <summary>
-            /// The {{Tokens.ClassName}} VariableType state.
-            /// </summary>
-            [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
-            [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
-            public class {{Tokens.ClassName}}State<T> : {{Tokens.ClassName}}State
-            {
-                /// <summary>
-                /// Initializes a new instance of the <see cref="{{Tokens.ClassName}}State{T}"/> class.
-                /// </summary>
-                public {{Tokens.ClassName}}State(global::Opc.Ua.NodeState? parent)
-                    : base(parent)
-                {
-                    Value = default(T);
-                }
-
-                /// <inheritdoc/>
-                public new T Value
-                {
-                    get => global::Opc.Ua.VariantHelper.CastTo<T>(((global::Opc.Ua.BaseVariableState)this).Value, true);
-                    set => ((global::Opc.Ua.BaseVariableState)this).Value = global::Opc.Ua.VariantHelper.CastFrom(value);
-                }
-
-                /// <inheritdoc/>
-                public override object Clone()
-                {
-                    {{Tokens.ClassName}}State<T> clone = new {{Tokens.ClassName}}State<T>(null);
-                    CopyTo(clone);
-                    return clone;
-                }
-
-                /// <inheritdoc/>
-                protected override void Initialize(global::Opc.Ua.ISystemContext context)
-                {
-                    base.Initialize(context);
-                    base.Initialize<T>(context);
-                }
-
-                /// <inheritdoc/>
-                protected override void Initialize(
-                    global::Opc.Ua.ISystemContext context,
-                    global::Opc.Ua.NodeState source)
-                {
-                    InitializeOptionalChildren(context);
-                    base.Initialize(context, source);
-                }
             }
 
             """);
@@ -997,7 +1053,7 @@ namespace Opc.Ua.SourceGeneration
                     {{Tokens.ClassName}}? child = replacement as {{Tokens.ClassName}};
                     if (child == null)
                     {
-                        child = new {{Tokens.ClassName}}(this);
+                        child = {{Tokens.ClassFactory}}(this);
                         if (replacement != null)
                         {
                             child.Create(context, replacement);
@@ -1170,7 +1226,7 @@ namespace Opc.Ua.SourceGeneration
                 this global::Opc.Ua.ISystemContext context,
                 bool forInstance = false)
             {
-                var state = new {{Tokens.StateClassName}}();
+                var state = {{Tokens.StateClassFactory}}();
                 state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
                 state.NodeId = {{Tokens.NodeIdConstant}};
                 state.BrowseName = new global::Opc.Ua.QualifiedName(
@@ -1300,7 +1356,7 @@ namespace Opc.Ua.SourceGeneration
                 this global::Opc.Ua.ISystemContext context,
                 bool forInstance = true)
             {
-                var state = new {{Tokens.StateClassName}}(null);
+                var state = {{Tokens.StateClassFactory}}(null);
                 state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
                 state.NodeId = {{Tokens.NodeIdConstant}};
                 state.NumericId = {{Tokens.NumericIdValue}};
@@ -1344,7 +1400,7 @@ namespace Opc.Ua.SourceGeneration
                 this global::Opc.Ua.ISystemContext context,
                 bool forInstance = true)
             {
-                var state = new {{Tokens.StateClassName}}(null);
+                var state = {{Tokens.StateClassFactory}}(null);
                 state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
                 state.NodeId = {{Tokens.NodeIdConstant}};
                 state.NumericId = {{Tokens.NumericIdValue}};
@@ -1437,7 +1493,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.NodeState parent = null,
                 global::Opc.Ua.QualifiedName browseName = default)
             {
-                var state = new {{Tokens.StateClassName}}(parent);
+                var state = {{Tokens.StateClassFactory}}(parent);
                 state.NodeId = {{Tokens.NodeIdConstant}};
                 if (!browseName.IsNull)
                 {
@@ -1488,7 +1544,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.NodeState parent = null,
                 global::Opc.Ua.QualifiedName browseName = default)
             {
-                var state = new {{Tokens.StateClassName}}(parent);
+                var state = {{Tokens.StateClassFactory}}(parent);
                 state.NodeId = {{Tokens.NodeIdConstant}};
                 if (!browseName.IsNull)
                 {
@@ -1536,7 +1592,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.NodeState parent = null,
                 global::Opc.Ua.QualifiedName browseName = default)
             {
-                var state = new {{Tokens.StateClassName}}(parent);
+                var state = {{Tokens.StateClassFactory}}(parent);
                 state.NodeId = {{Tokens.NodeIdConstant}};
                 if (!browseName.IsNull)
                 {
@@ -1593,7 +1649,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.NodeState parent,
                 bool forInstance = false)
             {
-                var state = new {{Tokens.StateClassName}}(parent);
+                var state = {{Tokens.StateClassFactory}}(parent);
                 state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
                 state.NodeId = {{Tokens.NodeIdConstant}};
                 state.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
@@ -1638,7 +1694,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.NodeState parent,
                 bool forInstance = false)
             {
-                var state = new {{Tokens.StateClassName}}(parent);
+                var state = {{Tokens.StateClassFactory}}(parent);
                 state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
                 state.NodeId = {{Tokens.NodeIdConstant}};
                 state.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
@@ -1691,7 +1747,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.NodeState parent,
                 bool forInstance = false)
             {
-                var state = new {{Tokens.StateClassName}}(parent);
+                var state = {{Tokens.StateClassFactory}}(parent);
                 state.SymbolicName = {{Tokens.SymbolicNameSymbol}};
                 state.NodeId = {{Tokens.NodeIdConstant}};
                 {{Tokens.MethodDeclarationId}}
@@ -1738,7 +1794,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.QualifiedName browseName = default,
                 bool forInstance = false)
             {
-                var state = new {{Tokens.StateClassName}}(parent);
+                var state = {{Tokens.StateClassFactory}}(parent);
                 state.NodeId = {{Tokens.NodeIdConstant}};
                 if (!browseName.IsNull)
                 {
@@ -1795,7 +1851,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.QualifiedName browseName = default,
                 bool forInstance = false)
             {
-                var state = new {{Tokens.StateClassName}}(parent);
+                var state = {{Tokens.StateClassFactory}}(parent);
                 state.NodeId = {{Tokens.NodeIdConstant}};
                 if (!browseName.IsNull)
                 {
@@ -1860,7 +1916,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.QualifiedName browseName = default,
                 bool forInstance = false)
             {
-                var state = new {{Tokens.StateClassName}}(parent);
+                var state = {{Tokens.StateClassFactory}}(parent);
                 state.NodeId = {{Tokens.NodeIdConstant}};
                 if (!browseName.IsNull)
                 {
