@@ -1,28 +1,39 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
     <TargetFramework>net472</TargetFramework>
     <IsTestProject>true</IsTestProject>
     <IsPackable>false</IsPackable>
     <LangVersion>latest</LangVersion>
     <DisableTransitiveProjectReferences>false</DisableTransitiveProjectReferences>
   </PropertyGroup>
-
   <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Microsoft.Extensions.Logging">
+      <TreatAsUsed>true</TreatAsUsed>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk">
+      <TreatAsUsed>true</TreatAsUsed>
+    </PackageReference>
     <PackageReference Include="Moq" />
     <PackageReference Include="NUnit" />
-    <PackageReference Include="NUnit3TestAdapter" />
+    <PackageReference Include="NUnit.Console" />
+    <PackageReference Include="NUnit3TestAdapter">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+      <TreatAsUsed>true</TreatAsUsed>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="System.Private.Uri" />
+    <PackageReference Include="BenchmarkDotNet" />
+    <PackageReference Include="ObjectLayoutInspector" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Types\Opc.Ua.Types.csproj" />
   </ItemGroup>
-
   <ItemGroup>
-    <Using Include="NUnit.Framework" />
+    <Compile Include="..\..\Tests\Common\Main.cs" />
+    <Compile Include="..\..\Tests\Common\Logging.cs" />
   </ItemGroup>
-
 </Project>

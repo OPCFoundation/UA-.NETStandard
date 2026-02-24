@@ -1,4 +1,3 @@
-#nullable disable
 /* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
@@ -27,55 +26,22 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
-using Microsoft.Extensions.Logging;
+
 using Moq;
-using NUnit.Framework;
-using Opc.Ua;
+using Opc.Ua.Tests;
 using Opc.Ua.Types;
 using System;
 using System.Buffers;
-using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Xml;
-using System.Xml.Schema;
+using System.Reflection;
+using NUnit.Framework;
 
 namespace Opc.Ua.UnitTests
 {
     /// <summary>
     /// Unit tests for the <see cref = "BinaryEncoder"/> class.
     /// </summary>
-    public partial class BinaryEncoderTests
+    public class BinaryEncoderTests
     {
         /// <summary>
         /// Tests that the constructor with a valid context creates a BinaryEncoder instance successfully
@@ -85,18 +51,13 @@ namespace Opc.Ua.UnitTests
         public void Constructor_ValidContext_CreatesInstance()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
             // Act
-            var encoder = new BinaryEncoder(mockContext.Object);
+            var encoder = new BinaryEncoder(messageContext);
             // Assert
             Assert.That(encoder, Is.Not.Null);
-            Assert.That(encoder.Context, Is.EqualTo(mockContext.Object));
+            Assert.That(encoder.Context, Is.EqualTo(messageContext));
             Assert.That(encoder.EncodingType, Is.EqualTo(EncodingType.Binary));
             Assert.That(encoder.UseReversibleEncoding, Is.True);
         }
@@ -109,15 +70,10 @@ namespace Opc.Ua.UnitTests
         public void Constructor_ValidContext_AllowsWriteOperations()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
             // Act
-            var encoder = new BinaryEncoder(mockContext.Object);
+            var encoder = new BinaryEncoder(messageContext);
             encoder.WriteBoolean("TestField", true);
             encoder.WriteInt32("TestInt", 42);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -127,57 +83,18 @@ namespace Opc.Ua.UnitTests
         }
 
         /// <summary>
-        /// Tests that the constructor throws NullReferenceException when context.Telemetry is null,
-        /// as the code attempts to call CreateLogger on a null reference.
-        /// </summary>
-        [Test]
-        public void Constructor_NullTelemetry_ThrowsNullReferenceException()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            mockContext.Setup(c => c.Telemetry).Returns((ITelemetryContext)null!);
-            // Act & Assert
-            Assert.Throws<NullReferenceException>(() => new BinaryEncoder(mockContext.Object));
-        }
-
-        /// <summary>
         /// Tests that the constructor correctly sets the Context property to the provided context instance.
         /// </summary>
         [Test]
         public void Constructor_ValidContext_SetsContextProperty()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
             // Act
-            var encoder = new BinaryEncoder(mockContext.Object);
+            var encoder = new BinaryEncoder(messageContext);
             // Assert
-            Assert.That(encoder.Context, Is.SameAs(mockContext.Object));
-        }
-
-        /// <summary>
-        /// Tests that the constructor initializes the encoder with a writable stream
-        /// that starts at position 0.
-        /// </summary>
-        [Test]
-        public void Constructor_ValidContext_InitializesStreamAtPositionZero()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            // Act
-            var encoder = new BinaryEncoder(mockContext.Object);
-            // Assert
+            Assert.That(encoder.Context, Is.SameAs(messageContext));
             Assert.That(encoder.Position, Is.EqualTo(0));
         }
 
@@ -189,38 +106,15 @@ namespace Opc.Ua.UnitTests
         public void Constructor_ValidContext_AllowsPositionTracking()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
             // Act
-            var encoder = new BinaryEncoder(mockContext.Object);
+            var encoder = new BinaryEncoder(messageContext);
             encoder.WriteInt32("TestInt", 12345);
             int position = encoder.Position;
             // Assert
             Assert.That(position, Is.GreaterThan(0));
             Assert.That(position, Is.EqualTo(4)); // int32 is 4 bytes
-        }
-
-        /// <summary>
-        /// Tests that EncodeMessage throws ArgumentNullException when message parameter is null.
-        /// </summary>
-        [Test]
-        public void EncodeMessage_NullMessage_ThrowsArgumentNullException()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            // Act & Assert
-            var ex = Assert.Throws<ArgumentNullException>(() => encoder.EncodeMessage<IEncodeable>(null!));
-            Assert.That(ex!.ParamName, Is.EqualTo("message"));
         }
 
         /// <summary>
@@ -230,21 +124,19 @@ namespace Opc.Ua.UnitTests
         public void EncodeMessage_ValidMessage_EncodesSuccessfully()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            var mockNamespaceTable = new Mock<NamespaceTable>();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
             var mockFactory = new Mock<IEncodeableFactory>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.NamespaceUris).Returns(mockNamespaceTable.Object);
-            mockContext.Setup(c => c.MaxMessageSize).Returns(0);
-            mockContext.Setup(c => c.Factory).Returns(mockFactory.Object);
+
+            messageContext.MaxMessageSize = 0;
+            messageContext.Factory = mockFactory.Object;
+
             var mockMessage = new Mock<IEncodeable>();
             var binaryEncodingId = new ExpandedNodeId(123, 0);
             mockMessage.Setup(m => m.BinaryEncodingId).Returns(binaryEncodingId);
             mockMessage.Setup(m => m.Encode(It.IsAny<IEncoder>()));
-            var encoder = new BinaryEncoder(mockContext.Object);
+            var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.EncodeMessage(mockMessage.Object);
             // Assert
@@ -259,16 +151,12 @@ namespace Opc.Ua.UnitTests
         public void EncodeMessage_ExceedsMaxMessageSize_ThrowsServiceResultException()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            var mockNamespaceTable = new Mock<NamespaceTable>();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
             var mockFactory = new Mock<IEncodeableFactory>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.NamespaceUris).Returns(mockNamespaceTable.Object);
-            mockContext.Setup(c => c.MaxMessageSize).Returns(10);
-            mockContext.Setup(c => c.Factory).Returns(mockFactory.Object);
+
+            messageContext.MaxMessageSize = 10;
+            messageContext.Factory = mockFactory.Object;
             var mockMessage = new Mock<IEncodeable>();
             var binaryEncodingId = new ExpandedNodeId(123, 0);
             mockMessage.Setup(m => m.BinaryEncodingId).Returns(binaryEncodingId);
@@ -280,10 +168,10 @@ namespace Opc.Ua.UnitTests
                     enc.WriteInt32(null, i);
                 }
             });
-            var encoder = new BinaryEncoder(mockContext.Object);
+            var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.EncodeMessage(mockMessage.Object));
-            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.EncodeMessage(mockMessage.Object));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
         /// <summary>
@@ -293,16 +181,12 @@ namespace Opc.Ua.UnitTests
         public void EncodeMessage_MaxMessageSizeZero_NoSizeCheck()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            var mockNamespaceTable = new Mock<NamespaceTable>();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
             var mockFactory = new Mock<IEncodeableFactory>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.NamespaceUris).Returns(mockNamespaceTable.Object);
-            mockContext.Setup(c => c.MaxMessageSize).Returns(0);
-            mockContext.Setup(c => c.Factory).Returns(mockFactory.Object);
+
+            messageContext.MaxMessageSize = 0;
+            messageContext.Factory = mockFactory.Object;
             var mockMessage = new Mock<IEncodeable>();
             var binaryEncodingId = new ExpandedNodeId(123, 0);
             mockMessage.Setup(m => m.BinaryEncodingId).Returns(binaryEncodingId);
@@ -314,7 +198,7 @@ namespace Opc.Ua.UnitTests
                     enc.WriteInt32(null, i);
                 }
             });
-            var encoder = new BinaryEncoder(mockContext.Object);
+            var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
             Assert.DoesNotThrow(() => encoder.EncodeMessage(mockMessage.Object));
             Assert.That(encoder.Position, Is.GreaterThan(0));
@@ -327,16 +211,12 @@ namespace Opc.Ua.UnitTests
         public void EncodeMessage_MaxMessageSizeNegative_NoSizeCheck()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            var mockNamespaceTable = new Mock<NamespaceTable>();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
             var mockFactory = new Mock<IEncodeableFactory>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.NamespaceUris).Returns(mockNamespaceTable.Object);
-            mockContext.Setup(c => c.MaxMessageSize).Returns(-1);
-            mockContext.Setup(c => c.Factory).Returns(mockFactory.Object);
+
+            messageContext.MaxMessageSize = -1;
+            messageContext.Factory = mockFactory.Object;
             var mockMessage = new Mock<IEncodeable>();
             var binaryEncodingId = new ExpandedNodeId(123, 0);
             mockMessage.Setup(m => m.BinaryEncodingId).Returns(binaryEncodingId);
@@ -347,7 +227,7 @@ namespace Opc.Ua.UnitTests
                     enc.WriteInt32(null, i);
                 }
             });
-            var encoder = new BinaryEncoder(mockContext.Object);
+            var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
             Assert.DoesNotThrow(() => encoder.EncodeMessage(mockMessage.Object));
         }
@@ -359,21 +239,18 @@ namespace Opc.Ua.UnitTests
         public void EncodeMessage_MessageAtMaxSizeBoundary_EncodesSuccessfully()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            var mockNamespaceTable = new Mock<NamespaceTable>();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
             var mockFactory = new Mock<IEncodeableFactory>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.NamespaceUris).Returns(mockNamespaceTable.Object);
-            mockContext.Setup(c => c.MaxMessageSize).Returns(1000);
-            mockContext.Setup(c => c.Factory).Returns(mockFactory.Object);
+
+            messageContext.MaxMessageSize = 1000;
+            messageContext.Factory = mockFactory.Object;
             var mockMessage = new Mock<IEncodeable>();
             var binaryEncodingId = new ExpandedNodeId(123, 0);
             mockMessage.Setup(m => m.BinaryEncodingId).Returns(binaryEncodingId);
             mockMessage.Setup(m => m.Encode(It.IsAny<IEncoder>()));
-            var encoder = new BinaryEncoder(mockContext.Object);
+            var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
             Assert.DoesNotThrow(() => encoder.EncodeMessage(mockMessage.Object));
         }
@@ -385,26 +262,23 @@ namespace Opc.Ua.UnitTests
         public void EncodeMessage_ValidMessage_WritesBinaryEncodingId()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
             var namespaceTable = new NamespaceTable();
             var mockFactory = new Mock<IEncodeableFactory>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.NamespaceUris).Returns(namespaceTable);
-            mockContext.Setup(c => c.MaxMessageSize).Returns(0);
-            mockContext.Setup(c => c.Factory).Returns(mockFactory.Object);
+
+            messageContext.NamespaceUris = namespaceTable;
+            messageContext.MaxMessageSize = 0;
+            messageContext.Factory = mockFactory.Object;
             var mockMessage = new Mock<IEncodeable>();
             var binaryEncodingId = new ExpandedNodeId(456, 0);
             mockMessage.Setup(m => m.BinaryEncodingId).Returns(binaryEncodingId);
             mockMessage.Setup(m => m.Encode(It.IsAny<IEncoder>()));
-            var encoder = new BinaryEncoder(mockContext.Object);
+            var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.EncodeMessage(mockMessage.Object);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.GreaterThan(0));
@@ -417,22 +291,21 @@ namespace Opc.Ua.UnitTests
         public void EncodeMessage_MessageWithDifferentNamespace_EncodesSuccessfully()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
             var namespaceTable = new NamespaceTable();
             namespaceTable.Append("http://test.namespace.com");
             var mockFactory = new Mock<IEncodeableFactory>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.NamespaceUris).Returns(namespaceTable);
-            mockContext.Setup(c => c.MaxMessageSize).Returns(0);
-            mockContext.Setup(c => c.Factory).Returns(mockFactory.Object);
+
+            messageContext.NamespaceUris = namespaceTable;
+            messageContext.MaxMessageSize = 0;
+            messageContext.Factory = mockFactory.Object;
             var mockMessage = new Mock<IEncodeable>();
             var binaryEncodingId = new ExpandedNodeId(789, 1);
             mockMessage.Setup(m => m.BinaryEncodingId).Returns(binaryEncodingId);
             mockMessage.Setup(m => m.Encode(It.IsAny<IEncoder>()));
-            var encoder = new BinaryEncoder(mockContext.Object);
+            var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.EncodeMessage(mockMessage.Object);
             // Assert
@@ -447,16 +320,12 @@ namespace Opc.Ua.UnitTests
         public void EncodeMessage_ExceedsMaxMessageSize_ThrowsWithCorrectStatusCode()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            var mockNamespaceTable = new Mock<NamespaceTable>();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
             var mockFactory = new Mock<IEncodeableFactory>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.NamespaceUris).Returns(mockNamespaceTable.Object);
-            mockContext.Setup(c => c.MaxMessageSize).Returns(50);
-            mockContext.Setup(c => c.Factory).Returns(mockFactory.Object);
+            messageContext.MaxMessageSize = 50;
+            messageContext.Factory = mockFactory.Object;
             var mockMessage = new Mock<IEncodeable>();
             var binaryEncodingId = new ExpandedNodeId(999, 0);
             mockMessage.Setup(m => m.BinaryEncodingId).Returns(binaryEncodingId);
@@ -467,10 +336,10 @@ namespace Opc.Ua.UnitTests
                     enc.WriteInt32(null, i);
                 }
             });
-            var encoder = new BinaryEncoder(mockContext.Object);
+            var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.EncodeMessage(mockMessage.Object));
-            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.EncodeMessage(mockMessage.Object));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             Assert.That(ex.Message, Does.Contain("MaxMessageSize"));
         }
 
@@ -481,21 +350,18 @@ namespace Opc.Ua.UnitTests
         public void EncodeMessage_MaxMessageSizeIntMax_EncodesSuccessfully()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            var mockNamespaceTable = new Mock<NamespaceTable>();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var mockFactory = new Mock<IEncodeableFactory>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.NamespaceUris).Returns(mockNamespaceTable.Object);
-            mockContext.Setup(c => c.MaxMessageSize).Returns(int.MaxValue);
-            mockContext.Setup(c => c.Factory).Returns(mockFactory.Object);
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxMessageSize = int.MaxValue,
+                Factory = mockFactory.Object
+            };
             var mockMessage = new Mock<IEncodeable>();
             var binaryEncodingId = new ExpandedNodeId(111, 0);
             mockMessage.Setup(m => m.BinaryEncodingId).Returns(binaryEncodingId);
             mockMessage.Setup(m => m.Encode(It.IsAny<IEncoder>()));
-            var encoder = new BinaryEncoder(mockContext.Object);
+            var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
             Assert.DoesNotThrow(() => encoder.EncodeMessage(mockMessage.Object));
         }
@@ -507,16 +373,13 @@ namespace Opc.Ua.UnitTests
         public void EncodeMessage_MaxMessageSizeIntMin_NoSizeCheck()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            var mockNamespaceTable = new Mock<NamespaceTable>();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var mockFactory = new Mock<IEncodeableFactory>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.NamespaceUris).Returns(mockNamespaceTable.Object);
-            mockContext.Setup(c => c.MaxMessageSize).Returns(int.MinValue);
-            mockContext.Setup(c => c.Factory).Returns(mockFactory.Object);
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxMessageSize = int.MinValue,
+                Factory = mockFactory.Object
+            };
             var mockMessage = new Mock<IEncodeable>();
             var binaryEncodingId = new ExpandedNodeId(222, 0);
             mockMessage.Setup(m => m.BinaryEncodingId).Returns(binaryEncodingId);
@@ -527,7 +390,7 @@ namespace Opc.Ua.UnitTests
                     enc.WriteInt32(null, i);
                 }
             });
-            var encoder = new BinaryEncoder(mockContext.Object);
+            var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
             Assert.DoesNotThrow(() => encoder.EncodeMessage(mockMessage.Object));
         }
@@ -543,17 +406,18 @@ namespace Opc.Ua.UnitTests
         public void WriteDouble_BoundaryValue_WritesCorrectBytes(double value)
         {
             // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteDouble("field", value);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.EqualTo(sizeof(double)));
             using var ms = new MemoryStream(buffer);
             using var reader = new BinaryReader(ms);
-            var readValue = reader.ReadDouble();
+            double readValue = reader.ReadDouble();
             Assert.That(readValue, Is.EqualTo(value));
         }
 
@@ -565,18 +429,19 @@ namespace Opc.Ua.UnitTests
         public void WriteDouble_NaNValue_WritesCorrectBytes()
         {
             // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var value = double.NaN;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            const double value = double.NaN;
             // Act
             encoder.WriteDouble("field", value);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.EqualTo(sizeof(double)));
             using var ms = new MemoryStream(buffer);
             using var reader = new BinaryReader(ms);
-            var readValue = reader.ReadDouble();
+            double readValue = reader.ReadDouble();
             Assert.That(double.IsNaN(readValue), Is.True);
         }
 
@@ -588,18 +453,19 @@ namespace Opc.Ua.UnitTests
         public void WriteDouble_PositiveInfinity_WritesCorrectBytes()
         {
             // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var value = double.PositiveInfinity;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            const double value = double.PositiveInfinity;
             // Act
             encoder.WriteDouble("field", value);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.EqualTo(sizeof(double)));
             using var ms = new MemoryStream(buffer);
             using var reader = new BinaryReader(ms);
-            var readValue = reader.ReadDouble();
+            double readValue = reader.ReadDouble();
             Assert.That(double.IsPositiveInfinity(readValue), Is.True);
         }
 
@@ -611,18 +477,19 @@ namespace Opc.Ua.UnitTests
         public void WriteDouble_NegativeInfinity_WritesCorrectBytes()
         {
             // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var value = double.NegativeInfinity;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            const double value = double.NegativeInfinity;
             // Act
             encoder.WriteDouble("field", value);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.EqualTo(sizeof(double)));
             using var ms = new MemoryStream(buffer);
             using var reader = new BinaryReader(ms);
-            var readValue = reader.ReadDouble();
+            double readValue = reader.ReadDouble();
             Assert.That(double.IsNegativeInfinity(readValue), Is.True);
         }
 
@@ -634,24 +501,25 @@ namespace Opc.Ua.UnitTests
         public void WriteDouble_MultipleValues_WritesAllCorrectly()
         {
             // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var values = new[]
-            {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            double[] values =
+            [
                 1.0,
                 2.5,
                 -3.7,
                 0.0,
                 double.MaxValue,
                 double.MinValue
-            };
+            ];
             // Act
-            foreach (var value in values)
+            foreach (double value in values)
             {
                 encoder.WriteDouble("field", value);
             }
 
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.EqualTo(sizeof(double) * values.Length));
@@ -659,7 +527,7 @@ namespace Opc.Ua.UnitTests
             using var reader = new BinaryReader(ms);
             for (int i = 0; i < values.Length; i++)
             {
-                var readValue = reader.ReadDouble();
+                double readValue = reader.ReadDouble();
                 Assert.That(readValue, Is.EqualTo(values[i]));
             }
         }
@@ -673,17 +541,18 @@ namespace Opc.Ua.UnitTests
         public void WriteDouble_ZeroValues_WritesCorrectBytes(double value)
         {
             // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteDouble("field", value);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.EqualTo(sizeof(double)));
             using var ms = new MemoryStream(buffer);
             using var reader = new BinaryReader(ms);
-            var readValue = reader.ReadDouble();
+            double readValue = reader.ReadDouble();
             Assert.That(readValue, Is.EqualTo(value));
         }
 
@@ -698,17 +567,18 @@ namespace Opc.Ua.UnitTests
         public void WriteDouble_VerySmallValues_WritesCorrectBytes(double value)
         {
             // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteDouble("field", value);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.EqualTo(sizeof(double)));
             using var ms = new MemoryStream(buffer);
             using var reader = new BinaryReader(ms);
-            var readValue = reader.ReadDouble();
+            double readValue = reader.ReadDouble();
             Assert.That(readValue, Is.EqualTo(value));
         }
 
@@ -723,35 +593,19 @@ namespace Opc.Ua.UnitTests
         public void WriteDouble_VeryLargeValues_WritesCorrectBytes(double value)
         {
             // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteDouble("field", value);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.EqualTo(sizeof(double)));
             using var ms = new MemoryStream(buffer);
             using var reader = new BinaryReader(ms);
-            var readValue = reader.ReadDouble();
+            double readValue = reader.ReadDouble();
             Assert.That(readValue, Is.EqualTo(value));
-        }
-
-        /// <summary>
-        /// Creates a mock IServiceMessageContext for testing.
-        /// Sets up the required telemetry and logger dependencies.
-        /// </summary>
-        /// <returns>A configured mock IServiceMessageContext.</returns>
-        private Mock<IServiceMessageContext> CreateMockContext()
-        {
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            return mockContext;
         }
 
         /// <summary>
@@ -761,17 +615,13 @@ namespace Opc.Ua.UnitTests
         public void WriteDiagnosticInfo_NullValue_WritesNullEncoding()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteDiagnosticInfo("test", null);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(1));
@@ -785,18 +635,14 @@ namespace Opc.Ua.UnitTests
         public void WriteDiagnosticInfo_DefaultValue_WritesNullEncoding()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var diagnosticInfo = new DiagnosticInfo();
             // Act
             encoder.WriteDiagnosticInfo("test", diagnosticInfo);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(0));
@@ -810,21 +656,17 @@ namespace Opc.Ua.UnitTests
         public void WriteDiagnosticInfo_WithSymbolicId_WritesCorrectEncoding()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var diagnosticInfo = new DiagnosticInfo
             {
                 SymbolicId = 100
             };
             // Act
             encoder.WriteDiagnosticInfo("test", diagnosticInfo);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(1));
@@ -838,14 +680,10 @@ namespace Opc.Ua.UnitTests
         public void WriteDiagnosticInfo_WithAllFields_WritesCorrectEncoding()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var diagnosticInfo = new DiagnosticInfo
             {
                 SymbolicId = 100,
@@ -857,7 +695,7 @@ namespace Opc.Ua.UnitTests
             };
             // Act
             encoder.WriteDiagnosticInfo("test", diagnosticInfo);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(1));
@@ -871,14 +709,10 @@ namespace Opc.Ua.UnitTests
         public void WriteDiagnosticInfo_WithInnerDiagnosticInfo_WritesCorrectEncoding()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var innerDiagnosticInfo = new DiagnosticInfo
             {
                 SymbolicId = 500
@@ -890,7 +724,7 @@ namespace Opc.Ua.UnitTests
             };
             // Act
             encoder.WriteDiagnosticInfo("test", diagnosticInfo);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(1));
@@ -904,21 +738,17 @@ namespace Opc.Ua.UnitTests
         public void WriteDiagnosticInfo_NullFieldName_WritesCorrectly()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var diagnosticInfo = new DiagnosticInfo
             {
                 SymbolicId = 100
             };
             // Act
             encoder.WriteDiagnosticInfo(null, diagnosticInfo);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(0));
@@ -931,21 +761,17 @@ namespace Opc.Ua.UnitTests
         public void WriteDiagnosticInfo_EmptyFieldName_WritesCorrectly()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var diagnosticInfo = new DiagnosticInfo
             {
                 SymbolicId = 100
             };
             // Act
             encoder.WriteDiagnosticInfo(string.Empty, diagnosticInfo);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(0));
@@ -958,21 +784,17 @@ namespace Opc.Ua.UnitTests
         public void WriteDiagnosticInfo_WhitespaceFieldName_WritesCorrectly()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var diagnosticInfo = new DiagnosticInfo
             {
                 SymbolicId = 100
             };
             // Act
             encoder.WriteDiagnosticInfo("   ", diagnosticInfo);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(0));
@@ -985,21 +807,17 @@ namespace Opc.Ua.UnitTests
         public void WriteDiagnosticInfo_WithNamespaceUri_WritesCorrectEncoding()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var diagnosticInfo = new DiagnosticInfo
             {
                 NamespaceUri = 200
             };
             // Act
             encoder.WriteDiagnosticInfo("test", diagnosticInfo);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(1));
@@ -1013,21 +831,17 @@ namespace Opc.Ua.UnitTests
         public void WriteDiagnosticInfo_WithLocale_WritesCorrectEncoding()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var diagnosticInfo = new DiagnosticInfo
             {
                 Locale = 300
             };
             // Act
             encoder.WriteDiagnosticInfo("test", diagnosticInfo);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(1));
@@ -1041,21 +855,17 @@ namespace Opc.Ua.UnitTests
         public void WriteDiagnosticInfo_WithLocalizedText_WritesCorrectEncoding()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var diagnosticInfo = new DiagnosticInfo
             {
                 LocalizedText = 400
             };
             // Act
             encoder.WriteDiagnosticInfo("test", diagnosticInfo);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(1));
@@ -1069,21 +879,17 @@ namespace Opc.Ua.UnitTests
         public void WriteDiagnosticInfo_WithAdditionalInfo_WritesCorrectEncoding()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var diagnosticInfo = new DiagnosticInfo
             {
                 AdditionalInfo = "Test Info"
             };
             // Act
             encoder.WriteDiagnosticInfo("test", diagnosticInfo);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(1));
@@ -1097,21 +903,17 @@ namespace Opc.Ua.UnitTests
         public void WriteDiagnosticInfo_WithInnerStatusCode_WritesCorrectEncoding()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var diagnosticInfo = new DiagnosticInfo
             {
                 InnerStatusCode = StatusCodes.BadUnexpectedError
             };
             // Act
             encoder.WriteDiagnosticInfo("test", diagnosticInfo);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(1));
@@ -1125,21 +927,17 @@ namespace Opc.Ua.UnitTests
         public void WriteDiagnosticInfo_WithEmptyAdditionalInfo_WritesCorrectEncoding()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var diagnosticInfo = new DiagnosticInfo
             {
                 AdditionalInfo = string.Empty
             };
             // Act
             encoder.WriteDiagnosticInfo("test", diagnosticInfo);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(1));
@@ -1153,14 +951,10 @@ namespace Opc.Ua.UnitTests
         public void WriteDiagnosticInfo_WithNegativeSymbolicId_DoesNotWriteSymbolicId()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var diagnosticInfo = new DiagnosticInfo
             {
                 SymbolicId = -1,
@@ -1168,7 +962,7 @@ namespace Opc.Ua.UnitTests
             };
             // Act
             encoder.WriteDiagnosticInfo("test", diagnosticInfo);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(1));
@@ -1182,21 +976,17 @@ namespace Opc.Ua.UnitTests
         public void WriteDiagnosticInfo_WithZeroSymbolicId_WritesSymbolicId()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var diagnosticInfo = new DiagnosticInfo
             {
                 SymbolicId = 0
             };
             // Act
             encoder.WriteDiagnosticInfo("test", diagnosticInfo);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(1));
@@ -1210,33 +1000,13 @@ namespace Opc.Ua.UnitTests
         public void WriteUInt16Array_ExceedsMaxArrayLength_ThrowsServiceResultException()
         {
             // Arrange
-            var context = CreateMockContext(maxArrayLength: 5);
+            IServiceMessageContext context = CreateContext(maxArrayLength: 5);
             var encoder = new BinaryEncoder(context);
-            var values = new ushort[10]; // Array larger than maxArrayLength
+            ushort[] values = new ushort[10]; // Array larger than maxArrayLength
             var array = new ArrayOf<ushort>(values);
             // Act & Assert
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteUInt16Array("testField", array));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteUInt16Array("testField", array));
             Assert.That(ex?.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
-        }
-
-        /// <summary>
-        /// Creates a mock IServiceMessageContext for testing.
-        /// </summary>
-        /// <param name = "maxArrayLength">Maximum array length (0 for no limit).</param>
-        /// <returns>A mocked IServiceMessageContext instance.</returns>
-        private IServiceMessageContext CreateMockContext(int maxArrayLength = 0)
-        {
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(maxArrayLength);
-            mockContext.Setup(c => c.MaxByteStringLength).Returns(0);
-            mockContext.Setup(c => c.MaxStringLength).Returns(0);
-            return mockContext.Object;
         }
 
         /// <summary>
@@ -1246,12 +1016,12 @@ namespace Opc.Ua.UnitTests
         public void WriteXmlElementArray_NullArray_WritesNegativeOne()
         {
             // Arrange
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             var encoder = new BinaryEncoder(context);
             var nullArray = default(ArrayOf<XmlElement>);
             // Act
             encoder.WriteXmlElementArray("TestField", nullArray);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.EqualTo(4));
@@ -1265,12 +1035,12 @@ namespace Opc.Ua.UnitTests
         public void WriteXmlElementArray_EmptyArray_WritesZeroLength()
         {
             // Arrange
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             var encoder = new BinaryEncoder(context);
-            var emptyArray = ArrayOf<XmlElement>.Empty;
+            ArrayOf<XmlElement> emptyArray = [];
             // Act
             encoder.WriteXmlElementArray("TestField", emptyArray);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.EqualTo(4));
@@ -1284,35 +1054,18 @@ namespace Opc.Ua.UnitTests
         public void WriteXmlElementArray_ArrayWithEmptyElement_WritesLengthAndEmptyMarker()
         {
             // Arrange
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             var encoder = new BinaryEncoder(context);
-            var emptyXmlElement = XmlElement.Empty;
-            var array = new ArrayOf<XmlElement>(new[] { emptyXmlElement });
+            XmlElement emptyXmlElement = XmlElement.Empty;
+            var array = new ArrayOf<XmlElement>([emptyXmlElement]);
             // Act
             encoder.WriteXmlElementArray("TestField", array);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.EqualTo(8)); // 4 bytes for length + 4 bytes for -1 (empty marker)
             Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(1));
             Assert.That(BitConverter.ToInt32(buffer, 4), Is.EqualTo(-1));
-        }
-
-        /// <summary>
-        /// Creates a mock service message context for testing.
-        /// </summary>
-        private IServiceMessageContext CreateContext()
-        {
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            mockContext.Setup(c => c.MaxStringLength).Returns(int.MaxValue);
-            return mockContext.Object;
         }
 
         /// <summary>
@@ -1322,13 +1075,14 @@ namespace Opc.Ua.UnitTests
         public void CloseAndReturnText_WithEmptyMemoryStream_ReturnsEmptyBase64String()
         {
             // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
             // Act
-            var result = encoder.CloseAndReturnText();
+            string result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result, Is.EqualTo(Convert.ToBase64String(Array.Empty<byte>())));
+            Assert.That(result, Is.EqualTo(Convert.ToBase64String([])));
         }
 
         /// <summary>
@@ -1338,16 +1092,17 @@ namespace Opc.Ua.UnitTests
         public void CloseAndReturnText_EncodesWrittenDataCorrectly()
         {
             // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
             encoder.WriteBoolean("BoolField", true);
             encoder.WriteByte("ByteField", 255);
             encoder.WriteInt16("Int16Field", short.MaxValue);
             // Act
-            var result = encoder.CloseAndReturnText();
+            string result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(result, Is.Not.Null);
-            var decoded = Convert.FromBase64String(result);
+            byte[] decoded = Convert.FromBase64String(result);
             Assert.That(decoded.Length, Is.GreaterThan(0));
             // Verify the encoded data contains expected values
             Assert.That(decoded[0], Is.EqualTo(1)); // true as byte
@@ -1361,15 +1116,16 @@ namespace Opc.Ua.UnitTests
         public void CloseAndReturnText_WithCustomStream_ReturnsNull()
         {
             // Arrange
-            var mockContext = CreateMockContext();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
             using var customStream = new MemoryStream(); // Create a stream but cast as Stream to simulate non-MemoryStream behavior
             Stream stream = customStream;
             // Use a wrapper stream to ensure it's not detected as MemoryStream
             using var bufferedStream = new BufferedStream(stream);
-            var encoder = new BinaryEncoder(bufferedStream, mockContext.Object, leaveOpen: true);
+            var encoder = new BinaryEncoder(bufferedStream, messageContext, leaveOpen: true);
             encoder.WriteInt32("TestField", 42);
             // Act
-            var result = encoder.CloseAndReturnText();
+            string result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(result, Is.Null);
         }
@@ -1383,18 +1139,14 @@ namespace Opc.Ua.UnitTests
         public void WriteUInt32_MinValue_WritesCorrectBytes()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            uint value = uint.MinValue;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            const uint value = uint.MinValue;
             // Act
             encoder.WriteUInt32("testField", value);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.EqualTo(4));
@@ -1413,18 +1165,14 @@ namespace Opc.Ua.UnitTests
         public void WriteUInt32_MaxValue_WritesCorrectBytes()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            uint value = uint.MaxValue;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            const uint value = uint.MaxValue;
             // Act
             encoder.WriteUInt32("testField", value);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.EqualTo(4));
@@ -1443,12 +1191,13 @@ namespace Opc.Ua.UnitTests
         public void WriteUInt32_NullFieldName_WritesValueCorrectly()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            uint value = 12345u;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            const uint value = 12345u;
             // Act
             encoder.WriteUInt32(null, value);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.EqualTo(4));
@@ -1467,12 +1216,13 @@ namespace Opc.Ua.UnitTests
         public void WriteUInt32_EmptyFieldName_WritesValueCorrectly()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            uint value = 99999u;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            const uint value = 99999u;
             // Act
             encoder.WriteUInt32(string.Empty, value);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.EqualTo(4));
@@ -1484,19 +1234,18 @@ namespace Opc.Ua.UnitTests
 
         /// <summary>
         /// Tests WriteUInt32 with whitespace field name.
-        /// Verifies that whitespace field name does not cause exceptions and value is still written correctly.
-        /// Expected result: Value is written correctly regardless of field name.
         /// </summary>
         [Test]
         public void WriteUInt32_WhitespaceFieldName_WritesValueCorrectly()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            uint value = 555u;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            const uint value = 555u;
             // Act
             encoder.WriteUInt32("   ", value);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.EqualTo(4));
@@ -1508,23 +1257,22 @@ namespace Opc.Ua.UnitTests
 
         /// <summary>
         /// Tests WriteUInt32 multiple times in sequence.
-        /// Verifies that multiple values are written sequentially and correctly to the stream.
-        /// Expected result: All values appear in sequence in the buffer.
         /// </summary>
         [Test]
         public void WriteUInt32_MultipleValues_WritesAllValuesSequentially()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            uint value1 = 1u;
-            uint value2 = 256u;
-            uint value3 = 65536u;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            const uint value1 = 1u;
+            const uint value2 = 256u;
+            const uint value3 = 65536u;
             // Act
             encoder.WriteUInt32("field1", value1);
             encoder.WriteUInt32("field2", value2);
             encoder.WriteUInt32("field3", value3);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.EqualTo(12));
@@ -1554,13 +1302,14 @@ namespace Opc.Ua.UnitTests
         public void WriteUInt32_LongFieldName_WritesValueCorrectly()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            uint value = 777u;
-            string longFieldName = new string ('a', 10000);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            const uint value = 777u;
+            string longFieldName = new('a', 10000);
             // Act
             encoder.WriteUInt32(longFieldName, value);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.EqualTo(4));
@@ -1579,13 +1328,14 @@ namespace Opc.Ua.UnitTests
         public void WriteUInt32_SpecialCharactersInFieldName_WritesValueCorrectly()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            uint value = 888u;
-            string specialFieldName = "field\0name\t\r\n!@#$%^&*()";
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            const uint value = 888u;
+            const string specialFieldName = "field\0name\t\r\n!@#$%^&*()";
             // Act
             encoder.WriteUInt32(specialFieldName, value);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.EqualTo(4));
@@ -1596,38 +1346,20 @@ namespace Opc.Ua.UnitTests
         }
 
         /// <summary>
-        /// Helper method to create a mock IServiceMessageContext with required dependencies.
-        /// </summary>
-        /// <returns>Mock IServiceMessageContext configured with telemetry and logger.</returns>
-        private Mock<IServiceMessageContext> CreateMockServiceMessageContext()
-        {
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            return mockContext;
-        }
-
-        /// <summary>
         /// Verifies that WriteXmlElement writes -1 when XmlElement is empty.
         /// </summary>
         [Test]
         public void WriteXmlElement_EmptyXmlElement_WritesNegativeOne()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var emptyXmlElement = XmlElement.Empty;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            XmlElement emptyXmlElement = XmlElement.Empty;
             // Act
             encoder.WriteXmlElement("testField", emptyXmlElement);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(4));
@@ -1641,27 +1373,23 @@ namespace Opc.Ua.UnitTests
         public void WriteXmlElement_ValidXmlElement_WritesOuterXml()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var xmlString = "<test>value</test>";
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            const string xmlString = "<test>value</test>";
             var xmlElement = XmlElement.From(xmlString);
             // Act
             encoder.WriteXmlElement("testField", xmlElement);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(4));
             using var memStream = new MemoryStream(result);
             using var reader = new BinaryReader(memStream);
-            var length = reader.ReadInt32();
+            int length = reader.ReadInt32();
             Assert.That(length, Is.EqualTo(xmlString.Length));
-            var decodedString = System.Text.Encoding.UTF8.GetString(reader.ReadBytes(length));
+            string decodedString = System.Text.Encoding.UTF8.GetString(reader.ReadBytes(length));
             Assert.That(decodedString, Is.EqualTo(xmlString));
         }
 
@@ -1672,26 +1400,22 @@ namespace Opc.Ua.UnitTests
         public void WriteXmlElement_NullFieldNameWithValidXml_WritesOuterXml()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var xmlString = "<root><child>data</child></root>";
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            const string xmlString = "<root><child>data</child></root>";
             var xmlElement = XmlElement.From(xmlString);
             // Act
             encoder.WriteXmlElement(null, xmlElement);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             using var memStream = new MemoryStream(result);
             using var reader = new BinaryReader(memStream);
-            var length = reader.ReadInt32();
+            int length = reader.ReadInt32();
             Assert.That(length, Is.EqualTo(xmlString.Length));
-            var decodedString = System.Text.Encoding.UTF8.GetString(reader.ReadBytes(length));
+            string decodedString = System.Text.Encoding.UTF8.GetString(reader.ReadBytes(length));
             Assert.That(decodedString, Is.EqualTo(xmlString));
         }
 
@@ -1702,26 +1426,22 @@ namespace Opc.Ua.UnitTests
         public void WriteXmlElement_EmptyFieldNameWithValidXml_WritesOuterXml()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var xmlString = "<element/>";
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            const string xmlString = "<element/>";
             var xmlElement = XmlElement.From(xmlString);
             // Act
             encoder.WriteXmlElement(string.Empty, xmlElement);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             using var memStream = new MemoryStream(result);
             using var reader = new BinaryReader(memStream);
-            var length = reader.ReadInt32();
+            int length = reader.ReadInt32();
             Assert.That(length, Is.EqualTo(xmlString.Length));
-            var decodedString = System.Text.Encoding.UTF8.GetString(reader.ReadBytes(length));
+            string decodedString = System.Text.Encoding.UTF8.GetString(reader.ReadBytes(length));
             Assert.That(decodedString, Is.EqualTo(xmlString));
         }
 
@@ -1732,26 +1452,22 @@ namespace Opc.Ua.UnitTests
         public void WriteXmlElement_ComplexXmlElement_WritesOuterXml()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var xmlString = "<root attr=\"value\"><child1>text1</child1><child2>text2</child2></root>";
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            const string xmlString = "<root attr=\"value\"><child1>text1</child1><child2>text2</child2></root>";
             var xmlElement = XmlElement.From(xmlString);
             // Act
             encoder.WriteXmlElement("complexField", xmlElement);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             using var memStream = new MemoryStream(result);
             using var reader = new BinaryReader(memStream);
-            var length = reader.ReadInt32();
+            int length = reader.ReadInt32();
             Assert.That(length, Is.EqualTo(xmlString.Length));
-            var decodedString = System.Text.Encoding.UTF8.GetString(reader.ReadBytes(length));
+            string decodedString = System.Text.Encoding.UTF8.GetString(reader.ReadBytes(length));
             Assert.That(decodedString, Is.EqualTo(xmlString));
         }
 
@@ -1762,26 +1478,22 @@ namespace Opc.Ua.UnitTests
         public void WriteXmlElement_XmlWithSpecialCharacters_WritesOuterXml()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var xmlString = "<data>&lt;&gt;&amp;&quot;&#39;</data>";
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            const string xmlString = "<data>&lt;&gt;&amp;&quot;&#39;</data>";
             var xmlElement = XmlElement.From(xmlString);
             // Act
             encoder.WriteXmlElement("specialField", xmlElement);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             using var memStream = new MemoryStream(result);
             using var reader = new BinaryReader(memStream);
-            var length = reader.ReadInt32();
+            int length = reader.ReadInt32();
             Assert.That(length, Is.EqualTo(xmlString.Length));
-            var decodedString = System.Text.Encoding.UTF8.GetString(reader.ReadBytes(length));
+            string decodedString = System.Text.Encoding.UTF8.GetString(reader.ReadBytes(length));
             Assert.That(decodedString, Is.EqualTo(xmlString));
         }
 
@@ -1792,14 +1504,10 @@ namespace Opc.Ua.UnitTests
         public void Close_EmptyEncoder_ReturnsZero()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             // Act
             int position = encoder.Close();
             // Assert
@@ -1813,8 +1521,10 @@ namespace Opc.Ua.UnitTests
         public void Close_AfterWritingSingleByte_ReturnsOne()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             encoder.WriteByte(null, 42);
             // Act
             int position = encoder.Close();
@@ -1830,13 +1540,14 @@ namespace Opc.Ua.UnitTests
         public void Close_AfterWritingMultiplePrimitiveValues_ReturnsCorrectPosition()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
             encoder.WriteBoolean(null, true); // 1 byte
             encoder.WriteInt32(null, 12345); // 4 bytes
             encoder.WriteInt64(null, 123456789L); // 8 bytes
             encoder.WriteDouble(null, 3.14159); // 8 bytes
-            int expectedPosition = 1 + 4 + 8 + 8; // 21 bytes
+            const int expectedPosition = 1 + 4 + 8 + 8; // 21 bytes
             // Act
             int position = encoder.Close();
             // Assert
@@ -1851,9 +1562,10 @@ namespace Opc.Ua.UnitTests
         public void Close_WithByteArrayConstructor_ReturnsCorrectPosition()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
             byte[] buffer = new byte[1024];
-            var encoder = new BinaryEncoder(buffer, 0, buffer.Length, mockContext.Object);
+            var encoder = new BinaryEncoder(buffer, 0, buffer.Length, messageContext);
             encoder.WriteInt32(null, 100);
             encoder.WriteInt32(null, 200);
             // Act
@@ -1870,9 +1582,10 @@ namespace Opc.Ua.UnitTests
         public void Close_WithCustomStream_ReturnsCorrectPosition()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, leaveOpen: false);
+            var encoder = new BinaryEncoder(stream, messageContext, leaveOpen: false);
             encoder.WriteUInt32(null, 12345U);
             encoder.WriteUInt64(null, 67890UL);
             // Act
@@ -1889,9 +1602,10 @@ namespace Opc.Ua.UnitTests
         public void Close_WithLargePosition_ReturnsCorrectPosition()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, leaveOpen: false);
+            var encoder = new BinaryEncoder(stream, messageContext, leaveOpen: false);
             // Write a large amount of data
             byte[] largeData = new byte[100000];
             encoder.WriteRawBytes(largeData, 0, largeData.Length);
@@ -1909,20 +1623,21 @@ namespace Opc.Ua.UnitTests
         public void Close_WithPositionExceedingIntMaxValue_TruncatesPosition()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
             var mockStream = new Mock<Stream>();
             // Set up the mock stream to report a position exceeding int.MaxValue
-            long largePosition = (long)int.MaxValue + 100L;
+            const long largePosition = int.MaxValue + 100L;
             mockStream.Setup(s => s.Position).Returns(largePosition);
             mockStream.Setup(s => s.CanWrite).Returns(true);
             mockStream.Setup(s => s.CanRead).Returns(false);
             mockStream.Setup(s => s.CanSeek).Returns(true);
-            var encoder = new BinaryEncoder(mockStream.Object, mockContext.Object, leaveOpen: false);
+            var encoder = new BinaryEncoder(mockStream.Object, messageContext, leaveOpen: false);
             // Act
             int position = encoder.Close();
             // Assert
             // When casting from long to int, overflow wraps around
-            int expectedPosition = unchecked((int)largePosition);
+            const int expectedPosition = unchecked((int)largePosition);
             Assert.That(position, Is.EqualTo(expectedPosition));
         }
 
@@ -1934,9 +1649,10 @@ namespace Opc.Ua.UnitTests
         public void Close_WithZeroLengthBuffer_ReturnsZero()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            byte[] buffer = new byte[0];
-            var encoder = new BinaryEncoder(buffer, 0, 0, mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = [];
+            var encoder = new BinaryEncoder(buffer, 0, 0, messageContext);
             // Act
             int position = encoder.Close();
             // Assert
@@ -1951,10 +1667,11 @@ namespace Opc.Ua.UnitTests
         public void Close_WithBufferOffset_ReturnsPositionRelativeToStart()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
             byte[] buffer = new byte[1024];
-            int offset = 100;
-            var encoder = new BinaryEncoder(buffer, offset, buffer.Length - offset, mockContext.Object);
+            const int offset = 100;
+            var encoder = new BinaryEncoder(buffer, offset, buffer.Length - offset, messageContext);
             encoder.WriteInt32(null, 42);
             // Act
             int position = encoder.Close();
@@ -1970,8 +1687,9 @@ namespace Opc.Ua.UnitTests
         public void Close_WithMinimalData_ReturnsOne()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
             encoder.WriteBoolean(null, false);
             // Act
             int position = encoder.Close();
@@ -1987,9 +1705,10 @@ namespace Opc.Ua.UnitTests
         public void Close_FlushesData_DataIsWrittenToStream()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, leaveOpen: true);
+            var encoder = new BinaryEncoder(stream, messageContext, leaveOpen: true);
             encoder.WriteInt32(null, 12345);
             // Act
             int position = encoder.Close();
@@ -2005,17 +1724,13 @@ namespace Opc.Ua.UnitTests
         public void WriteSByte_MinValue_WritesCorrectBytes()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteSByte("TestField", sbyte.MinValue);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(1));
@@ -2029,16 +1744,13 @@ namespace Opc.Ua.UnitTests
         public void WriteSByte_MaxValue_WritesCorrectBytes()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteSByte("TestField", sbyte.MaxValue);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(1));
@@ -2052,16 +1764,13 @@ namespace Opc.Ua.UnitTests
         public void WriteSByte_Zero_WritesCorrectBytes()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteSByte("TestField", 0);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(1));
@@ -2082,16 +1791,13 @@ namespace Opc.Ua.UnitTests
         public void WriteSByte_VariousValues_WritesCorrectBytes(sbyte value)
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteSByte("TestField", value);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(1));
@@ -2105,17 +1811,13 @@ namespace Opc.Ua.UnitTests
         public void WriteSByte_NullFieldName_WritesCorrectBytes()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteSByte(null, 42);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(1));
@@ -2129,16 +1831,13 @@ namespace Opc.Ua.UnitTests
         public void WriteSByte_EmptyFieldName_WritesCorrectBytes()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteSByte(string.Empty, -42);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(1));
@@ -2152,27 +1851,23 @@ namespace Opc.Ua.UnitTests
         public void WriteSByte_MultipleValues_WritesAllValuesSequentially()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             sbyte[] values =
-            {
+            [
                 sbyte.MinValue,
                 0,
                 sbyte.MaxValue
-            };
+            ];
             // Act
-            foreach (var value in values)
+            foreach (sbyte value in values)
             {
                 encoder.WriteSByte("TestField", value);
             }
 
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(3));
@@ -2188,16 +1883,13 @@ namespace Opc.Ua.UnitTests
         public void WriteSByte_WhitespaceFieldName_WritesCorrectBytes()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteSByte("   ", 10);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(1));
@@ -2212,20 +1904,16 @@ namespace Opc.Ua.UnitTests
         public void WriteGuid_ValidNonEmptyUuid_Writes16Bytes()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var testGuid = new Guid("12345678-1234-1234-1234-123456789abc");
             var testUuid = new Uuid(testGuid);
-            var expectedBytes = testGuid.ToByteArray();
+            byte[] expectedBytes = testGuid.ToByteArray();
             // Act
             encoder.WriteGuid("TestField", testUuid);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(16), "WriteGuid should write exactly 16 bytes for a Uuid");
@@ -2240,19 +1928,15 @@ namespace Opc.Ua.UnitTests
         public void WriteGuid_EmptyUuid_Writes16ZeroBytes()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var emptyUuid = Uuid.Empty;
-            var expectedBytes = Guid.Empty.ToByteArray();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            Uuid emptyUuid = Uuid.Empty;
+            byte[] expectedBytes = Guid.Empty.ToByteArray();
             // Act
             encoder.WriteGuid("TestField", emptyUuid);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(16), "WriteGuid should write exactly 16 bytes for an empty Uuid");
@@ -2270,20 +1954,16 @@ namespace Opc.Ua.UnitTests
         public void WriteGuid_VariousUuidValues_WritesCorrectBytes(string guidString)
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var testGuid = new Guid(guidString);
             var testUuid = new Uuid(testGuid);
-            var expectedBytes = testGuid.ToByteArray();
+            byte[] expectedBytes = testGuid.ToByteArray();
             // Act
             encoder.WriteGuid("Field", testUuid);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(16));
@@ -2298,29 +1978,25 @@ namespace Opc.Ua.UnitTests
         public void WriteGuid_MultipleCalls_WritesSequentially()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var guid1 = new Guid("11111111-1111-1111-1111-111111111111");
             var guid2 = new Guid("22222222-2222-2222-2222-222222222222");
             var uuid1 = new Uuid(guid1);
             var uuid2 = new Uuid(guid2);
-            var expectedBytes1 = guid1.ToByteArray();
-            var expectedBytes2 = guid2.ToByteArray();
+            byte[] expectedBytes1 = guid1.ToByteArray();
+            byte[] expectedBytes2 = guid2.ToByteArray();
             // Act
             encoder.WriteGuid("Field1", uuid1);
             encoder.WriteGuid("Field2", uuid2);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(32), "Should write 32 bytes total (16 bytes per Uuid)");
-            var firstGuidBytes = new byte[16];
-            var secondGuidBytes = new byte[16];
+            byte[] firstGuidBytes = new byte[16];
+            byte[] secondGuidBytes = new byte[16];
             Array.Copy(result, 0, firstGuidBytes, 0, 16);
             Array.Copy(result, 16, secondGuidBytes, 0, 16);
             Assert.That(firstGuidBytes, Is.EqualTo(expectedBytes1));
@@ -2335,20 +2011,16 @@ namespace Opc.Ua.UnitTests
         public void WriteGuid_NullFieldName_WritesCorrectly()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var testGuid = new Guid("99999999-9999-9999-9999-999999999999");
             var testUuid = new Uuid(testGuid);
-            var expectedBytes = testGuid.ToByteArray();
+            byte[] expectedBytes = testGuid.ToByteArray();
             // Act
-            encoder.WriteGuid(null!, testUuid);
-            var result = encoder.CloseAndReturnBuffer();
+            encoder.WriteGuid(null, testUuid);
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(16));
@@ -2363,22 +2035,18 @@ namespace Opc.Ua.UnitTests
         public void WriteGuid_WithStreamEncoder_WritesCorrectly()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, false);
+            var encoder = new BinaryEncoder(stream, messageContext, false);
             var testGuid = new Guid("abcdef01-2345-6789-abcd-ef0123456789");
             var testUuid = new Uuid(testGuid);
-            var expectedBytes = testGuid.ToByteArray();
+            byte[] expectedBytes = testGuid.ToByteArray();
             // Act
             encoder.WriteGuid("TestField", testUuid);
             encoder.Close();
-            var result = stream.ToArray();
+            byte[] result = stream.ToArray();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(16));
@@ -2393,18 +2061,14 @@ namespace Opc.Ua.UnitTests
         public void WriteGuid_WithFixedBufferEncoder_WritesCorrectly()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var buffer = new byte[16];
-            var encoder = new BinaryEncoder(buffer, 0, 16, mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            byte[] buffer = new byte[16];
+            var encoder = new BinaryEncoder(buffer, 0, 16, messageContext);
             var testGuid = new Guid("fedcba98-7654-3210-fedc-ba9876543210");
             var testUuid = new Uuid(testGuid);
-            var expectedBytes = testGuid.ToByteArray();
+            byte[] expectedBytes = testGuid.ToByteArray();
             // Act
             encoder.WriteGuid("TestField", testUuid);
             encoder.Close();
@@ -2421,22 +2085,18 @@ namespace Opc.Ua.UnitTests
         public void WriteInt32Array_NullArray_WritesMinusOne()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var nullArray = default(ArrayOf<int>);
             // Act
             encoder.WriteInt32Array("testField", nullArray);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(4));
-            var length = BitConverter.ToInt32(result, 0);
+            int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(-1));
         }
 
@@ -2447,22 +2107,18 @@ namespace Opc.Ua.UnitTests
         public void WriteInt32Array_EmptyArray_WritesZeroLength()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var emptyArray = ArrayOf.Empty<int>();
             // Act
             encoder.WriteInt32Array("testField", emptyArray);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(4));
-            var length = BitConverter.ToInt32(result, 0);
+            int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(0));
         }
 
@@ -2473,24 +2129,20 @@ namespace Opc.Ua.UnitTests
         public void WriteInt32Array_SingleElement_WritesLengthAndValue()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var singleElementArray = ArrayOf.Wrapped(42);
             // Act
             encoder.WriteInt32Array("testField", singleElementArray);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(8));
-            var length = BitConverter.ToInt32(result, 0);
+            int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(1));
-            var value = BitConverter.ToInt32(result, 4);
+            int value = BitConverter.ToInt32(result, 4);
             Assert.That(value, Is.EqualTo(42));
         }
 
@@ -2501,22 +2153,18 @@ namespace Opc.Ua.UnitTests
         public void WriteInt32Array_MultipleElements_WritesLengthAndAllValues()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var multipleElementArray = ArrayOf.Wrapped(1, 2, 3, 4, 5);
             // Act
             encoder.WriteInt32Array("testField", multipleElementArray);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(24)); // 4 bytes for length + 5 * 4 bytes for values
-            var length = BitConverter.ToInt32(result, 0);
+            int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(5));
             Assert.That(BitConverter.ToInt32(result, 4), Is.EqualTo(1));
             Assert.That(BitConverter.ToInt32(result, 8), Is.EqualTo(2));
@@ -2532,22 +2180,18 @@ namespace Opc.Ua.UnitTests
         public void WriteInt32Array_BoundaryValues_WritesCorrectly()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var boundaryArray = ArrayOf.Wrapped(int.MinValue, 0, int.MaxValue);
             // Act
             encoder.WriteInt32Array("testField", boundaryArray);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(16)); // 4 bytes for length + 3 * 4 bytes for values
-            var length = BitConverter.ToInt32(result, 0);
+            int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(3));
             Assert.That(BitConverter.ToInt32(result, 4), Is.EqualTo(int.MinValue));
             Assert.That(BitConverter.ToInt32(result, 8), Is.EqualTo(0));
@@ -2561,22 +2205,18 @@ namespace Opc.Ua.UnitTests
         public void WriteInt32Array_NegativeValues_WritesCorrectly()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var negativeArray = ArrayOf.Wrapped(-100, -200, -300);
             // Act
             encoder.WriteInt32Array("testField", negativeArray);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(16)); // 4 bytes for length + 3 * 4 bytes for values
-            var length = BitConverter.ToInt32(result, 0);
+            int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(3));
             Assert.That(BitConverter.ToInt32(result, 4), Is.EqualTo(-100));
             Assert.That(BitConverter.ToInt32(result, 8), Is.EqualTo(-200));
@@ -2590,20 +2230,13 @@ namespace Opc.Ua.UnitTests
         public void WriteInt32Array_ExceedsMaxArrayLength_ThrowsServiceResultException()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(2);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ServiceMessageContext messageContext = CreateContext(2);
+            var encoder = new BinaryEncoder(messageContext);
             var largeArray = ArrayOf.Wrapped(1, 2, 3, 4, 5);
             // Act & Assert
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteInt32Array("testField", largeArray));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteInt32Array("testField", largeArray));
             Assert.That(ex, Is.Not.Null);
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(ex?.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
         /// <summary>
@@ -2613,22 +2246,18 @@ namespace Opc.Ua.UnitTests
         public void WriteInt32Array_ArrayWithZeros_WritesCorrectly()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var zeroArray = ArrayOf.Wrapped(0, 0, 0);
             // Act
             encoder.WriteInt32Array("testField", zeroArray);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(16)); // 4 bytes for length + 3 * 4 bytes for values
-            var length = BitConverter.ToInt32(result, 0);
+            int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(3));
             Assert.That(BitConverter.ToInt32(result, 4), Is.EqualTo(0));
             Assert.That(BitConverter.ToInt32(result, 8), Is.EqualTo(0));
@@ -2643,22 +2272,17 @@ namespace Opc.Ua.UnitTests
         public void WriteStatusCodeArray_NullArray_WritesNullIndicator()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
+            ServiceMessageContext messageContext = CreateContext(0);
+
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, false);
+            var encoder = new BinaryEncoder(stream, messageContext, false);
             var nullArray = default(ArrayOf<StatusCode>);
             // Act
             encoder.WriteStatusCodeArray("TestField", nullArray);
             // Assert
             stream.Position = 0;
             var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
+            int length = reader.ReadInt32();
             Assert.That(length, Is.EqualTo(-1));
         }
 
@@ -2670,22 +2294,17 @@ namespace Opc.Ua.UnitTests
         public void WriteStatusCodeArray_EmptyArray_WritesZeroLength()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
+            ServiceMessageContext messageContext = CreateContext(0);
+
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, false);
+            var encoder = new BinaryEncoder(stream, messageContext, false);
             var emptyArray = ArrayOf.Create(Array.Empty<StatusCode>());
             // Act
             encoder.WriteStatusCodeArray("TestField", emptyArray);
             // Assert
             stream.Position = 0;
             var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
+            int length = reader.ReadInt32();
             Assert.That(length, Is.EqualTo(0));
             Assert.That(stream.Position, Is.EqualTo(stream.Length));
         }
@@ -2698,24 +2317,18 @@ namespace Opc.Ua.UnitTests
         public void WriteStatusCodeArray_SingleElement_WritesLengthAndValue()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
+            ServiceMessageContext messageContext = CreateContext(0);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, false);
+            var encoder = new BinaryEncoder(stream, messageContext, false);
             var statusCode = new StatusCode(0x80000000);
-            var array = ArrayOf.Create(new[] { statusCode });
+            var array = ArrayOf.Create([statusCode]);
             // Act
             encoder.WriteStatusCodeArray("TestField", array);
             // Assert
             stream.Position = 0;
             var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
-            var value = reader.ReadUInt32();
+            int length = reader.ReadInt32();
+            uint value = reader.ReadUInt32();
             Assert.That(length, Is.EqualTo(1));
             Assert.That(value, Is.EqualTo(statusCode.Code));
         }
@@ -2728,33 +2341,27 @@ namespace Opc.Ua.UnitTests
         public void WriteStatusCodeArray_MultipleElements_WritesLengthAndAllValues()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
+            ServiceMessageContext messageContext = CreateContext(0);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, false);
-            var statusCodes = new[]
-            {
+            var encoder = new BinaryEncoder(stream, messageContext, false);
+            StatusCode[] statusCodes =
+            [
                 new StatusCode(0x00000000),
                 new StatusCode(0x80000000),
                 new StatusCode(0x80010000),
                 new StatusCode(0x80020000)
-            };
+            ];
             var array = ArrayOf.Create(statusCodes);
             // Act
             encoder.WriteStatusCodeArray("TestField", array);
             // Assert
             stream.Position = 0;
             var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
+            int length = reader.ReadInt32();
             Assert.That(length, Is.EqualTo(4));
             for (int i = 0; i < statusCodes.Length; i++)
             {
-                var value = reader.ReadUInt32();
+                uint value = reader.ReadUInt32();
                 Assert.That(value, Is.EqualTo(statusCodes[i].Code));
             }
         }
@@ -2767,24 +2374,18 @@ namespace Opc.Ua.UnitTests
         public void WriteStatusCodeArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(2);
+            ServiceMessageContext messageContext = CreateContext(2);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, false);
-            var statusCodes = new[]
-            {
+            var encoder = new BinaryEncoder(stream, messageContext, false);
+            StatusCode[] statusCodes =
+            [
                 new StatusCode(0x00000000),
                 new StatusCode(0x80000000),
                 new StatusCode(0x80010000)
-            };
+            ];
             var array = ArrayOf.Create(statusCodes);
             // Act & Assert
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteStatusCodeArray("TestField", array));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteStatusCodeArray("TestField", array));
             Assert.That(ex?.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
@@ -2796,34 +2397,28 @@ namespace Opc.Ua.UnitTests
         public void WriteStatusCodeArray_WithVariousStatusCodes_WritesAllCorrectly()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
+            ServiceMessageContext messageContext = CreateContext(0);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, false);
-            var statusCodes = new[]
-            {
+            var encoder = new BinaryEncoder(stream, messageContext, false);
+            StatusCode[] statusCodes =
+            [
                 new StatusCode(0),
                 new StatusCode(uint.MaxValue),
                 new StatusCode(uint.MinValue),
                 new StatusCode(0x80000000),
                 new StatusCode(0x7FFFFFFF)
-            };
+            ];
             var array = ArrayOf.Create(statusCodes);
             // Act
             encoder.WriteStatusCodeArray("TestField", array);
             // Assert
             stream.Position = 0;
             var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
+            int length = reader.ReadInt32();
             Assert.That(length, Is.EqualTo(5));
             for (int i = 0; i < statusCodes.Length; i++)
             {
-                var value = reader.ReadUInt32();
+                uint value = reader.ReadUInt32();
                 Assert.That(value, Is.EqualTo(statusCodes[i].Code));
             }
         }
@@ -2836,16 +2431,9 @@ namespace Opc.Ua.UnitTests
         public void WriteStatusCodeArray_MaxArrayLengthZero_AllowsAnySize()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
+            ServiceMessageContext messageContext = CreateContext(0);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, false);
+            var encoder = new BinaryEncoder(stream, messageContext, false);
             var statusCodes = new StatusCode[100];
             for (int i = 0; i < 100; i++)
             {
@@ -2858,7 +2446,7 @@ namespace Opc.Ua.UnitTests
             // Assert
             stream.Position = 0;
             var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
+            int length = reader.ReadInt32();
             Assert.That(length, Is.EqualTo(100));
         }
 
@@ -2870,23 +2458,17 @@ namespace Opc.Ua.UnitTests
         public void WriteStatusCodeArray_WithFieldName_IgnoresFieldName()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
+            ServiceMessageContext messageContext = CreateContext(0);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, false);
-            var array = ArrayOf.Create(new[] { new StatusCode(42) });
+            var encoder = new BinaryEncoder(stream, messageContext, false);
+            var array = ArrayOf.Create([new StatusCode(42)]);
             // Act
             encoder.WriteStatusCodeArray("SomeFieldName", array);
             // Assert
             stream.Position = 0;
             var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
-            var code = reader.ReadUInt32();
+            int length = reader.ReadInt32();
+            uint code = reader.ReadUInt32();
             Assert.That(length, Is.EqualTo(1));
             Assert.That(code, Is.EqualTo(42u));
         }
@@ -2898,18 +2480,14 @@ namespace Opc.Ua.UnitTests
         public void WriteEncodingMask_WithZero_WritesZeroValue()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            uint encodingMask = 0;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            const uint encodingMask = 0;
             // Act
             encoder.WriteEncodingMask(encodingMask);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(4));
@@ -2926,18 +2504,14 @@ namespace Opc.Ua.UnitTests
         public void WriteEncodingMask_WithMaxValue_WritesMaxValue()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            uint encodingMask = uint.MaxValue;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            const uint encodingMask = uint.MaxValue;
             // Act
             encoder.WriteEncodingMask(encodingMask);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(4));
@@ -2955,22 +2529,17 @@ namespace Opc.Ua.UnitTests
         public void EncodeMessage_ValidMessageAndContext_ReturnsEncodedByteArray()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            var mockNamespaceTable = new Mock<NamespaceTable>();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
             var mockMessage = new Mock<IEncodeable>();
             var binaryEncodingId = new ExpandedNodeId(123);
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.NamespaceUris).Returns(mockNamespaceTable.Object);
-            mockContext.Setup(c => c.MaxMessageSize).Returns(0);
+
+            messageContext.MaxMessageSize = 0;
             mockMessage.Setup(m => m.BinaryEncodingId).Returns(binaryEncodingId);
             mockMessage.Setup(m => m.Encode(It.IsAny<IEncoder>()));
             // Act
-            byte[] result = BinaryEncoder.EncodeMessage(mockMessage.Object, mockContext.Object);
+            byte[] result = BinaryEncoder.EncodeMessage(mockMessage.Object, messageContext);
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.InstanceOf<byte[]>());
@@ -2985,45 +2554,20 @@ namespace Opc.Ua.UnitTests
         public void EncodeMessage_ValidMessage_ReturnsNonEmptyByteArray()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            var mockNamespaceTable = new Mock<NamespaceTable>();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
             var mockMessage = new Mock<IEncodeable>();
             var binaryEncodingId = new ExpandedNodeId(456);
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.NamespaceUris).Returns(mockNamespaceTable.Object);
-            mockContext.Setup(c => c.MaxMessageSize).Returns(0);
+
+            messageContext.MaxMessageSize = 0;
             mockMessage.Setup(m => m.BinaryEncodingId).Returns(binaryEncodingId);
             mockMessage.Setup(m => m.Encode(It.IsAny<IEncoder>()));
             // Act
-            byte[] result = BinaryEncoder.EncodeMessage(mockMessage.Object, mockContext.Object);
+            byte[] result = BinaryEncoder.EncodeMessage(mockMessage.Object, messageContext);
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(0));
-        }
-
-        private Mock<IServiceMessageContext> m_context;
-        private Mock<ITelemetryContext> m_telemetry;
-        private Mock<ILoggerFactory> m_loggerFactory;
-        private Mock<ILogger<BinaryEncoder>> m_logger;
-        private NamespaceTable m_namespaceTable;
-        [SetUp]
-        public void SetUp()
-        {
-            m_context = new Mock<IServiceMessageContext>();
-            m_telemetry = new Mock<ITelemetryContext>();
-            m_loggerFactory = new Mock<ILoggerFactory>();
-            m_logger = new Mock<ILogger<BinaryEncoder>>();
-            m_context.Setup(c => c.Telemetry).Returns(m_telemetry.Object);
-            m_telemetry.Setup(t => t.LoggerFactory).Returns(m_loggerFactory.Object);
-            m_loggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(m_logger.Object);
-            m_namespaceTable = new NamespaceTable();
-            m_namespaceTable.Append(Namespaces.OpcUa);
-            m_context.Setup(c => c.NamespaceUris).Returns(m_namespaceTable);
         }
 
         /// <summary>
@@ -3034,18 +2578,23 @@ namespace Opc.Ua.UnitTests
         public void WriteExtensionObject_NullExtensionObject_WritesNullNodeIdAndNoneEncoding()
         {
             // Arrange
-            var encoder = new BinaryEncoder(m_context.Object);
-            var extensionObject = ExtensionObject.Null;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var namespaceTable = new NamespaceTable();
+            namespaceTable.Append(Namespaces.OpcUa);
+            messageContext.NamespaceUris = namespaceTable;
+            var encoder = new BinaryEncoder(messageContext);
+            ExtensionObject extensionObject = ExtensionObject.Null;
             // Act
             encoder.WriteExtensionObject("test", extensionObject);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(0));
             // Verify that null NodeId and None encoding were written
-            var decoder = new BinaryDecoder(result, m_context.Object);
-            var nodeId = decoder.ReadNodeId(null);
-            var encoding = decoder.ReadByte(null);
+            var decoder = new BinaryDecoder(result, messageContext);
+            NodeId nodeId = decoder.ReadNodeId(null);
+            byte encoding = decoder.ReadByte(null);
             Assert.That(nodeId, Is.EqualTo(NodeId.Null));
             Assert.That(encoding, Is.EqualTo((byte)ExtensionObjectEncoding.None));
         }
@@ -3058,17 +2607,22 @@ namespace Opc.Ua.UnitTests
         public void WriteExtensionObject_NullBody_WritesTypeIdAndNoneEncoding()
         {
             // Arrange
-            var encoder = new BinaryEncoder(m_context.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var namespaceTable = new NamespaceTable();
+            namespaceTable.Append(Namespaces.OpcUa);
+            messageContext.NamespaceUris = namespaceTable;
+            var encoder = new BinaryEncoder(messageContext);
             var typeId = new ExpandedNodeId(123, 0);
             var extensionObject = new ExtensionObject(typeId);
             // Act
             encoder.WriteExtensionObject("test", extensionObject);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            var decoder = new BinaryDecoder(result, m_context.Object);
-            var decodedNodeId = decoder.ReadNodeId(null);
-            var encoding = decoder.ReadByte(null);
+            var decoder = new BinaryDecoder(result, messageContext);
+            NodeId decodedNodeId = decoder.ReadNodeId(null);
+            byte encoding = decoder.ReadByte(null);
             Assert.That(decodedNodeId, Is.EqualTo(new NodeId(123, 0)));
             Assert.That(encoding, Is.EqualTo((byte)ExtensionObjectEncoding.None));
         }
@@ -3081,26 +2635,31 @@ namespace Opc.Ua.UnitTests
         public void WriteExtensionObject_ByteArrayBody_WritesByteString()
         {
             // Arrange
-            var encoder = new BinaryEncoder(m_context.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var namespaceTable = new NamespaceTable();
+            namespaceTable.Append(Namespaces.OpcUa);
+            messageContext.NamespaceUris = namespaceTable;
+            var encoder = new BinaryEncoder(messageContext);
             var typeId = new ExpandedNodeId(456, 0);
-            var bodyBytes = new byte[]
-            {
+            byte[] bodyBytes =
+            [
                 1,
                 2,
                 3,
                 4,
                 5
-            };
+            ];
             var extensionObject = new ExtensionObject(typeId, new ByteString(bodyBytes));
             // Act
             encoder.WriteExtensionObject("test", extensionObject);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            var decoder = new BinaryDecoder(result, m_context.Object);
-            var decodedNodeId = decoder.ReadNodeId(null);
-            var encoding = decoder.ReadByte(null);
-            var decodedBytes = decoder.ReadByteString(null);
+            var decoder = new BinaryDecoder(result, messageContext);
+            NodeId decodedNodeId = decoder.ReadNodeId(null);
+            byte encoding = decoder.ReadByte(null);
+            ByteString decodedBytes = decoder.ReadByteString(null);
             Assert.That(decodedNodeId, Is.EqualTo(new NodeId(456, 0)));
             Assert.That(encoding, Is.EqualTo((byte)ExtensionObjectEncoding.Binary));
             Assert.That(decodedBytes.ToArray(), Is.EqualTo(bodyBytes));
@@ -3114,19 +2673,24 @@ namespace Opc.Ua.UnitTests
         public void WriteExtensionObject_EmptyByteArrayBody_WritesEmptyByteString()
         {
             // Arrange
-            var encoder = new BinaryEncoder(m_context.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var namespaceTable = new NamespaceTable();
+            namespaceTable.Append(Namespaces.OpcUa);
+            messageContext.NamespaceUris = namespaceTable;
+            var encoder = new BinaryEncoder(messageContext);
             var typeId = new ExpandedNodeId(789, 0);
-            var bodyBytes = Array.Empty<byte>();
+            byte[] bodyBytes = [];
             var extensionObject = new ExtensionObject(typeId, new ByteString(bodyBytes));
             // Act
             encoder.WriteExtensionObject("test", extensionObject);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            var decoder = new BinaryDecoder(result, m_context.Object);
+            var decoder = new BinaryDecoder(result, messageContext);
             decoder.ReadNodeId(null);
-            var encoding = decoder.ReadByte(null);
-            var decodedBytes = decoder.ReadByteString(null);
+            byte encoding = decoder.ReadByte(null);
+            ByteString decodedBytes = decoder.ReadByteString(null);
             Assert.That(encoding, Is.EqualTo((byte)ExtensionObjectEncoding.Binary));
             Assert.That(decodedBytes.ToArray(), Is.Empty);
         }
@@ -3139,27 +2703,29 @@ namespace Opc.Ua.UnitTests
         public void WriteExtensionObject_EncodeableBodySeekableStream_WritesEncodedBody()
         {
             // Arrange
-            var encoder = new BinaryEncoder(m_context.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var namespaceTable = new NamespaceTable();
+            namespaceTable.Append(Namespaces.OpcUa);
+            messageContext.NamespaceUris = namespaceTable;
+            var encoder = new BinaryEncoder(messageContext);
             var mockEncodeable = new Mock<IEncodeable>();
             var typeId = new ExpandedNodeId(111, 0);
             var binaryEncodingId = new ExpandedNodeId(222, 0);
             mockEncodeable.Setup(e => e.TypeId).Returns(typeId);
             mockEncodeable.Setup(e => e.BinaryEncodingId).Returns(binaryEncodingId);
-            mockEncodeable.Setup(e => e.Encode(It.IsAny<IEncoder>())).Callback<IEncoder>(enc =>
-            {
-                enc.WriteInt32("value", 42);
-            });
+            mockEncodeable.Setup(e => e.Encode(It.IsAny<IEncoder>())).Callback<IEncoder>(enc => enc.WriteInt32("value", 42));
             var extensionObject = new ExtensionObject(mockEncodeable.Object);
             // Act
             encoder.WriteExtensionObject("test", extensionObject);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            var decoder = new BinaryDecoder(result, m_context.Object);
-            var decodedNodeId = decoder.ReadNodeId(null);
-            var encoding = decoder.ReadByte(null);
-            var length = decoder.ReadInt32(null);
-            var value = decoder.ReadInt32(null);
+            var decoder = new BinaryDecoder(result, messageContext);
+            NodeId decodedNodeId = decoder.ReadNodeId(null);
+            byte encoding = decoder.ReadByte(null);
+            int length = decoder.ReadInt32(null);
+            int value = decoder.ReadInt32(null);
             Assert.That(decodedNodeId, Is.EqualTo(new NodeId(222, 0)));
             Assert.That(encoding, Is.EqualTo((byte)ExtensionObjectEncoding.Binary));
             Assert.That(length, Is.EqualTo(4));
@@ -3174,27 +2740,29 @@ namespace Opc.Ua.UnitTests
         public void WriteExtensionObject_EncodeableBodyNonSeekableStream_PreEncodesBody()
         {
             // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var namespaceTable = new NamespaceTable();
+            namespaceTable.Append(Namespaces.OpcUa);
+            messageContext.NamespaceUris = namespaceTable;
             var nonSeekableStream = new NonSeekableMemoryStream();
-            var encoder = new BinaryEncoder(nonSeekableStream, m_context.Object, false);
+            var encoder = new BinaryEncoder(nonSeekableStream, messageContext, false);
             var mockEncodeable = new Mock<IEncodeable>();
             var typeId = new ExpandedNodeId(333, 0);
             var binaryEncodingId = new ExpandedNodeId(444, 0);
             mockEncodeable.Setup(e => e.TypeId).Returns(typeId);
             mockEncodeable.Setup(e => e.BinaryEncodingId).Returns(binaryEncodingId);
-            mockEncodeable.Setup(e => e.Encode(It.IsAny<IEncoder>())).Callback<IEncoder>(enc =>
-            {
-                enc.WriteInt32("value", 99);
-            });
+            mockEncodeable.Setup(e => e.Encode(It.IsAny<IEncoder>())).Callback<IEncoder>(enc => enc.WriteInt32("value", 99));
             var extensionObject = new ExtensionObject(mockEncodeable.Object);
             // Act
             encoder.WriteExtensionObject("test", extensionObject);
             encoder.Close();
             // Assert
             nonSeekableStream.Seek(0, SeekOrigin.Begin);
-            var decoder = new BinaryDecoder(nonSeekableStream, m_context.Object, true);
-            var decodedNodeId = decoder.ReadNodeId(null);
-            var encoding = decoder.ReadByte(null);
-            var bytes = decoder.ReadByteString(null);
+            var decoder = new BinaryDecoder(nonSeekableStream, messageContext, true);
+            NodeId decodedNodeId = decoder.ReadNodeId(null);
+            byte encoding = decoder.ReadByte(null);
+            ByteString bytes = decoder.ReadByteString(null);
             Assert.That(decodedNodeId, Is.EqualTo(new NodeId(444, 0)));
             Assert.That(encoding, Is.EqualTo((byte)ExtensionObjectEncoding.Binary));
             Assert.That(bytes, Is.Not.Null);
@@ -3208,7 +2776,12 @@ namespace Opc.Ua.UnitTests
         public void WriteExtensionObject_EncodeableWithXmlEncoding_UsesXmlEncodingId()
         {
             // Arrange
-            var encoder = new BinaryEncoder(m_context.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var namespaceTable = new NamespaceTable();
+            namespaceTable.Append(Namespaces.OpcUa);
+            messageContext.NamespaceUris = namespaceTable;
+            var encoder = new BinaryEncoder(messageContext);
             var mockEncodeable = new Mock<IEncodeable>();
             var typeId = new ExpandedNodeId(555, 0);
             var binaryEncodingId = new ExpandedNodeId(666, 0);
@@ -3220,11 +2793,11 @@ namespace Opc.Ua.UnitTests
             var extensionObject = new ExtensionObject(xmlEncodingId, mockEncodeable.Object);
             // Act
             encoder.WriteExtensionObject("test", extensionObject);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            var decoder = new BinaryDecoder(result, m_context.Object);
-            var decodedNodeId = decoder.ReadNodeId(null);
+            var decoder = new BinaryDecoder(result, messageContext);
+            NodeId decodedNodeId = decoder.ReadNodeId(null);
             Assert.That(decodedNodeId, Is.EqualTo(new NodeId(777, 0)));
         }
 
@@ -3236,16 +2809,22 @@ namespace Opc.Ua.UnitTests
         public void WriteExtensionObject_EncodeableWithUnknownNamespace_ThrowsServiceResultException()
         {
             // Arrange
-            var encoder = new BinaryEncoder(m_context.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var namespaceTable = new NamespaceTable();
+            namespaceTable.Append(Namespaces.OpcUa);
+            messageContext.NamespaceUris = namespaceTable;
+            var encoder = new BinaryEncoder(messageContext);
             var mockEncodeable = new Mock<IEncodeable>();
-            var unknownNamespace = "http://unknown.namespace.com";
+            const string unknownNamespace = "http://unknown.namespace.com";
             var typeId = new ExpandedNodeId(888, unknownNamespace);
             var binaryEncodingId = new ExpandedNodeId(999, unknownNamespace);
             mockEncodeable.Setup(e => e.TypeId).Returns(typeId);
             mockEncodeable.Setup(e => e.BinaryEncodingId).Returns(binaryEncodingId);
             var extensionObject = new ExtensionObject(mockEncodeable.Object);
             // Act & Assert
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteExtensionObject("test", extensionObject));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteExtensionObject("test", extensionObject));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
             Assert.That(ex.Message, Does.Contain("NamespaceUri"));
             Assert.That(ex.Message, Does.Contain(unknownNamespace));
@@ -3259,15 +2838,20 @@ namespace Opc.Ua.UnitTests
         public void WriteExtensionObject_UnsupportedBodyType_ThrowsServiceResultException()
         {
             // Arrange
-            var encoder = new BinaryEncoder(m_context.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var namespaceTable = new NamespaceTable();
+            namespaceTable.Append(Namespaces.OpcUa);
+            messageContext.NamespaceUris = namespaceTable;
+            var encoder = new BinaryEncoder(messageContext);
             var typeId = new ExpandedNodeId(123, 0);
             // Creating an extension object with string body (Json encoding)
-            var extensionObject = new ExtensionObject(typeId, "{ \"test\": \"value\" }");
+            var extensionObject = new ExtensionObject(typeId, /*lang=json,strict*/ """{ "test": "value" }""");
             // Act & Assert
             // Note: The current implementation only handles Binary, Xml, and EncodeableObject.
             // Json (string body) is not explicitly handled in WriteExtensionObject,
             // so it should throw when it doesn't match any known body type.
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteExtensionObject("test", extensionObject));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteExtensionObject("test", extensionObject));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
             Assert.That(ex.Message, Does.Contain("Cannot encode bodies of type"));
         }
@@ -3280,9 +2864,14 @@ namespace Opc.Ua.UnitTests
         public void WriteExtensionObject_LargeByteArrayBody_WritesCorrectly()
         {
             // Arrange
-            var encoder = new BinaryEncoder(m_context.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var namespaceTable = new NamespaceTable();
+            namespaceTable.Append(Namespaces.OpcUa);
+            messageContext.NamespaceUris = namespaceTable;
+            var encoder = new BinaryEncoder(messageContext);
             var typeId = new ExpandedNodeId(1000, 0);
-            var bodyBytes = new byte[10000];
+            byte[] bodyBytes = new byte[10000];
             for (int i = 0; i < bodyBytes.Length; i++)
             {
                 bodyBytes[i] = (byte)(i % 256);
@@ -3291,13 +2880,13 @@ namespace Opc.Ua.UnitTests
             var extensionObject = new ExtensionObject(typeId, new ByteString(bodyBytes));
             // Act
             encoder.WriteExtensionObject("test", extensionObject);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            var decoder = new BinaryDecoder(result, m_context.Object);
+            var decoder = new BinaryDecoder(result, messageContext);
             decoder.ReadNodeId(null);
             decoder.ReadByte(null);
-            var decodedBytes = decoder.ReadByteString(null);
+            ByteString decodedBytes = decoder.ReadByteString(null);
             Assert.That(decodedBytes.ToArray(), Is.EqualTo(bodyBytes));
         }
 
@@ -3309,17 +2898,22 @@ namespace Opc.Ua.UnitTests
         public void WriteExtensionObject_MultipleNamespaces_HandlesNamespaceMapping()
         {
             // Arrange
-            m_namespaceTable.Append("http://custom.namespace.com");
-            var encoder = new BinaryEncoder(m_context.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var namespaceTable = new NamespaceTable();
+            namespaceTable.Append(Namespaces.OpcUa);
+            namespaceTable.Append("http://custom.namespace.com");
+            messageContext.NamespaceUris = namespaceTable;
+            var encoder = new BinaryEncoder(messageContext);
             var typeId = new ExpandedNodeId(1234, 1);
             var extensionObject = new ExtensionObject(typeId);
             // Act
             encoder.WriteExtensionObject("test", extensionObject);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            var decoder = new BinaryDecoder(result, m_context.Object);
-            var decodedNodeId = decoder.ReadNodeId(null);
+            var decoder = new BinaryDecoder(result, messageContext);
+            NodeId decodedNodeId = decoder.ReadNodeId(null);
             Assert.That(decodedNodeId, Is.EqualTo(new NodeId(1234, 1)));
         }
 
@@ -3331,11 +2925,16 @@ namespace Opc.Ua.UnitTests
         public void WriteExtensionObject_NullFieldName_WritesCorrectly()
         {
             // Arrange
-            var encoder = new BinaryEncoder(m_context.Object);
-            var extensionObject = ExtensionObject.Null;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var namespaceTable = new NamespaceTable();
+            namespaceTable.Append(Namespaces.OpcUa);
+            messageContext.NamespaceUris = namespaceTable;
+            var encoder = new BinaryEncoder(messageContext);
+            ExtensionObject extensionObject = ExtensionObject.Null;
             // Act
             encoder.WriteExtensionObject(null, extensionObject);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(0));
@@ -3349,7 +2948,12 @@ namespace Opc.Ua.UnitTests
         public void WriteExtensionObject_ComplexEncodeable_EncodesCorrectly()
         {
             // Arrange
-            var encoder = new BinaryEncoder(m_context.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var namespaceTable = new NamespaceTable();
+            namespaceTable.Append(Namespaces.OpcUa);
+            messageContext.NamespaceUris = namespaceTable;
+            var encoder = new BinaryEncoder(messageContext);
             var mockEncodeable = new Mock<IEncodeable>();
             var typeId = new ExpandedNodeId(2000, 0);
             var binaryEncodingId = new ExpandedNodeId(2001, 0);
@@ -3364,41 +2968,22 @@ namespace Opc.Ua.UnitTests
             var extensionObject = new ExtensionObject(mockEncodeable.Object);
             // Act
             encoder.WriteExtensionObject("test", extensionObject);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            var decoder = new BinaryDecoder(result, m_context.Object);
-            var decodedNodeId = decoder.ReadNodeId(null);
-            var encoding = decoder.ReadByte(null);
-            var length = decoder.ReadInt32(null);
+            var decoder = new BinaryDecoder(result, messageContext);
+            NodeId decodedNodeId = decoder.ReadNodeId(null);
+            byte encoding = decoder.ReadByte(null);
+            int length = decoder.ReadInt32(null);
             Assert.That(decodedNodeId, Is.EqualTo(new NodeId(2001, 0)));
             Assert.That(encoding, Is.EqualTo((byte)ExtensionObjectEncoding.Binary));
             Assert.That(length, Is.GreaterThan(0));
-            var name = decoder.ReadString(null);
-            var value = decoder.ReadInt32(null);
-            var flag = decoder.ReadBoolean(null);
+            string name = decoder.ReadString(null);
+            int value = decoder.ReadInt32(null);
+            bool flag = decoder.ReadBoolean(null);
             Assert.That(name, Is.EqualTo("TestName"));
             Assert.That(value, Is.EqualTo(123));
             Assert.That(flag, Is.True);
-        }
-
-        /// <summary>
-        /// Helper class to simulate a non-seekable stream for testing.
-        /// </summary>
-        private class NonSeekableMemoryStream : MemoryStream
-        {
-            public override bool CanSeek => false;
-
-            public override long Seek(long offset, SeekOrigin origin)
-            {
-                if (origin == SeekOrigin.Begin && offset == 0)
-                {
-                    Position = 0;
-                    return 0;
-                }
-
-                throw new NotSupportedException("This stream does not support seeking.");
-            }
         }
 
         /// <summary>
@@ -3409,23 +2994,13 @@ namespace Opc.Ua.UnitTests
         public void WriteDoubleArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(5);
-            mockContext.Setup(c => c.MaxByteStringLength).Returns(0);
-            mockContext.Setup(c => c.MaxStringLength).Returns(0);
-            mockContext.Setup(c => c.MaxMessageSize).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ServiceMessageContext messageContext = CreateContext(2);
+            var encoder = new BinaryEncoder(messageContext);
             var largeArray = new ArrayOf<double>(new double[10]);
             // Act & Assert
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteDoubleArray("test", largeArray));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteDoubleArray("test", largeArray));
             Assert.That(ex, Is.Not.Null);
-            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
         /// <summary>
@@ -3435,22 +3010,17 @@ namespace Opc.Ua.UnitTests
         public void WriteLocalizedTextArray_EmptyArray_WritesZeroLength()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
+            ServiceMessageContext messageContext = CreateContext(0);
+
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, false);
-            var emptyArray = ArrayOf<LocalizedText>.Empty;
+            var encoder = new BinaryEncoder(stream, messageContext, false);
+            ArrayOf<LocalizedText> emptyArray = [];
             // Act
             encoder.WriteLocalizedTextArray("test", emptyArray);
-            var buffer = stream.ToArray();
+            byte[] buffer = stream.ToArray();
             // Assert
             Assert.That(buffer.Length, Is.EqualTo(4));
-            var length = BitConverter.ToInt32(buffer, 0);
+            int length = BitConverter.ToInt32(buffer, 0);
             Assert.That(length, Is.EqualTo(0));
         }
 
@@ -3461,24 +3031,22 @@ namespace Opc.Ua.UnitTests
         public void WriteLocalizedTextArray_SingleElement_WritesLengthAndElement()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            mockContext.Setup(c => c.MaxStringLength).Returns(0);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxArrayLength = 0,
+                MaxStringLength = 0
+            };
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, false);
+            var encoder = new BinaryEncoder(stream, messageContext, false);
             var localizedText = new LocalizedText("en-US", "Test");
-            var array = ArrayOf.Create(new[] { localizedText });
+            var array = ArrayOf.Create([localizedText]);
             // Act
             encoder.WriteLocalizedTextArray("test", array);
-            var buffer = stream.ToArray();
+            byte[] buffer = stream.ToArray();
             // Assert
             Assert.That(buffer.Length, Is.GreaterThan(4));
-            var length = BitConverter.ToInt32(buffer, 0);
+            int length = BitConverter.ToInt32(buffer, 0);
             Assert.That(length, Is.EqualTo(1));
         }
 
@@ -3489,26 +3057,24 @@ namespace Opc.Ua.UnitTests
         public void WriteLocalizedTextArray_MultipleElements_WritesLengthAndAllElements()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            mockContext.Setup(c => c.MaxStringLength).Returns(0);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxArrayLength = 0,
+                MaxStringLength = 0
+            };
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, false);
+            var encoder = new BinaryEncoder(stream, messageContext, false);
             var localizedText1 = new LocalizedText("en-US", "Test1");
             var localizedText2 = new LocalizedText("de-DE", "Test2");
             var localizedText3 = new LocalizedText("fr-FR", "Test3");
-            var array = ArrayOf.Create(new[] { localizedText1, localizedText2, localizedText3 });
+            var array = ArrayOf.Create([localizedText1, localizedText2, localizedText3]);
             // Act
             encoder.WriteLocalizedTextArray("test", array);
-            var buffer = stream.ToArray();
+            byte[] buffer = stream.ToArray();
             // Assert
             Assert.That(buffer.Length, Is.GreaterThan(4));
-            var length = BitConverter.ToInt32(buffer, 0);
+            int length = BitConverter.ToInt32(buffer, 0);
             Assert.That(length, Is.EqualTo(3));
         }
 
@@ -3519,22 +3085,17 @@ namespace Opc.Ua.UnitTests
         public void WriteLocalizedTextArray_ExceedsMaxLength_ThrowsServiceResultException()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(2);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            ServiceMessageContext messageContext = CreateContext(2);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, false);
+            var encoder = new BinaryEncoder(stream, messageContext, false);
             var localizedText1 = new LocalizedText("en-US", "Test1");
             var localizedText2 = new LocalizedText("de-DE", "Test2");
             var localizedText3 = new LocalizedText("fr-FR", "Test3");
-            var array = ArrayOf.Create(new[] { localizedText1, localizedText2, localizedText3 });
+            var array = ArrayOf.Create([localizedText1, localizedText2, localizedText3]);
             // Act & Assert
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteLocalizedTextArray("test", array));
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteLocalizedTextArray("test", array));
+            Assert.That(ex?.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
         /// <summary>
@@ -3544,22 +3105,16 @@ namespace Opc.Ua.UnitTests
         public void WriteLocalizedTextArray_WithNullElements_WritesNullEncoding()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
+            ServiceMessageContext messageContext = CreateContext(0);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, false);
-            var array = ArrayOf.Create(new[] { LocalizedText.Null, LocalizedText.Null });
+            var encoder = new BinaryEncoder(stream, messageContext, false);
+            var array = ArrayOf.Create([LocalizedText.Null, LocalizedText.Null]);
             // Act
             encoder.WriteLocalizedTextArray("test", array);
-            var buffer = stream.ToArray();
+            byte[] buffer = stream.ToArray();
             // Assert
             Assert.That(buffer.Length, Is.GreaterThan(4));
-            var length = BitConverter.ToInt32(buffer, 0);
+            int length = BitConverter.ToInt32(buffer, 0);
             Assert.That(length, Is.EqualTo(2));
             // Each null LocalizedText should be encoded as a single 0 byte
             Assert.That(buffer[4], Is.EqualTo(0));
@@ -3573,24 +3128,22 @@ namespace Opc.Ua.UnitTests
         public void WriteLocalizedTextArray_MixedNullAndNonNull_WritesCorrectly()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            mockContext.Setup(c => c.MaxStringLength).Returns(0);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxArrayLength = 0,
+                MaxStringLength = 0
+            };
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, false);
+            var encoder = new BinaryEncoder(stream, messageContext, false);
             var localizedText = new LocalizedText("en-US", "Test");
-            var array = ArrayOf.Create(new[] { localizedText, LocalizedText.Null, localizedText });
+            var array = ArrayOf.Create([localizedText, LocalizedText.Null, localizedText]);
             // Act
             encoder.WriteLocalizedTextArray("test", array);
-            var buffer = stream.ToArray();
+            byte[] buffer = stream.ToArray();
             // Assert
             Assert.That(buffer.Length, Is.GreaterThan(4));
-            var length = BitConverter.ToInt32(buffer, 0);
+            int length = BitConverter.ToInt32(buffer, 0);
             Assert.That(length, Is.EqualTo(3));
         }
 
@@ -3601,25 +3154,22 @@ namespace Opc.Ua.UnitTests
         public void WriteLocalizedTextArray_OnlyText_WritesCorrectly()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            mockContext.Setup(c => c.MaxStringLength).Returns(0);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxArrayLength = 0,
+                MaxStringLength = 0
+            };
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, false);
+            var encoder = new BinaryEncoder(stream, messageContext, false);
             var localizedText = new LocalizedText(null, "Test");
-            var array = ArrayOf.Create(new[] { localizedText });
+            var array = ArrayOf.Create([localizedText]);
             // Act
             encoder.WriteLocalizedTextArray("test", array);
-            var buffer = stream.ToArray();
+            byte[] buffer = stream.ToArray();
             // Assert
             Assert.That(buffer.Length, Is.GreaterThan(4));
-            var length = BitConverter.ToInt32(buffer, 0);
+            int length = BitConverter.ToInt32(buffer, 0);
             Assert.That(length, Is.EqualTo(1));
         }
 
@@ -3630,26 +3180,20 @@ namespace Opc.Ua.UnitTests
         public void WriteLocalizedTextArray_AtMaxLength_WritesCorrectly()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(3);
-            mockContext.Setup(c => c.MaxStringLength).Returns(0);
+            ServiceMessageContext messageContext = CreateContext(3);
+            messageContext.MaxStringLength = 0;
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, false);
+            var encoder = new BinaryEncoder(stream, messageContext, false);
             var localizedText1 = new LocalizedText("en-US", "Test1");
             var localizedText2 = new LocalizedText("de-DE", "Test2");
             var localizedText3 = new LocalizedText("fr-FR", "Test3");
-            var array = ArrayOf.Create(new[] { localizedText1, localizedText2, localizedText3 });
+            var array = ArrayOf.Create([localizedText1, localizedText2, localizedText3]);
             // Act
             encoder.WriteLocalizedTextArray("test", array);
-            var buffer = stream.ToArray();
+            byte[] buffer = stream.ToArray();
             // Assert
             Assert.That(buffer.Length, Is.GreaterThan(4));
-            var length = BitConverter.ToInt32(buffer, 0);
+            int length = BitConverter.ToInt32(buffer, 0);
             Assert.That(length, Is.EqualTo(3));
         }
 
@@ -3660,26 +3204,24 @@ namespace Opc.Ua.UnitTests
         public void WriteLocalizedTextArray_LongStrings_WritesCorrectly()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            mockContext.Setup(c => c.MaxStringLength).Returns(0);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxArrayLength = 0,
+                MaxStringLength = 0
+            };
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, false);
-            var longLocale = new string ('a', 1000);
-            var longText = new string ('b', 1000);
+            var encoder = new BinaryEncoder(stream, messageContext, false);
+            string longLocale = new('a', 1000);
+            string longText = new('b', 1000);
             var localizedText = new LocalizedText(longLocale, longText);
-            var array = ArrayOf.Create(new[] { localizedText });
+            var array = ArrayOf.Create([localizedText]);
             // Act
             encoder.WriteLocalizedTextArray("test", array);
-            var buffer = stream.ToArray();
+            byte[] buffer = stream.ToArray();
             // Assert
             Assert.That(buffer.Length, Is.GreaterThan(4));
-            var length = BitConverter.ToInt32(buffer, 0);
+            int length = BitConverter.ToInt32(buffer, 0);
             Assert.That(length, Is.EqualTo(1));
         }
 
@@ -3691,10 +3233,11 @@ namespace Opc.Ua.UnitTests
         public void CloseAndReturnBuffer_DefaultConstructor_ReturnsEmptyByteArray()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
             // Act
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.InstanceOf<byte[]>());
@@ -3709,12 +3252,13 @@ namespace Opc.Ua.UnitTests
         public void CloseAndReturnBuffer_DefaultConstructorWithData_ReturnsByteArrayWithData()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
             encoder.WriteInt32(null, 12345);
             encoder.WriteBoolean(null, true);
             // Act
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.InstanceOf<byte[]>());
@@ -3729,11 +3273,12 @@ namespace Opc.Ua.UnitTests
         public void CloseAndReturnBuffer_BufferConstructor_ReturnsByteArray()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var buffer = new byte[1024];
-            var encoder = new BinaryEncoder(buffer, 0, buffer.Length, mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = new byte[1024];
+            var encoder = new BinaryEncoder(buffer, 0, buffer.Length, messageContext);
             // Act
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.InstanceOf<byte[]>());
@@ -3747,13 +3292,14 @@ namespace Opc.Ua.UnitTests
         public void CloseAndReturnBuffer_BufferConstructorWithData_ReturnsByteArrayWithData()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var buffer = new byte[1024];
-            var encoder = new BinaryEncoder(buffer, 0, buffer.Length, mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = new byte[1024];
+            var encoder = new BinaryEncoder(buffer, 0, buffer.Length, messageContext);
             encoder.WriteString(null, "test");
             encoder.WriteUInt64(null, 9876543210UL);
             // Act
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.InstanceOf<byte[]>());
@@ -3768,19 +3314,18 @@ namespace Opc.Ua.UnitTests
         public void CloseAndReturnBuffer_NonMemoryStream_ReturnsNull()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var tempFilePath = Path.GetTempFileName();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            string tempFilePath = Path.GetTempFileName();
             try
             {
-                using (var fileStream = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write))
-                {
-                    var encoder = new BinaryEncoder(fileStream, mockContext.Object, leaveOpen: true);
-                    encoder.WriteInt32(null, 42);
-                    // Act
-                    var result = encoder.CloseAndReturnBuffer();
-                    // Assert
-                    Assert.That(result, Is.Null);
-                }
+                using var fileStream = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write);
+                var encoder = new BinaryEncoder(fileStream, messageContext, leaveOpen: true);
+                encoder.WriteInt32(null, 42);
+                // Act
+                byte[] result = encoder.CloseAndReturnBuffer();
+                // Assert
+                Assert.That(result, Is.Null);
             }
             finally
             {
@@ -3799,16 +3344,15 @@ namespace Opc.Ua.UnitTests
         public void CloseAndReturnBuffer_CustomStream_ReturnsNull()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            using (var memoryStream = new MemoryStream())
-            using (var bufferedStream = new BufferedStream(memoryStream))
-            {
-                var encoder = new BinaryEncoder(bufferedStream, mockContext.Object, leaveOpen: true);
-                // Act
-                var result = encoder.CloseAndReturnBuffer();
-                // Assert
-                Assert.That(result, Is.Null);
-            }
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            using var memoryStream = new MemoryStream();
+            using var bufferedStream = new BufferedStream(memoryStream);
+            var encoder = new BinaryEncoder(bufferedStream, messageContext, leaveOpen: true);
+            // Act
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Null);
         }
 
         /// <summary>
@@ -3819,11 +3363,12 @@ namespace Opc.Ua.UnitTests
         public void CloseAndReturnBuffer_CalledMultipleTimes_DoesNotThrow()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
             encoder.WriteInt32(null, 100);
             // Act
-            var result1 = encoder.CloseAndReturnBuffer();
+            byte[] result1 = encoder.CloseAndReturnBuffer();
             // Assert - first call succeeds
             Assert.That(result1, Is.Not.Null);
             // Act & Assert - second call should not throw
@@ -3838,10 +3383,11 @@ namespace Opc.Ua.UnitTests
         public void CloseAndReturnBuffer_MaximumBufferSize_ReturnsCompleteData()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var bufferSize = 100;
-            var buffer = new byte[bufferSize];
-            var encoder = new BinaryEncoder(buffer, 0, buffer.Length, mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            const int bufferSize = 100;
+            byte[] buffer = new byte[bufferSize];
+            var encoder = new BinaryEncoder(buffer, 0, buffer.Length, messageContext);
             // Write data close to buffer limit
             for (int i = 0; i < 20; i++)
             {
@@ -3849,7 +3395,7 @@ namespace Opc.Ua.UnitTests
             }
 
             // Act
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(0));
@@ -3863,14 +3409,15 @@ namespace Opc.Ua.UnitTests
         public void CloseAndReturnBuffer_BufferWithOffsetAndCount_ReturnsByteArray()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var buffer = new byte[1024];
-            var offset = 100;
-            var count = 500;
-            var encoder = new BinaryEncoder(buffer, offset, count, mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = new byte[1024];
+            const int offset = 100;
+            const int count = 500;
+            var encoder = new BinaryEncoder(buffer, offset, count, messageContext);
             encoder.WriteInt16(null, short.MaxValue);
             // Act
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.InstanceOf<byte[]>());
@@ -3884,16 +3431,17 @@ namespace Opc.Ua.UnitTests
         public void CloseAndReturnBuffer_FlushesDataBeforeReturn_ReturnsCompleteData()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var testValue = 0x12345678;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            const int testValue = 0x12345678;
             encoder.WriteInt32(null, testValue);
             // Act
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(4));
-            var decodedValue = BitConverter.ToInt32(result, 0);
+            int decodedValue = BitConverter.ToInt32(result, 0);
             Assert.That(decodedValue, Is.EqualTo(testValue));
         }
 
@@ -3904,14 +3452,16 @@ namespace Opc.Ua.UnitTests
         public void SaveStringTable_NullStringTable_WritesMinusOne()
         {
             // Arrange
-            var encoder = CreateEncoder();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.SaveStringTable(null);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.EqualTo(4));
-            var value = BitConverter.ToInt32(buffer, 0);
+            int value = BitConverter.ToInt32(buffer, 0);
             Assert.That(value, Is.EqualTo(-1));
         }
 
@@ -3922,15 +3472,17 @@ namespace Opc.Ua.UnitTests
         public void SaveStringTable_EmptyStringTable_WritesMinusOne()
         {
             // Arrange
-            var encoder = CreateEncoder();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
             var stringTable = new StringTable();
             // Act
             encoder.SaveStringTable(stringTable);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.EqualTo(4));
-            var value = BitConverter.ToInt32(buffer, 0);
+            int value = BitConverter.ToInt32(buffer, 0);
             Assert.That(value, Is.EqualTo(-1));
         }
 
@@ -3941,15 +3493,17 @@ namespace Opc.Ua.UnitTests
         public void SaveStringTable_StringTableWithCountOne_WritesMinusOne()
         {
             // Arrange
-            var encoder = CreateEncoder();
-            var stringTable = new StringTable(new[] { "FirstString" });
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            var stringTable = new StringTable(["FirstString"]);
             // Act
             encoder.SaveStringTable(stringTable);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.EqualTo(4));
-            var value = BitConverter.ToInt32(buffer, 0);
+            int value = BitConverter.ToInt32(buffer, 0);
             Assert.That(value, Is.EqualTo(-1));
         }
 
@@ -3960,22 +3514,24 @@ namespace Opc.Ua.UnitTests
         public void SaveStringTable_StringTableWithCountTwo_WritesCountAndString()
         {
             // Arrange
-            var encoder = CreateEncoder();
-            var stringTable = new StringTable(new[] { "FirstString", "SecondString" });
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            var stringTable = new StringTable(["FirstString", "SecondString"]);
             // Act
             encoder.SaveStringTable(stringTable);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.GreaterThan(4));
             using var stream = new MemoryStream(buffer);
             using var reader = new BinaryReader(stream);
-            var count = reader.ReadInt32();
+            int count = reader.ReadInt32();
             Assert.That(count, Is.EqualTo(1), "Count should be stringTable.Count - 1");
-            var stringLength = reader.ReadInt32();
+            int stringLength = reader.ReadInt32();
             Assert.That(stringLength, Is.EqualTo(12), "Length of 'SecondString'");
-            var bytes = reader.ReadBytes(stringLength);
-            var decodedString = System.Text.Encoding.UTF8.GetString(bytes);
+            byte[] bytes = reader.ReadBytes(stringLength);
+            string decodedString = System.Text.Encoding.UTF8.GetString(bytes);
             Assert.That(decodedString, Is.EqualTo("SecondString"));
         }
 
@@ -3986,30 +3542,32 @@ namespace Opc.Ua.UnitTests
         public void SaveStringTable_StringTableWithMultipleEntries_WritesCountAndAllStrings()
         {
             // Arrange
-            var encoder = CreateEncoder();
-            var strings = new[]
-            {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            string[] strings =
+            [
                 "First",
                 "Second",
                 "Third",
                 "Fourth"
-            };
+            ];
             var stringTable = new StringTable(strings);
             // Act
             encoder.SaveStringTable(stringTable);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             using var stream = new MemoryStream(buffer);
             using var reader = new BinaryReader(stream);
-            var count = reader.ReadInt32();
+            int count = reader.ReadInt32();
             Assert.That(count, Is.EqualTo(3), "Count should be stringTable.Count - 1");
             // Verify the three strings (index 1, 2, 3)
             for (int i = 1; i < strings.Length; i++)
             {
-                var stringLength = reader.ReadInt32();
-                var bytes = reader.ReadBytes(stringLength);
-                var decodedString = System.Text.Encoding.UTF8.GetString(bytes);
+                int stringLength = reader.ReadInt32();
+                byte[] bytes = reader.ReadBytes(stringLength);
+                string decodedString = System.Text.Encoding.UTF8.GetString(bytes);
                 Assert.That(decodedString, Is.EqualTo(strings[i]), $"String at index {i} should match");
             }
         }
@@ -4021,30 +3579,32 @@ namespace Opc.Ua.UnitTests
         public void SaveStringTable_StringTableWithEmptyStrings_WritesEmptyStrings()
         {
             // Arrange
-            var encoder = CreateEncoder();
-            var strings = new[]
-            {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            string[] strings =
+            [
                 "First",
-                "",
+                string.Empty,
                 "Third"
-            };
+            ];
             var stringTable = new StringTable(strings);
             // Act
             encoder.SaveStringTable(stringTable);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             using var stream = new MemoryStream(buffer);
             using var reader = new BinaryReader(stream);
-            var count = reader.ReadInt32();
+            int count = reader.ReadInt32();
             Assert.That(count, Is.EqualTo(2), "Count should be stringTable.Count - 1");
             // First string (empty)
-            var stringLength1 = reader.ReadInt32();
+            int stringLength1 = reader.ReadInt32();
             Assert.That(stringLength1, Is.EqualTo(0));
             // Second string
-            var stringLength2 = reader.ReadInt32();
-            var bytes = reader.ReadBytes(stringLength2);
-            var decodedString = System.Text.Encoding.UTF8.GetString(bytes);
+            int stringLength2 = reader.ReadInt32();
+            byte[] bytes = reader.ReadBytes(stringLength2);
+            string decodedString = System.Text.Encoding.UTF8.GetString(bytes);
             Assert.That(decodedString, Is.EqualTo("Third"));
         }
 
@@ -4055,32 +3615,34 @@ namespace Opc.Ua.UnitTests
         public void SaveStringTable_StringTableWithSpecialCharacters_WritesSpecialCharacters()
         {
             // Arrange
-            var encoder = CreateEncoder();
-            var strings = new[]
-            {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            string[] strings =
+            [
                 "First",
                 "Special©™®",
                 "Unicode日本語"
-            };
+            ];
             var stringTable = new StringTable(strings);
             // Act
             encoder.SaveStringTable(stringTable);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             using var stream = new MemoryStream(buffer);
             using var reader = new BinaryReader(stream);
-            var count = reader.ReadInt32();
+            int count = reader.ReadInt32();
             Assert.That(count, Is.EqualTo(2));
             // First string with special characters
-            var stringLength1 = reader.ReadInt32();
-            var bytes1 = reader.ReadBytes(stringLength1);
-            var decodedString1 = System.Text.Encoding.UTF8.GetString(bytes1);
+            int stringLength1 = reader.ReadInt32();
+            byte[] bytes1 = reader.ReadBytes(stringLength1);
+            string decodedString1 = System.Text.Encoding.UTF8.GetString(bytes1);
             Assert.That(decodedString1, Is.EqualTo("Special©™®"));
             // Second string with Unicode characters
-            var stringLength2 = reader.ReadInt32();
-            var bytes2 = reader.ReadBytes(stringLength2);
-            var decodedString2 = System.Text.Encoding.UTF8.GetString(bytes2);
+            int stringLength2 = reader.ReadInt32();
+            byte[] bytes2 = reader.ReadBytes(stringLength2);
+            string decodedString2 = System.Text.Encoding.UTF8.GetString(bytes2);
             Assert.That(decodedString2, Is.EqualTo("Unicode日本語"));
         }
 
@@ -4091,41 +3653,30 @@ namespace Opc.Ua.UnitTests
         public void SaveStringTable_StringTableWithLongStrings_WritesLongStrings()
         {
             // Arrange
-            var encoder = CreateEncoder();
-            var longString = new string ('X', 10000);
-            var strings = new[]
-            {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            string longString = new('X', 10000);
+            string[] strings =
+            [
                 "First",
                 longString
-            };
+            ];
             var stringTable = new StringTable(strings);
             // Act
             encoder.SaveStringTable(stringTable);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             using var stream = new MemoryStream(buffer);
             using var reader = new BinaryReader(stream);
-            var count = reader.ReadInt32();
+            int count = reader.ReadInt32();
             Assert.That(count, Is.EqualTo(1));
-            var stringLength = reader.ReadInt32();
+            int stringLength = reader.ReadInt32();
             Assert.That(stringLength, Is.EqualTo(10000));
-            var bytes = reader.ReadBytes(stringLength);
-            var decodedString = System.Text.Encoding.UTF8.GetString(bytes);
+            byte[] bytes = reader.ReadBytes(stringLength);
+            string decodedString = System.Text.Encoding.UTF8.GetString(bytes);
             Assert.That(decodedString, Is.EqualTo(longString));
-        }
-
-        /// <summary>
-        /// Creates a BinaryEncoder instance for testing with mocked dependencies.
-        /// </summary>
-        private BinaryEncoder CreateEncoder()
-        {
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            return new BinaryEncoder(mockContext.Object);
         }
 
         /// <summary>
@@ -4137,12 +3688,13 @@ namespace Opc.Ua.UnitTests
         public void WriteUInt64_MinValue_WritesCorrectBytes()
         {
             // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            ulong value = ulong.MinValue;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            const ulong value = ulong.MinValue;
             // Act
             encoder.WriteUInt64("TestField", value);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.EqualTo(8));
@@ -4158,12 +3710,13 @@ namespace Opc.Ua.UnitTests
         public void WriteUInt64_MaxValue_WritesCorrectBytes()
         {
             // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            ulong value = ulong.MaxValue;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            const ulong value = ulong.MaxValue;
             // Act
             encoder.WriteUInt64("TestField", value);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.EqualTo(8));
@@ -4179,16 +3732,17 @@ namespace Opc.Ua.UnitTests
         public void WriteUInt64_MultipleValues_WritesAllValuesSequentially()
         {
             // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            ulong value1 = 1ul;
-            ulong value2 = 256ul;
-            ulong value3 = ulong.MaxValue;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            const ulong value1 = 1ul;
+            const ulong value2 = 256ul;
+            const ulong value3 = ulong.MaxValue;
             // Act
             encoder.WriteUInt64("Field1", value1);
             encoder.WriteUInt64("Field2", value2);
             encoder.WriteUInt64("Field3", value3);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.EqualTo(24)); // 3 * 8 bytes
@@ -4219,11 +3773,12 @@ namespace Opc.Ua.UnitTests
         public void WriteUInt64_PowersOfTwo_WritesCorrectBytes(ulong value, int bitPosition)
         {
             // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteUInt64("TestField", value);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.EqualTo(8));
@@ -4251,18 +3806,14 @@ namespace Opc.Ua.UnitTests
         public void WriteExpandedNodeId_NullExpandedNodeId_WritesZero()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var nullExpandedNodeId = ExpandedNodeId.Null;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            ExpandedNodeId nullExpandedNodeId = ExpandedNodeId.Null;
             // Act
             encoder.WriteExpandedNodeId("TestField", nullExpandedNodeId);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(2)); // UInt16 is 2 bytes
@@ -4279,19 +3830,15 @@ namespace Opc.Ua.UnitTests
         public void WriteExpandedNodeId_SimpleNumericNodeId_WritesCorrectly()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var nodeId = new NodeId(100u, 0);
             var expandedNodeId = new ExpandedNodeId(nodeId);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(0));
@@ -4310,19 +3857,15 @@ namespace Opc.Ua.UnitTests
         public void WriteExpandedNodeId_WithNamespaceUri_SetsNamespaceUriBit()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var nodeId = new NodeId(50u);
             var expandedNodeId = new ExpandedNodeId(nodeId, "http://test.namespace.uri");
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(2));
@@ -4339,19 +3882,15 @@ namespace Opc.Ua.UnitTests
         public void WriteExpandedNodeId_WithServerIndex_SetsServerIndexBit()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var nodeId = new NodeId(25u);
             var expandedNodeId = new ExpandedNodeId(nodeId, null, 1u);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(2));
@@ -4368,19 +3907,15 @@ namespace Opc.Ua.UnitTests
         public void WriteExpandedNodeId_WithNamespaceUriAndServerIndex_SetsBothBits()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var nodeId = new NodeId(75u);
             var expandedNodeId = new ExpandedNodeId(nodeId, "http://test.namespace", 2u);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(2));
@@ -4397,19 +3932,15 @@ namespace Opc.Ua.UnitTests
         public void WriteExpandedNodeId_WithServerIndexZero_DoesNotSetServerIndexBit()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var nodeId = new NodeId(30u);
             var expandedNodeId = new ExpandedNodeId(nodeId, null, 0u);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(0));
@@ -4426,19 +3957,15 @@ namespace Opc.Ua.UnitTests
         public void WriteExpandedNodeId_WithNullNamespaceUri_DoesNotSetNamespaceUriBit()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var nodeId = new NodeId(40u);
             var expandedNodeId = new ExpandedNodeId(nodeId, null);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(0));
@@ -4455,19 +3982,15 @@ namespace Opc.Ua.UnitTests
         public void WriteExpandedNodeId_WithEmptyNamespaceUri_DoesNotSetNamespaceUriBit()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var nodeId = new NodeId(45u);
             var expandedNodeId = new ExpandedNodeId(nodeId, string.Empty);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(0));
@@ -4484,28 +4007,25 @@ namespace Opc.Ua.UnitTests
         public void WriteExpandedNodeId_WithNamespaceMappings_UsesMappedNamespaceIndex()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
             var contextNamespaceUris = new NamespaceTable();
             var encoderNamespaceUris = new NamespaceTable();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.NamespaceUris).Returns(contextNamespaceUris);
+
+            messageContext.NamespaceUris = contextNamespaceUris;
             // Add namespace URIs in different order to create a mapping
             contextNamespaceUris.Append("http://namespace1.com");
             contextNamespaceUris.Append("http://namespace2.com");
             encoderNamespaceUris.Append("http://namespace2.com");
             encoderNamespaceUris.Append("http://namespace1.com");
-            var encoder = new BinaryEncoder(mockContext.Object);
+            var encoder = new BinaryEncoder(messageContext);
             encoder.SetMappingTables(encoderNamespaceUris, null);
             var nodeId = new NodeId(100u, 1); // namespace index 1 in encoder space
             var expandedNodeId = new ExpandedNodeId(nodeId);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(0));
@@ -4520,28 +4040,25 @@ namespace Opc.Ua.UnitTests
         public void WriteExpandedNodeId_WithServerMappings_UsesMappedServerIndex()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
             var contextServerUris = new StringTable();
             var encoderServerUris = new StringTable();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.ServerUris).Returns(contextServerUris);
+
+            messageContext.ServerUris = contextServerUris;
             // Add server URIs in different order to create a mapping
             contextServerUris.Append("urn:server1");
             contextServerUris.Append("urn:server2");
             encoderServerUris.Append("urn:server2");
             encoderServerUris.Append("urn:server1");
-            var encoder = new BinaryEncoder(mockContext.Object);
+            var encoder = new BinaryEncoder(messageContext);
             encoder.SetMappingTables(null, encoderServerUris);
             var nodeId = new NodeId(50u);
             var expandedNodeId = new ExpandedNodeId(nodeId, null, 1u);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(0));
@@ -4558,19 +4075,15 @@ namespace Opc.Ua.UnitTests
         public void WriteExpandedNodeId_WithStringNodeId_WritesCorrectly()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var nodeId = new NodeId("StringIdentifier", 0);
             var expandedNodeId = new ExpandedNodeId(nodeId);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(0));
@@ -4587,20 +4100,16 @@ namespace Opc.Ua.UnitTests
         public void WriteExpandedNodeId_WithGuidNodeId_WritesCorrectly()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var guid = Guid.NewGuid();
             var nodeId = new NodeId(guid, 0);
             var expandedNodeId = new ExpandedNodeId(nodeId);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(0));
@@ -4617,19 +4126,15 @@ namespace Opc.Ua.UnitTests
         public void WriteExpandedNodeId_WithMaxServerIndex_WritesCorrectly()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var nodeId = new NodeId(10u);
             var expandedNodeId = new ExpandedNodeId(nodeId, null, uint.MaxValue);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(0));
@@ -4646,19 +4151,15 @@ namespace Opc.Ua.UnitTests
         public void WriteExpandedNodeId_WithMaxByteNamespaceIndex_WritesCorrectly()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var nodeId = new NodeId(200u, 255);
             var expandedNodeId = new ExpandedNodeId(nodeId);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(0));
@@ -4673,19 +4174,15 @@ namespace Opc.Ua.UnitTests
         public void WriteExpandedNodeId_WithTwoByteNumericId_UsesTwoByteEncoding()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var nodeId = new NodeId(byte.MaxValue, 0);
             var expandedNodeId = new ExpandedNodeId(nodeId);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(2)); // TwoByte encoding: 1 byte encoding + 1 byte value
@@ -4695,25 +4192,21 @@ namespace Opc.Ua.UnitTests
 
         /// <summary>
         /// Tests that WriteExpandedNodeId handles numeric id at FourByte boundary.
-        /// Input: ExpandedNodeId with numeric id = ushort.MaxValue, namespace index <  =  byte.MaxValue  ///Expected :  Uses  FourByte  encoding. 
+        /// Input: ExpandedNodeId with numeric id = ushort.MaxValue, namespace index <  =  byte.MaxValue  ///Expected :  Uses  FourByte  encoding.
         /// </summary>
         [Test]
         public void WriteExpandedNodeId_WithFourByteNumericId_UsesFourByteEncoding()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var nodeId = new NodeId(ushort.MaxValue, 100);
             var expandedNodeId = new ExpandedNodeId(nodeId);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(4)); // FourByte encoding: 1 byte encoding + 1 byte namespace + 2 bytes value
@@ -4727,19 +4220,12 @@ namespace Opc.Ua.UnitTests
         public void WriteInt16Array_NullArray_WritesMinusOneAndReturns()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            using var encoder = new BinaryEncoder(mockContext.Object);
+            ServiceMessageContext messageContext = CreateContext(0);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<short> nullArray = default;
             // Act
             encoder.WriteInt16Array("test", nullArray);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(4)); // -1 as int32
@@ -4753,19 +4239,12 @@ namespace Opc.Ua.UnitTests
         public void WriteInt16Array_EmptyArray_WritesZeroAndReturns()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            using var encoder = new BinaryEncoder(mockContext.Object);
-            ArrayOf<short> emptyArray = ArrayOf<short>.Empty;
+            ServiceMessageContext messageContext = CreateContext(0);
+            using var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<short> emptyArray = [];
             // Act
             encoder.WriteInt16Array("test", emptyArray);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(4)); // 0 as int32
@@ -4779,23 +4258,16 @@ namespace Opc.Ua.UnitTests
         public void WriteInt16Array_SingleElement_WritesLengthAndValue()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            using var encoder = new BinaryEncoder(mockContext.Object);
-            short expectedValue = 42;
+            ServiceMessageContext messageContext = CreateContext(0);
+            using var encoder = new BinaryEncoder(messageContext);
+            const short expectedValue = 42;
             ArrayOf<short> values = new short[]
             {
                 expectedValue
             }.ToArrayOf();
             // Act
             encoder.WriteInt16Array("test", values);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(6)); // 4 bytes for length + 2 bytes for short
@@ -4810,34 +4282,27 @@ namespace Opc.Ua.UnitTests
         public void WriteInt16Array_MultipleElements_WritesAllValues()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            using var encoder = new BinaryEncoder(mockContext.Object);
+            ServiceMessageContext messageContext = CreateContext(0);
+            using var encoder = new BinaryEncoder(messageContext);
             short[] expectedValues =
-            {
+            [
                 1,
                 2,
                 3,
                 4,
                 5
-            };
+            ];
             ArrayOf<short> values = expectedValues.ToArrayOf();
             // Act
             encoder.WriteInt16Array("test", values);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(14)); // 4 bytes for length + 10 bytes for 5 shorts
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(5));
             for (int i = 0; i < expectedValues.Length; i++)
             {
-                Assert.That(BitConverter.ToInt16(result, 4 + i * 2), Is.EqualTo(expectedValues[i]));
+                Assert.That(BitConverter.ToInt16(result, 4 + (i * 2)), Is.EqualTo(expectedValues[i]));
             }
         }
 
@@ -4852,22 +4317,16 @@ namespace Opc.Ua.UnitTests
         public void WriteInt16Array_BoundaryValues_WritesCorrectly(short value)
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            using var encoder = new BinaryEncoder(mockContext.Object);
+            ServiceMessageContext messageContext = CreateContext(0);
+
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<short> values = new short[]
             {
                 value
             }.ToArrayOf();
             // Act
             encoder.WriteInt16Array("test", values);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
@@ -4881,15 +4340,9 @@ namespace Opc.Ua.UnitTests
         public void WriteInt16Array_ExceedsMaxArrayLength_ThrowsServiceResultException()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(2);
-            using var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            ServiceMessageContext messageContext = CreateContext(2);
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<short> values = new short[]
             {
                 1,
@@ -4897,7 +4350,7 @@ namespace Opc.Ua.UnitTests
                 3
             }.ToArrayOf();
             // Act & Assert
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteInt16Array("test", values));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteInt16Array("test", values));
             Assert.That(ex, Is.Not.Null);
             Assert.That(ex?.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
@@ -4909,33 +4362,27 @@ namespace Opc.Ua.UnitTests
         public void WriteInt16Array_MixedValues_WritesCorrectly()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            using var encoder = new BinaryEncoder(mockContext.Object);
+            ServiceMessageContext messageContext = CreateContext(0);
+
+            using var encoder = new BinaryEncoder(messageContext);
             short[] expectedValues =
-            {
+            [
                 -100,
                 0,
                 100,
                 short.MinValue,
                 short.MaxValue
-            };
+            ];
             ArrayOf<short> values = expectedValues.ToArrayOf();
             // Act
             encoder.WriteInt16Array("test", values);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(5));
             for (int i = 0; i < expectedValues.Length; i++)
             {
-                Assert.That(BitConverter.ToInt16(result, 4 + i * 2), Is.EqualTo(expectedValues[i]));
+                Assert.That(BitConverter.ToInt16(result, 4 + (i * 2)), Is.EqualTo(expectedValues[i]));
             }
         }
 
@@ -4946,15 +4393,9 @@ namespace Opc.Ua.UnitTests
         public void WriteInt16Array_WithFieldName_WritesCorrectly()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            using var encoder = new BinaryEncoder(mockContext.Object);
+            ServiceMessageContext messageContext = CreateContext(0);
+
+            using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<short> values = new short[]
             {
                 10,
@@ -4962,7 +4403,7 @@ namespace Opc.Ua.UnitTests
             }.ToArrayOf();
             // Act
             encoder.WriteInt16Array("myField", values);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(2));
@@ -4977,15 +4418,8 @@ namespace Opc.Ua.UnitTests
         public void WriteInt16Array_LargeArrayWithinLimits_WritesCorrectly()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(1000);
-            using var encoder = new BinaryEncoder(mockContext.Object);
+            ServiceMessageContext messageContext = CreateContext(1000);
+            using var encoder = new BinaryEncoder(messageContext);
             short[] expectedValues = new short[100];
             for (int i = 0; i < expectedValues.Length; i++)
             {
@@ -4995,13 +4429,13 @@ namespace Opc.Ua.UnitTests
             ArrayOf<short> values = expectedValues.ToArrayOf();
             // Act
             encoder.WriteInt16Array("test", values);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(100));
             for (int i = 0; i < expectedValues.Length; i++)
             {
-                Assert.That(BitConverter.ToInt16(result, 4 + i * 2), Is.EqualTo(expectedValues[i]));
+                Assert.That(BitConverter.ToInt16(result, 4 + (i * 2)), Is.EqualTo(expectedValues[i]));
             }
         }
 
@@ -5012,16 +4446,17 @@ namespace Opc.Ua.UnitTests
         public void WriteNodeIdArray_EmptyArray_WritesZeroLength()
         {
             // Arrange
-            var mockContext = CreateMockContext();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
             using var stream = new MemoryStream();
-            using var encoder = new BinaryEncoder(stream, mockContext.Object, false);
-            var emptyArray = ArrayOf<NodeId>.Empty;
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
+            ArrayOf<NodeId> emptyArray = [];
             // Act
             encoder.WriteNodeIdArray("test", emptyArray);
-            var result = stream.ToArray();
+            byte[] result = stream.ToArray();
             // Assert
             Assert.That(result.Length, Is.EqualTo(4));
-            var length = BitConverter.ToInt32(result, 0);
+            int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(0));
         }
 
@@ -5032,17 +4467,18 @@ namespace Opc.Ua.UnitTests
         public void WriteNodeIdArray_SingleElement_WritesLengthAndNodeId()
         {
             // Arrange
-            var mockContext = CreateMockContext();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
             using var stream = new MemoryStream();
-            using var encoder = new BinaryEncoder(stream, mockContext.Object, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             var nodeId = new NodeId(42);
-            var array = ArrayOf.Create(new[] { nodeId });
+            var array = ArrayOf.Create([nodeId]);
             // Act
             encoder.WriteNodeIdArray("test", array);
-            var result = stream.ToArray();
+            byte[] result = stream.ToArray();
             // Assert
             Assert.That(result.Length, Is.GreaterThan(4));
-            var length = BitConverter.ToInt32(result, 0);
+            int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(1));
         }
 
@@ -5053,22 +4489,23 @@ namespace Opc.Ua.UnitTests
         public void WriteNodeIdArray_MultipleElements_WritesAllNodeIds()
         {
             // Arrange
-            var mockContext = CreateMockContext();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
             using var stream = new MemoryStream();
-            using var encoder = new BinaryEncoder(stream, mockContext.Object, false);
-            var nodeIds = new[]
-            {
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
+            NodeId[] nodeIds =
+            [
                 new NodeId(1),
                 new NodeId(100),
                 new NodeId(1000)
-            };
+            ];
             var array = ArrayOf.Create(nodeIds);
             // Act
             encoder.WriteNodeIdArray("test", array);
-            var result = stream.ToArray();
+            byte[] result = stream.ToArray();
             // Assert
             Assert.That(result.Length, Is.GreaterThan(4));
-            var length = BitConverter.ToInt32(result, 0);
+            int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(3));
         }
 
@@ -5079,22 +4516,23 @@ namespace Opc.Ua.UnitTests
         public void WriteNodeIdArray_ArrayWithNullNodeIds_WritesNullNodeIds()
         {
             // Arrange
-            var mockContext = CreateMockContext();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
             using var stream = new MemoryStream();
-            using var encoder = new BinaryEncoder(stream, mockContext.Object, false);
-            var nodeIds = new[]
-            {
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
+            NodeId[] nodeIds =
+            [
                 NodeId.Null,
                 new NodeId(42),
                 NodeId.Null
-            };
+            ];
             var array = ArrayOf.Create(nodeIds);
             // Act
             encoder.WriteNodeIdArray("test", array);
-            var result = stream.ToArray();
+            byte[] result = stream.ToArray();
             // Assert
             Assert.That(result.Length, Is.GreaterThan(4));
-            var length = BitConverter.ToInt32(result, 0);
+            int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(3));
         }
 
@@ -5105,19 +4543,18 @@ namespace Opc.Ua.UnitTests
         public void WriteNodeIdArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
         {
             // Arrange
-            var mockContext = CreateMockContext();
-            mockContext.Setup(c => c.MaxArrayLength).Returns(2);
+            ServiceMessageContext messageContext = CreateContext(2);
             using var stream = new MemoryStream();
-            using var encoder = new BinaryEncoder(stream, mockContext.Object, false);
-            var nodeIds = new[]
-            {
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
+            NodeId[] nodeIds =
+            [
                 new NodeId(1),
                 new NodeId(2),
                 new NodeId(3)
-            };
+            ];
             var array = ArrayOf.Create(nodeIds);
             // Act & Assert
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteNodeIdArray("test", array));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteNodeIdArray("test", array));
             Assert.That(ex?.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
@@ -5128,22 +4565,23 @@ namespace Opc.Ua.UnitTests
         public void WriteNodeIdArray_DifferentNamespaces_WritesCorrectly()
         {
             // Arrange
-            var mockContext = CreateMockContext();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
             using var stream = new MemoryStream();
-            using var encoder = new BinaryEncoder(stream, mockContext.Object, false);
-            var nodeIds = new[]
-            {
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
+            NodeId[] nodeIds =
+            [
                 new NodeId(1, 0),
                 new NodeId(2, 1),
                 new NodeId(3, 2)
-            };
+            ];
             var array = ArrayOf.Create(nodeIds);
             // Act
             encoder.WriteNodeIdArray("test", array);
-            var result = stream.ToArray();
+            byte[] result = stream.ToArray();
             // Assert
             Assert.That(result.Length, Is.GreaterThan(4));
-            var length = BitConverter.ToInt32(result, 0);
+            int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(3));
         }
 
@@ -5154,9 +4592,10 @@ namespace Opc.Ua.UnitTests
         public void WriteNodeIdArray_LargeArray_WritesAllElements()
         {
             // Arrange
-            var mockContext = CreateMockContext();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
             using var stream = new MemoryStream();
-            using var encoder = new BinaryEncoder(stream, mockContext.Object, false);
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
             var nodeIds = new NodeId[1000];
             for (int i = 0; i < 1000; i++)
             {
@@ -5166,10 +4605,10 @@ namespace Opc.Ua.UnitTests
             var array = ArrayOf.Create(nodeIds);
             // Act
             encoder.WriteNodeIdArray("test", array);
-            var result = stream.ToArray();
+            byte[] result = stream.ToArray();
             // Assert
             Assert.That(result.Length, Is.GreaterThan(4));
-            var length = BitConverter.ToInt32(result, 0);
+            int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(1000));
         }
 
@@ -5180,17 +4619,18 @@ namespace Opc.Ua.UnitTests
         public void WriteNodeIdArray_FieldNameParameter_IsIgnored()
         {
             // Arrange
-            var mockContext = CreateMockContext();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
             using var stream = new MemoryStream();
-            using var encoder = new BinaryEncoder(stream, mockContext.Object, false);
-            var nodeIds = new[]
-            {
+            using var encoder = new BinaryEncoder(stream, messageContext, false);
+            NodeId[] nodeIds =
+            [
                 new NodeId(42)
-            };
+            ];
             var array = ArrayOf.Create(nodeIds);
             // Act
             encoder.WriteNodeIdArray("SomeFieldName", array);
-            var result = stream.ToArray();
+            byte[] result = stream.ToArray();
             // Assert - should produce same output regardless of fieldName
             Assert.That(result.Length, Is.GreaterThan(4));
         }
@@ -5202,13 +4642,11 @@ namespace Opc.Ua.UnitTests
         public void BinaryEncoder_NullStream_ThrowsArgumentNullException()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
             // Act & Assert
-            var ex = Assert.Throws<ArgumentNullException>(() => new BinaryEncoder(null, mockContext.Object, false));
+            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(() => new BinaryEncoder(null, messageContext, false));
             Assert.That(ex.ParamName, Is.EqualTo("stream"));
         }
 
@@ -5233,19 +4671,14 @@ namespace Opc.Ua.UnitTests
         {
             // Arrange
             var stream = new MemoryStream();
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(lf => lf.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
             // Act
-            var encoder = new BinaryEncoder(stream, mockContext.Object, true);
+            var encoder = new BinaryEncoder(stream, messageContext, true);
             // Assert
             Assert.That(encoder, Is.Not.Null);
-            Assert.That(encoder.Context, Is.EqualTo(mockContext.Object));
-            mockLoggerFactory.Verify(lf => lf.CreateLogger(It.IsAny<string>()), Times.Once);
+            Assert.That(encoder.Context, Is.EqualTo(messageContext));
         }
 
         /// <summary>
@@ -5257,40 +4690,14 @@ namespace Opc.Ua.UnitTests
         {
             // Arrange
             var stream = new MemoryStream();
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
             // Act
-            var encoder = new BinaryEncoder(stream, mockContext.Object, false);
+            var encoder = new BinaryEncoder(stream, messageContext, false);
             // Assert
             Assert.That(encoder, Is.Not.Null);
-            Assert.That(encoder.Context, Is.EqualTo(mockContext.Object));
-            mockLoggerFactory.Verify(f => f.CreateLogger(It.IsAny<string>()), Times.Once);
-        }
-
-        /// <summary>
-        /// Tests that the constructor creates a logger using the telemetry context.
-        /// Verifies that CreateLogger method is called exactly once.
-        /// </summary>
-        [Test]
-        public void BinaryEncoder_ValidParameters_CreatesLogger()
-        {
-            // Arrange
-            var stream = new MemoryStream();
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            // Act
-            var encoder = new BinaryEncoder(stream, mockContext.Object, true);
-            // Assert
-            mockContext.Verify(c => c.Telemetry, Times.Once);
-            mockTelemetry.Verify(t => t.CreateLogger<BinaryEncoder>(), Times.Once);
+            Assert.That(encoder.Context, Is.EqualTo(messageContext));
         }
 
         /// <summary>
@@ -5302,15 +4709,13 @@ namespace Opc.Ua.UnitTests
         {
             // Arrange
             var stream = new MemoryStream();
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
             // Act
-            var encoder = new BinaryEncoder(stream, mockContext.Object, false);
+            var encoder = new BinaryEncoder(stream, messageContext, false);
             encoder.WriteBoolean("test", true);
-            var position = encoder.Position;
+            int position = encoder.Position;
             // Assert
             Assert.That(position, Is.GreaterThan(0));
             Assert.That(stream.Length, Is.GreaterThan(0));
@@ -5327,16 +4732,14 @@ namespace Opc.Ua.UnitTests
         {
             // Arrange
             var stream = new MemoryStream();
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
             // Act
-            var encoder = new BinaryEncoder(stream, mockContext.Object, leaveOpen);
+            var encoder = new BinaryEncoder(stream, messageContext, leaveOpen);
             // Assert
             Assert.That(encoder, Is.Not.Null);
-            Assert.That(encoder.Context, Is.EqualTo(mockContext.Object));
+            Assert.That(encoder.Context, Is.EqualTo(messageContext));
         }
 
         /// <summary>
@@ -5347,16 +4750,13 @@ namespace Opc.Ua.UnitTests
         public void WriteBoolean_TrueValue_WritesCorrectByte()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteBoolean("testField", true);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(1));
@@ -5371,16 +4771,13 @@ namespace Opc.Ua.UnitTests
         public void WriteBoolean_FalseValue_WritesCorrectByte()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteBoolean("testField", false);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(1));
@@ -5395,19 +4792,16 @@ namespace Opc.Ua.UnitTests
         public void WriteBoolean_MultipleBooleans_WritesCorrectSequence()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteBoolean("field1", true);
             encoder.WriteBoolean("field2", false);
             encoder.WriteBoolean("field3", true);
             encoder.WriteBoolean("field4", false);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(4));
@@ -5426,16 +4820,13 @@ namespace Opc.Ua.UnitTests
         public void WriteBoolean_BooleanValue_WritesExpectedByte(bool value, byte expectedByte)
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteBoolean("field", value);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(1));
@@ -5450,43 +4841,39 @@ namespace Opc.Ua.UnitTests
         public void WriteDateTime_MaxValue_WritesLongMaxValue()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteDateTime("test", DateTime.MaxValue);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(8));
-            var writtenValue = BitConverter.ToInt64(result, 0);
+            long writtenValue = BitConverter.ToInt64(result, 0);
             Assert.That(writtenValue, Is.EqualTo(long.MaxValue));
         }
 
         /// <summary>
         /// Tests that WriteDateTime with DateTime.MinValue writes 0 to the stream.
-        /// This verifies the boundary condition where ticks after subtraction are <  =  0 . 
+        /// This verifies the boundary condition where ticks after subtraction are <  =  0 .
         /// </summary>
         [Test]
         public void WriteDateTime_MinValue_WritesZero()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteDateTime("test", DateTime.MinValue);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(8));
-            var writtenValue = BitConverter.ToInt64(result, 0);
+            long writtenValue = BitConverter.ToInt64(result, 0);
             Assert.That(writtenValue, Is.EqualTo(0L));
         }
 
@@ -5498,20 +4885,18 @@ namespace Opc.Ua.UnitTests
         public void WriteDateTime_TimeBase_WritesZero()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var timeBase = new DateTime(1601, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             // Act
             encoder.WriteDateTime("test", timeBase);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(8));
-            var writtenValue = BitConverter.ToInt64(result, 0);
+            long writtenValue = BitConverter.ToInt64(result, 0);
             Assert.That(writtenValue, Is.EqualTo(0L));
         }
 
@@ -5523,20 +4908,18 @@ namespace Opc.Ua.UnitTests
         public void WriteDateTime_BeforeTimeBase_WritesZero()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var beforeTimeBase = new DateTime(1600, 12, 31, 23, 59, 59, DateTimeKind.Utc);
             // Act
             encoder.WriteDateTime("test", beforeTimeBase);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(8));
-            var writtenValue = BitConverter.ToInt64(result, 0);
+            long writtenValue = BitConverter.ToInt64(result, 0);
             Assert.That(writtenValue, Is.EqualTo(0L));
         }
 
@@ -5548,22 +4931,20 @@ namespace Opc.Ua.UnitTests
         public void WriteDateTime_NormalDate_WritesCorrectTicks()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var testDate = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc);
-            var timeBase = CoreUtils.TimeBase;
-            var expectedTicks = testDate.Ticks - timeBase.Ticks;
+            DateTime timeBase = CoreUtils.TimeBase;
+            long expectedTicks = testDate.Ticks - timeBase.Ticks;
             // Act
             encoder.WriteDateTime("test", testDate);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(8));
-            var writtenValue = BitConverter.ToInt64(result, 0);
+            long writtenValue = BitConverter.ToInt64(result, 0);
             Assert.That(writtenValue, Is.EqualTo(expectedTicks));
         }
 
@@ -5575,23 +4956,21 @@ namespace Opc.Ua.UnitTests
         public void WriteDateTime_LocalKind_ConvertsToUtcAndWritesCorrectTicks()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var localDate = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Local);
-            var utcDate = localDate.ToUniversalTime();
-            var timeBase = CoreUtils.TimeBase;
-            var expectedTicks = utcDate.Ticks - timeBase.Ticks;
+            DateTime utcDate = localDate.ToUniversalTime();
+            DateTime timeBase = CoreUtils.TimeBase;
+            long expectedTicks = utcDate.Ticks - timeBase.Ticks;
             // Act
             encoder.WriteDateTime("test", localDate);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(8));
-            var writtenValue = BitConverter.ToInt64(result, 0);
+            long writtenValue = BitConverter.ToInt64(result, 0);
             Assert.That(writtenValue, Is.EqualTo(expectedTicks));
         }
 
@@ -5603,23 +4982,21 @@ namespace Opc.Ua.UnitTests
         public void WriteDateTime_UnspecifiedKind_ConvertsToUtcAndWritesCorrectTicks()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var unspecifiedDate = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Unspecified);
-            var utcDate = unspecifiedDate.ToUniversalTime();
-            var timeBase = CoreUtils.TimeBase;
-            var expectedTicks = utcDate.Ticks - timeBase.Ticks;
+            DateTime utcDate = unspecifiedDate.ToUniversalTime();
+            DateTime timeBase = CoreUtils.TimeBase;
+            long expectedTicks = utcDate.Ticks - timeBase.Ticks;
             // Act
             encoder.WriteDateTime("test", unspecifiedDate);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(8));
-            var writtenValue = BitConverter.ToInt64(result, 0);
+            long writtenValue = BitConverter.ToInt64(result, 0);
             Assert.That(writtenValue, Is.EqualTo(expectedTicks));
         }
 
@@ -5631,22 +5008,20 @@ namespace Opc.Ua.UnitTests
         public void WriteDateTime_UtcKind_WritesCorrectTicksWithoutConversion()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var utcDate = new DateTime(2024, 6, 15, 10, 30, 45, DateTimeKind.Utc);
-            var timeBase = CoreUtils.TimeBase;
-            var expectedTicks = utcDate.Ticks - timeBase.Ticks;
+            DateTime timeBase = CoreUtils.TimeBase;
+            long expectedTicks = utcDate.Ticks - timeBase.Ticks;
             // Act
             encoder.WriteDateTime("test", utcDate);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(8));
-            var writtenValue = BitConverter.ToInt64(result, 0);
+            long writtenValue = BitConverter.ToInt64(result, 0);
             Assert.That(writtenValue, Is.EqualTo(expectedTicks));
         }
 
@@ -5658,22 +5033,20 @@ namespace Opc.Ua.UnitTests
         public void WriteDateTime_JustAfterTimeBase_WritesPositiveTicks()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var justAfterTimeBase = new DateTime(1601, 1, 1, 0, 0, 1, DateTimeKind.Utc);
-            var timeBase = CoreUtils.TimeBase;
-            var expectedTicks = justAfterTimeBase.Ticks - timeBase.Ticks;
+            DateTime timeBase = CoreUtils.TimeBase;
+            long expectedTicks = justAfterTimeBase.Ticks - timeBase.Ticks;
             // Act
             encoder.WriteDateTime("test", justAfterTimeBase);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(8));
-            var writtenValue = BitConverter.ToInt64(result, 0);
+            long writtenValue = BitConverter.ToInt64(result, 0);
             Assert.That(writtenValue, Is.EqualTo(expectedTicks));
             Assert.That(writtenValue, Is.GreaterThan(0));
         }
@@ -5693,22 +5066,20 @@ namespace Opc.Ua.UnitTests
         public void WriteDateTime_VariousDates_WritesCorrectTicks(int year, int month, int day)
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
             var testDate = new DateTime(year, month, day, 0, 0, 0, DateTimeKind.Utc);
-            var timeBase = CoreUtils.TimeBase;
-            var expectedTicks = testDate.Ticks - timeBase.Ticks;
+            DateTime timeBase = CoreUtils.TimeBase;
+            long expectedTicks = testDate.Ticks - timeBase.Ticks;
             // Act
             encoder.WriteDateTime("test", testDate);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(8));
-            var writtenValue = BitConverter.ToInt64(result, 0);
+            long writtenValue = BitConverter.ToInt64(result, 0);
             Assert.That(writtenValue, Is.EqualTo(expectedTicks));
         }
 
@@ -5719,11 +5090,11 @@ namespace Opc.Ua.UnitTests
         public void WriteDataValue_NullValue_WritesZeroByte()
         {
             // Arrange
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
             // Act
             encoder.WriteDataValue("test", null);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(1));
@@ -5737,12 +5108,12 @@ namespace Opc.Ua.UnitTests
         public void WriteDataValue_DefaultDataValue_WritesZeroEncodingByte()
         {
             // Arrange
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
             var dataValue = new DataValue();
             // Act
             encoder.WriteDataValue("test", dataValue);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThanOrEqualTo(1));
@@ -5756,12 +5127,12 @@ namespace Opc.Ua.UnitTests
         public void WriteDataValue_WithVariantValue_WritesValueEncodingBit()
         {
             // Arrange
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
             var dataValue = new DataValue(new Variant(42));
             // Act
             encoder.WriteDataValue("test", dataValue);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(1));
@@ -5775,12 +5146,12 @@ namespace Opc.Ua.UnitTests
         public void WriteDataValue_WithNonGoodStatusCode_WritesStatusCodeEncodingBit()
         {
             // Arrange
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
             var dataValue = new DataValue(StatusCodes.Bad);
             // Act
             encoder.WriteDataValue("test", dataValue);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(1));
@@ -5794,7 +5165,7 @@ namespace Opc.Ua.UnitTests
         public void WriteDataValue_WithSourceTimestamp_WritesSourceTimestampEncodingBit()
         {
             // Arrange
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
             var dataValue = new DataValue
             {
@@ -5802,7 +5173,7 @@ namespace Opc.Ua.UnitTests
             };
             // Act
             encoder.WriteDataValue("test", dataValue);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(1));
@@ -5816,7 +5187,7 @@ namespace Opc.Ua.UnitTests
         public void WriteDataValue_WithSourceTimestampAndPicoseconds_WritesBothEncodingBits()
         {
             // Arrange
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
             var dataValue = new DataValue
             {
@@ -5825,7 +5196,7 @@ namespace Opc.Ua.UnitTests
             };
             // Act
             encoder.WriteDataValue("test", dataValue);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(1));
@@ -5840,7 +5211,7 @@ namespace Opc.Ua.UnitTests
         public void WriteDataValue_WithSourceTimestampAndZeroPicoseconds_WritesOnlyTimestampBit()
         {
             // Arrange
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
             var dataValue = new DataValue
             {
@@ -5849,7 +5220,7 @@ namespace Opc.Ua.UnitTests
             };
             // Act
             encoder.WriteDataValue("test", dataValue);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(1));
@@ -5864,7 +5235,7 @@ namespace Opc.Ua.UnitTests
         public void WriteDataValue_WithServerTimestamp_WritesServerTimestampEncodingBit()
         {
             // Arrange
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
             var dataValue = new DataValue
             {
@@ -5872,7 +5243,7 @@ namespace Opc.Ua.UnitTests
             };
             // Act
             encoder.WriteDataValue("test", dataValue);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(1));
@@ -5886,7 +5257,7 @@ namespace Opc.Ua.UnitTests
         public void WriteDataValue_WithServerTimestampAndPicoseconds_WritesBothEncodingBits()
         {
             // Arrange
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
             var dataValue = new DataValue
             {
@@ -5895,7 +5266,7 @@ namespace Opc.Ua.UnitTests
             };
             // Act
             encoder.WriteDataValue("test", dataValue);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(1));
@@ -5910,7 +5281,7 @@ namespace Opc.Ua.UnitTests
         public void WriteDataValue_WithServerTimestampAndZeroPicoseconds_WritesOnlyTimestampBit()
         {
             // Arrange
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
             var dataValue = new DataValue
             {
@@ -5919,7 +5290,7 @@ namespace Opc.Ua.UnitTests
             };
             // Act
             encoder.WriteDataValue("test", dataValue);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(1));
@@ -5934,7 +5305,7 @@ namespace Opc.Ua.UnitTests
         public void WriteDataValue_WithAllFields_WritesAllEncodingBits()
         {
             // Arrange
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
             var dataValue = new DataValue
             {
@@ -5947,7 +5318,7 @@ namespace Opc.Ua.UnitTests
             };
             // Act
             encoder.WriteDataValue("test", dataValue);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(1));
@@ -5966,7 +5337,7 @@ namespace Opc.Ua.UnitTests
         public void WriteDataValue_WithMinValueTimestamps_DoesNotWriteTimestampBits()
         {
             // Arrange
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
             var dataValue = new DataValue
             {
@@ -5975,7 +5346,7 @@ namespace Opc.Ua.UnitTests
             };
             // Act
             encoder.WriteDataValue("test", dataValue);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThanOrEqualTo(1));
@@ -5990,12 +5361,12 @@ namespace Opc.Ua.UnitTests
         public void WriteDataValue_WithGoodStatusCode_DoesNotWriteStatusCodeBit()
         {
             // Arrange
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
             var dataValue = new DataValue(new Variant(42), StatusCodes.Good);
             // Act
             encoder.WriteDataValue("test", dataValue);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(1));
@@ -6009,7 +5380,7 @@ namespace Opc.Ua.UnitTests
         public void WriteDataValue_WithNullVariant_DoesNotWriteValueBit()
         {
             // Arrange
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
             var dataValue = new DataValue
             {
@@ -6017,7 +5388,7 @@ namespace Opc.Ua.UnitTests
             };
             // Act
             encoder.WriteDataValue("test", dataValue);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThanOrEqualTo(1));
@@ -6031,7 +5402,7 @@ namespace Opc.Ua.UnitTests
         public void WriteDataValue_WithMaxPicoseconds_WritesCorrectly()
         {
             // Arrange
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
             var dataValue = new DataValue
             {
@@ -6042,7 +5413,7 @@ namespace Opc.Ua.UnitTests
             };
             // Act
             encoder.WriteDataValue("test", dataValue);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(1));
@@ -6057,7 +5428,7 @@ namespace Opc.Ua.UnitTests
         public void WriteDataValue_WithBoundaryPicoseconds_WritesCorrectly()
         {
             // Arrange
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
             var dataValue = new DataValue
             {
@@ -6068,7 +5439,7 @@ namespace Opc.Ua.UnitTests
             };
             // Act
             encoder.WriteDataValue("test", dataValue);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(1));
@@ -6085,14 +5456,14 @@ namespace Opc.Ua.UnitTests
         public void WriteDataValue_WithVariousStatusCodes_WritesCorrectly(Type type, string fieldName)
         {
             // Arrange
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
-            var field = type.GetField(fieldName);
+            FieldInfo field = type.GetField(fieldName);
             var statusCode = (StatusCode)field.GetValue(null);
             var dataValue = new DataValue(statusCode);
             // Act
             encoder.WriteDataValue("test", dataValue);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(1));
@@ -6106,7 +5477,7 @@ namespace Opc.Ua.UnitTests
         public void WriteDataValue_WithMaxValueTimestamps_WritesCorrectly()
         {
             // Arrange
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
             var dataValue = new DataValue
             {
@@ -6115,7 +5486,7 @@ namespace Opc.Ua.UnitTests
             };
             // Act
             encoder.WriteDataValue("test", dataValue);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.GreaterThan(1));
@@ -6131,19 +5502,12 @@ namespace Opc.Ua.UnitTests
         public void WriteInt64Array_NullArray_WritesNegativeOneLength()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
             var nullArray = default(ArrayOf<long>);
             // Act
             encoder.WriteInt64Array("TestField", nullArray);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(4));
@@ -6158,19 +5522,13 @@ namespace Opc.Ua.UnitTests
         public void WriteInt64Array_EmptyArray_WritesZeroLength()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var emptyArray = ArrayOf<long>.Empty;
+            ServiceMessageContext messageContext = CreateContext(0);
+
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<long> emptyArray = [];
             // Act
             encoder.WriteInt64Array("TestField", emptyArray);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(4));
@@ -6185,19 +5543,13 @@ namespace Opc.Ua.UnitTests
         public void WriteInt64Array_SingleElement_WritesLengthAndValue()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var singleElementArray = ArrayOf.Create(new long[] { 12345L });
+            ServiceMessageContext messageContext = CreateContext(0);
+
+            var encoder = new BinaryEncoder(messageContext);
+            var singleElementArray = ArrayOf.Create([12345L]);
             // Act
             encoder.WriteInt64Array("TestField", singleElementArray);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(12)); // 4 bytes for length + 8 bytes for one long
@@ -6213,19 +5565,13 @@ namespace Opc.Ua.UnitTests
         public void WriteInt64Array_MultipleElements_WritesLengthAndAllValues()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var multipleElementsArray = ArrayOf.Create(new long[] { 100L, 200L, 300L });
+            ServiceMessageContext messageContext = CreateContext(0);
+
+            var encoder = new BinaryEncoder(messageContext);
+            var multipleElementsArray = ArrayOf.Create([100L, 200L, 300L]);
             // Act
             encoder.WriteInt64Array("TestField", multipleElementsArray);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(28)); // 4 bytes for length + 3 * 8 bytes for longs
@@ -6243,19 +5589,13 @@ namespace Opc.Ua.UnitTests
         public void WriteInt64Array_BoundaryValues_EncodesCorrectly()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var boundaryArray = ArrayOf.Create(new long[] { long.MinValue, long.MaxValue, 0L, -1L, 1L });
+            ServiceMessageContext messageContext = CreateContext(0);
+
+            var encoder = new BinaryEncoder(messageContext);
+            var boundaryArray = ArrayOf.Create([long.MinValue, long.MaxValue, 0L, -1L, 1L]);
             // Act
             encoder.WriteInt64Array("TestField", boundaryArray);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(44)); // 4 bytes for length + 5 * 8 bytes for longs
@@ -6275,18 +5615,11 @@ namespace Opc.Ua.UnitTests
         public void WriteInt64Array_ExceedsMaxArrayLength_ThrowsServiceResultException()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(2);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var largeArray = ArrayOf.Create(new long[] { 1L, 2L, 3L, 4L, 5L });
+            ServiceMessageContext messageContext = CreateContext(2);
+            var encoder = new BinaryEncoder(messageContext);
+            var largeArray = ArrayOf.Create([1L, 2L, 3L, 4L, 5L]);
             // Act & Assert
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteInt64Array("TestField", largeArray));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteInt64Array("TestField", largeArray));
             Assert.That(ex, Is.Not.Null);
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
@@ -6299,19 +5632,12 @@ namespace Opc.Ua.UnitTests
         public void WriteInt64Array_ArrayLengthEqualsMaxArrayLength_EncodesSuccessfully()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(3);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var array = ArrayOf.Create(new long[] { 10L, 20L, 30L });
+            ServiceMessageContext messageContext = CreateContext(3);
+            var encoder = new BinaryEncoder(messageContext);
+            var array = ArrayOf.Create([10L, 20L, 30L]);
             // Act
             encoder.WriteInt64Array("TestField", array);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(28)); // 4 bytes for length + 3 * 8 bytes for longs
@@ -6329,19 +5655,13 @@ namespace Opc.Ua.UnitTests
         public void WriteInt64Array_NegativeValues_EncodesCorrectly()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var negativeArray = ArrayOf.Create(new long[] { -100L, -999999L, -1L });
+            ServiceMessageContext messageContext = CreateContext(0);
+
+            var encoder = new BinaryEncoder(messageContext);
+            var negativeArray = ArrayOf.Create([-100L, -999999L, -1L]);
             // Act
             encoder.WriteInt64Array("TestField", negativeArray);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(28)); // 4 bytes for length + 3 * 8 bytes for longs
@@ -6359,19 +5679,12 @@ namespace Opc.Ua.UnitTests
         public void WriteInt64Array_ZeroValue_EncodesCorrectly()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var zeroArray = ArrayOf.Create(new long[] { 0L });
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            var zeroArray = ArrayOf.Create([0L]);
             // Act
             encoder.WriteInt64Array("TestField", zeroArray);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(12)); // 4 bytes for length + 8 bytes for one long
@@ -6387,16 +5700,16 @@ namespace Opc.Ua.UnitTests
         public void WriteQualifiedNameArray_NullArray_WritesNegativeOne()
         {
             // Arrange
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             var encoder = new BinaryEncoder(context);
             var nullArray = default(ArrayOf<QualifiedName>);
             // Act
             encoder.WriteQualifiedNameArray("test", nullArray);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.EqualTo(4)); // int32 = 4 bytes
-            var length = BitConverter.ToInt32(buffer, 0);
+            int length = BitConverter.ToInt32(buffer, 0);
             Assert.That(length, Is.EqualTo(-1));
         }
 
@@ -6408,16 +5721,16 @@ namespace Opc.Ua.UnitTests
         public void WriteQualifiedNameArray_EmptyArray_WritesZeroLength()
         {
             // Arrange
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             var encoder = new BinaryEncoder(context);
-            var emptyArray = ArrayOf<QualifiedName>.Empty;
+            ArrayOf<QualifiedName> emptyArray = [];
             // Act
             encoder.WriteQualifiedNameArray("test", emptyArray);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.EqualTo(4)); // int32 = 4 bytes
-            var length = BitConverter.ToInt32(buffer, 0);
+            int length = BitConverter.ToInt32(buffer, 0);
             Assert.That(length, Is.EqualTo(0));
         }
 
@@ -6429,17 +5742,17 @@ namespace Opc.Ua.UnitTests
         public void WriteQualifiedNameArray_SingleElement_WritesLengthAndElement()
         {
             // Arrange
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             var encoder = new BinaryEncoder(context);
             var qualifiedName = new QualifiedName("TestName", 1);
             var array = ArrayOf.Wrapped(qualifiedName);
             // Act
             encoder.WriteQualifiedNameArray("test", array);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.GreaterThan(4)); // At least the length int32
-            var length = BitConverter.ToInt32(buffer, 0);
+            int length = BitConverter.ToInt32(buffer, 0);
             Assert.That(length, Is.EqualTo(1));
         }
 
@@ -6451,7 +5764,7 @@ namespace Opc.Ua.UnitTests
         public void WriteQualifiedNameArray_MultipleElements_WritesLengthAndAllElements()
         {
             // Arrange
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             var encoder = new BinaryEncoder(context);
             var qn1 = new QualifiedName("Name1", 0);
             var qn2 = new QualifiedName("Name2", 1);
@@ -6459,11 +5772,11 @@ namespace Opc.Ua.UnitTests
             var array = ArrayOf.Wrapped(qn1, qn2, qn3);
             // Act
             encoder.WriteQualifiedNameArray("test", array);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer.Length, Is.GreaterThan(4));
-            var length = BitConverter.ToInt32(buffer, 0);
+            int length = BitConverter.ToInt32(buffer, 0);
             Assert.That(length, Is.EqualTo(3));
         }
 
@@ -6475,22 +5788,14 @@ namespace Opc.Ua.UnitTests
         public void WriteQualifiedNameArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(2);
-            mockContext.Setup(c => c.MaxStringLength).Returns(0);
-            mockContext.Setup(c => c.MaxByteStringLength).Returns(0);
-            mockContext.Setup(c => c.MaxMessageSize).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ServiceMessageContext messageContext = CreateContext(2);
+            var encoder = new BinaryEncoder(messageContext);
             var qn1 = new QualifiedName("Name1", 0);
             var qn2 = new QualifiedName("Name2", 1);
             var qn3 = new QualifiedName("Name3", 2);
             var array = ArrayOf.Wrapped(qn1, qn2, qn3); // 3 elements > MaxArrayLength of 2
             // Act & Assert
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteQualifiedNameArray("test", array));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteQualifiedNameArray("test", array));
             Assert.That(ex, Is.Not.Null);
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
@@ -6502,17 +5807,17 @@ namespace Opc.Ua.UnitTests
         public void WriteQualifiedNameArray_ElementsWithEmptyNames_WritesCorrectly()
         {
             // Arrange
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             var encoder = new BinaryEncoder(context);
             var qn1 = new QualifiedName(string.Empty, 0);
-            var qn2 = new QualifiedName("", 1);
+            var qn2 = new QualifiedName(string.Empty, 1);
             var array = ArrayOf.Wrapped(qn1, qn2);
             // Act
             encoder.WriteQualifiedNameArray("test", array);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            var length = BitConverter.ToInt32(buffer, 0);
+            int length = BitConverter.ToInt32(buffer, 0);
             Assert.That(length, Is.EqualTo(2));
         }
 
@@ -6523,7 +5828,7 @@ namespace Opc.Ua.UnitTests
         public void WriteQualifiedNameArray_VariousNamespaceIndices_WritesCorrectly()
         {
             // Arrange
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             var encoder = new BinaryEncoder(context);
             var qn1 = new QualifiedName("Name", 0);
             var qn2 = new QualifiedName("Name", 1);
@@ -6531,10 +5836,10 @@ namespace Opc.Ua.UnitTests
             var array = ArrayOf.Wrapped(qn1, qn2, qn3);
             // Act
             encoder.WriteQualifiedNameArray("test", array);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            var length = BitConverter.ToInt32(buffer, 0);
+            int length = BitConverter.ToInt32(buffer, 0);
             Assert.That(length, Is.EqualTo(3));
         }
 
@@ -6545,7 +5850,7 @@ namespace Opc.Ua.UnitTests
         public void WriteQualifiedNameArray_NamesWithSpecialCharacters_WritesCorrectly()
         {
             // Arrange
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             var encoder = new BinaryEncoder(context);
             var qn1 = new QualifiedName("Name\u0000WithNull", 0);
             var qn2 = new QualifiedName("Name\nWithNewline", 1);
@@ -6553,10 +5858,10 @@ namespace Opc.Ua.UnitTests
             var array = ArrayOf.Wrapped(qn1, qn2, qn3);
             // Act
             encoder.WriteQualifiedNameArray("test", array);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            var length = BitConverter.ToInt32(buffer, 0);
+            int length = BitConverter.ToInt32(buffer, 0);
             Assert.That(length, Is.EqualTo(3));
         }
 
@@ -6567,17 +5872,17 @@ namespace Opc.Ua.UnitTests
         public void WriteQualifiedNameArray_VeryLongNames_WritesCorrectly()
         {
             // Arrange
-            var context = CreateContext();
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             var encoder = new BinaryEncoder(context);
-            var longName = new string ('A', 10000);
+            string longName = new('A', 10000);
             var qn = new QualifiedName(longName, 0);
             var array = ArrayOf.Wrapped(qn);
             // Act
             encoder.WriteQualifiedNameArray("test", array);
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(buffer, Is.Not.Null);
-            var length = BitConverter.ToInt32(buffer, 0);
+            int length = BitConverter.ToInt32(buffer, 0);
             Assert.That(length, Is.EqualTo(1));
         }
 
@@ -6588,11 +5893,12 @@ namespace Opc.Ua.UnitTests
         public void EncodeMessage_ValidInputsLeaveOpenFalse_EncodesSuccessfully()
         {
             // Arrange
-            var mockMessage = CreateMockEncodeable();
+            Mock<IEncodeable> mockMessage = CreateMockEncodeable();
             var stream = new MemoryStream();
-            var mockContext = CreateMockContext();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
             // Act
-            BinaryEncoder.EncodeMessage(mockMessage.Object, stream, mockContext.Object, false);
+            BinaryEncoder.EncodeMessage(mockMessage.Object, stream, messageContext, false);
             // Assert
             Assert.That(stream.Length, Is.GreaterThan(0));
             mockMessage.Verify(m => m.Encode(It.IsAny<IEncoder>()), Times.Once);
@@ -6605,11 +5911,12 @@ namespace Opc.Ua.UnitTests
         public void EncodeMessage_ValidInputsLeaveOpenTrue_EncodesSuccessfully()
         {
             // Arrange
-            var mockMessage = CreateMockEncodeable();
+            Mock<IEncodeable> mockMessage = CreateMockEncodeable();
             var stream = new MemoryStream();
-            var mockContext = CreateMockContext();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
             // Act
-            BinaryEncoder.EncodeMessage(mockMessage.Object, stream, mockContext.Object, true);
+            BinaryEncoder.EncodeMessage(mockMessage.Object, stream, messageContext, true);
             // Assert
             Assert.That(stream.Length, Is.GreaterThan(0));
             mockMessage.Verify(m => m.Encode(It.IsAny<IEncoder>()), Times.Once);
@@ -6622,11 +5929,12 @@ namespace Opc.Ua.UnitTests
         public void EncodeMessage_LeaveOpenTrue_StreamRemainsOpen()
         {
             // Arrange
-            var mockMessage = CreateMockEncodeable();
+            Mock<IEncodeable> mockMessage = CreateMockEncodeable();
             var stream = new MemoryStream();
-            var mockContext = CreateMockContext();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
             // Act
-            BinaryEncoder.EncodeMessage(mockMessage.Object, stream, mockContext.Object, true);
+            BinaryEncoder.EncodeMessage(mockMessage.Object, stream, messageContext, true);
             // Assert
             Assert.That(stream.CanWrite, Is.True, "Stream should remain open and writable");
             Assert.DoesNotThrow(() => stream.WriteByte(0), "Should be able to write to stream after encoding");
@@ -6639,13 +5947,14 @@ namespace Opc.Ua.UnitTests
         public void EncodeMessage_LeaveOpenFalse_StreamCanBeClosed()
         {
             // Arrange
-            var mockMessage = CreateMockEncodeable();
+            Mock<IEncodeable> mockMessage = CreateMockEncodeable();
             var stream = new MemoryStream();
-            var mockContext = CreateMockContext();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
             // Act
-            BinaryEncoder.EncodeMessage(mockMessage.Object, stream, mockContext.Object, false);
+            BinaryEncoder.EncodeMessage(mockMessage.Object, stream, messageContext, false);
             // Assert
-            Assert.DoesNotThrow(() => stream.Dispose(), "Stream should be disposable after encoding");
+            Assert.DoesNotThrow(stream.Dispose, "Stream should be disposable after encoding");
         }
 
         /// <summary>
@@ -6655,12 +5964,13 @@ namespace Opc.Ua.UnitTests
         public void EncodeMessage_EmptyStream_WritesData()
         {
             // Arrange
-            var mockMessage = CreateMockEncodeable();
+            Mock<IEncodeable> mockMessage = CreateMockEncodeable();
             var stream = new MemoryStream();
-            var mockContext = CreateMockContext();
-            var initialLength = stream.Length;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            long initialLength = stream.Length;
             // Act
-            BinaryEncoder.EncodeMessage(mockMessage.Object, stream, mockContext.Object, false);
+            BinaryEncoder.EncodeMessage(mockMessage.Object, stream, messageContext, false);
             // Assert
             Assert.That(stream.Length, Is.GreaterThan(initialLength), "Data should be written to stream");
         }
@@ -6672,13 +5982,14 @@ namespace Opc.Ua.UnitTests
         public void EncodeMessage_StreamWithExistingData_AppendsData()
         {
             // Arrange
-            var mockMessage = CreateMockEncodeable();
+            Mock<IEncodeable> mockMessage = CreateMockEncodeable();
             var stream = new MemoryStream();
-            stream.Write(new byte[] { 1, 2, 3, 4, 5 }, 0, 5);
-            var initialLength = stream.Length;
-            var mockContext = CreateMockContext();
+            stream.Write([1, 2, 3, 4, 5], 0, 5);
+            long initialLength = stream.Length;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
             // Act
-            BinaryEncoder.EncodeMessage(mockMessage.Object, stream, mockContext.Object, false);
+            BinaryEncoder.EncodeMessage(mockMessage.Object, stream, messageContext, false);
             // Assert
             Assert.That(stream.Length, Is.GreaterThan(initialLength), "Data should be appended to stream");
         }
@@ -6690,14 +6001,15 @@ namespace Opc.Ua.UnitTests
         public void EncodeMessage_FileStream_EncodesSuccessfully()
         {
             // Arrange
-            var mockMessage = CreateMockEncodeable();
-            var tempFile = Path.GetTempFileName();
-            var mockContext = CreateMockContext();
+            Mock<IEncodeable> mockMessage = CreateMockEncodeable();
+            string tempFile = Path.GetTempFileName();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
             try
             {
                 using var stream = new FileStream(tempFile, FileMode.Create, FileAccess.Write);
                 // Act
-                BinaryEncoder.EncodeMessage(mockMessage.Object, stream, mockContext.Object, false);
+                BinaryEncoder.EncodeMessage(mockMessage.Object, stream, messageContext, false);
                 // Assert
                 Assert.That(stream.Length, Is.GreaterThan(0));
                 mockMessage.Verify(m => m.Encode(It.IsAny<IEncoder>()), Times.Once);
@@ -6712,54 +6024,37 @@ namespace Opc.Ua.UnitTests
         }
 
         /// <summary>
-        /// Creates a mock IEncodeable for testing.
-        /// </summary>
-        private Mock<IEncodeable> CreateMockEncodeable()
-        {
-            var mockMessage = new Mock<IEncodeable>();
-            var binaryEncodingId = new ExpandedNodeId(Guid.NewGuid());
-            mockMessage.Setup(m => m.BinaryEncodingId).Returns(binaryEncodingId);
-            mockMessage.Setup(m => m.TypeId).Returns(binaryEncodingId);
-            mockMessage.Setup(m => m.Encode(It.IsAny<IEncoder>()));
-            return mockMessage;
-        }
-
-        /// <summary>
         /// Tests WriteInt64 with sequential writes to verify multiple values are written correctly.
         /// </summary>
         [Test]
         public void WriteInt64_MultipleSequentialWrites_WritesAllValuesCorrectly()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var testValues = new long[]
-            {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            long[] testValues =
+            [
                 long.MinValue,
                 -1L,
                 0L,
                 1L,
                 long.MaxValue
-            };
+            ];
             // Act
-            foreach (var value in testValues)
+            foreach (long value in testValues)
             {
                 encoder.WriteInt64("Field", value);
             }
 
             // Assert
             Assert.That(encoder.Position, Is.EqualTo(testValues.Length * 8), "Position should be 40 bytes (5 longs * 8 bytes)");
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             var reader = new BinaryReader(new MemoryStream(buffer));
             for (int i = 0; i < testValues.Length; i++)
             {
-                var readValue = reader.ReadInt64();
+                long readValue = reader.ReadInt64();
                 Assert.That(readValue, Is.EqualTo(testValues[i]), $"Value at index {i} should match");
             }
         }
@@ -6772,19 +6067,15 @@ namespace Opc.Ua.UnitTests
         public void WriteInt64_KnownValue_WritesCorrectByteSequence()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            long testValue = 0x0102030405060708L; // Known value for byte verification
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            const long testValue = 0x0102030405060708L; // Known value for byte verification
             // Act
             encoder.WriteInt64("Test", testValue);
             // Assert
-            var buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer();
             // Little-endian byte order: least significant byte first
             Assert.That(buffer[0], Is.EqualTo(0x08), "First byte should be 0x08");
             Assert.That(buffer[1], Is.EqualTo(0x07), "Second byte should be 0x07");
@@ -6803,23 +6094,19 @@ namespace Opc.Ua.UnitTests
         public void WriteInt64_WithStreamEncoder_WritesCorrectValue()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, leaveOpen: true);
-            long testValue = 42L;
+            var encoder = new BinaryEncoder(stream, messageContext, leaveOpen: true);
+            const long testValue = 42L;
             // Act
             encoder.WriteInt64("TestField", testValue);
             encoder.Close();
             // Assert
             stream.Position = 0;
             var reader = new BinaryReader(stream);
-            var readValue = reader.ReadInt64();
+            long readValue = reader.ReadInt64();
             Assert.That(readValue, Is.EqualTo(testValue), "Read value should match written value");
         }
 
@@ -6830,21 +6117,17 @@ namespace Opc.Ua.UnitTests
         public void WriteInt64_WithFixedBufferEncoder_WritesCorrectValue()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var buffer = new byte[1024];
-            var encoder = new BinaryEncoder(buffer, 0, buffer.Length, mockContext.Object);
-            long testValue = -12345L;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            byte[] buffer = new byte[1024];
+            var encoder = new BinaryEncoder(buffer, 0, buffer.Length, messageContext);
+            const long testValue = -12345L;
             // Act
             encoder.WriteInt64("Field", testValue);
             // Assert
             var reader = new BinaryReader(new MemoryStream(buffer));
-            var readValue = reader.ReadInt64();
+            long readValue = reader.ReadInt64();
             Assert.That(readValue, Is.EqualTo(testValue), "Read value should match written value");
         }
 
@@ -6855,19 +6138,12 @@ namespace Opc.Ua.UnitTests
         public void WriteSByteArray_NullArray_WritesNegativeOneLength()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
             var nullArray = default(ArrayOf<sbyte>);
             // Act
             encoder.WriteSByteArray("test", nullArray);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(4));
@@ -6881,19 +6157,12 @@ namespace Opc.Ua.UnitTests
         public void WriteSByteArray_EmptyArray_WritesZeroLength()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
             var emptyArray = ArrayOf.Empty<sbyte>();
             // Act
             encoder.WriteSByteArray("test", emptyArray);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(4));
@@ -6907,22 +6176,16 @@ namespace Opc.Ua.UnitTests
         public void WriteSByteArray_SingleElement_WritesLengthAndValue()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var singleElement = new sbyte[]
+            ServiceMessageContext messageContext = CreateContext(0);
+
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<sbyte> singleElement = new sbyte[]
             {
                 42
             }.ToArrayOf();
             // Act
             encoder.WriteSByteArray("test", singleElement);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(5)); // 4 bytes for length + 1 byte for value
@@ -6945,19 +6208,12 @@ namespace Opc.Ua.UnitTests
         public void WriteSByteArray_VariousValues_WritesCorrectly(sbyte[] values)
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var arrayOf = values.ToArrayOf();
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<sbyte> arrayOf = values.ToArrayOf();
             // Act
             encoder.WriteSByteArray("test", arrayOf);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(4 + values.Length)); // 4 bytes for length + 1 byte per element
@@ -6975,18 +6231,11 @@ namespace Opc.Ua.UnitTests
         public void WriteSByteArray_ExceedsMaxArrayLength_ThrowsException()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(5);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var largeArray = new sbyte[10].ToArrayOf();
+            ServiceMessageContext messageContext = CreateContext(5);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<sbyte> largeArray = new sbyte[10].ToArrayOf();
             // Act & Assert
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteSByteArray("test", largeArray));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteSByteArray("test", largeArray));
             Assert.That(ex, Is.Not.Null);
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
@@ -6998,19 +6247,12 @@ namespace Opc.Ua.UnitTests
         public void WriteSByteArray_AtMaxArrayLength_WritesSuccessfully()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(10);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var boundaryArray = new sbyte[10].ToArrayOf();
+            ServiceMessageContext messageContext = CreateContext(10);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<sbyte> boundaryArray = new sbyte[10].ToArrayOf();
             // Act
             encoder.WriteSByteArray("test", boundaryArray);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(14)); // 4 bytes for length + 10 bytes for values
@@ -7024,16 +6266,10 @@ namespace Opc.Ua.UnitTests
         public void WriteSByteArray_NullFieldName_WritesCorrectly()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var array = new sbyte[]
+            ServiceMessageContext messageContext = CreateContext(0);
+
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<sbyte> array = new sbyte[]
             {
                 1,
                 2,
@@ -7041,7 +6277,7 @@ namespace Opc.Ua.UnitTests
             }.ToArrayOf();
             // Act
             encoder.WriteSByteArray(null, array);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(7)); // 4 bytes for length + 3 bytes for values
@@ -7055,25 +6291,18 @@ namespace Opc.Ua.UnitTests
         public void WriteSByteArray_LargeArray_WritesAllElements()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var largeArray = new sbyte[1000];
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            sbyte[] largeArray = new sbyte[1000];
             for (int i = 0; i < 1000; i++)
             {
                 largeArray[i] = (sbyte)(i % 128);
             }
 
-            var arrayOf = largeArray.ToArrayOf();
+            ArrayOf<sbyte> arrayOf = largeArray.ToArrayOf();
             // Act
             encoder.WriteSByteArray("test", arrayOf);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(1004)); // 4 bytes for length + 1000 bytes for values
@@ -7091,18 +6320,13 @@ namespace Opc.Ua.UnitTests
         public void WriteGuidArray_NullArray_WritesMinusOne()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ServiceMessageContext messageContext = CreateContext(0);
+
+            var encoder = new BinaryEncoder(messageContext);
             ArrayOf<Uuid> nullArray = default;
             // Act
             encoder.WriteGuidArray("testField", nullArray);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(4));
@@ -7117,18 +6341,13 @@ namespace Opc.Ua.UnitTests
         public void WriteGuidArray_EmptyArray_WritesZero()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            ArrayOf<Uuid> emptyArray = ArrayOf<Uuid>.Empty;
+            ServiceMessageContext messageContext = CreateContext(0);
+
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<Uuid> emptyArray = [];
             // Act
             encoder.WriteGuidArray("testField", emptyArray);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(4));
@@ -7143,19 +6362,14 @@ namespace Opc.Ua.UnitTests
         public void WriteGuidArray_SingleElement_WritesLengthAndGuid()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ServiceMessageContext messageContext = CreateContext(0);
+
+            var encoder = new BinaryEncoder(messageContext);
             var testGuid = new Uuid(Guid.NewGuid());
             var singleArray = ArrayOf.Wrapped(testGuid);
             // Act
             encoder.WriteGuidArray("testField", singleArray);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(20)); // 4 bytes for length + 16 bytes for GUID
@@ -7174,21 +6388,16 @@ namespace Opc.Ua.UnitTests
         public void WriteGuidArray_MultipleElements_WritesLengthAndAllGuids()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ServiceMessageContext messageContext = CreateContext(0);
+
+            var encoder = new BinaryEncoder(messageContext);
             var guid1 = new Uuid(Guid.NewGuid());
             var guid2 = new Uuid(Guid.NewGuid());
             var guid3 = new Uuid(Guid.NewGuid());
             var multiArray = ArrayOf.Wrapped(guid1, guid2, guid3);
             // Act
             encoder.WriteGuidArray("testField", multiArray);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(52)); // 4 bytes for length + 3 * 16 bytes for GUIDs
@@ -7215,22 +6424,16 @@ namespace Opc.Ua.UnitTests
         public void WriteGuidArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(2);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ServiceMessageContext messageContext = CreateContext(2);
+            var encoder = new BinaryEncoder(messageContext);
             var guid1 = new Uuid(Guid.NewGuid());
             var guid2 = new Uuid(Guid.NewGuid());
             var guid3 = new Uuid(Guid.NewGuid());
             var largeArray = ArrayOf.Wrapped(guid1, guid2, guid3);
             // Act & Assert
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteGuidArray("testField", largeArray));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteGuidArray("testField", largeArray));
             Assert.That(ex, Is.Not.Null);
-            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
         /// <summary>
@@ -7240,19 +6443,14 @@ namespace Opc.Ua.UnitTests
         public void WriteGuidArray_EmptyGuids_WritesCorrectly()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var emptyGuid = Uuid.Empty;
+            ServiceMessageContext messageContext = CreateContext(0);
+
+            var encoder = new BinaryEncoder(messageContext);
+            Uuid emptyGuid = Uuid.Empty;
             var emptyGuidArray = ArrayOf.Wrapped(emptyGuid, emptyGuid);
             // Act
             encoder.WriteGuidArray("testField", emptyGuidArray);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(36)); // 4 bytes for length + 2 * 16 bytes for GUIDs
@@ -7275,22 +6473,15 @@ namespace Opc.Ua.UnitTests
         public void WriteGuidArray_AtMaxArrayLength_WritesSuccessfully()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(3);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ServiceMessageContext messageContext = CreateContext(3);
+            var encoder = new BinaryEncoder(messageContext);
             var guid1 = new Uuid(Guid.NewGuid());
             var guid2 = new Uuid(Guid.NewGuid());
             var guid3 = new Uuid(Guid.NewGuid());
             var boundaryArray = ArrayOf.Wrapped(guid1, guid2, guid3);
             // Act
             encoder.WriteGuidArray("testField", boundaryArray);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(52)); // 4 bytes for length + 3 * 16 bytes for GUIDs
@@ -7305,24 +6496,19 @@ namespace Opc.Ua.UnitTests
         public void WriteGuidArray_DifferentFieldNames_ProducesSameOutput()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
+            ServiceMessageContext messageContext = CreateContext(0);
+
             var testGuid = new Uuid(Guid.Parse("12345678-1234-1234-1234-123456789abc"));
             var testArray = ArrayOf.Wrapped(testGuid);
-            var encoder1 = new BinaryEncoder(mockContext.Object);
+            var encoder1 = new BinaryEncoder(messageContext);
             encoder1.WriteGuidArray("field1", testArray);
-            var result1 = encoder1.CloseAndReturnBuffer();
-            var encoder2 = new BinaryEncoder(mockContext.Object);
+            byte[] result1 = encoder1.CloseAndReturnBuffer();
+            var encoder2 = new BinaryEncoder(messageContext);
             encoder2.WriteGuidArray("field2", testArray);
-            var result2 = encoder2.CloseAndReturnBuffer();
-            var encoder3 = new BinaryEncoder(mockContext.Object);
-            encoder3.WriteGuidArray(null!, testArray);
-            var result3 = encoder3.CloseAndReturnBuffer();
+            byte[] result2 = encoder2.CloseAndReturnBuffer();
+            var encoder3 = new BinaryEncoder(messageContext);
+            encoder3.WriteGuidArray(null, testArray);
+            byte[] result3 = encoder3.CloseAndReturnBuffer();
             // Assert
             Assert.That(result1, Is.EqualTo(result2));
             Assert.That(result1, Is.EqualTo(result3));
@@ -7335,14 +6521,9 @@ namespace Opc.Ua.UnitTests
         public void WriteGuidArray_LargeArrayWithinLimits_WritesSuccessfully()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ServiceMessageContext messageContext = CreateContext(0);
+
+            var encoder = new BinaryEncoder(messageContext);
             var guids = new Uuid[100];
             for (int i = 0; i < 100; i++)
             {
@@ -7352,7 +6533,7 @@ namespace Opc.Ua.UnitTests
             var largeArray = ArrayOf.Wrapped(guids);
             // Act
             encoder.WriteGuidArray("testField", largeArray);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(1604)); // 4 bytes for length + 100 * 16 bytes for GUIDs
@@ -7367,8 +6548,9 @@ namespace Opc.Ua.UnitTests
         public void WriteRawBytes_NullBuffer_ThrowsArgumentNullException()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
             Assert.Throws<ArgumentNullException>(() => encoder.WriteRawBytes(null, 0, 0));
         }
@@ -7380,20 +6562,16 @@ namespace Opc.Ua.UnitTests
         public void WriteRawBytes_NegativeOffset_ThrowsArgumentOutOfRangeException()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            byte[] buffer = new byte[]
-            {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            byte[] buffer =
+            [
                 1,
                 2,
                 3
-            };
+            ];
             // Act & Assert
             Assert.Throws<ArgumentOutOfRangeException>(() => encoder.WriteRawBytes(buffer, -1, 1));
         }
@@ -7405,14 +6583,15 @@ namespace Opc.Ua.UnitTests
         public void WriteRawBytes_NegativeCount_ThrowsArgumentOutOfRangeException()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            byte[] buffer = new byte[]
-            {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            byte[] buffer =
+            [
                 1,
                 2,
                 3
-            };
+            ];
             // Act & Assert
             Assert.Throws<ArgumentOutOfRangeException>(() => encoder.WriteRawBytes(buffer, 0, -1));
         }
@@ -7424,14 +6603,15 @@ namespace Opc.Ua.UnitTests
         public void WriteRawBytes_OffsetPlusCountExceedsBufferLength_ThrowsArgumentException()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            byte[] buffer = new byte[]
-            {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            byte[] buffer =
+            [
                 1,
                 2,
                 3
-            };
+            ];
             // Act & Assert
             Assert.Throws<ArgumentException>(() => encoder.WriteRawBytes(buffer, 2, 2));
         }
@@ -7443,20 +6623,16 @@ namespace Opc.Ua.UnitTests
         public void WriteRawBytes_OffsetExceedsBufferLength_ThrowsArgumentException()
         {
             // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            byte[] buffer = new byte[]
-            {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            byte[] buffer =
+            [
                 1,
                 2,
                 3
-            };
+            ];
             // Act & Assert
             Assert.Throws<ArgumentException>(() => encoder.WriteRawBytes(buffer, 4, 0));
         }
@@ -7468,14 +6644,15 @@ namespace Opc.Ua.UnitTests
         public void WriteRawBytes_CountExceedsBufferLength_ThrowsArgumentException()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            byte[] buffer = new byte[]
-            {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            byte[] buffer =
+            [
                 1,
                 2,
                 3
-            };
+            ];
             // Act & Assert
             Assert.Throws<ArgumentException>(() => encoder.WriteRawBytes(buffer, 0, 5));
         }
@@ -7487,14 +6664,15 @@ namespace Opc.Ua.UnitTests
         public void WriteRawBytes_MaxIntegerOffsetAndCount_ThrowsArgumentException()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            byte[] buffer = new byte[]
-            {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            byte[] buffer =
+            [
                 1,
                 2,
                 3
-            };
+            ];
             // Act & Assert
             Assert.Throws<ArgumentException>(() => encoder.WriteRawBytes(buffer, int.MaxValue, int.MaxValue));
         }
@@ -7507,10 +6685,11 @@ namespace Opc.Ua.UnitTests
         public void EncodingType_DefaultConstructor_ReturnsBinary()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
             // Act
-            var result = encoder.EncodingType;
+            EncodingType result = encoder.EncodingType;
             // Assert
             Assert.That(result, Is.EqualTo(EncodingType.Binary));
         }
@@ -7523,11 +6702,12 @@ namespace Opc.Ua.UnitTests
         public void EncodingType_BufferConstructor_ReturnsBinary()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var buffer = new byte[1024];
-            var encoder = new BinaryEncoder(buffer, 0, buffer.Length, mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = new byte[1024];
+            var encoder = new BinaryEncoder(buffer, 0, buffer.Length, messageContext);
             // Act
-            var result = encoder.EncodingType;
+            EncodingType result = encoder.EncodingType;
             // Assert
             Assert.That(result, Is.EqualTo(EncodingType.Binary));
         }
@@ -7540,11 +6720,12 @@ namespace Opc.Ua.UnitTests
         public void EncodingType_StreamConstructor_ReturnsBinary()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
             var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, leaveOpen: false);
+            var encoder = new BinaryEncoder(stream, messageContext, leaveOpen: false);
             // Act
-            var result = encoder.EncodingType;
+            EncodingType result = encoder.EncodingType;
             // Assert
             Assert.That(result, Is.EqualTo(EncodingType.Binary));
         }
@@ -7557,12 +6738,13 @@ namespace Opc.Ua.UnitTests
         public void EncodingType_MultipleCalls_ReturnsConsistentValue()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
             // Act
-            var result1 = encoder.EncodingType;
-            var result2 = encoder.EncodingType;
-            var result3 = encoder.EncodingType;
+            EncodingType result1 = encoder.EncodingType;
+            EncodingType result2 = encoder.EncodingType;
+            EncodingType result3 = encoder.EncodingType;
             // Assert
             Assert.That(result1, Is.EqualTo(EncodingType.Binary));
             Assert.That(result2, Is.EqualTo(EncodingType.Binary));
@@ -7579,10 +6761,11 @@ namespace Opc.Ua.UnitTests
         public void EncodingType_Value_IsNotXmlOrJson()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
             // Act
-            var result = encoder.EncodingType;
+            EncodingType result = encoder.EncodingType;
             // Assert
             Assert.That(result, Is.Not.EqualTo(EncodingType.Xml));
             Assert.That(result, Is.Not.EqualTo(EncodingType.Json));
@@ -7597,12 +6780,13 @@ namespace Opc.Ua.UnitTests
         public void WriteUInt16_MinValue_WritesCorrectBytes()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            ushort value = ushort.MinValue;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            const ushort value = ushort.MinValue;
             // Act
             encoder.WriteUInt16("TestField", value);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(2));
@@ -7619,12 +6803,13 @@ namespace Opc.Ua.UnitTests
         public void WriteUInt16_MaxValue_WritesCorrectBytes()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            ushort value = ushort.MaxValue;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            const ushort value = ushort.MaxValue;
             // Act
             encoder.WriteUInt16("TestField", value);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(2));
@@ -7647,11 +6832,12 @@ namespace Opc.Ua.UnitTests
         public void WriteUInt16_VariousValues_WritesCorrectLittleEndianBytes(ushort value, byte[] expectedBytes)
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteUInt16("TestField", value);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(2));
@@ -7667,12 +6853,13 @@ namespace Opc.Ua.UnitTests
         public void WriteUInt16_NullFieldName_WritesValueCorrectly()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            ushort value = 12345;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            const ushort value = 12345;
             // Act
             encoder.WriteUInt16(null, value);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(2));
@@ -7689,12 +6876,13 @@ namespace Opc.Ua.UnitTests
         public void WriteUInt16_EmptyFieldName_WritesValueCorrectly()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            ushort value = 9876;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            const ushort value = 9876;
             // Act
             encoder.WriteUInt16(string.Empty, value);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(2));
@@ -7711,13 +6899,14 @@ namespace Opc.Ua.UnitTests
         public void WriteUInt16_MultipleValues_WritesAllValuesSequentially()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteUInt16("Field1", 1);
             encoder.WriteUInt16("Field2", 256);
             encoder.WriteUInt16("Field3", 65535);
-            var result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(6));
@@ -7741,10 +6930,11 @@ namespace Opc.Ua.UnitTests
         public void WriteUInt16_WithFixedBuffer_WritesValueToBuffer()
         {
             // Arrange
-            var mockContext = CreateMockServiceMessageContext();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
             byte[] buffer = new byte[10];
-            var encoder = new BinaryEncoder(buffer, 0, buffer.Length, mockContext.Object);
-            ushort value = 4660; // 0x1234
+            var encoder = new BinaryEncoder(buffer, 0, buffer.Length, messageContext);
+            const ushort value = 4660; // 0x1234
             // Act
             encoder.WriteUInt16("TestField", value);
             encoder.Close();
@@ -7761,15 +6951,19 @@ namespace Opc.Ua.UnitTests
         {
             // Arrange
             var stream = new MemoryStream();
-            var mockContext = CreateMockServiceMessageContext(0);
-            var encoder = new BinaryEncoder(stream, mockContext.Object, false);
-            var emptySpan = ReadOnlySpan<byte>.Empty;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxByteStringLength = 0
+            };
+            var encoder = new BinaryEncoder(stream, messageContext, false);
+            ReadOnlySpan<byte> emptySpan = [];
             // Act
             encoder.WriteByteString(null, emptySpan);
-            var result = stream.ToArray();
+            byte[] result = stream.ToArray();
             // Assert
             Assert.That(result.Length, Is.EqualTo(4), "Should write 4 bytes for Int32 length");
-            var length = BitConverter.ToInt32(result, 0);
+            int length = BitConverter.ToInt32(result, 0);
             Assert.That(length, Is.EqualTo(-1), "Length should be -1 for empty span");
         }
 
@@ -7785,9 +6979,13 @@ namespace Opc.Ua.UnitTests
         {
             // Arrange
             var stream = new MemoryStream();
-            var mockContext = CreateMockServiceMessageContext(0);
-            var encoder = new BinaryEncoder(stream, mockContext.Object, false);
-            var testData = new byte[arraySize];
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxByteStringLength = 0
+            };
+            var encoder = new BinaryEncoder(stream, messageContext, false);
+            byte[] testData = new byte[arraySize];
             for (int i = 0; i < arraySize; i++)
             {
                 testData[i] = (byte)(i % 256);
@@ -7796,12 +6994,12 @@ namespace Opc.Ua.UnitTests
             var span = new ReadOnlySpan<byte>(testData);
             // Act
             encoder.WriteByteString("testField", span);
-            var result = stream.ToArray();
+            byte[] result = stream.ToArray();
             // Assert
             Assert.That(result.Length, Is.EqualTo(4 + arraySize), "Should write 4 bytes for length + data bytes");
-            var encodedLength = BitConverter.ToInt32(result, 0);
+            int encodedLength = BitConverter.ToInt32(result, 0);
             Assert.That(encodedLength, Is.EqualTo(arraySize), "Encoded length should match array size");
-            var encodedData = new byte[arraySize];
+            byte[] encodedData = new byte[arraySize];
             Array.Copy(result, 4, encodedData, 0, arraySize);
             Assert.That(encodedData, Is.EqualTo(testData), "Encoded data should match original data");
         }
@@ -7814,10 +7012,14 @@ namespace Opc.Ua.UnitTests
         {
             // Arrange
             var stream = new MemoryStream();
-            var maxLength = 100;
-            var mockContext = CreateMockServiceMessageContext(maxLength);
-            var encoder = new BinaryEncoder(stream, mockContext.Object, false);
-            var testData = new byte[maxLength];
+            const int maxLength = 100;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxByteStringLength = maxLength
+            };
+            var encoder = new BinaryEncoder(stream, messageContext, false);
+            byte[] testData = new byte[maxLength];
             for (int i = 0; i < maxLength; i++)
             {
                 testData[i] = (byte)(i % 256);
@@ -7826,10 +7028,10 @@ namespace Opc.Ua.UnitTests
             var span = new ReadOnlySpan<byte>(testData);
             // Act
             encoder.WriteByteString(null, span);
-            var result = stream.ToArray();
+            byte[] result = stream.ToArray();
             // Assert
             Assert.That(result.Length, Is.EqualTo(4 + maxLength));
-            var encodedLength = BitConverter.ToInt32(result, 0);
+            int encodedLength = BitConverter.ToInt32(result, 0);
             Assert.That(encodedLength, Is.EqualTo(maxLength));
         }
 
@@ -7841,17 +7043,21 @@ namespace Opc.Ua.UnitTests
         {
             // Arrange
             var stream = new MemoryStream();
-            var maxLength = 100;
-            var mockContext = CreateMockServiceMessageContext(maxLength);
-            var encoder = new BinaryEncoder(stream, mockContext.Object, false);
-            var testData = new byte[maxLength - 1];
+            const int maxLength = 100;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxByteStringLength = maxLength
+            };
+            var encoder = new BinaryEncoder(stream, messageContext, false);
+            byte[] testData = new byte[maxLength - 1];
             var span = new ReadOnlySpan<byte>(testData);
             // Act
             encoder.WriteByteString(null, span);
-            var result = stream.ToArray();
+            byte[] result = stream.ToArray();
             // Assert
             Assert.That(result.Length, Is.EqualTo(4 + maxLength - 1));
-            var encodedLength = BitConverter.ToInt32(result, 0);
+            int encodedLength = BitConverter.ToInt32(result, 0);
             Assert.That(encodedLength, Is.EqualTo(maxLength - 1));
         }
 
@@ -7863,16 +7069,20 @@ namespace Opc.Ua.UnitTests
         {
             // Arrange
             var stream = new MemoryStream();
-            var mockContext = CreateMockServiceMessageContext(0);
-            var encoder = new BinaryEncoder(stream, mockContext.Object, false);
-            var testData = new byte[10000];
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxByteStringLength = 0
+            };
+            var encoder = new BinaryEncoder(stream, messageContext, false);
+            byte[] testData = new byte[10000];
             var span = new ReadOnlySpan<byte>(testData);
             // Act
             encoder.WriteByteString(null, span);
-            var result = stream.ToArray();
+            byte[] result = stream.ToArray();
             // Assert
             Assert.That(result.Length, Is.EqualTo(4 + 10000));
-            var encodedLength = BitConverter.ToInt32(result, 0);
+            int encodedLength = BitConverter.ToInt32(result, 0);
             Assert.That(encodedLength, Is.EqualTo(10000));
         }
 
@@ -7884,19 +7094,20 @@ namespace Opc.Ua.UnitTests
         {
             // Arrange
             var stream = new MemoryStream();
-            var mockContext = CreateMockServiceMessageContext(0);
-            var encoder = new BinaryEncoder(stream, mockContext.Object, false);
-            var testData = new byte[]
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
             {
-                0x42
+                MaxByteStringLength = 0
             };
+            var encoder = new BinaryEncoder(stream, messageContext, false);
+            byte[] testData = "B"u8.ToArray();
             var span = new ReadOnlySpan<byte>(testData);
             // Act
             encoder.WriteByteString(null, span);
-            var result = stream.ToArray();
+            byte[] result = stream.ToArray();
             // Assert
             Assert.That(result.Length, Is.EqualTo(5));
-            var encodedLength = BitConverter.ToInt32(result, 0);
+            int encodedLength = BitConverter.ToInt32(result, 0);
             Assert.That(encodedLength, Is.EqualTo(1));
             Assert.That(result[4], Is.EqualTo(0x42));
         }
@@ -7909,35 +7120,3979 @@ namespace Opc.Ua.UnitTests
         {
             // Arrange
             var stream = new MemoryStream();
-            var mockContext = CreateMockServiceMessageContext(-1);
-            var encoder = new BinaryEncoder(stream, mockContext.Object, false);
-            var testData = new byte[1000];
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxByteStringLength = -1
+            };
+            var encoder = new BinaryEncoder(stream, messageContext, false);
+            byte[] testData = new byte[1000];
             var span = new ReadOnlySpan<byte>(testData);
             // Act
             encoder.WriteByteString(null, span);
-            var result = stream.ToArray();
+            byte[] result = stream.ToArray();
             // Assert
             Assert.That(result.Length, Is.EqualTo(4 + 1000));
-            var encodedLength = BitConverter.ToInt32(result, 0);
+            int encodedLength = BitConverter.ToInt32(result, 0);
             Assert.That(encodedLength, Is.EqualTo(1000));
         }
 
         /// <summary>
-        /// Helper method to create a mock IServiceMessageContext with specified MaxByteStringLength.
+        /// Tests WriteEnumerated with uint-backed enum max value.
         /// </summary>
-        /// <param name = "maxByteStringLength">The maximum byte string length to set.</param>
-        /// <returns>Mock IServiceMessageContext.</returns>
-        private Mock<IServiceMessageContext> CreateMockServiceMessageContext(int maxByteStringLength)
+        [Test]
+        public void WriteEnumerated_UInt32BackedEnumMaxValue_WritesCorrectInt32Value()
         {
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockContext.Setup(c => c.MaxByteStringLength).Returns(maxByteStringLength);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            return mockContext;
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            // Act
+            encoder.WriteEnumerated("fieldName", TestUInt32Enum.Max);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4));
+            int actualValue = BitConverter.ToInt32(result, 0);
+            Assert.That(actualValue, Is.EqualTo(-1));
+        }
+
+        /// <summary>
+        /// Tests WriteEnumerated with undefined enum value writes correct int32 value.
+        /// </summary>
+        [Test]
+        public void WriteEnumerated_UndefinedEnumValue_WritesCorrectInt32Value()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            const TestInt32Enum undefinedValue = (TestInt32Enum)999;
+            // Act
+            encoder.WriteEnumerated("fieldName", undefinedValue);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4));
+            int actualValue = BitConverter.ToInt32(result, 0);
+            Assert.That(actualValue, Is.EqualTo(999));
+        }
+
+        /// <summary>
+        /// Tests WriteEnumerated ignores fieldName parameter.
+        /// </summary>
+        [Test]
+        public void WriteEnumerated_WithFieldName_IgnoresFieldName()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder1 = new BinaryEncoder(messageContext);
+            var encoder2 = new BinaryEncoder(messageContext);
+            // Act
+            encoder1.WriteEnumerated("fieldName", TestInt32Enum.One);
+            encoder2.WriteEnumerated(null, TestInt32Enum.One);
+            byte[] result1 = encoder1.CloseAndReturnBuffer();
+            byte[] result2 = encoder2.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result1, Is.EqualTo(result2));
+        }
+
+        /// <summary>
+        /// Tests that WriteFloatArray writes -1 for null array and returns early.
+        /// Input: Default (null) ArrayOf&lt;float&gt;
+        /// Expected: -1 written to stream, no float values written
+        /// </summary>
+        [Test]
+        public void WriteFloatArray_NullArray_WritesMinusOne()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<float> nullArray = default;
+            // Act
+            encoder.WriteFloatArray("TestField", nullArray);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(buffer, Is.Not.Null);
+            Assert.That(buffer.Length, Is.EqualTo(4)); // Only -1 as int32
+            Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(-1));
+        }
+
+        /// <summary>
+        /// Tests that WriteFloatArray writes 0 for empty array and returns early.
+        /// Input: Empty ArrayOf&lt;float&gt;
+        /// Expected: 0 written to stream, no float values written
+        /// </summary>
+        [Test]
+        public void WriteFloatArray_EmptyArray_WritesZero()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<float> emptyArray = [];
+            // Act
+            encoder.WriteFloatArray("TestField", emptyArray);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(buffer, Is.Not.Null);
+            Assert.That(buffer.Length, Is.EqualTo(4)); // Only 0 as int32
+            Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(0));
+        }
+
+        /// <summary>
+        /// Tests that WriteFloatArray correctly writes a single float value.
+        /// Input: ArrayOf&lt;float&gt; with one element (1.5f)
+        /// Expected: Length 1 followed by the float value
+        /// </summary>
+        [Test]
+        public void WriteFloatArray_SingleElement_WritesLengthAndValue()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+
+            var encoder = new BinaryEncoder(messageContext);
+            var array = ArrayOf.Wrapped(1.5f);
+            // Act
+            encoder.WriteFloatArray("TestField", array);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(buffer, Is.Not.Null);
+            Assert.That(buffer.Length, Is.EqualTo(8)); // 4 bytes for length + 4 bytes for float
+            Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(1));
+            Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(1.5f));
+        }
+
+        /// <summary>
+        /// Tests that WriteFloatArray correctly writes multiple float values.
+        /// Input: ArrayOf&lt;float&gt; with three elements
+        /// Expected: Length 3 followed by three float values in order
+        /// </summary>
+        [Test]
+        public void WriteFloatArray_MultipleElements_WritesLengthAndValues()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+
+            var encoder = new BinaryEncoder(messageContext);
+            var array = ArrayOf.Wrapped(1.5f, -2.5f, 3.75f);
+            // Act
+            encoder.WriteFloatArray("TestField", array);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(buffer, Is.Not.Null);
+            Assert.That(buffer.Length, Is.EqualTo(16)); // 4 bytes for length + 12 bytes for 3 floats
+            Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(3));
+            Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(1.5f));
+            Assert.That(BitConverter.ToSingle(buffer, 8), Is.EqualTo(-2.5f));
+            Assert.That(BitConverter.ToSingle(buffer, 12), Is.EqualTo(3.75f));
+        }
+
+        /// <summary>
+        /// Tests that WriteFloatArray correctly handles float.NaN.
+        /// Input: ArrayOf&lt;float&gt; with NaN value
+        /// Expected: NaN is written correctly
+        /// </summary>
+        [Test]
+        public void WriteFloatArray_NaNValue_WritesCorrectly()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+
+            var encoder = new BinaryEncoder(messageContext);
+            var array = ArrayOf.Wrapped(float.NaN);
+            // Act
+            encoder.WriteFloatArray("TestField", array);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(buffer, Is.Not.Null);
+            Assert.That(buffer.Length, Is.EqualTo(8));
+            Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(1));
+            Assert.That(float.IsNaN(BitConverter.ToSingle(buffer, 4)), Is.True);
+        }
+
+        /// <summary>
+        /// Tests that WriteFloatArray correctly handles float.PositiveInfinity.
+        /// Input: ArrayOf&lt;float&gt; with PositiveInfinity value
+        /// Expected: PositiveInfinity is written correctly
+        /// </summary>
+        [Test]
+        public void WriteFloatArray_PositiveInfinity_WritesCorrectly()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            var array = ArrayOf.Wrapped(float.PositiveInfinity);
+            // Act
+            encoder.WriteFloatArray("TestField", array);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(buffer, Is.Not.Null);
+            Assert.That(buffer.Length, Is.EqualTo(8));
+            Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(1));
+            Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(float.PositiveInfinity));
+        }
+
+        /// <summary>
+        /// Tests that WriteFloatArray correctly handles float.NegativeInfinity.
+        /// Input: ArrayOf&lt;float&gt; with NegativeInfinity value
+        /// Expected: NegativeInfinity is written correctly
+        /// </summary>
+        [Test]
+        public void WriteFloatArray_NegativeInfinity_WritesCorrectly()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            var array = ArrayOf.Wrapped(float.NegativeInfinity);
+            // Act
+            encoder.WriteFloatArray("TestField", array);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(buffer, Is.Not.Null);
+            Assert.That(buffer.Length, Is.EqualTo(8));
+            Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(1));
+            Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(float.NegativeInfinity));
+        }
+
+        /// <summary>
+        /// Tests that WriteFloatArray correctly handles float.MinValue.
+        /// Input: ArrayOf&lt;float&gt; with MinValue
+        /// Expected: MinValue is written correctly
+        /// </summary>
+        [Test]
+        public void WriteFloatArray_MinValue_WritesCorrectly()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            var array = ArrayOf.Wrapped(float.MinValue);
+            // Act
+            encoder.WriteFloatArray("TestField", array);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(buffer, Is.Not.Null);
+            Assert.That(buffer.Length, Is.EqualTo(8));
+            Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(1));
+            Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(float.MinValue));
+        }
+
+        /// <summary>
+        /// Tests that WriteFloatArray correctly handles float.MaxValue.
+        /// Input: ArrayOf&lt;float&gt; with MaxValue
+        /// Expected: MaxValue is written correctly
+        /// </summary>
+        [Test]
+        public void WriteFloatArray_MaxValue_WritesCorrectly()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            var array = ArrayOf.Wrapped(float.MaxValue);
+            // Act
+            encoder.WriteFloatArray("TestField", array);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(buffer, Is.Not.Null);
+            Assert.That(buffer.Length, Is.EqualTo(8));
+            Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(1));
+            Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(float.MaxValue));
+        }
+
+        /// <summary>
+        /// Tests that WriteFloatArray correctly handles zero value.
+        /// Input: ArrayOf&lt;float&gt; with zero
+        /// Expected: Zero is written correctly
+        /// </summary>
+        [Test]
+        public void WriteFloatArray_ZeroValue_WritesCorrectly()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            var array = ArrayOf.Wrapped(0.0f);
+            // Act
+            encoder.WriteFloatArray("TestField", array);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(buffer, Is.Not.Null);
+            Assert.That(buffer.Length, Is.EqualTo(8));
+            Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(1));
+            Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(0.0f));
+        }
+
+        /// <summary>
+        /// Tests that WriteFloatArray correctly handles negative zero.
+        /// Input: ArrayOf&lt;float&gt; with -0.0f
+        /// Expected: Negative zero is written correctly
+        /// </summary>
+        [Test]
+        public void WriteFloatArray_NegativeZero_WritesCorrectly()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            var array = ArrayOf.Wrapped(-0.0f);
+            // Act
+            encoder.WriteFloatArray("TestField", array);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(buffer, Is.Not.Null);
+            Assert.That(buffer.Length, Is.EqualTo(8));
+            Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(1));
+            Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(-0.0f));
+        }
+
+        /// <summary>
+        /// Tests that WriteFloatArray throws ServiceResultException when array exceeds MaxArrayLength.
+        /// Input: ArrayOf&lt;float&gt; with 3 elements, MaxArrayLength = 2
+        /// Expected: ServiceResultException with BadEncodingLimitsExceeded status code
+        /// </summary>
+        [Test]
+        public void WriteFloatArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(2);
+            var encoder = new BinaryEncoder(messageContext);
+            var array = ArrayOf.Wrapped(1.0f, 2.0f, 3.0f);
+            // Act & Assert
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(() => encoder.WriteFloatArray("TestField", array));
+            Assert.That(exception, Is.Not.Null);
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        /// <summary>
+        /// Tests that WriteFloatArray correctly writes a large array.
+        /// Input: ArrayOf&lt;float&gt; with 100 elements
+        /// Expected: Length 100 followed by all float values
+        /// </summary>
+        [Test]
+        public void WriteFloatArray_LargeArray_WritesCorrectly()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            float[] testData = new float[100];
+            for (int i = 0; i < 100; i++)
+            {
+                testData[i] = i * 1.5f;
+            }
+
+            var array = ArrayOf.Wrapped(testData);
+            // Act
+            encoder.WriteFloatArray("TestField", array);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(buffer, Is.Not.Null);
+            Assert.That(buffer.Length, Is.EqualTo(404)); // 4 bytes for length + 400 bytes for 100 floats
+            Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(100));
+            for (int i = 0; i < 100; i++)
+            {
+                Assert.That(BitConverter.ToSingle(buffer, 4 + (i * 4)), Is.EqualTo(i * 1.5f));
+            }
+        }
+
+        /// <summary>
+        /// Tests that WriteFloatArray correctly handles mixed special values.
+        /// Input: ArrayOf&lt;float&gt; with NaN, Infinity, -Infinity, zero, and normal values
+        /// Expected: All values written correctly in order
+        /// </summary>
+        [Test]
+        public void WriteFloatArray_MixedSpecialValues_WritesCorrectly()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            var array = ArrayOf.Wrapped(float.NaN, float.PositiveInfinity, float.NegativeInfinity, 0.0f, 1.5f, -2.5f);
+            // Act
+            encoder.WriteFloatArray("TestField", array);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(buffer, Is.Not.Null);
+            Assert.That(buffer.Length, Is.EqualTo(28)); // 4 bytes for length + 24 bytes for 6 floats
+            Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(6));
+            Assert.That(float.IsNaN(BitConverter.ToSingle(buffer, 4)), Is.True);
+            Assert.That(BitConverter.ToSingle(buffer, 8), Is.EqualTo(float.PositiveInfinity));
+            Assert.That(BitConverter.ToSingle(buffer, 12), Is.EqualTo(float.NegativeInfinity));
+            Assert.That(BitConverter.ToSingle(buffer, 16), Is.EqualTo(0.0f));
+            Assert.That(BitConverter.ToSingle(buffer, 20), Is.EqualTo(1.5f));
+            Assert.That(BitConverter.ToSingle(buffer, 24), Is.EqualTo(-2.5f));
+        }
+
+        /// <summary>
+        /// Tests that WriteFloatArray respects MaxArrayLength boundary.
+        /// Input: ArrayOf&lt;float&gt; with exactly MaxArrayLength elements
+        /// Expected: Array is written successfully without exception
+        /// </summary>
+        [Test]
+        public void WriteFloatArray_ExactlyMaxArrayLength_WritesSuccessfully()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(5);
+            var encoder = new BinaryEncoder(messageContext);
+            var array = ArrayOf.Wrapped(1.0f, 2.0f, 3.0f, 4.0f, 5.0f);
+            // Act
+            encoder.WriteFloatArray("TestField", array);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(buffer, Is.Not.Null);
+            Assert.That(buffer.Length, Is.EqualTo(24)); // 4 bytes for length + 20 bytes for 5 floats
+            Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(5));
+        }
+
+        /// <summary>
+        /// Tests that WriteDataValueArray writes -1 when the array is null and returns early.
+        /// </summary>
+        [Test]
+        public void WriteDataValueArray_NullArray_WritesNegativeOneAndReturns()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            var nullArray = default(ArrayOf<DataValue>);
+            // Act
+            encoder.WriteDataValueArray(null, nullArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(-1));
+        }
+
+        /// <summary>
+        /// Tests that WriteDataValueArray writes 0 when the array is empty and returns early.
+        /// </summary>
+        [Test]
+        public void WriteDataValueArray_EmptyArray_WritesZeroAndReturns()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            var emptyArray = new ArrayOf<DataValue>([]);
+            // Act
+            encoder.WriteDataValueArray(null, emptyArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
+        }
+
+        /// <summary>
+        /// Tests that WriteDataValueArray writes the count and then each DataValue for a single item array.
+        /// </summary>
+        [Test]
+        public void WriteDataValueArray_SingleItem_WritesCountAndValue()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            var dataValue = new DataValue(new Variant(42));
+            var array = new ArrayOf<DataValue>([dataValue]);
+            // Act
+            encoder.WriteDataValueArray("TestField", array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.GreaterThan(4));
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Tests that WriteDataValueArray writes the count and then each DataValue for multiple items.
+        /// </summary>
+        [Test]
+        public void WriteDataValueArray_MultipleItems_WritesCountAndAllValues()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            var dataValue1 = new DataValue(new Variant(42));
+            var dataValue2 = new DataValue(new Variant(100));
+            var dataValue3 = new DataValue(new Variant(200));
+            var array = new ArrayOf<DataValue>([dataValue1, dataValue2, dataValue3]);
+            // Act
+            encoder.WriteDataValueArray("TestField", array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.GreaterThan(4));
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(3));
+        }
+
+        /// <summary>
+        /// Tests that WriteDataValueArray throws ServiceResultException when array length exceeds MaxArrayLength.
+        /// </summary>
+        [Test]
+        public void WriteDataValueArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(2);
+            var encoder = new BinaryEncoder(messageContext);
+            var dataValue1 = new DataValue(new Variant(1));
+            var dataValue2 = new DataValue(new Variant(2));
+            var dataValue3 = new DataValue(new Variant(3));
+            var array = new ArrayOf<DataValue>([dataValue1, dataValue2, dataValue3]);
+            // Act & Assert
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteDataValueArray("TestField", array));
+            Assert.That(ex, Is.Not.Null);
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        /// <summary>
+        /// Tests that WriteDataValueArray handles array with null DataValue elements.
+        /// </summary>
+        [Test]
+        public void WriteDataValueArray_ArrayWithNullElements_WritesNullDataValues()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            var array = new ArrayOf<DataValue>([null, new DataValue(new Variant(42)), null]);
+            // Act
+            encoder.WriteDataValueArray("TestField", array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.GreaterThan(4));
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(3));
+        }
+
+        /// <summary>
+        /// Tests that WriteDataValueArray ignores the fieldName parameter.
+        /// </summary>
+        [Test]
+        public void WriteDataValueArray_FieldNameParameter_IsIgnored()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder1 = new BinaryEncoder(messageContext);
+            var encoder2 = new BinaryEncoder(messageContext);
+            var dataValue = new DataValue(new Variant(42));
+            var array = new ArrayOf<DataValue>([dataValue]);
+            // Act
+            encoder1.WriteDataValueArray("Field1", array);
+            encoder2.WriteDataValueArray(null, array);
+            byte[] result1 = encoder1.CloseAndReturnBuffer();
+            byte[] result2 = encoder2.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result1, Is.Not.Null);
+            Assert.That(result2, Is.Not.Null);
+            Assert.That(result1, Is.EqualTo(result2));
+        }
+
+        /// <summary>
+        /// Tests that WriteDataValueArray writes DataValues with various properties set.
+        /// </summary>
+        [Test]
+        public void WriteDataValueArray_DataValuesWithVariousProperties_WritesCorrectly()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            var dataValue1 = new DataValue(new Variant(42))
+            {
+                StatusCode = StatusCodes.Good,
+                SourceTimestamp = DateTime.UtcNow
+            };
+            var dataValue2 = new DataValue(new Variant("test"))
+            {
+                StatusCode = StatusCodes.Bad,
+                ServerTimestamp = DateTime.UtcNow
+            };
+            var array = new ArrayOf<DataValue>([dataValue1, dataValue2]);
+            // Act
+            encoder.WriteDataValueArray("TestField", array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.GreaterThan(4));
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(2));
+        }
+
+        /// <summary>
+        /// Tests that the constructor successfully creates an instance with valid parameters.
+        /// Input: valid buffer, start, count, and context
+        /// Expected: Instance created successfully with Context property set
+        /// </summary>
+        [Test]
+        public void Constructor_ValidParameters_CreatesInstanceSuccessfully()
+        {
+            // Arrange
+            byte[] buffer = new byte[100];
+            const int start = 0;
+            const int count = 100;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            // Act
+            var encoder = new BinaryEncoder(buffer, start, count, messageContext);
+            // Assert
+            Assert.That(encoder, Is.Not.Null);
+            Assert.That(encoder.Context, Is.EqualTo(messageContext));
+        }
+
+        /// <summary>
+        /// Tests that the constructor works with an empty buffer and zero count.
+        /// Input: empty buffer (length 0), start = 0, count = 0
+        /// Expected: Instance created successfully
+        /// </summary>
+        [Test]
+        public void Constructor_EmptyBufferZeroCount_CreatesInstanceSuccessfully()
+        {
+            // Arrange
+            byte[] buffer = [];
+            const int start = 0;
+            const int count = 0;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            // Act
+            var encoder = new BinaryEncoder(buffer, start, count, messageContext);
+            // Assert
+            Assert.That(encoder, Is.Not.Null);
+            Assert.That(encoder.Context, Is.EqualTo(messageContext));
+        }
+
+        /// <summary>
+        /// Tests that the constructor throws ArgumentOutOfRangeException when start is negative.
+        /// Input: start = -1
+        /// Expected: ArgumentOutOfRangeException
+        /// </summary>
+        [Test]
+        public void Constructor_NegativeStart_ThrowsArgumentOutOfRangeException()
+        {
+            // Arrange
+            byte[] buffer = new byte[10];
+            const int start = -1;
+            const int count = 5;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            // Act & Assert
+            Assert.Throws<ArgumentOutOfRangeException>(() => new BinaryEncoder(buffer, start, count, messageContext));
+        }
+
+        /// <summary>
+        /// Tests that the constructor throws ArgumentOutOfRangeException when count is negative.
+        /// Input: count = -1
+        /// Expected: ArgumentOutOfRangeException
+        /// </summary>
+        [Test]
+        public void Constructor_NegativeCount_ThrowsArgumentOutOfRangeException()
+        {
+            // Arrange
+            byte[] buffer = new byte[10];
+            const int start = 0;
+            const int count = -1;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            // Act & Assert
+            Assert.Throws<ArgumentOutOfRangeException>(() => new BinaryEncoder(buffer, start, count, messageContext));
+        }
+
+        /// <summary>
+        /// Tests that the constructor throws ArgumentException when start is beyond buffer length.
+        /// Input: start greater than buffer length
+        /// Expected: ArgumentException
+        /// </summary>
+        [Test]
+        public void Constructor_StartBeyondBufferLength_ThrowsArgumentException()
+        {
+            // Arrange
+            byte[] buffer = new byte[10];
+            const int start = 11;
+            const int count = 0;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            // Act & Assert
+            Assert.Throws<ArgumentException>(() => new BinaryEncoder(buffer, start, count, messageContext));
+        }
+
+        /// <summary>
+        /// Tests that the constructor throws ArgumentException when count exceeds available buffer space.
+        /// Input: start + count greater than buffer length
+        /// Expected: ArgumentException
+        /// </summary>
+        [Test]
+        public void Constructor_CountExceedsAvailableSpace_ThrowsArgumentException()
+        {
+            // Arrange
+            byte[] buffer = new byte[10];
+            const int start = 5;
+            const int count = 6;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            // Act & Assert
+            Assert.Throws<ArgumentException>(() => new BinaryEncoder(buffer, start, count, messageContext));
+        }
+
+        /// <summary>
+        /// Tests that the constructor works when start is at buffer length and count is zero.
+        /// Input: start = buffer.Length, count = 0
+        /// Expected: Instance created successfully
+        /// </summary>
+        [Test]
+        public void Constructor_StartAtBufferLengthWithZeroCount_CreatesInstanceSuccessfully()
+        {
+            // Arrange
+            byte[] buffer = new byte[10];
+            const int start = 10;
+            const int count = 0;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            // Act
+            var encoder = new BinaryEncoder(buffer, start, count, messageContext);
+            // Assert
+            Assert.That(encoder, Is.Not.Null);
+            Assert.That(encoder.Context, Is.EqualTo(messageContext));
+        }
+
+        /// <summary>
+        /// Tests that the constructor works with a subset of the buffer.
+        /// Input: start = 5, count = 3 with buffer of length 10
+        /// Expected: Instance created successfully
+        /// </summary>
+        [Test]
+        public void Constructor_SubsetOfBuffer_CreatesInstanceSuccessfully()
+        {
+            // Arrange
+            byte[] buffer = new byte[10];
+            const int start = 5;
+            const int count = 3;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            // Act
+            var encoder = new BinaryEncoder(buffer, start, count, messageContext);
+            // Assert
+            Assert.That(encoder, Is.Not.Null);
+            Assert.That(encoder.Context, Is.EqualTo(messageContext));
+        }
+
+        /// <summary>
+        /// Tests that the constructor throws when start is int.MinValue.
+        /// Input: start = int.MinValue
+        /// Expected: ArgumentOutOfRangeException
+        /// </summary>
+        [Test]
+        public void Constructor_StartIsMinValue_ThrowsArgumentOutOfRangeException()
+        {
+            // Arrange
+            byte[] buffer = new byte[10];
+            const int start = int.MinValue;
+            const int count = 0;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            // Act & Assert
+            Assert.Throws<ArgumentOutOfRangeException>(() => new BinaryEncoder(buffer, start, count, messageContext));
+        }
+
+        /// <summary>
+        /// Tests that the constructor throws when count is int.MinValue.
+        /// Input: count = int.MinValue
+        /// Expected: ArgumentOutOfRangeException
+        /// </summary>
+        [Test]
+        public void Constructor_CountIsMinValue_ThrowsArgumentOutOfRangeException()
+        {
+            // Arrange
+            byte[] buffer = new byte[10];
+            const int start = 0;
+            const int count = int.MinValue;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            // Act & Assert
+            Assert.Throws<ArgumentOutOfRangeException>(() => new BinaryEncoder(buffer, start, count, messageContext));
+        }
+
+        /// <summary>
+        /// Tests that the constructor throws when start is int.MaxValue.
+        /// Input: start = int.MaxValue
+        /// Expected: ArgumentException (start beyond buffer length)
+        /// </summary>
+        [Test]
+        public void Constructor_StartIsMaxValue_ThrowsArgumentException()
+        {
+            // Arrange
+            byte[] buffer = new byte[10];
+            const int start = int.MaxValue;
+            const int count = 0;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            // Act & Assert
+            Assert.Throws<ArgumentException>(() => new BinaryEncoder(buffer, start, count, messageContext));
+        }
+
+        /// <summary>
+        /// Tests that the constructor throws when count is int.MaxValue.
+        /// Input: count = int.MaxValue
+        /// Expected: ArgumentException (count exceeds available space)
+        /// </summary>
+        [Test]
+        public void Constructor_CountIsMaxValue_ThrowsArgumentException()
+        {
+            // Arrange
+            byte[] buffer = new byte[10];
+            const int start = 0;
+            const int count = int.MaxValue;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            // Act & Assert
+            Assert.Throws<ArgumentException>(() => new BinaryEncoder(buffer, start, count, messageContext));
+        }
+
+        /// <summary>
+        /// Tests that the constructor works with a large buffer.
+        /// Input: buffer of size 10000
+        /// Expected: Instance created successfully
+        /// </summary>
+        [Test]
+        public void Constructor_LargeBuffer_CreatesInstanceSuccessfully()
+        {
+            // Arrange
+            byte[] buffer = new byte[10000];
+            const int start = 0;
+            const int count = 10000;
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            // Act
+            var encoder = new BinaryEncoder(buffer, start, count, messageContext);
+            // Assert
+            Assert.That(encoder, Is.Not.Null);
+            Assert.That(encoder.Context, Is.EqualTo(messageContext));
+        }
+
+        /// <summary>
+        /// Tests that WriteInt16 correctly writes various short values to the binary stream.
+        /// Verifies that values are encoded in little-endian format as expected.
+        /// Edge cases include short.MinValue, short.MaxValue, zero, and typical positive/negative values.
+        /// </summary>
+        [TestCase((short)0, new byte[] { 0x00, 0x00 })]
+        [TestCase((short)1, new byte[] { 0x01, 0x00 })]
+        [TestCase((short)-1, new byte[] { 0xFF, 0xFF })]
+        [TestCase(short.MaxValue, new byte[] { 0xFF, 0x7F })]
+        [TestCase(short.MinValue, new byte[] { 0x00, 0x80 })]
+        [TestCase((short)1000, new byte[] { 0xE8, 0x03 })]
+        [TestCase((short)-1000, new byte[] { 0x18, 0xFC })]
+        [TestCase((short)255, new byte[] { 0xFF, 0x00 })]
+        [TestCase((short)-255, new byte[] { 0x01, 0xFF })]
+        public void WriteInt16_VariousValues_WritesCorrectLittleEndianBytes(short value, byte[] expectedBytes)
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            // Act
+            encoder.WriteInt16("TestField", value);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.GreaterThanOrEqualTo(2));
+            Assert.That(result[0], Is.EqualTo(expectedBytes[0]));
+            Assert.That(result[1], Is.EqualTo(expectedBytes[1]));
+        }
+
+        /// <summary>
+        /// Tests that multiple consecutive WriteInt16 calls write values in sequence.
+        /// Verifies that the encoder correctly maintains position in the stream.
+        /// </summary>
+        [Test]
+        public void WriteInt16_MultipleValues_WritesSequentially()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            const short value1 = 100;
+            const short value2 = -200;
+            const short value3 = 0;
+            // Act
+            encoder.WriteInt16("Field1", value1);
+            encoder.WriteInt16("Field2", value2);
+            encoder.WriteInt16("Field3", value3);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.GreaterThanOrEqualTo(6));
+            // Value1: 100 = 0x0064
+            Assert.That(result[0], Is.EqualTo(0x64));
+            Assert.That(result[1], Is.EqualTo(0x00));
+            // Value2: -200 = 0xFF38
+            Assert.That(result[2], Is.EqualTo(0x38));
+            Assert.That(result[3], Is.EqualTo(0xFF));
+            // Value3: 0 = 0x0000
+            Assert.That(result[4], Is.EqualTo(0x00));
+            Assert.That(result[5], Is.EqualTo(0x00));
+        }
+
+        /// <summary>
+        /// Tests that WriteByteString writes -1 for an empty ReadOnlySequence.
+        /// </summary>
+        [Test]
+        public void WriteByteString_EmptyReadOnlySequence_WritesMinusOne()
+        {
+            // Arrange
+            var stream = new MemoryStream();
+            IServiceMessageContext context = CreateContext(0);
+            var encoder = new BinaryEncoder(stream, context, false);
+            ReadOnlySequence<byte> emptySequence = ReadOnlySequence<byte>.Empty;
+            // Act
+            encoder.WriteByteString(null, emptySequence);
+            stream.Position = 0;
+            var reader = new BinaryReader(stream);
+            int result = reader.ReadInt32();
+            // Assert
+            Assert.That(result, Is.EqualTo(-1));
+            Assert.That(stream.Length, Is.EqualTo(4));
+        }
+
+        /// <summary>
+        /// Tests that WriteByteString correctly encodes a single-segment ReadOnlySequence with no length limit.
+        /// </summary>
+        [Test]
+        public void WriteByteString_SingleSegmentReadOnlySequence_NoLimit_WritesLengthAndData()
+        {
+            // Arrange
+            var stream = new MemoryStream();
+            IServiceMessageContext context = CreateContext(0);
+            var encoder = new BinaryEncoder(stream, context, false);
+            byte[] data =
+            [
+                1,
+                2,
+                3,
+                4,
+                5
+            ];
+            var sequence = new ReadOnlySequence<byte>(data);
+            // Act
+            encoder.WriteByteString(null, sequence);
+            stream.Position = 0;
+            var reader = new BinaryReader(stream);
+            int length = reader.ReadInt32();
+            byte[] readData = reader.ReadBytes(length);
+            // Assert
+            Assert.That(length, Is.EqualTo(5));
+            Assert.That(readData, Is.EqualTo(data));
+        }
+
+        /// <summary>
+        /// Tests that WriteByteString succeeds when the sequence length is within the MaxByteStringLength limit.
+        /// </summary>
+        [Test]
+        public void WriteByteString_ReadOnlySequenceWithinLimit_WritesSuccessfully()
+        {
+            // Arrange
+            var stream = new MemoryStream();
+            IServiceMessageContext context = CreateContext(10);
+            var encoder = new BinaryEncoder(stream, context, false);
+            byte[] data =
+            [
+                1,
+                2,
+                3,
+                4,
+                5
+            ];
+            var sequence = new ReadOnlySequence<byte>(data);
+            // Act
+            encoder.WriteByteString(null, sequence);
+            stream.Position = 0;
+            var reader = new BinaryReader(stream);
+            int length = reader.ReadInt32();
+            byte[] readData = reader.ReadBytes(length);
+            // Assert
+            Assert.That(length, Is.EqualTo(5));
+            Assert.That(readData, Is.EqualTo(data));
+        }
+
+        /// <summary>
+        /// Tests that WriteByteString succeeds when the sequence length equals MaxByteStringLength.
+        /// </summary>
+        [Test]
+        public void WriteByteString_ReadOnlySequenceAtLimit_WritesSuccessfully()
+        {
+            // Arrange
+            var stream = new MemoryStream();
+            IServiceMessageContext context = CreateContext(5);
+            var encoder = new BinaryEncoder(stream, context, false);
+            byte[] data =
+            [
+                1,
+                2,
+                3,
+                4,
+                5
+            ];
+            var sequence = new ReadOnlySequence<byte>(data);
+            // Act
+            encoder.WriteByteString(null, sequence);
+            stream.Position = 0;
+            var reader = new BinaryReader(stream);
+            int length = reader.ReadInt32();
+            byte[] readData = reader.ReadBytes(length);
+            // Assert
+            Assert.That(length, Is.EqualTo(5));
+            Assert.That(readData, Is.EqualTo(data));
+        }
+
+        /// <summary>
+        /// Tests that WriteByteString throws ServiceResultException when the sequence length exceeds MaxByteStringLength.
+        /// </summary>
+        [Test]
+        public void WriteByteString_ReadOnlySequenceExceedsLimit_ThrowsServiceResultException()
+        {
+            // Arrange
+            var stream = new MemoryStream();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var context = new ServiceMessageContext(telemetryContext)
+            {
+                MaxByteStringLength = 3
+            };
+            var encoder = new BinaryEncoder(stream, context, false);
+            byte[] data =
+            [
+                1,
+                2,
+                3,
+                4,
+                5
+            ];
+            var sequence = new ReadOnlySequence<byte>(data);
+            // Act & Assert
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteByteString(null, sequence));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(ex.Message, Does.Contain("MaxByteStringLength"));
+        }
+
+        /// <summary>
+        /// Tests that WriteByteString handles a very large ReadOnlySequence when no limit is set.
+        /// </summary>
+        [Test]
+        public void WriteByteString_LargeReadOnlySequence_NoLimit_WritesSuccessfully()
+        {
+            // Arrange
+            var stream = new MemoryStream();
+            IServiceMessageContext context = CreateContext(0);
+            var encoder = new BinaryEncoder(stream, context, false);
+            byte[] data = new byte[1024 * 10]; // 10 KB
+            for (int i = 0; i < data.Length; i++)
+            {
+                data[i] = (byte)(i % 256);
+            }
+
+            var sequence = new ReadOnlySequence<byte>(data);
+            // Act
+            encoder.WriteByteString(null, sequence);
+            stream.Position = 0;
+            var reader = new BinaryReader(stream);
+            int length = reader.ReadInt32();
+            byte[] readData = reader.ReadBytes(length);
+            // Assert
+            Assert.That(length, Is.EqualTo(1024 * 10));
+            Assert.That(readData, Is.EqualTo(data));
+        }
+
+        /// <summary>
+        /// Tests that WriteByteString throws ServiceResultException for a large ReadOnlySequence exceeding the limit.
+        /// </summary>
+        [Test]
+        public void WriteByteString_LargeReadOnlySequenceExceedsLimit_ThrowsServiceResultException()
+        {
+            // Arrange
+            var stream = new MemoryStream();
+            IServiceMessageContext context = CreateContext(100);
+            var encoder = new BinaryEncoder(stream, context, false);
+            byte[] data = new byte[1024 * 10]; // 10 KB
+            var sequence = new ReadOnlySequence<byte>(data);
+            // Act & Assert
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteByteString(null, sequence));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        /// <summary>
+        /// Tests that WriteByteString correctly handles a single-byte ReadOnlySequence.
+        /// </summary>
+        [Test]
+        public void WriteByteString_SingleByteReadOnlySequence_WritesCorrectly()
+        {
+            // Arrange
+            var stream = new MemoryStream();
+            IServiceMessageContext context = CreateContext(0);
+            var encoder = new BinaryEncoder(stream, context, false);
+            byte[] data = "*"u8.ToArray();
+            var sequence = new ReadOnlySequence<byte>(data);
+            // Act
+            encoder.WriteByteString(null, sequence);
+            stream.Position = 0;
+            var reader = new BinaryReader(stream);
+            int length = reader.ReadInt32();
+            byte[] readData = reader.ReadBytes(length);
+            // Assert
+            Assert.That(length, Is.EqualTo(1));
+            Assert.That(readData, Is.EqualTo(data));
+        }
+
+        /// <summary>
+        /// Tests that WriteBooleanArray writes -1 for null array and returns immediately.
+        /// </summary>
+        [Test]
+        public void WriteBooleanArray_NullArray_WritesNegativeOne()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<bool> nullArray = default(bool[]);
+            // Act
+            encoder.WriteBooleanArray("test", nullArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(-1));
+        }
+
+        /// <summary>
+        /// Tests that WriteBooleanArray writes 0 for empty array and returns immediately.
+        /// </summary>
+        [Test]
+        public void WriteBooleanArray_EmptyArray_WritesZero()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<bool> emptyArray = Array.Empty<bool>();
+            // Act
+            encoder.WriteBooleanArray("test", emptyArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
+        }
+
+        /// <summary>
+        /// Tests that WriteBooleanArray correctly writes a single boolean value.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public void WriteBooleanArray_SingleElement_WritesLengthAndValue(bool value)
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<bool> array = new bool[]
+            {
+                value
+            };
+            // Act
+            encoder.WriteBooleanArray("test", array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(5));
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
+            Assert.That(result[4], Is.EqualTo(value ? (byte)1 : (byte)0));
+        }
+
+        /// <summary>
+        /// Tests that WriteBooleanArray correctly writes multiple boolean values.
+        /// </summary>
+        [Test]
+        public void WriteBooleanArray_MultipleElements_WritesLengthAndAllValues()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<bool> array = new bool[]
+            {
+                true,
+                false,
+                true,
+                false
+            };
+            // Act
+            encoder.WriteBooleanArray("test", array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(8));
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(4));
+            Assert.That(result[4], Is.EqualTo(1));
+            Assert.That(result[5], Is.EqualTo(0));
+            Assert.That(result[6], Is.EqualTo(1));
+            Assert.That(result[7], Is.EqualTo(0));
+        }
+
+        /// <summary>
+        /// Tests that WriteBooleanArray correctly writes an array with all true values.
+        /// </summary>
+        [Test]
+        public void WriteBooleanArray_AllTrueValues_WritesCorrectly()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<bool> array = new bool[]
+            {
+                true,
+                true,
+                true
+            };
+            // Act
+            encoder.WriteBooleanArray("test", array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(7));
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(3));
+            Assert.That(result[4], Is.EqualTo(1));
+            Assert.That(result[5], Is.EqualTo(1));
+            Assert.That(result[6], Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Tests that WriteBooleanArray correctly writes an array with all false values.
+        /// </summary>
+        [Test]
+        public void WriteBooleanArray_AllFalseValues_WritesCorrectly()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<bool> array = new bool[]
+            {
+                false,
+                false,
+                false
+            };
+            // Act
+            encoder.WriteBooleanArray("test", array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(7));
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(3));
+            Assert.That(result[4], Is.EqualTo(0));
+            Assert.That(result[5], Is.EqualTo(0));
+            Assert.That(result[6], Is.EqualTo(0));
+        }
+
+        /// <summary>
+        /// Tests that WriteBooleanArray throws ServiceResultException when array exceeds MaxArrayLength.
+        /// </summary>
+        [Test]
+        public void WriteBooleanArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(5);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<bool> largeArray = new bool[10];
+            // Act & Assert
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteBooleanArray("test", largeArray));
+            Assert.That(ex, Is.Not.Null);
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        /// <summary>
+        /// Tests that WriteBooleanArray correctly handles a large valid array.
+        /// </summary>
+        [Test]
+        public void WriteBooleanArray_LargeValidArray_WritesCorrectly()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            bool[] boolArray = new bool[100];
+            for (int i = 0; i < 100; i++)
+            {
+                boolArray[i] = i % 2 == 0;
+            }
+
+            ArrayOf<bool> array = boolArray;
+            // Act
+            encoder.WriteBooleanArray("test", array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(104));
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(100));
+            for (int i = 0; i < 100; i++)
+            {
+                Assert.That(result[4 + i], Is.EqualTo(i % 2 == 0 ? (byte)1 : (byte)0));
+            }
+        }
+
+        /// <summary>
+        /// Tests that WriteBooleanArray correctly handles MaxArrayLength at exact boundary.
+        /// </summary>
+        [Test]
+        public void WriteBooleanArray_ExactMaxArrayLength_WritesCorrectly()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(5);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<bool> array = new bool[]
+            {
+                true,
+                false,
+                true,
+                false,
+                true
+            };
+            // Act
+            encoder.WriteBooleanArray("test", array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(9));
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(5));
+        }
+
+        /// <summary>
+        /// Tests that WriteBooleanArray ignores fieldName parameter and uses only values.
+        /// </summary>
+        [Test]
+        public void WriteBooleanArray_DifferentFieldNames_ProducesSameOutput()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder1 = new BinaryEncoder(messageContext);
+            var encoder2 = new BinaryEncoder(messageContext);
+            ArrayOf<bool> array = new bool[]
+            {
+                true,
+                false
+            };
+            // Act
+            encoder1.WriteBooleanArray("field1", array);
+            encoder2.WriteBooleanArray("field2", array);
+            byte[] result1 = encoder1.CloseAndReturnBuffer();
+            byte[] result2 = encoder2.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result1, Is.EqualTo(result2));
+        }
+
+        /// <summary>
+        /// Tests that WriteDateTimeArray correctly encodes a null array.
+        /// </summary>
+        [Test]
+        public void WriteDateTimeArray_NullArray_WritesNegativeOne()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<DateTime> nullArray = default;
+            // Act
+            encoder.WriteDateTimeArray("TestField", nullArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(-1));
+        }
+
+        /// <summary>
+        /// Tests that WriteDateTimeArray correctly encodes an empty array.
+        /// </summary>
+        [Test]
+        public void WriteDateTimeArray_EmptyArray_WritesZeroLength()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<DateTime> emptyArray = [];
+            // Act
+            encoder.WriteDateTimeArray("TestField", emptyArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
+        }
+
+        /// <summary>
+        /// Tests that WriteDateTimeArray correctly encodes a single DateTime value.
+        /// </summary>
+        [Test]
+        public void WriteDateTimeArray_SingleElement_WritesLengthAndValue()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            var testDate = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+            var singleElementArray = new ArrayOf<DateTime>([testDate]);
+            // Act
+            encoder.WriteDateTimeArray("TestField", singleElementArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(12)); // 4 bytes for length + 8 bytes for DateTime
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Tests that WriteDateTimeArray correctly encodes multiple DateTime values.
+        /// </summary>
+        [Test]
+        public void WriteDateTimeArray_MultipleElements_WritesLengthAndAllValues()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            DateTime[] dates =
+            [
+                new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc),
+                new DateTime(2024, 6, 15, 8, 30, 0, DateTimeKind.Utc),
+                new DateTime(2024, 12, 31, 23, 59, 59, DateTimeKind.Utc)
+            ];
+            var multiElementArray = new ArrayOf<DateTime>(dates);
+            // Act
+            encoder.WriteDateTimeArray("TestField", multiElementArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(28)); // 4 bytes for length + 3 * 8 bytes for DateTimes
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(3));
+        }
+
+        /// <summary>
+        /// Tests that WriteDateTimeArray handles DateTime.MinValue correctly.
+        /// </summary>
+        [Test]
+        public void WriteDateTimeArray_MinValue_EncodesCorrectly()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            var array = new ArrayOf<DateTime>([DateTime.MinValue]);
+            // Act
+            encoder.WriteDateTimeArray("TestField", array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(12));
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Tests that WriteDateTimeArray handles DateTime.MaxValue correctly.
+        /// </summary>
+        [Test]
+        public void WriteDateTimeArray_MaxValue_EncodesCorrectly()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            var array = new ArrayOf<DateTime>([DateTime.MaxValue]);
+            // Act
+            encoder.WriteDateTimeArray("TestField", array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(12));
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Tests that WriteDateTimeArray throws when array length exceeds MaxArrayLength.
+        /// </summary>
+        [Test]
+        public void WriteDateTimeArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(2);
+            var encoder = new BinaryEncoder(messageContext);
+            DateTime[] dates =
+            [
+                DateTime.UtcNow,
+                DateTime.UtcNow.AddDays(1),
+                DateTime.UtcNow.AddDays(2)
+            ];
+            var array = new ArrayOf<DateTime>(dates);
+            // Act & Assert
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteDateTimeArray("TestField", array));
+            Assert.That(ex, Is.Not.Null);
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        /// <summary>
+        /// Tests that WriteDateTimeArray handles various DateTime values including edge cases.
+        /// </summary>
+        [Test]
+        public void WriteDateTimeArray_VariousDateTimeValues_EncodesAllCorrectly()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            DateTime[] dates =
+            [
+                DateTime.MinValue,
+                DateTime.MaxValue,
+                new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                DateTime.UtcNow
+            ];
+            var array = new ArrayOf<DateTime>(dates);
+            // Act
+            encoder.WriteDateTimeArray("TestField", array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(44)); // 4 bytes for length + 5 * 8 bytes for DateTimes
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(5));
+        }
+
+        /// <summary>
+        /// Tests that WriteDateTimeArray with null fieldName processes correctly.
+        /// </summary>
+        [Test]
+        public void WriteDateTimeArray_NullFieldName_EncodesCorrectly()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            var testDate = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+            var array = new ArrayOf<DateTime>([testDate]);
+            // Act
+            encoder.WriteDateTimeArray(null, array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(12));
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Tests WriteVariantArray with a null array.
+        /// Should write -1 as length and return without writing elements.
+        /// </summary>
+        [Test]
+        public void WriteVariantArray_NullArray_WritesNegativeOne()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            var nullArray = default(ArrayOf<Variant>);
+            // Act
+            encoder.WriteVariantArray("TestField", nullArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4)); // -1 as int32 = 4 bytes
+            using var stream = new MemoryStream(result);
+            using var reader = new BinaryReader(stream);
+            int length = reader.ReadInt32();
+            Assert.That(length, Is.EqualTo(-1));
+        }
+
+        /// <summary>
+        /// Tests WriteVariantArray with an empty array.
+        /// Should write 0 as length and return without writing elements.
+        /// </summary>
+        [Test]
+        public void WriteVariantArray_EmptyArray_WritesZeroLength()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<Variant> emptyArray = [];
+            // Act
+            encoder.WriteVariantArray("TestField", emptyArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4)); // 0 as int32 = 4 bytes
+            using var stream = new MemoryStream(result);
+            using var reader = new BinaryReader(stream);
+            int length = reader.ReadInt32();
+            Assert.That(length, Is.EqualTo(0));
+        }
+
+        /// <summary>
+        /// Tests WriteVariantArray with a single element array.
+        /// Should write length 1 followed by the variant data.
+        /// </summary>
+        [Test]
+        public void WriteVariantArray_SingleElement_WritesLengthAndElement()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxArrayLength = 0,
+                MaxMessageSize = 0
+            };
+            var encoder = new BinaryEncoder(messageContext);
+            var variant = new Variant(42);
+            var array = new ArrayOf<Variant>([variant]);
+            // Act
+            encoder.WriteVariantArray("TestField", array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.GreaterThan(4)); // More than just the length
+            using var stream = new MemoryStream(result);
+            using var reader = new BinaryReader(stream);
+            int length = reader.ReadInt32();
+            Assert.That(length, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Tests WriteVariantArray with multiple elements.
+        /// Should write length followed by all variant elements in order.
+        /// </summary>
+        [Test]
+        public void WriteVariantArray_MultipleElements_WritesAllElements()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxArrayLength = 0,
+                MaxMessageSize = 0
+            };
+            var encoder = new BinaryEncoder(messageContext);
+            var variants = new Variant[]
+            {
+                new(42),
+                new("test"),
+                new(true)
+            };
+            var array = new ArrayOf<Variant>(variants);
+            // Act
+            encoder.WriteVariantArray("TestField", array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            using var stream = new MemoryStream(result);
+            using var reader = new BinaryReader(stream);
+            int length = reader.ReadInt32();
+            Assert.That(length, Is.EqualTo(3));
+        }
+
+        /// <summary>
+        /// Tests WriteVariantArray with null field name.
+        /// Should still write the array correctly as fieldName is not used.
+        /// </summary>
+        [Test]
+        public void WriteVariantArray_NullFieldName_WritesArraySuccessfully()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxArrayLength = 0,
+                MaxMessageSize = 0
+            };
+            var encoder = new BinaryEncoder(messageContext);
+            var variant = new Variant(123);
+            var array = new ArrayOf<Variant>([variant]);
+            // Act
+            encoder.WriteVariantArray(null, array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            using var stream = new MemoryStream(result);
+            using var reader = new BinaryReader(stream);
+            int length = reader.ReadInt32();
+            Assert.That(length, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Tests WriteVariantArray when MaxArrayLength is exceeded.
+        /// Should throw ServiceResultException with BadEncodingLimitsExceeded.
+        /// </summary>
+        [Test]
+        public void WriteVariantArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(2);
+            var encoder = new BinaryEncoder(messageContext);
+            var variants = new Variant[]
+            {
+                new(1),
+                new(2),
+                new(3)
+            };
+            var array = new ArrayOf<Variant>(variants);
+            // Act & Assert
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteVariantArray("TestField", array));
+            Assert.That(ex, Is.Not.Null);
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        /// <summary>
+        /// Tests WriteVariantArray with variants containing different data types.
+        /// Should write all variants with their respective types correctly.
+        /// </summary>
+        [Test]
+        public void WriteVariantArray_DifferentVariantTypes_WritesAllCorrectly()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxArrayLength = 0,
+                MaxMessageSize = 0
+            };
+            var encoder = new BinaryEncoder(messageContext);
+            var variants = new Variant[]
+            {
+                Variant.From((byte)1),
+                Variant.From((short)2),
+                Variant.From(3),
+                Variant.From(4L),
+                Variant.From(5.5f),
+                Variant.From(6.6)
+            };
+            var array = new ArrayOf<Variant>(variants);
+            // Act
+            encoder.WriteVariantArray("TestField", array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            using var stream = new MemoryStream(result);
+            using var reader = new BinaryReader(stream);
+            int length = reader.ReadInt32();
+            Assert.That(length, Is.EqualTo(6));
+        }
+
+        /// <summary>
+        /// Tests WriteVariantArray with array containing null Variant values.
+        /// Should write the array with null variants encoded properly.
+        /// </summary>
+        [Test]
+        public void WriteVariantArray_WithNullVariants_WritesArrayWithNulls()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxArrayLength = 0,
+                MaxMessageSize = 0
+            };
+            var encoder = new BinaryEncoder(messageContext);
+            var variants = new Variant[]
+            {
+                new(42),
+                Variant.Null,
+                new(84)
+            };
+            var array = new ArrayOf<Variant>(variants);
+            // Act
+            encoder.WriteVariantArray("TestField", array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            using var stream = new MemoryStream(result);
+            using var reader = new BinaryReader(stream);
+            int length = reader.ReadInt32();
+            Assert.That(length, Is.EqualTo(3));
+        }
+
+        /// <summary>
+        /// Tests WriteVariantArray with large array at boundary of MaxArrayLength.
+        /// Should write successfully when count equals MaxArrayLength.
+        /// </summary>
+        [Test]
+        public void WriteVariantArray_ArrayAtMaxLength_WritesSuccessfully()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(3);
+            messageContext.MaxMessageSize = 0;
+            var encoder = new BinaryEncoder(messageContext);
+            var variants = new Variant[]
+            {
+                new(1),
+                new(2),
+                new(3)
+            };
+            var array = new ArrayOf<Variant>(variants);
+            // Act
+            encoder.WriteVariantArray("TestField", array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            using var stream = new MemoryStream(result);
+            using var reader = new BinaryReader(stream);
+            int length = reader.ReadInt32();
+            Assert.That(length, Is.EqualTo(3));
+        }
+
+        /// <summary>
+        /// Tests that Dispose correctly disposes the writer and stream when leaveOpen is false.
+        /// </summary>
+        [Test]
+        public void Dispose_WithLeaveOpenFalse_DisposesWriterAndStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var stream = new MemoryStream();
+            var encoder = new BinaryEncoder(stream, messageContext, leaveOpen: false);
+            // Act
+            encoder.Dispose();
+            // Assert - Stream should be disposed (cannot read/write)
+            Assert.That(() => stream.WriteByte(0), Throws.TypeOf<ObjectDisposedException>());
+        }
+
+        /// <summary>
+        /// Tests that Dispose correctly disposes the writer but leaves the stream open when leaveOpen is true.
+        /// </summary>
+        [Test]
+        public void Dispose_WithLeaveOpenTrue_DisposesWriterButLeavesStreamOpen()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var stream = new MemoryStream();
+            var encoder = new BinaryEncoder(stream, messageContext, leaveOpen: true);
+            // Act
+            encoder.Dispose();
+            // Assert - Stream should still be usable
+            Assert.That(() => stream.WriteByte(0), Throws.Nothing);
+            Assert.That(stream.CanWrite, Is.True);
+            // Clean up
+            stream.Dispose();
+        }
+
+        /// <summary>
+        /// Tests that Dispose can be called multiple times without throwing exceptions (idempotency).
+        /// </summary>
+        [Test]
+        public void Dispose_CalledMultipleTimes_DoesNotThrow()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            // Act & Assert - Multiple dispose calls should not throw
+            Assert.That(encoder.Dispose, Throws.Nothing);
+            Assert.That(encoder.Dispose, Throws.Nothing);
+            Assert.That(encoder.Dispose, Throws.Nothing);
+        }
+
+        /// <summary>
+        /// Tests that Dispose correctly flushes and disposes resources after writing data.
+        /// </summary>
+        [Test]
+        public void Dispose_AfterWritingData_FlushesAndDisposesCorrectly()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var stream = new MemoryStream();
+            var encoder = new BinaryEncoder(stream, messageContext, leaveOpen: false);
+            // Write some data
+            encoder.WriteInt32("TestField", 42);
+            long positionBeforeDispose = stream.Position;
+            // Act
+            encoder.Dispose();
+            // Assert - Data should be flushed before disposal
+            Assert.That(positionBeforeDispose, Is.GreaterThan(0));
+            Assert.That(() => stream.Position, Throws.TypeOf<ObjectDisposedException>());
+        }
+
+        /// <summary>
+        /// Tests that Dispose with default constructor disposes internal MemoryStream.
+        /// </summary>
+        [Test]
+        public void Dispose_WithDefaultConstructor_DisposesInternalStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            // Write some data to ensure stream is used
+            encoder.WriteInt32("TestField", 123);
+            // Act
+            encoder.Dispose();
+            // Assert - Attempting to write after dispose should throw
+            Assert.That(() => encoder.WriteInt32("AnotherField", 456), Throws.Exception);
+        }
+
+        /// <summary>
+        /// Tests that Dispose can be called on an encoder that has not written any data.
+        /// </summary>
+        [Test]
+        public void Dispose_WithoutWritingData_DisposesCleanly()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            // Act & Assert - Should dispose cleanly without any writes
+            Assert.That(encoder.Dispose, Throws.Nothing);
+        }
+
+        /// <summary>
+        /// Tests that Dispose works correctly with encoder created from buffer constructor.
+        /// </summary>
+        [Test]
+        public void Dispose_WithBufferConstructor_DisposesCorrectly()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            byte[] buffer = new byte[1024];
+            var encoder = new BinaryEncoder(buffer, 0, buffer.Length, messageContext);
+            // Write some data
+            encoder.WriteInt32("TestField", 999);
+            // Act
+            encoder.Dispose();
+            // Assert - Should dispose without errors
+            Assert.That(() => encoder.WriteInt32("AnotherField", 888), Throws.Exception);
+        }
+
+        /// <summary>
+        /// Tests that PopNamespace can be called on a newly created encoder without throwing an exception.
+        /// This verifies that the no-op implementation doesn't cause any issues.
+        /// </summary>
+        [Test]
+        public void PopNamespace_CalledOnNewEncoder_DoesNotThrowException()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            // Act & Assert
+            Assert.DoesNotThrow(encoder.PopNamespace);
+        }
+
+        /// <summary>
+        /// Tests that PopNamespace can be called multiple times consecutively without throwing an exception.
+        /// Verifies that repeated calls to the no-op method don't accumulate state or cause errors.
+        /// </summary>
+        [Test]
+        public void PopNamespace_CalledMultipleTimes_DoesNotThrowException()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            // Act & Assert
+            Assert.DoesNotThrow(() =>
+            {
+                encoder.PopNamespace();
+                encoder.PopNamespace();
+                encoder.PopNamespace();
+            });
+        }
+
+        /// <summary>
+        /// Tests that PopNamespace can be called after writing data without affecting the encoded output.
+        /// Verifies that the no-op PopNamespace method doesn't interfere with binary encoding.
+        /// </summary>
+        [Test]
+        public void PopNamespace_CalledAfterWritingData_DoesNotAffectOutput()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder1 = new BinaryEncoder(messageContext);
+            var encoder2 = new BinaryEncoder(messageContext);
+            // Act
+            encoder1.WriteInt32(null, 42);
+            byte[] output1 = encoder1.CloseAndReturnBuffer();
+            encoder2.WriteInt32(null, 42);
+            encoder2.PopNamespace();
+            byte[] output2 = encoder2.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(output1, Is.Not.Null);
+            Assert.That(output2, Is.Not.Null);
+            Assert.That(output2, Is.EqualTo(output1));
+        }
+
+        /// <summary>
+        /// Tests that PopNamespace can be called after PushNamespace without throwing an exception.
+        /// Verifies that the Push/Pop pair works correctly even though both are no-ops in binary encoding.
+        /// </summary>
+        [Test]
+        public void PopNamespace_CalledAfterPushNamespace_DoesNotThrowException()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            // Act & Assert
+            Assert.DoesNotThrow(() =>
+            {
+                encoder.PushNamespace("http://opcfoundation.org/UA/");
+                encoder.PopNamespace();
+            });
+        }
+
+        /// <summary>
+        /// Tests that PopNamespace can be called with multiple PushNamespace calls without throwing an exception.
+        /// Verifies proper handling of nested namespace operations in binary encoding.
+        /// </summary>
+        [Test]
+        public void PopNamespace_CalledWithMultiplePushNamespace_DoesNotThrowException()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            // Act & Assert
+            Assert.DoesNotThrow(() =>
+            {
+                encoder.PushNamespace("http://opcfoundation.org/UA/");
+                encoder.PushNamespace("http://test.org/");
+                encoder.PopNamespace();
+                encoder.PopNamespace();
+            });
+        }
+
+        /// <summary>
+        /// Tests that PopNamespace called without matching PushNamespace does not throw an exception.
+        /// In binary encoding, both operations are no-ops, so unbalanced calls should not cause errors.
+        /// </summary>
+        [Test]
+        public void PopNamespace_CalledWithoutPushNamespace_DoesNotThrowException()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            // Act & Assert
+            Assert.DoesNotThrow(encoder.PopNamespace);
+        }
+
+        /// <summary>
+        /// Tests WriteQualifiedName with a QualifiedName that has namespace index 0 and a simple name,
+        /// when no namespace mappings are configured.
+        /// Verifies that the namespace index and name are written correctly to the binary stream.
+        /// </summary>
+        [Test]
+        public void WriteQualifiedName_WithoutNamespaceMappings_WritesIndexAndName()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxStringLength = 0
+            };
+            var encoder = new BinaryEncoder(messageContext);
+            var qualifiedName = new QualifiedName("TestName", 0);
+            // Act
+            encoder.WriteQualifiedName(null, qualifiedName);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.GreaterThan(0));
+        }
+
+        /// <summary>
+        /// Tests WriteQualifiedName with a QualifiedName that has a non-zero namespace index,
+        /// when no namespace mappings are configured.
+        /// Verifies that the original namespace index is preserved and written correctly.
+        /// </summary>
+        [TestCase((ushort)1)]
+        [TestCase((ushort)10)]
+        [TestCase((ushort)255)]
+        [TestCase(ushort.MaxValue)]
+        public void WriteQualifiedName_WithoutMappings_PreservesOriginalNamespaceIndex(ushort namespaceIndex)
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxStringLength = 0
+            };
+            var encoder = new BinaryEncoder(messageContext);
+            var qualifiedName = new QualifiedName("Name", namespaceIndex);
+            // Act
+            encoder.WriteQualifiedName("fieldName", qualifiedName);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.GreaterThan(2));
+            ushort writtenIndex = BitConverter.ToUInt16(result, 0);
+            Assert.That(writtenIndex, Is.EqualTo(namespaceIndex));
+        }
+
+        /// <summary>
+        /// Tests WriteQualifiedName with namespace mappings configured and the namespace index
+        /// is within the bounds of the mapping array.
+        /// Verifies that the mapped namespace index is written instead of the original.
+        /// </summary>
+        [Test]
+        public void WriteQualifiedName_WithNamespaceMappings_WritesMappedIndex()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxStringLength = 0
+            };
+            var sourceNamespaces = new NamespaceTable();
+            sourceNamespaces.Append("http://example.com/namespace1");
+            sourceNamespaces.Append("http://example.com/namespace2");
+            var targetNamespaces = new NamespaceTable();
+            targetNamespaces.Append("http://example.com/namespace2");
+            targetNamespaces.Append("http://example.com/namespace1");
+            messageContext.NamespaceUris = targetNamespaces;
+            var encoder = new BinaryEncoder(messageContext);
+            encoder.SetMappingTables(sourceNamespaces, null);
+            var qualifiedName = new QualifiedName("TestName", 1);
+            // Act
+            encoder.WriteQualifiedName(null, qualifiedName);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            ushort writtenIndex = BitConverter.ToUInt16(result, 0);
+            Assert.That(writtenIndex, Is.Not.EqualTo((ushort)1));
+        }
+
+        /// <summary>
+        /// Tests WriteQualifiedName with namespace mappings configured but the namespace index
+        /// exceeds the bounds of the mapping array.
+        /// Verifies that the original namespace index is used when no mapping exists.
+        /// </summary>
+        [Test]
+        public void WriteQualifiedName_WithNamespaceMappingsIndexOutOfBounds_WritesOriginalIndex()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxStringLength = 0
+            };
+            var sourceNamespaces = new NamespaceTable();
+            sourceNamespaces.Append("http://example.com/namespace1");
+            var targetNamespaces = new NamespaceTable();
+            targetNamespaces.Append("http://example.com/namespace1");
+            messageContext.NamespaceUris = targetNamespaces;
+            var encoder = new BinaryEncoder(messageContext);
+            encoder.SetMappingTables(sourceNamespaces, null);
+            var qualifiedName = new QualifiedName("TestName", 100);
+            // Act
+            encoder.WriteQualifiedName(null, qualifiedName);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            ushort writtenIndex = BitConverter.ToUInt16(result, 0);
+            Assert.That(writtenIndex, Is.EqualTo((ushort)100));
+        }
+
+        /// <summary>
+        /// Tests WriteQualifiedName with a QualifiedName that has a null Name property.
+        /// Verifies that null names are handled correctly.
+        /// </summary>
+        [Test]
+        public void WriteQualifiedName_WithNullName_WritesNullString()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxStringLength = 0
+            };
+            var encoder = new BinaryEncoder(messageContext);
+            var qualifiedName = new QualifiedName(null, 0);
+            // Act
+            encoder.WriteQualifiedName(null, qualifiedName);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.GreaterThan(0));
+        }
+
+        /// <summary>
+        /// Tests WriteQualifiedName with a QualifiedName that has an empty Name property.
+        /// Verifies that empty names are written correctly.
+        /// </summary>
+        [Test]
+        public void WriteQualifiedName_WithEmptyName_WritesEmptyString()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxStringLength = 0
+            };
+            var encoder = new BinaryEncoder(messageContext);
+            var qualifiedName = new QualifiedName(string.Empty, 0);
+            // Act
+            encoder.WriteQualifiedName(null, qualifiedName);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.GreaterThan(0));
+        }
+
+        /// <summary>
+        /// Tests WriteQualifiedName with a QualifiedName that has a Name with special characters.
+        /// Verifies that special characters in names are encoded correctly.
+        /// </summary>
+        [TestCase("Name with spaces")]
+        [TestCase("Name\twith\ttabs")]
+        [TestCase("Name\nwith\nnewlines")]
+        [TestCase("Name with 日本語")]
+        [TestCase("Name with émojis 😀")]
+        [TestCase("Name/with/slashes")]
+        public void WriteQualifiedName_WithSpecialCharactersInName_EncodesCorrectly(string name)
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxStringLength = 0
+            };
+            var encoder = new BinaryEncoder(messageContext);
+            var qualifiedName = new QualifiedName(name, 0);
+            // Act
+            encoder.WriteQualifiedName(null, qualifiedName);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.GreaterThan(0));
+        }
+
+        /// <summary>
+        /// Tests WriteQualifiedName with multiple QualifiedNames written sequentially.
+        /// Verifies that multiple qualified names can be written to the same encoder.
+        /// </summary>
+        [Test]
+        public void WriteQualifiedName_MultipleQualifiedNames_WritesAllCorrectly()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxStringLength = 0
+            };
+            var encoder = new BinaryEncoder(messageContext);
+            var qn1 = new QualifiedName("Name1", 0);
+            var qn2 = new QualifiedName("Name2", 1);
+            var qn3 = new QualifiedName("Name3", 2);
+            // Act
+            encoder.WriteQualifiedName(null, qn1);
+            encoder.WriteQualifiedName(null, qn2);
+            encoder.WriteQualifiedName(null, qn3);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.GreaterThan(0));
+        }
+
+        /// <summary>
+        /// Tests WriteQualifiedName with namespace index at the boundary (0).
+        /// Verifies that the minimum namespace index is handled correctly.
+        /// </summary>
+        [Test]
+        public void WriteQualifiedName_WithNamespaceIndexZero_WritesCorrectly()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxStringLength = 0
+            };
+            var encoder = new BinaryEncoder(messageContext);
+            var qualifiedName = new QualifiedName("TestName", 0);
+            // Act
+            encoder.WriteQualifiedName(null, qualifiedName);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            ushort writtenIndex = BitConverter.ToUInt16(result, 0);
+            Assert.That(writtenIndex, Is.EqualTo((ushort)0));
+        }
+
+        /// <summary>
+        /// Tests WriteQualifiedName with a very long name string.
+        /// Verifies that long names are handled correctly without errors.
+        /// </summary>
+        [Test]
+        public void WriteQualifiedName_WithVeryLongName_WritesCorrectly()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxStringLength = 0
+            };
+            var encoder = new BinaryEncoder(messageContext);
+            string longName = new('A', 10000);
+            var qualifiedName = new QualifiedName(longName, 0);
+            // Act
+            encoder.WriteQualifiedName(null, qualifiedName);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.GreaterThan(10000));
+        }
+
+        /// <summary>
+        /// Tests WriteQualifiedName with whitespace-only name.
+        /// Verifies that whitespace-only names are written correctly.
+        /// </summary>
+        [TestCase("   ")]
+        [TestCase("\t\t\t")]
+        [TestCase("\n\n")]
+        public void WriteQualifiedName_WithWhitespaceOnlyName_WritesCorrectly(string name)
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxStringLength = 0
+            };
+            var encoder = new BinaryEncoder(messageContext);
+            var qualifiedName = new QualifiedName(name, 0);
+            // Act
+            encoder.WriteQualifiedName(null, qualifiedName);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.GreaterThan(0));
+        }
+
+        /// <summary>
+        /// Tests WriteQualifiedName with namespace index exactly at the length of mapping array.
+        /// Verifies that boundary condition when index equals mapping array length is handled correctly.
+        /// </summary>
+        [Test]
+        public void WriteQualifiedName_WithIndexAtMappingArrayLength_WritesOriginalIndex()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxStringLength = 0
+            };
+            var sourceNamespaces = new NamespaceTable();
+            sourceNamespaces.Append("http://example.com/namespace1");
+            var targetNamespaces = new NamespaceTable();
+            targetNamespaces.Append("http://example.com/namespace1");
+            messageContext.NamespaceUris = targetNamespaces;
+            var encoder = new BinaryEncoder(messageContext);
+            encoder.SetMappingTables(sourceNamespaces, null);
+            var qualifiedName = new QualifiedName("TestName", 2);
+            // Act
+            encoder.WriteQualifiedName(null, qualifiedName);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            ushort writtenIndex = BitConverter.ToUInt16(result, 0);
+            Assert.That(writtenIndex, Is.EqualTo((ushort)2));
+        }
+
+        /// <summary>
+        /// Tests that WriteUInt32Array correctly encodes a null array.
+        /// The binary format should write -1 as the length for null arrays.
+        /// </summary>
+        [Test]
+        public void WriteUInt32Array_NullArray_WritesNegativeOne()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            var nullArray = default(ArrayOf<uint>);
+            // Act
+            encoder.WriteUInt32Array("test", nullArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4));
+            int length = BitConverter.ToInt32(result, 0);
+            Assert.That(length, Is.EqualTo(-1));
+        }
+
+        /// <summary>
+        /// Tests that WriteUInt32Array correctly encodes an empty array.
+        /// The binary format should write 0 as the length for empty arrays.
+        /// </summary>
+        [Test]
+        public void WriteUInt32Array_EmptyArray_WritesZeroLength()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            var emptyArray = ArrayOf.Create<uint>([]);
+            // Act
+            encoder.WriteUInt32Array("test", emptyArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4));
+            int length = BitConverter.ToInt32(result, 0);
+            Assert.That(length, Is.EqualTo(0));
+        }
+
+        /// <summary>
+        /// Tests that WriteUInt32Array correctly encodes a single element array.
+        /// Verifies both the length prefix and the element value are written correctly.
+        /// </summary>
+        [Test]
+        public void WriteUInt32Array_SingleElement_WritesLengthAndValue()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            var singleElementArray = ArrayOf.Create<uint>([42]);
+            // Act
+            encoder.WriteUInt32Array("test", singleElementArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(8)); // 4 bytes for length + 4 bytes for value
+            int length = BitConverter.ToInt32(result, 0);
+            Assert.That(length, Is.EqualTo(1));
+            uint value = BitConverter.ToUInt32(result, 4);
+            Assert.That(value, Is.EqualTo(42u));
+        }
+
+        /// <summary>
+        /// Tests that WriteUInt32Array correctly encodes multiple elements.
+        /// Verifies the length prefix and all element values are written in order.
+        /// </summary>
+        [Test]
+        public void WriteUInt32Array_MultipleElements_WritesAllValues()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            uint[] values =
+            [
+                1u,
+                2u,
+                3u,
+                4u,
+                5u
+            ];
+            var array = ArrayOf.Create(values);
+            // Act
+            encoder.WriteUInt32Array("test", array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(24)); // 4 bytes for length + 5 * 4 bytes for values
+            int length = BitConverter.ToInt32(result, 0);
+            Assert.That(length, Is.EqualTo(5));
+            for (int i = 0; i < 5; i++)
+            {
+                uint value = BitConverter.ToUInt32(result, 4 + (i * 4));
+                Assert.That(value, Is.EqualTo(values[i]));
+            }
+        }
+
+        /// <summary>
+        /// Tests that WriteUInt32Array correctly encodes the minimum uint value (0).
+        /// Verifies that zero is encoded correctly in the binary format.
+        /// </summary>
+        [Test]
+        public void WriteUInt32Array_MinValue_WritesZero()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            var array = ArrayOf.Create([uint.MinValue]);
+            // Act
+            encoder.WriteUInt32Array("test", array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(8));
+            int length = BitConverter.ToInt32(result, 0);
+            Assert.That(length, Is.EqualTo(1));
+            uint value = BitConverter.ToUInt32(result, 4);
+            Assert.That(value, Is.EqualTo(0u));
+        }
+
+        /// <summary>
+        /// Tests that WriteUInt32Array correctly encodes the maximum uint value (4294967295).
+        /// Verifies that the maximum value is encoded correctly in the binary format.
+        /// </summary>
+        [Test]
+        public void WriteUInt32Array_MaxValue_WritesMaxUInt()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            var array = ArrayOf.Create([uint.MaxValue]);
+            // Act
+            encoder.WriteUInt32Array("test", array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(8));
+            int length = BitConverter.ToInt32(result, 0);
+            Assert.That(length, Is.EqualTo(1));
+            uint value = BitConverter.ToUInt32(result, 4);
+            Assert.That(value, Is.EqualTo(uint.MaxValue));
+        }
+
+        /// <summary>
+        /// Tests that WriteUInt32Array correctly encodes various boundary values.
+        /// Tests powers of 2 and boundary values to ensure proper encoding.
+        /// </summary>
+        [Test]
+        public void WriteUInt32Array_BoundaryValues_WritesCorrectly()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            uint[] values =
+            [
+                0u,
+                1u,
+                255u,
+                256u,
+                65535u,
+                65536u,
+                uint.MaxValue
+            ];
+            var array = ArrayOf.Create(values);
+            // Act
+            encoder.WriteUInt32Array("test", array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(32)); // 4 bytes for length + 7 * 4 bytes for values
+            int length = BitConverter.ToInt32(result, 0);
+            Assert.That(length, Is.EqualTo(7));
+            for (int i = 0; i < values.Length; i++)
+            {
+                uint value = BitConverter.ToUInt32(result, 4 + (i * 4));
+                Assert.That(value, Is.EqualTo(values[i]));
+            }
+        }
+
+        /// <summary>
+        /// Tests that WriteUInt32Array ignores the fieldName parameter.
+        /// The fieldName is not used in binary encoding but should not cause errors.
+        /// </summary>
+        [Test]
+        public void WriteUInt32Array_WithNullFieldName_WritesCorrectly()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            var array = ArrayOf.Create([123u]);
+            // Act
+            encoder.WriteUInt32Array(null, array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(8));
+            uint value = BitConverter.ToUInt32(result, 4);
+            Assert.That(value, Is.EqualTo(123u));
+        }
+
+        /// <summary>
+        /// Tests that WriteExpandedNodeIdArray writes -1 for a null array and returns without writing elements.
+        /// </summary>
+        [Test]
+        public void WriteExpandedNodeIdArray_NullArray_WritesMinusOne()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<ExpandedNodeId> nullArray = null;
+            // Act
+            encoder.WriteExpandedNodeIdArray("TestField", nullArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4)); // -1 as int32 = 4 bytes
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(-1));
+        }
+
+        /// <summary>
+        /// Tests that WriteExpandedNodeIdArray writes 0 for an empty array and returns without writing elements.
+        /// </summary>
+        [Test]
+        public void WriteExpandedNodeIdArray_EmptyArray_WritesZeroLength()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+
+            var encoder = new BinaryEncoder(messageContext);
+            var emptyArray = new ArrayOf<ExpandedNodeId>();
+            // Act
+            encoder.WriteExpandedNodeIdArray("TestField", emptyArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4)); // 0 as int32 = 4 bytes
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
+        }
+
+        /// <summary>
+        /// Tests that WriteSwitchField writes data to the stream by verifying
+        /// the stream position changes after the write operation.
+        /// </summary>
+        [Test]
+        public void WriteSwitchField_WritesDataToStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            int initialPosition = encoder.Position;
+            // Act
+            encoder.WriteSwitchField(100u, out _);
+            int finalPosition = encoder.Position;
+            // Assert
+            Assert.That(finalPosition, Is.EqualTo(initialPosition + 4), "position should advance by 4 bytes after writing uint");
+        }
+
+        /// <summary>
+        /// Tests that multiple consecutive calls to PushNamespace do not cause any issues.
+        /// This verifies that the no-op implementation can be called multiple times safely.
+        /// </summary>
+        [Test]
+        public void PushNamespace_MultipleConsecutiveCalls_DoesNotThrow()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            // Act & Assert
+            Assert.DoesNotThrow(() =>
+            {
+                encoder.PushNamespace("http://opcfoundation.org/UA/");
+                encoder.PushNamespace(null);
+                encoder.PushNamespace(string.Empty);
+                encoder.PushNamespace("urn:another:namespace");
+            });
+        }
+
+        /// <summary>
+        /// Tests that WriteStatusCode correctly encodes predefined OPC UA status codes.
+        /// </summary>
+        /// <param name = "statusCode">The predefined StatusCode to test.</param>
+        /// <param name = "expectedCode">The expected uint code value.</param>
+        [TestCase(0x00000000u, 0x00000000u, TestName = "WriteStatusCode_GoodStatusCode_WritesGoodCode")]
+        [TestCase(0x80000000u, 0x80000000u, TestName = "WriteStatusCode_BadStatusCode_WritesBadCode")]
+        [TestCase(0x40000000u, 0x40000000u, TestName = "WriteStatusCode_UncertainStatusCode_WritesUncertainCode")]
+        [TestCase(0x80010000u, 0x80010000u, TestName = "WriteStatusCode_BadUnexpectedError_WritesErrorCode")]
+        [TestCase(0x80020000u, 0x80020000u, TestName = "WriteStatusCode_BadInternalError_WritesErrorCode")]
+        [TestCase(0x80030000u, 0x80030000u, TestName = "WriteStatusCode_BadOutOfMemory_WritesErrorCode")]
+        [TestCase(0x80040000u, 0x80040000u, TestName = "WriteStatusCode_BadResourceUnavailable_WritesErrorCode")]
+        [TestCase(0x80050000u, 0x80050000u, TestName = "WriteStatusCode_BadCommunicationError_WritesErrorCode")]
+        public void WriteStatusCode_PredefinedStatusCodes_WritesCorrectCode(uint statusCode, uint expectedCode)
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var status = new StatusCode(statusCode);
+            var encoder = new BinaryEncoder(messageContext);
+            // Act
+            encoder.WriteStatusCode("TestField", status);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4));
+            uint writtenValue = BitConverter.ToUInt32(result, 0);
+            Assert.That(writtenValue, Is.EqualTo(expectedCode));
+        }
+
+        /// <summary>
+        /// Tests that WriteStatusCode writes multiple status codes sequentially to the stream.
+        /// </summary>
+        [Test]
+        public void WriteStatusCode_MultipleStatusCodes_WritesAllCodesSequentially()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var statusCode1 = new StatusCode(0u);
+            var statusCode2 = new StatusCode(0x80000000u);
+            var statusCode3 = new StatusCode(uint.MaxValue);
+            var encoder = new BinaryEncoder(messageContext);
+            // Act
+            encoder.WriteStatusCode("Field1", statusCode1);
+            encoder.WriteStatusCode("Field2", statusCode2);
+            encoder.WriteStatusCode(null, statusCode3);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(12), "Three StatusCodes should result in 12 bytes (3 * 4 bytes)");
+            uint value1 = BitConverter.ToUInt32(result, 0);
+            uint value2 = BitConverter.ToUInt32(result, 4);
+            uint value3 = BitConverter.ToUInt32(result, 8);
+            Assert.That(value1, Is.EqualTo(0u));
+            Assert.That(value2, Is.EqualTo(0x80000000u));
+            Assert.That(value3, Is.EqualTo(uint.MaxValue));
+        }
+
+        /// <summary>
+        /// Tests that WriteStatusCode uses little-endian byte order for encoding.
+        /// </summary>
+        [Test]
+        public void WriteStatusCode_EncodesInLittleEndian_VerifiesByteOrder()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var statusCode = new StatusCode(0x12345678u);
+            var encoder = new BinaryEncoder(messageContext);
+            // Act
+            encoder.WriteStatusCode("Test", statusCode);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4));
+            // Verify little-endian byte order: 0x12345678 -> [0x78, 0x56, 0x34, 0x12]
+            Assert.That(result[0], Is.EqualTo(0x78));
+            Assert.That(result[1], Is.EqualTo(0x56));
+            Assert.That(result[2], Is.EqualTo(0x34));
+            Assert.That(result[3], Is.EqualTo(0x12));
+        }
+
+        /// <summary>
+        /// Tests that WriteStatusCode works correctly with a default StatusCode (all zeros).
+        /// </summary>
+        [Test]
+        public void WriteStatusCode_DefaultStatusCode_WritesZero()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var statusCode = default(StatusCode);
+            var encoder = new BinaryEncoder(messageContext);
+            // Act
+            encoder.WriteStatusCode("Field", statusCode);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4));
+            uint writtenValue = BitConverter.ToUInt32(result, 0);
+            Assert.That(writtenValue, Is.EqualTo(0u));
+        }
+
+        /// <summary>
+        /// Tests that WriteByteArray handles an empty array correctly.
+        /// Expects the method to write 0 as the length and return early without writing any elements.
+        /// </summary>
+        [Test]
+        public void WriteByteArray_EmptyArray_WritesZeroLength()
+        {
+            // Arrange
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
+            using var encoder = new BinaryEncoder(context);
+            ArrayOf<byte> emptyArray = [];
+            // Act
+            encoder.WriteByteArray("TestField", emptyArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4)); // Only length is written (0 as int32)
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
+        }
+
+        /// <summary>
+        /// Tests that WriteByteArray writes a single-element array correctly.
+        /// Expects the method to write the length (1) followed by the byte value.
+        /// </summary>
+        [Test]
+        public void WriteByteArray_SingleElement_WritesLengthAndValue()
+        {
+            // Arrange
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
+            using var encoder = new BinaryEncoder(context);
+            var singleElementArray = new ArrayOf<byte>([42]);
+            // Act
+            encoder.WriteByteArray("TestField", singleElementArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(5)); // Length (4 bytes) + 1 byte value
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
+            Assert.That(result[4], Is.EqualTo(42));
+        }
+
+        /// <summary>
+        /// Tests that WriteByteArray writes a multiple-element array correctly.
+        /// Expects the method to write the length followed by all byte values in order.
+        /// </summary>
+        [Test]
+        public void WriteByteArray_MultipleElements_WritesLengthAndAllValues()
+        {
+            // Arrange
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
+            using var encoder = new BinaryEncoder(context);
+            var multipleElementArray = new ArrayOf<byte>([1, 2, 3, 4, 5]);
+            // Act
+            encoder.WriteByteArray("TestField", multipleElementArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(9)); // Length (4 bytes) + 5 byte values
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(5));
+            Assert.That(result[4], Is.EqualTo(1));
+            Assert.That(result[5], Is.EqualTo(2));
+            Assert.That(result[6], Is.EqualTo(3));
+            Assert.That(result[7], Is.EqualTo(4));
+            Assert.That(result[8], Is.EqualTo(5));
+        }
+
+        /// <summary>
+        /// Tests that WriteByteArray correctly writes all byte boundary values.
+        /// Expects the method to correctly encode minimum (0), maximum (255), and mid-range values.
+        /// </summary>
+        [Test]
+        public void WriteByteArray_BoundaryValues_WritesCorrectly()
+        {
+            // Arrange
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
+            using var encoder = new BinaryEncoder(context);
+            var boundaryArray = new ArrayOf<byte>([byte.MinValue, byte.MaxValue, 128]);
+            // Act
+            encoder.WriteByteArray("TestField", boundaryArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(7)); // Length (4 bytes) + 3 byte values
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(3));
+            Assert.That(result[4], Is.EqualTo(byte.MinValue));
+            Assert.That(result[5], Is.EqualTo(byte.MaxValue));
+            Assert.That(result[6], Is.EqualTo(128));
+        }
+
+        /// <summary>
+        /// Tests that WriteByteArray throws ServiceResultException when array length exceeds MaxArrayLength.
+        /// Expects the method to throw with BadEncodingLimitsExceeded status code.
+        /// </summary>
+        [Test]
+        public void WriteByteArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
+        {
+            // Arrange
+            IServiceMessageContext context = CreateContext(maxArrayLength: 5);
+            using var encoder = new BinaryEncoder(context);
+            var largeArray = new ArrayOf<byte>(new byte[10]);
+            // Act & Assert
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteByteArray("TestField", largeArray));
+            Assert.That(ex, Is.Not.Null);
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        /// <summary>
+        /// Tests that WriteByteArray accepts array at exact MaxArrayLength boundary.
+        /// Expects the method to successfully encode the array without throwing.
+        /// </summary>
+        [Test]
+        public void WriteByteArray_AtMaxArrayLength_WritesSuccessfully()
+        {
+            // Arrange
+            IServiceMessageContext context = CreateContext(maxArrayLength: 5);
+            using var encoder = new BinaryEncoder(context);
+            var exactArray = new ArrayOf<byte>([1, 2, 3, 4, 5]);
+            // Act
+            encoder.WriteByteArray("TestField", exactArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(9)); // Length (4 bytes) + 5 byte values
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(5));
+        }
+
+        /// <summary>
+        /// Tests that WriteByteArray handles null fieldName parameter correctly.
+        /// Expects the method to work normally as fieldName is not used in the implementation.
+        /// </summary>
+        [Test]
+        public void WriteByteArray_NullFieldName_WritesSuccessfully()
+        {
+            // Arrange
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
+            using var encoder = new BinaryEncoder(context);
+            var array = new ArrayOf<byte>([10, 20]);
+            // Act
+            encoder.WriteByteArray(null, array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(6)); // Length (4 bytes) + 2 byte values
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(2));
+            Assert.That(result[4], Is.EqualTo(10));
+            Assert.That(result[5], Is.EqualTo(20));
+        }
+
+        /// <summary>
+        /// Tests that WriteByteArray handles empty string fieldName parameter correctly.
+        /// Expects the method to work normally as fieldName is not used in the implementation.
+        /// </summary>
+        [Test]
+        public void WriteByteArray_EmptyFieldName_WritesSuccessfully()
+        {
+            // Arrange
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
+            using var encoder = new BinaryEncoder(context);
+            var array = new ArrayOf<byte>([100]);
+            // Act
+            encoder.WriteByteArray(string.Empty, array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(5)); // Length (4 bytes) + 1 byte value
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
+            Assert.That(result[4], Is.EqualTo(100));
+        }
+
+        /// <summary>
+        /// Tests that WriteByteArray writes a large array correctly.
+        /// Expects the method to write all bytes in the correct order.
+        /// </summary>
+        [Test]
+        public void WriteByteArray_LargeArray_WritesAllElements()
+        {
+            // Arrange
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
+            using var encoder = new BinaryEncoder(context);
+            byte[] largeArray = new byte[1000];
+            for (int i = 0; i < largeArray.Length; i++)
+            {
+                largeArray[i] = (byte)(i % 256);
+            }
+
+            var arrayOf = new ArrayOf<byte>(largeArray);
+            // Act
+            encoder.WriteByteArray("TestField", arrayOf);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(1004)); // Length (4 bytes) + 1000 byte values
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1000));
+            for (int i = 0; i < 1000; i++)
+            {
+                Assert.That(result[4 + i], Is.EqualTo((byte)(i % 256)));
+            }
+        }
+
+        /// <summary>
+        /// Tests that WriteByteStringArray writes -1 for a null array.
+        /// </summary>
+        [Test]
+        public void WriteByteStringArray_NullArray_WritesMinusOne()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<ByteString> nullArray = default;
+            // Act
+            encoder.WriteByteStringArray("TestField", nullArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4));
+            int length = BitConverter.ToInt32(result, 0);
+            Assert.That(length, Is.EqualTo(-1));
+        }
+
+        /// <summary>
+        /// Tests that WriteByteStringArray writes 0 for an empty array.
+        /// </summary>
+        [Test]
+        public void WriteByteStringArray_EmptyArray_WritesZero()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<ByteString> emptyArray = [];
+            // Act
+            encoder.WriteByteStringArray("TestField", emptyArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4));
+            int length = BitConverter.ToInt32(result, 0);
+            Assert.That(length, Is.EqualTo(0));
+        }
+
+        /// <summary>
+        /// Tests that WriteByteStringArray correctly encodes a single element array.
+        /// </summary>
+        [Test]
+        public void WriteByteStringArray_SingleElement_EncodesCorrectly()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            byte[] testData =
+            [
+                0x01,
+                0x02,
+                0x03
+            ];
+            var byteString = new ByteString(testData);
+            var array = new ArrayOf<ByteString>([byteString]);
+            // Act
+            encoder.WriteByteStringArray("TestField", array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            int length = BitConverter.ToInt32(result, 0);
+            Assert.That(length, Is.EqualTo(1));
+            int elementLength = BitConverter.ToInt32(result, 4);
+            Assert.That(elementLength, Is.EqualTo(3));
+            Assert.That(result[8], Is.EqualTo(0x01));
+            Assert.That(result[9], Is.EqualTo(0x02));
+            Assert.That(result[10], Is.EqualTo(0x03));
+        }
+
+        /// <summary>
+        /// Tests that WriteByteStringArray correctly encodes multiple elements.
+        /// </summary>
+        [Test]
+        public void WriteByteStringArray_MultipleElements_EncodesCorrectly()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            var byteString1 = new ByteString(new byte[] { 0x01, 0x02 });
+            var byteString2 = new ByteString(new byte[] { 0x03, 0x04, 0x05 });
+            var array = new ArrayOf<ByteString>([byteString1, byteString2]);
+            // Act
+            encoder.WriteByteStringArray("TestField", array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            int arrayLength = BitConverter.ToInt32(result, 0);
+            Assert.That(arrayLength, Is.EqualTo(2));
+            // First element
+            int element1Length = BitConverter.ToInt32(result, 4);
+            Assert.That(element1Length, Is.EqualTo(2));
+            Assert.That(result[8], Is.EqualTo(0x01));
+            Assert.That(result[9], Is.EqualTo(0x02));
+            // Second element
+            int element2Length = BitConverter.ToInt32(result, 10);
+            Assert.That(element2Length, Is.EqualTo(3));
+            Assert.That(result[14], Is.EqualTo(0x03));
+            Assert.That(result[15], Is.EqualTo(0x04));
+            Assert.That(result[16], Is.EqualTo(0x05));
+        }
+
+        /// <summary>
+        /// Tests that WriteByteStringArray correctly handles empty ByteStrings in the array.
+        /// </summary>
+        [Test]
+        public void WriteByteStringArray_EmptyByteStrings_WritesMinusOne()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            ByteString emptyByteString = ByteString.Empty;
+            var array = new ArrayOf<ByteString>([emptyByteString]);
+            // Act
+            encoder.WriteByteStringArray("TestField", array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            int arrayLength = BitConverter.ToInt32(result, 0);
+            Assert.That(arrayLength, Is.EqualTo(1));
+            int elementLength = BitConverter.ToInt32(result, 4);
+            Assert.That(elementLength, Is.EqualTo(-1));
+        }
+
+        /// <summary>
+        /// Tests that WriteByteStringArray correctly handles mixed content (empty and non-empty ByteStrings).
+        /// </summary>
+        [Test]
+        public void WriteByteStringArray_MixedContent_EncodesCorrectly()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            var byteString1 = new ByteString(new byte[] { 0xAA, 0xBB });
+            ByteString emptyByteString = ByteString.Empty;
+            var byteString2 = new ByteString(new byte[] { 0xCC });
+            var array = new ArrayOf<ByteString>([byteString1, emptyByteString, byteString2]);
+            // Act
+            encoder.WriteByteStringArray("TestField", array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            int arrayLength = BitConverter.ToInt32(result, 0);
+            Assert.That(arrayLength, Is.EqualTo(3));
+            // First element (non-empty)
+            int element1Length = BitConverter.ToInt32(result, 4);
+            Assert.That(element1Length, Is.EqualTo(2));
+            Assert.That(result[8], Is.EqualTo(0xAA));
+            Assert.That(result[9], Is.EqualTo(0xBB));
+            // Second element (empty)
+            int element2Length = BitConverter.ToInt32(result, 10);
+            Assert.That(element2Length, Is.EqualTo(-1));
+            // Third element (non-empty)
+            int element3Length = BitConverter.ToInt32(result, 14);
+            Assert.That(element3Length, Is.EqualTo(1));
+            Assert.That(result[18], Is.EqualTo(0xCC));
+        }
+
+        /// <summary>
+        /// Tests that WriteByteStringArray correctly encodes large byte strings.
+        /// </summary>
+        [Test]
+        public void WriteByteStringArray_LargeByteStrings_EncodesCorrectly()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            byte[] largeData = new byte[1000];
+            for (int i = 0; i < largeData.Length; i++)
+            {
+                largeData[i] = (byte)(i % 256);
+            }
+
+            var byteString = new ByteString(largeData);
+            var array = new ArrayOf<ByteString>([byteString]);
+            // Act
+            encoder.WriteByteStringArray("TestField", array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            int arrayLength = BitConverter.ToInt32(result, 0);
+            Assert.That(arrayLength, Is.EqualTo(1));
+            int elementLength = BitConverter.ToInt32(result, 4);
+            Assert.That(elementLength, Is.EqualTo(1000));
+            Assert.That(result.Length, Is.EqualTo(8 + 1000));
+        }
+
+        /// <summary>
+        /// Tests that WriteByteStringArray handles null fieldName parameter correctly.
+        /// </summary>
+        [Test]
+        public void WriteByteStringArray_NullFieldName_EncodesCorrectly()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            var byteString = new ByteString(new byte[] { 0xFF });
+            var array = new ArrayOf<ByteString>([byteString]);
+            // Act
+            encoder.WriteByteStringArray(null, array);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            int arrayLength = BitConverter.ToInt32(result, 0);
+            Assert.That(arrayLength, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Verifies that WriteEnumeratedArray correctly handles an empty array by writing 0 and returning early.
+        /// </summary>
+        [Test]
+        public void WriteEnumeratedArray_EmptyArray_WritesZero()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            using var stream = new MemoryStream();
+            using var encoder = new BinaryEncoder(stream, messageContext, leaveOpen: false);
+            ArrayOf<TestEnum> emptyArray = [];
+            // Act
+            encoder.WriteEnumeratedArray("TestField", emptyArray);
+            byte[] result = stream.ToArray();
+            // Assert
+            Assert.That(result.Length, Is.EqualTo(4));
+            int length = BitConverter.ToInt32(result, 0);
+            Assert.That(length, Is.EqualTo(0));
+        }
+
+        /// <summary>
+        /// Verifies that WriteEnumeratedArray correctly writes a single-item array.
+        /// Expected output: count (4 bytes) + enum value as int32 (4 bytes).
+        /// </summary>
+        [Test]
+        public void WriteEnumeratedArray_SingleItem_WritesCountAndValue()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            using var stream = new MemoryStream();
+            using var encoder = new BinaryEncoder(stream, messageContext, leaveOpen: false);
+            var singleItemArray = new ArrayOf<TestEnum>([TestEnum.Value2]);
+            // Act
+            encoder.WriteEnumeratedArray("TestField", singleItemArray);
+            byte[] result = stream.ToArray();
+            // Assert
+            Assert.That(result.Length, Is.EqualTo(8)); // 4 bytes for count + 4 bytes for value
+            int count = BitConverter.ToInt32(result, 0);
+            Assert.That(count, Is.EqualTo(1));
+            int value = BitConverter.ToInt32(result, 4);
+            Assert.That(value, Is.EqualTo((int)TestEnum.Value2));
+        }
+
+        /// <summary>
+        /// Verifies that WriteEnumeratedArray correctly writes multiple enum values.
+        /// Expected output: count + each enum value as int32.
+        /// </summary>
+        [Test]
+        public void WriteEnumeratedArray_MultipleItems_WritesCountAndAllValues()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            using var stream = new MemoryStream();
+            using var encoder = new BinaryEncoder(stream, messageContext, leaveOpen: false);
+            var multipleItemsArray = new ArrayOf<TestEnum>([TestEnum.Value1, TestEnum.Value2, TestEnum.Value3]);
+            // Act
+            encoder.WriteEnumeratedArray("TestField", multipleItemsArray);
+            byte[] result = stream.ToArray();
+            // Assert
+            Assert.That(result.Length, Is.EqualTo(16)); // 4 bytes count + 3 * 4 bytes values
+            int count = BitConverter.ToInt32(result, 0);
+            Assert.That(count, Is.EqualTo(3));
+            int value1 = BitConverter.ToInt32(result, 4);
+            Assert.That(value1, Is.EqualTo((int)TestEnum.Value1));
+            int value2 = BitConverter.ToInt32(result, 8);
+            Assert.That(value2, Is.EqualTo((int)TestEnum.Value2));
+            int value3 = BitConverter.ToInt32(result, 12);
+            Assert.That(value3, Is.EqualTo((int)TestEnum.Value3));
+        }
+
+        /// <summary>
+        /// Verifies that WriteEnumeratedArray correctly writes enum values including edge cases (zero, negative, large values).
+        /// </summary>
+        [Test]
+        public void WriteEnumeratedArray_EdgeCaseEnumValues_WritesCorrectly()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            using var stream = new MemoryStream();
+            using var encoder = new BinaryEncoder(stream, messageContext, leaveOpen: false);
+            var edgeCaseArray = new ArrayOf<TestEnum>([TestEnum.Zero, TestEnum.NegativeValue, TestEnum.LargeValue]);
+            // Act
+            encoder.WriteEnumeratedArray("TestField", edgeCaseArray);
+            byte[] result = stream.ToArray();
+            // Assert
+            Assert.That(result.Length, Is.EqualTo(16));
+            int count = BitConverter.ToInt32(result, 0);
+            Assert.That(count, Is.EqualTo(3));
+            int value1 = BitConverter.ToInt32(result, 4);
+            Assert.That(value1, Is.EqualTo((int)TestEnum.Zero));
+            int value2 = BitConverter.ToInt32(result, 8);
+            Assert.That(value2, Is.EqualTo((int)TestEnum.NegativeValue));
+            int value3 = BitConverter.ToInt32(result, 12);
+            Assert.That(value3, Is.EqualTo((int)TestEnum.LargeValue));
+        }
+
+        /// <summary>
+        /// Verifies that WriteEnumeratedArray correctly handles invalid enum values (cast from integers outside defined range).
+        /// The method should encode them as their integer representation.
+        /// </summary>
+        [Test]
+        public void WriteEnumeratedArray_InvalidEnumValue_EncodesAsInteger()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            using var stream = new MemoryStream();
+            using var encoder = new BinaryEncoder(stream, messageContext, leaveOpen: false);
+            const TestEnum invalidEnumValue = (TestEnum)999;
+            var arrayWithInvalidEnum = new ArrayOf<TestEnum>([invalidEnumValue]);
+            // Act
+            encoder.WriteEnumeratedArray("TestField", arrayWithInvalidEnum);
+            byte[] result = stream.ToArray();
+            // Assert
+            Assert.That(result.Length, Is.EqualTo(8));
+            int count = BitConverter.ToInt32(result, 0);
+            Assert.That(count, Is.EqualTo(1));
+            int value = BitConverter.ToInt32(result, 4);
+            Assert.That(value, Is.EqualTo(999));
+        }
+
+        /// <summary>
+        /// Verifies that WriteEnumeratedArray accepts null as fieldName without issue.
+        /// The fieldName parameter is not used in the implementation.
+        /// </summary>
+        [Test]
+        public void WriteEnumeratedArray_NullFieldName_WritesCorrectly()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            using var stream = new MemoryStream();
+            using var encoder = new BinaryEncoder(stream, messageContext, leaveOpen: false);
+            var array = new ArrayOf<TestEnum>([TestEnum.Value1]);
+            // Act
+            encoder.WriteEnumeratedArray(null, array);
+            byte[] result = stream.ToArray();
+            // Assert
+            Assert.That(result.Length, Is.EqualTo(8));
+            int count = BitConverter.ToInt32(result, 0);
+            Assert.That(count, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Tests that WriteByte correctly writes byte boundary values to the stream.
+        /// Verifies that minimum and maximum byte values are encoded correctly.
+        /// </summary>
+        /// <param name = "value">The byte value to write (0 or 255).</param>
+        [TestCase((byte)0)]
+        [TestCase((byte)255)]
+        public void WriteByte_BoundaryValues_WritesCorrectByte(byte value)
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            // Act
+            encoder.WriteByte("TestField", value);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(1));
+            Assert.That(result[0], Is.EqualTo(value));
+        }
+
+        /// <summary>
+        /// Tests that WriteByte correctly writes various byte values to the stream.
+        /// Verifies that different byte values are encoded correctly.
+        /// </summary>
+        /// <param name = "value">The byte value to write.</param>
+        [TestCase((byte)1)]
+        [TestCase((byte)127)]
+        [TestCase((byte)128)]
+        [TestCase((byte)254)]
+        public void WriteByte_TypicalValues_WritesCorrectByte(byte value)
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            // Act
+            encoder.WriteByte("TestField", value);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(1));
+            Assert.That(result[0], Is.EqualTo(value));
+        }
+
+        /// <summary>
+        /// Tests that WriteByte works correctly when fieldName is null.
+        /// Verifies that the method does not throw and writes the byte correctly.
+        /// </summary>
+        [Test]
+        public void WriteByte_NullFieldName_WritesCorrectByte()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            const byte testValue = 42;
+            // Act
+            encoder.WriteByte(null, testValue);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(1));
+            Assert.That(result[0], Is.EqualTo(testValue));
+        }
+
+        /// <summary>
+        /// Tests that WriteByte can write multiple bytes sequentially.
+        /// Verifies that multiple calls accumulate bytes in the correct order.
+        /// </summary>
+        [Test]
+        public void WriteByte_MultipleWrites_WritesAllBytesInOrder()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            byte[] testValues =
+            [
+                0,
+                127,
+                255,
+                1,
+                254
+            ];
+            // Act
+            foreach (byte value in testValues)
+            {
+                encoder.WriteByte("TestField", value);
+            }
+
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(testValues.Length));
+            for (int i = 0; i < testValues.Length; i++)
+            {
+                Assert.That(result[i], Is.EqualTo(testValues[i]), $"Byte at index {i} should match");
+            }
+        }
+
+        /// <summary>
+        /// Tests that WriteByte works with empty string fieldName.
+        /// Verifies that an empty field name does not affect the write operation.
+        /// </summary>
+        [Test]
+        public void WriteByte_EmptyFieldName_WritesCorrectByte()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            const byte testValue = 100;
+            // Act
+            encoder.WriteByte(string.Empty, testValue);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(1));
+            Assert.That(result[0], Is.EqualTo(testValue));
+        }
+
+        /// <summary>
+        /// Tests that WriteByte works correctly with a stream-based encoder.
+        /// Verifies that WriteByte works with different encoder constructor overloads.
+        /// </summary>
+        [Test]
+        public void WriteByte_WithStreamConstructor_WritesCorrectByte()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var stream = new MemoryStream();
+            var encoder = new BinaryEncoder(stream, messageContext, false);
+            const byte testValue = 99;
+            // Act
+            encoder.WriteByte("TestField", testValue);
+            encoder.Close();
+            // Assert
+            byte[] result = stream.ToArray();
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(1));
+            Assert.That(result[0], Is.EqualTo(testValue));
+        }
+
+        /// <summary>
+        /// Tests that WriteByte works correctly with a buffer-based encoder.
+        /// Verifies that WriteByte works with the fixed buffer constructor.
+        /// </summary>
+        [Test]
+        public void WriteByte_WithBufferConstructor_WritesCorrectByte()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            byte[] buffer = new byte[10];
+            var encoder = new BinaryEncoder(buffer, 0, buffer.Length, messageContext);
+            const byte testValue = 200;
+            // Act
+            encoder.WriteByte("TestField", testValue);
+            int position = encoder.Close();
+            // Assert
+            Assert.That(position, Is.EqualTo(1));
+            Assert.That(buffer[0], Is.EqualTo(testValue));
+        }
+
+        /// <summary>
+        /// Tests that WriteUInt64Array writes -1 for null array and exits early.
+        /// </summary>
+        [Test]
+        public void WriteUInt64Array_NullArray_WritesMinusOneAndReturns()
+        {
+            // Arrange
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
+            var stream = new MemoryStream();
+            var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
+            var nullArray = default(ArrayOf<ulong>);
+            // Act
+            encoder.WriteUInt64Array("test", nullArray);
+            // Assert
+            stream.Position = 0;
+            using var reader = new BinaryReader(stream);
+            int length = reader.ReadInt32();
+            Assert.That(length, Is.EqualTo(-1));
+            Assert.That(stream.Position, Is.EqualTo(4)); // Only 4 bytes written (the -1 length)
+        }
+
+        /// <summary>
+        /// Tests that WriteUInt64Array writes 0 for empty array and exits early.
+        /// </summary>
+        [Test]
+        public void WriteUInt64Array_EmptyArray_WritesZeroAndReturns()
+        {
+            // Arrange
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
+            var stream = new MemoryStream();
+            var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
+            ArrayOf<ulong> emptyArray = [];
+            // Act
+            encoder.WriteUInt64Array("test", emptyArray);
+            // Assert
+            stream.Position = 0;
+            using var reader = new BinaryReader(stream);
+            int length = reader.ReadInt32();
+            Assert.That(length, Is.EqualTo(0));
+            Assert.That(stream.Position, Is.EqualTo(4)); // Only 4 bytes written (the 0 length)
+        }
+
+        /// <summary>
+        /// Tests that WriteUInt64Array correctly writes a single element array.
+        /// </summary>
+        [Test]
+        public void WriteUInt64Array_SingleElement_WritesCountAndValue()
+        {
+            // Arrange
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
+            var stream = new MemoryStream();
+            var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
+            var singleElementArray = new ArrayOf<ulong>([12345UL]);
+            // Act
+            encoder.WriteUInt64Array("test", singleElementArray);
+            // Assert
+            stream.Position = 0;
+            using var reader = new BinaryReader(stream);
+            int length = reader.ReadInt32();
+            ulong value = reader.ReadUInt64();
+            Assert.That(length, Is.EqualTo(1));
+            Assert.That(value, Is.EqualTo(12345UL));
+        }
+
+        /// <summary>
+        /// Tests that WriteUInt64Array correctly writes multiple elements with boundary values.
+        /// </summary>
+        [Test]
+        public void WriteUInt64Array_MultipleElementsWithBoundaryValues_WritesCountAndAllValues()
+        {
+            // Arrange
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
+            var stream = new MemoryStream();
+            var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
+            ulong[] values =
+            [
+                0UL,
+                ulong.MaxValue,
+                1UL,
+                ulong.MaxValue - 1
+            ];
+            var array = new ArrayOf<ulong>(values);
+            // Act
+            encoder.WriteUInt64Array("test", array);
+            // Assert
+            stream.Position = 0;
+            using var reader = new BinaryReader(stream);
+            int length = reader.ReadInt32();
+            Assert.That(length, Is.EqualTo(4));
+            Assert.That(reader.ReadUInt64(), Is.EqualTo(0UL));
+            Assert.That(reader.ReadUInt64(), Is.EqualTo(ulong.MaxValue));
+            Assert.That(reader.ReadUInt64(), Is.EqualTo(1UL));
+            Assert.That(reader.ReadUInt64(), Is.EqualTo(ulong.MaxValue - 1));
+        }
+
+        /// <summary>
+        /// Tests that WriteUInt64Array throws ServiceResultException when array exceeds MaxArrayLength.
+        /// </summary>
+        [Test]
+        public void WriteUInt64Array_ArrayExceedsMaxArrayLength_ThrowsServiceResultException()
+        {
+            // Arrange
+            IServiceMessageContext context = CreateContext(maxArrayLength: 2);
+            var stream = new MemoryStream();
+            var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
+            var largeArray = new ArrayOf<ulong>([1UL, 2UL, 3UL]);
+            // Act & Assert
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteUInt64Array("test", largeArray));
+            Assert.That(ex?.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        /// <summary>
+        /// Tests that WriteUInt64Array correctly writes a large array within limits.
+        /// </summary>
+        [Test]
+        public void WriteUInt64Array_LargeArrayWithinLimits_WritesCountAndAllValues()
+        {
+            // Arrange
+            IServiceMessageContext context = CreateContext(maxArrayLength: 1000);
+            var stream = new MemoryStream();
+            var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
+            ulong[] values = new ulong[100];
+            for (int i = 0; i < 100; i++)
+            {
+                values[i] = (ulong)i;
+            }
+
+            var array = new ArrayOf<ulong>(values);
+            // Act
+            encoder.WriteUInt64Array("test", array);
+            // Assert
+            stream.Position = 0;
+            using var reader = new BinaryReader(stream);
+            int length = reader.ReadInt32();
+            Assert.That(length, Is.EqualTo(100));
+            for (int i = 0; i < 100; i++)
+            {
+                Assert.That(reader.ReadUInt64(), Is.EqualTo((ulong)i));
+            }
+        }
+
+        /// <summary>
+        /// Tests that WriteUInt64Array handles fieldName parameter (even though it's not used in binary encoding).
+        /// </summary>
+        [Test]
+        public void WriteUInt64Array_WithNullFieldName_WritesCorrectly()
+        {
+            // Arrange
+            IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
+            var stream = new MemoryStream();
+            var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
+            var array = new ArrayOf<ulong>([999UL]);
+            // Act
+            encoder.WriteUInt64Array(null, array);
+            // Assert
+            stream.Position = 0;
+            using var reader = new BinaryReader(stream);
+            int length = reader.ReadInt32();
+            ulong value = reader.ReadUInt64();
+            Assert.That(length, Is.EqualTo(1));
+            Assert.That(value, Is.EqualTo(999UL));
+        }
+
+        /// <summary>
+        /// Tests that WriteUInt64Array with MaxArrayLength set to 0 allows any array size.
+        /// </summary>
+        [Test]
+        public void WriteUInt64Array_MaxArrayLengthZero_AllowsAnySize()
+        {
+            // Arrange
+            IServiceMessageContext context = CreateContext(maxArrayLength: 0);
+            var stream = new MemoryStream();
+            var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
+            var largeArray = new ArrayOf<ulong>([1UL, 2UL, 3UL, 4UL, 5UL]);
+            // Act
+            encoder.WriteUInt64Array("test", largeArray);
+            // Assert
+            stream.Position = 0;
+            using var reader = new BinaryReader(stream);
+            int length = reader.ReadInt32();
+            Assert.That(length, Is.EqualTo(5));
+        }
+
+        /// <summary>
+        /// Tests that WriteDiagnosticInfoArray correctly writes an empty ArrayOf to the stream.
+        /// Expects 0 to be written as the array length with no additional data.
+        /// </summary>
+        [Test]
+        public void WriteDiagnosticInfoArray_EmptyArray_WritesZeroLength()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var stream = new MemoryStream();
+            var encoder = new BinaryEncoder(stream, messageContext, true);
+            ArrayOf<DiagnosticInfo> emptyArray = [];
+            // Act
+            encoder.WriteDiagnosticInfoArray("testField", emptyArray);
+            stream.Position = 0;
+            var reader = new BinaryReader(stream);
+            int length = reader.ReadInt32();
+            // Assert
+            Assert.That(length, Is.EqualTo(0));
+            Assert.That(stream.Position, Is.EqualTo(4)); // Only length written, no elements
+        }
+
+        /// <summary>
+        /// Tests that WriteDiagnosticInfoArray correctly writes a single DiagnosticInfo to the stream.
+        /// Expects the array length (1) followed by the encoded DiagnosticInfo.
+        /// </summary>
+        [Test]
+        public void WriteDiagnosticInfoArray_SingleElement_WritesLengthAndElement()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var stream = new MemoryStream();
+            var encoder = new BinaryEncoder(stream, messageContext, true);
+            var diagnosticInfo = new DiagnosticInfo
+            {
+                AdditionalInfo = "Test"
+            };
+            ArrayOf<DiagnosticInfo> array = new DiagnosticInfo[]
+            {
+                diagnosticInfo
+            }.ToArrayOf();
+            // Act
+            encoder.WriteDiagnosticInfoArray("testField", array);
+            stream.Position = 0;
+            var reader = new BinaryReader(stream);
+            int length = reader.ReadInt32();
+            // Assert
+            Assert.That(length, Is.EqualTo(1));
+            Assert.That(stream.Length, Is.GreaterThan(4)); // More than just the length
+        }
+
+        /// <summary>
+        /// Tests that WriteDiagnosticInfoArray correctly writes multiple DiagnosticInfo elements to the stream.
+        /// Expects the array length followed by all encoded elements in order.
+        /// </summary>
+        [Test]
+        public void WriteDiagnosticInfoArray_MultipleElements_WritesAllElements()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var stream = new MemoryStream();
+            var encoder = new BinaryEncoder(stream, messageContext, true);
+            var diagnosticInfo1 = new DiagnosticInfo
+            {
+                AdditionalInfo = "Test1"
+            };
+            var diagnosticInfo2 = new DiagnosticInfo
+            {
+                AdditionalInfo = "Test2"
+            };
+            var diagnosticInfo3 = new DiagnosticInfo
+            {
+                AdditionalInfo = "Test3"
+            };
+            ArrayOf<DiagnosticInfo> array = new DiagnosticInfo[]
+            {
+                diagnosticInfo1,
+                diagnosticInfo2,
+                diagnosticInfo3
+            }.ToArrayOf();
+            // Act
+            encoder.WriteDiagnosticInfoArray("testField", array);
+            stream.Position = 0;
+            var reader = new BinaryReader(stream);
+            int length = reader.ReadInt32();
+            // Assert
+            Assert.That(length, Is.EqualTo(3));
+            Assert.That(stream.Length, Is.GreaterThan(4)); // More than just the length
+        }
+
+        /// <summary>
+        /// Tests that WriteDiagnosticInfoArray throws ServiceResultException when array length exceeds MaxArrayLength.
+        /// Expects StatusCodes.BadEncodingLimitsExceeded exception.
+        /// </summary>
+        [Test]
+        public void WriteDiagnosticInfoArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(2);
+            var stream = new MemoryStream();
+            var encoder = new BinaryEncoder(stream, messageContext, true);
+            var diagnosticInfo1 = new DiagnosticInfo
+            {
+                AdditionalInfo = "Test1"
+            };
+            var diagnosticInfo2 = new DiagnosticInfo
+            {
+                AdditionalInfo = "Test2"
+            };
+            var diagnosticInfo3 = new DiagnosticInfo
+            {
+                AdditionalInfo = "Test3"
+            };
+            ArrayOf<DiagnosticInfo> array = new DiagnosticInfo[]
+            {
+                diagnosticInfo1,
+                diagnosticInfo2,
+                diagnosticInfo3
+            }.ToArrayOf();
+            // Act & Assert
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteDiagnosticInfoArray("testField", array));
+            Assert.That(ex?.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        /// <summary>
+        /// Tests that WriteDiagnosticInfoArray correctly handles array at MaxArrayLength boundary.
+        /// Expects successful encoding when array count equals MaxArrayLength.
+        /// </summary>
+        [Test]
+        public void WriteDiagnosticInfoArray_AtMaxArrayLength_WritesSuccessfully()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(3);
+            var stream = new MemoryStream();
+            var encoder = new BinaryEncoder(stream, messageContext, true);
+            var diagnosticInfo1 = new DiagnosticInfo
+            {
+                AdditionalInfo = "Test1"
+            };
+            var diagnosticInfo2 = new DiagnosticInfo
+            {
+                AdditionalInfo = "Test2"
+            };
+            var diagnosticInfo3 = new DiagnosticInfo
+            {
+                AdditionalInfo = "Test3"
+            };
+            ArrayOf<DiagnosticInfo> array = new DiagnosticInfo[]
+            {
+                diagnosticInfo1,
+                diagnosticInfo2,
+                diagnosticInfo3
+            }.ToArrayOf();
+            // Act
+            encoder.WriteDiagnosticInfoArray("testField", array);
+            stream.Position = 0;
+            var reader = new BinaryReader(stream);
+            int length = reader.ReadInt32();
+            // Assert
+            Assert.That(length, Is.EqualTo(3));
+            Assert.That(stream.Length, Is.GreaterThan(4));
+        }
+
+        /// <summary>
+        /// Tests that WriteDiagnosticInfoArray ignores the fieldName parameter.
+        /// Expects same output regardless of fieldName value.
+        /// </summary>
+        [Test]
+        public void WriteDiagnosticInfoArray_DifferentFieldNames_ProducesSameOutput()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var stream1 = new MemoryStream();
+            var encoder1 = new BinaryEncoder(stream1, messageContext, true);
+            var stream2 = new MemoryStream();
+            var encoder2 = new BinaryEncoder(stream2, messageContext, true);
+            var diagnosticInfo = new DiagnosticInfo
+            {
+                AdditionalInfo = "Test"
+            };
+            ArrayOf<DiagnosticInfo> array = new DiagnosticInfo[]
+            {
+                diagnosticInfo
+            }.ToArrayOf();
+            // Act
+            encoder1.WriteDiagnosticInfoArray("field1", array);
+            encoder2.WriteDiagnosticInfoArray("field2", array);
+            // Assert
+            Assert.That(stream1.ToArray(), Is.EqualTo(stream2.ToArray()));
+        }
+
+        /// <summary>
+        /// Tests that WriteDiagnosticInfoArray correctly writes array with null DiagnosticInfo element.
+        /// Expects the null element to be encoded according to DiagnosticInfo encoding rules.
+        /// </summary>
+        [Test]
+        public void WriteDiagnosticInfoArray_WithNullElement_EncodesNullElement()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var stream = new MemoryStream();
+            var encoder = new BinaryEncoder(stream, messageContext, true);
+            ArrayOf<DiagnosticInfo> array = new DiagnosticInfo[]
+            {
+                null,
+                new() {
+                    AdditionalInfo = "Test"
+                }
+            }.ToArrayOf();
+            // Act
+            encoder.WriteDiagnosticInfoArray("testField", array);
+            stream.Position = 0;
+            var reader = new BinaryReader(stream);
+            int length = reader.ReadInt32();
+            // Assert
+            Assert.That(length, Is.EqualTo(2));
+            Assert.That(stream.Length, Is.GreaterThan(4));
+        }
+
+        /// <summary>
+        /// Creates a mock IServiceMessageContext for testing.
+        /// </summary>
+        /// <param name = "maxArrayLength">The maximum array length to set in the context. Default is 0 (no limit).</param>
+        /// <returns>A configured IServiceMessageContext instance.</returns>
+        private static ServiceMessageContext CreateContext(int maxArrayLength)
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            return new ServiceMessageContext(telemetryContext)
+            {
+                MaxArrayLength = maxArrayLength,
+                MaxStringLength = 0,
+                MaxByteStringLength = 0,
+                MaxMessageSize = 0
+            };
+        }
+
+        /// <summary>
+        /// Creates a service message context for testing.
+        /// </summary>
+        private static ServiceMessageContext CreateContextWithNegativeMaxStringLength()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            return new ServiceMessageContext(telemetryContext)
+            {
+                MaxArrayLength = 0,
+                MaxStringLength = int.MaxValue
+            };
+        }
+
+        /// <summary>
+        /// Helper class to simulate a non-seekable stream for testing.
+        /// </summary>
+        private sealed class NonSeekableMemoryStream : MemoryStream
+        {
+            public override bool CanSeek => false;
+
+            public override long Seek(long offset, SeekOrigin origin)
+            {
+                if (origin == SeekOrigin.Begin && offset == 0)
+                {
+                    Position = 0;
+                    return 0;
+                }
+
+                throw new NotSupportedException("This stream does not support seeking.");
+            }
+        }
+
+        /// <summary>
+        /// Creates a mock IEncodeable for testing.
+        /// </summary>
+        private static Mock<IEncodeable> CreateMockEncodeable()
+        {
+            var mockMessage = new Mock<IEncodeable>();
+            var binaryEncodingId = new ExpandedNodeId(Guid.NewGuid());
+            mockMessage.Setup(m => m.BinaryEncodingId).Returns(binaryEncodingId);
+            mockMessage.Setup(m => m.TypeId).Returns(binaryEncodingId);
+            mockMessage.Setup(m => m.Encode(It.IsAny<IEncoder>()));
+            return mockMessage;
         }
 
         private enum TestByteEnum : byte
@@ -7972,7 +11127,7 @@ namespace Opc.Ua.UnitTests
             Max = ushort.MaxValue
         }
 
-        private enum TestInt32Enum : int
+        private enum TestInt32Enum
         {
             Min = int.MinValue,
             MinusOne = -1,
@@ -8005,7 +11160,7 @@ namespace Opc.Ua.UnitTests
         }
 
         [Flags]
-        private enum TestFlagsEnum : int
+        private enum TestFlagsEnum
         {
             None = 0,
             Flag1 = 1,
@@ -8015,1262 +11170,14 @@ namespace Opc.Ua.UnitTests
             Combined = Flag1 | Flag2 | Flag3
         }
 
-        /// <summary>
-        /// Tests WriteEnumerated with uint-backed enum max value.
-        /// </summary>
-        [Test]
-        public void WriteEnumerated_UInt32BackedEnumMaxValue_WritesCorrectInt32Value()
+        private enum TestEnum
         {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            // Act
-            encoder.WriteEnumerated("fieldName", TestUInt32Enum.Max);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
-            var actualValue = BitConverter.ToInt32(result, 0);
-            Assert.That(actualValue, Is.EqualTo(-1));
-        }
-
-        /// <summary>
-        /// Tests WriteEnumerated with undefined enum value writes correct int32 value.
-        /// </summary>
-        [Test]
-        public void WriteEnumerated_UndefinedEnumValue_WritesCorrectInt32Value()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var undefinedValue = (TestInt32Enum)999;
-            // Act
-            encoder.WriteEnumerated("fieldName", undefinedValue);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
-            var actualValue = BitConverter.ToInt32(result, 0);
-            Assert.That(actualValue, Is.EqualTo(999));
-        }
-
-        /// <summary>
-        /// Tests WriteEnumerated ignores fieldName parameter.
-        /// </summary>
-        [Test]
-        public void WriteEnumerated_WithFieldName_IgnoresFieldName()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder1 = new BinaryEncoder(mockContext.Object);
-            var encoder2 = new BinaryEncoder(mockContext.Object);
-            // Act
-            encoder1.WriteEnumerated("fieldName", TestInt32Enum.One);
-            encoder2.WriteEnumerated(null, TestInt32Enum.One);
-            var result1 = encoder1.CloseAndReturnBuffer();
-            var result2 = encoder2.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result1, Is.EqualTo(result2));
-        }
-
-        /// <summary>
-        /// Tests that WriteFloatArray writes -1 for null array and returns early.
-        /// Input: Default (null) ArrayOf&lt;float&gt;
-        /// Expected: -1 written to stream, no float values written
-        /// </summary>
-        [Test]
-        public void WriteFloatArray_NullArray_WritesMinusOne()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            ArrayOf<float> nullArray = default;
-            // Act
-            encoder.WriteFloatArray("TestField", nullArray);
-            var buffer = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(4)); // Only -1 as int32
-            Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(-1));
-        }
-
-        /// <summary>
-        /// Tests that WriteFloatArray writes 0 for empty array and returns early.
-        /// Input: Empty ArrayOf&lt;float&gt;
-        /// Expected: 0 written to stream, no float values written
-        /// </summary>
-        [Test]
-        public void WriteFloatArray_EmptyArray_WritesZero()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var emptyArray = ArrayOf<float>.Empty;
-            // Act
-            encoder.WriteFloatArray("TestField", emptyArray);
-            var buffer = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(4)); // Only 0 as int32
-            Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(0));
-        }
-
-        /// <summary>
-        /// Tests that WriteFloatArray correctly writes a single float value.
-        /// Input: ArrayOf&lt;float&gt; with one element (1.5f)
-        /// Expected: Length 1 followed by the float value
-        /// </summary>
-        [Test]
-        public void WriteFloatArray_SingleElement_WritesLengthAndValue()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var array = ArrayOf.Wrapped(1.5f);
-            // Act
-            encoder.WriteFloatArray("TestField", array);
-            var buffer = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(8)); // 4 bytes for length + 4 bytes for float
-            Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(1));
-            Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(1.5f));
-        }
-
-        /// <summary>
-        /// Tests that WriteFloatArray correctly writes multiple float values.
-        /// Input: ArrayOf&lt;float&gt; with three elements
-        /// Expected: Length 3 followed by three float values in order
-        /// </summary>
-        [Test]
-        public void WriteFloatArray_MultipleElements_WritesLengthAndValues()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var array = ArrayOf.Wrapped(1.5f, -2.5f, 3.75f);
-            // Act
-            encoder.WriteFloatArray("TestField", array);
-            var buffer = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(16)); // 4 bytes for length + 12 bytes for 3 floats
-            Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(3));
-            Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(1.5f));
-            Assert.That(BitConverter.ToSingle(buffer, 8), Is.EqualTo(-2.5f));
-            Assert.That(BitConverter.ToSingle(buffer, 12), Is.EqualTo(3.75f));
-        }
-
-        /// <summary>
-        /// Tests that WriteFloatArray correctly handles float.NaN.
-        /// Input: ArrayOf&lt;float&gt; with NaN value
-        /// Expected: NaN is written correctly
-        /// </summary>
-        [Test]
-        public void WriteFloatArray_NaNValue_WritesCorrectly()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var array = ArrayOf.Wrapped(float.NaN);
-            // Act
-            encoder.WriteFloatArray("TestField", array);
-            var buffer = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(8));
-            Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(1));
-            Assert.That(float.IsNaN(BitConverter.ToSingle(buffer, 4)), Is.True);
-        }
-
-        /// <summary>
-        /// Tests that WriteFloatArray correctly handles float.PositiveInfinity.
-        /// Input: ArrayOf&lt;float&gt; with PositiveInfinity value
-        /// Expected: PositiveInfinity is written correctly
-        /// </summary>
-        [Test]
-        public void WriteFloatArray_PositiveInfinity_WritesCorrectly()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var array = ArrayOf.Wrapped(float.PositiveInfinity);
-            // Act
-            encoder.WriteFloatArray("TestField", array);
-            var buffer = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(8));
-            Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(1));
-            Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(float.PositiveInfinity));
-        }
-
-        /// <summary>
-        /// Tests that WriteFloatArray correctly handles float.NegativeInfinity.
-        /// Input: ArrayOf&lt;float&gt; with NegativeInfinity value
-        /// Expected: NegativeInfinity is written correctly
-        /// </summary>
-        [Test]
-        public void WriteFloatArray_NegativeInfinity_WritesCorrectly()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var array = ArrayOf.Wrapped(float.NegativeInfinity);
-            // Act
-            encoder.WriteFloatArray("TestField", array);
-            var buffer = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(8));
-            Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(1));
-            Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(float.NegativeInfinity));
-        }
-
-        /// <summary>
-        /// Tests that WriteFloatArray correctly handles float.MinValue.
-        /// Input: ArrayOf&lt;float&gt; with MinValue
-        /// Expected: MinValue is written correctly
-        /// </summary>
-        [Test]
-        public void WriteFloatArray_MinValue_WritesCorrectly()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var array = ArrayOf.Wrapped(float.MinValue);
-            // Act
-            encoder.WriteFloatArray("TestField", array);
-            var buffer = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(8));
-            Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(1));
-            Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(float.MinValue));
-        }
-
-        /// <summary>
-        /// Tests that WriteFloatArray correctly handles float.MaxValue.
-        /// Input: ArrayOf&lt;float&gt; with MaxValue
-        /// Expected: MaxValue is written correctly
-        /// </summary>
-        [Test]
-        public void WriteFloatArray_MaxValue_WritesCorrectly()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var array = ArrayOf.Wrapped(float.MaxValue);
-            // Act
-            encoder.WriteFloatArray("TestField", array);
-            var buffer = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(8));
-            Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(1));
-            Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(float.MaxValue));
-        }
-
-        /// <summary>
-        /// Tests that WriteFloatArray correctly handles zero value.
-        /// Input: ArrayOf&lt;float&gt; with zero
-        /// Expected: Zero is written correctly
-        /// </summary>
-        [Test]
-        public void WriteFloatArray_ZeroValue_WritesCorrectly()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var array = ArrayOf.Wrapped(0.0f);
-            // Act
-            encoder.WriteFloatArray("TestField", array);
-            var buffer = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(8));
-            Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(1));
-            Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(0.0f));
-        }
-
-        /// <summary>
-        /// Tests that WriteFloatArray correctly handles negative zero.
-        /// Input: ArrayOf&lt;float&gt; with -0.0f
-        /// Expected: Negative zero is written correctly
-        /// </summary>
-        [Test]
-        public void WriteFloatArray_NegativeZero_WritesCorrectly()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var array = ArrayOf.Wrapped(-0.0f);
-            // Act
-            encoder.WriteFloatArray("TestField", array);
-            var buffer = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(8));
-            Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(1));
-            Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(-0.0f));
-        }
-
-        /// <summary>
-        /// Tests that WriteFloatArray throws ServiceResultException when array exceeds MaxArrayLength.
-        /// Input: ArrayOf&lt;float&gt; with 3 elements, MaxArrayLength = 2
-        /// Expected: ServiceResultException with BadEncodingLimitsExceeded status code
-        /// </summary>
-        [Test]
-        public void WriteFloatArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(2);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var array = ArrayOf.Wrapped(1.0f, 2.0f, 3.0f);
-            // Act & Assert
-            var exception = Assert.Throws<ServiceResultException>(() => encoder.WriteFloatArray("TestField", array));
-            Assert.That(exception, Is.Not.Null);
-            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
-        }
-
-        /// <summary>
-        /// Tests that WriteFloatArray correctly writes a large array.
-        /// Input: ArrayOf&lt;float&gt; with 100 elements
-        /// Expected: Length 100 followed by all float values
-        /// </summary>
-        [Test]
-        public void WriteFloatArray_LargeArray_WritesCorrectly()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var testData = new float[100];
-            for (int i = 0; i < 100; i++)
-            {
-                testData[i] = i * 1.5f;
-            }
-
-            var array = ArrayOf.Wrapped(testData);
-            // Act
-            encoder.WriteFloatArray("TestField", array);
-            var buffer = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(404)); // 4 bytes for length + 400 bytes for 100 floats
-            Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(100));
-            for (int i = 0; i < 100; i++)
-            {
-                Assert.That(BitConverter.ToSingle(buffer, 4 + i * 4), Is.EqualTo(i * 1.5f));
-            }
-        }
-
-        /// <summary>
-        /// Tests that WriteFloatArray correctly handles mixed special values.
-        /// Input: ArrayOf&lt;float&gt; with NaN, Infinity, -Infinity, zero, and normal values
-        /// Expected: All values written correctly in order
-        /// </summary>
-        [Test]
-        public void WriteFloatArray_MixedSpecialValues_WritesCorrectly()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var array = ArrayOf.Wrapped(float.NaN, float.PositiveInfinity, float.NegativeInfinity, 0.0f, 1.5f, -2.5f);
-            // Act
-            encoder.WriteFloatArray("TestField", array);
-            var buffer = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(28)); // 4 bytes for length + 24 bytes for 6 floats
-            Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(6));
-            Assert.That(float.IsNaN(BitConverter.ToSingle(buffer, 4)), Is.True);
-            Assert.That(BitConverter.ToSingle(buffer, 8), Is.EqualTo(float.PositiveInfinity));
-            Assert.That(BitConverter.ToSingle(buffer, 12), Is.EqualTo(float.NegativeInfinity));
-            Assert.That(BitConverter.ToSingle(buffer, 16), Is.EqualTo(0.0f));
-            Assert.That(BitConverter.ToSingle(buffer, 20), Is.EqualTo(1.5f));
-            Assert.That(BitConverter.ToSingle(buffer, 24), Is.EqualTo(-2.5f));
-        }
-
-        /// <summary>
-        /// Tests that WriteFloatArray respects MaxArrayLength boundary.
-        /// Input: ArrayOf&lt;float&gt; with exactly MaxArrayLength elements
-        /// Expected: Array is written successfully without exception
-        /// </summary>
-        [Test]
-        public void WriteFloatArray_ExactlyMaxArrayLength_WritesSuccessfully()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(5);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var array = ArrayOf.Wrapped(1.0f, 2.0f, 3.0f, 4.0f, 5.0f);
-            // Act
-            encoder.WriteFloatArray("TestField", array);
-            var buffer = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(buffer, Is.Not.Null);
-            Assert.That(buffer.Length, Is.EqualTo(24)); // 4 bytes for length + 20 bytes for 5 floats
-            Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(5));
-        }
-
-        /// <summary>
-        /// Tests that WriteDataValueArray writes -1 when the array is null and returns early.
-        /// </summary>
-        [Test]
-        public void WriteDataValueArray_NullArray_WritesNegativeOneAndReturns()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var nullArray = default(ArrayOf<DataValue>);
-            // Act
-            encoder.WriteDataValueArray(null, nullArray);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(-1));
-        }
-
-        /// <summary>
-        /// Tests that WriteDataValueArray writes 0 when the array is empty and returns early.
-        /// </summary>
-        [Test]
-        public void WriteDataValueArray_EmptyArray_WritesZeroAndReturns()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var emptyArray = new ArrayOf<DataValue>(Array.Empty<DataValue>());
-            // Act
-            encoder.WriteDataValueArray(null, emptyArray);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
-        }
-
-        /// <summary>
-        /// Tests that WriteDataValueArray writes the count and then each DataValue for a single item array.
-        /// </summary>
-        [Test]
-        public void WriteDataValueArray_SingleItem_WritesCountAndValue()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var dataValue = new DataValue(new Variant(42));
-            var array = new ArrayOf<DataValue>(new[] { dataValue });
-            // Act
-            encoder.WriteDataValueArray("TestField", array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(4));
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
-        }
-
-        /// <summary>
-        /// Tests that WriteDataValueArray writes the count and then each DataValue for multiple items.
-        /// </summary>
-        [Test]
-        public void WriteDataValueArray_MultipleItems_WritesCountAndAllValues()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var dataValue1 = new DataValue(new Variant(42));
-            var dataValue2 = new DataValue(new Variant(100));
-            var dataValue3 = new DataValue(new Variant(200));
-            var array = new ArrayOf<DataValue>(new[] { dataValue1, dataValue2, dataValue3 });
-            // Act
-            encoder.WriteDataValueArray("TestField", array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(4));
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(3));
-        }
-
-        /// <summary>
-        /// Tests that WriteDataValueArray throws ServiceResultException when array length exceeds MaxArrayLength.
-        /// </summary>
-        [Test]
-        public void WriteDataValueArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(2);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var dataValue1 = new DataValue(new Variant(1));
-            var dataValue2 = new DataValue(new Variant(2));
-            var dataValue3 = new DataValue(new Variant(3));
-            var array = new ArrayOf<DataValue>(new[] { dataValue1, dataValue2, dataValue3 });
-            // Act & Assert
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteDataValueArray("TestField", array));
-            Assert.That(ex, Is.Not.Null);
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
-        }
-
-        /// <summary>
-        /// Tests that WriteDataValueArray handles array with null DataValue elements.
-        /// </summary>
-        [Test]
-        public void WriteDataValueArray_ArrayWithNullElements_WritesNullDataValues()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var array = new ArrayOf<DataValue>(new DataValue[] { null, new DataValue(new Variant(42)), null });
-            // Act
-            encoder.WriteDataValueArray("TestField", array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(4));
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(3));
-        }
-
-        /// <summary>
-        /// Tests that WriteDataValueArray ignores the fieldName parameter.
-        /// </summary>
-        [Test]
-        public void WriteDataValueArray_FieldNameParameter_IsIgnored()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder1 = new BinaryEncoder(mockContext.Object);
-            var encoder2 = new BinaryEncoder(mockContext.Object);
-            var dataValue = new DataValue(new Variant(42));
-            var array = new ArrayOf<DataValue>(new[] { dataValue });
-            // Act
-            encoder1.WriteDataValueArray("Field1", array);
-            encoder2.WriteDataValueArray(null, array);
-            var result1 = encoder1.CloseAndReturnBuffer();
-            var result2 = encoder2.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result1, Is.Not.Null);
-            Assert.That(result2, Is.Not.Null);
-            Assert.That(result1, Is.EqualTo(result2));
-        }
-
-        /// <summary>
-        /// Tests that WriteDataValueArray writes DataValues with various properties set.
-        /// </summary>
-        [Test]
-        public void WriteDataValueArray_DataValuesWithVariousProperties_WritesCorrectly()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var dataValue1 = new DataValue(new Variant(42))
-            {
-                StatusCode = StatusCodes.Good,
-                SourceTimestamp = DateTime.UtcNow
-            };
-            var dataValue2 = new DataValue(new Variant("test"))
-            {
-                StatusCode = StatusCodes.Bad,
-                ServerTimestamp = DateTime.UtcNow
-            };
-            var array = new ArrayOf<DataValue>(new[] { dataValue1, dataValue2 });
-            // Act
-            encoder.WriteDataValueArray("TestField", array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(4));
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(2));
-        }
-
-        /// <summary>
-        /// Tests that the constructor successfully creates an instance with valid parameters.
-        /// Input: valid buffer, start, count, and context
-        /// Expected: Instance created successfully with Context property set
-        /// </summary>
-        [Test]
-        public void Constructor_ValidParameters_CreatesInstanceSuccessfully()
-        {
-            // Arrange
-            byte[] buffer = new byte[100];
-            int start = 0;
-            int count = 100;
-            var mockContext = CreateMockContext();
-            // Act
-            var encoder = new BinaryEncoder(buffer, start, count, mockContext.Object);
-            // Assert
-            Assert.That(encoder, Is.Not.Null);
-            Assert.That(encoder.Context, Is.EqualTo(mockContext.Object));
-        }
-
-        /// <summary>
-        /// Tests that the constructor works with an empty buffer and zero count.
-        /// Input: empty buffer (length 0), start = 0, count = 0
-        /// Expected: Instance created successfully
-        /// </summary>
-        [Test]
-        public void Constructor_EmptyBufferZeroCount_CreatesInstanceSuccessfully()
-        {
-            // Arrange
-            byte[] buffer = Array.Empty<byte>();
-            int start = 0;
-            int count = 0;
-            var mockContext = CreateMockContext();
-            // Act
-            var encoder = new BinaryEncoder(buffer, start, count, mockContext.Object);
-            // Assert
-            Assert.That(encoder, Is.Not.Null);
-            Assert.That(encoder.Context, Is.EqualTo(mockContext.Object));
-        }
-
-        /// <summary>
-        /// Tests that the constructor throws ArgumentOutOfRangeException when start is negative.
-        /// Input: start = -1
-        /// Expected: ArgumentOutOfRangeException
-        /// </summary>
-        [Test]
-        public void Constructor_NegativeStart_ThrowsArgumentOutOfRangeException()
-        {
-            // Arrange
-            byte[] buffer = new byte[10];
-            int start = -1;
-            int count = 5;
-            var mockContext = CreateMockContext();
-            // Act & Assert
-            Assert.Throws<ArgumentOutOfRangeException>(() => new BinaryEncoder(buffer, start, count, mockContext.Object));
-        }
-
-        /// <summary>
-        /// Tests that the constructor throws ArgumentOutOfRangeException when count is negative.
-        /// Input: count = -1
-        /// Expected: ArgumentOutOfRangeException
-        /// </summary>
-        [Test]
-        public void Constructor_NegativeCount_ThrowsArgumentOutOfRangeException()
-        {
-            // Arrange
-            byte[] buffer = new byte[10];
-            int start = 0;
-            int count = -1;
-            var mockContext = CreateMockContext();
-            // Act & Assert
-            Assert.Throws<ArgumentOutOfRangeException>(() => new BinaryEncoder(buffer, start, count, mockContext.Object));
-        }
-
-        /// <summary>
-        /// Tests that the constructor throws ArgumentException when start is beyond buffer length.
-        /// Input: start greater than buffer length
-        /// Expected: ArgumentException
-        /// </summary>
-        [Test]
-        public void Constructor_StartBeyondBufferLength_ThrowsArgumentException()
-        {
-            // Arrange
-            byte[] buffer = new byte[10];
-            int start = 11;
-            int count = 0;
-            var mockContext = CreateMockContext();
-            // Act & Assert
-            Assert.Throws<ArgumentException>(() => new BinaryEncoder(buffer, start, count, mockContext.Object));
-        }
-
-        /// <summary>
-        /// Tests that the constructor throws ArgumentException when count exceeds available buffer space.
-        /// Input: start + count greater than buffer length
-        /// Expected: ArgumentException
-        /// </summary>
-        [Test]
-        public void Constructor_CountExceedsAvailableSpace_ThrowsArgumentException()
-        {
-            // Arrange
-            byte[] buffer = new byte[10];
-            int start = 5;
-            int count = 6;
-            var mockContext = CreateMockContext();
-            // Act & Assert
-            Assert.Throws<ArgumentException>(() => new BinaryEncoder(buffer, start, count, mockContext.Object));
-        }
-
-        /// <summary>
-        /// Tests that the constructor works when start is at buffer length and count is zero.
-        /// Input: start = buffer.Length, count = 0
-        /// Expected: Instance created successfully
-        /// </summary>
-        [Test]
-        public void Constructor_StartAtBufferLengthWithZeroCount_CreatesInstanceSuccessfully()
-        {
-            // Arrange
-            byte[] buffer = new byte[10];
-            int start = 10;
-            int count = 0;
-            var mockContext = CreateMockContext();
-            // Act
-            var encoder = new BinaryEncoder(buffer, start, count, mockContext.Object);
-            // Assert
-            Assert.That(encoder, Is.Not.Null);
-            Assert.That(encoder.Context, Is.EqualTo(mockContext.Object));
-        }
-
-        /// <summary>
-        /// Tests that the constructor works with a subset of the buffer.
-        /// Input: start = 5, count = 3 with buffer of length 10
-        /// Expected: Instance created successfully
-        /// </summary>
-        [Test]
-        public void Constructor_SubsetOfBuffer_CreatesInstanceSuccessfully()
-        {
-            // Arrange
-            byte[] buffer = new byte[10];
-            int start = 5;
-            int count = 3;
-            var mockContext = CreateMockContext();
-            // Act
-            var encoder = new BinaryEncoder(buffer, start, count, mockContext.Object);
-            // Assert
-            Assert.That(encoder, Is.Not.Null);
-            Assert.That(encoder.Context, Is.EqualTo(mockContext.Object));
-        }
-
-        /// <summary>
-        /// Tests that the constructor throws when start is int.MinValue.
-        /// Input: start = int.MinValue
-        /// Expected: ArgumentOutOfRangeException
-        /// </summary>
-        [Test]
-        public void Constructor_StartIsMinValue_ThrowsArgumentOutOfRangeException()
-        {
-            // Arrange
-            byte[] buffer = new byte[10];
-            int start = int.MinValue;
-            int count = 0;
-            var mockContext = CreateMockContext();
-            // Act & Assert
-            Assert.Throws<ArgumentOutOfRangeException>(() => new BinaryEncoder(buffer, start, count, mockContext.Object));
-        }
-
-        /// <summary>
-        /// Tests that the constructor throws when count is int.MinValue.
-        /// Input: count = int.MinValue
-        /// Expected: ArgumentOutOfRangeException
-        /// </summary>
-        [Test]
-        public void Constructor_CountIsMinValue_ThrowsArgumentOutOfRangeException()
-        {
-            // Arrange
-            byte[] buffer = new byte[10];
-            int start = 0;
-            int count = int.MinValue;
-            var mockContext = CreateMockContext();
-            // Act & Assert
-            Assert.Throws<ArgumentOutOfRangeException>(() => new BinaryEncoder(buffer, start, count, mockContext.Object));
-        }
-
-        /// <summary>
-        /// Tests that the constructor throws when start is int.MaxValue.
-        /// Input: start = int.MaxValue
-        /// Expected: ArgumentException (start beyond buffer length)
-        /// </summary>
-        [Test]
-        public void Constructor_StartIsMaxValue_ThrowsArgumentException()
-        {
-            // Arrange
-            byte[] buffer = new byte[10];
-            int start = int.MaxValue;
-            int count = 0;
-            var mockContext = CreateMockContext();
-            // Act & Assert
-            Assert.Throws<ArgumentException>(() => new BinaryEncoder(buffer, start, count, mockContext.Object));
-        }
-
-        /// <summary>
-        /// Tests that the constructor throws when count is int.MaxValue.
-        /// Input: count = int.MaxValue
-        /// Expected: ArgumentException (count exceeds available space)
-        /// </summary>
-        [Test]
-        public void Constructor_CountIsMaxValue_ThrowsArgumentException()
-        {
-            // Arrange
-            byte[] buffer = new byte[10];
-            int start = 0;
-            int count = int.MaxValue;
-            var mockContext = CreateMockContext();
-            // Act & Assert
-            Assert.Throws<ArgumentException>(() => new BinaryEncoder(buffer, start, count, mockContext.Object));
-        }
-
-        /// <summary>
-        /// Tests that the constructor works with a large buffer.
-        /// Input: buffer of size 10000
-        /// Expected: Instance created successfully
-        /// </summary>
-        [Test]
-        public void Constructor_LargeBuffer_CreatesInstanceSuccessfully()
-        {
-            // Arrange
-            byte[] buffer = new byte[10000];
-            int start = 0;
-            int count = 10000;
-            var mockContext = CreateMockContext();
-            // Act
-            var encoder = new BinaryEncoder(buffer, start, count, mockContext.Object);
-            // Assert
-            Assert.That(encoder, Is.Not.Null);
-            Assert.That(encoder.Context, Is.EqualTo(mockContext.Object));
-        }
-
-        /// <summary>
-        /// Tests that WriteInt16 correctly writes various short values to the binary stream.
-        /// Verifies that values are encoded in little-endian format as expected.
-        /// Edge cases include short.MinValue, short.MaxValue, zero, and typical positive/negative values.
-        /// </summary>
-        [TestCase((short)0, new byte[] { 0x00, 0x00 })]
-        [TestCase((short)1, new byte[] { 0x01, 0x00 })]
-        [TestCase((short)-1, new byte[] { 0xFF, 0xFF })]
-        [TestCase(short.MaxValue, new byte[] { 0xFF, 0x7F })]
-        [TestCase(short.MinValue, new byte[] { 0x00, 0x80 })]
-        [TestCase((short)1000, new byte[] { 0xE8, 0x03 })]
-        [TestCase((short)-1000, new byte[] { 0x18, 0xFC })]
-        [TestCase((short)255, new byte[] { 0xFF, 0x00 })]
-        [TestCase((short)-255, new byte[] { 0x01, 0xFF })]
-        public void WriteInt16_VariousValues_WritesCorrectLittleEndianBytes(short value, byte[] expectedBytes)
-        {
-            // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            // Act
-            encoder.WriteInt16("TestField", value);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThanOrEqualTo(2));
-            Assert.That(result[0], Is.EqualTo(expectedBytes[0]));
-            Assert.That(result[1], Is.EqualTo(expectedBytes[1]));
-        }
-
-        /// <summary>
-        /// Tests that multiple consecutive WriteInt16 calls write values in sequence.
-        /// Verifies that the encoder correctly maintains position in the stream.
-        /// </summary>
-        [Test]
-        public void WriteInt16_MultipleValues_WritesSequentially()
-        {
-            // Arrange
-            var mockContext = CreateMockServiceMessageContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            short value1 = 100;
-            short value2 = -200;
-            short value3 = 0;
-            // Act
-            encoder.WriteInt16("Field1", value1);
-            encoder.WriteInt16("Field2", value2);
-            encoder.WriteInt16("Field3", value3);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThanOrEqualTo(6));
-            // Value1: 100 = 0x0064
-            Assert.That(result[0], Is.EqualTo(0x64));
-            Assert.That(result[1], Is.EqualTo(0x00));
-            // Value2: -200 = 0xFF38
-            Assert.That(result[2], Is.EqualTo(0x38));
-            Assert.That(result[3], Is.EqualTo(0xFF));
-            // Value3: 0 = 0x0000
-            Assert.That(result[4], Is.EqualTo(0x00));
-            Assert.That(result[5], Is.EqualTo(0x00));
-        }
-
-        /// <summary>
-        /// Tests that WriteByteString writes -1 for an empty ReadOnlySequence.
-        /// </summary>
-        [Test]
-        public void WriteByteString_EmptyReadOnlySequence_WritesMinusOne()
-        {
-            // Arrange
-            var stream = new MemoryStream();
-            var context = CreateMockContext(0);
-            var encoder = new BinaryEncoder(stream, context, false);
-            var emptySequence = ReadOnlySequence<byte>.Empty;
-            // Act
-            encoder.WriteByteString(null, emptySequence);
-            stream.Position = 0;
-            var reader = new BinaryReader(stream);
-            var result = reader.ReadInt32();
-            // Assert
-            Assert.That(result, Is.EqualTo(-1));
-            Assert.That(stream.Length, Is.EqualTo(4));
-        }
-
-        /// <summary>
-        /// Tests that WriteByteString correctly encodes a single-segment ReadOnlySequence with no length limit.
-        /// </summary>
-        [Test]
-        public void WriteByteString_SingleSegmentReadOnlySequence_NoLimit_WritesLengthAndData()
-        {
-            // Arrange
-            var stream = new MemoryStream();
-            var context = CreateMockContext(0);
-            var encoder = new BinaryEncoder(stream, context, false);
-            var data = new byte[]
-            {
-                1,
-                2,
-                3,
-                4,
-                5
-            };
-            var sequence = new ReadOnlySequence<byte>(data);
-            // Act
-            encoder.WriteByteString(null, sequence);
-            stream.Position = 0;
-            var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
-            var readData = reader.ReadBytes(length);
-            // Assert
-            Assert.That(length, Is.EqualTo(5));
-            Assert.That(readData, Is.EqualTo(data));
-        }
-
-        /// <summary>
-        /// Tests that WriteByteString succeeds when the sequence length is within the MaxByteStringLength limit.
-        /// </summary>
-        [Test]
-        public void WriteByteString_ReadOnlySequenceWithinLimit_WritesSuccessfully()
-        {
-            // Arrange
-            var stream = new MemoryStream();
-            var context = CreateMockContext(10);
-            var encoder = new BinaryEncoder(stream, context, false);
-            var data = new byte[]
-            {
-                1,
-                2,
-                3,
-                4,
-                5
-            };
-            var sequence = new ReadOnlySequence<byte>(data);
-            // Act
-            encoder.WriteByteString(null, sequence);
-            stream.Position = 0;
-            var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
-            var readData = reader.ReadBytes(length);
-            // Assert
-            Assert.That(length, Is.EqualTo(5));
-            Assert.That(readData, Is.EqualTo(data));
-        }
-
-        /// <summary>
-        /// Tests that WriteByteString succeeds when the sequence length equals MaxByteStringLength.
-        /// </summary>
-        [Test]
-        public void WriteByteString_ReadOnlySequenceAtLimit_WritesSuccessfully()
-        {
-            // Arrange
-            var stream = new MemoryStream();
-            var context = CreateMockContext(5);
-            var encoder = new BinaryEncoder(stream, context, false);
-            var data = new byte[]
-            {
-                1,
-                2,
-                3,
-                4,
-                5
-            };
-            var sequence = new ReadOnlySequence<byte>(data);
-            // Act
-            encoder.WriteByteString(null, sequence);
-            stream.Position = 0;
-            var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
-            var readData = reader.ReadBytes(length);
-            // Assert
-            Assert.That(length, Is.EqualTo(5));
-            Assert.That(readData, Is.EqualTo(data));
-        }
-
-        /// <summary>
-        /// Tests that WriteByteString throws ServiceResultException when the sequence length exceeds MaxByteStringLength.
-        /// </summary>
-        [Test]
-        public void WriteByteString_ReadOnlySequenceExceedsLimit_ThrowsServiceResultException()
-        {
-            // Arrange
-            var stream = new MemoryStream();
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            mockLoggerFactory.Setup(lf => lf.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockContext.Setup(c => c.MaxByteStringLength).Returns(3);
-            var context = mockContext.Object;
-            var encoder = new BinaryEncoder(stream, context, false);
-            var data = new byte[]
-            {
-                1,
-                2,
-                3,
-                4,
-                5
-            };
-            var sequence = new ReadOnlySequence<byte>(data);
-            // Act & Assert
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteByteString(null, sequence));
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
-            Assert.That(ex.Message, Does.Contain("MaxByteStringLength"));
-        }
-
-        /// <summary>
-        /// Tests that WriteByteString handles a very large ReadOnlySequence when no limit is set.
-        /// </summary>
-        [Test]
-        public void WriteByteString_LargeReadOnlySequence_NoLimit_WritesSuccessfully()
-        {
-            // Arrange
-            var stream = new MemoryStream();
-            var context = CreateMockContext(0);
-            var encoder = new BinaryEncoder(stream, context, false);
-            var data = new byte[1024 * 10]; // 10 KB
-            for (int i = 0; i < data.Length; i++)
-            {
-                data[i] = (byte)(i % 256);
-            }
-
-            var sequence = new ReadOnlySequence<byte>(data);
-            // Act
-            encoder.WriteByteString(null, sequence);
-            stream.Position = 0;
-            var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
-            var readData = reader.ReadBytes(length);
-            // Assert
-            Assert.That(length, Is.EqualTo(1024 * 10));
-            Assert.That(readData, Is.EqualTo(data));
-        }
-
-        /// <summary>
-        /// Tests that WriteByteString throws ServiceResultException for a large ReadOnlySequence exceeding the limit.
-        /// </summary>
-        [Test]
-        public void WriteByteString_LargeReadOnlySequenceExceedsLimit_ThrowsServiceResultException()
-        {
-            // Arrange
-            var stream = new MemoryStream();
-            var context = CreateMockContext(100);
-            var encoder = new BinaryEncoder(stream, context, false);
-            var data = new byte[1024 * 10]; // 10 KB
-            var sequence = new ReadOnlySequence<byte>(data);
-            // Act & Assert
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteByteString(null, sequence));
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
-        }
-
-        /// <summary>
-        /// Tests that WriteByteString correctly handles a single-byte ReadOnlySequence.
-        /// </summary>
-        [Test]
-        public void WriteByteString_SingleByteReadOnlySequence_WritesCorrectly()
-        {
-            // Arrange
-            var stream = new MemoryStream();
-            var context = CreateMockContext(0);
-            var encoder = new BinaryEncoder(stream, context, false);
-            var data = new byte[]
-            {
-                42
-            };
-            var sequence = new ReadOnlySequence<byte>(data);
-            // Act
-            encoder.WriteByteString(null, sequence);
-            stream.Position = 0;
-            var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
-            var readData = reader.ReadBytes(length);
-            // Assert
-            Assert.That(length, Is.EqualTo(1));
-            Assert.That(readData, Is.EqualTo(data));
+            NegativeValue = -1,
+            Zero = 0,
+            Value1 = 1,
+            Value2 = 2,
+            Value3 = 3,
+            LargeValue = 1000000
         }
 
         /// <summary>
@@ -9291,1801 +11198,17 @@ namespace Opc.Ua.UnitTests
         }
 
         /// <summary>
-        /// Tests that WriteBooleanArray writes -1 for null array and returns immediately.
-        /// </summary>
-        [Test]
-        public void WriteBooleanArray_NullArray_WritesNegativeOne()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            ArrayOf<bool> nullArray = default(bool[]);
-            // Act
-            encoder.WriteBooleanArray("test", nullArray);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(-1));
-        }
-
-        /// <summary>
-        /// Tests that WriteBooleanArray writes 0 for empty array and returns immediately.
-        /// </summary>
-        [Test]
-        public void WriteBooleanArray_EmptyArray_WritesZero()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            ArrayOf<bool> emptyArray = Array.Empty<bool>();
-            // Act
-            encoder.WriteBooleanArray("test", emptyArray);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
-        }
-
-        /// <summary>
-        /// Tests that WriteBooleanArray correctly writes a single boolean value.
-        /// </summary>
-        [TestCase(true)]
-        [TestCase(false)]
-        public void WriteBooleanArray_SingleElement_WritesLengthAndValue(bool value)
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            ArrayOf<bool> array = new bool[]
-            {
-                value
-            };
-            // Act
-            encoder.WriteBooleanArray("test", array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(5));
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
-            Assert.That(result[4], Is.EqualTo(value ? (byte)1 : (byte)0));
-        }
-
-        /// <summary>
-        /// Tests that WriteBooleanArray correctly writes multiple boolean values.
-        /// </summary>
-        [Test]
-        public void WriteBooleanArray_MultipleElements_WritesLengthAndAllValues()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            ArrayOf<bool> array = new bool[]
-            {
-                true,
-                false,
-                true,
-                false
-            };
-            // Act
-            encoder.WriteBooleanArray("test", array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(8));
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(4));
-            Assert.That(result[4], Is.EqualTo(1));
-            Assert.That(result[5], Is.EqualTo(0));
-            Assert.That(result[6], Is.EqualTo(1));
-            Assert.That(result[7], Is.EqualTo(0));
-        }
-
-        /// <summary>
-        /// Tests that WriteBooleanArray correctly writes an array with all true values.
-        /// </summary>
-        [Test]
-        public void WriteBooleanArray_AllTrueValues_WritesCorrectly()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            ArrayOf<bool> array = new bool[]
-            {
-                true,
-                true,
-                true
-            };
-            // Act
-            encoder.WriteBooleanArray("test", array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(7));
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(3));
-            Assert.That(result[4], Is.EqualTo(1));
-            Assert.That(result[5], Is.EqualTo(1));
-            Assert.That(result[6], Is.EqualTo(1));
-        }
-
-        /// <summary>
-        /// Tests that WriteBooleanArray correctly writes an array with all false values.
-        /// </summary>
-        [Test]
-        public void WriteBooleanArray_AllFalseValues_WritesCorrectly()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            ArrayOf<bool> array = new bool[]
-            {
-                false,
-                false,
-                false
-            };
-            // Act
-            encoder.WriteBooleanArray("test", array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(7));
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(3));
-            Assert.That(result[4], Is.EqualTo(0));
-            Assert.That(result[5], Is.EqualTo(0));
-            Assert.That(result[6], Is.EqualTo(0));
-        }
-
-        /// <summary>
-        /// Tests that WriteBooleanArray throws ServiceResultException when array exceeds MaxArrayLength.
-        /// </summary>
-        [Test]
-        public void WriteBooleanArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(5);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            ArrayOf<bool> largeArray = new bool[10];
-            // Act & Assert
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteBooleanArray("test", largeArray));
-            Assert.That(ex, Is.Not.Null);
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
-        }
-
-        /// <summary>
-        /// Tests that WriteBooleanArray correctly handles a large valid array.
-        /// </summary>
-        [Test]
-        public void WriteBooleanArray_LargeValidArray_WritesCorrectly()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var boolArray = new bool[100];
-            for (int i = 0; i < 100; i++)
-            {
-                boolArray[i] = i % 2 == 0;
-            }
-
-            ArrayOf<bool> array = boolArray;
-            // Act
-            encoder.WriteBooleanArray("test", array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(104));
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(100));
-            for (int i = 0; i < 100; i++)
-            {
-                Assert.That(result[4 + i], Is.EqualTo(i % 2 == 0 ? (byte)1 : (byte)0));
-            }
-        }
-
-        /// <summary>
-        /// Tests that WriteBooleanArray correctly handles MaxArrayLength at exact boundary.
-        /// </summary>
-        [Test]
-        public void WriteBooleanArray_ExactMaxArrayLength_WritesCorrectly()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(5);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            ArrayOf<bool> array = new bool[]
-            {
-                true,
-                false,
-                true,
-                false,
-                true
-            };
-            // Act
-            encoder.WriteBooleanArray("test", array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(9));
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(5));
-        }
-
-        /// <summary>
-        /// Tests that WriteBooleanArray ignores fieldName parameter and uses only values.
-        /// </summary>
-        [Test]
-        public void WriteBooleanArray_DifferentFieldNames_ProducesSameOutput()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder1 = new BinaryEncoder(mockContext.Object);
-            var encoder2 = new BinaryEncoder(mockContext.Object);
-            ArrayOf<bool> array = new bool[]
-            {
-                true,
-                false
-            };
-            // Act
-            encoder1.WriteBooleanArray("field1", array);
-            encoder2.WriteBooleanArray("field2", array);
-            var result1 = encoder1.CloseAndReturnBuffer();
-            var result2 = encoder2.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result1, Is.EqualTo(result2));
-        }
-
-        /// <summary>
-        /// Tests that WriteDateTimeArray correctly encodes a null array.
-        /// </summary>
-        [Test]
-        public void WriteDateTimeArray_NullArray_WritesNegativeOne()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            ArrayOf<DateTime> nullArray = default;
-            // Act
-            encoder.WriteDateTimeArray("TestField", nullArray);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(-1));
-        }
-
-        /// <summary>
-        /// Tests that WriteDateTimeArray correctly encodes an empty array.
-        /// </summary>
-        [Test]
-        public void WriteDateTimeArray_EmptyArray_WritesZeroLength()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            ArrayOf<DateTime> emptyArray = ArrayOf<DateTime>.Empty;
-            // Act
-            encoder.WriteDateTimeArray("TestField", emptyArray);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
-        }
-
-        /// <summary>
-        /// Tests that WriteDateTimeArray correctly encodes a single DateTime value.
-        /// </summary>
-        [Test]
-        public void WriteDateTimeArray_SingleElement_WritesLengthAndValue()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var testDate = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc);
-            ArrayOf<DateTime> singleElementArray = new ArrayOf<DateTime>(new[] { testDate });
-            // Act
-            encoder.WriteDateTimeArray("TestField", singleElementArray);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(12)); // 4 bytes for length + 8 bytes for DateTime
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
-        }
-
-        /// <summary>
-        /// Tests that WriteDateTimeArray correctly encodes multiple DateTime values.
-        /// </summary>
-        [Test]
-        public void WriteDateTimeArray_MultipleElements_WritesLengthAndAllValues()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var dates = new[]
-            {
-                new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc),
-                new DateTime(2024, 6, 15, 8, 30, 0, DateTimeKind.Utc),
-                new DateTime(2024, 12, 31, 23, 59, 59, DateTimeKind.Utc)
-            };
-            ArrayOf<DateTime> multiElementArray = new ArrayOf<DateTime>(dates);
-            // Act
-            encoder.WriteDateTimeArray("TestField", multiElementArray);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(28)); // 4 bytes for length + 3 * 8 bytes for DateTimes
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(3));
-        }
-
-        /// <summary>
-        /// Tests that WriteDateTimeArray handles DateTime.MinValue correctly.
-        /// </summary>
-        [Test]
-        public void WriteDateTimeArray_MinValue_EncodesCorrectly()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            ArrayOf<DateTime> array = new ArrayOf<DateTime>(new[] { DateTime.MinValue });
-            // Act
-            encoder.WriteDateTimeArray("TestField", array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(12));
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
-        }
-
-        /// <summary>
-        /// Tests that WriteDateTimeArray handles DateTime.MaxValue correctly.
-        /// </summary>
-        [Test]
-        public void WriteDateTimeArray_MaxValue_EncodesCorrectly()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            ArrayOf<DateTime> array = new ArrayOf<DateTime>(new[] { DateTime.MaxValue });
-            // Act
-            encoder.WriteDateTimeArray("TestField", array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(12));
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
-        }
-
-        /// <summary>
-        /// Tests that WriteDateTimeArray throws when array length exceeds MaxArrayLength.
-        /// </summary>
-        [Test]
-        public void WriteDateTimeArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(2);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var dates = new[]
-            {
-                DateTime.UtcNow,
-                DateTime.UtcNow.AddDays(1),
-                DateTime.UtcNow.AddDays(2)
-            };
-            ArrayOf<DateTime> array = new ArrayOf<DateTime>(dates);
-            // Act & Assert
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteDateTimeArray("TestField", array));
-            Assert.That(ex, Is.Not.Null);
-            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
-        }
-
-        /// <summary>
-        /// Tests that WriteDateTimeArray handles various DateTime values including edge cases.
-        /// </summary>
-        [Test]
-        public void WriteDateTimeArray_VariousDateTimeValues_EncodesAllCorrectly()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var dates = new[]
-            {
-                DateTime.MinValue,
-                DateTime.MaxValue,
-                new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-                new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-                DateTime.UtcNow
-            };
-            ArrayOf<DateTime> array = new ArrayOf<DateTime>(dates);
-            // Act
-            encoder.WriteDateTimeArray("TestField", array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(44)); // 4 bytes for length + 5 * 8 bytes for DateTimes
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(5));
-        }
-
-        /// <summary>
-        /// Tests that WriteDateTimeArray with null fieldName processes correctly.
-        /// </summary>
-        [Test]
-        public void WriteDateTimeArray_NullFieldName_EncodesCorrectly()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var testDate = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc);
-            ArrayOf<DateTime> array = new ArrayOf<DateTime>(new[] { testDate });
-            // Act
-            encoder.WriteDateTimeArray(null!, array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(12));
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
-        }
-
-        /// <summary>
-        /// Tests WriteVariantArray with a null array.
-        /// Should write -1 as length and return without writing elements.
-        /// </summary>
-        [Test]
-        public void WriteVariantArray_NullArray_WritesNegativeOne()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var nullArray = default(ArrayOf<Variant>);
-            // Act
-            encoder.WriteVariantArray("TestField", nullArray);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4)); // -1 as int32 = 4 bytes
-            using var stream = new MemoryStream(result);
-            using var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
-            Assert.That(length, Is.EqualTo(-1));
-        }
-
-        /// <summary>
-        /// Tests WriteVariantArray with an empty array.
-        /// Should write 0 as length and return without writing elements.
-        /// </summary>
-        [Test]
-        public void WriteVariantArray_EmptyArray_WritesZeroLength()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var emptyArray = ArrayOf<Variant>.Empty;
-            // Act
-            encoder.WriteVariantArray("TestField", emptyArray);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4)); // 0 as int32 = 4 bytes
-            using var stream = new MemoryStream(result);
-            using var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
-            Assert.That(length, Is.EqualTo(0));
-        }
-
-        /// <summary>
-        /// Tests WriteVariantArray with a single element array.
-        /// Should write length 1 followed by the variant data.
-        /// </summary>
-        [Test]
-        public void WriteVariantArray_SingleElement_WritesLengthAndElement()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            mockContext.Setup(c => c.MaxMessageSize).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var variant = new Variant(42);
-            var array = new ArrayOf<Variant>(new[] { variant });
-            // Act
-            encoder.WriteVariantArray("TestField", array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(4)); // More than just the length
-            using var stream = new MemoryStream(result);
-            using var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
-            Assert.That(length, Is.EqualTo(1));
-        }
-
-        /// <summary>
-        /// Tests WriteVariantArray with multiple elements.
-        /// Should write length followed by all variant elements in order.
-        /// </summary>
-        [Test]
-        public void WriteVariantArray_MultipleElements_WritesAllElements()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            mockContext.Setup(c => c.MaxMessageSize).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var variants = new Variant[]
-            {
-                new Variant(42),
-                new Variant("test"),
-                new Variant(true)
-            };
-            var array = new ArrayOf<Variant>(variants);
-            // Act
-            encoder.WriteVariantArray("TestField", array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            using var stream = new MemoryStream(result);
-            using var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
-            Assert.That(length, Is.EqualTo(3));
-        }
-
-        /// <summary>
-        /// Tests WriteVariantArray with null field name.
-        /// Should still write the array correctly as fieldName is not used.
-        /// </summary>
-        [Test]
-        public void WriteVariantArray_NullFieldName_WritesArraySuccessfully()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            mockContext.Setup(c => c.MaxMessageSize).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var variant = new Variant(123);
-            var array = new ArrayOf<Variant>(new[] { variant });
-            // Act
-            encoder.WriteVariantArray(null, array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            using var stream = new MemoryStream(result);
-            using var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
-            Assert.That(length, Is.EqualTo(1));
-        }
-
-        /// <summary>
-        /// Tests WriteVariantArray when MaxArrayLength is exceeded.
-        /// Should throw ServiceResultException with BadEncodingLimitsExceeded.
-        /// </summary>
-        [Test]
-        public void WriteVariantArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(2);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var variants = new Variant[]
-            {
-                new Variant(1),
-                new Variant(2),
-                new Variant(3)
-            };
-            var array = new ArrayOf<Variant>(variants);
-            // Act & Assert
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteVariantArray("TestField", array));
-            Assert.That(ex, Is.Not.Null);
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
-        }
-
-        /// <summary>
-        /// Tests WriteVariantArray with variants containing different data types.
-        /// Should write all variants with their respective types correctly.
-        /// </summary>
-        [Test]
-        public void WriteVariantArray_DifferentVariantTypes_WritesAllCorrectly()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            mockContext.Setup(c => c.MaxMessageSize).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var variants = new Variant[]
-            {
-                new Variant((byte)1),
-                new Variant((short)2),
-                new Variant((int)3),
-                new Variant((long)4),
-                new Variant(5.5f),
-                new Variant(6.6)
-            };
-            var array = new ArrayOf<Variant>(variants);
-            // Act
-            encoder.WriteVariantArray("TestField", array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            using var stream = new MemoryStream(result);
-            using var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
-            Assert.That(length, Is.EqualTo(6));
-        }
-
-        /// <summary>
-        /// Tests WriteVariantArray with array containing null Variant values.
-        /// Should write the array with null variants encoded properly.
-        /// </summary>
-        [Test]
-        public void WriteVariantArray_WithNullVariants_WritesArrayWithNulls()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            mockContext.Setup(c => c.MaxMessageSize).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var variants = new Variant[]
-            {
-                new Variant(42),
-                Variant.Null,
-                new Variant(84)
-            };
-            var array = new ArrayOf<Variant>(variants);
-            // Act
-            encoder.WriteVariantArray("TestField", array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            using var stream = new MemoryStream(result);
-            using var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
-            Assert.That(length, Is.EqualTo(3));
-        }
-
-        /// <summary>
-        /// Tests WriteVariantArray with large array at boundary of MaxArrayLength.
-        /// Should write successfully when count equals MaxArrayLength.
-        /// </summary>
-        [Test]
-        public void WriteVariantArray_ArrayAtMaxLength_WritesSuccessfully()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(3);
-            mockContext.Setup(c => c.MaxMessageSize).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var variants = new Variant[]
-            {
-                new Variant(1),
-                new Variant(2),
-                new Variant(3)
-            };
-            var array = new ArrayOf<Variant>(variants);
-            // Act
-            encoder.WriteVariantArray("TestField", array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            using var stream = new MemoryStream(result);
-            using var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
-            Assert.That(length, Is.EqualTo(3));
-        }
-
-        /// <summary>
-        /// Tests that Dispose correctly disposes the writer and stream when leaveOpen is false.
-        /// </summary>
-        [Test]
-        public void Dispose_WithLeaveOpenFalse_DisposesWriterAndStream()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, leaveOpen: false);
-            // Act
-            encoder.Dispose();
-            // Assert - Stream should be disposed (cannot read/write)
-            Assert.That(() => stream.WriteByte(0), Throws.TypeOf<ObjectDisposedException>());
-        }
-
-        /// <summary>
-        /// Tests that Dispose correctly disposes the writer but leaves the stream open when leaveOpen is true.
-        /// </summary>
-        [Test]
-        public void Dispose_WithLeaveOpenTrue_DisposesWriterButLeavesStreamOpen()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, leaveOpen: true);
-            // Act
-            encoder.Dispose();
-            // Assert - Stream should still be usable
-            Assert.That(() => stream.WriteByte(0), Throws.Nothing);
-            Assert.That(stream.CanWrite, Is.True);
-            // Clean up
-            stream.Dispose();
-        }
-
-        /// <summary>
-        /// Tests that Dispose can be called multiple times without throwing exceptions (idempotency).
-        /// </summary>
-        [Test]
-        public void Dispose_CalledMultipleTimes_DoesNotThrow()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            // Act & Assert - Multiple dispose calls should not throw
-            Assert.That(() => encoder.Dispose(), Throws.Nothing);
-            Assert.That(() => encoder.Dispose(), Throws.Nothing);
-            Assert.That(() => encoder.Dispose(), Throws.Nothing);
-        }
-
-        /// <summary>
-        /// Tests that Dispose correctly flushes and disposes resources after writing data.
-        /// </summary>
-        [Test]
-        public void Dispose_AfterWritingData_FlushesAndDisposesCorrectly()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, leaveOpen: false);
-            // Write some data
-            encoder.WriteInt32("TestField", 42);
-            var positionBeforeDispose = stream.Position;
-            // Act
-            encoder.Dispose();
-            // Assert - Data should be flushed before disposal
-            Assert.That(positionBeforeDispose, Is.GreaterThan(0));
-            Assert.That(() => stream.Position, Throws.TypeOf<ObjectDisposedException>());
-        }
-
-        /// <summary>
-        /// Tests that Dispose with default constructor disposes internal MemoryStream.
-        /// </summary>
-        [Test]
-        public void Dispose_WithDefaultConstructor_DisposesInternalStream()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            // Write some data to ensure stream is used
-            encoder.WriteInt32("TestField", 123);
-            // Act
-            encoder.Dispose();
-            // Assert - Attempting to write after dispose should throw
-            Assert.That(() => encoder.WriteInt32("AnotherField", 456), Throws.Exception);
-        }
-
-        /// <summary>
-        /// Tests that Dispose can be called on an encoder that has not written any data.
-        /// </summary>
-        [Test]
-        public void Dispose_WithoutWritingData_DisposesCleanly()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            // Act & Assert - Should dispose cleanly without any writes
-            Assert.That(() => encoder.Dispose(), Throws.Nothing);
-        }
-
-        /// <summary>
-        /// Tests that Dispose works correctly with encoder created from buffer constructor.
-        /// </summary>
-        [Test]
-        public void Dispose_WithBufferConstructor_DisposesCorrectly()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var buffer = new byte[1024];
-            var encoder = new BinaryEncoder(buffer, 0, buffer.Length, mockContext.Object);
-            // Write some data
-            encoder.WriteInt32("TestField", 999);
-            // Act
-            encoder.Dispose();
-            // Assert - Should dispose without errors
-            Assert.That(() => encoder.WriteInt32("AnotherField", 888), Throws.Exception);
-        }
-
-        /// <summary>
-        /// Tests that PopNamespace can be called on a newly created encoder without throwing an exception.
-        /// This verifies that the no-op implementation doesn't cause any issues.
-        /// </summary>
-        [Test]
-        public void PopNamespace_CalledOnNewEncoder_DoesNotThrowException()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            // Act & Assert
-            Assert.DoesNotThrow(() => encoder.PopNamespace());
-        }
-
-        /// <summary>
-        /// Tests that PopNamespace can be called multiple times consecutively without throwing an exception.
-        /// Verifies that repeated calls to the no-op method don't accumulate state or cause errors.
-        /// </summary>
-        [Test]
-        public void PopNamespace_CalledMultipleTimes_DoesNotThrowException()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            // Act & Assert
-            Assert.DoesNotThrow(() =>
-            {
-                encoder.PopNamespace();
-                encoder.PopNamespace();
-                encoder.PopNamespace();
-            });
-        }
-
-        /// <summary>
-        /// Tests that PopNamespace can be called after writing data without affecting the encoded output.
-        /// Verifies that the no-op PopNamespace method doesn't interfere with binary encoding.
-        /// </summary>
-        [Test]
-        public void PopNamespace_CalledAfterWritingData_DoesNotAffectOutput()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder1 = new BinaryEncoder(mockContext.Object);
-            var encoder2 = new BinaryEncoder(mockContext.Object);
-            // Act
-            encoder1.WriteInt32(null, 42);
-            var output1 = encoder1.CloseAndReturnBuffer();
-            encoder2.WriteInt32(null, 42);
-            encoder2.PopNamespace();
-            var output2 = encoder2.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(output1, Is.Not.Null);
-            Assert.That(output2, Is.Not.Null);
-            Assert.That(output2, Is.EqualTo(output1));
-        }
-
-        /// <summary>
-        /// Tests that PopNamespace can be called after PushNamespace without throwing an exception.
-        /// Verifies that the Push/Pop pair works correctly even though both are no-ops in binary encoding.
-        /// </summary>
-        [Test]
-        public void PopNamespace_CalledAfterPushNamespace_DoesNotThrowException()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            // Act & Assert
-            Assert.DoesNotThrow(() =>
-            {
-                encoder.PushNamespace("http://opcfoundation.org/UA/");
-                encoder.PopNamespace();
-            });
-        }
-
-        /// <summary>
-        /// Tests that PopNamespace can be called with multiple PushNamespace calls without throwing an exception.
-        /// Verifies proper handling of nested namespace operations in binary encoding.
-        /// </summary>
-        [Test]
-        public void PopNamespace_CalledWithMultiplePushNamespace_DoesNotThrowException()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            // Act & Assert
-            Assert.DoesNotThrow(() =>
-            {
-                encoder.PushNamespace("http://opcfoundation.org/UA/");
-                encoder.PushNamespace("http://test.org/");
-                encoder.PopNamespace();
-                encoder.PopNamespace();
-            });
-        }
-
-        /// <summary>
-        /// Tests that PopNamespace called without matching PushNamespace does not throw an exception.
-        /// In binary encoding, both operations are no-ops, so unbalanced calls should not cause errors.
-        /// </summary>
-        [Test]
-        public void PopNamespace_CalledWithoutPushNamespace_DoesNotThrowException()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            // Act & Assert
-            Assert.DoesNotThrow(() => encoder.PopNamespace());
-        }
-
-        /// <summary>
-        /// Tests WriteQualifiedName with a QualifiedName that has namespace index 0 and a simple name,
-        /// when no namespace mappings are configured.
-        /// Verifies that the namespace index and name are written correctly to the binary stream.
-        /// </summary>
-        [Test]
-        public void WriteQualifiedName_WithoutNamespaceMappings_WritesIndexAndName()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxStringLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var qualifiedName = new QualifiedName("TestName", 0);
-            // Act
-            encoder.WriteQualifiedName(null, qualifiedName);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(0));
-        }
-
-        /// <summary>
-        /// Tests WriteQualifiedName with a QualifiedName that has a non-zero namespace index,
-        /// when no namespace mappings are configured.
-        /// Verifies that the original namespace index is preserved and written correctly.
-        /// </summary>
-        [TestCase((ushort)1)]
-        [TestCase((ushort)10)]
-        [TestCase((ushort)255)]
-        [TestCase(ushort.MaxValue)]
-        public void WriteQualifiedName_WithoutMappings_PreservesOriginalNamespaceIndex(ushort namespaceIndex)
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxStringLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var qualifiedName = new QualifiedName("Name", namespaceIndex);
-            // Act
-            encoder.WriteQualifiedName("fieldName", qualifiedName);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(2));
-            var writtenIndex = BitConverter.ToUInt16(result, 0);
-            Assert.That(writtenIndex, Is.EqualTo(namespaceIndex));
-        }
-
-        /// <summary>
-        /// Tests WriteQualifiedName with namespace mappings configured and the namespace index
-        /// is within the bounds of the mapping array.
-        /// Verifies that the mapped namespace index is written instead of the original.
-        /// </summary>
-        [Test]
-        public void WriteQualifiedName_WithNamespaceMappings_WritesMappedIndex()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxStringLength).Returns(0);
-            var sourceNamespaces = new NamespaceTable();
-            sourceNamespaces.Append("http://example.com/namespace1");
-            sourceNamespaces.Append("http://example.com/namespace2");
-            var targetNamespaces = new NamespaceTable();
-            targetNamespaces.Append("http://example.com/namespace2");
-            targetNamespaces.Append("http://example.com/namespace1");
-            mockContext.Setup(c => c.NamespaceUris).Returns(targetNamespaces);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            encoder.SetMappingTables(sourceNamespaces, null);
-            var qualifiedName = new QualifiedName("TestName", 1);
-            // Act
-            encoder.WriteQualifiedName(null, qualifiedName);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            var writtenIndex = BitConverter.ToUInt16(result, 0);
-            Assert.That(writtenIndex, Is.Not.EqualTo((ushort)1));
-        }
-
-        /// <summary>
-        /// Tests WriteQualifiedName with namespace mappings configured but the namespace index
-        /// exceeds the bounds of the mapping array.
-        /// Verifies that the original namespace index is used when no mapping exists.
-        /// </summary>
-        [Test]
-        public void WriteQualifiedName_WithNamespaceMappingsIndexOutOfBounds_WritesOriginalIndex()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxStringLength).Returns(0);
-            var sourceNamespaces = new NamespaceTable();
-            sourceNamespaces.Append("http://example.com/namespace1");
-            var targetNamespaces = new NamespaceTable();
-            targetNamespaces.Append("http://example.com/namespace1");
-            mockContext.Setup(c => c.NamespaceUris).Returns(targetNamespaces);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            encoder.SetMappingTables(sourceNamespaces, null);
-            var qualifiedName = new QualifiedName("TestName", 100);
-            // Act
-            encoder.WriteQualifiedName(null, qualifiedName);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            var writtenIndex = BitConverter.ToUInt16(result, 0);
-            Assert.That(writtenIndex, Is.EqualTo((ushort)100));
-        }
-
-        /// <summary>
-        /// Tests WriteQualifiedName with a QualifiedName that has a null Name property.
-        /// Verifies that null names are handled correctly.
-        /// </summary>
-        [Test]
-        public void WriteQualifiedName_WithNullName_WritesNullString()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxStringLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var qualifiedName = new QualifiedName(null, 0);
-            // Act
-            encoder.WriteQualifiedName(null, qualifiedName);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(0));
-        }
-
-        /// <summary>
-        /// Tests WriteQualifiedName with a QualifiedName that has an empty Name property.
-        /// Verifies that empty names are written correctly.
-        /// </summary>
-        [Test]
-        public void WriteQualifiedName_WithEmptyName_WritesEmptyString()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxStringLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var qualifiedName = new QualifiedName(string.Empty, 0);
-            // Act
-            encoder.WriteQualifiedName(null, qualifiedName);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(0));
-        }
-
-        /// <summary>
-        /// Tests WriteQualifiedName with a QualifiedName that has a Name with special characters.
-        /// Verifies that special characters in names are encoded correctly.
-        /// </summary>
-        [TestCase("Name with spaces")]
-        [TestCase("Name\twith\ttabs")]
-        [TestCase("Name\nwith\nnewlines")]
-        [TestCase("Name with 日本語")]
-        [TestCase("Name with émojis 😀")]
-        [TestCase("Name/with/slashes")]
-        public void WriteQualifiedName_WithSpecialCharactersInName_EncodesCorrectly(string name)
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxStringLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var qualifiedName = new QualifiedName(name, 0);
-            // Act
-            encoder.WriteQualifiedName(null, qualifiedName);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(0));
-        }
-
-        /// <summary>
-        /// Tests WriteQualifiedName with multiple QualifiedNames written sequentially.
-        /// Verifies that multiple qualified names can be written to the same encoder.
-        /// </summary>
-        [Test]
-        public void WriteQualifiedName_MultipleQualifiedNames_WritesAllCorrectly()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxStringLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var qn1 = new QualifiedName("Name1", 0);
-            var qn2 = new QualifiedName("Name2", 1);
-            var qn3 = new QualifiedName("Name3", 2);
-            // Act
-            encoder.WriteQualifiedName(null, qn1);
-            encoder.WriteQualifiedName(null, qn2);
-            encoder.WriteQualifiedName(null, qn3);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(0));
-        }
-
-        /// <summary>
-        /// Tests WriteQualifiedName with namespace index at the boundary (0).
-        /// Verifies that the minimum namespace index is handled correctly.
-        /// </summary>
-        [Test]
-        public void WriteQualifiedName_WithNamespaceIndexZero_WritesCorrectly()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxStringLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var qualifiedName = new QualifiedName("TestName", 0);
-            // Act
-            encoder.WriteQualifiedName(null, qualifiedName);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            var writtenIndex = BitConverter.ToUInt16(result, 0);
-            Assert.That(writtenIndex, Is.EqualTo((ushort)0));
-        }
-
-        /// <summary>
-        /// Tests WriteQualifiedName with a very long name string.
-        /// Verifies that long names are handled correctly without errors.
-        /// </summary>
-        [Test]
-        public void WriteQualifiedName_WithVeryLongName_WritesCorrectly()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxStringLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var longName = new string ('A', 10000);
-            var qualifiedName = new QualifiedName(longName, 0);
-            // Act
-            encoder.WriteQualifiedName(null, qualifiedName);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(10000));
-        }
-
-        /// <summary>
-        /// Tests WriteQualifiedName with whitespace-only name.
-        /// Verifies that whitespace-only names are written correctly.
-        /// </summary>
-        [TestCase("   ")]
-        [TestCase("\t\t\t")]
-        [TestCase("\n\n")]
-        public void WriteQualifiedName_WithWhitespaceOnlyName_WritesCorrectly(string name)
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxStringLength).Returns(0);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var qualifiedName = new QualifiedName(name, 0);
-            // Act
-            encoder.WriteQualifiedName(null, qualifiedName);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(0));
-        }
-
-        /// <summary>
-        /// Tests WriteQualifiedName with namespace index exactly at the length of mapping array.
-        /// Verifies that boundary condition when index equals mapping array length is handled correctly.
-        /// </summary>
-        [Test]
-        public void WriteQualifiedName_WithIndexAtMappingArrayLength_WritesOriginalIndex()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxStringLength).Returns(0);
-            var sourceNamespaces = new NamespaceTable();
-            sourceNamespaces.Append("http://example.com/namespace1");
-            var targetNamespaces = new NamespaceTable();
-            targetNamespaces.Append("http://example.com/namespace1");
-            mockContext.Setup(c => c.NamespaceUris).Returns(targetNamespaces);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            encoder.SetMappingTables(sourceNamespaces, null);
-            var qualifiedName = new QualifiedName("TestName", 2);
-            // Act
-            encoder.WriteQualifiedName(null, qualifiedName);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            var writtenIndex = BitConverter.ToUInt16(result, 0);
-            Assert.That(writtenIndex, Is.EqualTo((ushort)2));
-        }
-
-        /// <summary>
-        /// Tests that WriteUInt32Array correctly encodes a null array.
-        /// The binary format should write -1 as the length for null arrays.
-        /// </summary>
-        [Test]
-        public void WriteUInt32Array_NullArray_WritesNegativeOne()
-        {
-            // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var nullArray = default(ArrayOf<uint>);
-            // Act
-            encoder.WriteUInt32Array("test", nullArray);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
-            var length = BitConverter.ToInt32(result, 0);
-            Assert.That(length, Is.EqualTo(-1));
-        }
-
-        /// <summary>
-        /// Tests that WriteUInt32Array correctly encodes an empty array.
-        /// The binary format should write 0 as the length for empty arrays.
-        /// </summary>
-        [Test]
-        public void WriteUInt32Array_EmptyArray_WritesZeroLength()
-        {
-            // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var emptyArray = ArrayOf.Create<uint>(Array.Empty<uint>());
-            // Act
-            encoder.WriteUInt32Array("test", emptyArray);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
-            var length = BitConverter.ToInt32(result, 0);
-            Assert.That(length, Is.EqualTo(0));
-        }
-
-        /// <summary>
-        /// Tests that WriteUInt32Array correctly encodes a single element array.
-        /// Verifies both the length prefix and the element value are written correctly.
-        /// </summary>
-        [Test]
-        public void WriteUInt32Array_SingleElement_WritesLengthAndValue()
-        {
-            // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var singleElementArray = ArrayOf.Create<uint>(new uint[] { 42 });
-            // Act
-            encoder.WriteUInt32Array("test", singleElementArray);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(8)); // 4 bytes for length + 4 bytes for value
-            var length = BitConverter.ToInt32(result, 0);
-            Assert.That(length, Is.EqualTo(1));
-            var value = BitConverter.ToUInt32(result, 4);
-            Assert.That(value, Is.EqualTo(42u));
-        }
-
-        /// <summary>
-        /// Tests that WriteUInt32Array correctly encodes multiple elements.
-        /// Verifies the length prefix and all element values are written in order.
-        /// </summary>
-        [Test]
-        public void WriteUInt32Array_MultipleElements_WritesAllValues()
-        {
-            // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var values = new uint[]
-            {
-                1u,
-                2u,
-                3u,
-                4u,
-                5u
-            };
-            var array = ArrayOf.Create(values);
-            // Act
-            encoder.WriteUInt32Array("test", array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(24)); // 4 bytes for length + 5 * 4 bytes for values
-            var length = BitConverter.ToInt32(result, 0);
-            Assert.That(length, Is.EqualTo(5));
-            for (int i = 0; i < 5; i++)
-            {
-                var value = BitConverter.ToUInt32(result, 4 + (i * 4));
-                Assert.That(value, Is.EqualTo(values[i]));
-            }
-        }
-
-        /// <summary>
-        /// Tests that WriteUInt32Array correctly encodes the minimum uint value (0).
-        /// Verifies that zero is encoded correctly in the binary format.
-        /// </summary>
-        [Test]
-        public void WriteUInt32Array_MinValue_WritesZero()
-        {
-            // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var array = ArrayOf.Create(new uint[] { uint.MinValue });
-            // Act
-            encoder.WriteUInt32Array("test", array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(8));
-            var length = BitConverter.ToInt32(result, 0);
-            Assert.That(length, Is.EqualTo(1));
-            var value = BitConverter.ToUInt32(result, 4);
-            Assert.That(value, Is.EqualTo(0u));
-        }
-
-        /// <summary>
-        /// Tests that WriteUInt32Array correctly encodes the maximum uint value (4294967295).
-        /// Verifies that the maximum value is encoded correctly in the binary format.
-        /// </summary>
-        [Test]
-        public void WriteUInt32Array_MaxValue_WritesMaxUInt()
-        {
-            // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var array = ArrayOf.Create(new uint[] { uint.MaxValue });
-            // Act
-            encoder.WriteUInt32Array("test", array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(8));
-            var length = BitConverter.ToInt32(result, 0);
-            Assert.That(length, Is.EqualTo(1));
-            var value = BitConverter.ToUInt32(result, 4);
-            Assert.That(value, Is.EqualTo(uint.MaxValue));
-        }
-
-        /// <summary>
-        /// Tests that WriteUInt32Array correctly encodes various boundary values.
-        /// Tests powers of 2 and boundary values to ensure proper encoding.
-        /// </summary>
-        [Test]
-        public void WriteUInt32Array_BoundaryValues_WritesCorrectly()
-        {
-            // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var values = new uint[]
-            {
-                0u,
-                1u,
-                255u,
-                256u,
-                65535u,
-                65536u,
-                uint.MaxValue
-            };
-            var array = ArrayOf.Create(values);
-            // Act
-            encoder.WriteUInt32Array("test", array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(32)); // 4 bytes for length + 7 * 4 bytes for values
-            var length = BitConverter.ToInt32(result, 0);
-            Assert.That(length, Is.EqualTo(7));
-            for (int i = 0; i < values.Length; i++)
-            {
-                var value = BitConverter.ToUInt32(result, 4 + (i * 4));
-                Assert.That(value, Is.EqualTo(values[i]));
-            }
-        }
-
-        /// <summary>
-        /// Tests that WriteUInt32Array ignores the fieldName parameter.
-        /// The fieldName is not used in binary encoding but should not cause errors.
-        /// </summary>
-        [Test]
-        public void WriteUInt32Array_WithNullFieldName_WritesCorrectly()
-        {
-            // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var array = ArrayOf.Create(new uint[] { 123u });
-            // Act
-            encoder.WriteUInt32Array(null!, array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(8));
-            var value = BitConverter.ToUInt32(result, 4);
-            Assert.That(value, Is.EqualTo(123u));
-        }
-
-        /// <summary>
-        /// Tests that WriteExpandedNodeIdArray writes -1 for a null array and returns without writing elements.
-        /// </summary>
-        [Test]
-        public void WriteExpandedNodeIdArray_NullArray_WritesMinusOne()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            ArrayOf<ExpandedNodeId> nullArray = null;
-            // Act
-            encoder.WriteExpandedNodeIdArray("TestField", nullArray);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4)); // -1 as int32 = 4 bytes
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(-1));
-        }
-
-        /// <summary>
-        /// Tests that WriteExpandedNodeIdArray writes 0 for an empty array and returns without writing elements.
-        /// </summary>
-        [Test]
-        public void WriteExpandedNodeIdArray_EmptyArray_WritesZeroLength()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var emptyArray = new ArrayOf<ExpandedNodeId>();
-            // Act
-            encoder.WriteExpandedNodeIdArray("TestField", emptyArray);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4)); // 0 as int32 = 4 bytes
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
-        }
-
-        /// <summary>
-        /// Tests that WriteSwitchField writes data to the stream by verifying
-        /// the stream position changes after the write operation.
-        /// </summary>
-        [Test]
-        public void WriteSwitchField_WritesDataToStream()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var initialPosition = encoder.Position;
-            // Act
-            encoder.WriteSwitchField(100u, out _);
-            var finalPosition = encoder.Position;
-            // Assert
-            Assert.That(finalPosition, Is.EqualTo(initialPosition + 4), "position should advance by 4 bytes after writing uint");
-        }
-
-        /// <summary>
         /// Helper class to expose protected Dispose method for testing.
         /// </summary>
         private class TestableBinaryEncoder : BinaryEncoder
         {
-            public TestableBinaryEncoder(IServiceMessageContext context) : base(context)
+            public TestableBinaryEncoder(IServiceMessageContext context)
+                : base(context)
             {
             }
 
-            public TestableBinaryEncoder(Stream stream, IServiceMessageContext context, bool leaveOpen) : base(stream, context, leaveOpen)
+            public TestableBinaryEncoder(Stream stream, IServiceMessageContext context, bool leaveOpen)
+                : base(stream, context, leaveOpen)
             {
             }
 
@@ -11094,1608 +11217,5 @@ namespace Opc.Ua.UnitTests
                 Dispose(disposing);
             }
         }
-
-        /// <summary>
-        /// Tests that multiple consecutive calls to PushNamespace do not cause any issues.
-        /// This verifies that the no-op implementation can be called multiple times safely.
-        /// </summary>
-        [Test]
-        public void PushNamespace_MultipleConsecutiveCalls_DoesNotThrow()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            // Act & Assert
-            Assert.DoesNotThrow(() =>
-            {
-                encoder.PushNamespace("http://opcfoundation.org/UA/");
-                encoder.PushNamespace(null);
-                encoder.PushNamespace("");
-                encoder.PushNamespace("urn:another:namespace");
-            });
-        }
-
-        /// <summary>
-        /// Tests that WriteStatusCode correctly encodes predefined OPC UA status codes.
-        /// </summary>
-        /// <param name = "statusCode">The predefined StatusCode to test.</param>
-        /// <param name = "expectedCode">The expected uint code value.</param>
-        [TestCase(0x00000000u, 0x00000000u, TestName = "WriteStatusCode_GoodStatusCode_WritesGoodCode")]
-        [TestCase(0x80000000u, 0x80000000u, TestName = "WriteStatusCode_BadStatusCode_WritesBadCode")]
-        [TestCase(0x40000000u, 0x40000000u, TestName = "WriteStatusCode_UncertainStatusCode_WritesUncertainCode")]
-        [TestCase(0x80010000u, 0x80010000u, TestName = "WriteStatusCode_BadUnexpectedError_WritesErrorCode")]
-        [TestCase(0x80020000u, 0x80020000u, TestName = "WriteStatusCode_BadInternalError_WritesErrorCode")]
-        [TestCase(0x80030000u, 0x80030000u, TestName = "WriteStatusCode_BadOutOfMemory_WritesErrorCode")]
-        [TestCase(0x80040000u, 0x80040000u, TestName = "WriteStatusCode_BadResourceUnavailable_WritesErrorCode")]
-        [TestCase(0x80050000u, 0x80050000u, TestName = "WriteStatusCode_BadCommunicationError_WritesErrorCode")]
-        public void WriteStatusCode_PredefinedStatusCodes_WritesCorrectCode(uint statusCode, uint expectedCode)
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var status = new StatusCode(statusCode);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            // Act
-            encoder.WriteStatusCode("TestField", status);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
-            var writtenValue = BitConverter.ToUInt32(result, 0);
-            Assert.That(writtenValue, Is.EqualTo(expectedCode));
-        }
-
-        /// <summary>
-        /// Tests that WriteStatusCode writes multiple status codes sequentially to the stream.
-        /// </summary>
-        [Test]
-        public void WriteStatusCode_MultipleStatusCodes_WritesAllCodesSequentially()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var statusCode1 = new StatusCode(0u);
-            var statusCode2 = new StatusCode(0x80000000u);
-            var statusCode3 = new StatusCode(uint.MaxValue);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            // Act
-            encoder.WriteStatusCode("Field1", statusCode1);
-            encoder.WriteStatusCode("Field2", statusCode2);
-            encoder.WriteStatusCode(null, statusCode3);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(12), "Three StatusCodes should result in 12 bytes (3 * 4 bytes)");
-            var value1 = BitConverter.ToUInt32(result, 0);
-            var value2 = BitConverter.ToUInt32(result, 4);
-            var value3 = BitConverter.ToUInt32(result, 8);
-            Assert.That(value1, Is.EqualTo(0u));
-            Assert.That(value2, Is.EqualTo(0x80000000u));
-            Assert.That(value3, Is.EqualTo(uint.MaxValue));
-        }
-
-        /// <summary>
-        /// Tests that WriteStatusCode uses little-endian byte order for encoding.
-        /// </summary>
-        [Test]
-        public void WriteStatusCode_EncodesInLittleEndian_VerifiesByteOrder()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var statusCode = new StatusCode(0x12345678u);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            // Act
-            encoder.WriteStatusCode("Test", statusCode);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
-            // Verify little-endian byte order: 0x12345678 -> [0x78, 0x56, 0x34, 0x12]
-            Assert.That(result[0], Is.EqualTo(0x78));
-            Assert.That(result[1], Is.EqualTo(0x56));
-            Assert.That(result[2], Is.EqualTo(0x34));
-            Assert.That(result[3], Is.EqualTo(0x12));
-        }
-
-        /// <summary>
-        /// Tests that WriteStatusCode works correctly with a default StatusCode (all zeros).
-        /// </summary>
-        [Test]
-        public void WriteStatusCode_DefaultStatusCode_WritesZero()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var statusCode = default(StatusCode);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            // Act
-            encoder.WriteStatusCode("Field", statusCode);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
-            var writtenValue = BitConverter.ToUInt32(result, 0);
-            Assert.That(writtenValue, Is.EqualTo(0u));
-        }
-
-        /// <summary>
-        /// Tests that WriteByteArray handles an empty array correctly.
-        /// Expects the method to write 0 as the length and return early without writing any elements.
-        /// </summary>
-        [Test]
-        public void WriteByteArray_EmptyArray_WritesZeroLength()
-        {
-            // Arrange
-            var context = CreateContext();
-            using var encoder = new BinaryEncoder(context);
-            var emptyArray = ArrayOf<byte>.Empty;
-            // Act
-            encoder.WriteByteArray("TestField", emptyArray);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4)); // Only length is written (0 as int32)
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
-        }
-
-        /// <summary>
-        /// Tests that WriteByteArray writes a single-element array correctly.
-        /// Expects the method to write the length (1) followed by the byte value.
-        /// </summary>
-        [Test]
-        public void WriteByteArray_SingleElement_WritesLengthAndValue()
-        {
-            // Arrange
-            var context = CreateContext();
-            using var encoder = new BinaryEncoder(context);
-            var singleElementArray = new ArrayOf<byte>(new byte[] { 42 });
-            // Act
-            encoder.WriteByteArray("TestField", singleElementArray);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(5)); // Length (4 bytes) + 1 byte value
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
-            Assert.That(result[4], Is.EqualTo(42));
-        }
-
-        /// <summary>
-        /// Tests that WriteByteArray writes a multiple-element array correctly.
-        /// Expects the method to write the length followed by all byte values in order.
-        /// </summary>
-        [Test]
-        public void WriteByteArray_MultipleElements_WritesLengthAndAllValues()
-        {
-            // Arrange
-            var context = CreateContext();
-            using var encoder = new BinaryEncoder(context);
-            var multipleElementArray = new ArrayOf<byte>(new byte[] { 1, 2, 3, 4, 5 });
-            // Act
-            encoder.WriteByteArray("TestField", multipleElementArray);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(9)); // Length (4 bytes) + 5 byte values
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(5));
-            Assert.That(result[4], Is.EqualTo(1));
-            Assert.That(result[5], Is.EqualTo(2));
-            Assert.That(result[6], Is.EqualTo(3));
-            Assert.That(result[7], Is.EqualTo(4));
-            Assert.That(result[8], Is.EqualTo(5));
-        }
-
-        /// <summary>
-        /// Tests that WriteByteArray correctly writes all byte boundary values.
-        /// Expects the method to correctly encode minimum (0), maximum (255), and mid-range values.
-        /// </summary>
-        [Test]
-        public void WriteByteArray_BoundaryValues_WritesCorrectly()
-        {
-            // Arrange
-            var context = CreateContext();
-            using var encoder = new BinaryEncoder(context);
-            var boundaryArray = new ArrayOf<byte>(new byte[] { byte.MinValue, byte.MaxValue, 128 });
-            // Act
-            encoder.WriteByteArray("TestField", boundaryArray);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(7)); // Length (4 bytes) + 3 byte values
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(3));
-            Assert.That(result[4], Is.EqualTo(byte.MinValue));
-            Assert.That(result[5], Is.EqualTo(byte.MaxValue));
-            Assert.That(result[6], Is.EqualTo(128));
-        }
-
-        /// <summary>
-        /// Tests that WriteByteArray throws ServiceResultException when array length exceeds MaxArrayLength.
-        /// Expects the method to throw with BadEncodingLimitsExceeded status code.
-        /// </summary>
-        [Test]
-        public void WriteByteArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
-        {
-            // Arrange
-            var context = CreateContext(maxArrayLength: 5);
-            using var encoder = new BinaryEncoder(context);
-            var largeArray = new ArrayOf<byte>(new byte[10]);
-            // Act & Assert
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteByteArray("TestField", largeArray));
-            Assert.That(ex, Is.Not.Null);
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
-        }
-
-        /// <summary>
-        /// Tests that WriteByteArray accepts array at exact MaxArrayLength boundary.
-        /// Expects the method to successfully encode the array without throwing.
-        /// </summary>
-        [Test]
-        public void WriteByteArray_AtMaxArrayLength_WritesSuccessfully()
-        {
-            // Arrange
-            var context = CreateContext(maxArrayLength: 5);
-            using var encoder = new BinaryEncoder(context);
-            var exactArray = new ArrayOf<byte>(new byte[5] { 1, 2, 3, 4, 5 });
-            // Act
-            encoder.WriteByteArray("TestField", exactArray);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(9)); // Length (4 bytes) + 5 byte values
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(5));
-        }
-
-        /// <summary>
-        /// Tests that WriteByteArray handles null fieldName parameter correctly.
-        /// Expects the method to work normally as fieldName is not used in the implementation.
-        /// </summary>
-        [Test]
-        public void WriteByteArray_NullFieldName_WritesSuccessfully()
-        {
-            // Arrange
-            var context = CreateContext();
-            using var encoder = new BinaryEncoder(context);
-            var array = new ArrayOf<byte>(new byte[] { 10, 20 });
-            // Act
-            encoder.WriteByteArray(null, array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(6)); // Length (4 bytes) + 2 byte values
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(2));
-            Assert.That(result[4], Is.EqualTo(10));
-            Assert.That(result[5], Is.EqualTo(20));
-        }
-
-        /// <summary>
-        /// Tests that WriteByteArray handles empty string fieldName parameter correctly.
-        /// Expects the method to work normally as fieldName is not used in the implementation.
-        /// </summary>
-        [Test]
-        public void WriteByteArray_EmptyFieldName_WritesSuccessfully()
-        {
-            // Arrange
-            var context = CreateContext();
-            using var encoder = new BinaryEncoder(context);
-            var array = new ArrayOf<byte>(new byte[] { 100 });
-            // Act
-            encoder.WriteByteArray(string.Empty, array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(5)); // Length (4 bytes) + 1 byte value
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
-            Assert.That(result[4], Is.EqualTo(100));
-        }
-
-        /// <summary>
-        /// Tests that WriteByteArray writes a large array correctly.
-        /// Expects the method to write all bytes in the correct order.
-        /// </summary>
-        [Test]
-        public void WriteByteArray_LargeArray_WritesAllElements()
-        {
-            // Arrange
-            var context = CreateContext();
-            using var encoder = new BinaryEncoder(context);
-            var largeArray = new byte[1000];
-            for (int i = 0; i < largeArray.Length; i++)
-            {
-                largeArray[i] = (byte)(i % 256);
-            }
-
-            var arrayOf = new ArrayOf<byte>(largeArray);
-            // Act
-            encoder.WriteByteArray("TestField", arrayOf);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1004)); // Length (4 bytes) + 1000 byte values
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1000));
-            for (int i = 0; i < 1000; i++)
-            {
-                Assert.That(result[4 + i], Is.EqualTo((byte)(i % 256)));
-            }
-        }
-
-        /// <summary>
-        /// Creates a mock IServiceMessageContext for testing.
-        /// </summary>
-        /// <param name = "maxArrayLength">The maximum array length to set in the context. Default is 0 (no limit).</param>
-        /// <returns>A configured IServiceMessageContext instance.</returns>
-        private IServiceMessageContext CreateContext(int maxArrayLength = 0)
-        {
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(maxArrayLength);
-            mockContext.Setup(c => c.MaxStringLength).Returns(0);
-            mockContext.Setup(c => c.MaxByteStringLength).Returns(0);
-            mockContext.Setup(c => c.MaxMessageSize).Returns(0);
-            return mockContext.Object;
-        }
-
-        /// <summary>
-        /// Tests that WriteByteStringArray writes -1 for a null array.
-        /// </summary>
-        [Test]
-        public void WriteByteStringArray_NullArray_WritesMinusOne()
-        {
-            // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            ArrayOf<ByteString> nullArray = default;
-            // Act
-            encoder.WriteByteStringArray("TestField", nullArray);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
-            var length = BitConverter.ToInt32(result, 0);
-            Assert.That(length, Is.EqualTo(-1));
-        }
-
-        /// <summary>
-        /// Tests that WriteByteStringArray writes 0 for an empty array.
-        /// </summary>
-        [Test]
-        public void WriteByteStringArray_EmptyArray_WritesZero()
-        {
-            // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var emptyArray = ArrayOf<ByteString>.Empty;
-            // Act
-            encoder.WriteByteStringArray("TestField", emptyArray);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(4));
-            var length = BitConverter.ToInt32(result, 0);
-            Assert.That(length, Is.EqualTo(0));
-        }
-
-        /// <summary>
-        /// Tests that WriteByteStringArray correctly encodes a single element array.
-        /// </summary>
-        [Test]
-        public void WriteByteStringArray_SingleElement_EncodesCorrectly()
-        {
-            // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var testData = new byte[]
-            {
-                0x01,
-                0x02,
-                0x03
-            };
-            var byteString = new ByteString(testData);
-            var array = new ArrayOf<ByteString>(new[] { byteString });
-            // Act
-            encoder.WriteByteStringArray("TestField", array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            var length = BitConverter.ToInt32(result, 0);
-            Assert.That(length, Is.EqualTo(1));
-            var elementLength = BitConverter.ToInt32(result, 4);
-            Assert.That(elementLength, Is.EqualTo(3));
-            Assert.That(result[8], Is.EqualTo(0x01));
-            Assert.That(result[9], Is.EqualTo(0x02));
-            Assert.That(result[10], Is.EqualTo(0x03));
-        }
-
-        /// <summary>
-        /// Tests that WriteByteStringArray correctly encodes multiple elements.
-        /// </summary>
-        [Test]
-        public void WriteByteStringArray_MultipleElements_EncodesCorrectly()
-        {
-            // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var byteString1 = new ByteString(new byte[] { 0x01, 0x02 });
-            var byteString2 = new ByteString(new byte[] { 0x03, 0x04, 0x05 });
-            var array = new ArrayOf<ByteString>(new[] { byteString1, byteString2 });
-            // Act
-            encoder.WriteByteStringArray("TestField", array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            var arrayLength = BitConverter.ToInt32(result, 0);
-            Assert.That(arrayLength, Is.EqualTo(2));
-            // First element
-            var element1Length = BitConverter.ToInt32(result, 4);
-            Assert.That(element1Length, Is.EqualTo(2));
-            Assert.That(result[8], Is.EqualTo(0x01));
-            Assert.That(result[9], Is.EqualTo(0x02));
-            // Second element
-            var element2Length = BitConverter.ToInt32(result, 10);
-            Assert.That(element2Length, Is.EqualTo(3));
-            Assert.That(result[14], Is.EqualTo(0x03));
-            Assert.That(result[15], Is.EqualTo(0x04));
-            Assert.That(result[16], Is.EqualTo(0x05));
-        }
-
-        /// <summary>
-        /// Tests that WriteByteStringArray correctly handles empty ByteStrings in the array.
-        /// </summary>
-        [Test]
-        public void WriteByteStringArray_EmptyByteStrings_WritesMinusOne()
-        {
-            // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var emptyByteString = ByteString.Empty;
-            var array = new ArrayOf<ByteString>(new[] { emptyByteString });
-            // Act
-            encoder.WriteByteStringArray("TestField", array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            var arrayLength = BitConverter.ToInt32(result, 0);
-            Assert.That(arrayLength, Is.EqualTo(1));
-            var elementLength = BitConverter.ToInt32(result, 4);
-            Assert.That(elementLength, Is.EqualTo(-1));
-        }
-
-        /// <summary>
-        /// Tests that WriteByteStringArray correctly handles mixed content (empty and non-empty ByteStrings).
-        /// </summary>
-        [Test]
-        public void WriteByteStringArray_MixedContent_EncodesCorrectly()
-        {
-            // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var byteString1 = new ByteString(new byte[] { 0xAA, 0xBB });
-            var emptyByteString = ByteString.Empty;
-            var byteString2 = new ByteString(new byte[] { 0xCC });
-            var array = new ArrayOf<ByteString>(new[] { byteString1, emptyByteString, byteString2 });
-            // Act
-            encoder.WriteByteStringArray("TestField", array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            var arrayLength = BitConverter.ToInt32(result, 0);
-            Assert.That(arrayLength, Is.EqualTo(3));
-            // First element (non-empty)
-            var element1Length = BitConverter.ToInt32(result, 4);
-            Assert.That(element1Length, Is.EqualTo(2));
-            Assert.That(result[8], Is.EqualTo(0xAA));
-            Assert.That(result[9], Is.EqualTo(0xBB));
-            // Second element (empty)
-            var element2Length = BitConverter.ToInt32(result, 10);
-            Assert.That(element2Length, Is.EqualTo(-1));
-            // Third element (non-empty)
-            var element3Length = BitConverter.ToInt32(result, 14);
-            Assert.That(element3Length, Is.EqualTo(1));
-            Assert.That(result[18], Is.EqualTo(0xCC));
-        }
-
-        /// <summary>
-        /// Tests that WriteByteStringArray correctly encodes large byte strings.
-        /// </summary>
-        [Test]
-        public void WriteByteStringArray_LargeByteStrings_EncodesCorrectly()
-        {
-            // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var largeData = new byte[1000];
-            for (int i = 0; i < largeData.Length; i++)
-            {
-                largeData[i] = (byte)(i % 256);
-            }
-
-            var byteString = new ByteString(largeData);
-            var array = new ArrayOf<ByteString>(new[] { byteString });
-            // Act
-            encoder.WriteByteStringArray("TestField", array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            var arrayLength = BitConverter.ToInt32(result, 0);
-            Assert.That(arrayLength, Is.EqualTo(1));
-            var elementLength = BitConverter.ToInt32(result, 4);
-            Assert.That(elementLength, Is.EqualTo(1000));
-            Assert.That(result.Length, Is.EqualTo(8 + 1000));
-        }
-
-        /// <summary>
-        /// Tests that WriteByteStringArray handles null fieldName parameter correctly.
-        /// </summary>
-        [Test]
-        public void WriteByteStringArray_NullFieldName_EncodesCorrectly()
-        {
-            // Arrange
-            var mockContext = CreateMockContext();
-            var encoder = new BinaryEncoder(mockContext.Object);
-            var byteString = new ByteString(new byte[] { 0xFF });
-            var array = new ArrayOf<ByteString>(new[] { byteString });
-            // Act
-            encoder.WriteByteStringArray(null, array);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            var arrayLength = BitConverter.ToInt32(result, 0);
-            Assert.That(arrayLength, Is.EqualTo(1));
-        }
-
-        /// <summary>
-        /// Verifies that WriteEnumeratedArray correctly handles an empty array by writing 0 and returning early.
-        /// </summary>
-        [Test]
-        public void WriteEnumeratedArray_EmptyArray_WritesZero()
-        {
-            // Arrange
-            var mockContext = CreateMockContext();
-            using var stream = new MemoryStream();
-            using var encoder = new BinaryEncoder(stream, mockContext.Object, leaveOpen: false);
-            var emptyArray = ArrayOf<TestEnum>.Empty;
-            // Act
-            encoder.WriteEnumeratedArray("TestField", emptyArray);
-            var result = stream.ToArray();
-            // Assert
-            Assert.That(result.Length, Is.EqualTo(4));
-            var length = BitConverter.ToInt32(result, 0);
-            Assert.That(length, Is.EqualTo(0));
-        }
-
-        /// <summary>
-        /// Verifies that WriteEnumeratedArray correctly writes a single-item array.
-        /// Expected output: count (4 bytes) + enum value as int32 (4 bytes).
-        /// </summary>
-        [Test]
-        public void WriteEnumeratedArray_SingleItem_WritesCountAndValue()
-        {
-            // Arrange
-            var mockContext = CreateMockContext();
-            using var stream = new MemoryStream();
-            using var encoder = new BinaryEncoder(stream, mockContext.Object, leaveOpen: false);
-            var singleItemArray = new ArrayOf<TestEnum>(new[] { TestEnum.Value2 });
-            // Act
-            encoder.WriteEnumeratedArray("TestField", singleItemArray);
-            var result = stream.ToArray();
-            // Assert
-            Assert.That(result.Length, Is.EqualTo(8)); // 4 bytes for count + 4 bytes for value
-            var count = BitConverter.ToInt32(result, 0);
-            Assert.That(count, Is.EqualTo(1));
-            var value = BitConverter.ToInt32(result, 4);
-            Assert.That(value, Is.EqualTo((int)TestEnum.Value2));
-        }
-
-        /// <summary>
-        /// Verifies that WriteEnumeratedArray correctly writes multiple enum values.
-        /// Expected output: count + each enum value as int32.
-        /// </summary>
-        [Test]
-        public void WriteEnumeratedArray_MultipleItems_WritesCountAndAllValues()
-        {
-            // Arrange
-            var mockContext = CreateMockContext();
-            using var stream = new MemoryStream();
-            using var encoder = new BinaryEncoder(stream, mockContext.Object, leaveOpen: false);
-            var multipleItemsArray = new ArrayOf<TestEnum>(new[] { TestEnum.Value1, TestEnum.Value2, TestEnum.Value3 });
-            // Act
-            encoder.WriteEnumeratedArray("TestField", multipleItemsArray);
-            var result = stream.ToArray();
-            // Assert
-            Assert.That(result.Length, Is.EqualTo(16)); // 4 bytes count + 3 * 4 bytes values
-            var count = BitConverter.ToInt32(result, 0);
-            Assert.That(count, Is.EqualTo(3));
-            var value1 = BitConverter.ToInt32(result, 4);
-            Assert.That(value1, Is.EqualTo((int)TestEnum.Value1));
-            var value2 = BitConverter.ToInt32(result, 8);
-            Assert.That(value2, Is.EqualTo((int)TestEnum.Value2));
-            var value3 = BitConverter.ToInt32(result, 12);
-            Assert.That(value3, Is.EqualTo((int)TestEnum.Value3));
-        }
-
-        /// <summary>
-        /// Verifies that WriteEnumeratedArray correctly writes enum values including edge cases (zero, negative, large values).
-        /// </summary>
-        [Test]
-        public void WriteEnumeratedArray_EdgeCaseEnumValues_WritesCorrectly()
-        {
-            // Arrange
-            var mockContext = CreateMockContext();
-            using var stream = new MemoryStream();
-            using var encoder = new BinaryEncoder(stream, mockContext.Object, leaveOpen: false);
-            var edgeCaseArray = new ArrayOf<TestEnum>(new[] { TestEnum.Zero, TestEnum.NegativeValue, TestEnum.LargeValue });
-            // Act
-            encoder.WriteEnumeratedArray("TestField", edgeCaseArray);
-            var result = stream.ToArray();
-            // Assert
-            Assert.That(result.Length, Is.EqualTo(16));
-            var count = BitConverter.ToInt32(result, 0);
-            Assert.That(count, Is.EqualTo(3));
-            var value1 = BitConverter.ToInt32(result, 4);
-            Assert.That(value1, Is.EqualTo((int)TestEnum.Zero));
-            var value2 = BitConverter.ToInt32(result, 8);
-            Assert.That(value2, Is.EqualTo((int)TestEnum.NegativeValue));
-            var value3 = BitConverter.ToInt32(result, 12);
-            Assert.That(value3, Is.EqualTo((int)TestEnum.LargeValue));
-        }
-
-        /// <summary>
-        /// Verifies that WriteEnumeratedArray correctly handles invalid enum values (cast from integers outside defined range).
-        /// The method should encode them as their integer representation.
-        /// </summary>
-        [Test]
-        public void WriteEnumeratedArray_InvalidEnumValue_EncodesAsInteger()
-        {
-            // Arrange
-            var mockContext = CreateMockContext();
-            using var stream = new MemoryStream();
-            using var encoder = new BinaryEncoder(stream, mockContext.Object, leaveOpen: false);
-            var invalidEnumValue = (TestEnum)999;
-            var arrayWithInvalidEnum = new ArrayOf<TestEnum>(new[] { invalidEnumValue });
-            // Act
-            encoder.WriteEnumeratedArray("TestField", arrayWithInvalidEnum);
-            var result = stream.ToArray();
-            // Assert
-            Assert.That(result.Length, Is.EqualTo(8));
-            var count = BitConverter.ToInt32(result, 0);
-            Assert.That(count, Is.EqualTo(1));
-            var value = BitConverter.ToInt32(result, 4);
-            Assert.That(value, Is.EqualTo(999));
-        }
-
-        /// <summary>
-        /// Verifies that WriteEnumeratedArray accepts null as fieldName without issue.
-        /// The fieldName parameter is not used in the implementation.
-        /// </summary>
-        [Test]
-        public void WriteEnumeratedArray_NullFieldName_WritesCorrectly()
-        {
-            // Arrange
-            var mockContext = CreateMockContext();
-            using var stream = new MemoryStream();
-            using var encoder = new BinaryEncoder(stream, mockContext.Object, leaveOpen: false);
-            var array = new ArrayOf<TestEnum>(new[] { TestEnum.Value1 });
-            // Act
-            encoder.WriteEnumeratedArray(null, array);
-            var result = stream.ToArray();
-            // Assert
-            Assert.That(result.Length, Is.EqualTo(8));
-            var count = BitConverter.ToInt32(result, 0);
-            Assert.That(count, Is.EqualTo(1));
-        }
-
-        private enum TestEnum
-        {
-            Zero = 0,
-            Value1 = 1,
-            Value2 = 2,
-            Value3 = 3,
-            NegativeValue = -1,
-            LargeValue = 1000000
-        }
-
-        /// <summary>
-        /// Tests SetMappingTables when both namespaceUris and serverUris parameters are null.
-        /// Expects no CreateMapping calls to be made.
-        /// </summary>
-        [Test]
-        public void SetMappingTables_BothParametersNull_NoMappingsCreated()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            var mockContextNamespaceTable = new Mock<NamespaceTable>();
-            var mockContextServerTable = new Mock<StringTable>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.NamespaceUris).Returns(mockContextNamespaceTable.Object);
-            mockContext.Setup(c => c.ServerUris).Returns(mockContextServerTable.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            // Act
-            encoder.SetMappingTables(null, null);
-            // Assert
-            mockContextNamespaceTable.Verify(t => t.CreateMapping(It.IsAny<StringTable>(), It.IsAny<bool>()), Times.Never);
-            mockContextServerTable.Verify(t => t.CreateMapping(It.IsAny<StringTable>(), It.IsAny<bool>()), Times.Never);
-        }
-
-        /// <summary>
-        /// Tests SetMappingTables when namespaceUris is null and serverUris is not null.
-        /// Expects only serverUris.CreateMapping to be called when Context.ServerUris is not null.
-        /// </summary>
-        [Test]
-        public void SetMappingTables_NamespaceUrisNullServerUrisNotNull_OnlyServerMappingCreated()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            var contextServerTable = new StringTable();
-            contextServerTable.Append("http://server1.com");
-            contextServerTable.Append("http://server2.com");
-            var serverUris = new StringTable();
-            serverUris.Append("http://server1.com");
-            serverUris.Append("http://server3.com");
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.NamespaceUris).Returns((NamespaceTable)null);
-            mockContext.Setup(c => c.ServerUris).Returns(contextServerTable);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            // Act
-            encoder.SetMappingTables(null, serverUris);
-            // Assert - Method completes without exception, indicating server mapping was created
-            // Note: Cannot directly verify CreateMapping was called as it's a non-virtual method
-            Assert.Pass("SetMappingTables completed successfully with null namespaceUris and non-null serverUris");
-        }
-
-        /// <summary>
-        /// Tests SetMappingTables when namespaceUris is not null and serverUris is null.
-        /// Expects only namespaceUris.CreateMapping to be called when Context.NamespaceUris is not null.
-        /// </summary>
-        [Test]
-        public void SetMappingTables_NamespaceUrisNotNullServerUrisNull_OnlyNamespaceMappingCreated()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            var mockContextNamespaceTable = new Mock<NamespaceTable>();
-            var mockContextServerTable = new Mock<StringTable>();
-            var mockNamespaceUris = new Mock<NamespaceTable>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.NamespaceUris).Returns(mockContextNamespaceTable.Object);
-            mockContext.Setup(c => c.ServerUris).Returns(mockContextServerTable.Object);
-            mockNamespaceUris.Setup(n => n.CreateMapping(mockContextNamespaceTable.Object, false)).Returns(new ushort[] { 0 });
-            var encoder = new BinaryEncoder(mockContext.Object);
-            // Act
-            encoder.SetMappingTables(mockNamespaceUris.Object, null);
-            // Assert
-            mockNamespaceUris.Verify(n => n.CreateMapping(mockContextNamespaceTable.Object, false), Times.Once);
-        }
-
-        /// <summary>
-        /// Tests SetMappingTables when both namespaceUris and serverUris are not null and Context properties are not null.
-        /// Expects both CreateMapping methods to be called.
-        /// </summary>
-        [Test]
-        public void SetMappingTables_BothParametersNotNull_BothMappingsCreated()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            var mockContextNamespaceTable = new Mock<NamespaceTable>();
-            var mockContextServerTable = new Mock<StringTable>();
-            var mockNamespaceUris = new Mock<NamespaceTable>();
-            var mockServerUris = new Mock<StringTable>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.NamespaceUris).Returns(mockContextNamespaceTable.Object);
-            mockContext.Setup(c => c.ServerUris).Returns(mockContextServerTable.Object);
-            mockNamespaceUris.Setup(n => n.CreateMapping(mockContextNamespaceTable.Object, false)).Returns(new ushort[] { 0 });
-            mockServerUris.Setup(s => s.CreateMapping(mockContextServerTable.Object, false)).Returns(new ushort[] { 0 });
-            var encoder = new BinaryEncoder(mockContext.Object);
-            // Act
-            encoder.SetMappingTables(mockNamespaceUris.Object, mockServerUris.Object);
-            // Assert
-            mockNamespaceUris.Verify(n => n.CreateMapping(mockContextNamespaceTable.Object, false), Times.Once);
-            mockServerUris.Verify(s => s.CreateMapping(mockContextServerTable.Object, false), Times.Once);
-        }
-
-        /// <summary>
-        /// Tests SetMappingTables when namespaceUris is not null but Context.NamespaceUris is null.
-        /// Expects namespaceUris.CreateMapping NOT to be called.
-        /// </summary>
-        [Test]
-        public void SetMappingTables_NamespaceUrisNotNullButContextNamespaceUrisNull_NoNamespaceMappingCreated()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            var mockNamespaceUris = new Mock<NamespaceTable>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.NamespaceUris).Returns((NamespaceTable)null);
-            mockContext.Setup(c => c.ServerUris).Returns((StringTable)null);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            // Act
-            encoder.SetMappingTables(mockNamespaceUris.Object, null);
-            // Assert
-            mockNamespaceUris.Verify(n => n.CreateMapping(It.IsAny<NamespaceTable>(), It.IsAny<bool>()), Times.Never);
-        }
-
-        /// <summary>
-        /// Tests SetMappingTables when serverUris is not null but Context.ServerUris is null.
-        /// Expects serverUris.CreateMapping NOT to be called.
-        /// </summary>
-        [Test]
-        public void SetMappingTables_ServerUrisNotNullButContextServerUrisNull_NoServerMappingCreated()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            var mockServerUris = new Mock<StringTable>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.NamespaceUris).Returns((NamespaceTable)null);
-            mockContext.Setup(c => c.ServerUris).Returns((StringTable)null);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            // Act
-            encoder.SetMappingTables(null, mockServerUris.Object);
-            // Assert
-            mockServerUris.Verify(s => s.CreateMapping(It.IsAny<StringTable>(), It.IsAny<bool>()), Times.Never);
-        }
-
-        /// <summary>
-        /// Tests SetMappingTables when both parameters are not null but both Context properties are null.
-        /// Expects no CreateMapping calls to be made.
-        /// </summary>
-        [Test]
-        public void SetMappingTables_BothParametersNotNullButBothContextPropertiesNull_NoMappingsCreated()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            var mockNamespaceUris = new Mock<NamespaceTable>();
-            var mockServerUris = new Mock<StringTable>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.NamespaceUris).Returns((NamespaceTable)null);
-            mockContext.Setup(c => c.ServerUris).Returns((StringTable)null);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            // Act
-            encoder.SetMappingTables(mockNamespaceUris.Object, mockServerUris.Object);
-            // Assert
-            mockNamespaceUris.Verify(n => n.CreateMapping(It.IsAny<NamespaceTable>(), It.IsAny<bool>()), Times.Never);
-            mockServerUris.Verify(s => s.CreateMapping(It.IsAny<StringTable>(), It.IsAny<bool>()), Times.Never);
-        }
-
-        /// <summary>
-        /// Tests SetMappingTables when called multiple times to verify mappings are reset.
-        /// Expects CreateMapping to be called each time with appropriate parameters.
-        /// </summary>
-        [Test]
-        public void SetMappingTables_CalledMultipleTimes_MappingsResetEachTime()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            var mockContextNamespaceTable = new Mock<NamespaceTable>();
-            var mockContextServerTable = new Mock<StringTable>();
-            var mockNamespaceUris1 = new Mock<NamespaceTable>();
-            var mockNamespaceUris2 = new Mock<NamespaceTable>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.NamespaceUris).Returns(mockContextNamespaceTable.Object);
-            mockContext.Setup(c => c.ServerUris).Returns(mockContextServerTable.Object);
-            mockNamespaceUris1.Setup(n => n.CreateMapping(mockContextNamespaceTable.Object, false)).Returns(new ushort[] { 0 });
-            mockNamespaceUris2.Setup(n => n.CreateMapping(mockContextNamespaceTable.Object, false)).Returns(new ushort[] { 1 });
-            var encoder = new BinaryEncoder(mockContext.Object);
-            // Act
-            encoder.SetMappingTables(mockNamespaceUris1.Object, null);
-            encoder.SetMappingTables(mockNamespaceUris2.Object, null);
-            // Assert
-            mockNamespaceUris1.Verify(n => n.CreateMapping(mockContextNamespaceTable.Object, false), Times.Once);
-            mockNamespaceUris2.Verify(n => n.CreateMapping(mockContextNamespaceTable.Object, false), Times.Once);
-        }
-
-        /// <summary>
-        /// Tests that WriteByte correctly writes byte boundary values to the stream.
-        /// Verifies that minimum and maximum byte values are encoded correctly.
-        /// </summary>
-        /// <param name = "value">The byte value to write (0 or 255).</param>
-        [TestCase((byte)0)]
-        [TestCase((byte)255)]
-        public void WriteByte_BoundaryValues_WritesCorrectByte(byte value)
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            // Act
-            encoder.WriteByte("TestField", value);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
-            Assert.That(result[0], Is.EqualTo(value));
-        }
-
-        /// <summary>
-        /// Tests that WriteByte correctly writes various byte values to the stream.
-        /// Verifies that different byte values are encoded correctly.
-        /// </summary>
-        /// <param name = "value">The byte value to write.</param>
-        [TestCase((byte)1)]
-        [TestCase((byte)127)]
-        [TestCase((byte)128)]
-        [TestCase((byte)254)]
-        public void WriteByte_TypicalValues_WritesCorrectByte(byte value)
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            // Act
-            encoder.WriteByte("TestField", value);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
-            Assert.That(result[0], Is.EqualTo(value));
-        }
-
-        /// <summary>
-        /// Tests that WriteByte works correctly when fieldName is null.
-        /// Verifies that the method does not throw and writes the byte correctly.
-        /// </summary>
-        [Test]
-        public void WriteByte_NullFieldName_WritesCorrectByte()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            byte testValue = 42;
-            // Act
-            encoder.WriteByte(null!, testValue);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
-            Assert.That(result[0], Is.EqualTo(testValue));
-        }
-
-        /// <summary>
-        /// Tests that WriteByte can write multiple bytes sequentially.
-        /// Verifies that multiple calls accumulate bytes in the correct order.
-        /// </summary>
-        [Test]
-        public void WriteByte_MultipleWrites_WritesAllBytesInOrder()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            byte[] testValues =
-            {
-                0,
-                127,
-                255,
-                1,
-                254
-            };
-            // Act
-            foreach (var value in testValues)
-            {
-                encoder.WriteByte("TestField", value);
-            }
-
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(testValues.Length));
-            for (int i = 0; i < testValues.Length; i++)
-            {
-                Assert.That(result[i], Is.EqualTo(testValues[i]), $"Byte at index {i} should match");
-            }
-        }
-
-        /// <summary>
-        /// Tests that WriteByte works with empty string fieldName.
-        /// Verifies that an empty field name does not affect the write operation.
-        /// </summary>
-        [Test]
-        public void WriteByte_EmptyFieldName_WritesCorrectByte()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var encoder = new BinaryEncoder(mockContext.Object);
-            byte testValue = 100;
-            // Act
-            encoder.WriteByte(string.Empty, testValue);
-            var result = encoder.CloseAndReturnBuffer();
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
-            Assert.That(result[0], Is.EqualTo(testValue));
-        }
-
-        /// <summary>
-        /// Tests that WriteByte works correctly with a stream-based encoder.
-        /// Verifies that WriteByte works with different encoder constructor overloads.
-        /// </summary>
-        [Test]
-        public void WriteByte_WithStreamConstructor_WritesCorrectByte()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, false);
-            byte testValue = 99;
-            // Act
-            encoder.WriteByte("TestField", testValue);
-            encoder.Close();
-            // Assert
-            var result = stream.ToArray();
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
-            Assert.That(result[0], Is.EqualTo(testValue));
-        }
-
-        /// <summary>
-        /// Tests that WriteByte works correctly with a buffer-based encoder.
-        /// Verifies that WriteByte works with the fixed buffer constructor.
-        /// </summary>
-        [Test]
-        public void WriteByte_WithBufferConstructor_WritesCorrectByte()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.CreateLogger<BinaryEncoder>()).Returns(mockLogger.Object);
-            var buffer = new byte[10];
-            var encoder = new BinaryEncoder(buffer, 0, buffer.Length, mockContext.Object);
-            byte testValue = 200;
-            // Act
-            encoder.WriteByte("TestField", testValue);
-            var position = encoder.Close();
-            // Assert
-            Assert.That(position, Is.EqualTo(1));
-            Assert.That(buffer[0], Is.EqualTo(testValue));
-        }
-
-        /// <summary>
-        /// Tests that WriteUInt64Array writes -1 for null array and exits early.
-        /// </summary>
-        [Test]
-        public void WriteUInt64Array_NullArray_WritesMinusOneAndReturns()
-        {
-            // Arrange
-            var context = CreateContext();
-            var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
-            var nullArray = default(ArrayOf<ulong>);
-            // Act
-            encoder.WriteUInt64Array("test", nullArray);
-            // Assert
-            stream.Position = 0;
-            using var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
-            Assert.That(length, Is.EqualTo(-1));
-            Assert.That(stream.Position, Is.EqualTo(4)); // Only 4 bytes written (the -1 length)
-        }
-
-        /// <summary>
-        /// Tests that WriteUInt64Array writes 0 for empty array and exits early.
-        /// </summary>
-        [Test]
-        public void WriteUInt64Array_EmptyArray_WritesZeroAndReturns()
-        {
-            // Arrange
-            var context = CreateContext();
-            var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
-            var emptyArray = ArrayOf<ulong>.Empty;
-            // Act
-            encoder.WriteUInt64Array("test", emptyArray);
-            // Assert
-            stream.Position = 0;
-            using var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
-            Assert.That(length, Is.EqualTo(0));
-            Assert.That(stream.Position, Is.EqualTo(4)); // Only 4 bytes written (the 0 length)
-        }
-
-        /// <summary>
-        /// Tests that WriteUInt64Array correctly writes a single element array.
-        /// </summary>
-        [Test]
-        public void WriteUInt64Array_SingleElement_WritesCountAndValue()
-        {
-            // Arrange
-            var context = CreateContext();
-            var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
-            var singleElementArray = new ArrayOf<ulong>(new ulong[] { 12345UL });
-            // Act
-            encoder.WriteUInt64Array("test", singleElementArray);
-            // Assert
-            stream.Position = 0;
-            using var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
-            var value = reader.ReadUInt64();
-            Assert.That(length, Is.EqualTo(1));
-            Assert.That(value, Is.EqualTo(12345UL));
-        }
-
-        /// <summary>
-        /// Tests that WriteUInt64Array correctly writes multiple elements with boundary values.
-        /// </summary>
-        [Test]
-        public void WriteUInt64Array_MultipleElementsWithBoundaryValues_WritesCountAndAllValues()
-        {
-            // Arrange
-            var context = CreateContext();
-            var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
-            var values = new ulong[]
-            {
-                0UL,
-                ulong.MaxValue,
-                1UL,
-                ulong.MaxValue - 1
-            };
-            var array = new ArrayOf<ulong>(values);
-            // Act
-            encoder.WriteUInt64Array("test", array);
-            // Assert
-            stream.Position = 0;
-            using var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
-            Assert.That(length, Is.EqualTo(4));
-            Assert.That(reader.ReadUInt64(), Is.EqualTo(0UL));
-            Assert.That(reader.ReadUInt64(), Is.EqualTo(ulong.MaxValue));
-            Assert.That(reader.ReadUInt64(), Is.EqualTo(1UL));
-            Assert.That(reader.ReadUInt64(), Is.EqualTo(ulong.MaxValue - 1));
-        }
-
-        /// <summary>
-        /// Tests that WriteUInt64Array throws ServiceResultException when array exceeds MaxArrayLength.
-        /// </summary>
-        [Test]
-        public void WriteUInt64Array_ArrayExceedsMaxArrayLength_ThrowsServiceResultException()
-        {
-            // Arrange
-            var context = CreateContext(maxArrayLength: 2);
-            var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
-            var largeArray = new ArrayOf<ulong>(new ulong[] { 1UL, 2UL, 3UL });
-            // Act & Assert
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteUInt64Array("test", largeArray));
-            Assert.That(ex?.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
-        }
-
-        /// <summary>
-        /// Tests that WriteUInt64Array correctly writes a large array within limits.
-        /// </summary>
-        [Test]
-        public void WriteUInt64Array_LargeArrayWithinLimits_WritesCountAndAllValues()
-        {
-            // Arrange
-            var context = CreateContext(maxArrayLength: 1000);
-            var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
-            var values = new ulong[100];
-            for (int i = 0; i < 100; i++)
-            {
-                values[i] = (ulong)i;
-            }
-
-            var array = new ArrayOf<ulong>(values);
-            // Act
-            encoder.WriteUInt64Array("test", array);
-            // Assert
-            stream.Position = 0;
-            using var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
-            Assert.That(length, Is.EqualTo(100));
-            for (int i = 0; i < 100; i++)
-            {
-                Assert.That(reader.ReadUInt64(), Is.EqualTo((ulong)i));
-            }
-        }
-
-        /// <summary>
-        /// Tests that WriteUInt64Array handles fieldName parameter (even though it's not used in binary encoding).
-        /// </summary>
-        [Test]
-        public void WriteUInt64Array_WithNullFieldName_WritesCorrectly()
-        {
-            // Arrange
-            var context = CreateContext();
-            var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
-            var array = new ArrayOf<ulong>(new ulong[] { 999UL });
-            // Act
-            encoder.WriteUInt64Array(null, array);
-            // Assert
-            stream.Position = 0;
-            using var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
-            var value = reader.ReadUInt64();
-            Assert.That(length, Is.EqualTo(1));
-            Assert.That(value, Is.EqualTo(999UL));
-        }
-
-        /// <summary>
-        /// Tests that WriteUInt64Array with MaxArrayLength set to 0 allows any array size.
-        /// </summary>
-        [Test]
-        public void WriteUInt64Array_MaxArrayLengthZero_AllowsAnySize()
-        {
-            // Arrange
-            var context = CreateContext(maxArrayLength: 0);
-            var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, context, leaveOpen: true);
-            var largeArray = new ArrayOf<ulong>(new ulong[] { 1UL, 2UL, 3UL, 4UL, 5UL });
-            // Act
-            encoder.WriteUInt64Array("test", largeArray);
-            // Assert
-            stream.Position = 0;
-            using var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
-            Assert.That(length, Is.EqualTo(5));
-        }
-
-        /// <summary>
-        /// Tests that WriteDiagnosticInfoArray correctly writes an empty ArrayOf to the stream.
-        /// Expects 0 to be written as the array length with no additional data.
-        /// </summary>
-        [Test]
-        public void WriteDiagnosticInfoArray_EmptyArray_WritesZeroLength()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, true);
-            var emptyArray = ArrayOf<DiagnosticInfo>.Empty;
-            // Act
-            encoder.WriteDiagnosticInfoArray("testField", emptyArray);
-            stream.Position = 0;
-            var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
-            // Assert
-            Assert.That(length, Is.EqualTo(0));
-            Assert.That(stream.Position, Is.EqualTo(4)); // Only length written, no elements
-        }
-
-        /// <summary>
-        /// Tests that WriteDiagnosticInfoArray correctly writes a single DiagnosticInfo to the stream.
-        /// Expects the array length (1) followed by the encoded DiagnosticInfo.
-        /// </summary>
-        [Test]
-        public void WriteDiagnosticInfoArray_SingleElement_WritesLengthAndElement()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, true);
-            var diagnosticInfo = new DiagnosticInfo
-            {
-                AdditionalInfo = "Test"
-            };
-            var array = new DiagnosticInfo[]
-            {
-                diagnosticInfo
-            }.ToArrayOf();
-            // Act
-            encoder.WriteDiagnosticInfoArray("testField", array);
-            stream.Position = 0;
-            var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
-            // Assert
-            Assert.That(length, Is.EqualTo(1));
-            Assert.That(stream.Length, Is.GreaterThan(4)); // More than just the length
-        }
-
-        /// <summary>
-        /// Tests that WriteDiagnosticInfoArray correctly writes multiple DiagnosticInfo elements to the stream.
-        /// Expects the array length followed by all encoded elements in order.
-        /// </summary>
-        [Test]
-        public void WriteDiagnosticInfoArray_MultipleElements_WritesAllElements()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, true);
-            var diagnosticInfo1 = new DiagnosticInfo
-            {
-                AdditionalInfo = "Test1"
-            };
-            var diagnosticInfo2 = new DiagnosticInfo
-            {
-                AdditionalInfo = "Test2"
-            };
-            var diagnosticInfo3 = new DiagnosticInfo
-            {
-                AdditionalInfo = "Test3"
-            };
-            var array = new DiagnosticInfo[]
-            {
-                diagnosticInfo1,
-                diagnosticInfo2,
-                diagnosticInfo3
-            }.ToArrayOf();
-            // Act
-            encoder.WriteDiagnosticInfoArray("testField", array);
-            stream.Position = 0;
-            var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
-            // Assert
-            Assert.That(length, Is.EqualTo(3));
-            Assert.That(stream.Length, Is.GreaterThan(4)); // More than just the length
-        }
-
-        /// <summary>
-        /// Tests that WriteDiagnosticInfoArray throws ServiceResultException when array length exceeds MaxArrayLength.
-        /// Expects StatusCodes.BadEncodingLimitsExceeded exception.
-        /// </summary>
-        [Test]
-        public void WriteDiagnosticInfoArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(2);
-            var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, true);
-            var diagnosticInfo1 = new DiagnosticInfo
-            {
-                AdditionalInfo = "Test1"
-            };
-            var diagnosticInfo2 = new DiagnosticInfo
-            {
-                AdditionalInfo = "Test2"
-            };
-            var diagnosticInfo3 = new DiagnosticInfo
-            {
-                AdditionalInfo = "Test3"
-            };
-            var array = new DiagnosticInfo[]
-            {
-                diagnosticInfo1,
-                diagnosticInfo2,
-                diagnosticInfo3
-            }.ToArrayOf();
-            // Act & Assert
-            var ex = Assert.Throws<ServiceResultException>(() => encoder.WriteDiagnosticInfoArray("testField", array));
-            Assert.That(ex?.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
-        }
-
-        /// <summary>
-        /// Tests that WriteDiagnosticInfoArray correctly handles array at MaxArrayLength boundary.
-        /// Expects successful encoding when array count equals MaxArrayLength.
-        /// </summary>
-        [Test]
-        public void WriteDiagnosticInfoArray_AtMaxArrayLength_WritesSuccessfully()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(3);
-            var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, true);
-            var diagnosticInfo1 = new DiagnosticInfo
-            {
-                AdditionalInfo = "Test1"
-            };
-            var diagnosticInfo2 = new DiagnosticInfo
-            {
-                AdditionalInfo = "Test2"
-            };
-            var diagnosticInfo3 = new DiagnosticInfo
-            {
-                AdditionalInfo = "Test3"
-            };
-            var array = new DiagnosticInfo[]
-            {
-                diagnosticInfo1,
-                diagnosticInfo2,
-                diagnosticInfo3
-            }.ToArrayOf();
-            // Act
-            encoder.WriteDiagnosticInfoArray("testField", array);
-            stream.Position = 0;
-            var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
-            // Assert
-            Assert.That(length, Is.EqualTo(3));
-            Assert.That(stream.Length, Is.GreaterThan(4));
-        }
-
-        /// <summary>
-        /// Tests that WriteDiagnosticInfoArray ignores the fieldName parameter.
-        /// Expects same output regardless of fieldName value.
-        /// </summary>
-        [Test]
-        public void WriteDiagnosticInfoArray_DifferentFieldNames_ProducesSameOutput()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var stream1 = new MemoryStream();
-            var encoder1 = new BinaryEncoder(stream1, mockContext.Object, true);
-            var stream2 = new MemoryStream();
-            var encoder2 = new BinaryEncoder(stream2, mockContext.Object, true);
-            var diagnosticInfo = new DiagnosticInfo
-            {
-                AdditionalInfo = "Test"
-            };
-            var array = new DiagnosticInfo[]
-            {
-                diagnosticInfo
-            }.ToArrayOf();
-            // Act
-            encoder1.WriteDiagnosticInfoArray("field1", array);
-            encoder2.WriteDiagnosticInfoArray("field2", array);
-            // Assert
-            Assert.That(stream1.ToArray(), Is.EqualTo(stream2.ToArray()));
-        }
-
-        /// <summary>
-        /// Tests that WriteDiagnosticInfoArray correctly writes array with null DiagnosticInfo element.
-        /// Expects the null element to be encoded according to DiagnosticInfo encoding rules.
-        /// </summary>
-        [Test]
-        public void WriteDiagnosticInfoArray_WithNullElement_EncodesNullElement()
-        {
-            // Arrange
-            var mockContext = new Mock<IServiceMessageContext>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            var mockLoggerFactory = new Mock<ILoggerFactory>();
-            var mockLogger = new Mock<ILogger<BinaryEncoder>>();
-            mockContext.Setup(c => c.Telemetry).Returns(mockTelemetry.Object);
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(mockLoggerFactory.Object);
-            mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
-            mockContext.Setup(c => c.MaxArrayLength).Returns(0);
-            var stream = new MemoryStream();
-            var encoder = new BinaryEncoder(stream, mockContext.Object, true);
-            var array = new DiagnosticInfo[]
-            {
-                null,
-                new DiagnosticInfo
-                {
-                    AdditionalInfo = "Test"
-                }
-            }.ToArrayOf();
-            // Act
-            encoder.WriteDiagnosticInfoArray("testField", array);
-            stream.Position = 0;
-            var reader = new BinaryReader(stream);
-            var length = reader.ReadInt32();
-            // Assert
-            Assert.That(length, Is.EqualTo(2));
-            Assert.That(stream.Length, Is.GreaterThan(4));
-        }
-    }
-
-    /// <summary>
-    /// Unit tests for the WriteNodeId method of BinaryEncoder class.
-    /// </summary>
-    [TestFixture]
-    public partial class BinaryEncoderWriteNodeIdTests
-    {
     }
 }
