@@ -96,6 +96,37 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void EncodeDataValueWithoutValueProperty()
         {
             var dataValue = new DataValue() { SourcePicoseconds = 1 };
+            EncodeDataValueWithoutValuePropertyTest(dataValue);
+            dataValue = new DataValue() { SourceTimestamp = new DateTime(2001, 01, 01) };
+            EncodeDataValueWithoutValuePropertyTest(dataValue);
+            dataValue = new DataValue() { ServerTimestamp = new DateTime(2001, 01, 02) };
+            EncodeDataValueWithoutValuePropertyTest(dataValue);
+            dataValue = new DataValue() { ServerPicoseconds = 2 };
+            EncodeDataValueWithoutValuePropertyTest(dataValue);
+            dataValue = new DataValue() { StatusCode = StatusCodes.BadNotImplemented };
+            EncodeDataValueWithoutValuePropertyTest(dataValue);
+            dataValue = new DataValue() { SourceTimestamp = new DateTime(2001, 01, 03), SourcePicoseconds = 3 };
+            EncodeDataValueWithoutValuePropertyTest(dataValue);
+            dataValue = new DataValue() { SourceTimestamp = new DateTime(2001, 01, 04), ServerPicoseconds = 4 };
+            EncodeDataValueWithoutValuePropertyTest(dataValue);
+            dataValue = new DataValue() { ServerTimestamp = new DateTime(2001, 01, 05), ServerPicoseconds = 5 };
+            EncodeDataValueWithoutValuePropertyTest(dataValue);
+            dataValue = new DataValue() { ServerTimestamp = new DateTime(2001, 01, 06), SourcePicoseconds = 6 };
+            EncodeDataValueWithoutValuePropertyTest(dataValue);
+            dataValue = new DataValue()
+            {
+                ServerTimestamp = new DateTime(2001, 01, 07),
+                ServerPicoseconds = 7,
+                SourceTimestamp = new DateTime(2001, 01, 08),
+                SourcePicoseconds = 8,
+                StatusCode = StatusCodes.BadNotFound
+            };
+            EncodeDataValueWithoutValuePropertyTest(dataValue);
+        }
+            
+
+        private void EncodeDataValueWithoutValuePropertyTest(DataValue dataValue)
+        {
             var encoderType = EncodingType.Binary;
             var builtInType = BuiltInType.Null;
             var memoryStreamType = MemoryStreamType.MemoryStream;
@@ -151,7 +182,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.IsTrue(
                 Utils.IsEqual(expected, result),
                 "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
-            }
+        }
 
         /// <summary>
         /// Verify encode and decode of a default built in type
