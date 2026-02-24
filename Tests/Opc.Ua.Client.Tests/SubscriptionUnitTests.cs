@@ -42,7 +42,6 @@ namespace Opc.Ua.Client.Tests
     [Parallelizable]
     public class SubscriptionUnitTests
     {
-        #region Utilities
         private class SubscriptionContainer : IDisposable
         {
             private readonly CancellationTokenRegistration m_tokedCancellation;
@@ -199,7 +198,6 @@ namespace Opc.Ua.Client.Tests
             await subscription.CreateAsync(cancellationToken).ConfigureAwait(false);
             return new(subscription, messageAwaiters, cancellationToken);
         }
-        #endregion Utilities
 
         /// <summary>
         /// Set up a Server and a Client instance.
