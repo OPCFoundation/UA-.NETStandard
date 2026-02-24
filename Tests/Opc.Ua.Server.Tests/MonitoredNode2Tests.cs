@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -267,6 +268,67 @@ namespace Opc.Ua.Server.Tests
 
             // Assert – callback should have received the RolePermissions mask
             Assert.That((capturedMask & NodeStateChangeMasks.RolePermissions), Is.Not.EqualTo(NodeStateChangeMasks.None));
+        }
+
+        /// <summary>
+        /// Verifies that the permission cache is invalidated when the
+        /// <see cref="IConfigurationNodeManager.DefaultPermissionsChanged"/> event fires,
+        /// causing <c>ValidateRolePermissions</c> to be called again on the next value change.
+        /// </summary>
+        [Test]
+        public void OnMonitoredNodeChanged_DefaultPermissionsChanged_CacheInvalidated()
+        {
+            // Arrange
+            var nodeId = new NodeId("testNode", 1);
+            var node = new BaseDataVariableState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("testNode", 1),
+                DataType = DataTypeIds.Int32
+            };
+
+            var nodeManagerMock = new Mock<INodeManager3>();
+            nodeManagerMock
+                .Setup(m => m.ValidateRolePermissions(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<PermissionType>()))
+                .Returns(ServiceResult.Good);
+
+            // Set up a ConfigurationNodeManager mock that exposes the DefaultPermissionsChanged event
+            var configNodeManagerMock = new Mock<IConfigurationNodeManager>();
+            EventHandler capturedHandler = null;
+            configNodeManagerMock
+                .SetupAdd(m => m.DefaultPermissionsChanged += It.IsAny<EventHandler>())
+                .Callback<EventHandler>(h => capturedHandler = h);
+
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Auditing).Returns(false);
+            serverMock.Setup(s => s.ConfigurationNodeManager).Returns(configNodeManagerMock.Object);
+
+            var monitoredItemMock = CreateDataChangeMonitoredItemMock(1u, Attributes.Value);
+            var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
+            monitoredNode.Add(monitoredItemMock.Object);
+
+            var context = new Mock<ISystemContext>().Object;
+
+            // First value change populates the cache
+            monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
+            nodeManagerMock.Verify(
+                m => m.ValidateRolePermissions(It.IsAny<OperationContext>(), nodeId, PermissionType.Read),
+                Times.Once);
+
+            // Simulate namespace DefaultPermissionsChanged event firing
+            Assert.That(capturedHandler, Is.Not.Null, "DefaultPermissionsChanged handler should have been subscribed");
+            capturedHandler.Invoke(configNodeManagerMock.Object, EventArgs.Empty);
+
+            // Second value change should trigger re-validation since cache was cleared
+            monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
+
+            // Assert – ValidateRolePermissions should have been called twice (once before and once after cache invalidation)
+            nodeManagerMock.Verify(
+                m => m.ValidateRolePermissions(It.IsAny<OperationContext>(), nodeId, PermissionType.Read),
+                Times.Exactly(2));
         }
 
         private static Mock<IDataChangeMonitoredItem2> CreateDataChangeMonitoredItemMock(

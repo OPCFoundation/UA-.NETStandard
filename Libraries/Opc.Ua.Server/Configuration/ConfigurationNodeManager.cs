@@ -382,6 +382,10 @@ namespace Opc.Ua.Server
                 AddPredefinedNode(SystemContext, namespaceMetadataState);
             }
 
+            // Subscribe to the default permission properties so that any future changes
+            // trigger a DefaultPermissionsChanged notification to allow caches to be invalidated.
+            SubscribeToNamespaceDefaultPermissions(namespaceMetadataState);
+
             return namespaceMetadataState;
         }
 
@@ -1241,6 +1245,45 @@ namespace Opc.Ua.Server
                 }
             }
         }
+
+        /// <summary>
+        /// Subscribes to the <c>StateChanged</c> events of the <c>DefaultRolePermissions</c>
+        /// and <c>DefaultUserRolePermissions</c> child nodes of a <see cref="NamespaceMetadataState"/>
+        /// to detect changes that require permission cache invalidation.
+        /// </summary>
+        private void SubscribeToNamespaceDefaultPermissions(NamespaceMetadataState namespaceMetadataState)
+        {
+            if (namespaceMetadataState.DefaultRolePermissions != null)
+            {
+                // unsubscribe first to avoid duplicate subscriptions if called multiple times
+                namespaceMetadataState.DefaultRolePermissions.StateChanged -= OnNamespaceDefaultPermissionsChanged;
+                namespaceMetadataState.DefaultRolePermissions.StateChanged += OnNamespaceDefaultPermissionsChanged;
+            }
+
+            if (namespaceMetadataState.DefaultUserRolePermissions != null)
+            {
+                namespaceMetadataState.DefaultUserRolePermissions.StateChanged -= OnNamespaceDefaultPermissionsChanged;
+                namespaceMetadataState.DefaultUserRolePermissions.StateChanged += OnNamespaceDefaultPermissionsChanged;
+            }
+        }
+
+        /// <summary>
+        /// Handles value changes on <c>DefaultRolePermissions</c> or <c>DefaultUserRolePermissions</c>
+        /// and raises the <see cref="DefaultPermissionsChanged"/> event.
+        /// </summary>
+        private void OnNamespaceDefaultPermissionsChanged(
+            ISystemContext context,
+            NodeState node,
+            NodeStateChangeMasks changes)
+        {
+            if ((changes & NodeStateChangeMasks.Value) != 0)
+            {
+                DefaultPermissionsChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+
+        /// <inheritdoc/>
+        public event EventHandler DefaultPermissionsChanged;
 
         private class UpdateCertificateData
         {

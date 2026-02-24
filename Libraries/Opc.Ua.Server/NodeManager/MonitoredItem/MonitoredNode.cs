@@ -107,9 +107,16 @@ namespace Opc.Ua.Server
         /// <param name="datachangeItem">The monitored item.</param>
         public void Add(IDataChangeMonitoredItem2 datachangeItem)
         {
+            bool wasEmpty = DataChangeMonitoredItems.IsEmpty;
             DataChangeMonitoredItems.TryAdd(datachangeItem.Id, datachangeItem);
 
             Node.OnStateChanged = OnMonitoredNodeChanged;
+
+            // Subscribe to namespace default permission changes when the first item is added.
+            if (wasEmpty && m_server.ConfigurationNodeManager != null)
+            {
+                m_server.ConfigurationNodeManager.DefaultPermissionsChanged += OnDefaultPermissionsChanged;
+            }
         }
 
         /// <summary>
@@ -129,6 +136,12 @@ namespace Opc.Ua.Server
             if (DataChangeMonitoredItems.IsEmpty)
             {
                 Node.OnStateChanged = null;
+
+                // Unsubscribe from namespace default permission changes when the last item is removed.
+                if (m_server.ConfigurationNodeManager != null)
+                {
+                    m_server.ConfigurationNodeManager.DefaultPermissionsChanged -= OnDefaultPermissionsChanged;
+                }
             }
         }
 
@@ -372,6 +385,16 @@ namespace Opc.Ua.Server
             m_operationContextCache[monitoredItemId] = operationContext;
 
             return newContext;
+        }
+
+        /// <summary>
+        /// Called when the namespace default permissions (<c>DefaultRolePermissions</c> or
+        /// <c>DefaultUserRolePermissions</c>) change. Invalidates the entire permission cache
+        /// so that all entries are re-validated on the next value change.
+        /// </summary>
+        private void OnDefaultPermissionsChanged(object sender, EventArgs e)
+        {
+            m_permissionCache.Clear();
         }
 
         private readonly ConcurrentDictionary<uint, (ServerSystemContext Context, int CreatedAtTicks)> m_contextCache =
