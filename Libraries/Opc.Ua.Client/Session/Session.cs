@@ -2324,7 +2324,7 @@ namespace Opc.Ua.Client
                 UserTokenPolicy identityPolicy = endpoint.FindUserTokenPolicy(
                     m_identity.TokenType,
                     m_identity.IssuedTokenType,
-                    endpoint.SecurityPolicyUri);
+                    m_userTokenSecurityPolicyUri ?? endpoint.SecurityPolicyUri);
 
                 if (identityPolicy == null)
                 {
@@ -2337,18 +2337,21 @@ namespace Opc.Ua.Client
                 }
 
                 // select the security policy for the user token.
-                string? tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
-                if (string.IsNullOrEmpty(tokenSecurityPolicyUri))
+                if (m_userTokenSecurityPolicyUri == null)
                 {
-                    tokenSecurityPolicyUri = endpoint.SecurityPolicyUri;
+                    string? tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
+                    if (string.IsNullOrEmpty(tokenSecurityPolicyUri))
+                    {
+                        tokenSecurityPolicyUri = endpoint.SecurityPolicyUri;
+                    }
+                    m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
                 }
-                m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
 
                 // validate server nonce and security parameters for user identity.
                 ValidateServerNonce(
                     m_identity,
                     m_serverNonce,
-                    tokenSecurityPolicyUri,
+                    m_userTokenSecurityPolicyUri,
                     m_previousServerNonce,
                     m_endpoint.Description.SecurityMode);
 
@@ -2357,7 +2360,7 @@ namespace Opc.Ua.Client
                 identityToken.UpdatePolicy(identityPolicy);
                 SignatureData userTokenSignature = identityToken.Sign(
                     dataToSign,
-                    tokenSecurityPolicyUri);
+                    m_userTokenSecurityPolicyUri);
 
                 // encrypt token.
                 identityToken.Encrypt(

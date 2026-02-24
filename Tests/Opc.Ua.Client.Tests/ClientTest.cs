@@ -957,6 +957,57 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// Open a session on a channel using a usertokenpolicy from another endpoint, then reconnect (activate)
+        /// </summary>
+        [Test]
+        [Order(260)]
+        [TestCase(SecurityPolicies.Basic256Sha256, SecurityPolicies.Basic128Rsa15)]
+        public async Task ReconnectSession_ReuseUsertokenPolicyAsync(
+            string securityPolicy, string userTokenPolicy)
+        {
+
+            UserIdentity userIdentity = new UserIdentity("user1", "Password123!"u8);
+
+            // the first channel determines the endpoint
+            ConfiguredEndpoint endpoint = await ClientFixture
+                .GetEndpointAsync(ServerUrl, securityPolicy, Endpoints)
+                .ConfigureAwait(false);
+            endpoint.Description.SecurityMode = MessageSecurityMode.Sign;
+            Assert.NotNull(endpoint);
+            ConfiguredEndpoint tokenPolicyEndpoint = await ClientFixture
+                .GetEndpointAsync(ServerUrl, userTokenPolicy, Endpoints)
+                .ConfigureAwait(false);
+            Assert.NotNull(tokenPolicyEndpoint);
+
+            UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(
+                userIdentity.TokenType,
+                userIdentity.IssuedTokenType,
+                tokenPolicyEndpoint.Description.SecurityPolicyUri);
+            if (identityPolicy == null)
+            {
+                NUnit.Framework.Assert.Ignore(
+                    $"No UserTokenPolicy found for {userIdentity.TokenType}" +
+                    $" / {userIdentity.IssuedTokenType}");
+            }
+            userIdentity.PolicyId = identityPolicy.PolicyId;
+
+            // the active channel
+            ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity)
+                .ConfigureAwait(false);
+            Assert.NotNull(session1);
+            try
+            {
+                await session1.ReconnectAsync(null, null).ConfigureAwait(false);
+            }
+            finally
+            {
+                session1.DeleteSubscriptionsOnClose = true;
+                await session1.CloseAsync(1000).ConfigureAwait(false);
+                Utils.SilentDispose(session1);
+            }
+        }
+
+        /// <summary>
         /// Open a session on a channel, then recreate using the session as a template,
         /// verify the renewUserIdentityHandler is brought to the new session and called
         /// before Session.Open
