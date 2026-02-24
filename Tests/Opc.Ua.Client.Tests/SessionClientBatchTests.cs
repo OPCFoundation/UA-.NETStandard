@@ -80,7 +80,7 @@ namespace Opc.Ua.Client.Tests
             ActivateSessionResponse response = await sessionMock.ActivateSessionAsync(
                 requestHeader,
                 clientSignature,
-                null,
+                default,
                 localeIds,
                 userIdentityToken,
                 userTokenSignature,
@@ -122,7 +122,7 @@ namespace Opc.Ua.Client.Tests
                 async () => await sessionMock.ActivateSessionAsync(
                     requestHeader,
                     clientSignature,
-                    null,
+                    default,
                     localeIds,
                     userIdentityToken,
                     userTokenSignature,
@@ -153,7 +153,7 @@ namespace Opc.Ua.Client.Tests
                 async () => await sessionMock.ActivateSessionAsync(
                     requestHeader,
                     clientSignature,
-                    null,
+                    default,
                     localeIds,
                     userIdentityToken,
                     userTokenSignature,

@@ -2087,6 +2087,17 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Try convert the variant to a <see cref="Variant"/> value.
+        /// </summary>
+        /// <param name="value">The <see cref="Variant"/> value to get
+        /// </param>
+        public bool TryGet(out Variant value)
+        {
+            value = this;
+            return true;
+        }
+
+        /// <summary>
         /// Convert to array of type
         /// </summary>
         /// <typeparam name="T"></typeparam>
@@ -3076,6 +3087,16 @@ namespace Opc.Ua
         public static Variant From(DataValue value)
         {
             return value is null ? default : new Variant(value);
+        }
+
+        /// <summary>
+        /// Create a Variant from a <see cref="Variant"/> value.
+        /// </summary>
+        /// <param name="value">The <see cref="Variant"/> value to set
+        /// this Variant to</param>
+        public static Variant From(in Variant value)
+        {
+            return value;
         }
 
         /// <summary>

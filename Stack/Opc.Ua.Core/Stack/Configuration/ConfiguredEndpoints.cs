@@ -1218,7 +1218,7 @@ namespace Opc.Ua
             {
                 // get the endpoints.
                 EndpointDescriptionCollection collection = await client
-                    .GetEndpointsAsync(null, ct)
+                    .GetEndpointsAsync(default, ct)
                     .ConfigureAwait(false);
 
                 // find list of matching endpoints.

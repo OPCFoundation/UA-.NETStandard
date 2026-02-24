@@ -52,35 +52,26 @@ namespace Opc.Ua
         {
             base.Initialize(context, source, severity, message);
 
-            m_status = new PropertyState<bool>(this) { Value = status };
+            m_status = PropertyState<bool>.With<VariantBuilder>(this, status);
 
             if (actionTimestamp != DateTime.MinValue)
             {
-                m_actionTimeStamp = new PropertyState<DateTime>(this) { Value = actionTimestamp };
+                m_actionTimeStamp = PropertyState<DateTime>.With<VariantBuilder>(this, actionTimestamp);
             }
 
             if (context.NamespaceUris != null)
             {
-                m_serverId = new PropertyState<string>(this)
-                {
-                    Value = context.NamespaceUris.GetString(1)
-                };
+                m_serverId = PropertyState<string>.With<VariantBuilder>(this, context.NamespaceUris.GetString(1));
             }
 
             if (context.AuditEntryId != null)
             {
-                m_clientAuditEntryId = new PropertyState<string>(this)
-                {
-                    Value = context.AuditEntryId
-                };
+                m_clientAuditEntryId = PropertyState<string>.With<VariantBuilder>(this, context.AuditEntryId);
             }
 
             if (context.UserId != null)
             {
-                m_clientUserId = new PropertyState<string>(this)
-                {
-                    Value = context.UserId
-                };
+                m_clientUserId = PropertyState<string>.With<VariantBuilder>(this, context.UserId);
             }
         }
     }

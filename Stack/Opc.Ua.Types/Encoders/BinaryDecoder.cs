@@ -514,9 +514,9 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public XmlElement ReadXmlElement(string fieldName)
         {
-            byte[] bytes = SafeReadBytes(Context.MaxStringLength);
+            var bytes = ReadByteString(fieldName, Context.MaxStringLength);
 
-            if (bytes == null || bytes.Length == 0)
+            if (bytes.IsEmpty)
             {
                 return default;
             }
@@ -530,7 +530,7 @@ namespace Opc.Ua
                 {
                     utf8StringLength--;
                 }
-                string xmlString = Encoding.UTF8.GetString(bytes, 0, utf8StringLength);
+                string xmlString = Encoding.UTF8.GetString(bytes.ToArray(), 0, utf8StringLength);
                 using var stream = new StringReader(xmlString);
                 using var reader = XmlReader.Create(stream, CoreUtils.DefaultXmlReaderSettings());
                 document.Load(reader);

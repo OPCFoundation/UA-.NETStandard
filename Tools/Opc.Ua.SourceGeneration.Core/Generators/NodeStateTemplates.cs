@@ -657,7 +657,7 @@ namespace Opc.Ua.SourceGeneration
 
                     if (m_value != null)
                     {
-                        value = new global::Opc.Ua.Variant(m_value.{{Tokens.ChildPath}});
+                        value = global::Opc.Ua.Variant.{{Tokens.VariantFrom}}(({{Tokens.ChildDataType}})m_value.{{Tokens.ChildPath}});
                     }
 
                     var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
@@ -786,7 +786,7 @@ namespace Opc.Ua.SourceGeneration
 
                         if (m_value != null)
                         {
-                            value = new global::Opc.Ua.Variant(m_value);
+                            value = global::Opc.Ua.Variant.{{Tokens.VariantFrom}}(m_value);
                         }
 
                         return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
@@ -805,7 +805,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     lock (Lock)
                     {
-                        if (!value.TryGetStructure(out {{Tokens.DataType}} newValue))
+                        if (!value.{{Tokens.VariantTryGet}}(out {{Tokens.DataType}} newValue))
                         {
                             newValue = default;
                         }

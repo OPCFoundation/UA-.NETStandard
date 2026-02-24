@@ -119,6 +119,16 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Add property with value
+        /// </summary>
+        /// <typeparam name="TBuilder"></typeparam>
+        public static PropertyState<T> With<TBuilder>(NodeState parent, T value)
+            where TBuilder : struct, IVariantBuilder<T>
+        {
+            return new Implementation<TBuilder>(parent) { Value = value };
+        }
+
+        /// <summary>
         /// Initializes the instance with the default values.
         /// </summary>
         protected override void Initialize(ISystemContext context)

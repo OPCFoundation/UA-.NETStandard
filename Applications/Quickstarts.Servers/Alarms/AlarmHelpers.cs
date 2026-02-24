@@ -169,7 +169,7 @@ namespace Alarms
         public static void AddStartInputParameters(MethodState startMethod, ushort namespaceIndex)
         {
             // set input arguments
-            startMethod.InputArguments = new PropertyState<Argument[]>(startMethod)
+            startMethod.InputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(startMethod)
             {
                 NodeId = new NodeId(startMethod.BrowseName.Name + "InArgs", namespaceIndex),
                 BrowseName = QualifiedName.From(BrowseNames.InputArguments)

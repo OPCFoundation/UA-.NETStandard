@@ -80,12 +80,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ArrayOf<bool>(BooleanCollection values)
-        {
-            return values.ToArrayOf();
-        }
-
-        /// <inheritdoc/>
         public virtual object Clone()
         {
             return MemberwiseClone();
@@ -146,12 +140,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ArrayOf<sbyte>(SByteCollection values)
-        {
-            return values.ToArrayOf();
-        }
-
-        /// <inheritdoc/>
         public virtual object Clone()
         {
             return MemberwiseClone();
@@ -206,12 +194,6 @@ namespace Opc.Ua
         public static implicit operator ByteCollection(byte[] values)
         {
             return ToByteCollection(values);
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator ArrayOf<byte>(ByteCollection values)
-        {
-            return values.ToArrayOf();
         }
 
         /// <inheritdoc/>
@@ -272,12 +254,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ArrayOf<short>(Int16Collection values)
-        {
-            return values.ToArrayOf();
-        }
-
-        /// <inheritdoc/>
         public virtual object Clone()
         {
             return MemberwiseClone();
@@ -332,12 +308,6 @@ namespace Opc.Ua
         public static implicit operator UInt16Collection(ushort[] values)
         {
             return ToUInt16Collection(values);
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator ArrayOf<ushort>(UInt16Collection values)
-        {
-            return values.ToArrayOf();
         }
 
         /// <inheritdoc/>
@@ -398,12 +368,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ArrayOf<int>(Int32Collection values)
-        {
-            return values.ToArrayOf();
-        }
-
-        /// <inheritdoc/>
         public virtual object Clone()
         {
             return MemberwiseClone();
@@ -458,12 +422,6 @@ namespace Opc.Ua
         public static implicit operator UInt32Collection(uint[] values)
         {
             return ToUInt32Collection(values);
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator ArrayOf<uint>(UInt32Collection values)
-        {
-            return values.ToArrayOf();
         }
 
         /// <inheritdoc/>
@@ -524,12 +482,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ArrayOf<long>(Int64Collection values)
-        {
-            return values.ToArrayOf();
-        }
-
-        /// <inheritdoc/>
         public virtual object Clone()
         {
             return MemberwiseClone();
@@ -584,12 +536,6 @@ namespace Opc.Ua
         public static implicit operator UInt64Collection(ulong[] values)
         {
             return ToUInt64Collection(values);
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator ArrayOf<ulong>(UInt64Collection values)
-        {
-            return values.ToArrayOf();
         }
 
         /// <inheritdoc/>
@@ -650,12 +596,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ArrayOf<float>(FloatCollection values)
-        {
-            return values.ToArrayOf();
-        }
-
-        /// <inheritdoc/>
         public virtual object Clone()
         {
             return MemberwiseClone();
@@ -710,12 +650,6 @@ namespace Opc.Ua
         public static implicit operator DoubleCollection(double[] values)
         {
             return ToDoubleCollection(values);
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator ArrayOf<double>(DoubleCollection values)
-        {
-            return values.ToArrayOf();
         }
 
         /// <inheritdoc/>
@@ -776,12 +710,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ArrayOf<string>(StringCollection values)
-        {
-            return values.ToArrayOf();
-        }
-
-        /// <inheritdoc/>
         public virtual object Clone()
         {
             return MemberwiseClone();
@@ -830,18 +758,6 @@ namespace Opc.Ua
         public static implicit operator DiagnosticInfoCollection(ArrayOf<DiagnosticInfo> values)
         {
             return ToDiagnosticInfoCollection(values);
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator DiagnosticInfoCollection(DiagnosticInfo[] values)
-        {
-            return ToDiagnosticInfoCollection(values);
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator ArrayOf<DiagnosticInfo>(DiagnosticInfoCollection values)
-        {
-            return values.ToArrayOf();
         }
 
         /// <inheritdoc/>
@@ -909,12 +825,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ArrayOf<StatusCode>(StatusCodeCollection values)
-        {
-            return values.ToArrayOf();
-        }
-
-        /// <inheritdoc/>
         public virtual object Clone()
         {
             return MemberwiseClone();
@@ -962,7 +872,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public static UuidCollection ToUuidCollection(ArrayOf<Guid> values)
         {
-            return values.ToArrayOf(g => new Uuid(g));
+            return new UuidCollection(values.ToList().ConvertAll(g => new Uuid(g)));
         }
 
         /// <inheritdoc/>
@@ -993,12 +903,6 @@ namespace Opc.Ua
         public static implicit operator UuidCollection(Uuid[] values)
         {
             return ToUuidCollection(values);
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator ArrayOf<Uuid>(UuidCollection values)
-        {
-            return values.ToArrayOf();
         }
 
         /// <inheritdoc/>
@@ -1059,12 +963,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ArrayOf<DateTime>(DateTimeCollection values)
-        {
-            return values.ToArrayOf();
-        }
-
-        /// <inheritdoc/>
         public virtual object Clone()
         {
             return MemberwiseClone();
@@ -1122,12 +1020,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ArrayOf<Variant>(VariantCollection values)
-        {
-            return values.ToArrayOf();
-        }
-
-        /// <inheritdoc/>
         public virtual object Clone()
         {
             return MemberwiseClone();
@@ -1137,6 +1029,49 @@ namespace Opc.Ua
         public new object MemberwiseClone()
         {
             return new VariantCollection(this);
+        }
+    }
+
+    /// <summary>
+    /// A collection of XmlElement values.
+    /// </summary>
+    [CollectionDataContract(
+       Name = "ListOfXmlElement",
+       Namespace = Namespaces.OpcUaXsd,
+       ItemName = "XmlElement")]
+    public class SerializableXmlElementCollection : List<System.Xml.XmlElement>,
+        ISurrogateFor<XmlElementCollection>
+    {
+        /// <inheritdoc/>
+        public SerializableXmlElementCollection()
+        {
+        }
+
+        /// <inheritdoc/>
+        public SerializableXmlElementCollection(
+            IEnumerable<System.Xml.XmlElement> collection)
+            : base(collection)
+        {
+        }
+
+        /// <inheritdoc/>
+        public SerializableXmlElementCollection(int capacity)
+            : base(capacity)
+        {
+        }
+        /// <inheritdoc/>
+        public SerializableXmlElementCollection(XmlElementCollection collection)
+            : this(collection.Select(x => x.ToXmlElement()))
+        {
+        }
+
+        /// <inheritdoc/>
+        public XmlElementCollection Value => new(this);
+
+        /// <inheritdoc/>
+        public object GetValue()
+        {
+            return Value;
         }
     }
 
@@ -1167,6 +1102,12 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public XmlElementCollection(IEnumerable<System.Xml.XmlElement> collection)
+            : this(collection.Select(x => XmlElement.From(x)))
+        {
+        }
+
+        /// <inheritdoc/>
         public static XmlElementCollection ToXmlElementCollection(ArrayOf<XmlElement> values)
         {
             return [.. values];
@@ -1182,12 +1123,6 @@ namespace Opc.Ua
         public static implicit operator XmlElementCollection(XmlElement[] values)
         {
             return ToXmlElementCollection(values);
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator ArrayOf<XmlElement>(XmlElementCollection values)
-        {
-            return values.ToArrayOf();
         }
 
         /// <inheritdoc/>
@@ -1248,12 +1183,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ArrayOf<ExpandedNodeId>(ExpandedNodeIdCollection values)
-        {
-            return values.ToArrayOf();
-        }
-
-        /// <inheritdoc/>
         public virtual object Clone()
         {
             return MemberwiseClone();
@@ -1311,12 +1240,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ArrayOf<NodeId>(NodeIdCollection values)
-        {
-            return values.ToArrayOf();
-        }
-
-        /// <inheritdoc/>
         public virtual object Clone()
         {
             return MemberwiseClone();
@@ -1371,12 +1294,6 @@ namespace Opc.Ua
         public static implicit operator DataValueCollection(DataValue[] values)
         {
             return ToDataValueCollection(values);
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator ArrayOf<DataValue>(DataValueCollection values)
-        {
-            return values.ToArrayOf();
         }
 
         /// <inheritdoc/>
@@ -1444,12 +1361,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ArrayOf<QualifiedName>(QualifiedNameCollection values)
-        {
-            return values.ToArrayOf();
-        }
-
-        /// <inheritdoc/>
         public virtual object Clone()
         {
             return MemberwiseClone();
@@ -1504,12 +1415,6 @@ namespace Opc.Ua
         public static implicit operator LocalizedTextCollection(LocalizedText[] values)
         {
             return ToLocalizedTextCollection(values);
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator ArrayOf<LocalizedText>(LocalizedTextCollection values)
-        {
-            return values.ToArrayOf();
         }
 
         /// <inheritdoc/>
@@ -1570,12 +1475,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ArrayOf<ByteString>(ByteStringCollection values)
-        {
-            return values.ToArrayOf();
-        }
-
-        /// <inheritdoc/>
         public virtual object Clone()
         {
             return MemberwiseClone();
@@ -1631,12 +1530,6 @@ namespace Opc.Ua
         public static implicit operator ExtensionObjectCollection(ExtensionObject[] values)
         {
             return ToExtensionObjectCollection(values);
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator ArrayOf<ExtensionObject>(ExtensionObjectCollection values)
-        {
-            return values.ToArrayOf();
         }
 
         /// <summary>
@@ -1721,12 +1614,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ArrayOf<BrowseDescription>(BrowseDescriptionCollection values)
-        {
-            return values.ToArrayOf();
-        }
-
-        /// <inheritdoc/>
         public object Clone()
         {
             return (BrowseDescriptionCollection)MemberwiseClone();
@@ -1788,12 +1675,6 @@ namespace Opc.Ua
         public static implicit operator ArgumentCollection(Argument[] values)
         {
             return ToArgumentCollection(values);
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator ArrayOf<Argument>(ArgumentCollection values)
-        {
-            return values.ToArrayOf();
         }
 
         /// <inheritdoc/>
@@ -1861,12 +1742,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ArrayOf<StructureDefinition>(StructureDefinitionCollection values)
-        {
-            return values.ToArrayOf();
-        }
-
-        /// <inheritdoc/>
         public object Clone()
         {
             return (StructureDefinitionCollection)MemberwiseClone();
@@ -1928,12 +1803,6 @@ namespace Opc.Ua
         public static implicit operator EnumFieldCollection(EnumField[] values)
         {
             return ToEnumFieldCollection(values);
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator ArrayOf<EnumField>(EnumFieldCollection values)
-        {
-            return values.ToArrayOf();
         }
 
         /// <inheritdoc/>
@@ -2001,12 +1870,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ArrayOf<StructureField>(StructureFieldCollection values)
-        {
-            return values.ToArrayOf();
-        }
-
-        /// <inheritdoc/>
         public object Clone()
         {
             return (StructureFieldCollection)MemberwiseClone();
@@ -2068,12 +1931,6 @@ namespace Opc.Ua
         public static implicit operator EnumValueTypeCollection(EnumValueType[] values)
         {
             return ToEnumValueTypeCollection(values);
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator ArrayOf<EnumValueType>(EnumValueTypeCollection values)
-        {
-            return values.ToArrayOf();
         }
 
         /// <inheritdoc/>
@@ -2141,12 +1998,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ArrayOf<IdType>(IdTypeCollection values)
-        {
-            return values.ToArrayOf();
-        }
-
-        /// <inheritdoc/>
         public object Clone()
         {
             return (IdTypeCollection)MemberwiseClone();
@@ -2201,12 +2052,6 @@ namespace Opc.Ua
         public static implicit operator DataTypeDefinitionCollection(DataTypeDefinition[] values)
         {
             return ToDataTypeDefinitionCollection(values);
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator ArrayOf<DataTypeDefinition>(DataTypeDefinitionCollection values)
-        {
-            return values.ToArrayOf();
         }
 
         /// <inheritdoc/>
@@ -2274,12 +2119,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ArrayOf<RolePermissionType>(RolePermissionTypeCollection values)
-        {
-            return values.ToArrayOf();
-        }
-
-        /// <inheritdoc/>
         public object Clone()
         {
             return (RolePermissionTypeCollection)MemberwiseClone();
@@ -2341,12 +2180,6 @@ namespace Opc.Ua
         public static implicit operator ReferenceDescriptionCollection(ReferenceDescription[] values)
         {
             return ToReferenceDescriptionCollection(values);
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator ArrayOf<ReferenceDescription>(ReferenceDescriptionCollection values)
-        {
-            return values.ToArrayOf();
         }
 
         /// <inheritdoc/>
@@ -2414,12 +2247,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ArrayOf<RelativePathElement>(RelativePathElementCollection values)
-        {
-            return values.ToArrayOf();
-        }
-
-        /// <inheritdoc/>
         public object Clone()
         {
             return (RelativePathElementCollection)MemberwiseClone();
@@ -2481,12 +2308,6 @@ namespace Opc.Ua
         public static implicit operator EnumDefinitionCollection(EnumDefinition[] values)
         {
             return ToEnumDefinitionCollection(values);
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator ArrayOf<EnumDefinition>(EnumDefinitionCollection values)
-        {
-            return values.ToArrayOf();
         }
 
         /// <inheritdoc/>
@@ -2554,12 +2375,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ArrayOf<Node>(NodeCollection values)
-        {
-            return values.ToArrayOf();
-        }
-
-        /// <inheritdoc/>
         public object Clone()
         {
             return (NodeCollection)MemberwiseClone();
@@ -2624,12 +2439,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static implicit operator ArrayOf<ReferenceNode>(ReferenceNodeCollection values)
-        {
-            return values.ToArrayOf();
-        }
-
-        /// <inheritdoc/>
         public object Clone()
         {
             return (ReferenceNodeCollection)MemberwiseClone();
@@ -2691,12 +2500,6 @@ namespace Opc.Ua
         public static implicit operator IEncodeableCollection(ArrayOf<IEncodeable> values)
         {
             return ToIEncodeableCollection(values);
-        }
-
-        /// <inheritdoc/>
-        public static implicit operator ArrayOf<IEncodeable>(IEncodeableCollection values)
-        {
-            return values.ToArrayOf();
         }
     }
 }

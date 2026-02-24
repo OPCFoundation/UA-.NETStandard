@@ -147,7 +147,7 @@ namespace Opc.Ua.Client.Tests
                 ServerUrl,
                 endpointConfiguration,
                 telemetry).ConfigureAwait(false);
-            Endpoints = await client.GetEndpointsAsync(null, CancellationToken.None)
+            Endpoints = await client.GetEndpointsAsync(default, CancellationToken.None)
                 .ConfigureAwait(false);
             StatusCode statusCode = await client.CloseAsync(CancellationToken.None)
                 .ConfigureAwait(false);
@@ -199,7 +199,7 @@ namespace Opc.Ua.Client.Tests
                 ServerUrl,
                 endpointConfiguration,
                 telemetry).ConfigureAwait(false);
-            ApplicationDescriptionCollection servers = await client.FindServersAsync(null)
+            ApplicationDescriptionCollection servers = await client.FindServersAsync(default)
                 .ConfigureAwait(false);
             StatusCode statusCode = await client.CloseAsync(CancellationToken.None)
                 .ConfigureAwait(false);
@@ -234,7 +234,7 @@ namespace Opc.Ua.Client.Tests
             try
             {
                 FindServersOnNetworkResponse response = await client
-                    .FindServersOnNetworkAsync(null, 0, 100, null, CancellationToken.None)
+                    .FindServersOnNetworkAsync(null, 0, 100, default, CancellationToken.None)
                     .ConfigureAwait(false);
                 StatusCode statusCode = await client.CloseAsync(CancellationToken.None)
                     .ConfigureAwait(false);
@@ -274,7 +274,7 @@ namespace Opc.Ua.Client.Tests
                 endpointConfiguration,
                 telemetry).ConfigureAwait(false);
             EndpointDescriptionCollection endpoints =
-                await client.GetEndpointsAsync(null).ConfigureAwait(false);
+                await client.GetEndpointsAsync(default).ConfigureAwait(false);
             Assert.NotNull(endpoints);
 
             ITransportChannel channel = client.TransportChannel;

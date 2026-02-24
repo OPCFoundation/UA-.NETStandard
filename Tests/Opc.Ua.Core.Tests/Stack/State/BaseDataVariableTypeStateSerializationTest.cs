@@ -135,7 +135,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Create a BaseDataVariableState with byte[] value
-            var variableState = new BaseDataVariableState<byte[]>(null);
+            var variableState = BaseDataVariableState<ArrayOf<byte>>.With<VariantBuilder>(null);
             var serviceMessageContext = new ServiceMessageContext(telemetry);
             var systemContext = new SystemContext(telemetry)
             {
@@ -174,7 +174,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Create a BaseDataVariableState for ByteString testing
-            var variableState = new BaseDataVariableState<ByteString>(null);
+            var variableState = BaseDataVariableState<ByteString>.With<VariantBuilder>(null);
             var serviceMessageContext = new ServiceMessageContext(telemetry);
             var systemContext = new SystemContext(telemetry)
             {

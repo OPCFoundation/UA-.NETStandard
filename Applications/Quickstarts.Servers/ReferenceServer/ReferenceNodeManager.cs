@@ -2587,7 +2587,7 @@ namespace Quickstarts.ReferenceServer
 
                     MethodState addMethod = CreateMethod(methodsFolder, methods + "Add", "Add");
                     // set input arguments
-                    addMethod.InputArguments = new PropertyState<Argument[]>(addMethod)
+                    addMethod.InputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(addMethod)
                     {
                         NodeId = new NodeId(addMethod.BrowseName.Name + "InArgs", NamespaceIndex),
                         BrowseName = QualifiedName.From(BrowseNames.InputArguments)
@@ -2617,7 +2617,7 @@ namespace Quickstarts.ReferenceServer
                     ];
 
                     // set output arguments
-                    addMethod.OutputArguments = new PropertyState<Argument[]>(addMethod)
+                    addMethod.OutputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(addMethod)
                     {
                         NodeId = new NodeId(addMethod.BrowseName.Name + "OutArgs", NamespaceIndex),
                         BrowseName = QualifiedName.From(BrowseNames.OutputArguments)
@@ -2646,7 +2646,7 @@ namespace Quickstarts.ReferenceServer
                         methods + "Multiply",
                         "Multiply");
                     // set input arguments
-                    multiplyMethod.InputArguments = new PropertyState<Argument[]>(multiplyMethod)
+                    multiplyMethod.InputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(multiplyMethod)
                     {
                         NodeId = new NodeId(
                             multiplyMethod.BrowseName.Name + "InArgs",
@@ -2679,7 +2679,7 @@ namespace Quickstarts.ReferenceServer
                     ];
 
                     // set output arguments
-                    multiplyMethod.OutputArguments = new PropertyState<Argument[]>(multiplyMethod)
+                    multiplyMethod.OutputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(multiplyMethod)
                     {
                         NodeId = new NodeId(
                             multiplyMethod.BrowseName.Name + "OutArgs",
@@ -2712,7 +2712,7 @@ namespace Quickstarts.ReferenceServer
                         methods + "Divide",
                         "Divide");
                     // set input arguments
-                    divideMethod.InputArguments = new PropertyState<Argument[]>(divideMethod)
+                    divideMethod.InputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(divideMethod)
                     {
                         NodeId = new NodeId(
                             divideMethod.BrowseName.Name + "InArgs",
@@ -2745,7 +2745,7 @@ namespace Quickstarts.ReferenceServer
                     ];
 
                     // set output arguments
-                    divideMethod.OutputArguments = new PropertyState<Argument[]>(divideMethod)
+                    divideMethod.OutputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(divideMethod)
                     {
                         NodeId = new NodeId(
                             divideMethod.BrowseName.Name + "OutArgs",
@@ -2777,7 +2777,7 @@ namespace Quickstarts.ReferenceServer
                         methods + "Substract",
                         "Substract");
                     // set input arguments
-                    substractMethod.InputArguments = new PropertyState<Argument[]>(substractMethod)
+                    substractMethod.InputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(substractMethod)
                     {
                         NodeId = new NodeId(
                             substractMethod.BrowseName.Name + "InArgs",
@@ -2810,7 +2810,7 @@ namespace Quickstarts.ReferenceServer
                     ];
 
                     // set output arguments
-                    substractMethod.OutputArguments = new PropertyState<Argument[]>(substractMethod)
+                    substractMethod.OutputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(substractMethod)
                     {
                         NodeId = new NodeId(
                             substractMethod.BrowseName.Name + "OutArgs",
@@ -2843,7 +2843,7 @@ namespace Quickstarts.ReferenceServer
                         methods + "Hello",
                         "Hello");
                     // set input arguments
-                    helloMethod.InputArguments = new PropertyState<Argument[]>(helloMethod)
+                    helloMethod.InputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(helloMethod)
                     {
                         NodeId = new NodeId(helloMethod.BrowseName.Name + "InArgs", NamespaceIndex),
                         BrowseName = QualifiedName.From(BrowseNames.InputArguments)
@@ -2867,7 +2867,7 @@ namespace Quickstarts.ReferenceServer
                     ];
 
                     // set output arguments
-                    helloMethod.OutputArguments = new PropertyState<Argument[]>(helloMethod)
+                    helloMethod.OutputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(helloMethod)
                     {
                         NodeId = new NodeId(
                             helloMethod.BrowseName.Name + "OutArgs",
@@ -2899,7 +2899,7 @@ namespace Quickstarts.ReferenceServer
                         methods + "Input",
                         "Input");
                     // set input arguments
-                    inputMethod.InputArguments = new PropertyState<Argument[]>(inputMethod)
+                    inputMethod.InputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(inputMethod)
                     {
                         NodeId = new NodeId(inputMethod.BrowseName.Name + "InArgs", NamespaceIndex),
                         BrowseName = QualifiedName.From(BrowseNames.InputArguments)
@@ -2930,7 +2930,7 @@ namespace Quickstarts.ReferenceServer
                         "Output");
 
                     // set output arguments
-                    outputMethod.OutputArguments = new PropertyState<Argument[]>(helloMethod)
+                    outputMethod.OutputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(helloMethod)
                     {
                         NodeId = new NodeId(
                             helloMethod.BrowseName.Name + "OutArgs",
@@ -3841,8 +3841,8 @@ namespace Quickstarts.ReferenceServer
             int valueRank)
         {
             var variable = new DataItemState(parent);
-            variable.ValuePrecision = new PropertyState<double>(variable);
-            variable.Definition = new PropertyState<string>(variable);
+            variable.ValuePrecision = PropertyState<double>.With<VariantBuilder>(variable);
+            variable.Definition = PropertyState<string>.With<VariantBuilder>(variable);
 
             variable.Create(SystemContext, default, variable.BrowseName, default, true);
 
@@ -3945,8 +3945,8 @@ namespace Quickstarts.ReferenceServer
             {
                 BrowseName = new QualifiedName(path, NamespaceIndex)
             };
-            variable.EngineeringUnits = new PropertyState<EUInformation>(variable);
-            variable.InstrumentRange = new PropertyState<Range>(variable);
+            variable.EngineeringUnits = PropertyState<EUInformation>.With<StructureBuilder<EUInformation>>(variable);
+            variable.InstrumentRange = PropertyState<Range>.With<StructureBuilder<Range>>(variable);
 
             variable.Create(
                 SystemContext,
@@ -4223,7 +4223,7 @@ namespace Quickstarts.ReferenceServer
 
             double number = Convert.ToDouble(value, CultureInfo.InvariantCulture);
 
-            if (number >= variable.EnumStrings.Value.Length || number < 0)
+            if (number >= variable.EnumStrings.Value.Count || number < 0)
             {
                 return StatusCodes.BadOutOfRange;
             }
@@ -4255,7 +4255,7 @@ namespace Quickstarts.ReferenceServer
             }
 
             int number = Convert.ToInt32(value, CultureInfo.InvariantCulture);
-            if (number >= variable.EnumValues.Value.Length || number < 0)
+            if (number >= variable.EnumValues.Value.Count || number < 0)
             {
                 return StatusCodes.BadOutOfRange;
             }

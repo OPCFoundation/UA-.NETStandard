@@ -875,7 +875,7 @@ namespace Opc.Ua.Server
             {
                 //handle the use case when the UserIdentityToken is binary encoded over xml message encoding
                 if (identityToken.Encoding != ExtensionObjectEncoding.Binary ||
-                    identityToken.Body is not byte[])
+                    identityToken.Body is not ByteString)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadUserAccessDenied,

@@ -2327,7 +2327,7 @@ namespace Opc.Ua.Client
             {
                 foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
                 {
-                    monitoredItem.SetDeleteResult(StatusCodes.Good, -1, null, null);
+                    monitoredItem.SetDeleteResult(StatusCodes.Good, -1, default, null);
                 }
             }
 

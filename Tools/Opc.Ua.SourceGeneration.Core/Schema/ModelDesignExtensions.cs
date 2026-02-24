@@ -701,7 +701,7 @@ namespace Opc.Ua.Schema.Model
             }
             if (valueRank != ValueRank.Scalar)
             {
-                return false;
+                return true; // ArrayOf/MatrixOf/Variant
             }
             switch (dataType.BasicDataType)
             {

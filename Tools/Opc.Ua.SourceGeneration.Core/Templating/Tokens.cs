@@ -147,6 +147,8 @@ namespace Opc.Ua.SourceGeneration
         public static string Version => nameof(Version);
         public static string Tool => nameof(Tool);
         public static string XmlEncodingId => nameof(XmlEncodingId);
+        public static string VariantFrom => nameof(VariantFrom);
+        public static string VariantTryGet => nameof(VariantTryGet);
         public static string XmlIdentifier => nameof(XmlIdentifier);
         public static string XmlNamespaceUri => nameof(XmlNamespaceUri);
         public static string XmlnsS0ListOfNamespaces => nameof(XmlnsS0ListOfNamespaces);

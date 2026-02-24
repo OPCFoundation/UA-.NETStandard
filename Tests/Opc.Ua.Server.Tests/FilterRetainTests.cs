@@ -426,7 +426,7 @@ namespace Opc.Ua.Server.Tests
             alarm.AddSeverityLowLow(context);
             if (addFilterRetain)
             {
-                alarm.SupportsFilteredRetain = new PropertyState<bool>(alarm)
+                alarm.SupportsFilteredRetain = new PropertyState<bool>.Implementation<VariantBuilder>(alarm)
                 {
                     Value = filterRetainValue
                 };

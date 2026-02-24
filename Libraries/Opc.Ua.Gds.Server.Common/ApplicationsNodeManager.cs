@@ -111,7 +111,7 @@ namespace Opc.Ua.Gds.Server
                     null,
                     null,
                     null,
-                    null,
+                    default,
                     out DateTime lastResetTime);
                 m_logger.LogInformation("QueryServers Returned: {Count} records", results.Length);
 
@@ -543,7 +543,31 @@ namespace Opc.Ua.Gds.Server
             {
                 return ServiceResult.Good;
             }
+            return AddSelfAdminRolePermission(context, ref value);
+        }
 
+        private ServiceResult OnAddSelfAdminUserRolePermissions(
+            ISystemContext context,
+            NodeState node,
+            ref ArrayOf<RolePermissionType> value)
+        {
+            var selfAdminRole = ExpandedNodeId.ToNodeId(
+                GdsRole.ApplicationSelfAdmin.RoleId,
+                context.NamespaceUris);
+            IUserIdentity userIdentity = (context as ISessionSystemContext)?.UserIdentity;
+            if (!userIdentity.GrantedRoleIds.Contains(selfAdminRole))
+            {
+                return ServiceResult.Good;
+            }
+
+            // This contains the self admin role and other permissions
+            return AddSelfAdminRolePermission(context, ref value);
+        }
+
+        private static ServiceResult AddSelfAdminRolePermission(
+            ISystemContext context,
+            ref ArrayOf<RolePermissionType> value)
+        {
             var selfAdminRole = ExpandedNodeId.ToNodeId(
                 GdsRole.ApplicationSelfAdmin.RoleId,
                 context.NamespaceUris);
@@ -553,28 +577,6 @@ namespace Opc.Ua.Gds.Server
                 Permissions = (uint)PermissionType.Call
             };
             value = ArrayOf.Combine(value, [selfAdminPermission]);
-            return ServiceResult.Good;
-        }
-
-        private ServiceResult OnAddSelfAdminUserRolePermissions(
-            ISystemContext context,
-            NodeState node,
-            ref ArrayOf<RolePermissionType> value)
-        {
-            if (node.RolePermissions == null)
-            {
-                return ServiceResult.Good;
-            }
-
-            var selfAdminRole = ExpandedNodeId.ToNodeId(GdsRole.ApplicationSelfAdmin.RoleId, context.NamespaceUris);
-            IUserIdentity userIdentity = (context as ISessionSystemContext)?.UserIdentity;
-            if (!userIdentity.GrantedRoleIds.Contains(selfAdminRole))
-            {
-                return ServiceResult.Good;
-            }
-
-            // This contains the self admin role and other permissions
-            value = [.. node.RolePermissions];
             return ServiceResult.Good;
         }
 

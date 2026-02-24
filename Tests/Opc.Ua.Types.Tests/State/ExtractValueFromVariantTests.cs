@@ -66,7 +66,7 @@ namespace Opc.Ua.Types.Tests.State
         public void PropertyStateExtractsValueFromExtensionObject()
         {
             // Create a PropertyState for Argument type (IEncodeable)
-            var propertyState = new PropertyState<Argument>(null);
+            var propertyState = PropertyState<Argument>.With<StructureBuilder<Argument>>(null);
 
             // Create an Argument (IEncodeable type that can be in ExtensionObject)
             var testArg = new Argument("arg1", DataTypeIds.String, -1, "test description");
@@ -89,7 +89,7 @@ namespace Opc.Ua.Types.Tests.State
         public void PropertyStateExtractsComplexTypeFromExtensionObject()
         {
             // Create a PropertyState for RelativePath type (IEncodeable)
-            var propertyState = new PropertyState<RelativePath>(null);
+            var propertyState = PropertyState<RelativePath>.With<StructureBuilder<RelativePath>>(null);
 
             // Create a RelativePath (IEncodeable type)
             var testValue = new RelativePath
@@ -120,7 +120,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void PropertyStateAcceptsDirectValue()
         {
-            var propertyState = new PropertyState<string>(null);
+            var propertyState = PropertyState<string>.With<VariantBuilder>(null);
             const string testString = "DirectValue";
 
             // Set value directly (not in ExtensionObject)
@@ -135,7 +135,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void PropertyStateAcceptsNullValue()
         {
-            var propertyState = new PropertyState<string>(null);
+            var propertyState = PropertyState<string>.With<VariantBuilder>(null);
 
             // Set null value
             ((BaseVariableState)propertyState).Value = default;
@@ -149,7 +149,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void BaseDataVariableStateExtractsValueFromExtensionObject()
         {
-            var variableState = new BaseDataVariableState<Argument>(null);
+            var variableState = BaseDataVariableState<Argument>.With<StructureBuilder<Argument>>(null);
 
             // Create an Argument (IEncodeable type)
             var testArg = new Argument("testArg", DataTypeIds.Int32, -1, "test description");
@@ -165,7 +165,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void PropertyStateExtractsValueFromVariant()
         {
-            var propertyState = new PropertyState<string>(null);
+            var propertyState = PropertyState<string>.With<VariantBuilder>(null);
             const string testString = "VariantValue";
 
             // Use WrappedValue property which calls ExtractValueFromVariant
@@ -180,7 +180,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void PropertyStateExtractsValueFromVariantWithExtensionObject()
         {
-            var propertyState = new PropertyState<Argument>(null);
+            var propertyState = PropertyState<Argument>.With<StructureBuilder<Argument>>(null);
             var testArg = new Argument("variantArg", DataTypeIds.Double, -1, "test description");
             var extensionObject = new ExtensionObject(testArg);
 

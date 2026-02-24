@@ -200,9 +200,9 @@ namespace TestData
 
                 e.Initialize(context, this, EventSeverity.MediumLow, new LocalizedText(message));
 
-                e.Iterations = new PropertyState<uint>(e) { Value = count };
+                e.Iterations = PropertyState<uint>.With<VariantBuilder>(e, count);
 
-                e.NewValueCount = new PropertyState<uint>(e) { Value = 10 };
+                e.NewValueCount = PropertyState<uint>.With<VariantBuilder>(e, 10);
 
                 ReportEvent(context, e);
             }

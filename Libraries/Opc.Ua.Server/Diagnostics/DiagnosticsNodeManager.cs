@@ -635,7 +635,7 @@ namespace Opc.Ua.Server
                     {
                         if (diagnosticsNode.SamplingIntervalDiagnosticsArray != null)
                         {
-                            diagnosticsNode.SamplingIntervalDiagnosticsArray.Value = null;
+                            diagnosticsNode.SamplingIntervalDiagnosticsArray.Value = default;
                             diagnosticsNode.SamplingIntervalDiagnosticsArray.StatusCode =
                                 StatusCodes.BadWaitingForInitialData;
                             diagnosticsNode.SamplingIntervalDiagnosticsArray.Timestamp = DateTime
@@ -644,7 +644,7 @@ namespace Opc.Ua.Server
 
                         if (diagnosticsNode.SubscriptionDiagnosticsArray != null)
                         {
-                            diagnosticsNode.SubscriptionDiagnosticsArray.Value = null;
+                            diagnosticsNode.SubscriptionDiagnosticsArray.Value = default;
                             diagnosticsNode.SubscriptionDiagnosticsArray.StatusCode =
                                 StatusCodes.BadWaitingForInitialData;
                             diagnosticsNode.SubscriptionDiagnosticsArray.Timestamp = DateTime
@@ -654,7 +654,7 @@ namespace Opc.Ua.Server
                         if (diagnosticsNode.SessionsDiagnosticsSummary != null)
                         {
                             diagnosticsNode.SessionsDiagnosticsSummary.SessionDiagnosticsArray.Value
-                                = null;
+                                = default;
                             diagnosticsNode.SessionsDiagnosticsSummary.SessionDiagnosticsArray
                                 .StatusCode =
                                 StatusCodes.BadWaitingForInitialData;
@@ -667,7 +667,7 @@ namespace Opc.Ua.Server
                         {
                             diagnosticsNode.SessionsDiagnosticsSummary
                                 .SessionSecurityDiagnosticsArray
-                                .Value = null;
+                                .Value = default;
                             diagnosticsNode.SessionsDiagnosticsSummary
                                 .SessionSecurityDiagnosticsArray
                                 .StatusCode =
@@ -1639,7 +1639,7 @@ namespace Opc.Ua.Server
 
                         if (sessionsNode != null &&
                             (
-                                sessionsNode.Value == null ||
+                                sessionsNode.Value.IsNull ||
                                 StatusCode.IsBad(sessionsNode.StatusCode) ||
                                 sessionsChanged))
                         {
@@ -1648,8 +1648,7 @@ namespace Opc.Ua.Server
                         }
 
                         bool sessionsSecurityChanged = alwaysUpdateArrays != null;
-                        var sessionSecurityArray = new SessionSecurityDiagnosticsDataType[m_sessions
-                            .Count];
+                        var sessionSecurityArray = new SessionSecurityDiagnosticsDataType[m_sessions.Count];
 
                         for (int ii = 0; ii < m_sessions.Count; ii++)
                         {
@@ -1673,7 +1672,7 @@ namespace Opc.Ua.Server
 
                         if (sessionsSecurityNode != null &&
                             (
-                                sessionsSecurityNode.Value == null ||
+                                sessionsSecurityNode.Value.IsNull ||
                                 StatusCode.IsBad(sessionsSecurityNode.StatusCode) ||
                                 sessionsSecurityChanged)
                             )
@@ -1707,7 +1706,7 @@ namespace Opc.Ua.Server
 
                         if (subscriptionsNode != null &&
                             (
-                                subscriptionsNode.Value == null ||
+                                subscriptionsNode.Value.IsNull ||
                                 StatusCode.IsBad(subscriptionsNode.StatusCode) ||
                                 subscriptionsChanged))
                         {
@@ -1750,7 +1749,7 @@ namespace Opc.Ua.Server
 
                             if (subscriptionsNode != null &&
                                 (
-                                    subscriptionsNode.Value == null ||
+                                    subscriptionsNode.Value.IsNull ||
                                     StatusCode.IsBad(subscriptionsNode.StatusCode) ||
                                     subscriptionsChanged))
                             {

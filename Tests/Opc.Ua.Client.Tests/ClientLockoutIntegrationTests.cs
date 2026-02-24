@@ -95,7 +95,7 @@ namespace Opc.Ua.Client.Tests
                 endpointConfiguration,
                 m_telemetry).ConfigureAwait(false);
 
-            m_endpoints = await discoveryClient.GetEndpointsAsync(null).ConfigureAwait(false);
+            m_endpoints = await discoveryClient.GetEndpointsAsync(default).ConfigureAwait(false);
         }
 
         [OneTimeTearDown]
@@ -142,7 +142,7 @@ namespace Opc.Ua.Client.Tests
                         $"LockoutTestSession_{attempt}",
                         60000,
                         new UserIdentity("invaliduser", System.Text.Encoding.UTF8.GetBytes("wrongpassword")),
-                        null).ConfigureAwait(false);
+                        default).ConfigureAwait(false);
 
                     Assert.Fail("Session creation should have failed with invalid credentials");
                 }
@@ -167,7 +167,7 @@ namespace Opc.Ua.Client.Tests
                     "LockoutTestSession_Final",
                     60000,
                     new UserIdentity("user1", System.Text.Encoding.UTF8.GetBytes("password")),
-                    null).ConfigureAwait(false);
+                    default).ConfigureAwait(false);
             });
 
             Assert.That(lockoutException, Is.Not.Null);
@@ -196,7 +196,7 @@ namespace Opc.Ua.Client.Tests
                         $"ResetTestSession_{attempt}",
                         60000,
                         new UserIdentity("resetuser", System.Text.Encoding.UTF8.GetBytes("wrongpassword")),
-                        null).ConfigureAwait(false);
+                        default).ConfigureAwait(false);
                 }
                 catch (ServiceResultException)
                 {
@@ -211,7 +211,7 @@ namespace Opc.Ua.Client.Tests
                 "ResetTestSession_Success",
                 60000,
                 new UserIdentity(),
-                null).ConfigureAwait(false))
+                default).ConfigureAwait(false))
             {
                 Assert.That(successSession, Is.Not.Null);
                 Assert.That(successSession.Connected, Is.True);
@@ -229,7 +229,7 @@ namespace Opc.Ua.Client.Tests
                         $"PostResetTestSession_{attempt}",
                         60000,
                         new UserIdentity("resetuser", System.Text.Encoding.UTF8.GetBytes("wrongpassword")),
-                        null).ConfigureAwait(false);
+                        default).ConfigureAwait(false);
                 }
                 catch (ServiceResultException)
                 {
@@ -244,7 +244,7 @@ namespace Opc.Ua.Client.Tests
                 "ResetTestSession_Success2",
                 60000,
                 new UserIdentity(),
-                null).ConfigureAwait(false))
+                default).ConfigureAwait(false))
             {
                 Assert.That(successSession, Is.Not.Null);
                 Assert.That(successSession.Connected, Is.True);
@@ -273,7 +273,7 @@ namespace Opc.Ua.Client.Tests
                         $"AnonLockoutTestSession_{attempt}",
                         60000,
                         new UserIdentity("anonlockoutuser", System.Text.Encoding.UTF8.GetBytes("wrongpassword")),
-                        null).ConfigureAwait(false);
+                        default).ConfigureAwait(false);
                 }
                 catch (ServiceResultException)
                 {
@@ -290,7 +290,7 @@ namespace Opc.Ua.Client.Tests
                 "AnonTestSession",
                 60000,
                 new UserIdentity(),
-                null).ConfigureAwait(false);
+                default).ConfigureAwait(false);
             });
 
             Assert.That(lockoutException, Is.Not.Null);

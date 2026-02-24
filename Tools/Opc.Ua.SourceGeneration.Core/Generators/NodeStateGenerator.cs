@@ -497,8 +497,7 @@ namespace Opc.Ua.SourceGeneration
 
         private TemplateString LoadTemplate_VariableTypeValueInitializers(ILoadContext context)
         {
-            if (context.Target is not KeyValuePair<string, Parameter> field ||
-                field.Value == null)
+            if (context.Target is not KeyValuePair<string, Parameter> field || field.Value == null)
             {
                 return null;
             }
@@ -564,6 +563,8 @@ namespace Opc.Ua.SourceGeneration
                     m_context.ModelDesign.Namespaces,
                     nullable: NullableAnnotation.NonNullable,
                     useArrayTypeInsteadOfCollection: true));
+
+            AddVariantAccesssor(context, field.Value.DataTypeNode);
 
             return context.Template.Render();
         }
@@ -1692,16 +1693,6 @@ namespace Opc.Ua.SourceGeneration
             return context.Template.Render();
         }
 
-        private bool WriteTemplate_FactoriesForTypedVariableType(IWriteContext context)
-        {
-            if (context.Target is not TypeDesign typeDesign)
-            {
-                return false;
-            }
-            AddNodeStateClassTypeReplacements(context, typeDesign);
-            return context.Template.Render();
-        }
-
         private void AddNodeStateClassVariableTypeReplacements(
             IWriteContext context,
             VariableTypeDesign variableType)
@@ -1762,6 +1753,8 @@ namespace Opc.Ua.SourceGeneration
                     }
                 }
             }
+
+            AddVariantAccesssor(context, variableType.DataTypeNode);
 
             context.Template.AddReplacement(
                 Tokens.DefaultValue,
@@ -2949,6 +2942,21 @@ namespace Opc.Ua.SourceGeneration
                 uniqueName = resourceName + i;
             }
             throw new InvalidOperationException("Unexpected duplicate resource names");
+        }
+
+        private static void AddVariantAccesssor(IWriteContext context, DataTypeDesign dataType)
+        {
+            switch (dataType.BasicDataType)
+            {
+                case BasicDataType.UserDefined when !dataType.IsEnumeration:
+                    context.Template.AddReplacement(Tokens.VariantFrom, "FromStructure");
+                    context.Template.AddReplacement(Tokens.VariantTryGet, "TryGetStructure");
+                    break;
+                default:
+                    context.Template.AddReplacement(Tokens.VariantFrom, "From");
+                    context.Template.AddReplacement(Tokens.VariantTryGet, "TryGet");
+                    break;
+            }
         }
 
         /// <summary>
