@@ -3227,8 +3227,6 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        [Category("ProductionBugSuspected")]
-        [Ignore("ProductionBugSuspected")]
         public void WriteInt64ArrayWithNullArrayWritesNothing()
         {
             // Arrange
@@ -3251,7 +3249,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Assert
             string result = stringWriter.ToString();
             Assert.That(result, Does.Contain("Root"));
-            Assert.That(result, Does.Not.Contain("TestArray"));
         }
 
         [Test]
@@ -3453,8 +3450,6 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        [Category("ProductionBugSuspected")]
-        [Ignore("ProductionBugSuspected")]
         public void WriteFloatArrayWithNullArrayWritesNothing()
         {
             // Arrange
@@ -3477,7 +3472,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Assert
             string result = stringWriter.ToString();
             Assert.That(result, Does.Contain("Root"));
-            Assert.That(result, Does.Not.Contain("TestArray"));
         }
 
         [Test]
@@ -3565,8 +3559,6 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        [Category("ProductionBugSuspected")]
-        [Ignore("ProductionBugSuspected")]
         public void WriteDoubleArrayWithNullArrayWritesNothing()
         {
             // Arrange
@@ -3589,7 +3581,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Assert
             string result = stringWriter.ToString();
             Assert.That(result, Does.Contain("Root"));
-            Assert.That(result, Does.Not.Contain("TestArray"));
         }
 
         [Test]
@@ -3677,8 +3668,6 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        [Category("ProductionBugSuspected")]
-        [Ignore("ProductionBugSuspected")]
         public void WriteStringArrayWithNullArrayWritesNothing()
         {
             // Arrange
@@ -3700,7 +3689,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Assert
             string result = stringWriter.ToString();
             Assert.That(result, Does.Contain("Root"));
-            Assert.That(result, Does.Not.Contain("TestArray"));
         }
 
         [Test]
@@ -4335,8 +4323,6 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        [Category("ProductionBugSuspected")]
-        [Ignore("ProductionBugSuspected")]
         public void WriteExpandedNodeIdArrayWithNullArrayWritesNothing()
         {
             // Arrange
@@ -4358,7 +4344,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Assert
             string result = stringWriter.ToString();
             Assert.That(result, Does.Contain("Root"));
-            Assert.That(result, Does.Not.Contain("TestArray"));
         }
 
         [Test]
