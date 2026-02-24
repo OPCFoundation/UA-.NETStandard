@@ -1129,16 +1129,18 @@ namespace Opc.Ua.SourceGeneration
                     $"if ((EncodingMask & (uint){dataType.ClassName}Fields.{field.Name}) != 0) ");
             }
 
-            if (dataType.IsDotNetEqualityComparable(field.ValueRank))
+            bool isServiceType = dataType.Service != null;
+            if (!field.DataTypeNode.IsDotNetEqualityComparable(field.ValueRank) ||
+                (!isServiceType && field.ValueRank != ValueRank.Scalar)) // Then we use collections
             {
                 context.Out.WriteLine(
-                    "if ({0} != value.{0})",
+                    "if (!global::Opc.Ua.CoreUtils.IsEqual({0}, value.{0}))",
                     field.GetChildFieldName());
             }
             else
             {
                 context.Out.WriteLine(
-                    "if (!global::Opc.Ua.CoreUtils.IsEqual({0}, value.{0}))",
+                    "if ({0} != value.{0})",
                     field.GetChildFieldName());
             }
             context.Out.WriteLine("{");
