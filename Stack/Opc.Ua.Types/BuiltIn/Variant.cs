@@ -2692,6 +2692,11 @@ namespace Opc.Ua
         public static Variant FromStructure<T>(T value, bool copy = false)
             where T : IEncodeable
         {
+            if (value is null)
+            {
+                return default;
+            }
+
             return new Variant(new ExtensionObject(value, copy));
         }
 
@@ -2936,7 +2941,12 @@ namespace Opc.Ua
         public static Variant FromStructure<T>(IEnumerable<T> value, bool copy = false)
             where T : IEncodeable
         {
-            return new Variant(value?.Select(b => new ExtensionObject(b, copy)).ToArray());
+            if (value is null)
+            {
+                return default;
+            }
+
+            return new Variant(value.Select(b => new ExtensionObject(b, copy)).ToArray());
         }
 
         /// <summary>

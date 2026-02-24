@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -306,7 +307,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             object targetHandle,
             BrowseResultMask resultMask,
-            Dictionary<NodeId, List<object>> uniqueNodesServiceAttributesCache,
+            Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributesCache,
             bool permissionsOnly,
             CancellationToken cancellationToken = default)
         {
@@ -322,12 +323,48 @@ namespace Opc.Ua.Server
             }
             if (SyncNodeManager is INodeManager2 nodeManager2)
             {
+                Dictionary<NodeId, List<object>> syncuniqueNodesServiceAttributesCache = null;
+
+                if (targetHandle is NodeHandle nodeHandle &&
+                    uniqueNodesServiceAttributesCache?.TryGetValue(nodeHandle.NodeId, out Variant[] attributes) == true)
+                {
+                    List<object> boxedAttributes = new(attributes.Length);
+                    foreach (Variant value in attributes)
+                    {
+                        boxedAttributes.Add(value.AsBoxedObject());
+                    }
+
+                    syncuniqueNodesServiceAttributesCache = new Dictionary<NodeId, List<object>>
+                    {
+                        { nodeHandle.NodeId, boxedAttributes }
+                    };
+                }
+
                 NodeMetadata nodeMetadata = nodeManager2.GetPermissionMetadata(
                     context,
                     targetHandle,
                     resultMask,
-                    uniqueNodesServiceAttributesCache,
+                    syncuniqueNodesServiceAttributesCache,
                     permissionsOnly);
+
+                if (targetHandle is NodeHandle nodeHandleAfter &&
+                    syncuniqueNodesServiceAttributesCache?.TryGetValue(nodeHandleAfter.NodeId, out List<object> attributesAfter) == true)
+                {
+                    var attributesArray = new List<Variant>();
+                    foreach (object attribute in attributesAfter)
+                    {
+                        if (attribute is Variant rawValue)
+                        {
+                            attributesArray.Add(rawValue);
+                        }
+                        else
+                        {
+                            attributesArray.Add(Variant.Null);
+                        }
+                    }
+
+                    uniqueNodesServiceAttributesCache[nodeHandleAfter.NodeId] = [.. attributesArray];
+                }
                 return new ValueTask<NodeMetadata>(nodeMetadata);
             }
 

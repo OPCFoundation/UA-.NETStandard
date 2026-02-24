@@ -785,9 +785,9 @@ namespace Opc.Ua.Server
         {
             var publishingDiagnostics = new Dictionary<double, uint>();
 
-            foreach (ISubscription subscription in m_subscriptions.Values)
+            foreach (KeyValuePair<uint, ISubscription> kvp in m_subscriptions)
             {
-                double publishingInterval = subscription.PublishingInterval;
+                double publishingInterval = kvp.Value.PublishingInterval;
 
                 if (!publishingDiagnostics.TryGetValue(publishingInterval, out uint total))
                 {
