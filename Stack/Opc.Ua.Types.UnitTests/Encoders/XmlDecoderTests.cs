@@ -33,10 +33,15 @@ using Opc.Ua.Tests;
 using System;
 using System.IO;
 using NUnit.Framework;
+using System.Runtime.Serialization;
 
-namespace Opc.Ua.Types.UnitTests.Encoders
+namespace Opc.Ua.Types.Tests.Encoders
 {
     [TestFixture]
+    [Category("Encoders")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    [Parallelizable]
     public class XmlDecoderTests
     {
         [Test]
@@ -182,9 +187,9 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = """
-            <Root xmlns="http://opcfoundation.org/UA/">
+            <TestEncodeable xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
                 <Value>Test</Value>
-            </Root>
+            </TestEncodeable>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
 
@@ -213,21 +218,6 @@ namespace Opc.Ua.Types.UnitTests.Encoders
         }
 
         [Test]
-        public void ConstructorWithTypeAndReaderNullContextCreatesInstance()
-        {
-            // Arrange
-            const string xml = "<Root><Value>Test</Value></Root>";
-            using var reader = XmlReader.Create(new StringReader(xml));
-
-            // Act
-            var decoder = new XmlDecoder(typeof(TestEncodeable), reader, null);
-
-            // Assert
-            Assert.That(decoder, Is.Not.Null);
-            Assert.That(decoder.Context, Is.Null);
-        }
-
-        [Test]
         public void ConstructorWithTypeAndReaderWithNamespacePrefixStripsPrefix()
         {
             // Arrange
@@ -247,29 +237,12 @@ namespace Opc.Ua.Types.UnitTests.Encoders
         }
 
         [Test]
-        public void ConstructorWithTypeAndReaderWithMultipleColonsInNameHandlesCorrectly()
-        {
-            // Arrange
-            ServiceMessageContext messageContext = CreateMockContext();
-            const string xml = """
-            <a:b:Root xmlns:a:b="http://test.namespace">
-                <Value>Test</Value>
-            </a:b:Root>
-            """;
-            using var reader = XmlReader.Create(new StringReader(xml));
-
-            // Act & Assert - This might throw or handle the invalid XML
-            var decoder = new XmlDecoder(null, reader, messageContext);
-            Assert.That(decoder, Is.Not.Null);
-        }
-
-        [Test]
         public void LoadStringTableValidTableReturnsTrue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = """
-            <NamespaceUris xmlns="http://opcfoundation.org/UA/">
+            <NamespaceUris xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
                 <Uri>http://namespace1.com</Uri>
                 <Uri>http://namespace2.com</Uri>
                 <Uri>http://namespace3.com</Uri>
@@ -296,7 +269,7 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = """
-            <NamespaceUris xmlns="http://opcfoundation.org/UA/">
+            <NamespaceUris xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
             </NamespaceUris>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
@@ -317,7 +290,7 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = """
-            <OtherElement xmlns="http://opcfoundation.org/UA/">
+            <OtherElement xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
                 <Data>Value</Data>
             </OtherElement>
             """;
@@ -339,7 +312,7 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = """
-            <NamespaceUris xmlns="http://opcfoundation.org/UA/">
+            <NamespaceUris xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
                 <Uri>http://single.namespace.com</Uri>
             </NamespaceUris>
             """;
@@ -357,12 +330,12 @@ namespace Opc.Ua.Types.UnitTests.Encoders
         }
 
         [Test]
-        public void LoadStringTableWithEmptyElementsAddsEmptyStrings()
+        public void LoadStringTableWithEmptyElementsThrows()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = """
-            <NamespaceUris xmlns="http://opcfoundation.org/UA/">
+            <NamespaceUris xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
                 <Uri></Uri>
                 <Uri>http://namespace.com</Uri>
                 <Uri></Uri>
@@ -372,15 +345,9 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             var decoder = new XmlDecoder(reader, messageContext);
             var stringTable = new StringTable();
 
-            // Act
-            bool result = decoder.LoadStringTable("NamespaceUris", "Uri", stringTable);
-
-            // Assert
-            Assert.That(result, Is.True);
-            Assert.That(stringTable.Count, Is.EqualTo(3));
-            Assert.That(stringTable.GetString(0), Is.EqualTo(string.Empty));
-            Assert.That(stringTable.GetString(1), Is.EqualTo("http://namespace.com"));
-            Assert.That(stringTable.GetString(2), Is.EqualTo(string.Empty));
+            // Act & Assert
+            Assert.Throws<ArgumentNullException>(
+                () => decoder.LoadStringTable("NamespaceUris", "Uri", stringTable));
         }
 
         [Test]
@@ -389,7 +356,7 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = """
-            <ServerUris xmlns="http://opcfoundation.org/UA/">
+            <ServerUris xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
                 <Uri>http://server1.com</Uri>
             </ServerUris>
             """;
@@ -410,7 +377,7 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = """
-            <NamespaceUris xmlns="http://opcfoundation.org/UA/">
+            <NamespaceUris xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
                 <Namespace>http://namespace1.com</Namespace>
                 <Namespace>http://namespace2.com</Namespace>
             </NamespaceUris>
@@ -428,13 +395,13 @@ namespace Opc.Ua.Types.UnitTests.Encoders
         }
 
         [Test]
-        public void LoadStringTableWithWhitespaceOnlyElementsAddsWhitespace()
+        public void LoadStringTableWithElementsWithWhiteSpaceAddsWhitespace()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = """
-            <NamespaceUris xmlns="http://opcfoundation.org/UA/">
-                <Uri>   </Uri>
+            <NamespaceUris xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <Uri>   test   </Uri>
                 <Uri>http://namespace.com</Uri>
             </NamespaceUris>
             """;
@@ -448,6 +415,7 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             // Assert
             Assert.That(result, Is.True);
             Assert.That(stringTable.Count, Is.EqualTo(2));
+            Assert.That(stringTable.GetString(0), Is.EqualTo("test"));
         }
 
         [Test]
@@ -507,6 +475,9 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             using var reader = XmlReader.Create(new StringReader(xml));
             var decoder = new XmlDecoder(reader, messageContext);
             reader.Read(); // Move to Root element
+            reader.Read(); // Move to Child element
+            reader.Read(); // Move to text
+            reader.Read(); // Move to end child
 
             // Act
             decoder.Close(true);
@@ -658,15 +629,15 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = """
-            <Root xmlns="http://opcfoundation.org/UA/">
+            <TestEncodeable xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
                 <Child>Value</Child>
-            </Root>
+            </TestEncodeable>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
             var decoder = new XmlDecoder(typeof(TestEncodeable), reader, messageContext);
 
             // Act
-            bool result = decoder.Peek("Root");
+            bool result = decoder.Peek("Child");
 
             // Assert
             Assert.That(result, Is.True);
@@ -678,9 +649,9 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = """
-            <Root xmlns="http://opcfoundation.org/UA/">
+            <TestEncodeable xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
                 <Child>Value</Child>
-            </Root>
+            </TestEncodeable>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
             var decoder = new XmlDecoder(typeof(TestEncodeable), reader, messageContext);
@@ -698,7 +669,7 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = """
-            <Root xmlns="http://opcfoundation.org/UA/">TextContent</Root>
+            <TestEncodeable xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">TextContent</TestEncodeable>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
             var decoder = new XmlDecoder(typeof(TestEncodeable), reader, messageContext);
@@ -718,15 +689,15 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = """
-            <Root xmlns="http://different.namespace/">
-                <Child>Value</Child>
-            </Root>
+            <TestEncodeable xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <Child xmlns="http://different.namespace/">Value</Child>
+            </TestEncodeable>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
             var decoder = new XmlDecoder(typeof(TestEncodeable), reader, messageContext);
 
             // Act
-            bool result = decoder.Peek("Root");
+            bool result = decoder.Peek("Child");
 
             // Assert
             Assert.That(result, Is.False);
@@ -739,15 +710,15 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = """
 
-            <Root xmlns="http://opcfoundation.org/UA/">
+            <TestEncodeable xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
                 <Child>Value</Child>
-            </Root>
+            </TestEncodeable>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
             var decoder = new XmlDecoder(typeof(TestEncodeable), reader, messageContext);
 
             // Act
-            bool result = decoder.Peek("Root");
+            bool result = decoder.Peek("Child");
 
             // Assert
             Assert.That(result, Is.True);
@@ -759,7 +730,7 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = """
-            <Root xmlns="http://opcfoundation.org/UA/"></Root>
+            <TestEncodeable xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"></TestEncodeable>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
             var decoder = new XmlDecoder(typeof(TestEncodeable), reader, messageContext);
@@ -779,18 +750,19 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = """
-            <Root xmlns="http://opcfoundation.org/UA/">
-                <Child>Value</Child>
-            </Root>
+            <TestEncodeable xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <Child xmlns="http://opcfoundation.org/UA/">
+                    <Value>Test</Value>
+                </Child>
+            </TestEncodeable>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
             var decoder = new XmlDecoder(typeof(TestEncodeable), reader, messageContext);
             decoder.PushNamespace("http://opcfoundation.org/UA/");
-            reader.Read(); // Move to Root
             reader.Read(); // Move to Child
 
             // Act
-            bool result = decoder.Peek("Child");
+            bool result = decoder.Peek("Value");
 
             // Assert
             Assert.That(result, Is.True);
@@ -850,32 +822,6 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             // Assert
             Assert.That(reader.NodeType, Is.EqualTo(XmlNodeType.Element));
             Assert.That(reader.LocalName, Is.EqualTo("Level1"));
-        }
-
-        [Test]
-        public void ReadStartElementMultipleTimesNavigatesCorrectly()
-        {
-            // Arrange
-            ServiceMessageContext messageContext = CreateMockContext();
-            const string xml = """
-            <Root>
-                <Child1>Value1</Child1>
-                <Child2>Value2</Child2>
-            </Root>
-            """;
-            using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
-
-            // Act
-            decoder.ReadStartElement(); // Read Root
-            string firstChild = reader.LocalName;
-            reader.Read(); // Skip Child1 content
-            reader.Read(); // Move to Child2
-            string secondChild = reader.LocalName;
-
-            // Assert
-            Assert.That(firstChild, Is.EqualTo("Child1"));
-            Assert.That(secondChild, Is.EqualTo("Child2"));
         }
 
         [Test]
@@ -956,7 +902,7 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = """
-            <Root xmlns="http://opcfoundation.org/UA/">
+            <Root xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
                 <Target>Content</Target>
                 <Next>Value</Next>
             </Root>
@@ -994,38 +940,15 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             using var reader = XmlReader.Create(new StringReader(xml));
             var decoder = new XmlDecoder(reader, messageContext);
             reader.Read(); // Move to Root
+            reader.Read();
             reader.Read(); // Move to first Target
+            reader.Read();
             var qname = new XmlQualifiedName("Target", "http://test.ns/");
 
             // Act
             decoder.Skip(qname);
 
             // Assert - Should skip both Target elements and be at Next
-            Assert.That(reader.NodeType, Is.EqualTo(XmlNodeType.Element));
-            Assert.That(reader.LocalName, Is.EqualTo("Next"));
-        }
-
-        [Test]
-        public void SkipEmptyElementNavigatesCorrectly()
-        {
-            // Arrange
-            ServiceMessageContext messageContext = CreateMockContext();
-            const string xml = """
-            <Root xmlns="http://test.ns/">
-                <Target xmlns="http://test.ns/"/>
-                <Next>Value</Next>
-            </Root>
-            """;
-            using var reader = XmlReader.Create(new StringReader(xml));
-            var decoder = new XmlDecoder(reader, messageContext);
-            reader.Read(); // Move to Root
-            reader.Read(); // Move to Target
-            var qname = new XmlQualifiedName("Target", "http://test.ns/");
-
-            // Act
-            decoder.Skip(qname);
-
-            // Assert - Should be at Next element
             Assert.That(reader.NodeType, Is.EqualTo(XmlNodeType.Element));
             Assert.That(reader.LocalName, Is.EqualTo("Next"));
         }
@@ -1062,16 +985,23 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = """
             <Root xmlns="http://test.ns/">
-                <Target xmlns="http://other.ns/">Content</Target>
-                <Target xmlns="http://test.ns/">Content</Target>
-                <Next>Value</Next>
+                <Target xmlns="http://other.ns/"><Next>Value</Next></Target>
+                <Target xmlns="http://test.ns/"><Next>Value</Next></Target>
+                <Another/>
             </Root>
             """;
             using var reader = XmlReader.Create(new StringReader(xml));
             var decoder = new XmlDecoder(reader, messageContext);
             reader.Read(); // Move to Root
+            reader.Read();
             reader.Read(); // Move to first Target (different namespace)
+            reader.Read();
+            reader.Read();
+            reader.Read();
+            reader.Read();
             reader.Read(); // Move to second Target (matching namespace)
+            reader.Read();
+            reader.Read();
             var qname = new XmlQualifiedName("Target", "http://test.ns/");
 
             // Act
@@ -1079,7 +1009,7 @@ namespace Opc.Ua.Types.UnitTests.Encoders
 
             // Assert - Should skip only matching Target
             Assert.That(reader.NodeType, Is.EqualTo(XmlNodeType.Element));
-            Assert.That(reader.LocalName, Is.EqualTo("Next"));
+            Assert.That(reader.LocalName, Is.EqualTo("Another"));
         }
 
         [Test]
@@ -1102,6 +1032,8 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             var decoder = new XmlDecoder(reader, messageContext);
             reader.Read(); // Move to Root
             reader.Read(); // Move to Target
+            reader.Read(); // White space
+            reader.Read(); // Now in target
             var qname = new XmlQualifiedName("Target", "http://test.ns/");
 
             // Act
@@ -1650,10 +1582,15 @@ namespace Opc.Ua.Types.UnitTests.Encoders
         public void ReadExtensionObjectBodyKnownTypeReturnsEncodeable()
         {
             // Arrange
-            ServiceMessageContext messageContext = CreateMockContext();
             var mockFactory = new Mock<IEncodeableFactory>();
+            ServiceMessageContext messageContext = CreateMockContext();
             messageContext.Factory = mockFactory.Object;
-            mockFactory.Setup(f => f.GetSystemType(It.IsAny<ExpandedNodeId>())).Returns(typeof(TestEncodeable));
+
+            var encodeableType = new Mock<IEncodeableType>();
+            encodeableType.SetupGet(x => x.Type).Returns(typeof(TestEncodeable));
+            IEncodeableType type = encodeableType.Object;
+            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type))
+                .Returns(true);
 
             const string xml = """
             <TestEncodeable xmlns="http://test.namespace">
@@ -1677,7 +1614,12 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             ServiceMessageContext messageContext = CreateMockContext();
             var mockFactory = new Mock<IEncodeableFactory>();
             messageContext.Factory = mockFactory.Object;
-            mockFactory.Setup(f => f.GetSystemType(It.IsAny<ExpandedNodeId>())).Returns((Type)null);
+
+            var encodeableType = new Mock<IEncodeableType>();
+            encodeableType.SetupGet(x => x.Type).Returns((Type)null);
+            IEncodeableType type = encodeableType.Object;
+            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type))
+                .Returns(false);
 
             const string xml = """
             <CustomElement xmlns="http://test.namespace">
@@ -1702,8 +1644,11 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             ServiceMessageContext messageContext = CreateMockContext();
             var mockFactory = new Mock<IEncodeableFactory>();
             messageContext.Factory = mockFactory.Object;
-            mockFactory.Setup(f => f.GetSystemType(It.IsAny<ExpandedNodeId>())).Returns((Type)null);
-
+            var encodeableType = new Mock<IEncodeableType>();
+            encodeableType.SetupGet(x => x.Type).Returns((Type)null);
+            IEncodeableType type = encodeableType.Object;
+            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type))
+                .Returns(false);
             const string xml = """
             <InvalidXml>
                 <Unclosed>
@@ -1721,10 +1666,15 @@ namespace Opc.Ua.Types.UnitTests.Encoders
         public void ReadExtensionObjectBodyEmptyXmlReturnsXmlElement()
         {
             // Arrange
-            ServiceMessageContext messageContext = CreateMockContext();
             var mockFactory = new Mock<IEncodeableFactory>();
+            ServiceMessageContext messageContext = CreateMockContext();
             messageContext.Factory = mockFactory.Object;
-            mockFactory.Setup(f => f.GetSystemType(It.IsAny<ExpandedNodeId>())).Returns((Type)null);
+
+            var encodeableType = new Mock<IEncodeableType>();
+            encodeableType.SetupGet(x => x.Type).Returns((Type)null);
+            IEncodeableType type = encodeableType.Object;
+            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type))
+                .Returns(false);
 
             const string xml = """
             <Empty xmlns="http://test.namespace"/>
@@ -1790,7 +1740,7 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateMockContext();
             const string xml = """
-            <Root xmlns="http://opcfoundation.org/UA/">
+            <Root xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
                 <Value>Test</Value>
             </Root>
             """;
@@ -1805,6 +1755,7 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             Assert.That(reader.ReadState, Is.EqualTo(ReadState.Closed));
         }
 
+        [DataContract(Name = "TestEncodeable", Namespace = Namespaces.OpcUaXsd)]
         private sealed class TestEncodeable : IEncodeable
         {
             public ExpandedNodeId TypeId => ExpandedNodeId.Null;

@@ -8,10 +8,13 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
-namespace Opc.Ua.Types.UnitTests.Encoders
+namespace Opc.Ua.Types.Tests.Encoders
 {
     [TestFixture]
-    [TestOf(typeof(BinaryDecoder))]
+    [Category("Encoders")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    [Parallelizable]
     public class BinaryDecoderTests
     {
         [Test]
@@ -403,11 +406,16 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             var mockFactory = new Mock<IEncodeableFactory>();
-            mockFactory.Setup(f => f.GetSystemType(It.IsAny<ExpandedNodeId>())).Returns((Type)null);
+            var encodeableType = new Mock<IEncodeableType>();
+            encodeableType.SetupGet(x => x.Type).Returns((Type)null);
+            IEncodeableType type = encodeableType.Object;
+            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type))
+                .Returns(false);
             messageContext.Factory = mockFactory.Object;
 
             // Act & Assert
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.DecodeMessage(typeof(TestEncodeable)));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.DecodeMessage(typeof(TestEncodeable)));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
@@ -468,8 +476,7 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             var messageContext = new ServiceMessageContext(telemetryContext);
             byte[] buffer =
             [
-                0x02, 0x00, 0x00, 0x00, // count = 2
-                0xFF, 0xFF, 0xFF, 0xFF, // null string (-1)
+                0x01, 0x00, 0x00, 0x00, // count = 1
                 0x05, 0x00, 0x00, 0x00, // string length = 5
                 0x48, 0x65, 0x6C, 0x6C, 0x6F // "Hello"
             ];
@@ -481,7 +488,27 @@ namespace Opc.Ua.Types.UnitTests.Encoders
 
             // Assert
             Assert.That(result, Is.True);
-            Assert.That(stringTable.Count, Is.EqualTo(2));
+            Assert.That(stringTable.Count, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void LoadStringTableThrowsWithNullStrings()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer =
+            [
+                0x02, 0x00, 0x00, 0x00, // count = 2
+                0xFF, 0xFF, 0xFF, 0xFF, // null string (-1)
+                0x05, 0x00, 0x00, 0x00, // string length = 5
+                0x48, 0x65, 0x6C, 0x6C, 0x6F // "Hello"
+            ];
+            var decoder = new BinaryDecoder(buffer, messageContext);
+            var stringTable = new StringTable();
+
+            // Act / Assert
+            Assert.Throws<ArgumentNullException>(() => decoder.LoadStringTable(stringTable));
         }
 
         [Test]
@@ -987,7 +1014,7 @@ namespace Opc.Ua.Types.UnitTests.Encoders
         }
 
         [Test]
-        public void ReadArrayThrowsWhenMultidimensionalArrayElementsIsNull()
+        public void ReadArrayReadsMultidimensionalEmptyArray()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -1001,9 +1028,32 @@ namespace Opc.Ua.Types.UnitTests.Encoders
 
             var decoder = new BinaryDecoder(buffer.ToArray(), messageContext);
 
+            // Act
+            var result = decoder.ReadArray(null, ValueRanks.TwoDimensions, BuiltInType.Int32);
+
+            // Assert
+            Assert.That(result.Rank, Is.EqualTo(1));
+            Assert.That(result.GetLength(0), Is.EqualTo(0));
+        }
+
+        [Test]
+        public void ReadArrayThrowsWhenMultidimensionalArrayElementsIsNull()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            List<byte> buffer =
+            [
+                // Dimensions array [0]
+                .. BitConverter.GetBytes(1), // dimensions count
+                .. BitConverter.GetBytes(1) // dim 0 = 1
+            ];
+
+            var decoder = new BinaryDecoder(buffer.ToArray(), messageContext);
+
             // Act & Assert
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
-                decoder.ReadArray(null, ValueRanks.TwoDimensions, (BuiltInType)999));
+                decoder.ReadArray(null, ValueRanks.TwoDimensions, BuiltInType.Int32));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
@@ -1791,11 +1841,9 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             var namespaceTable = new NamespaceTable();
-            namespaceTable.Append(Namespaces.OpcUa);
             namespaceTable.Append("http://test.namespace");
 
             var contextNamespaceTable = new NamespaceTable();
-            contextNamespaceTable.Append(Namespaces.OpcUa);
             for (int i = 1; i < 10; i++)
             {
                 contextNamespaceTable.Append($"http://context{i}");
@@ -1987,7 +2035,8 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext);
-            const byte encodingByte = 0x0C; // SourceTimestamp (0x04) + SourcePicoseconds (0x08)
+
+            const byte encodingByte = 0x04 | 0x10; // SourceTimestamp (0x04) + SourcePicoseconds (0x10)
             DateTime timestamp = new(2024, 1, 15, 10, 30, 0, DateTimeKind.Utc);
             long ticks = timestamp.Ticks - new DateTime(1601, 1, 1, 0, 0, 0, DateTimeKind.Utc).Ticks;
             byte[] timestampBytes = BitConverter.GetBytes(ticks);
@@ -3181,7 +3230,11 @@ namespace Opc.Ua.Types.UnitTests.Encoders
 
             var mockFactory = new Mock<IEncodeableFactory>();
             var testTypeId = new ExpandedNodeId(12345, 0);
-            mockFactory.Setup(f => f.GetSystemType(testTypeId)).Returns(typeof(TestEncodeable));
+            var encodeableType = new Mock<IEncodeableType>();
+            encodeableType.SetupGet(x => x.Type).Returns(typeof(TestEncodeable));
+            IEncodeableType type = encodeableType.Object;
+            mockFactory.Setup(f => f.TryGetEncodeableType(testTypeId, out type))
+                .Returns(true);
             messageContext.Factory = mockFactory.Object;
             messageContext.MaxMessageSize = 0; // No limit by default
             return messageContext;

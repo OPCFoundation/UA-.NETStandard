@@ -1888,7 +1888,7 @@ namespace Opc.Ua
             }
             if (TryGet(out int int32Value))
             {
-                value = EnumTFromInt<T>(int32Value);
+                value = EnumHelper.Int32ToEnum<T>(int32Value);
                 return true;
             }
             value = default;
@@ -2263,7 +2263,7 @@ namespace Opc.Ua
             if (TryGetArray(out ArrayOf<int> int32Values, BuiltInType.Enumeration) ||
                 TryGetArray(out int32Values, BuiltInType.Int32))
             {
-                value = int32Values.ConvertAll(EnumTFromInt<T>);
+                value = int32Values.ConvertAll(EnumHelper.Int32ToEnum<T>);
                 return true;
             }
             value = default;
@@ -2589,7 +2589,7 @@ namespace Opc.Ua
             if (TryGetMatrix(out MatrixOf<int> int32Values, BuiltInType.Enumeration) ||
                 TryGetMatrix(out int32Values, BuiltInType.Int32))
             {
-                value = int32Values.ConvertAll(EnumTFromInt<T>);
+                value = int32Values.ConvertAll(EnumHelper.Int32ToEnum<T>);
                 return true;
             }
             value = default;
@@ -8209,22 +8209,6 @@ namespace Opc.Ua
                 CoreUtils.Format(
                     "Cannot convert Variant to {0}.",
                     typeof(T).Name));
-        }
-
-        /// <summary>
-        /// Cast to enum
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        private static T EnumTFromInt<T>(int value) where T : Enum
-        {
-#if NET8_0_OR_GREATER
-            if (Unsafe.SizeOf<T>() <= sizeof(int))
-            {
-                int i32 = value;
-                return Unsafe.As<int, T>(ref i32);
-            }
-#endif
-            return (T)(object)value;
         }
 
         bool IVariantOf<sbyte>.TryGet(out sbyte value)

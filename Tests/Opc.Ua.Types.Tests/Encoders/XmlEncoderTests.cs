@@ -41,7 +41,7 @@ namespace Opc.Ua.Types.Tests.Encoders
     /// Tests for the XML encoder and decoder class.
     /// </summary>
     [TestFixture]
-    [Category("XmlEncoder")]
+    [Category("Encoders")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]

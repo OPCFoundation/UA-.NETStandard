@@ -85,7 +85,7 @@ namespace Opc.Ua
         /// </summary>
         public XmlDecoder(Type systemType, XmlReader reader, IServiceMessageContext context)
         {
-            Context = context;
+            Context = context ?? throw new ArgumentNullException(nameof(context));
             m_logger = context.Telemetry.CreateLogger<XmlDecoder>();
             m_reader = reader;
             m_nestingLevel = 0;
@@ -247,14 +247,6 @@ namespace Opc.Ua
                             m_reader.NamespaceURI == qname.Namespace)
                         {
                             depth--;
-                        }
-                    }
-                    else if (m_reader.NodeType == XmlNodeType.Element)
-                    {
-                        if (m_reader.LocalName == qname.Name &&
-                            m_reader.NamespaceURI == qname.Namespace)
-                        {
-                            depth++;
                         }
                     }
 
@@ -467,7 +459,7 @@ namespace Opc.Ua
                 }
                 return xmlElement;
             }
-            catch (ArgumentException ae)
+            catch (Exception ae)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,

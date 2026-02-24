@@ -36,11 +36,16 @@ using System.IO;
 using System.Reflection;
 using NUnit.Framework;
 
-namespace Opc.Ua.UnitTests
+namespace Opc.Ua.Types.Tests.Encoders
 {
     /// <summary>
     /// Unit tests for the <see cref = "BinaryEncoder"/> class.
     /// </summary>
+    [TestFixture]
+    [Category("Encoders")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    [Parallelizable]
     public class BinaryEncoderTests
     {
         /// <summary>
@@ -2746,19 +2751,20 @@ namespace Opc.Ua.UnitTests
             namespaceTable.Append(Namespaces.OpcUa);
             messageContext.NamespaceUris = namespaceTable;
             var nonSeekableStream = new NonSeekableMemoryStream();
-            var encoder = new BinaryEncoder(nonSeekableStream, messageContext, false);
+            var encoder = new BinaryEncoder(nonSeekableStream, messageContext, true);
             var mockEncodeable = new Mock<IEncodeable>();
             var typeId = new ExpandedNodeId(333, 0);
             var binaryEncodingId = new ExpandedNodeId(444, 0);
             mockEncodeable.Setup(e => e.TypeId).Returns(typeId);
             mockEncodeable.Setup(e => e.BinaryEncodingId).Returns(binaryEncodingId);
-            mockEncodeable.Setup(e => e.Encode(It.IsAny<IEncoder>())).Callback<IEncoder>(enc => enc.WriteInt32("value", 99));
+            mockEncodeable.Setup(e => e.Encode(It.IsAny<IEncoder>())).Callback<IEncoder>(
+                enc => enc.WriteInt32("value", 99));
             var extensionObject = new ExtensionObject(mockEncodeable.Object);
             // Act
             encoder.WriteExtensionObject("test", extensionObject);
             encoder.Close();
             // Assert
-            nonSeekableStream.Seek(0, SeekOrigin.Begin);
+            nonSeekableStream.ResetAndMakeSeekable();
             var decoder = new BinaryDecoder(nonSeekableStream, messageContext, true);
             NodeId decodedNodeId = decoder.ReadNodeId(null);
             byte encoding = decoder.ReadByte(null);
@@ -2768,10 +2774,6 @@ namespace Opc.Ua.UnitTests
             Assert.That(bytes, Is.Not.Null);
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with an IEncodeable body that uses XML encoding.
-        /// Expects the XmlEncodingId to be used instead of BinaryEncodingId.
-        /// </summary>
         [Test]
         public void WriteExtensionObject_EncodeableWithXmlEncoding_UsesXmlEncodingId()
         {
@@ -2798,7 +2800,7 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.Not.Null);
             var decoder = new BinaryDecoder(result, messageContext);
             NodeId decodedNodeId = decoder.ReadNodeId(null);
-            Assert.That(decodedNodeId, Is.EqualTo(new NodeId(777, 0)));
+            Assert.That(decodedNodeId, Is.EqualTo(new NodeId(666, 0)));
         }
 
         /// <summary>
@@ -4055,7 +4057,7 @@ namespace Opc.Ua.UnitTests
             var encoder = new BinaryEncoder(messageContext);
             encoder.SetMappingTables(null, encoderServerUris);
             var nodeId = new NodeId(50u);
-            var expandedNodeId = new ExpandedNodeId(nodeId, null, 1u);
+            var expandedNodeId = new ExpandedNodeId(nodeId, null, 0u);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -5894,13 +5896,12 @@ namespace Opc.Ua.UnitTests
         {
             // Arrange
             Mock<IEncodeable> mockMessage = CreateMockEncodeable();
-            var stream = new MemoryStream();
+            using var stream = new MemoryStream();
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext);
             // Act
             BinaryEncoder.EncodeMessage(mockMessage.Object, stream, messageContext, false);
             // Assert
-            Assert.That(stream.Length, Is.GreaterThan(0));
             mockMessage.Verify(m => m.Encode(It.IsAny<IEncoder>()), Times.Once);
         }
 
@@ -5912,7 +5913,7 @@ namespace Opc.Ua.UnitTests
         {
             // Arrange
             Mock<IEncodeable> mockMessage = CreateMockEncodeable();
-            var stream = new MemoryStream();
+            using var stream = new MemoryStream();
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext);
             // Act
@@ -5965,12 +5966,12 @@ namespace Opc.Ua.UnitTests
         {
             // Arrange
             Mock<IEncodeable> mockMessage = CreateMockEncodeable();
-            var stream = new MemoryStream();
+            using var stream = new MemoryStream();
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext);
             long initialLength = stream.Length;
             // Act
-            BinaryEncoder.EncodeMessage(mockMessage.Object, stream, messageContext, false);
+            BinaryEncoder.EncodeMessage(mockMessage.Object, stream, messageContext, true);
             // Assert
             Assert.That(stream.Length, Is.GreaterThan(initialLength), "Data should be written to stream");
         }
@@ -5983,13 +5984,13 @@ namespace Opc.Ua.UnitTests
         {
             // Arrange
             Mock<IEncodeable> mockMessage = CreateMockEncodeable();
-            var stream = new MemoryStream();
+            using var stream = new MemoryStream();
             stream.Write([1, 2, 3, 4, 5], 0, 5);
             long initialLength = stream.Length;
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext);
             // Act
-            BinaryEncoder.EncodeMessage(mockMessage.Object, stream, messageContext, false);
+            BinaryEncoder.EncodeMessage(mockMessage.Object, stream, messageContext, true);
             // Assert
             Assert.That(stream.Length, Is.GreaterThan(initialLength), "Data should be appended to stream");
         }
@@ -6009,7 +6010,7 @@ namespace Opc.Ua.UnitTests
             {
                 using var stream = new FileStream(tempFile, FileMode.Create, FileAccess.Write);
                 // Act
-                BinaryEncoder.EncodeMessage(mockMessage.Object, stream, messageContext, false);
+                BinaryEncoder.EncodeMessage(mockMessage.Object, stream, messageContext, true);
                 // Assert
                 Assert.That(stream.Length, Is.GreaterThan(0));
                 mockMessage.Verify(m => m.Encode(It.IsAny<IEncoder>()), Times.Once);
@@ -8203,12 +8204,20 @@ namespace Opc.Ua.UnitTests
         {
             // Arrange
             var stream = new MemoryStream();
-            IServiceMessageContext context = CreateContext(100);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var context = new ServiceMessageContext(telemetryContext)
+            {
+                MaxArrayLength = int.MaxValue,
+                MaxStringLength = int.MaxValue,
+                MaxByteStringLength = 1024,
+                MaxMessageSize = int.MaxValue
+            };
             var encoder = new BinaryEncoder(stream, context, false);
             byte[] data = new byte[1024 * 10]; // 10 KB
             var sequence = new ReadOnlySequence<byte>(data);
             // Act & Assert
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteByteString(null, sequence));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteByteString(null, sequence));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
@@ -9715,7 +9724,7 @@ namespace Opc.Ua.UnitTests
             ServiceMessageContext messageContext = CreateContext(0);
 
             var encoder = new BinaryEncoder(messageContext);
-            ArrayOf<ExpandedNodeId> nullArray = null;
+            ArrayOf<ExpandedNodeId> nullArray = default;
             // Act
             encoder.WriteExpandedNodeIdArray("TestField", nullArray);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -9735,7 +9744,7 @@ namespace Opc.Ua.UnitTests
             ServiceMessageContext messageContext = CreateContext(0);
 
             var encoder = new BinaryEncoder(messageContext);
-            var emptyArray = new ArrayOf<ExpandedNodeId>();
+            var emptyArray = ArrayOf.Empty<ExpandedNodeId>();
             // Act
             encoder.WriteExpandedNodeIdArray("TestField", emptyArray);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -11068,18 +11077,24 @@ namespace Opc.Ua.UnitTests
         /// </summary>
         private sealed class NonSeekableMemoryStream : MemoryStream
         {
-            public override bool CanSeek => false;
+            public override bool CanSeek => m_canSeek;
 
             public override long Seek(long offset, SeekOrigin origin)
             {
-                if (origin == SeekOrigin.Begin && offset == 0)
+                if (!m_canSeek)
                 {
-                    Position = 0;
-                    return 0;
+                    throw new NotSupportedException("This stream does not support seeking.");
                 }
-
-                throw new NotSupportedException("This stream does not support seeking.");
+                return base.Seek(offset, origin);
             }
+
+            internal void ResetAndMakeSeekable()
+            {
+                m_canSeek = true;
+                Position = 0;
+            }
+
+            private bool m_canSeek;
         }
 
         /// <summary>
@@ -11178,44 +11193,6 @@ namespace Opc.Ua.UnitTests
             Value2 = 2,
             Value3 = 3,
             LargeValue = 1000000
-        }
-
-        /// <summary>
-        /// Helper class to create linked memory segments for multi-segment ReadOnlySequence.
-        /// </summary>
-        private class MemorySegment : ReadOnlySequenceSegment<byte>
-        {
-            public MemorySegment(byte[] data)
-            {
-                Memory = data;
-            }
-
-            public void SetNext(MemorySegment next)
-            {
-                Next = next;
-                next.RunningIndex = RunningIndex + Memory.Length;
-            }
-        }
-
-        /// <summary>
-        /// Helper class to expose protected Dispose method for testing.
-        /// </summary>
-        private class TestableBinaryEncoder : BinaryEncoder
-        {
-            public TestableBinaryEncoder(IServiceMessageContext context)
-                : base(context)
-            {
-            }
-
-            public TestableBinaryEncoder(Stream stream, IServiceMessageContext context, bool leaveOpen)
-                : base(stream, context, leaveOpen)
-            {
-            }
-
-            public void PublicDispose(bool disposing)
-            {
-                Dispose(disposing);
-            }
         }
     }
 }

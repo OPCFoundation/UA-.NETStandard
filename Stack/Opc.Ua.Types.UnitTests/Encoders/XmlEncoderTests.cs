@@ -1,17 +1,47 @@
 // Copyright (c) 1996-2025 The OPC Foundation. All rights reserved.
 
-using System.Text;
-using System.Xml;
-using Opc.Ua.Tests;
 using System;
 using System.IO;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Xml;
 using NUnit.Framework;
+using Opc.Ua.Tests;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
-namespace Opc.Ua.Types.UnitTests.Encoders
+namespace Opc.Ua.Types.Tests.Encoders
 {
+    /// <summary>
+    /// Tests for the XML encoder and decoder class.
+    /// </summary>
     [TestFixture]
-    public class XmlEncoderTests
+    [Category("Encoders")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    [Parallelizable]
+    public
+#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
+    partial
+#endif
+    class XmlEncoderTests
     {
+#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
+        [GeneratedRegex(@"Value>([^<]*)<")]
+        internal static partial Regex REValue();
+#else
+#pragma warning disable IDE0079 // Remove unnecessary suppression
+#pragma warning disable SYSLIB1045 //Use 'GeneratedRegexAttribute' to generate the regular expression implementation at compile-time.
+        internal static Regex REValue()
+        {
+            return new Regex("Value>([^<]*)<");
+        }
+#pragma warning restore SYSLIB1045 //Use 'GeneratedRegexAttribute' to generate the regular expression implementation at compile-time.
+#pragma warning restore IDE0079 // Remove unnecessary suppression
+#endif
+
+        private static readonly ArrayOf<int> s_elements = [1, 2, 3, 4];
+        private static readonly int[] s_dimensions = [2, 2];
+
         [Test]
         public void ConstructorWithContextCreatesInstance()
         {
@@ -5475,6 +5505,303 @@ namespace Opc.Ua.Types.UnitTests.Encoders
             ServiceResultException exception = Assert.Throws<ServiceResultException>(() => encoder.WriteObjectArray("TestArray", values));
             Assert.That(exception, Is.Not.Null);
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        /// <summary>
+        /// Validate the encoding and decoding of the float special values.
+        /// </summary>
+        [Test]
+        [TestCase(float.PositiveInfinity, "INF")]
+        [TestCase(float.NegativeInfinity, "-INF")]
+        [TestCase(float.NaN, "NaN")]
+        public void EncodeDecodeFloat(float binaryValue, string expectedXmlValue)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            // Encode
+            var context = new ServiceMessageContext(telemetry);
+            string actualXmlValue;
+            using (
+                var xmlEncoder = new XmlEncoder(
+                    new XmlQualifiedName("FloatSpecialValues", Namespaces.OpcUaXsd),
+                    null,
+                    context))
+            {
+                xmlEncoder.PushNamespace(Namespaces.OpcUaXsd);
+                xmlEncoder.WriteFloat("Value", binaryValue);
+                xmlEncoder.PopNamespace();
+                actualXmlValue = xmlEncoder.CloseAndReturnText();
+            }
+
+            // Check encode result against expected XML value
+            Match m = REValue().Match(actualXmlValue);
+            Assert.True(m.Success);
+            Assert.True(m.Groups.Count == 2);
+            Assert.AreEqual(m.Groups[1].Value, expectedXmlValue);
+
+            // Decode
+            float actualBinaryValue;
+            using (var reader = XmlReader.Create(new StringReader(actualXmlValue)))
+            using (var xmlDecoder = new XmlDecoder(null, reader, context))
+            {
+                actualBinaryValue = xmlDecoder.ReadFloat("Value");
+            }
+
+            // Check decode result against input value
+            if (float.IsNaN(actualBinaryValue)) // NaN is not equal to anything!
+            {
+                Assert.True(float.IsNaN(binaryValue));
+            }
+            else
+            {
+                Assert.AreEqual(actualBinaryValue, binaryValue);
+            }
+        }
+
+        /// <summary>
+        /// Validate the encoding and decoding of the double special values.
+        /// </summary>
+        [Test]
+        [TestCase(double.PositiveInfinity, "INF")]
+        [TestCase(double.NegativeInfinity, "-INF")]
+        [TestCase(double.NaN, "NaN")]
+        public void EncodeDecodeDouble(double binaryValue, string expectedXmlValue)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            // Encode
+            var context = new ServiceMessageContext(telemetry);
+            string actualXmlValue;
+            using (
+                var xmlEncoder = new XmlEncoder(
+                    new XmlQualifiedName("DoubleSpecialValues", Namespaces.OpcUaXsd),
+                    null,
+                    context))
+            {
+                xmlEncoder.PushNamespace(Namespaces.OpcUaXsd);
+                xmlEncoder.WriteDouble("Value", binaryValue);
+                xmlEncoder.PopNamespace();
+                actualXmlValue = xmlEncoder.CloseAndReturnText();
+            }
+
+            // Check encode result against expected XML value
+            Match m = REValue().Match(actualXmlValue);
+            Assert.True(m.Success);
+            Assert.True(m.Groups.Count == 2);
+            Assert.AreEqual(m.Groups[1].Value, expectedXmlValue);
+
+            // Decode
+            double actualBinaryValue;
+            using (var reader = XmlReader.Create(new StringReader(actualXmlValue)))
+            using (var xmlDecoder = new XmlDecoder(null, reader, context))
+            {
+                actualBinaryValue = xmlDecoder.ReadDouble("Value");
+            }
+
+            // Check decode result against input value
+            if (double.IsNaN(actualBinaryValue)) // NaN is not equal to anything!
+            {
+                Assert.True(double.IsNaN(binaryValue));
+            }
+            else
+            {
+                Assert.AreEqual(actualBinaryValue, binaryValue);
+            }
+        }
+
+        /// <summary>
+        /// Validate the encoding and decoding of the a variant that consists of a matrix.
+        /// </summary>
+        [Test]
+        public void EncodeDecodeVariantMatrix()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            MatrixOf<int> value = s_elements.ToMatrix(s_dimensions);
+            var variant = new Variant(value);
+
+            const string expected =
+                """
+                <?xml version="1.0" encoding="utf-16"?>
+                <uax:VariantTest xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                  <uax:Test>
+                    <uax:Value>
+                      <uax:Matrix>
+                        <uax:Dimensions>
+                          <uax:Int32>2</uax:Int32>
+                          <uax:Int32>2</uax:Int32>
+                        </uax:Dimensions>
+                        <uax:Elements>
+                          <uax:Int32>1</uax:Int32>
+                          <uax:Int32>2</uax:Int32>
+                          <uax:Int32>3</uax:Int32>
+                          <uax:Int32>4</uax:Int32>
+                        </uax:Elements>
+                      </uax:Matrix>
+                    </uax:Value>
+                  </uax:Test>
+                </uax:VariantTest>
+                """;
+
+            // Encode
+            var context = new ServiceMessageContext(telemetry);
+            string actualXmlValue;
+            using (
+                var xmlEncoder = new XmlEncoder(
+                    new XmlQualifiedName("VariantTest", Namespaces.OpcUaXsd),
+                    null,
+                    context))
+            {
+                xmlEncoder.PushNamespace(Namespaces.OpcUaXsd);
+                xmlEncoder.WriteVariant("Test", variant);
+                xmlEncoder.PopNamespace();
+                actualXmlValue = xmlEncoder.CloseAndReturnText();
+            }
+
+            // Check encode result against expected XML value
+            Assert.AreEqual(
+                expected.Replace("\r", string.Empty, StringComparison.Ordinal)
+                    .Replace("\n", string.Empty, StringComparison.Ordinal),
+                actualXmlValue.Replace("\r", string.Empty, StringComparison.Ordinal)
+                    .Replace("\n", string.Empty, StringComparison.Ordinal));
+
+            // Decode
+            Variant actualVariant;
+            using (var reader = XmlReader.Create(new StringReader(actualXmlValue)))
+            using (var xmlDecoder = new XmlDecoder(null, reader, context))
+            {
+                actualVariant = xmlDecoder.ReadVariant("Test");
+            }
+
+            // Check decode result against input value
+            Assert.AreEqual(actualVariant, variant);
+        }
+
+        /// <summary>
+        /// Validate the encoding and decoding of the a variant that contains a null value
+        /// </summary>
+        [Test]
+        public void EncodeDecodeVariantNil()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            Variant variant = Variant.Null;
+
+            const string expected =
+                "<?xml version=\"1.0\" encoding=\"utf-16\"?>\r\n<uax:VariantTest xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\r\n  <uax:Test>\r\n    <uax:Value xsi:nil=\"true\" />\r\n  </uax:Test>\r\n</uax:VariantTest>";
+
+            // Encode
+            var context = new ServiceMessageContext(telemetry);
+            string actualXmlValue;
+            using (
+                var xmlEncoder = new XmlEncoder(
+                    new XmlQualifiedName("VariantTest", Namespaces.OpcUaXsd),
+                    null,
+                    context))
+            {
+                xmlEncoder.PushNamespace(Namespaces.OpcUaXsd);
+                xmlEncoder.WriteVariant("Test", variant);
+                xmlEncoder.PopNamespace();
+                actualXmlValue = xmlEncoder.CloseAndReturnText();
+            }
+
+            // Check encode result against expected XML value
+            Assert.AreEqual(
+                expected.Replace("\r", string.Empty, StringComparison.Ordinal)
+                    .Replace("\n", string.Empty, StringComparison.Ordinal),
+                actualXmlValue.Replace("\r", string.Empty, StringComparison.Ordinal)
+                    .Replace("\n", string.Empty, StringComparison.Ordinal));
+
+            // Decode
+            Variant actualVariant;
+            using (var reader = XmlReader.Create(new StringReader(actualXmlValue)))
+            using (var xmlDecoder = new XmlDecoder(null, reader, context))
+            {
+                actualVariant = xmlDecoder.ReadVariant("Test");
+            }
+
+            // Check decode result against input value
+            Assert.AreEqual(actualVariant, Variant.Null);
+        }
+
+        /// <summary>
+        /// Validate that decoding errors include the failed value in the error message for Float.
+        /// </summary>
+        [Test]
+        public void DecodeInvalidFloatIncludesValueInError()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var context = new ServiceMessageContext(telemetry);
+            const string invalidValue = "not-a-number";
+            const string xmlContent = "<?xml version=\"1.0\" encoding=\"utf-16\"?>" +
+                "<FloatTest xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\" " +
+                "xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">" +
+                $"<Value>{invalidValue}</Value></FloatTest>";
+
+            using var reader = XmlReader.Create(new StringReader(xmlContent));
+            using var xmlDecoder = new XmlDecoder(null, reader, context);
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => xmlDecoder.ReadFloat("Value"));
+            Assert.That(ex.Message, Does.Contain(invalidValue));
+            Assert.That(ex.Message, Does.Contain("Value:"));
+        }
+
+        /// <summary>
+        /// Validate that decoding errors include the failed value in the error message for Double.
+        /// </summary>
+        [Test]
+        public void DecodeInvalidDoubleIncludesValueInError()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var context = new ServiceMessageContext(telemetry);
+            const string invalidValue = "invalid-double";
+            const string xmlContent = "<?xml version=\"1.0\" encoding=\"utf-16\"?>" +
+                "<DoubleTest xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\" " +
+                "xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">" +
+                $"<Value>{invalidValue}</Value></DoubleTest>";
+
+            using var reader = XmlReader.Create(new StringReader(xmlContent));
+            using var xmlDecoder = new XmlDecoder(null, reader, context);
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => xmlDecoder.ReadDouble("Value"));
+            Assert.That(ex.Message, Does.Contain(invalidValue));
+            Assert.That(ex.Message, Does.Contain("Value:"));
+        }
+
+        /// <summary>
+        /// Validate that decoding errors include the failed value in the error message for DateTime.
+        /// </summary>
+        [Test]
+        public void DecodeInvalidDateTimeIncludesValueInError()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var context = new ServiceMessageContext(telemetry);
+            const string invalidValue = "not-a-date";
+            const string xmlContent = "<?xml version=\"1.0\" encoding=\"utf-16\"?>" +
+                "<DateTimeTest xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\" " +
+                "xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">" +
+                $"<Value>{invalidValue}</Value></DateTimeTest>";
+
+            using var reader = XmlReader.Create(new StringReader(xmlContent));
+            using var xmlDecoder = new XmlDecoder(null, reader, context);
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => xmlDecoder.ReadDateTime("Value"));
+            Assert.That(ex.Message, Does.Contain(invalidValue));
+            Assert.That(ex.Message, Does.Contain("Value:"));
+        }
+
+        /// <summary>
+        /// Validate that decoding errors include the failed value in the error message for Int32.
+        /// </summary>
+        [Test]
+        public void DecodeInvalidInt32IncludesValueInError()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var context = new ServiceMessageContext(telemetry);
+            const string invalidValue = "not-an-integer";
+            const string xmlContent = "<?xml version=\"1.0\" encoding=\"utf-16\"?>" +
+                "<Int32Test xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\" " +
+                "xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">" +
+                $"<Value>{invalidValue}</Value></Int32Test>";
+
+            using var reader = XmlReader.Create(new StringReader(xmlContent));
+            using var xmlDecoder = new XmlDecoder(null, reader, context);
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => xmlDecoder.ReadInt32("Value"));
+            Assert.That(ex.Message, Does.Contain(invalidValue));
+            Assert.That(ex.Message, Does.Contain("Value:"));
         }
     }
 
