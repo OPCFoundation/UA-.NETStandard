@@ -838,17 +838,20 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDataValue(string fieldName, DataValue value)
         {
-            // calculate the encoding.
-            byte encoding = 0;
             if (value == null)
             {
                 WriteByte(null, 0);
                 return;
             }
+
+            // calculate the encoding.
+            byte encoding = 0;
+
             if (!value.WrappedValue.IsNull)
             {
                 encoding |= (byte)DataValueEncodingBits.Value;
             }
+
             if (value.StatusCode != StatusCodes.Good)
             {
                 encoding |= (byte)DataValueEncodingBits.StatusCode;
