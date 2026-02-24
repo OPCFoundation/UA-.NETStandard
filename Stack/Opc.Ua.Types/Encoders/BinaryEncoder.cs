@@ -838,13 +838,6 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDataValue(string fieldName, DataValue value)
         {
-            // check for null.
-            if (value == null)
-            {
-                WriteByte(null, 0);
-                return;
-            }
-
             // calculate the encoding.
             byte encoding = 0;
 
@@ -861,21 +854,19 @@ namespace Opc.Ua
             if (value.SourceTimestamp != DateTime.MinValue)
             {
                 encoding |= (byte)DataValueEncodingBits.SourceTimestamp;
-
-                if (value.SourcePicoseconds != 0)
-                {
-                    encoding |= (byte)DataValueEncodingBits.SourcePicoseconds;
-                }
+            }
+            if (value.SourcePicoseconds != 0)
+            {
+                encoding |= (byte)DataValueEncodingBits.SourcePicoseconds;
             }
 
             if (value.ServerTimestamp != DateTime.MinValue)
             {
                 encoding |= (byte)DataValueEncodingBits.ServerTimestamp;
-
-                if (value.ServerPicoseconds != 0)
-                {
-                    encoding |= (byte)DataValueEncodingBits.ServerPicoseconds;
-                }
+            }
+            if (value.ServerPicoseconds != 0)
+            {
+                encoding |= (byte)DataValueEncodingBits.ServerPicoseconds;
             }
 
             // write the encoding.
@@ -895,21 +886,19 @@ namespace Opc.Ua
             if ((encoding & (byte)DataValueEncodingBits.SourceTimestamp) != 0)
             {
                 WriteDateTime(null, value.SourceTimestamp);
-
-                if ((encoding & (byte)DataValueEncodingBits.SourcePicoseconds) != 0)
-                {
-                    WriteUInt16(null, value.SourcePicoseconds);
-                }
+            }
+            if ((encoding & (byte)DataValueEncodingBits.SourcePicoseconds) != 0)
+            {
+                WriteUInt16(null, value.SourcePicoseconds);
             }
 
             if ((encoding & (byte)DataValueEncodingBits.ServerTimestamp) != 0)
             {
                 WriteDateTime(null, value.ServerTimestamp);
-
-                if ((encoding & (byte)DataValueEncodingBits.ServerPicoseconds) != 0)
-                {
-                    WriteUInt16(null, value.ServerPicoseconds);
-                }
+            }
+            if ((encoding & (byte)DataValueEncodingBits.ServerPicoseconds) != 0)
+            {
+                WriteUInt16(null, value.ServerPicoseconds);
             }
         }
 
