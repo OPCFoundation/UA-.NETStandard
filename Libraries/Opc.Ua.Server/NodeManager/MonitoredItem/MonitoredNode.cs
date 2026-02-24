@@ -123,6 +123,7 @@ namespace Opc.Ua.Server
                 // Remove the cached context for the monitored item
                 m_contextCache.TryRemove(datachangeItem.Id, out _);
                 m_operationContextCache.TryRemove(datachangeItem.Id, out _);
+                m_permissionCache.TryRemove(datachangeItem.Id, out _);
             }
 
             if (DataChangeMonitoredItems.IsEmpty)
@@ -234,6 +235,13 @@ namespace Opc.Ua.Server
                     return;
                 }
 
+                // If RolePermissions or UserRolePermissions have changed, invalidate the permission cache
+                // so it is revalidated on the next value change notification.
+                if ((changes & NodeStateChangeMasks.RolePermissions) != 0)
+                {
+                    m_permissionCache.Clear();
+                }
+
                 foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in DataChangeMonitoredItems)
                 {
                     IDataChangeMonitoredItem2 monitoredItem = kvp.Value;
@@ -247,11 +255,17 @@ namespace Opc.Ua.Server
                             m_operationContextCache[monitoredItem.Id] = operationContext;
                         }
 
-                        // validate if the monitored item has the required role permissions to read the value
-                        ServiceResult validationResult = NodeManager.ValidateRolePermissions(
-                            operationContext,
-                            node.NodeId,
-                            PermissionType.Read);
+                        // Use cached permission result to avoid validating on every value change.
+                        // The cache is invalidated when RolePermissions/UserRolePermissions change
+                        // or when the user identity of the monitored item changes.
+                        if (!m_permissionCache.TryGetValue(monitoredItem.Id, out ServiceResult validationResult))
+                        {
+                            validationResult = NodeManager.ValidateRolePermissions(
+                                operationContext,
+                                node.NodeId,
+                                PermissionType.Read);
+                            m_permissionCache[monitoredItem.Id] = validationResult;
+                        }
 
                         if (ServiceResult.IsBad(validationResult))
                         {
@@ -342,6 +356,9 @@ namespace Opc.Ua.Server
                         operationContext);
                     m_contextCache[monitoredItemId] = (updatedContext, currentTicks);
 
+                    // Invalidate the permission cache since the user identity may have changed.
+                    m_permissionCache.TryRemove(monitoredItemId, out _);
+
                     return updatedContext;
                 }
 
@@ -361,6 +378,9 @@ namespace Opc.Ua.Server
             new();
 
         private readonly ConcurrentDictionary<uint, OperationContext> m_operationContextCache =
+            new();
+
+        private readonly ConcurrentDictionary<uint, ServiceResult> m_permissionCache =
             new();
 
         private readonly int m_cacheLifetimeTicks = (int)TimeSpan.FromMinutes(5).TotalMilliseconds;
