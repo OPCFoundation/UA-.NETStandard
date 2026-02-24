@@ -97,27 +97,27 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             var dataValue = new DataValue() { SourcePicoseconds = 1 };
             EncodeDataValueWithoutValuePropertyTest(dataValue);
-            dataValue = new DataValue() { SourceTimestamp = new DateTime(2001, 01, 01) };
+            dataValue = new DataValue() { SourceTimestamp = new DateTime(2001, 01, 01).ToUniversalTime() };
             EncodeDataValueWithoutValuePropertyTest(dataValue);
-            dataValue = new DataValue() { ServerTimestamp = new DateTime(2001, 01, 02) };
+            dataValue = new DataValue() { ServerTimestamp = new DateTime(2001, 01, 02).ToUniversalTime() };
             EncodeDataValueWithoutValuePropertyTest(dataValue);
             dataValue = new DataValue() { ServerPicoseconds = 2 };
             EncodeDataValueWithoutValuePropertyTest(dataValue);
             dataValue = new DataValue() { StatusCode = StatusCodes.BadNotImplemented };
             EncodeDataValueWithoutValuePropertyTest(dataValue);
-            dataValue = new DataValue() { SourceTimestamp = new DateTime(2001, 01, 03), SourcePicoseconds = 3 };
+            dataValue = new DataValue() { SourceTimestamp = new DateTime(2001, 01, 03).ToUniversalTime(), SourcePicoseconds = 3 };
             EncodeDataValueWithoutValuePropertyTest(dataValue);
-            dataValue = new DataValue() { SourceTimestamp = new DateTime(2001, 01, 04), ServerPicoseconds = 4 };
+            dataValue = new DataValue() { SourceTimestamp = new DateTime(2001, 01, 04).ToUniversalTime(), ServerPicoseconds = 4 };
             EncodeDataValueWithoutValuePropertyTest(dataValue);
-            dataValue = new DataValue() { ServerTimestamp = new DateTime(2001, 01, 05), ServerPicoseconds = 5 };
+            dataValue = new DataValue() { ServerTimestamp = new DateTime(2001, 01, 05).ToUniversalTime(), ServerPicoseconds = 5 };
             EncodeDataValueWithoutValuePropertyTest(dataValue);
-            dataValue = new DataValue() { ServerTimestamp = new DateTime(2001, 01, 06), SourcePicoseconds = 6 };
+            dataValue = new DataValue() { ServerTimestamp = new DateTime(2001, 01, 06).ToUniversalTime(), SourcePicoseconds = 6 };
             EncodeDataValueWithoutValuePropertyTest(dataValue);
             dataValue = new DataValue()
             {
-                ServerTimestamp = new DateTime(2001, 01, 07),
+                ServerTimestamp = new DateTime(2001, 01, 07).ToUniversalTime(),
                 ServerPicoseconds = 7,
-                SourceTimestamp = new DateTime(2001, 01, 08),
+                SourceTimestamp = new DateTime(2001, 01, 08).ToUniversalTime(),
                 SourcePicoseconds = 8,
                 StatusCode = StatusCodes.BadNotFound
             };
