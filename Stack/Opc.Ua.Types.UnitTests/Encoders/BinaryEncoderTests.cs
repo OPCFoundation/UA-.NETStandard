@@ -11042,6 +11042,339 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(stream.Length, Is.GreaterThan(4));
         }
 
+        #region WriteVariantValue Tests
+
+        private static byte[] EncodeVariantValue(Variant variant)
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            encoder.WriteVariantValue(null, variant);
+            return encoder.CloseAndReturnBuffer();
+        }
+
+        private static Variant RoundTripVariantValue(Variant variant)
+        {
+            byte[] encoded = EncodeVariantValue(variant);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            using var decoder = new BinaryDecoder(encoded, messageContext);
+            return decoder.ReadVariant(null);
+        }
+
+        private static System.Collections.IEnumerable ScalarVariantValueTestCases()
+        {
+            yield return new TestCaseData(new Variant(true), true);
+            yield return new TestCaseData(new Variant((sbyte)-42), (sbyte)-42);
+            yield return new TestCaseData(new Variant((byte)255), (byte)255);
+            yield return new TestCaseData(new Variant((short)-1234), (short)-1234);
+            yield return new TestCaseData(new Variant((ushort)65535), (ushort)65535);
+            yield return new TestCaseData(new Variant(123456), 123456);
+            yield return new TestCaseData(new Variant(123456u), 123456u);
+            yield return new TestCaseData(new Variant(123456789L), 123456789L);
+            yield return new TestCaseData(new Variant(123456789uL), 123456789uL);
+            yield return new TestCaseData(new Variant(3.14f), 3.14f);
+            yield return new TestCaseData(new Variant(2.718), 2.718);
+            yield return new TestCaseData(new Variant("hello"), "hello");
+            yield return new TestCaseData(new Variant(new StatusCode(0x80010000u)), new StatusCode(0x80010000u));
+        }
+
+        [Test]
+        [TestCaseSource(nameof(ScalarVariantValueTestCases))]
+        public void WriteVariantValueWithScalarRoundTripsCorrectly(
+            Variant variant, object expectedValue)
+        {
+            Variant decoded = RoundTripVariantValue(variant);
+
+            Assert.That(decoded.Value, Is.EqualTo(expectedValue));
+        }
+
+        [Test]
+        public void WriteVariantValueWithNullVariantWritesZeroByte()
+        {
+            byte[] result = EncodeVariantValue(Variant.Null);
+
+            Assert.That(result, Has.Length.EqualTo(1));
+            Assert.That(result[0], Is.EqualTo(0x00));
+        }
+
+        [Test]
+        public void WriteVariantValueWithDateTimeScalarRoundTripsCorrectly()
+        {
+            var dt = new DateTime(2024, 1, 15, 10, 30, 0, DateTimeKind.Utc);
+            Variant decoded = RoundTripVariantValue(new Variant(dt));
+
+            Assert.That(decoded.Value, Is.EqualTo(dt));
+        }
+
+        [Test]
+        public void WriteVariantValueWithGuidScalarRoundTripsCorrectly()
+        {
+            var guid = new Uuid(new Guid("12345678-1234-1234-1234-123456789abc"));
+            Variant decoded = RoundTripVariantValue(new Variant(guid));
+
+            Assert.That(decoded.Value, Is.EqualTo(guid));
+        }
+
+        [Test]
+        public void WriteVariantValueWithByteStringScalarRoundTripsCorrectly()
+        {
+            var bs = new ByteString(new byte[] { 1, 2, 3 });
+            Variant decoded = RoundTripVariantValue(new Variant(bs));
+
+            Assert.That(decoded.GetByteString(), Is.EqualTo(bs));
+        }
+
+        [Test]
+        public void WriteVariantValueWithNodeIdScalarRoundTripsCorrectly()
+        {
+            var nodeId = new NodeId(123, 1);
+            Variant decoded = RoundTripVariantValue(new Variant(nodeId));
+
+            Assert.That(decoded.Value, Is.EqualTo(nodeId));
+        }
+
+        [Test]
+        public void WriteVariantValueWithExpandedNodeIdScalarRoundTripsCorrectly()
+        {
+            var expandedNodeId = new ExpandedNodeId(456, 1);
+            Variant decoded = RoundTripVariantValue(new Variant(expandedNodeId));
+
+            Assert.That(decoded.Value, Is.EqualTo(expandedNodeId));
+        }
+
+        [Test]
+        public void WriteVariantValueWithQualifiedNameScalarRoundTripsCorrectly()
+        {
+            var qname = new QualifiedName("qname", 1);
+            Variant decoded = RoundTripVariantValue(new Variant(qname));
+
+            Assert.That(decoded.Value, Is.EqualTo(qname));
+        }
+
+        [Test]
+        public void WriteVariantValueWithLocalizedTextScalarRoundTripsCorrectly()
+        {
+            var lt = new LocalizedText("en", "loctext");
+            Variant decoded = RoundTripVariantValue(new Variant(lt));
+
+            Assert.That(decoded.Value, Is.EqualTo(lt));
+        }
+
+        [Test]
+        public void WriteVariantValueWithExtensionObjectScalarRoundTripsCorrectly()
+        {
+            var extObj = new ExtensionObject(ExpandedNodeId.Null);
+            Variant decoded = RoundTripVariantValue(new Variant(extObj));
+
+            Assert.That(decoded.Value, Is.InstanceOf<ExtensionObject>());
+        }
+
+        [Test]
+        public void WriteVariantValueWithDataValueScalarRoundTripsCorrectly()
+        {
+            var dv = new DataValue(new Variant(99));
+            Variant decoded = RoundTripVariantValue(new Variant(dv));
+
+            Assert.That(decoded.GetDataValue().Value, Is.EqualTo(new Variant(99)));
+        }
+
+        [Test]
+        public void WriteVariantValueWithEnumerationScalarWritesAsInt32()
+        {
+            byte[] result = EncodeVariantValue(new Variant(TestEnum.Value1));
+
+            Assert.That(result[0], Is.EqualTo((byte)BuiltInType.Int32));
+        }
+
+        [Test]
+        public void WriteVariantValueWithEnumerationScalarRoundTripsAsInt32()
+        {
+            Variant decoded = RoundTripVariantValue(new Variant(TestEnum.Value1));
+
+            Assert.That(decoded.Value, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void WriteVariantValueWithXmlElementScalarRoundTripsCorrectly()
+        {
+            var xmlDoc = new System.Xml.XmlDocument();
+            var sysElement = xmlDoc.CreateElement("TestElem");
+            sysElement.InnerText = "XmlVal";
+            var xmlElement = XmlElement.From(sysElement);
+            Variant decoded = RoundTripVariantValue(new Variant(xmlElement));
+
+            Assert.That(decoded.Value, Is.InstanceOf<XmlElement>());
+        }
+
+        [Test]
+        public void WriteVariantValueWithScalarWritesCorrectEncodingByte()
+        {
+            byte[] result = EncodeVariantValue(new Variant(42));
+
+            Assert.That(result[0], Is.EqualTo((byte)BuiltInType.Int32));
+        }
+
+        private static System.Collections.IEnumerable ArrayVariantValueTestCases()
+        {
+            yield return new TestCaseData(
+                new Variant(s_booleanArray), typeof(bool));
+            yield return new TestCaseData(
+                new Variant(new sbyte[] { 1, -1 }), typeof(sbyte));
+            yield return new TestCaseData(
+                new Variant(new byte[] { 1, 2 }), typeof(byte));
+            yield return new TestCaseData(
+                new Variant(new short[] { 1, -1 }), typeof(short));
+            yield return new TestCaseData(
+                new Variant(new ushort[] { 1, 2 }), typeof(ushort));
+            yield return new TestCaseData(
+                new Variant(new int[] { 1, -1 }), typeof(int));
+            yield return new TestCaseData(
+                new Variant(new uint[] { 1, 2 }), typeof(uint));
+            yield return new TestCaseData(
+                new Variant(new long[] { 1, -1 }), typeof(long));
+            yield return new TestCaseData(
+                new Variant(new ulong[] { 1, 2 }), typeof(ulong));
+            yield return new TestCaseData(
+                new Variant(s_floatArray), typeof(float));
+            yield return new TestCaseData(
+                new Variant(s_doubleArray), typeof(double));
+            yield return new TestCaseData(
+                new Variant(s_stringArray), typeof(string));
+            yield return new TestCaseData(
+                new Variant(new DateTime[]
+                {
+                    new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+                }), typeof(DateTime));
+            yield return new TestCaseData(
+                new Variant(new Uuid[] { new Uuid(Guid.Empty) }), typeof(Uuid));
+            yield return new TestCaseData(
+                new Variant(new NodeId[] { new NodeId(1) }), typeof(NodeId));
+            yield return new TestCaseData(
+                new Variant(new ExpandedNodeId[] { new ExpandedNodeId(1) }),
+                typeof(ExpandedNodeId));
+            yield return new TestCaseData(
+                new Variant(new StatusCode[] { StatusCodes.Good }),
+                typeof(StatusCode));
+            yield return new TestCaseData(
+                new Variant(new QualifiedName[] { new QualifiedName("q") }),
+                typeof(QualifiedName));
+            yield return new TestCaseData(
+                new Variant(new LocalizedText[] { new LocalizedText("en", "t") }),
+                typeof(LocalizedText));
+            yield return new TestCaseData(
+                new Variant(new ExtensionObject[]
+                {
+                    new ExtensionObject(ExpandedNodeId.Null)
+                }), typeof(ExtensionObject));
+            yield return new TestCaseData(
+                new Variant(new DataValue[] { new DataValue(new Variant(1)) }),
+                typeof(DataValue));
+            yield return new TestCaseData(
+                new Variant(new Variant[] { new Variant(1) }),
+                typeof(Variant));
+            yield return new TestCaseData(
+                new Variant(new ByteStringCollection
+                {
+                    new ByteString(new byte[] { 1, 2 })
+                }), typeof(ByteString));
+        }
+
+        [Test]
+        [TestCaseSource(nameof(ArrayVariantValueTestCases))]
+        public void WriteVariantValueWithArraySetsArrayBitInEncodingByte(
+            Variant variant, Type expectedElementType)
+        {
+            byte[] result = EncodeVariantValue(variant);
+
+            Assert.That(result[0] & (byte)VariantArrayEncodingBits.Array,
+                Is.Not.EqualTo(0), "Array bit should be set");
+        }
+
+        [Test]
+        [TestCaseSource(nameof(ArrayVariantValueTestCases))]
+        public void WriteVariantValueWithArrayRoundTripsCorrectly(
+            Variant variant, Type expectedElementType)
+        {
+            Variant decoded = RoundTripVariantValue(variant);
+
+            Assert.That(decoded.TypeInfo.IsArray, Is.True);
+        }
+
+        [Test]
+        public void WriteVariantValueWithXmlElementArrayRoundTripsCorrectly()
+        {
+            var xmlDoc = new System.Xml.XmlDocument();
+            var elem = XmlElement.From(xmlDoc.CreateElement("E"));
+            var variant = new Variant(new XmlElementCollection { elem });
+
+            Variant decoded = RoundTripVariantValue(variant);
+
+            Assert.That(decoded.TypeInfo.IsArray, Is.True);
+        }
+
+        [Test]
+        public void WriteVariantValueWithBooleanMatrixRoundTripsCorrectly()
+        {
+            ArrayOf<bool> elements = [true, false, true, false];
+            var variant = new Variant(elements.ToMatrix([2, 2]));
+
+            byte[] result = EncodeVariantValue(variant);
+
+            Assert.That(result[0] & (byte)VariantArrayEncodingBits.ArrayDimensions,
+                Is.Not.EqualTo(0), "ArrayDimensions bit should be set");
+        }
+
+        [Test]
+        public void WriteVariantValueWithInt32MatrixRoundTripsCorrectly()
+        {
+            ArrayOf<int> elements = [1, 2, 3, 4];
+            var variant = new Variant(elements.ToMatrix([2, 2]));
+
+            Variant decoded = RoundTripVariantValue(variant);
+
+            Assert.That(decoded.TypeInfo.ValueRank, Is.GreaterThan(1));
+        }
+
+        [Test]
+        public void WriteVariantValueWithDoubleMatrixRoundTripsCorrectly()
+        {
+            ArrayOf<double> elements = [1.0, 2.0, 3.0, 4.0];
+            var variant = new Variant(elements.ToMatrix([2, 2]));
+
+            Variant decoded = RoundTripVariantValue(variant);
+
+            Assert.That(decoded.TypeInfo.ValueRank, Is.GreaterThan(1));
+        }
+
+        [Test]
+        public void WriteVariantValueWithStringMatrixRoundTripsCorrectly()
+        {
+            ArrayOf<string> elements = ["a", "b", "c", "d"];
+            var variant = new Variant(elements.ToMatrix([2, 2]));
+
+            Variant decoded = RoundTripVariantValue(variant);
+
+            Assert.That(decoded.TypeInfo.ValueRank, Is.GreaterThan(1));
+        }
+
+        [Test]
+        public void WriteVariantValueWithVariantMatrixRoundTripsCorrectly()
+        {
+            ArrayOf<Variant> elements =
+            [
+                new Variant(1), new Variant(2),
+                new Variant(3), new Variant(4)
+            ];
+            var variant = new Variant(elements.ToMatrix([2, 2]));
+
+            Variant decoded = RoundTripVariantValue(variant);
+
+            Assert.That(decoded.TypeInfo.ValueRank, Is.GreaterThan(1));
+        }
+
+        #endregion
+
         /// <summary>
         /// Creates a mock IServiceMessageContext for testing.
         /// </summary>
@@ -11194,5 +11527,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             Value3 = 3,
             LargeValue = 1000000
         }
+
+        private static readonly bool[] s_booleanArray = new bool[] { true, false };
+        private static readonly float[] s_floatArray = new float[] { 1.0f, 2.0f };
+        private static readonly double[] s_doubleArray = new double[] { 1.0, 2.0 };
+        private static readonly string[] s_stringArray = new string[] { "a", "b" };
     }
 }
