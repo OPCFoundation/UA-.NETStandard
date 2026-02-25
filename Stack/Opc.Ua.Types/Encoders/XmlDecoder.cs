@@ -85,7 +85,7 @@ namespace Opc.Ua
         /// </summary>
         public XmlDecoder(Type systemType, XmlReader reader, IServiceMessageContext context)
         {
-            Context = context;
+            Context = context ?? throw new ArgumentNullException(nameof(context));
             m_logger = context.Telemetry.CreateLogger<XmlDecoder>();
             m_reader = reader;
             m_nestingLevel = 0;
@@ -224,7 +224,9 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Skips to the end of the specified element.
+        /// Skips to the end of the specified element. Assumes we are already in
+        /// the element to skip. Will skip all nested elements with the same name
+        /// as well.
         /// </summary>
         /// <param name="qname">The qualified name of the element to skip.</param>
         /// <exception cref="ServiceResultException"></exception>
@@ -236,7 +238,8 @@ namespace Opc.Ua
 
                 int depth = 1;
 
-                while (depth > 0)
+                // Skip to end passing all nested elements with the same name.
+                while (depth > 0 && m_reader.NodeType != XmlNodeType.None)
                 {
                     if (m_reader.NodeType == XmlNodeType.EndElement)
                     {
@@ -244,14 +247,6 @@ namespace Opc.Ua
                             m_reader.NamespaceURI == qname.Namespace)
                         {
                             depth--;
-                        }
-                    }
-                    else if (m_reader.NodeType == XmlNodeType.Element)
-                    {
-                        if (m_reader.LocalName == qname.Name &&
-                            m_reader.NamespaceURI == qname.Namespace)
-                        {
-                            depth++;
                         }
                     }
 
@@ -464,7 +459,7 @@ namespace Opc.Ua
                 }
                 return xmlElement;
             }
-            catch (ArgumentException ae)
+            catch (Exception ae)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,

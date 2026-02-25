@@ -986,7 +986,7 @@ namespace Opc.Ua
             WriteByte(null, encoding);
 
             // write binary bodies.
-            if (body is byte[] bytes)
+            if (body is ByteString bytes)
             {
                 WriteByteString(null, bytes);
                 return;
@@ -1030,7 +1030,7 @@ namespace Opc.Ua
             {
                 using var encoder = new BinaryEncoder(Context);
                 encoder.WriteEncodeable(encodeable);
-                bytes = encoder.CloseAndReturnBuffer();
+                bytes = ByteString.From(encoder.CloseAndReturnBuffer());
                 WriteByteString(null, bytes);
             }
         }
@@ -1038,10 +1038,10 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteEncodeable<T>(string fieldName, T value) where T : IEncodeable
         {
-            if (value == null)
+            if (EqualityComparer<T>.Default.Equals(value, default))
             {
                 // create a default object if a null object specified.
-                if (!Context.Factory.TryGetEncodeableType<T>(out var activator))
+                if (!Context.Factory.TryGetEncodeableType<T>(out IEncodeableType activator))
                 {
                     throw new ArgumentNullException(nameof(value));
                 }
@@ -1053,11 +1053,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteEnumerated<T>(string fieldName, T value) where T : Enum
         {
-            if (value == null)
-            {
-                throw new ArgumentNullException(nameof(value));
-            }
-            WriteInt32(null, Convert.ToInt32(value, CultureInfo.InvariantCulture));
+            WriteInt32(null, EnumHelper.EnumToInt32(value));
         }
 
         /// <inheritdoc/>

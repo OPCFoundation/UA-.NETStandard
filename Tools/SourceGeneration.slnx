@@ -24,4 +24,5 @@
   <Folder Name="/Stack/">
     <Project Path="../Stack/Opc.Ua.Types/Opc.Ua.Types.csproj" />
   </Folder>
+  <Project Path="../Stack/Opc.Ua.Types.UnitTests/Opc.Ua.Types.UnitTests.csproj" Id="8ffc2d28-aa0d-44f8-9013-4ac2a5835d3c" />
 </Solution>
