@@ -1631,7 +1631,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void WriteByteStringWithIndexAndCountWritesValue()
+        public void WriteByteStringWritesValue()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -1641,10 +1641,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var settings = new XmlWriterSettings { ConformanceLevel = ConformanceLevel.Fragment };
             using var writer = XmlWriter.Create(sb, settings);
             var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
-            byte[] bytes = [0, 1, 2, 3, 4, 5, 6, 7];
+            ByteString bytes = [0, 1, 2, 3, 4, 5, 6, 7];
 
             // Act
-            encoder.WriteByteString("TestByteString", bytes, 0, 8);
+            encoder.WriteByteString("TestByteString", bytes);
             encoder.Close();
 
             // Assert

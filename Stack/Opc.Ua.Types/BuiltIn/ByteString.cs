@@ -34,10 +34,15 @@ using System.Buffers;
 using System.Buffers.Text;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.Serialization;
 using System.Text.Json.Serialization;
+using System.Xml;
+using System.Xml.Schema;
+using System.Xml.Serialization;
 
 namespace Opc.Ua
 {
@@ -920,6 +925,57 @@ namespace Opc.Ua
         public static ByteString ToByteString(this IEnumerable<byte>? bytes)
         {
             return bytes == null ? default : ByteString.From(bytes.ToArray());
+        }
+    }
+
+    /// <summary>
+    /// Helper to allow data contract serialization of ByteString
+    /// </summary>
+    [DataContract(
+        Name = "ByteString",
+        Namespace = Namespaces.OpcUaXsd)]
+    public class SerializableByteString : ISurrogateFor<ByteString>,
+        IXmlSerializable
+    {
+        /// <inheritdoc/>
+        public SerializableByteString()
+        {
+            Value = default;
+        }
+
+        /// <inheritdoc/>
+        public SerializableByteString(ByteString value)
+        {
+            Value = value;
+        }
+
+        /// <inheritdoc/>
+        public ByteString Value { get; private set; }
+
+        /// <inheritdoc/>
+        public object GetValue()
+        {
+            return Value;
+        }
+
+        /// <inheritdoc/>
+        public XmlSchema? GetSchema()
+        {
+            return null;
+        }
+
+        /// <inheritdoc/>
+        public void ReadXml(XmlReader reader)
+        {
+            reader.MoveToContent();
+            Value = ByteString.FromBase64(reader.ReadContentAsString());
+        }
+
+        /// <inheritdoc/>
+        public void WriteXml(XmlWriter writer)
+        {
+            writer.WriteValue(
+                Value.ToBase64(Base64FormattingOptions.InsertLineBreaks));
         }
     }
 }

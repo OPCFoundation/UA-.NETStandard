@@ -95,10 +95,6 @@ namespace Opc.Ua
                 return surrogate.GetValue();
             }
 
-            if (targetType == typeof(ByteString))
-            {
-                return ByteString.From((byte[])obj);
-            }
             if (targetType == typeof(XmlElement))
             {
                 return XmlElement.From((System.Xml.XmlElement)obj);
@@ -142,10 +138,6 @@ namespace Opc.Ua
             }
             if (!SurrogateMappings.TryGetValue(targetType, out Type surrogateType))
             {
-                if (obj is ByteString byteString)
-                {
-                    return byteString.ToArray();
-                }
                 if (obj is XmlElement xmlElement)
                 {
                     return xmlElement.ToXmlElement();
@@ -198,10 +190,6 @@ namespace Opc.Ua
             {
                 return surrogateType;
             }
-            if (type == typeof(ByteString))
-            {
-                return typeof(byte[]);
-            }
             if (type == typeof(XmlElement))
             {
                 return typeof(System.Xml.XmlElement);
@@ -234,6 +222,7 @@ namespace Opc.Ua
             { typeof(QualifiedName), typeof(SerializableQualifiedName) },
             { typeof(Variant), typeof(SerializableVariant) },
             { typeof(LocalizedText), typeof(SerializableLocalizedText) },
+            { typeof(ByteString), typeof(SerializableByteString) },
             { typeof(XmlElementCollection), typeof(SerializableXmlElementCollection) }
         };
     }
