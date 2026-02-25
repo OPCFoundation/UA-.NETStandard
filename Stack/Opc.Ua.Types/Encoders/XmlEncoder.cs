@@ -895,6 +895,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public void WriteEncodeableAsExtensionObject<T>(string fieldName, T value)
+            where T : IEncodeable
+        {
+            WriteExtensionObject(fieldName, new ExtensionObject(value));
+        }
+
+        /// <inheritdoc/>
         public void WriteEnumerated<T>(string fieldName, T value) where T : Enum
         {
             if (BeginField(fieldName, value == null, true))
@@ -1592,6 +1599,13 @@ namespace Opc.Ua
 
                 EndField(fieldName);
             }
+        }
+
+        /// <inheritdoc/>
+        public void WriteEncodeableArrayAsExtensionObjects<T>(string fieldName, ArrayOf<T> values)
+            where T : IEncodeable
+        {
+            WriteExtensionObjectArray(fieldName, values.ConvertAll(v => new ExtensionObject(v)));
         }
 
         /// <inheritdoc/>

@@ -1018,9 +1018,22 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0], Is.EqualTo(0x01)); // DiagnosticInfoEncodingBits.SymbolicId
         }
 
-        /// <summary>
-        /// Tests that WriteUInt16Array throws an exception when MaxArrayLength is exceeded.
-        /// </summary>
+        [Test]
+        public void WriteUInt16Array_EmptyArray_WritesZeroLength()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<ushort> emptyArray = [];
+            // Act
+            encoder.WriteUInt16Array("TestField", emptyArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
+        }
+
         [Test]
         public void WriteUInt16Array_ExceedsMaxArrayLength_ThrowsServiceResultException()
         {
@@ -1034,9 +1047,22 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex?.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Verifies that WriteXmlElementArray correctly handles a null array by writing -1 as the length.
-        /// </summary>
+        [Test]
+        public void WriteExtensionObjectArray_EmptyArray_WritesZeroLength()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<ExtensionObject> emptyArray = [];
+            // Act
+            encoder.WriteExtensionObjectArray("TestField", emptyArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
+        }
+
         [Test]
         public void WriteXmlElementArray_NullArray_WritesNegativeOne()
         {
@@ -2595,10 +2621,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Length, Is.GreaterThan(0));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with a null extension object.
-        /// Expects NodeId.Null and ExtensionObjectEncoding.None to be written.
-        /// </summary>
         [Test]
         public void WriteExtensionObject_NullExtensionObject_WritesNullNodeIdAndNoneEncoding()
         {
@@ -2624,10 +2646,32 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(encoding, Is.EqualTo((byte)ExtensionObjectEncoding.None));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with an extension object that has a null body.
-        /// Expects the TypeId to be written followed by ExtensionObjectEncoding.None.
-        /// </summary>
+        [Test]
+        public void WriteExtensionObject_ExtensionObjectWithNullBody_WritesNodeIdAndNoneEncoding()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var namespaceTable = new NamespaceTable();
+            namespaceTable.Append(Namespaces.OpcUa);
+            messageContext.NamespaceUris = namespaceTable;
+            var encoder = new BinaryEncoder(messageContext);
+            var typeId = new ExpandedNodeId(123, 0);
+            var extensionObject = new ExtensionObject(typeId);
+            // Act
+            encoder.WriteExtensionObject("test", extensionObject);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.GreaterThan(0));
+            // Verify that null NodeId and None encoding were written
+            var decoder = new BinaryDecoder(result, messageContext);
+            NodeId nodeId = decoder.ReadNodeId(null);
+            byte encoding = decoder.ReadByte(null);
+            Assert.That(nodeId, Is.EqualTo(new NodeId(123, 0)));
+            Assert.That(encoding, Is.EqualTo((byte)ExtensionObjectEncoding.None));
+        }
+
         [Test]
         public void WriteExtensionObject_NullByteString_WritesTypeIdAndNoneEncoding()
         {
@@ -3008,10 +3052,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(flag, Is.True);
         }
 
-        /// <summary>
-        /// Tests that WriteDoubleArray throws ServiceResultException when array exceeds MaxArrayLength.
-        /// Expected: ServiceResultException with BadEncodingLimitsExceeded status code.
-        /// </summary>
         [Test]
         public void WriteDoubleArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
         {
@@ -3023,6 +3063,22 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteDoubleArray("test", largeArray));
             Assert.That(ex, Is.Not.Null);
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void WriteDoubleArray_EmptyArray_WritesZeroLength()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<double> emptyArray = [];
+            // Act
+            encoder.WriteDoubleArray("TestField", emptyArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
         }
 
         /// <summary>
@@ -4020,11 +4076,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0] & 0x80, Is.EqualTo(0x00));
         }
 
-        /// <summary>
-        /// Tests that WriteExpandedNodeId uses namespace mappings when SetMappingTables has been called.
-        /// Input: ExpandedNodeId with namespace index, and namespace mappings configured
-        /// Expected: Uses mapped namespace index.
-        /// </summary>
         [Test]
         public void WriteExpandedNodeId_WithNamespaceMappings_UsesMappedNamespaceIndex()
         {
@@ -4477,9 +4528,35 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
         }
 
-        /// <summary>
-        /// Tests that WriteNodeIdArray correctly handles an empty array by writing 0 as the length.
-        /// </summary>
+        [Test]
+        public void WriteNodeId_WithNamespaceMappings_UsesMappedNamespaceIndex()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var contextNamespaceUris = new NamespaceTable();
+            var encoderNamespaceUris = new NamespaceTable();
+
+            messageContext.NamespaceUris = contextNamespaceUris;
+            // Add namespace URIs in different order to create a mapping
+            contextNamespaceUris.Append("http://namespace1.com");
+            contextNamespaceUris.Append("http://namespace2.com");
+            encoderNamespaceUris.Append("http://namespace2.com");
+            encoderNamespaceUris.Append("http://namespace1.com");
+            var encoder = new BinaryEncoder(messageContext);
+            encoder.SetMappingTables(encoderNamespaceUris, null);
+            var nodeId = new NodeId(100u, 1); // namespace index 1 in encoder space
+            // Act
+            encoder.WriteNodeId("TestField", nodeId);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result[1], Is.EqualTo(2)); // namespace index 2 via mapping
+            Assert.That(result[2], Is.EqualTo(100)); // namespace index 2 via mapping
+        }
+
         [Test]
         public void WriteNodeIdArray_EmptyArray_WritesZeroLength()
         {
@@ -6995,6 +7072,36 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(-1), "Length should be -1 for null string");
         }
 
+        [Test]
+        public void WriteStringArray_EmptyArray_WritesZeroLength()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<string> emptyArray = [];
+            // Act
+            encoder.WriteStringArray("TestField", emptyArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
+        }
+
+        [Test]
+        public void WriteStringArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(2);
+            var encoder = new BinaryEncoder(messageContext);
+            var array = ArrayOf.Wrapped("test", "test", "test");
+            // Act & Assert
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteStringArray("TestField", array));
+            Assert.That(exception, Is.Not.Null);
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
         /// <summary>
         /// Tests that WriteByteString writes -1 as length when an empty span is provided.
         /// </summary>
@@ -7521,11 +7628,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(-0.0f));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray throws ServiceResultException when array exceeds MaxArrayLength.
-        /// Input: ArrayOf&lt;float&gt; with 3 elements, MaxArrayLength = 2
-        /// Expected: ServiceResultException with BadEncodingLimitsExceeded status code
-        /// </summary>
         [Test]
         public void WriteFloatArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
         {
@@ -7534,7 +7636,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             var encoder = new BinaryEncoder(messageContext);
             var array = ArrayOf.Wrapped(1.0f, 2.0f, 3.0f);
             // Act & Assert
-            ServiceResultException exception = Assert.Throws<ServiceResultException>(() => encoder.WriteFloatArray("TestField", array));
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteFloatArray("TestField", array));
             Assert.That(exception, Is.Not.Null);
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
@@ -11142,6 +11245,23 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
+        }
+
+        [Test]
+        public void WriteEncodeableWithNull_ThrowsIfNoEncodeableInFactory()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                Factory = EncodeableFactory.Create()
+            };
+            var encoder = new BinaryEncoder(messageContext);
+            // Act
+            var ex = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteEncodeable<TestEncodeable>("Test", null));
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
         }
 
         [Test]

@@ -225,13 +225,22 @@ namespace Opc.Ua
         /// Writes an encodeable object to the stream.
         /// </summary>
         /// <typeparam name="T">The type of the encodeable</typeparam>
-        void WriteEncodeable<T>(string fieldName, T value) where T : IEncodeable;
+        void WriteEncodeable<T>(string fieldName, T value)
+            where T : IEncodeable;
 
         /// <summary>
-        /// Writes an enumerated value array to the stream.
+        /// Writes an encodeable object to the stream as extension object.
+        /// </summary>
+        /// <typeparam name="T">The type of the encodeable</typeparam>
+        void WriteEncodeableAsExtensionObject<T>(string fieldName, T value)
+            where T : IEncodeable;
+
+        /// <summary>
+        /// Writes an enumerated value to the stream.
         /// </summary>
         /// <typeparam name="T">The type of the enumeration</typeparam>
-        void WriteEnumerated<T>(string fieldName, T value) where T : Enum;
+        void WriteEnumerated<T>(string fieldName, T value)
+            where T : Enum;
 
         /// <summary>
         /// Writes a boolean array to the stream.
@@ -363,6 +372,13 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T">The type of the array elements</typeparam>
         void WriteEncodeableArray<T>(string fieldName, ArrayOf<T> values)
+            where T : IEncodeable;
+
+        /// <summary>
+        /// Writes an encodeable object array to the stream as extension objects.
+        /// </summary>
+        /// <typeparam name="T">The type of the array elements</typeparam>
+        void WriteEncodeableArrayAsExtensionObjects<T>(string fieldName, ArrayOf<T> values)
             where T : IEncodeable;
 
         /// <summary>
