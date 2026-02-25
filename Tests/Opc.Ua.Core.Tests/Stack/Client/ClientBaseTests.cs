@@ -230,9 +230,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
                 // Assert - trace context should be added to request header
                 Assert.That(request.RequestHeader.AdditionalHeader, Is.Not.Null);
-                Assert.That(request.RequestHeader.AdditionalHeader!.Body, Is.InstanceOf<AdditionalParametersType>());
-
-                var additionalParams = (AdditionalParametersType)request.RequestHeader.AdditionalHeader.Body;
+                Assert.That(request.RequestHeader.AdditionalHeader!.TryGetEncodeable(
+                    out AdditionalParametersType additionalParams), Is.True);
+                Assert.That(additionalParams, Is.Not.Null);
                 KeyValuePair spanContextParam = additionalParams.Parameters.FirstOrDefault(p => p.Key == "SpanContext")!;
                 Assert.That(spanContextParam, Is.Not.Null);
             }

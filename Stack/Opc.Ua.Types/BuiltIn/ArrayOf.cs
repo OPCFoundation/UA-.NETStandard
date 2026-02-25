@@ -30,6 +30,7 @@
 #nullable enable
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -101,12 +102,6 @@ namespace Opc.Ua
         /// <inheritdoc/>
         internal ArrayOf(T[] values)
             : this(values.AsMemory())
-        {
-        }
-
-        /// <inheritdoc/>
-        internal ArrayOf(IEnumerable<T> values)
-            : this([.. values])
         {
         }
 
@@ -360,10 +355,16 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static explicit operator ArrayOf<T>(List<T> list)
+        public static implicit operator ArrayOf<T>(List<T> list)
         {
-            return list.Count == 0 ? [] : new(list.ToArray());
+            return FromList(list);
         }
+
+        // /// <inheritdoc/>
+        // public static explicit operator List<T>(ArrayOf<T> array)
+        // {
+        //     return array.ToList();
+        // }
 
         /// <inheritdoc/>
         public static explicit operator T[](ArrayOf<T> array)
@@ -417,6 +418,16 @@ namespace Opc.Ua
                 newList.Add(m_memory.Span[i]);
             }
             return newList;
+        }
+
+        /// <summary>
+        /// Return a array of the type of the list element with
+        /// the elements of the list
+        /// </summary>
+        /// <returns></returns>
+        internal static ArrayOf<T> FromList(List<T>? list)
+        {
+            return list == null ? default : list.Count == 0 ? [] : new(list.ToArray());
         }
 
         /// <summary>
@@ -587,7 +598,29 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         public static ArrayOf<T> ToArrayOf<T>(this IEnumerable<T>? values)
         {
-            return values == null ? default : new(values);
+            if (values == null)
+            {
+                return default;
+            }
+#if NET8_0_OR_GREATER
+            if (values.TryGetNonEnumeratedCount(out int count))
+            {
+                if (count == 0)
+                {
+                    return ArrayOf<T>.Empty;
+                }
+                var copy = new T[count];
+                int index = 0;
+                foreach (T item in values)
+                {
+                    copy[index++] = item;
+                }
+                return new(copy);
+            }
+#endif
+#pragma warning disable RCS1151 // Cast explicit to avoid covariant conversion
+            return new([.. values.Cast<T>()]);
+#pragma warning restore RCS1151 // Cast explicit to avoid covariant conversion
         }
 
         /// <summary>
@@ -599,7 +632,7 @@ namespace Opc.Ua
             this IEnumerable<T>? values,
             Func<T, TResult> predicate)
         {
-            return values == null ? default : new(values.Select(predicate));
+            return ToArrayOf(values?.Select(predicate));
         }
 
         /// <summary>

@@ -336,7 +336,7 @@ namespace Opc.Ua.Server.Tests
                             "TestSession",
                             60000, // sessionTimeout
                             null, // userIdentity
-                            null) // preferredLocales
+                            default) // preferredLocales
                             .ConfigureAwait(false);
                     }
                     catch (ServiceResultException e) when (

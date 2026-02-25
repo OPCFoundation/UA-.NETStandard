@@ -80,7 +80,7 @@ namespace Opc.Ua.Client.Tests
             ActivateSessionResponse response = await sessionMock.ActivateSessionAsync(
                 requestHeader,
                 clientSignature,
-                null,
+                default,
                 localeIds,
                 userIdentityToken,
                 userTokenSignature,
@@ -122,7 +122,7 @@ namespace Opc.Ua.Client.Tests
                 async () => await sessionMock.ActivateSessionAsync(
                     requestHeader,
                     clientSignature,
-                    null,
+                    default,
                     localeIds,
                     userIdentityToken,
                     userTokenSignature,
@@ -153,7 +153,7 @@ namespace Opc.Ua.Client.Tests
                 async () => await sessionMock.ActivateSessionAsync(
                     requestHeader,
                     clientSignature,
-                    null,
+                    default,
                     localeIds,
                     userIdentityToken,
                     userTokenSignature,
@@ -641,9 +641,9 @@ namespace Opc.Ua.Client.Tests
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null)
             {
-                Assert.That(requestHeader.AdditionalHeader, Is.Not.Null);
-                var additionalParameters = requestHeader.AdditionalHeader.Body as AdditionalParametersType;
-                Assert.That(additionalParameters, Is.Not.Null);
+                Assert.That(requestHeader.AdditionalHeader.IsNull, Is.False);
+                Assert.That(requestHeader.AdditionalHeader.TryGetEncodeable(
+                    out AdditionalParametersType additionalParameters), Is.True);
                 Assert.That(additionalParameters.Parameters.Any(k => k.Key == "SpanContext"), Is.True);
             }
 
@@ -702,8 +702,9 @@ namespace Opc.Ua.Client.Tests
             Assert.That(response, Is.Not.Null);
             if (requestHeader != null)
             {
-                Assert.That(requestHeader.AdditionalHeader, Is.Not.Null);
-                var additionalParameters = requestHeader.AdditionalHeader.Body as AdditionalParametersType;
+                Assert.That(requestHeader.AdditionalHeader.IsNull, Is.False);
+                Assert.That(requestHeader.AdditionalHeader.TryGetEncodeable(
+                    out AdditionalParametersType additionalParameters), Is.True);
                 Assert.That(additionalParameters, Is.Not.Null);
                 Assert.That(additionalParameters.Parameters.Any(k => k.Key == "SpanContext"), Is.True);
             }

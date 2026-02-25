@@ -3609,20 +3609,13 @@ namespace Opc.Ua.Server
             rangeRequired = false;
 
             // check filter.
-            DataChangeFilter datachangeFilter = null;
-
-            if (!filter.IsNull)
-            {
-                datachangeFilter = filter.Body as DataChangeFilter;
-            }
-
-            if (datachangeFilter != null)
+            if (filter.TryGetEncodeable(out DataChangeFilter dataChangeFilter))
             {
                 // get the datatype of the node.
                 NodeId datatypeId = metadata.DataType;
 
                 // check that filter is valid.
-                ServiceResult error = datachangeFilter.Validate();
+                ServiceResult error = dataChangeFilter.Validate();
 
                 if (ServiceResult.IsBad(error))
                 {
@@ -3636,7 +3629,7 @@ namespace Opc.Ua.Server
                 }
 
                 // percent deadbands only allowed for analog data items.
-                if (datachangeFilter.DeadbandType == (int)DeadbandType.Percent)
+                if (dataChangeFilter.DeadbandType == (int)DeadbandType.Percent)
                 {
                     ExpandedNodeId typeDefinitionId = metadata.TypeDefinition;
 

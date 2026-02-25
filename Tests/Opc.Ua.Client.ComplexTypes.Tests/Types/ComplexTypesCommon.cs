@@ -341,11 +341,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             TestContext.Out.WriteLine(result);
             Assert.IsNotNull(result, "Resulting DataValue is Null, " + encodeInfo);
             Assert.AreEqual(expected.Encoding, result.Encoding, encodeInfo);
-            //TODO: investigate why AreEqual cannot compare ExtensionObject and Body
-            //Assert.AreEqual(expected.Body, result.Body, encodeInfo);
-            Assert.IsTrue(
-                Utils.IsEqual(expected.Body, result.Body),
-                $"Opc.Ua.Utils.IsEqual failed to compare expected and result.\r\n{encodeInfo}.\r\n{expected.Body}\r\n!=\r\n{result.Body}.");
+            Assert.AreEqual(expected, result,
+                $"Failed to compare expected and result.\r\n{encodeInfo}.\r\n{expected}\r\n!=\r\n{result}.");
         }
 
         /// <summary>

@@ -402,11 +402,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             // test the accessor to the complex types
             Assert.True(dataValue.Value is ExtensionObject);
             var extensionObject = (ExtensionObject)dataValue.Value;
-            Assert.True(extensionObject.Body is IEncodeable);
-            var encodeable = extensionObject.Body as IEncodeable;
+            Assert.True(extensionObject.TryGetEncodeable(out IEncodeable encodeable));
             Assert.NotNull(encodeable);
-            Assert.True(extensionObject.Body is IComplexTypeProperties);
-            var complexType = extensionObject.Body as IComplexTypeProperties;
+            var complexType = encodeable as IComplexTypeProperties;
             Assert.NotNull(complexType);
 
             // list properties
@@ -459,11 +457,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             Assert.True(dataValue.Value is ExtensionObject);
             extensionObject = (ExtensionObject)dataValue.Value;
-            Assert.True(extensionObject.Body is IEncodeable);
-            encodeable = extensionObject.Body as IEncodeable;
+            Assert.True(extensionObject.TryGetEncodeable(out encodeable));
             Assert.NotNull(encodeable);
-            Assert.True(extensionObject.Body is IComplexTypeProperties);
-            complexType = extensionObject.Body as IComplexTypeProperties;
+            complexType = encodeable as IComplexTypeProperties;
             Assert.NotNull(complexType);
 
             // list properties

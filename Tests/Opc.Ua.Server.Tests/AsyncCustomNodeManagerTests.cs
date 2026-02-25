@@ -99,7 +99,7 @@ namespace Opc.Ua.Server.Tests
 
             m_mockServer.Setup(s => s.MonitoredItemQueueFactory).Returns(new MonitoredItemQueueFactory(mockTelemetry.Object));
 
-            // Setup DefaultSystemContext 
+            // Setup DefaultSystemContext
             m_serverSystemContext = new ServerSystemContext(m_mockServer.Object);
             m_mockServer.Setup(s => s.DefaultSystemContext).Returns(m_serverSystemContext);
 
@@ -522,7 +522,7 @@ namespace Opc.Ua.Server.Tests
             variable.ValueRank = ValueRanks.Scalar;
             variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
             variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.InstrumentRange = new PropertyState<Range>(variable)
+            variable.InstrumentRange = new PropertyState<Range>.Implementation<StructureBuilder<Range>>(variable)
             {
                 Value = new Range { Low = 0.0, High = 100.0 }
             };
@@ -565,7 +565,7 @@ namespace Opc.Ua.Server.Tests
             variable.ArrayDimensions = [0];
             variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
             variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.InstrumentRange = new PropertyState<Range>(variable)
+            variable.InstrumentRange = new PropertyState<Range>.Implementation<StructureBuilder<Range>>(variable)
             {
                 Value = new Range { Low = 0.0, High = 100.0 }
             };
@@ -1127,11 +1127,11 @@ namespace Opc.Ua.Server.Tests
                 BrowseName = new QualifiedName("CallMethod", nsIdx)
             };
 
-            method.InputArguments = new PropertyState<Argument[]>(method)
+            method.InputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(method)
             {
                 Value = []
             };
-            method.OutputArguments = new PropertyState<Argument[]>(method)
+            method.OutputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(method)
             {
                 Value =
                 [
@@ -1526,11 +1526,11 @@ namespace Opc.Ua.Server.Tests
 
             var eventState = new BaseEventState(null)
             {
-                EventType = new PropertyState<NodeId>(null)
+                EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(null)
                 {
                     Value = NodeId.Null
                 },
-                SourceNode = new PropertyState<NodeId>(null)
+                SourceNode = new PropertyState<NodeId>.Implementation<VariantBuilder>(null)
                 {
                     Value = NodeId.Null
                 }

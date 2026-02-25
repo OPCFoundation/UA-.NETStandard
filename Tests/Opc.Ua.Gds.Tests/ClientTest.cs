@@ -222,7 +222,7 @@ namespace Opc.Ua.Gds.Tests
                 ArrayOf<ApplicationRecordDataType> applicationDataRecords = await m_gdsClient.GDSClient
                     .FindApplicationAsync(
                         newRecord.ApplicationUri).ConfigureAwait(false);
-                Assert.NotNull(applicationDataRecords);
+                Assert.False(applicationDataRecords.IsNull);
                 bool newIdFound = false;
                 bool registeredIdFound = false;
                 foreach (ApplicationRecordDataType applicationDataRecord in applicationDataRecords.ToList())
@@ -509,10 +509,9 @@ namespace Opc.Ua.Gds.Tests
                 Assert.NotNull(result);
                 result.ServerCapabilities.Sort();
                 application.ApplicationRecord.ServerCapabilities.Sort();
-                Assert.IsTrue(
-                    Utils.IsEqual(
-                        application.ApplicationRecord.ServerCapabilities,
-                        result.ServerCapabilities));
+                Assert.AreEqual(
+                    application.ApplicationRecord.ServerCapabilities,
+                    result.ServerCapabilities);
             }
         }
 
@@ -544,7 +543,7 @@ namespace Opc.Ua.Gds.Tests
             int totalCount = 0;
             uint firstID = uint.MaxValue;
             uint lastID = 0;
-            Assert.IsNotNull(allServers);
+            Assert.False(allServers.IsNull);
             foreach (ServerOnNetwork server in allServers.ToList())
             {
                 ArrayOf<ServerOnNetwork> oneServers = (await m_gdsClient.GDSClient.QueryServersAsync(
@@ -554,7 +553,7 @@ namespace Opc.Ua.Gds.Tests
                     string.Empty,
                     string.Empty,
                     []).ConfigureAwait(false)).servers;
-                Assert.IsNotNull(oneServers);
+                Assert.False(oneServers.IsNull);
                 Assert.GreaterOrEqual(oneServers.Count, 1);
                 foreach (ServerOnNetwork oneServer in oneServers)
                 {
@@ -579,11 +578,11 @@ namespace Opc.Ua.Gds.Tests
             await ConnectGDSAsync(false).ConfigureAwait(false);
             // get all servers
             ArrayOf<ServerOnNetwork> allServers = await m_gdsClient.GDSClient
-                .QueryServersAsync(0, null, null, null, null).ConfigureAwait(false);
+                .QueryServersAsync(0, null, null, null, default).ConfigureAwait(false);
             int totalCount = 0;
             uint firstID = uint.MaxValue;
             uint lastID = 0;
-            Assert.IsNotNull(allServers);
+            Assert.False(allServers.IsNull);
             foreach (ServerOnNetwork server in allServers.ToList())
             {
                 ArrayOf<ServerOnNetwork> oneServers = (await m_gdsClient.GDSClient.QueryServersAsync(
@@ -592,8 +591,8 @@ namespace Opc.Ua.Gds.Tests
                     null,
                     null,
                     null,
-                    null).ConfigureAwait(false)).servers;
-                Assert.IsNotNull(oneServers);
+                    default).ConfigureAwait(false)).servers;
+                Assert.False(oneServers.IsNull);
                 Assert.GreaterOrEqual(oneServers.Count, 1);
                 foreach (ServerOnNetwork oneServer in oneServers)
                 {
@@ -627,8 +626,8 @@ namespace Opc.Ua.Gds.Tests
                     string.Empty,
                     string.Empty,
                     string.Empty,
-                    null).ConfigureAwait(false)).servers;
-                Assert.IsNotNull(iterServers);
+                    default).ConfigureAwait(false)).servers;
+                Assert.False(iterServers.IsNull);
                 serversOnNetwork += iterServers.Count;
                 if (iterServers.Count == 0)
                 {
@@ -654,8 +653,8 @@ namespace Opc.Ua.Gds.Tests
                     application.ApplicationRecord.ApplicationNames[0].Text,
                     string.Empty,
                     string.Empty,
-                    null).ConfigureAwait(false);
-                Assert.IsNotNull(atLeastOneServer);
+                    default).ConfigureAwait(false);
+                Assert.False(atLeastOneServer.IsNull);
                 if (application.ApplicationRecord.ApplicationType != ApplicationType.Client)
                 {
                     Assert.GreaterOrEqual(atLeastOneServer.Count, 1);
@@ -671,8 +670,8 @@ namespace Opc.Ua.Gds.Tests
                     searchName = $"{searchName[..searchPatternLength]}%";
                 }
                 atLeastOneServer = await m_gdsClient.GDSClient
-                    .QueryServersAsync(1, searchName, string.Empty, string.Empty, null).ConfigureAwait(false);
-                Assert.IsNotNull(atLeastOneServer);
+                    .QueryServersAsync(1, searchName, string.Empty, string.Empty, default).ConfigureAwait(false);
+                Assert.False(atLeastOneServer.IsNull);
                 if (application.ApplicationRecord.ApplicationType != ApplicationType.Client)
                 {
                     Assert.GreaterOrEqual(atLeastOneServer.Count, 1);
@@ -693,8 +692,8 @@ namespace Opc.Ua.Gds.Tests
                     null,
                     application.ApplicationRecord.ApplicationUri,
                     null,
-                    null).ConfigureAwait(false);
-                Assert.IsNotNull(atLeastOneServer);
+                    default).ConfigureAwait(false);
+                Assert.False(atLeastOneServer.IsNull);
                 if (application.ApplicationRecord.ApplicationType != ApplicationType.Client)
                 {
                     Assert.GreaterOrEqual(atLeastOneServer.Count, 1);
@@ -710,8 +709,8 @@ namespace Opc.Ua.Gds.Tests
                     searchName = $"{searchName[..searchPatternLength]}%";
                 }
                 atLeastOneServer = await m_gdsClient.GDSClient
-                    .QueryServersAsync(1, null, searchName, null, null).ConfigureAwait(false);
-                Assert.IsNotNull(atLeastOneServer);
+                    .QueryServersAsync(1, null, searchName, null, default).ConfigureAwait(false);
+                Assert.False(atLeastOneServer.IsNull);
                 if (application.ApplicationRecord.ApplicationType != ApplicationType.Client)
                 {
                     Assert.GreaterOrEqual(atLeastOneServer.Count, 1);
@@ -732,8 +731,8 @@ namespace Opc.Ua.Gds.Tests
                     null,
                     null,
                     application.ApplicationRecord.ProductUri,
-                    null).ConfigureAwait(false);
-                Assert.IsNotNull(atLeastOneServer);
+                    default).ConfigureAwait(false);
+                Assert.False(atLeastOneServer.IsNull);
                 if (application.ApplicationRecord.ApplicationType != ApplicationType.Client)
                 {
                     Assert.GreaterOrEqual(atLeastOneServer.Count, 1);
@@ -749,8 +748,8 @@ namespace Opc.Ua.Gds.Tests
                     searchName = $"{searchName[..searchPatternLength]}%";
                 }
                 atLeastOneServer = await m_gdsClient.GDSClient
-                    .QueryServersAsync(1, null, null, searchName, null).ConfigureAwait(false);
-                Assert.IsNotNull(atLeastOneServer);
+                    .QueryServersAsync(1, null, null, searchName, default).ConfigureAwait(false);
+                Assert.False(atLeastOneServer.IsNull);
                 if (application.ApplicationRecord.ApplicationType != ApplicationType.Client)
                 {
                     Assert.GreaterOrEqual(atLeastOneServer.Count, 1);
@@ -775,7 +774,7 @@ namespace Opc.Ua.Gds.Tests
                 string.Empty,
                 []).ConfigureAwait(false)).applications;
             int totalCount = 0;
-            Assert.IsNotNull(allApplications);
+            Assert.False(allApplications.IsNull);
             nextRecordId = 0;
             foreach (ApplicationDescription _ in allApplications.ToList())
             {
@@ -792,7 +791,7 @@ namespace Opc.Ua.Gds.Tests
                         0,
                         string.Empty,
                         []).ConfigureAwait(false);
-                Assert.IsNotNull(oneApplication);
+                Assert.False(oneApplication.IsNull);
                 Assert.GreaterOrEqual(oneApplication.Count, 1);
                 // foreach (ApplicationDescription oneApp in oneApplication)
                 // {
@@ -1006,8 +1005,8 @@ namespace Opc.Ua.Gds.Tests
                             {
                                 application.CertificateRequestId = default;
 
-                                Assert.Null(privateKey);
-                                Assert.NotNull(issuerCertificates);
+                                Assert.True(privateKey.IsNull);
+                                Assert.False(issuerCertificates.IsNull);
                                 application.Certificate = certificate.ToArray();
                                 application.IssuerCertificates = issuerCertificates.ConvertAll(c => c.ToArray()).ToArray();
                                 X509TestUtils.VerifySignedApplicationCert(
@@ -1071,13 +1070,13 @@ namespace Opc.Ua.Gds.Tests
                     application.ApplicationRecord.ApplicationId,
                     default).ConfigureAwait(false);
                 NUnit.Framework.Assert.That(certificateTypeIds.Count, Is.EqualTo(1));
-                Assert.NotNull(certificates[0]);
+                Assert.False(certificates[0].IsNull);
                 Assert.AreEqual(certificates[0], application.Certificate);
                 (ArrayOf<NodeId> certificateTypeIds2, ArrayOf<ByteString> certificates2) = await m_gdsClient.GDSClient.GetCertificatesAsync(
                     application.ApplicationRecord.ApplicationId,
                     application.CertificateGroupId).ConfigureAwait(false);
                 NUnit.Framework.Assert.That(certificateTypeIds2.Count, Is.EqualTo(1));
-                Assert.NotNull(certificates2[0]);
+                Assert.False(certificates2[0].IsNull);
                 Assert.AreEqual(certificates2[0], application.Certificate);
             }
         }
@@ -1363,7 +1362,7 @@ namespace Opc.Ua.Gds.Tests
                         {
                             application.CertificateRequestId = default;
 
-                            Assert.False(privateKey.IsEmpty);
+                            Assert.True(privateKey.IsEmpty);
                             Assert.NotNull(issuerCertificates);
                             application.Certificate = certificate.ToArray();
                             application.IssuerCertificates = issuerCertificates.ConvertAll(c => c.ToArray()).ToArray();

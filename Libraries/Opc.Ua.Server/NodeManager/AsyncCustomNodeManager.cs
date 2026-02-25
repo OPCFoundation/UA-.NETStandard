@@ -1155,9 +1155,9 @@ namespace Opc.Ua.Server
                 metadata.Executable = executable && userExecutable;
             }
 
-            if (values[10].TryGet(out AccessRestrictionType accessRestriction))
+            if (values[10].TryGet(out ushort accessRestriction))
             {
-                metadata.AccessRestrictions = accessRestriction;
+                metadata.AccessRestrictions = (AccessRestrictionType)accessRestriction;
             }
 
             if (values[11].TryGetStructure(
@@ -1190,9 +1190,9 @@ namespace Opc.Ua.Server
         /// </summary>
         private static void SetAccessAndRolePermissions(ArrayOf<Variant> values, NodeMetadata metadata)
         {
-            if (values[0].TryGet(out AccessRestrictionType accessRestrictions))
+            if (values[0].TryGet(out ushort accessRestrictions))
             {
-                metadata.AccessRestrictions = accessRestrictions;
+                metadata.AccessRestrictions = (AccessRestrictionType)accessRestrictions;
             }
 
             if (values[1].TryGetStructure(

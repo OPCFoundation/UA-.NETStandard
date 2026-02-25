@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection.Emit;
 using System.Threading;
 using System.Xml;
 using Opc.Ua.Types;
@@ -4381,9 +4382,11 @@ namespace Opc.Ua
         /// Creates a property and adds it to the node.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public PropertyState AddProperty<T>(string propertyName, NodeId dataTypeId, int valueRank)
+        /// <typeparam name="TBuilder">VariantBuilder, StructureBuilder or ENnumerationBuilder</typeparam>
+        public PropertyState AddProperty<T, TBuilder>(string propertyName, NodeId dataTypeId, int valueRank)
+            where TBuilder : struct, IVariantBuilder<T>
         {
-            PropertyState property = new PropertyState<T>(this)
+            PropertyState property = new PropertyState<T>.Implementation<TBuilder>(this)
             {
                 ReferenceTypeId = ReferenceTypeIds.HasProperty,
                 ModellingRuleId = default,

@@ -590,13 +590,13 @@ namespace Opc.Ua.SourceGeneration
                     public void CreateOrReplaceMoveOrCopy(
                         ISystemContext context, BaseInstanceState replacement) { }
                 }
-                public class AnalogUnitState : BaseDataVariableState<double>
+                public class AnalogUnitState : BaseDataVariableState
                 {
                     public AnalogUnitState(NodeState? parent) : base(parent) { }
                     public void CreateOrReplaceEngineeringUnits(
                         ISystemContext context, BaseInstanceState replacement) { }
                 }
-                public class AnalogItemState : BaseDataVariableState<double>
+                public class AnalogItemState : BaseDataVariableState
                 {
                     public AnalogItemState(NodeState? parent) : base(parent) { }
                     public void CreateOrReplaceEURange(
@@ -604,13 +604,15 @@ namespace Opc.Ua.SourceGeneration
                     public void CreateOrReplaceEngineeringUnits(
                         ISystemContext context, BaseInstanceState replacement) { }
                 }
-                public class AnalogItemState<T> : BaseDataVariableState<T>
+                public class AnalogItemState<T> : AnalogItemState
                 {
                     public AnalogItemState(NodeState? parent) : base(parent) { }
-                    public void CreateOrReplaceEURange(
-                        ISystemContext context, BaseInstanceState replacement) { }
-                    public void CreateOrReplaceEngineeringUnits(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                    public static AnalogItemState<T> With<TBuilder>(
+                        NodeState? parent = null)
+                        where TBuilder : struct, IVariantBuilder<T>
+                    {
+                        return null!;
+                    }
                 }
                 public class BaseInterfaceState : BaseObjectState
                 {
@@ -717,6 +719,12 @@ namespace Opc.Ua.SourceGeneration
                     public ConditionVariableState(NodeState? parent) : base(parent) { }
                     public void CreateOrReplaceSourceTimestamp(
                         ISystemContext context, BaseInstanceState replacement) { }
+                    public static ConditionVariableState<T> With<TBuilder>(
+                        NodeState? parent = null)
+                        where TBuilder : struct, IVariantBuilder<T>
+                    {
+                        return null!;
+                    }
                 }
                 public class FiniteStateVariableState : BaseVariableState
                 {

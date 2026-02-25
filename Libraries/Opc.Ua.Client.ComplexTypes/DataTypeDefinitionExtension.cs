@@ -277,7 +277,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             foreach (ExtensionObject extensionObject in enumValueTypes)
             {
-                if (extensionObject.Body is not EnumValueType enumValue)
+                if (!extensionObject.TryGetEncodeable(out EnumValueType enumValue))
                 {
                     // All we can do here is skip this value. Since there is no
                     // fallback it is better to include all other type fields if

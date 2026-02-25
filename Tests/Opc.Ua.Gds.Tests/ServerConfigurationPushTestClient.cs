@@ -222,7 +222,7 @@ namespace Opc.Ua.Gds.Tests
                 endpointConfiguration,
                 m_telemetry).ConfigureAwait(false);
             EndpointDescriptionCollection endpoints =
-                await discoveryClient.GetEndpointsAsync(null).ConfigureAwait(false);
+                await discoveryClient.GetEndpointsAsync(default).ConfigureAwait(false);
             await discoveryClient.CloseAsync().ConfigureAwait(false);
             EndpointDescription selectedEndpoint = null;
             foreach (EndpointDescription ep in endpoints)

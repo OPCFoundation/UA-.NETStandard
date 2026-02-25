@@ -784,13 +784,25 @@ namespace Opc.Ua
     /// A typed base class for all data variable type nodes.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public class BaseDataVariableTypeState<T> : BaseDataVariableTypeState
+    public abstract class BaseDataVariableTypeState<T> : BaseDataVariableTypeState
     {
         /// <summary>
         /// Initializes the type with its default attribute values.
         /// </summary>
-        public BaseDataVariableTypeState()
+        protected BaseDataVariableTypeState()
         {
+        }
+
+        /// <summary>
+        /// Creates a new instance of the <see cref="BaseDataVariableTypeState{T}"/>
+        /// class with a built-in value type and associated TBuilder to
+        /// extract the value from the Variant and create a new Variant from it.
+        /// </summary>
+        /// <typeparam name="TBuilder">The builder to use for T</typeparam>
+        public static BaseDataVariableTypeState<T> With<TBuilder>()
+            where TBuilder : struct, IVariantBuilder<T>
+        {
+            return new Implementation<TBuilder>();
         }
 
         /// <summary>
@@ -802,102 +814,26 @@ namespace Opc.Ua
             base.Initialize<T>(context);
         }
 
-        /// <summary>
-        /// The value of the variable.
-        /// </summary>
-        public new T Value
-        {
-            get => VariantHelper.CastTo<T>(base.Value, true);
-            set => base.Value = VariantHelper.CastFrom(value);
-        }
-    }
-
-    /// <summary>
-    /// A base class for all property variable type nodes.
-    /// </summary>
-    public class PropertyTypeState : BaseVariableTypeState
-    {
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
-        public PropertyTypeState()
-        {
-        }
+        /// <inheritdoc/>
+        public new abstract T Value { get; set; }
 
         /// <summary>
-        /// Constructs an instance of a node.
+        /// Adds builder which extracts T from Variant or creates new
+        /// Variant with type T. This is public so it can be overridden
+        /// by classes outside of the namespace.
         /// </summary>
-        /// <param name="parent">The parent.</param>
-        /// <returns>The new node.</returns>
-        public static NodeState Construct(NodeState parent)
+        /// <typeparam name="TBuilder">The builder to use for T</typeparam>
+        public class Implementation<TBuilder> : BaseDataVariableTypeState<T>
+            where TBuilder : struct, IVariantBuilder<T>
         {
-            return new PropertyTypeState();
-        }
+            /// <inheritdoc/>
+            public override T Value
+            {
+                get => m_builder.GetValue(WrappedValue);
+                set => WrappedValue = m_builder.WithValue(value);
+            }
 
-        /// <summary>
-        /// Initializes the instance with the default values.
-        /// </summary>
-        protected override void Initialize(ISystemContext context)
-        {
-            SuperTypeId = NodeId.Create(
-                VariableTypes.BaseVariableType,
-                Namespaces.OpcUa,
-                context.NamespaceUris);
-            NodeId = NodeId.Create(
-                VariableTypes.PropertyType,
-                Namespaces.OpcUa,
-                context.NamespaceUris);
-            BrowseName = QualifiedName.Create(
-                BrowseNames.PropertyType,
-                Namespaces.OpcUa,
-                context.NamespaceUris);
-            DisplayName = new LocalizedText(
-                BrowseNames.PropertyType,
-                string.Empty,
-                BrowseNames.PropertyType);
-            Description = default;
-            WriteMask = AttributeWriteMask.None;
-            UserWriteMask = AttributeWriteMask.None;
-            IsAbstract = false;
-            Value = Variant.Null;
-            DataType = NodeId.Create(
-                DataTypes.BaseDataType,
-                Namespaces.OpcUa,
-                context.NamespaceUris);
-            ValueRank = ValueRanks.Any;
-            ArrayDimensions = default;
-        }
-    }
-
-    /// <summary>
-    /// A typed base class for all property variable type nodes.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    public class PropertyTypeState<T> : PropertyTypeState
-    {
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
-        public PropertyTypeState()
-        {
-        }
-
-        /// <summary>
-        /// Initializes the instance with the default values.
-        /// </summary>
-        protected override void Initialize(ISystemContext context)
-        {
-            base.Initialize(context);
-            base.Initialize<T>(context);
-        }
-
-        /// <summary>
-        /// The value of the variable.
-        /// </summary>
-        public new T Value
-        {
-            get => VariantHelper.CastTo<T>(base.Value, true);
-            set => base.Value = VariantHelper.CastFrom(value);
+            private readonly TBuilder m_builder = new();
         }
     }
 }

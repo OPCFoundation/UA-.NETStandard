@@ -46,23 +46,15 @@ namespace Opc.Ua
             EventSeverity severity,
             LocalizedText message)
         {
-            m_eventId = new PropertyState<ByteString>(this)
-            {
-                Value = Uuid.NewUuid().ToByteString()
-            };
-
-            m_eventType = new PropertyState<NodeId>(this)
-            {
-                Value = GetDefaultTypeDefinitionId(context.NamespaceUris)
-            };
+            m_eventId = PropertyState<ByteString>.With<VariantBuilder>(this, Uuid.NewUuid().ToByteString());
+            m_eventType = PropertyState<NodeId>.With<VariantBuilder>(this, GetDefaultTypeDefinitionId(context.NamespaceUris));
 
             TypeDefinitionId = m_eventType.Value;
-
             if (source != null)
             {
                 if (!source.NodeId.IsNull)
                 {
-                    m_sourceNode = new PropertyState<NodeId>(this)
+                    m_sourceNode = new PropertyState<NodeId>.Implementation<VariantBuilder>(this)
                     {
                         Value = source.NodeId,
                         RolePermissions = source.RolePermissions,
@@ -73,20 +65,14 @@ namespace Opc.Ua
 
                 if (!source.BrowseName.IsNull)
                 {
-                    m_sourceName = new PropertyState<string>(this)
-                    {
-                        Value = source.BrowseName.Name
-                    };
+                    m_sourceName = PropertyState<string>.With<VariantBuilder>(this, source.BrowseName.Name);
                 }
             }
 
-            m_time = new PropertyState<DateTime>(this) { Value = DateTime.UtcNow };
-
-            m_receiveTime = new PropertyState<DateTime>(this) { Value = DateTime.UtcNow };
-
-            m_severity = new PropertyState<ushort>(this) { Value = (ushort)severity };
-
-            m_message = new PropertyState<LocalizedText>(this) { Value = message };
+            m_time = PropertyState<DateTime>.With<VariantBuilder>(this, DateTime.UtcNow);
+            m_receiveTime = PropertyState<DateTime>.With<VariantBuilder>(this, DateTime.UtcNow);
+            m_severity = PropertyState<ushort>.With<VariantBuilder>(this, (ushort)severity);
+            m_message = PropertyState<LocalizedText>.With<VariantBuilder>(this, message);
         }
     }
 

@@ -164,16 +164,11 @@ namespace Opc.Ua.Server
                 m_maxDurableQueueSize);
 
             // get filter.
-            MonitoringFilter filter = null;
-
-            if (!ExtensionObject.IsNull(itemToCreate.RequestedParameters.Filter))
+            if (itemToCreate.RequestedParameters.Filter.TryGetEncodeable(
+                out MonitoringFilter filter) &&
+                filter is EventFilter)
             {
-                filter = itemToCreate.RequestedParameters.Filter.Body as MonitoringFilter;
-            }
-
-            // update limits for event filters.
-            if (filter is EventFilter)
-            {
+                // update limits for event filters.
                 if (revisedQueueSize == 0)
                 {
                     revisedQueueSize = int.MaxValue;
@@ -343,16 +338,10 @@ namespace Opc.Ua.Server
             }
 
             // get filter.
-            MonitoringFilter filter = null;
-
-            if (!ExtensionObject.IsNull(itemToModify.RequestedParameters.Filter))
+            if (itemToModify.RequestedParameters.Filter.TryGetEncodeable(out MonitoringFilter filter) &&
+                filter is EventFilter)
             {
-                filter = (MonitoringFilter)itemToModify.RequestedParameters.Filter.Body;
-            }
-
-            // update limits for event filters.
-            if (filter is EventFilter)
-            {
+                // update limits for event filters.
                 samplingInterval = 0;
             }
 

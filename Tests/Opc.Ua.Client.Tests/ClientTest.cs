@@ -147,7 +147,7 @@ namespace Opc.Ua.Client.Tests
                 ServerUrl,
                 endpointConfiguration,
                 telemetry).ConfigureAwait(false);
-            Endpoints = await client.GetEndpointsAsync(null, CancellationToken.None)
+            Endpoints = await client.GetEndpointsAsync(default, CancellationToken.None)
                 .ConfigureAwait(false);
             StatusCode statusCode = await client.CloseAsync(CancellationToken.None)
                 .ConfigureAwait(false);
@@ -199,7 +199,7 @@ namespace Opc.Ua.Client.Tests
                 ServerUrl,
                 endpointConfiguration,
                 telemetry).ConfigureAwait(false);
-            ApplicationDescriptionCollection servers = await client.FindServersAsync(null)
+            ApplicationDescriptionCollection servers = await client.FindServersAsync(default)
                 .ConfigureAwait(false);
             StatusCode statusCode = await client.CloseAsync(CancellationToken.None)
                 .ConfigureAwait(false);
@@ -234,7 +234,7 @@ namespace Opc.Ua.Client.Tests
             try
             {
                 FindServersOnNetworkResponse response = await client
-                    .FindServersOnNetworkAsync(null, 0, 100, null, CancellationToken.None)
+                    .FindServersOnNetworkAsync(null, 0, 100, default, CancellationToken.None)
                     .ConfigureAwait(false);
                 StatusCode statusCode = await client.CloseAsync(CancellationToken.None)
                     .ConfigureAwait(false);
@@ -274,7 +274,7 @@ namespace Opc.Ua.Client.Tests
                 endpointConfiguration,
                 telemetry).ConfigureAwait(false);
             EndpointDescriptionCollection endpoints =
-                await client.GetEndpointsAsync(null).ConfigureAwait(false);
+                await client.GetEndpointsAsync(default).ConfigureAwait(false);
             Assert.NotNull(endpoints);
 
             ITransportChannel channel = client.TransportChannel;
@@ -1206,10 +1206,8 @@ namespace Opc.Ua.Client.Tests
             var dataTypeNode = (DataTypeNode)node;
             Assert.NotNull(dataTypeNode);
             ExtensionObject dataTypeDefinition = dataTypeNode.DataTypeDefinition;
-            Assert.NotNull(dataTypeDefinition);
-            Assert.NotNull(dataTypeDefinition.Body);
-            Assert.True(dataTypeDefinition.Body is StructureDefinition);
-            var structureDefinition = dataTypeDefinition.Body as StructureDefinition;
+            Assert.False(dataTypeDefinition.IsNull);
+            Assert.True(dataTypeDefinition.TryGetEncodeable(out StructureDefinition structureDefinition));
             Assert.AreEqual(
                 ObjectIds.ProgramDiagnosticDataType_Encoding_DefaultBinary,
                 structureDefinition.DefaultEncodingId);
@@ -1673,8 +1671,7 @@ namespace Opc.Ua.Client.Tests
                 {
                     continue;
                 }
-                if (item.Value.TryGet(out ExtensionObject eo) &&
-                    eo.Body is SpanContextDataType spanContext)
+                if (item.Value.TryGetStructure(out SpanContextDataType spanContext))
                 {
 #if NET8_0_OR_GREATER
                     Span<byte> spanIdBytes = stackalloc byte[8];
@@ -1743,12 +1740,11 @@ namespace Opc.Ua.Client.Tests
 
                     // Get the AdditionalHeader from the request
                     ExtensionObject additionalHeader = request.RequestHeader.AdditionalHeader;
-                    Assert.NotNull(additionalHeader);
+                    Assert.False(additionalHeader.IsNull);
+                    Assert.True(additionalHeader.TryGetEncodeable(out AdditionalParametersType additionalParams));
 
                     // Simulate extraction
-                    ActivityContext extractedContext = TestExtractActivityContextFromParameters(
-                        additionalHeader.Body as AdditionalParametersType);
-
+                    ActivityContext extractedContext = TestExtractActivityContextFromParameters(additionalParams);
                     // Verify that the trace context is propagated.
                     Assert.AreEqual(activity.TraceId, extractedContext.TraceId);
                     Assert.AreEqual(activity.SpanId, extractedContext.SpanId);

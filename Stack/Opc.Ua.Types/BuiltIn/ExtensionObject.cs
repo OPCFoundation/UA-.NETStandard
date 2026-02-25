@@ -168,6 +168,7 @@ namespace Opc.Ua
         /// <summary>
         /// The body of the extension object.
         /// </summary>
+        // [Obsolete("Use TryGetAsXXX API for type safe access to body.")]
         public object Body { get; }
 
         /// <summary>

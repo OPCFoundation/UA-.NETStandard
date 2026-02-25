@@ -98,7 +98,7 @@ namespace Opc.Ua.Gds.Client
                 null,
                 endpointUrl,
                 PreferredLocales,
-                null,
+                default,
                 ct).ConfigureAwait(false);
 
             return response.Servers;
@@ -107,7 +107,7 @@ namespace Opc.Ua.Gds.Client
         [Obsolete("Use FindServersAsync instead.")]
         public ArrayOf<ApplicationDescription> FindServers()
         {
-            IAsyncResult result = BeginFindServers(null, null, null, null, null, null, null);
+            IAsyncResult result = BeginFindServers(null, null, null, default, default, null, null);
             return EndFindServers(result);
         }
 
@@ -120,8 +120,8 @@ namespace Opc.Ua.Gds.Client
                 endpointUrl,
                 endpointTransportProfileUri,
                 null,
-                null,
-                null,
+                default,
+                default,
                 null,
                 null);
             return EndFindServers(result);
@@ -132,7 +132,7 @@ namespace Opc.Ua.Gds.Client
             AsyncCallback callback,
             object callbackData)
         {
-            return BeginFindServers(null, null, null, null, null, callback, callbackData);
+            return BeginFindServers(null, null, null, default, default, callback, callbackData);
         }
 
         [Obsolete("Use FindServersAsync instead.")]
@@ -235,8 +235,8 @@ namespace Opc.Ua.Gds.Client
             GetEndpointsResponse response = await client.GetEndpointsAsync(
                 null,
                 endpointUrl,
-                [.. PreferredLocales],
-                null,
+                PreferredLocales,
+                default,
                 ct)
                 .ConfigureAwait(false);
 
@@ -281,7 +281,7 @@ namespace Opc.Ua.Gds.Client
                 null,
                 endpointUrl,
                 [.. PreferredLocales],
-                null,
+                default,
                 OnGetEndpointsComplete,
                 data);
 
@@ -355,7 +355,7 @@ namespace Opc.Ua.Gds.Client
                 null,
                 startingRecordId,
                 maxRecordsToReturn,
-                null,
+                default,
                 ct);
         }
 
@@ -390,7 +390,7 @@ namespace Opc.Ua.Gds.Client
                 null,
                 startingRecordId,
                 maxRecordsToReturn,
-                null,
+                default,
                 null,
                 null);
             return EndFindServersOnNetwork(result, out lastCounterResetTime);
@@ -428,7 +428,7 @@ namespace Opc.Ua.Gds.Client
                 null,
                 startingRecordId,
                 maxRecordsToReturn,
-                null,
+                default,
                 callback,
                 callbackData);
         }

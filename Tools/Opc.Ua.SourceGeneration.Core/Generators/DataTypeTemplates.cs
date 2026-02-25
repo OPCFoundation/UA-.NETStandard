@@ -940,13 +940,6 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 /// <inheritdoc/>
-                public static implicit operator global::Opc.Ua.ArrayOf<{{Tokens.ClassName}}>(
-                    {{Tokens.ClassName}}Collection? values)
-                {
-                    return global::Opc.Ua.ArrayOf.ToArrayOf(values);
-                }
-
-                /// <inheritdoc/>
                 public static implicit operator {{Tokens.ClassName}}[](
                     {{Tokens.ClassName}}Collection? values)
                 {

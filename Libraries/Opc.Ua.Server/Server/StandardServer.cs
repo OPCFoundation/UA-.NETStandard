@@ -488,7 +488,7 @@ namespace Opc.Ua.Server
                     }
 
                     // return the endpoints supported by the server.
-                    serverEndpoints = GetEndpointDescriptions(endpointUrl, BaseAddresses, null);
+                    serverEndpoints = GetEndpointDescriptions(endpointUrl, BaseAddresses, default);
 
                     // sign the nonce provided by the client.
                     serverSignature = null;
@@ -1221,7 +1221,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                if (historyReadDetails.Body is ReadEventDetails)
+                if (historyReadDetails.TryGetEncodeable(out ReadEventDetails))
                 {
                     ValidateOperationLimits(
                         nodesToRead,

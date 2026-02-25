@@ -566,7 +566,7 @@ namespace Opc.Ua.Gds.Client
                 return outputArguments[0].GetStructureArray<ApplicationRecordDataType>();
             }
 
-            return null;
+            return default;
         }
 
         /// <summary>
@@ -1335,7 +1335,7 @@ namespace Opc.Ua.Gds.Client
                 return nodeIds;
             }
 
-            return null;
+            return default;
         }
 
         /// <summary>

@@ -928,12 +928,10 @@ namespace Opc.Ua
                 return;
             }
 
-            var encodeable = value.Body as IEncodeable;
-
             // write the type id.
             ExpandedNodeId typeId = value.TypeId;
 
-            if (encodeable != null)
+            if (value.TryGetEncodeable(out IEncodeable encodeable))
             {
                 if (value.Encoding == ExtensionObjectEncoding.Xml)
                 {
@@ -963,8 +961,7 @@ namespace Opc.Ua
 
             WriteNodeId(null, localTypeId);
 
-            object body = value.Body;
-            if (body == null)
+            if (value.IsNull)
             {
                 // nothing more to do for null bodies.
                 WriteByte(null, (byte)ExtensionObjectEncoding.None);
@@ -986,14 +983,14 @@ namespace Opc.Ua
             WriteByte(null, encoding);
 
             // write binary bodies.
-            if (body is ByteString bytes)
+            if (value.TryGetAsBinary(out ByteString bytes))
             {
                 WriteByteString(null, bytes);
                 return;
             }
 
             // write XML bodies.
-            if (body is XmlElement xml)
+            if (value.TryGetAsXml(out XmlElement xml))
             {
                 WriteXmlElement(null, xml);
                 return;

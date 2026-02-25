@@ -94,7 +94,7 @@ namespace Alarms
                         false);
                 }
                 // Off normal does not create MaxTimeShelved.
-                alarm.MaxTimeShelved ??= new PropertyState<double>(alarm);
+                alarm.MaxTimeShelved ??= PropertyState<double>.With<VariantBuilder>(alarm);
             }
 
             // Call the base class to set parameters

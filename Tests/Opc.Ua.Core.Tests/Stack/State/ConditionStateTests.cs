@@ -213,7 +213,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             alarm.Create(m_context, new NodeId(1), QualifiedName.From("Alarm"), default, true);
             alarm.ShelvingState = new ShelvedStateMachineState(alarm);
             alarm.ShelvingState.Create(m_context, default, QualifiedName.From(BrowseNames.ShelvingState), default, false);
-            alarm.ShelvingState.UnshelveTime = new PropertyState<double>(alarm.ShelvingState);
+            alarm.ShelvingState.UnshelveTime = PropertyState<double>.With<VariantBuilder>(alarm.ShelvingState);
 
             DateTime beforeTime = DateTime.UtcNow;
             alarm.SetShelvingState(m_context, true, false, 1000);

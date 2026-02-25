@@ -179,17 +179,17 @@ namespace Opc.Ua
                 equal = m_memory.Span.SequenceEqual(other);
                 Debug.Assert(!equal); // Memory corruption?
 #if DEBUG_EQUAL
-            if (_memory.Length == other.Length)
-            {
-                for (var i = 0; i < _memory.Length; i++)
+                if (_memory.Length == other.Length)
                 {
-                    if (_memory.Span[i] != other[i])
+                    for (var i = 0; i < _memory.Length; i++)
                     {
-                        return false;
+                        if (_memory.Span[i] != other[i])
+                        {
+                            return false;
+                        }
                     }
+                    Debug.Fail("Failed but equal");
                 }
-                Debug.Fail("Failed but equal");
-            }
 #endif
                 return equal;
             }

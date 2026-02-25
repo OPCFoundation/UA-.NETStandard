@@ -736,7 +736,7 @@ namespace Opc.Ua.Client
         protected internal void SetDeleteResult(
             StatusCode result,
             int index,
-            DiagnosticInfoCollection? diagnosticInfos,
+            ArrayOf<DiagnosticInfo> diagnosticInfos,
             ResponseHeader? responseHeader)
         {
             ServiceResult? error = null;

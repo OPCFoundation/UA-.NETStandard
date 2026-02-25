@@ -329,7 +329,7 @@ namespace Opc.Ua.Client.Tests
                     Config.ApplicationName,
                     SessionTimeout,
                     userIdentity,
-                    null)
+                    default)
                 .ConfigureAwait(false);
 
             Endpoint = session.ConfiguredEndpoint;
@@ -449,7 +449,7 @@ namespace Opc.Ua.Client.Tests
                 m_telemetry,
                 ct: ct).ConfigureAwait(false);
             client.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
-            EndpointDescriptionCollection result = await client.GetEndpointsAsync(null, ct)
+            EndpointDescriptionCollection result = await client.GetEndpointsAsync(default, ct)
                 .ConfigureAwait(false);
             await client.CloseAsync(ct).ConfigureAwait(false);
             return result;

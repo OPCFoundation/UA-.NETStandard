@@ -377,12 +377,12 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="profileUris">The collection of profile URIs.</param>
         [Obsolete("Use GetEndpointsAsync instead.")]
-        public virtual EndpointDescriptionCollection GetEndpoints(StringCollection profileUris)
+        public virtual EndpointDescriptionCollection GetEndpoints(ArrayOf<String> profileUris)
         {
             GetEndpoints(
                 null,
                 Endpoint.EndpointUrl,
-                null,
+                default,
                 profileUris,
                 out ArrayOf<EndpointDescription> endpoints);
 
@@ -395,13 +395,13 @@ namespace Opc.Ua
         /// <param name="profileUris">The collection of profile URIs.</param>
         /// <param name="ct">The cancellation token.</param>
         public virtual async Task<EndpointDescriptionCollection> GetEndpointsAsync(
-            StringCollection profileUris,
+            ArrayOf<String> profileUris,
             CancellationToken ct = default)
         {
             GetEndpointsResponse response = await GetEndpointsAsync(
                 null,
                 Endpoint.EndpointUrl,
-                null,
+                default,
                 profileUris,
                 ct)
                 .ConfigureAwait(false);
@@ -413,12 +413,12 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="serverUris">The collection of server URIs.</param>
         [Obsolete("Use FindServersAsync instead.")]
-        public virtual ApplicationDescriptionCollection FindServers(StringCollection serverUris)
+        public virtual ApplicationDescriptionCollection FindServers(ArrayOf<string> serverUris)
         {
             FindServers(
                 null,
                 Endpoint.EndpointUrl,
-                null,
+                default,
                 serverUris,
                 out ArrayOf<ApplicationDescription> servers);
 
@@ -431,13 +431,13 @@ namespace Opc.Ua
         /// <param name="serverUris">The collection of server URIs.</param>
         /// <param name="ct">The cancellation token.</param>
         public virtual async Task<ApplicationDescriptionCollection> FindServersAsync(
-            StringCollection serverUris,
+            ArrayOf<String> serverUris,
             CancellationToken ct = default)
         {
             FindServersResponse response = await FindServersAsync(
                 null,
                 Endpoint.EndpointUrl,
-                null,
+                default,
                 serverUris,
                 ct)
                 .ConfigureAwait(false);
@@ -451,7 +451,7 @@ namespace Opc.Ua
         public virtual ServerOnNetworkCollection FindServersOnNetwork(
             uint startingRecordId,
             uint maxRecordsToReturn,
-            StringCollection serverCapabilityFilter,
+            ArrayOf<String> serverCapabilityFilter,
             out DateTime lastCounterResetTime)
         {
             FindServersOnNetwork(
@@ -474,7 +474,7 @@ namespace Opc.Ua
             )> FindServersOnNetworkAsync(
                 uint startingRecordId,
                 uint maxRecordsToReturn,
-                StringCollection serverCapabilityFilter,
+                ArrayOf<String> serverCapabilityFilter,
                 CancellationToken ct = default)
         {
             FindServersOnNetworkResponse response = await FindServersOnNetworkAsync(

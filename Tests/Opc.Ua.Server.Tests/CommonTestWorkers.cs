@@ -290,10 +290,14 @@ namespace Opc.Ua.Server.Tests
                 BrowseResponse browseResponse = null;
                 do
                 {
-                    ArrayOf<BrowseDescription> browseCollection =
-                        maxNodesPerBrowse == 0 || maxNodesPerBrowse >= browseDescriptionCollection.Count
-                            ? browseDescriptionCollection
-                            : browseDescriptionCollection[..(int)maxNodesPerBrowse];
+                    if (maxNodesPerBrowse >= browseDescriptionCollection.Count)
+                    {
+                        maxNodesPerBrowse = 0; // Do not slice, take all
+                    }
+
+                    ArrayOf<BrowseDescription> browseCollection = maxNodesPerBrowse == 0
+                        ? browseDescriptionCollection
+                        : browseDescriptionCollection[..(int)maxNodesPerBrowse];
                     repeatBrowse = false;
                     try
                     {
@@ -328,16 +332,9 @@ namespace Opc.Ua.Server.Tests
                     }
                 } while (repeatBrowse);
 
-                if (maxNodesPerBrowse == 0)
-                {
-                    browseDescriptionCollection = default;
-                }
-                else
-                {
-                    browseDescriptionCollection = maxNodesPerBrowse >= browseDescriptionCollection.Count
-                        ? browseDescriptionCollection
-                        : browseDescriptionCollection[(int)maxNodesPerBrowse..];
-                }
+                browseDescriptionCollection = maxNodesPerBrowse == 0 ?
+                    default :
+                    browseDescriptionCollection[(int)maxNodesPerBrowse..];
 
                 // Browse next
                 ArrayOf<ByteString> continuationPoints = ServerFixtureUtils.PrepareBrowseNext(
@@ -440,8 +437,8 @@ namespace Opc.Ua.Server.Tests
                 }
                 ArrayOf<BrowsePath> browsePathSnippet =
                     operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds == 0 ||
-                        browsePaths.Count >= operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds
-                        ? browsePaths
+                        browsePaths.Count <= operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds
+                        ? browsePaths // take all
                         : browsePaths[..(int)operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds];
                 TranslateBrowsePathsToNodeIdsResponse translateResponse = await services.TranslateBrowsePathsToNodeIdsAsync(
                     requestHeader,
@@ -462,15 +459,11 @@ namespace Opc.Ua.Server.Tests
                     }
                 }
 
-                if (operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds == 0)
-                {
-                    browsePaths = default;
-                }
-                else
-                {
-                    browsePaths = browsePaths
-[(int)operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds..];
-                }
+                browsePaths =
+                    operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds == 0 ||
+                        browsePaths.Count <= operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds ?
+                        default : // done
+                        browsePaths[(int)operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds..];
             }
             return allBrowsePaths;
         }
@@ -641,9 +634,9 @@ namespace Opc.Ua.Server.Tests
                 else
                 {
                     var dataChangeNotification = publishResponse.NotificationMessage.NotificationData[0]
-                        .Body as DataChangeNotification;
+                        .TryGetEncodeable(out DataChangeNotification d) ? d : default;
                     var eventNotification = publishResponse.NotificationMessage.NotificationData[0]
-                        .Body as EventNotificationList;
+                        .TryGetEncodeable(out EventNotificationList e) ? e : default;
                     TestContext.Out.WriteLine(
                         "Notification: {0} {1}",
                         publishResponse.NotificationMessage.SequenceNumber,
@@ -841,10 +834,8 @@ namespace Opc.Ua.Server.Tests
             if (sendInitialData)
             {
                 ExtensionObject items = publishResponse.NotificationMessage.NotificationData.FirstOrDefault();
-                Assert.IsTrue(items.Body is DataChangeNotification);
-                MonitoredItemNotificationCollection monitoredItemsCollection = (
-                    (DataChangeNotification)items.Body
-                ).MonitoredItems;
+                Assert.IsTrue(items.TryGetEncodeable(out DataChangeNotification dataChangeNotification));
+                MonitoredItemNotificationCollection monitoredItemsCollection = dataChangeNotification.MonitoredItems;
                 Assert.IsNotEmpty(monitoredItemsCollection);
             }
             //Assert.AreEqual(0, availableSequenceNumbers.Count);

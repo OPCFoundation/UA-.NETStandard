@@ -757,7 +757,7 @@ namespace Opc.Ua
                 }
 
                 // If both legacy (<ApplicationCertificate>) and modern (<ApplicationCertificates>) elements
-                // are present during deserialization (as a consequence of previous serialization that included both unintentionally), 
+                // are present during deserialization (as a consequence of previous serialization that included both unintentionally),
                 // prefer the modern representation and clear the
                 // deprecated flag when we process the collection below.
 

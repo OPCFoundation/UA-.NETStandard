@@ -34,6 +34,94 @@ using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.SourceGeneration.Tester
 {
+#pragma warning disable CA1815 // Override equals and operator equals on value types
+
+    public interface IVariantBuilder<T>
+    {
+        T GetValue();
+    }
+
+    public readonly struct VariantBuilder : IVariantBuilder<uint>, IVariantBuilder<string>
+    {
+        public static readonly VariantBuilder New;
+
+        string IVariantBuilder<string>.GetValue()
+        {
+            throw new NotImplementedException();
+        }
+
+        uint IVariantBuilder<uint>.GetValue()
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public readonly struct StructureBuilder<T> : IVariantBuilder<T> where T : IDisposable
+    {
+        public T GetValue()
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public readonly struct EnumerationBuilder<T> : IVariantBuilder<T> where T : Enum
+    {
+        public T GetValue()
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public sealed class MyDisposabe : IDisposable
+    {
+        public void Dispose() { }
+    }
+
+    public enum MyEnum { Value = 0 }
+
+    public static class P
+    {
+        public static void Tester()
+        {
+            var t1 =  VariableState<uint>.With<VariantBuilder>();
+            var t1a = VariableState<MyDisposabe>.With<StructureBuilder<MyDisposabe>>();
+            var t1b = VariableState<MyEnum>.With<EnumerationBuilder<MyEnum>>();
+        }
+    }
+
+    public abstract class VariableState<T>
+    {
+        protected VariableState(NodeState parent) { }
+
+        public abstract T Value { get; }
+
+        public static VariableState<T> With<TBuilder>(NodeState parent = null)
+           where TBuilder : struct, IVariantBuilder<T>
+        {
+            return new VariableState<T>.Implementation<TBuilder>(parent);
+        }
+
+        public class Implementation<TBuilder> : VariableState<T>
+            where TBuilder : struct, IVariantBuilder<T>
+        {
+            public Implementation(NodeState parent) : base(parent) { }
+
+            public override T Value => m_v.GetValue();
+
+            public object Clone()
+            {
+                var copy = new Implementation<TBuilder>(null);
+                return copy;
+            }
+            public TBuilder m_v = new();
+        }
+    }
+
+    public class ExtendedVariableState : VariableState<string>.Implementation<VariantBuilder>
+    {
+        protected ExtendedVariableState(NodeState parent) : base(parent) { }
+    }
+
     internal static class Program
     {
         public static void Main(string[] args)

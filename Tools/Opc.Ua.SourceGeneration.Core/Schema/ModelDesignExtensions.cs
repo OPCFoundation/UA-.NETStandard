@@ -30,9 +30,12 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Data.SqlTypes;
 using System.Globalization;
 using System.Linq;
 using System.Xml;
+using System.Xml.Linq;
+using Opc.Ua.Schema.Types;
 using Opc.Ua.SourceGeneration;
 using Opc.Ua.Types;
 
@@ -117,7 +120,8 @@ namespace Opc.Ua.Schema.Model
         public static string GetNodeStateClassName(
             this InstanceDesign instance,
             string targetNamespace,
-            Namespace[] namespaces)
+            Namespace[] namespaces,
+            bool asFactory = false)
         {
             if (instance is MethodDesign method)
             {
@@ -147,17 +151,20 @@ namespace Opc.Ua.Schema.Model
 
                 if (method.HasArguments)
                 {
-                    return CoreUtils.Format("{0}MethodState", className);
+                    return CoreUtils.Format(
+                        "{0}{1}MethodState",
+                        asFactory ? "new " : string.Empty,
+                        className);
                 }
 
-                return "global::Opc.Ua.MethodState";
+                return CoreUtils.Format(
+                    "{0}global::Opc.Ua.MethodState",
+                    asFactory ? "new " : string.Empty);
             }
 
             if (instance is not VariableDesign variable)
             {
-                return CoreUtils.Format(
-                    "{0}State",
-                    GetClassName(instance.TypeDefinitionNode, namespaces));
+                return GetNodeStateNameSimple(instance.TypeDefinitionNode);
             }
 
             var variableType = instance.TypeDefinitionNode as VariableTypeDesign;
@@ -166,20 +173,16 @@ namespace Opc.Ua.Schema.Model
             // need for a template parameter.
             if (variableType.DataTypeNode.IsTemplateParameterRequired(variableType.ValueRank))
             {
-                return CoreUtils.Format(
-                    "{0}State",
-                    GetClassName(variableType, namespaces));
+                return GetNodeStateNameSimple(variableType);
             }
 
             // check if the variable instance did not restrict the datatype.
             if (!variable.DataTypeNode.IsTemplateParameterRequired(variable.ValueRank))
             {
-                return CoreUtils.Format(
-                    "{0}State",
-                    GetClassName(variableType, namespaces));
+                return GetNodeStateNameSimple(variableType);
             }
 
-            // instance restricted the datatype but the type did not not.
+            // instance restricted the datatype but the type did not.
             string scalarName = GetDotNetTypeName(
                 variable.DataTypeNode,
                 targetNamespace,
@@ -189,28 +192,84 @@ namespace Opc.Ua.Schema.Model
 
             if (variable.ValueRank == ValueRank.Array)
             {
+                if (asFactory)
+                {
+                    return CoreUtils.Format(
+                        "{0}State<global::Opc.Ua.ArrayOf<{1}>>.With<{2}>",
+                        GetClassName(variableType, namespaces),
+                        scalarName,
+                        GetVariantBuilder(variable.DataTypeNode, scalarName));
+                }
                 return CoreUtils.Format(
-                    "{0}State<{1}[]>",
+                    "{0}State<global::Opc.Ua.ArrayOf<{1}>>",
                     GetClassName(variableType, namespaces),
                     scalarName);
             }
 
             if (IsIndeterminateType(variable))
             {
-                return $"{GetClassName(variableType, namespaces)}State";
+                return GetNodeStateNameSimple(variableType);
             }
 
             // add hack for TwoStateDiscreteType which always has to be bool.
             if (variableType.SymbolicName ==
                 new XmlQualifiedName("TwoStateDiscreteType", Namespaces.OpcUa))
             {
-                return $"{GetClassName(variableType, namespaces)}State";
+                return GetNodeStateNameSimple(variableType);
+            }
+
+            if (asFactory)
+            {
+                return CoreUtils.Format(
+                    "{0}State<{1}>.With<{2}>",
+                    GetClassName(variableType, namespaces),
+                    scalarName,
+                    GetVariantBuilder(variable.DataTypeNode, scalarName));
             }
 
             return CoreUtils.Format(
                 "{0}State<{1}>",
                 GetClassName(variableType, namespaces),
                 scalarName);
+
+            string GetNodeStateNameSimple(TypeDesign variableType)
+            {
+                return CoreUtils.Format(
+                    "{0}{1}State",
+                    asFactory ? "new " : string.Empty,
+                    GetClassName(variableType, namespaces));
+            }
+        }
+
+        /// <summary>
+        /// Get the variant builder to use to access or mutate a variant of type T
+        /// </summary>
+        public static string GetVariantBuilder(
+            this DataTypeDesign datatype,
+            string typeName)
+        {
+            switch (datatype.BasicDataType)
+            {
+                case BasicDataType.UserDefined:
+                    if (datatype.IsEnumeration)
+                    {
+                        return CoreUtils.Format("global::Opc.Ua.EnumerationBuilder<{0}>", typeName);
+                    }
+                    return CoreUtils.Format("global::Opc.Ua.StructureBuilder<{0}>", typeName);
+                case BasicDataType.Enumeration:
+                    if (datatype.SymbolicId ==
+                        new XmlQualifiedName("Enumeration", Namespaces.OpcUa))
+                    {
+                        return "global::Opc.Ua.VariantBuilder";
+                    }
+                    if (datatype.IsOptionSet)
+                    {
+                        return GetVariantBuilder((DataTypeDesign)datatype.BaseTypeNode, typeName);
+                    }
+                    return CoreUtils.Format("global::Opc.Ua.EnumerationBuilder<{0}>", typeName);
+                default:
+                    return "global::Opc.Ua.VariantBuilder";
+            }
         }
 
         /// <summary>
@@ -642,7 +701,7 @@ namespace Opc.Ua.Schema.Model
             }
             if (valueRank != ValueRank.Scalar)
             {
-                return false;
+                return true; // ArrayOf/MatrixOf/Variant
             }
             switch (dataType.BasicDataType)
             {

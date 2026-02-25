@@ -209,7 +209,7 @@ namespace Opc.Ua
             {
                 foreach (ExtensionObject extension in m_elements[ii].FilterOperands)
                 {
-                    if (!extension.IsNull && extension.Body is ElementOperand operand)
+                    if (extension.TryGetEncodeable(out ElementOperand operand))
                     {
                         operand.Index++;
                     }
@@ -454,7 +454,7 @@ namespace Opc.Ua
                 {
                     if (!FilterOperands[ii].IsNull)
                     {
-                        buffer.AppendFormat(formatProvider, ", {0}", FilterOperands[ii].Body);
+                        buffer.AppendFormat(formatProvider, ", {0}", FilterOperands[ii]);
                     }
                     else
                     {
@@ -582,12 +582,12 @@ namespace Opc.Ua
 
                 // check that the extension object contains a filter operand.
 
-                if (operand.Body is not FilterOperand filterOperand)
+                if (!operand.TryGetEncodeable(out FilterOperand filterOperand))
                 {
                     operandResult = ServiceResult.Create(
                         StatusCodes.BadEventFilterInvalid,
                         "The FilterOperand is not a supported type ({0}).",
-                        operand.Body.GetType());
+                        operand);
 
                     result.OperandResults.Add(operandResult);
                     error = true;
@@ -631,17 +631,10 @@ namespace Opc.Ua
 
             foreach (ExtensionObject extension in FilterOperands)
             {
-                if (ExtensionObject.IsNull(extension))
+                if (extension.TryGetEncodeable(out FilterOperand operand))
                 {
-                    continue;
+                    operands.Add(operand);
                 }
-
-                if (extension.Body is not FilterOperand operand)
-                {
-                    continue;
-                }
-
-                operands.Add(operand);
             }
 
             return operands;

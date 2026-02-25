@@ -149,7 +149,7 @@ namespace Opc.Ua
                     return error = StatusCodes.BadDialogNotActive;
                 }
 
-                if (selectedResponse < 0 || selectedResponse >= ResponseOptionSet.Value.Length)
+                if (selectedResponse < 0 || selectedResponse >= ResponseOptionSet.Value.Count)
                 {
                     return error = StatusCodes.BadDialogResponseInvalid;
                 }

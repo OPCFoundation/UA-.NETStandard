@@ -153,12 +153,12 @@ namespace Opc.Ua
 
             foreach (ExtensionObject extension in element.FilterOperands)
             {
-                if (ExtensionObject.IsNull(extension))
+                if (extension.IsNull)
                 {
                     throw ServiceResultException.Unexpected("FilterOperand is null.");
                 }
 
-                if (extension.Body is not FilterOperand operand)
+                if (!extension.TryGetEncodeable(out FilterOperand operand))
                 {
                     throw ServiceResultException.Unexpected("FilterOperand is not supported.");
                 }

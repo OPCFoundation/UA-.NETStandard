@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Runtime.Serialization;
 
 namespace Opc.Ua
@@ -94,6 +95,39 @@ namespace Opc.Ua
                 return surrogate.GetValue();
             }
 
+            if (targetType == typeof(ByteString))
+            {
+                return ByteString.From((byte[])obj);
+            }
+            if (targetType == typeof(XmlElement))
+            {
+                return XmlElement.From((System.Xml.XmlElement)obj);
+            }
+
+            Type sourceType = obj?.GetType();
+            if (sourceType?.IsGenericType == true &&
+                sourceType.GetGenericTypeDefinition() == typeof(List<>))
+            {
+                if (!targetType.IsGenericType)
+                {
+                    return obj;
+                }
+                if (targetType.GetGenericTypeDefinition() == typeof(ArrayOf<>))
+                {
+                    // call FromList() on the List object to make an ArrayOf<T> target
+                    return targetType
+                        .GetMethod(
+                            nameof(ArrayOf<>.FromList),
+                            BindingFlags.Static | BindingFlags.NonPublic)
+                        .Invoke(null, [obj]);
+                }
+                if (targetType.GetGenericTypeDefinition() == typeof(MatrixOf<>))
+                {
+                    // TODO: call FromMatrix() on the object
+                    // return sourceType.GetMethod(nameof(MatrixOf.T)).Invoke(obj, []);
+                    return obj;
+                }
+            }
             // Not a surrogated type or null (default)
             return obj;
         }
@@ -108,6 +142,29 @@ namespace Opc.Ua
             }
             if (!SurrogateMappings.TryGetValue(targetType, out Type surrogateType))
             {
+                if (obj is ByteString byteString)
+                {
+                    return byteString.ToArray();
+                }
+                if (obj is XmlElement xmlElement)
+                {
+                    return xmlElement.ToXmlElement();
+                }
+                Type sourceType = obj?.GetType();
+                if (sourceType?.IsGenericType == true)
+                {
+                    if (sourceType.GetGenericTypeDefinition() == typeof(ArrayOf<>))
+                    {
+                        // call ToList() on the object
+                        return sourceType.GetMethod(nameof(ArrayOf<>.ToList)).Invoke(obj, []);
+                    }
+                    if (sourceType.GetGenericTypeDefinition() == typeof(MatrixOf<>))
+                    {
+                        // TODO: call ToMatrix() on the object
+                        // return sourceType.GetMethod(nameof(MatrixOf.T)).Invoke(obj, []);
+                        return obj;
+                    }
+                }
                 // Handle the case where we are passed the surrogate type as target
                 // Could do a reverse lookup here too
                 if (!typeof(ISurrogate).IsAssignableFrom(targetType))
@@ -137,9 +194,31 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Type GetSurrogateType(Type type)
         {
-            return SurrogateMappings.TryGetValue(type, out Type surrogateType) ?
-                surrogateType :
-                type;
+            if (SurrogateMappings.TryGetValue(type, out Type surrogateType))
+            {
+                return surrogateType;
+            }
+            if (type == typeof(ByteString))
+            {
+                return typeof(byte[]);
+            }
+            if (type == typeof(XmlElement))
+            {
+                return typeof(System.Xml.XmlElement);
+            }
+            if (type.IsGenericType)
+            {
+                if (type.GetGenericTypeDefinition() == typeof(ArrayOf<>))
+                {
+                    Type elementType = type.GetGenericArguments()[0];
+                    return typeof(List<>).MakeGenericType([elementType]);
+                }
+                if (type.GetGenericTypeDefinition() == typeof(MatrixOf<>))
+                {
+                    return typeof(Matrix);
+                }
+            }
+            return type;
         }
 
         /// <summary>
@@ -154,7 +233,8 @@ namespace Opc.Ua
             { typeof(StatusCode), typeof(SerializableStatusCode) },
             { typeof(QualifiedName), typeof(SerializableQualifiedName) },
             { typeof(Variant), typeof(SerializableVariant) },
-            { typeof(LocalizedText), typeof(SerializableLocalizedText) }
+            { typeof(LocalizedText), typeof(SerializableLocalizedText) },
+            { typeof(XmlElementCollection), typeof(SerializableXmlElementCollection) }
         };
     }
 }

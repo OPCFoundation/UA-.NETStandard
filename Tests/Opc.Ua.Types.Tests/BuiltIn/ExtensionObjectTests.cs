@@ -57,15 +57,18 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.NotNull(extensionObject_Default);
             Assert.AreEqual(ExpandedNodeId.Null, extensionObject_Default.TypeId);
             Assert.AreEqual(ExtensionObjectEncoding.None, extensionObject_Default.Encoding);
-            Assert.Null(extensionObject_Default.Body);
+            Assert.IsTrue(extensionObject_Default.IsNull);
             // Constructor by ExtensionObject
             var extensionObject = new ExtensionObject(ExpandedNodeId.Null);
             Assert.NotNull(extensionObject);
             Assert.AreEqual(ExpandedNodeId.Null, extensionObject.TypeId);
             Assert.AreEqual(ExtensionObjectEncoding.None, extensionObject.Encoding);
-            Assert.Null(extensionObject.Body);
+            Assert.IsFalse(extensionObject.TryGetEncodeable(out IEncodeable enc));
+            Assert.IsFalse(extensionObject.TryGetAsBinary(out var _));
+            Assert.IsFalse(extensionObject.TryGetAsXml(out var _));
+            Assert.IsFalse(extensionObject.TryGetAsJson(out var _));
+            Assert.IsTrue(extensionObject.IsNull);
             // static extensions
-            Assert.True(Ua.ExtensionObject.IsNull(extensionObject));
             Assert.Null(Ua.ExtensionObject.ToEncodeable(default));
             Assert.Null(Ua.ExtensionObject.ToArray(null, typeof(object)));
             Assert.Null(Ua.ExtensionObject.ToList<object>(null));
@@ -77,8 +80,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             NUnit.Framework.Assert.Throws<ServiceResultException>(
                 () => new ExtensionObject(default, new byte[] { 1, 2, 3 }));
             // constructor by object
-            ByteString byteArray = [1, 2, 3];
-            extensionObject = new ExtensionObject(default, byteArray);
+            ByteString bytes = [1, 2, 3];
+            extensionObject = new ExtensionObject(default, bytes);
             Assert.NotNull(extensionObject);
             Assert.AreEqual(extensionObject, extensionObject);
             // string extension
@@ -97,8 +100,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 ExpandedNodeId.Null.GetHashCode(),
                 extensionObject.TypeId.GetHashCode());
             Assert.AreEqual(ExtensionObjectEncoding.Binary, extensionObject.Encoding);
-            Assert.AreEqual(byteArray, extensionObject.Body);
-            Assert.AreEqual(byteArray.GetHashCode(), extensionObject.Body.GetHashCode());
+            Assert.AreEqual(bytes, extensionObject.TryGetAsBinary(out ByteString bs) ? bs : default);
+            Assert.AreEqual(bytes.GetHashCode(), extensionObject.GetHashCode());
             // collection
             var collection = new ExtensionObjectCollection();
             Assert.NotNull(collection);

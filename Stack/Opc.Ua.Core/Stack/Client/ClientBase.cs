@@ -429,8 +429,8 @@ namespace Opc.Ua
                     request.RequestHeader.AdditionalHeader
                         = new ExtensionObject(additionalHeader);
                 }
-                else if (request.RequestHeader.AdditionalHeader.Body is
-                    AdditionalParametersType existingParameters)
+                else if (request.RequestHeader.AdditionalHeader.TryGetEncodeable(
+                    out AdditionalParametersType existingParameters))
                 {
                     // Merge the trace data into the existing parameters.
                     existingParameters.Parameters.Add(spanContextParameter);
@@ -616,10 +616,12 @@ namespace Opc.Ua
                     nameof(response));
             }
 
-            if (response.IsNull || request.IsNull || response.Count != request.Count)
+            if (response.Count != request.Count)
             {
                 throw ServiceResultException.Unexpected(
-                    "The server returned a list without the expected number of elements.");
+                    "The server returned {0} responses but {1} requests were made.",
+                    response.Count,
+                    request.Count);
             }
 
             for (int ii = 0; ii < response.Count; ii++)
@@ -627,7 +629,7 @@ namespace Opc.Ua
                 if (response[ii] is null)
                 {
                     throw ServiceResultException.Unexpected(
-                        "The server returned a list that contained elements set to null.");
+                        "The server returned responses contain a null response at index {0}.", ii);
                 }
             }
         }

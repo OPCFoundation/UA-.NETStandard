@@ -882,10 +882,8 @@ namespace Opc.Ua.Server.Tests
             Assert.AreEqual(subscriptionIds[0], publishResponse.SubscriptionId);
             Assert.AreEqual(1, publishResponse.NotificationMessage.NotificationData.Count);
             ExtensionObject items = publishResponse.NotificationMessage.NotificationData.FirstOrDefault();
-            Assert.IsTrue(items.Body is DataChangeNotification);
-            MonitoredItemNotificationCollection monitoredItemsCollection = (
-                (DataChangeNotification)items.Body
-            ).MonitoredItems;
+            Assert.IsTrue(items.TryGetEncodeable(out DataChangeNotification dataChangeNotification));
+            MonitoredItemNotificationCollection monitoredItemsCollection = dataChangeNotification.MonitoredItems;
             Assert.AreEqual(testSet.Length, monitoredItemsCollection.Count,
                 "One MonitoredItemNotification should be returned for each Node present in the TestSet");
 
@@ -909,8 +907,8 @@ namespace Opc.Ua.Server.Tests
                 Assert.AreEqual(subscriptionIds[0], publishResponse.SubscriptionId);
                 Assert.AreEqual(1, publishResponse.NotificationMessage.NotificationData.Count);
                 items = publishResponse.NotificationMessage.NotificationData.FirstOrDefault();
-                Assert.IsTrue(items.Body is DataChangeNotification);
-                monitoredItemsCollection = ((DataChangeNotification)items.Body).MonitoredItems;
+                Assert.IsTrue(items.TryGetEncodeable(out dataChangeNotification));
+                monitoredItemsCollection = dataChangeNotification.MonitoredItems;
                 Assert.AreEqual(
                     testSet.Length * (queueSize - 1),
                     monitoredItemsCollection.Count,
@@ -1259,7 +1257,7 @@ namespace Opc.Ua.Server.Tests
             Assert.IsNotNull(result.HistoryData, "HistoryData should not be null");
 
             // Verify we got HistoryData back
-            if (result.HistoryData.Body is HistoryData historyData)
+            if (result.HistoryData.TryGetEncodeable(out HistoryData historyData))
             {
                 logger.LogInformation("Retrieved {Count} history values", historyData.DataValues.Count);
                 Assert.IsNotNull(historyData.DataValues, "DataValues should not be null");

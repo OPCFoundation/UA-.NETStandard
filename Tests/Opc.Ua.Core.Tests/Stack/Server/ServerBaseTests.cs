@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -65,7 +66,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         public const int EndpointCount = 12;
 
         private ApplicationDescription m_serverDescription;
-        private EndpointDescriptionCollection m_endpoints;
+        private ArrayOf<EndpointDescription> m_endpoints;
         private readonly TestConfigurations m_testConfiguration;
 
         public static readonly object[] FixtureArgs =
@@ -258,7 +259,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 DiscoveryUrls = GetDiscoveryUrls()
             };
 
-            m_endpoints = [];
+            var endpoints = new List<EndpointDescription>();
 
             // add endpoints.
             foreach (string baseAddress in configuration.ServerConfiguration.BaseAddresses)
@@ -282,9 +283,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     isUaTcp = true;
                 }
 
-                foreach (
-                    ServerSecurityPolicy securityConfiguration in configuration.ServerConfiguration
-                        .SecurityPolicies)
+                foreach (ServerSecurityPolicy securityConfiguration in configuration.ServerConfiguration.SecurityPolicies)
                 {
                     // Only one secure endpoint for non opc.tcp protocols
                     if (!isUaTcp &&
@@ -306,7 +305,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                             LoggerUtils.Null.Logger)
                     };
                     endpoint.UserIdentityTokens = GetUserTokenPolicies(configuration, endpoint);
-                    m_endpoints.Add(endpoint);
+                    endpoints.Add(endpoint);
 
                     if (!isUaTcp)
                     {
@@ -314,6 +313,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     }
                 }
             }
+            m_endpoints = endpoints.ToArrayOf();
         }
 
         [OneTimeTearDown]
@@ -426,7 +426,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 baseAddresses = FilterByEndpointUrl(parsedEndpointUrl, BaseAddresses);
             }
             Assert.Greater(BaseAddressCount, 0);
-            EndpointDescriptionCollection translatedEndpoints = TranslateEndpointDescriptions(
+            ArrayOf<EndpointDescription> translatedEndpoints = TranslateEndpointDescriptions(
                 parsedEndpointUrl,
                 baseAddresses,
                 m_endpoints,
@@ -442,9 +442,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             // validate results do not contain duplicates.
             foreach (EndpointDescription endpoint in translatedEndpoints)
             {
-                var matches = translatedEndpoints.Where(e => e.EndpointUrl == endpoint.EndpointUrl)
-                    .ToList();
-                Assert.NotNull(matches);
+                var matches = translatedEndpoints.Filter(e => e.EndpointUrl == endpoint.EndpointUrl);
                 Assert.GreaterOrEqual(matches.Count, 1);
             }
 
@@ -454,7 +452,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 var translatedUri = new Uri(translatedEndpoint.EndpointUrl);
 
                 var matches = m_endpoints
-                     .Where(endpoint =>
+                     .Filter(endpoint =>
                      {
                          var endpointUri = new Uri(endpoint.EndpointUrl);
                          return endpoint.TransportProfileUri == translatedEndpoint.TransportProfileUri &&
@@ -472,10 +470,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                              Utils.IsEqual(
                                  endpoint.UserIdentityTokens,
                                  translatedEndpoint.UserIdentityTokens);
-                     })
-                     .ToList();
+                     });
 
-                Assert.NotNull(matches);
                 Assert.Greater(matches.Count, 0);
                 EndpointDescription firstMatch = matches[0];
                 Assert.AreEqual(
@@ -514,10 +510,9 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                         translatedEndpointUrl.Port % 10);
 
                     var theSchemes = m_endpoints
-                        .Where(endpoint =>
+                        .Filter(endpoint =>
                             endpoint.EndpointUrl
-                                .StartsWith(translatedEndpointUrl.Scheme, StringComparison.Ordinal))
-                        .ToList();
+                                .StartsWith(translatedEndpointUrl.Scheme, StringComparison.Ordinal));
                     Assert.AreEqual(theSchemes[0].EndpointUrl, firstMatch.EndpointUrl);
                 }
                 Assert.AreEqual(firstMatchEndpointUrl.Scheme, translatedEndpointUrl.Scheme);

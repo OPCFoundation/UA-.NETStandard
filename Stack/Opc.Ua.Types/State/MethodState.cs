@@ -102,10 +102,8 @@ namespace Opc.Ua
             }
             return
                 base.DeepEquals(state) &&
-                EqualityComparer<PropertyState<Argument[]>>.Default.Equals(
-                    state.OutputArguments, OutputArguments) &&
-                EqualityComparer<PropertyState<Argument[]>>.Default.Equals(
-                    state.InputArguments, InputArguments) &&
+                state.OutputArguments == OutputArguments &&
+                state.InputArguments == InputArguments &&
                 state.MethodDeclarationId == MethodDeclarationId &&
                 state.Executable == Executable &&
                 state.UserExecutable == UserExecutable
@@ -470,7 +468,7 @@ namespace Opc.Ua
         /// <summary>
         /// The input arguments for the method.
         /// </summary>
-        public PropertyState<Argument[]> InputArguments
+        public PropertyState<ArrayOf<Argument>> InputArguments
         {
             get => m_inputArguments;
             set
@@ -487,7 +485,7 @@ namespace Opc.Ua
         /// <summary>
         /// The output arguments for the method.
         /// </summary>
-        public PropertyState<Argument[]> OutputArguments
+        public PropertyState<ArrayOf<Argument>> OutputArguments
         {
             get => m_outputArguments;
             set
@@ -504,14 +502,14 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
         {
-            PropertyState<Argument[]> inputArguments = m_inputArguments;
+            PropertyState<ArrayOf<Argument>> inputArguments = m_inputArguments;
 
             if (inputArguments != null)
             {
                 children.Add(inputArguments);
             }
 
-            PropertyState<Argument[]> outputArguments = m_outputArguments;
+            PropertyState<ArrayOf<Argument>> outputArguments = m_outputArguments;
 
             if (outputArguments != null)
             {
@@ -550,15 +548,15 @@ namespace Opc.Ua
         /// <summary>
         /// Create or replace output arguments
         /// </summary>
-        public PropertyState<Argument[]> CreateOrReplaceOutputArguments(
+        public PropertyState<ArrayOf<Argument>> CreateOrReplaceOutputArguments(
             ISystemContext context,
             BaseInstanceState replacement)
         {
             if (OutputArguments == null)
             {
-                if (replacement is not PropertyState<Argument[]> child)
+                if (replacement is not PropertyState<ArrayOf<Argument>> child)
                 {
-                    child = new PropertyState<Argument[]>(this);
+                    child = PropertyState<ArrayOf<Argument>>.With<StructureBuilder<Argument>>(this);
                     if (replacement != null)
                     {
                         child.Create(context, replacement);
@@ -572,15 +570,15 @@ namespace Opc.Ua
         /// <summary>
         /// Create or replace input arguments
         /// </summary>
-        public PropertyState<Argument[]> CreateOrReplaceInputArguments(
+        public PropertyState<ArrayOf<Argument>> CreateOrReplaceInputArguments(
             ISystemContext context,
             BaseInstanceState replacement)
         {
             if (InputArguments == null)
             {
-                if (replacement is not PropertyState<Argument[]> child)
+                if (replacement is not PropertyState<ArrayOf<Argument>> child)
                 {
-                    child = new PropertyState<Argument[]>(this);
+                    child = PropertyState<ArrayOf<Argument>>.With<StructureBuilder<Argument>>(this);
                     if (replacement != null)
                     {
                         child.Create(context, replacement);
@@ -692,11 +690,11 @@ namespace Opc.Ua
             // check for too few or too many arguments.
             int expectedCount = 0;
 
-            PropertyState<Argument[]> expectedInputArguments = InputArguments;
+            PropertyState<ArrayOf<Argument>> expectedInputArguments = InputArguments;
 
-            if (expectedInputArguments != null && expectedInputArguments.Value != null)
+            if (expectedInputArguments != null)
             {
-                expectedCount = expectedInputArguments.Value.Length;
+                expectedCount = expectedInputArguments.Value.Count;
             }
 
             if (expectedCount > inputArguments.Count)
@@ -737,18 +735,14 @@ namespace Opc.Ua
             // set output arguments to default values.
             var outputs = new VariantCollection();
 
-            PropertyState<Argument[]> expectedOutputArguments = OutputArguments;
+            PropertyState<ArrayOf<Argument>> expectedOutputArguments = OutputArguments;
 
             if (expectedOutputArguments != null)
             {
-                Argument[] arguments = expectedOutputArguments.Value;
-
-                if (arguments != null && arguments.Length > 0)
+                ArrayOf<Argument> arguments = expectedOutputArguments.Value;
+                for (int ii = 0; ii < arguments.Count; ii++)
                 {
-                    for (int ii = 0; ii < arguments.Length; ii++)
-                    {
-                        outputs.Add(GetArgumentDefaultValue(context, arguments[ii]));
-                    }
+                    outputs.Add(GetArgumentDefaultValue(context, arguments[ii]));
                 }
             }
 
@@ -885,16 +879,16 @@ namespace Opc.Ua
             Variant inputArgument,
             int index)
         {
-            PropertyState<Argument[]> inputArguments = InputArguments;
+            PropertyState<ArrayOf<Argument>> inputArguments = InputArguments;
 
             if (inputArguments == null)
             {
                 return StatusCodes.BadInvalidArgument;
             }
 
-            Argument[] arguments = inputArguments.Value;
+            ArrayOf<Argument> arguments = inputArguments.Value;
 
-            if (arguments == null || index < 0 || index >= arguments.Length)
+            if (index < 0 || index >= arguments.Count)
             {
                 return StatusCodes.BadInvalidArgument;
             }
@@ -932,8 +926,8 @@ namespace Opc.Ua
 
         private bool m_executable;
         private bool m_userExecutable;
-        private PropertyState<Argument[]> m_inputArguments;
-        private PropertyState<Argument[]> m_outputArguments;
+        private PropertyState<ArrayOf<Argument>> m_inputArguments;
+        private PropertyState<ArrayOf<Argument>> m_outputArguments;
     }
 
     /// <summary>

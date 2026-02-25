@@ -29,10 +29,11 @@
 
 using System.IO;
 using System.Runtime.Serialization;
+using System.Xml;
 using NUnit.Framework;
-using StatusCodeConstants = Opc.Ua.Types.StatusCodes;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 using Opc.Ua.Tests;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
+using StatusCodeConstants = Opc.Ua.Types.StatusCodes;
 
 namespace Opc.Ua.Types.Tests.BuiltIn
 {
@@ -61,6 +62,27 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             SurrogateCollectionContract clone = Roundtrip(instance);
 
             SurrogateTestData.AssertCollectionContractEqual(instance, clone);
+        }
+
+        [Test]
+        public void SerializerSupportsArrayOfSurrogates()
+        {
+            SurrogateArrayOfContract instance = SurrogateTestData.CreateArrayOfContract(0);
+
+            SurrogateArrayOfContract clone = Roundtrip(instance);
+
+            SurrogateTestData.AssertArrayOfContractEqual(instance, clone);
+        }
+
+        [Test]
+        [Explicit] // TODO
+        public void SerializerSupportsMatrixOfSurrogates()
+        {
+            SurrogateMatrixOfContract instance = SurrogateTestData.CreateMatrixOfContract(0);
+
+            SurrogateMatrixOfContract clone = Roundtrip(instance);
+
+            SurrogateTestData.AssertMatrixOfContractEqual(instance, clone);
         }
 
         [Test]
@@ -135,6 +157,56 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
         [DataMember(Order = 7)]
         public LocalizedTextCollection LocalizedTexts { get; set; }
+    }
+
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    public sealed class SurrogateArrayOfContract
+    {
+        [DataMember(Order = 1)]
+        public ArrayOf<NodeId> NodeIds { get; set; }
+
+        [DataMember(Order = 2)]
+        public ArrayOf<ExpandedNodeId> ExpandedNodeIds { get; set; }
+
+        [DataMember(Order = 3)]
+        public ArrayOf<Uuid> Uuids { get; set; }
+
+        [DataMember(Order = 4)]
+        public ArrayOf<StatusCode> StatusCodes { get; set; }
+
+        [DataMember(Order = 5)]
+        public ArrayOf<QualifiedName> QualifiedNames { get; set; }
+
+        [DataMember(Order = 6)]
+        public ArrayOf<Variant> Variants { get; set; }
+
+        [DataMember(Order = 7)]
+        public ArrayOf<LocalizedText> LocalizedTexts { get; set; }
+    }
+
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    public sealed class SurrogateMatrixOfContract
+    {
+        [DataMember(Order = 1)]
+        public MatrixOf<NodeId> NodeIds { get; set; }
+
+        [DataMember(Order = 2)]
+        public MatrixOf<ExpandedNodeId> ExpandedNodeIds { get; set; }
+
+        [DataMember(Order = 3)]
+        public MatrixOf<Uuid> Uuids { get; set; }
+
+        [DataMember(Order = 4)]
+        public MatrixOf<StatusCode> StatusCodes { get; set; }
+
+        [DataMember(Order = 5)]
+        public MatrixOf<QualifiedName> QualifiedNames { get; set; }
+
+        [DataMember(Order = 6)]
+        public MatrixOf<Variant> Variants { get; set; }
+
+        [DataMember(Order = 7)]
+        public MatrixOf<LocalizedText> LocalizedTexts { get; set; }
     }
 
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
@@ -213,6 +285,102 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             };
         }
 
+        public static SurrogateArrayOfContract CreateArrayOfContract(int index)
+        {
+            return new SurrogateArrayOfContract
+            {
+                NodeIds =
+                [
+                    new NodeId((uint)(10 + index), 1),
+                    new NodeId($"node-{index}", 2)
+                ],
+                ExpandedNodeIds =
+                [
+                    new ExpandedNodeId((uint)(20 + index), 3, Namespaces.OpcUa, (uint)(index + 1))
+                ],
+                Uuids =
+                [
+                    Uuid.NewUuid(),
+                    Uuid.NewUuid()
+                ],
+                StatusCodes =
+                [
+                    StatusCodeConstants.Good,
+                    StatusCodeConstants.BadEncodingError
+                ],
+                QualifiedNames =
+                [
+                    new QualifiedName($"coll-qn-{index}", 4)
+                ],
+                Variants =
+                [
+                    new Variant($"variant-{index}"),
+                    new Variant(index + 42)
+                ],
+                LocalizedTexts =
+                [
+                    new LocalizedText("en-US", $"localized-{index}"),
+                    new LocalizedText("de-DE", $"lokalisiert-{index}")
+                ]
+            };
+        }
+
+        public static SurrogateMatrixOfContract CreateMatrixOfContract(int index)
+        {
+            return new SurrogateMatrixOfContract
+            {
+                NodeIds =
+                ArrayOf.Wrapped([
+                    new NodeId((uint)(10 + index), 1),
+                    new NodeId((uint)(20 + index), 1),
+                    new NodeId((uint)(30 + index), 1),
+                    new NodeId($"node-{index}", 2)
+                ]).ToMatrix(2, 2),
+                ExpandedNodeIds =
+                ArrayOf.Wrapped([
+                    new ExpandedNodeId((uint)(20 + index), 3, Namespaces.OpcUa, (uint)(index + 1)),
+                    new ExpandedNodeId((uint)(30 + index), 3, Namespaces.OpcUa, (uint)(index + 2)),
+                    new ExpandedNodeId((uint)(40 + index), 3, Namespaces.OpcUa, (uint)(index + 3)),
+                    new ExpandedNodeId((uint)(50 + index), 3, Namespaces.OpcUa, (uint)(index + 4))
+                ]).ToMatrix(2, 2),
+                Uuids =
+                ArrayOf.Wrapped([
+                    Uuid.NewUuid(),
+                    Uuid.NewUuid(),
+                    Uuid.NewUuid(),
+                    Uuid.NewUuid()
+                ]).ToMatrix(2, 2),
+                StatusCodes =
+                ArrayOf.Wrapped([
+                    StatusCodeConstants.Good,
+                    StatusCodeConstants.BadArgumentsMissing,
+                    StatusCodeConstants.Good,
+                    StatusCodeConstants.BadEncodingError
+                ]).ToMatrix(2, 2),
+                QualifiedNames =
+                ArrayOf.Wrapped([
+                    new QualifiedName($"coll-qn-{index}", 4),
+                    new QualifiedName($"coll-qn-{index + 1}", 4),
+                    new QualifiedName($"coll-qn-{index + 2}", 4),
+                    new QualifiedName($"coll-qn-{index + 3}", 4)
+                ]).ToMatrix(2, 2),
+                Variants =
+                ArrayOf.Wrapped([
+                    new Variant($"variant-{index+ 1}"),
+                    new Variant(index + 0.6f),
+                    new Variant($"variant-{index}"),
+                    new Variant(index + 42)
+                ]).ToMatrix(2, 2),
+                LocalizedTexts =
+                ArrayOf.Wrapped([
+                    new LocalizedText("en-US", $"localized-{index}"),
+                    new LocalizedText("en-US", $"localized-{index}"),
+                    new LocalizedText("en-US", $"localized-{index}"),
+                    new LocalizedText("de-DE", $"lokalisiert-{index}")
+                ]).ToMatrix(2, 2)
+            };
+        }
+
         public static SurrogateGraphContract CreateGraphContract()
         {
             return new SurrogateGraphContract
@@ -277,6 +445,56 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Assert.IsTrue(CoreUtils.IsEqual(expected.Variants, actual.Variants), "Variants mismatch");
                 Assert.IsTrue(
                     CoreUtils.IsEqual(expected.LocalizedTexts, actual.LocalizedTexts),
+                    "LocalizedTexts mismatch");
+            });
+        }
+
+        public static void AssertArrayOfContractEqual(
+            SurrogateArrayOfContract expected,
+            SurrogateArrayOfContract actual)
+        {
+            Assert.IsNotNull(actual);
+
+            Assert.Multiple(() =>
+            {
+                Assert.AreEqual(expected.NodeIds, actual.NodeIds,
+                    "NodeIds mismatch");
+                Assert.AreEqual(expected.ExpandedNodeIds, actual.ExpandedNodeIds,
+                    "ExpandedNodeIds mismatch");
+                Assert.AreEqual(expected.Uuids, actual.Uuids,
+                    "Uuids mismatch");
+                Assert.AreEqual(expected.StatusCodes, actual.StatusCodes,
+                    "StatusCodes mismatch");
+                Assert.AreEqual(expected.QualifiedNames, actual.QualifiedNames,
+                    "QualifiedNames mismatch");
+                Assert.AreEqual(expected.Variants, actual.Variants,
+                    "Variants mismatch");
+                Assert.AreEqual(expected.LocalizedTexts, actual.LocalizedTexts,
+                    "LocalizedTexts mismatch");
+            });
+        }
+
+        public static void AssertMatrixOfContractEqual(
+            SurrogateMatrixOfContract expected,
+            SurrogateMatrixOfContract actual)
+        {
+            Assert.IsNotNull(actual);
+
+            Assert.Multiple(() =>
+            {
+                Assert.AreEqual(expected.NodeIds, actual.NodeIds,
+                    "NodeIds mismatch");
+                Assert.AreEqual(expected.ExpandedNodeIds, actual.ExpandedNodeIds,
+                    "ExpandedNodeIds mismatch");
+                Assert.AreEqual(expected.Uuids, actual.Uuids,
+                    "Uuids mismatch");
+                Assert.AreEqual(expected.StatusCodes, actual.StatusCodes,
+                    "StatusCodes mismatch");
+                Assert.AreEqual(expected.QualifiedNames, actual.QualifiedNames,
+                    "QualifiedNames mismatch");
+                Assert.AreEqual(expected.Variants, actual.Variants,
+                    "Variants mismatch");
+                Assert.AreEqual(expected.LocalizedTexts, actual.LocalizedTexts,
                     "LocalizedTexts mismatch");
             });
         }

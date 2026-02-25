@@ -2026,9 +2026,9 @@ namespace Opc.Ua
                     ReadXmlElement(null));
 
                 // attempt to decode a known type.
-                if (systemType != null && extension.Body != null)
+                if (systemType != null && !extension.IsNull)
                 {
-                    var element = extension.Body is XmlElement xe ? xe : default;
+                    var element = extension.TryGetAsXml(out XmlElement xe) ? xe : default;
                     using var xmlDecoder = new XmlDecoder(element, Context);
                     try
                     {
@@ -2184,7 +2184,7 @@ namespace Opc.Ua
                 // read the bytes of the body.
                 return new ExtensionObject(
                     extension.TypeId,
-                    SafeReadBytes(length));
+                    ByteString.From(SafeReadBytes(length)));
             }
 
             // any unread data indicates a decoding error.
@@ -2312,11 +2312,13 @@ namespace Opc.Ua
                     case BuiltInType.UInteger:
                         throw ServiceResultException.Create(
                             StatusCodes.BadDecodingError,
-                            "Cannot decode unknown type in Variant object (0x{0:X2}).",
+                            "Unsupported built in type for Variant content (0x{0:X2}).",
                             encodingByte);
                     default:
-                        throw ServiceResultException.Unexpected(
-                            $"Unexpected BuiltInType {encodingByte}");
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "Unexpected scalar built in type (0x{0:X2}).",
+                            encodingByte);
                 }
             }
             else if ((encodingByte & (byte)VariantArrayEncodingBits.ArrayDimensions) == 0)
@@ -2393,18 +2395,22 @@ namespace Opc.Ua
                     case BuiltInType.DataValue:
                         value = Variant.From(ReadDataValueArray(null).ToArrayOf());
                         break;
-                    case BuiltInType.Variant:
-                    case BuiltInType.DiagnosticInfo:
                     case BuiltInType.Number:
                     case BuiltInType.Integer:
                     case BuiltInType.UInteger:
+                    case BuiltInType.Variant:
+                        value = Variant.From(ReadVariantArray(null).ToArrayOf());
+                        break;
+                    case BuiltInType.DiagnosticInfo:
                         throw ServiceResultException.Create(
                             StatusCodes.BadDecodingError,
-                            "Cannot decode unknown type in Variant object (0x{0:X2}).",
+                            "Unsupported built in type for Variant array content (0x{0:X2}).",
                             encodingByte);
                     default:
-                        throw ServiceResultException.Unexpected(
-                            $"Unexpected BuiltInType {encodingByte}");
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "Unexpected array built in type (0x{0:X2}).",
+                            encodingByte);
                 }
             }
             else
@@ -2482,18 +2488,22 @@ namespace Opc.Ua
                     case BuiltInType.DataValue:
                         value = Variant.From(ReadDataValueArray(null).ToMatrixOf(ReadDims()));
                         break;
-                    case BuiltInType.Variant:
-                    case BuiltInType.DiagnosticInfo:
                     case BuiltInType.Number:
                     case BuiltInType.Integer:
                     case BuiltInType.UInteger:
+                    case BuiltInType.Variant:
+                        value = Variant.From(ReadVariantArray(null).ToMatrixOf(ReadDims()));
+                        break;
+                    case BuiltInType.DiagnosticInfo:
                         throw ServiceResultException.Create(
                             StatusCodes.BadDecodingError,
-                            "Cannot decode unknown type in Variant object (0x{0:X2}).",
+                            "Unsupported built in type for Variant matrix content (0x{0:X2}).",
                             encodingByte);
                     default:
-                        throw ServiceResultException.Unexpected(
-                            $"Unexpected BuiltInType {encodingByte}");
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "Unexpected matrix built in type (0x{0:X2}).",
+                            encodingByte);
                 }
             }
             return value;

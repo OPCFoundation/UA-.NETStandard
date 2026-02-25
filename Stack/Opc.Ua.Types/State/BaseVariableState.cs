@@ -114,7 +114,8 @@ namespace Opc.Ua
         /// If overridden returns the id of the default type definition node for the instance.
         /// </summary>
         /// <param name="namespaceUris">The namespace uris.</param>
-        /// <returns>Returns the id of the default type definition or <see cref="VariableTypes.BaseVariableType"/></returns> if not overridden
+        /// <returns>Returns the id of the default type definition or
+        /// <see cref="VariableTypes.BaseVariableType"/></returns> if not overridden
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return VariableTypeIds.BaseVariableType;
@@ -125,7 +126,8 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="namespaceUris">The namespace uris.</param>
         /// <returns>
-        /// The id <see cref="NodeId"/> of the default data type node for the instance or <see cref="DataTypes.BaseDataType"/> if not overridden.
+        /// The id <see cref="NodeId"/> of the default data type node for the instance
+        /// or <see cref="DataTypes.BaseDataType"/> if not overridden.
         /// </returns>
         protected virtual NodeId GetDefaultDataTypeId(NamespaceTable namespaceUris)
         {
@@ -141,57 +143,6 @@ namespace Opc.Ua
         protected virtual int GetDefaultValueRank()
         {
             return ValueRanks.Any;
-        }
-
-        /// <summary>
-        /// Converts a values contained in a variant to the value defined for the variable.
-        /// </summary>
-        /// <param name="context">The system context.</param>
-        /// <param name="value">The value.</param>
-        /// <param name="throwOnError">if set to <c>true</c> throw an exception on error.</param>
-        /// <returns>If not overridden returns <paramref name="value"/>.</returns>
-        protected virtual object ExtractValueFromVariant(
-            ISystemContext context,
-            Variant value,
-            bool throwOnError)
-        {
-            return value;
-        }
-
-        /// <summary>
-        /// Returns the value after checking if the variable is null.
-        /// </summary>
-        /// <typeparam name="T">The framework type of value contained in the <paramref name="variable"/>.</typeparam>
-        /// <param name="variable">The variable.</param>
-        /// <returns>
-        /// The value contained by the <paramref name="variable"/> or the default value for the datatype if the variable is null.
-        /// </returns>
-        public static T GetValue<T>(BaseDataVariableState<T> variable)
-        {
-            if (variable == null)
-            {
-                return default;
-            }
-
-            return variable.Value;
-        }
-
-        /// <summary>
-        /// Returns the value after checking if the property is null.
-        /// </summary>
-        /// <typeparam name="T">The type of value contained in the property.</typeparam>
-        /// <param name="property">The property.</param>
-        /// <returns>
-        /// The value. The default value for the datatype if the property is null.
-        /// </returns>
-        public static T GetValue<T>(PropertyState<T> property)
-        {
-            if (property == null)
-            {
-                return default;
-            }
-
-            return property.Value;
         }
 
         /// <summary>
@@ -232,13 +183,13 @@ namespace Opc.Ua
                     if (extension.Encoding == ExtensionObjectEncoding.Binary)
                     {
                         decoder = new BinaryDecoder(
-                            extension.Body is ByteString b ? b.ToArray() : [],
+                            extension.TryGetAsBinary(out ByteString b) ? b.ToArray() : [],
                             messageContext);
                     }
                     else if (extension.Encoding == ExtensionObjectEncoding.Xml)
                     {
                         decoder = new XmlDecoder(
-                            extension.Body is XmlElement xe ? xe : default,
+                            extension.TryGetAsXml(out XmlElement xe) ? xe : default,
                             messageContext);
                     }
 
@@ -1810,320 +1761,6 @@ namespace Opc.Ua
         private bool m_historizing;
         private ILogger m_logger = LoggerUtils.Null.Logger;
         private static readonly char[] s_commaSeparator = [','];
-    }
-
-    /// <summary>
-    /// A typed base class for all data variable nodes.
-    /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class PropertyState : BaseVariableState
-    {
-        /// <summary>
-        /// Initializes the instance with its default attribute values.
-        /// </summary>
-        public PropertyState(NodeState parent)
-            : base(parent)
-        {
-            StatusCode = StatusCodes.BadWaitingForInitialData;
-        }
-
-        /// <summary>
-        /// Constructs an instance of a node.
-        /// </summary>
-        /// <param name="parent">The parent.</param>
-        /// <returns>The new node.</returns>
-        public static NodeState Construct(NodeState parent)
-        {
-            return new PropertyState(parent);
-        }
-
-        /// <summary>
-        /// Initializes the instance with the default values.
-        /// </summary>
-        protected override void Initialize(ISystemContext context)
-        {
-            SymbolicName = CoreUtils.Format("{0}_Instance1", BrowseNames.PropertyType);
-            NodeId = default;
-            BrowseName = new QualifiedName(SymbolicName, 1);
-            DisplayName = new LocalizedText(SymbolicName);
-            Description = default;
-            WriteMask = AttributeWriteMask.None;
-            UserWriteMask = AttributeWriteMask.None;
-            ReferenceTypeId = ReferenceTypeIds.HasProperty;
-            TypeDefinitionId = GetDefaultTypeDefinitionId(context.NamespaceUris);
-            NumericId = VariableTypes.PropertyType;
-            Value = Variant.Null;
-            DataType = GetDefaultDataTypeId(context.NamespaceUris);
-            ValueRank = GetDefaultValueRank();
-            ArrayDimensions = default;
-            AccessLevel = AccessLevels.CurrentReadOrWrite;
-            UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            MinimumSamplingInterval = MinimumSamplingIntervals.Continuous;
-            Historizing = false;
-        }
-
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
-        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
-        {
-            return VariableTypeIds.PropertyType;
-        }
-    }
-
-    /// <summary>
-    /// A typed base class for all data variable nodes.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class PropertyState<T> : PropertyState
-    {
-        /// <summary>
-        /// Initializes the instance with its default attribute values.
-        /// </summary>
-        public PropertyState(NodeState parent)
-            : base(parent)
-        {
-            Value = default;
-        }
-
-        /// <summary>
-        /// Initializes the instance with the default values.
-        /// </summary>
-        protected override void Initialize(ISystemContext context)
-        {
-            base.Initialize(context);
-            base.Initialize<T>(context);
-        }
-
-        /// <summary>
-        /// The value of the variable.
-        /// </summary>
-        public new T Value
-        {
-            get => VariantHelper.CastTo<T>(base.Value, true);
-            set => base.Value = VariantHelper.CastFrom(value);
-        }
-    }
-
-    /// <summary>
-    /// A typed base class for all data variable nodes.
-    /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class BaseDataVariableState : BaseVariableState
-    {
-        /// <summary>
-        /// Initializes the instance with its default attribute values.
-        /// </summary>
-        public BaseDataVariableState(NodeState parent)
-            : base(parent)
-        {
-            if (parent != null)
-            {
-                StatusCode = StatusCodes.BadWaitingForInitialData;
-                ReferenceTypeId = ReferenceTypeIds.HasComponent;
-            }
-        }
-
-        /// <summary>
-        /// Constructs an instance of a node.
-        /// </summary>
-        /// <param name="parent">The parent.</param>
-        /// <returns>The new node.</returns>
-        public static NodeState Construct(NodeState parent)
-        {
-            return new BaseDataVariableState(parent);
-        }
-
-        /// <summary>
-        /// Initializes the instance with the default values.
-        /// </summary>
-        protected override void Initialize(ISystemContext context)
-        {
-            SymbolicName = CoreUtils.Format("{0}_Instance1", BrowseNames.BaseDataVariableType);
-            NodeId = default;
-            BrowseName = new QualifiedName(SymbolicName, 1);
-            DisplayName = new LocalizedText(SymbolicName);
-            Description = default;
-            WriteMask = AttributeWriteMask.None;
-            UserWriteMask = AttributeWriteMask.None;
-            ReferenceTypeId = ReferenceTypeIds.HasComponent;
-            TypeDefinitionId = GetDefaultTypeDefinitionId(context.NamespaceUris);
-            NumericId = VariableTypes.BaseDataVariableType;
-            Value = Variant.Null;
-            DataType = GetDefaultDataTypeId(context.NamespaceUris);
-            ValueRank = GetDefaultValueRank();
-            ArrayDimensions = default;
-            AccessLevel = AccessLevels.CurrentReadOrWrite;
-            UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            MinimumSamplingInterval = MinimumSamplingIntervals.Continuous;
-            Historizing = false;
-        }
-
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
-        protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
-        {
-            return VariableTypeIds.BaseDataVariableType;
-        }
-
-        /// <inheritdoc/>
-        public override object Clone()
-        {
-            var clone = (BaseDataVariableState)Activator.CreateInstance(GetType(), Parent);
-            CopyTo(clone);
-            return clone;
-        }
-
-        /// <inheritdoc/>
-        public override bool DeepEquals(NodeState node)
-        {
-            if (node is not BaseDataVariableState state)
-            {
-                return false;
-            }
-            return
-                base.DeepEquals(state) &&
-                EqualityComparer<PropertyState<LocalizedText[]>>.Default.Equals(
-                    state.EnumStrings, EnumStrings);
-        }
-
-        /// <inheritdoc/>
-        public override int DeepGetHashCode()
-        {
-            var hash = new HashCode();
-            hash.Add(base.DeepGetHashCode());
-            hash.Add(EnumStrings);
-            return hash.ToHashCode();
-        }
-
-        /// <inheritdoc/>
-        protected override void CopyTo(NodeState target)
-        {
-            if (target is BaseDataVariableState state)
-            {
-                state.EnumStrings = EnumStrings;
-            }
-            base.CopyTo(target);
-        }
-
-        /// <summary>
-        /// The strings that describe the values for an enumeration.
-        /// </summary>
-        public PropertyState<LocalizedText[]> EnumStrings
-        {
-            get => m_enumStrings;
-            set
-            {
-                if (!ReferenceEquals(m_enumStrings, value))
-                {
-                    ChangeMasks |= NodeStateChangeMasks.Children;
-                }
-
-                m_enumStrings = value;
-            }
-        }
-
-        /// <summary>
-        /// Populates a list with the children that belong to the node.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="children">The list of children to populate.</param>
-        public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
-        {
-            if (m_enumStrings != null)
-            {
-                children.Add(m_enumStrings);
-            }
-
-            base.GetChildren(context, children);
-        }
-
-        /// <summary>
-        /// Finds the child with the specified browse name.
-        /// </summary>
-        protected override BaseInstanceState FindChild(
-            ISystemContext context,
-            QualifiedName browseName,
-            bool createOrReplace,
-            BaseInstanceState replacement)
-        {
-            if (browseName.IsNull)
-            {
-                return null;
-            }
-
-            BaseInstanceState instance = null;
-            switch (browseName.Name)
-            {
-                case BrowseNames.EnumStrings:
-                    instance = !createOrReplace ?
-                        EnumStrings : CreateOrReplaceEnumStrings(context, replacement);
-                    break;
-            }
-            return instance ?? base.FindChild(context, browseName, createOrReplace, replacement);
-        }
-
-        /// <summary>
-        /// Create or replace enum strings
-        /// </summary>
-        public PropertyState<LocalizedText[]> CreateOrReplaceEnumStrings(
-            ISystemContext context,
-            BaseInstanceState replacement)
-        {
-            if (EnumStrings == null)
-            {
-                if (replacement is not PropertyState<LocalizedText[]> child)
-                {
-                    child = new PropertyState<LocalizedText[]>(this);
-                    if (replacement != null)
-                    {
-                        child.Create(context, replacement);
-                    }
-                }
-                EnumStrings = child;
-            }
-            return EnumStrings;
-        }
-
-        private PropertyState<LocalizedText[]> m_enumStrings;
-    }
-
-    /// <summary>
-    /// A typed base class for all data variable nodes.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class BaseDataVariableState<T> : BaseDataVariableState
-    {
-        /// <summary>
-        /// Initializes the instance with its default attribute values.
-        /// </summary>
-        public BaseDataVariableState(NodeState parent)
-            : base(parent)
-        {
-            Value = default;
-        }
-
-        /// <summary>
-        /// Initializes the instance with the default values.
-        /// </summary>
-        /// <param name="context">An object that describes how access the system containing the data. </param>
-        protected override void Initialize(ISystemContext context)
-        {
-            base.Initialize(context);
-            base.Initialize<T>(context);
-        }
-
-        /// <summary>
-        /// The value of the variable.
-        /// </summary>
-        public new T Value
-        {
-            get => VariantHelper.CastTo<T>(base.Value, true);
-            set => base.Value = VariantHelper.CastFrom(value);
-        }
     }
 
     /// <summary>

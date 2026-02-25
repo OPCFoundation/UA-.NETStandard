@@ -1413,7 +1413,7 @@ namespace Opc.Ua.Client.Tests
                     "test",
                     60000,
                     new UserIdentity(),
-                    null,
+                    default,
                     true,
                     closeChannel: true,
                     default).ConfigureAwait(false));

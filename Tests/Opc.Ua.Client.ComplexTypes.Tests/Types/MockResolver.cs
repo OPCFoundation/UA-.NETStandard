@@ -176,8 +176,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     IEnumerable<DataTypeNode> response = DataTypeNodes
                         .Values.Where(n =>
                             n.NodeClass == NodeClass.DataType &&
-                            ((DataTypeNode)n).DataTypeDefinition
-                                .Body is StructureDefinition structureDefinition &&
+                            ((DataTypeNode)n).DataTypeDefinition.Body is StructureDefinition structureDefinition &&
                             Utils.IsEqual(structureDefinition.BaseDataType, node))
                         .Cast<DataTypeNode>();
                     if (nestedSubTypes)
@@ -220,12 +219,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             INode node = DataTypeNodes[typeId];
             if (node is DataTypeNode dataTypeNode)
             {
-                if (dataTypeNode.DataTypeDefinition.Body is EnumDefinition)
+                if (dataTypeNode.DataTypeDefinition.TryGetEncodeable(out EnumDefinition _))
                 {
                     return Task.FromResult(DataTypeIds.Enumeration);
                 }
-                else if (dataTypeNode.DataTypeDefinition
-                    .Body is StructureDefinition structureDefinition)
+                if (dataTypeNode.DataTypeDefinition.TryGetEncodeable(
+                    out StructureDefinition structureDefinition))
                 {
                     return Task.FromResult(structureDefinition.BaseDataType);
                 }

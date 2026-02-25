@@ -433,14 +433,13 @@ namespace Opc.Ua.SourceGeneration
             }
 
             bool isServiceType = dataType.Service != null;
-            if (isServiceType)
-            {
-                context.Template.AddReplacement(
-                    Tokens.ExtraInterfaces,
+            context.Template.AddReplacement(
+                Tokens.ExtraInterfaces,
+                !isServiceType ?
+                    string.Empty :
                     dataType.IsServiceResponse ?
                         "global::Opc.Ua.IServiceResponse, " :
                         "global::Opc.Ua.IServiceRequest, ");
-            }
 
             Parameter[] fields = GetFields(dataType);
 
@@ -675,7 +674,7 @@ namespace Opc.Ua.SourceGeneration
             }
 
             var dataType = (DataTypeDesign)field.Parent;
-            var isServiceType = dataType.Service != null;
+            bool isServiceType = dataType.Service != null;
 
             context.Out.WriteLine(
                 "private {0} {1};",
@@ -756,7 +755,7 @@ namespace Opc.Ua.SourceGeneration
             }
 
             var dataType = (DataTypeDesign)field.Parent;
-            var isServiceType = dataType.Service != null;
+            bool isServiceType = dataType.Service != null;
             bool isUnion = dataType.IsUnion;
 
             if (isUnion)
@@ -939,7 +938,7 @@ namespace Opc.Ua.SourceGeneration
             }
 
             var dataType = (DataTypeDesign)field.Parent;
-            var isServiceType = dataType.Service != null;
+            bool isServiceType = dataType.Service != null;
 
             bool isUnion = dataType.IsUnion;
             if (isUnion)
@@ -1130,16 +1129,18 @@ namespace Opc.Ua.SourceGeneration
                     $"if ((EncodingMask & (uint){dataType.ClassName}Fields.{field.Name}) != 0) ");
             }
 
-            if (dataType.IsDotNetEqualityComparable(field.ValueRank))
+            bool isServiceType = dataType.Service != null;
+            if (!field.DataTypeNode.IsDotNetEqualityComparable(field.ValueRank) ||
+                (!isServiceType && field.ValueRank != ValueRank.Scalar)) // Then we use collections
             {
                 context.Out.WriteLine(
-                    "if ({0} != value.{0})",
+                    "if (!global::Opc.Ua.CoreUtils.IsEqual({0}, value.{0}))",
                     field.GetChildFieldName());
             }
             else
             {
                 context.Out.WriteLine(
-                    "if (!global::Opc.Ua.CoreUtils.IsEqual({0}, value.{0}))",
+                    "if ({0} != value.{0})",
                     field.GetChildFieldName());
             }
             context.Out.WriteLine("{");
