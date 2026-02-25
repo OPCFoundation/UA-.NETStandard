@@ -2737,8 +2737,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Url = "opc.udp://localhost:4840"
             };
             var extensionObject = new DataValue(
-                Variant.From(
-                    new ExtensionObject(DataTypeIds.NetworkAddressUrlDataType, publisherAddress)));
+                Variant.From(new ExtensionObject(publisherAddress)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ExtensionObject", namespaceIndexAllTypes),
                 Attributes.Value,

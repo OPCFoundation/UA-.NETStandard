@@ -1466,8 +1466,7 @@ namespace Opc.Ua
 
                 if (value.TryGet(out ExtensionObject extension))
                 {
-                    encodeable = extension.Body as IEncodeable;
-                    if (encodeable != null)
+                    if (extension.TryGetEncodeable(out encodeable))
                     {
                         return ExpandedNodeId.ToNodeId(encodeable.TypeId, namespaceUris);
                     }

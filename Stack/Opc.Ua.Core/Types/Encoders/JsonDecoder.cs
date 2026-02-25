@@ -263,14 +263,6 @@ namespace Opc.Ua
             m_reader.Close();
         }
 
-        /// <summary>
-        /// Reads the body extension object from the stream.
-        /// </summary>
-        public object ReadExtensionObjectBody(ExpandedNodeId typeId)
-        {
-            return null;
-        }
-
         /// <inheritdoc/>
         public void Dispose()
         {
@@ -1403,7 +1395,7 @@ namespace Opc.Ua
                         }
                     }
 
-                    return new ExtensionObject(typeId, encodeable);
+                    return new ExtensionObject(encodeable);
                 }
 
                 using var ostrm = new MemoryStream();
@@ -1413,7 +1405,7 @@ namespace Opc.Ua
                     EncodeAsJson(writer, token);
                 }
                 // Close the writer before retrieving the data
-                return new ExtensionObject(typeId, ostrm.ToArray());
+                return new ExtensionObject(typeId, ByteString.From(ostrm.ToArray()));
             }
             finally
             {

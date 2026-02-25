@@ -657,12 +657,12 @@ namespace TestData
             if (m_generator.GetRandomBoolean())
             {
                 ScalarStructureDataType value = GetRandomScalarStructureDataType();
-                return new ExtensionObject(value.TypeId, value);
+                return new ExtensionObject(value);
             }
             else
             {
                 ArrayValueDataType value = GetRandomArrayValueDataType();
-                return new ExtensionObject(value.TypeId, value);
+                return new ExtensionObject(value);
             }
         }
 

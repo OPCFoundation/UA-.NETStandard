@@ -2623,7 +2623,7 @@ namespace Opc.Ua.Sample
             DataChangeFilter filter = null;
             Range range = null;
 
-            if (!ExtensionObject.IsNull(parameters.Filter))
+            if (!parameters.Filter.IsNull)
             {
                 error = ValidateDataChangeFilter(
                     context,
@@ -2879,7 +2879,7 @@ namespace Opc.Ua.Sample
             Range range = null;
 
             ServiceResult error;
-            if (!ExtensionObject.IsNull(parameters.Filter))
+            if (!parameters.Filter.IsNull)
             {
                 error = ValidateDataChangeFilter(
                     context,

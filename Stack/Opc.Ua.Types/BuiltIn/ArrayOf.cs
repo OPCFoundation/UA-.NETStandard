@@ -672,7 +672,7 @@ namespace Opc.Ua
             this ArrayOf<T> collection,
             int batchSize)
         {
-            if (collection.Count <= batchSize)
+            if (collection.Count <= batchSize || batchSize == 0)
             {
                 yield return collection;
             }

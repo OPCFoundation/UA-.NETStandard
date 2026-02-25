@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -408,7 +409,7 @@ namespace Opc.Ua.Client
                     "Cannot browse if not connected to a server.");
 
             int count = nodesToBrowse.Count;
-            var result = new List<ArrayOf<ReferenceDescription>>(count);
+            var result = new List<ReferenceDescriptionCollection>(count);
             var errors = new List<ServiceResult>(count);
 
             // first attempt for implementation: create the references for the output in advance.
@@ -420,9 +421,10 @@ namespace Opc.Ua.Client
             }
             // in the first pass, we browse all nodes from the input.
             // Some nodes may need to be browsed again, these are then fed into the next pass.
-            ArrayOf<NodeId> nodesToBrowseForPass = nodesToBrowse;
+            var nodesToBrowseForPass = new List<NodeId>(count);
+            nodesToBrowseForPass.AddRange(nodesToBrowse);
 
-            var resultForPass = new List<ArrayOf<ReferenceDescription>>(count);
+            var resultForPass = new List<ReferenceDescriptionCollection>(count);
             resultForPass.AddRange(result);
 
             var errorsForPass = new List<ServiceResult>(count);
@@ -450,11 +452,13 @@ namespace Opc.Ua.Client
                 int batchOffset = 0;
 
                 var nodesToBrowseForNextPass = new List<NodeId>();
-                var referenceDescriptionsForNextPass = new List<ArrayOf<ReferenceDescription>>();
+                var referenceDescriptionsForNextPass
+                    = new List<ReferenceDescriptionCollection>();
                 var errorsForNextPass = new List<ServiceResult>();
 
                 // loop over the batches
-                foreach (ArrayOf<NodeId> nodesToBrowseBatch in nodesToBrowseForPass.Batch((int)maxNodesPerBrowse))
+                foreach (ArrayOf<NodeId> nodesToBrowseBatch in
+                    nodesToBrowseForPass.ToArrayOf().Batch((int)maxNodesPerBrowse))
                 {
                     int nodesToBrowseBatchCount = nodesToBrowseBatch.Count;
 
@@ -495,13 +499,16 @@ namespace Opc.Ua.Client
 
                             if (addToNextPass)
                             {
-                                nodesToBrowseForNextPass.Add(nodesToBrowseForPass[resultOffset]);
-                                referenceDescriptionsForNextPass.Add(resultForPass[resultOffset]);
+                                nodesToBrowseForNextPass.Add(
+                                    nodesToBrowseForPass[resultOffset]);
+                                referenceDescriptionsForNextPass.Add(
+                                    resultForPass[resultOffset]);
                                 errorsForNextPass.Add(errorsForPass[resultOffset]);
                             }
                         }
 
-                        resultForPass[resultOffset] = results.Results[ii];
+                        resultForPass[resultOffset].Clear();
+                        resultForPass[resultOffset].AddRange(results.Results[ii]);
                         errorsForPass[resultOffset] = results.Errors[ii];
                         errors[resultOffset] = results.Errors[ii];
                         resultOffset++;
@@ -512,7 +519,7 @@ namespace Opc.Ua.Client
 
                 resultForPass = referenceDescriptionsForNextPass;
                 errorsForPass = errorsForNextPass;
-                nodesToBrowseForPass = nodesToBrowseForNextPass.ToArrayOf();
+                nodesToBrowseForPass = nodesToBrowseForNextPass;
 
                 if (badCPInvalidErrorsPerPass > 0)
                 {
@@ -547,7 +554,7 @@ namespace Opc.Ua.Client
 
                 passCount++;
             } while (nodesToBrowseForPass.Count > 0);
-            return ResultSet.From(result, errors);
+            return ResultSet.From(result.ConvertAll(l => (ArrayOf<ReferenceDescription>)l), errors);
         }
 
         /// <summary>
@@ -586,11 +593,11 @@ namespace Opc.Ua.Client
                     ct)
                 .ConfigureAwait(false);
 
-            var result = new List<ArrayOf<ReferenceDescription>>(nodeIds.Count);
-            result.AddRange(referenceDescriptions);
+            var result = new List<ReferenceDescriptionCollection>(nodeIds.Count);
+            result.AddRange(referenceDescriptions.ConvertAll(l => (ReferenceDescriptionCollection)l).ToList());
 
             // process any continuation point.
-            List<ArrayOf<ReferenceDescription>> previousResults = result;
+            List<ReferenceDescriptionCollection> previousResults = result.ToList();
             var errorAnchors = new List<ReferenceWrapper<ServiceResult>>();
             var previousErrors = new List<ReferenceWrapper<ServiceResult>>();
             foreach (ServiceResult error in errors)
@@ -600,7 +607,7 @@ namespace Opc.Ua.Client
             }
 
             var nextContinuationPoints = new ByteStringCollection();
-            var nextResults = new List<ArrayOf<ReferenceDescription>>();
+            var nextResults = new List<ReferenceDescriptionCollection>();
             var nextErrors = new List<ReferenceWrapper<ServiceResult>>();
 
             for (int ii = 0; ii < nodeIds.Count; ii++)
@@ -629,7 +636,7 @@ namespace Opc.Ua.Client
 
                 for (int ii = 0; ii < browseNextResults.Count; ii++)
                 {
-                    nextResults[ii] = ArrayOf.Combine(nextResults[ii], browseNextResults[ii]);
+                    nextResults[ii].AddRange(browseNextResults[ii]);
                     nextErrors[ii].Reference = browseNextErrors[ii];
                 }
 
@@ -657,7 +664,7 @@ namespace Opc.Ua.Client
                 finalErrors.Add(errorReference.Reference);
             }
 
-            return ResultSet.From(result, finalErrors);
+            return ResultSet.From(result.ConvertAll(l => (ArrayOf<ReferenceDescription>)l), finalErrors);
         }
 
         /// <summary>

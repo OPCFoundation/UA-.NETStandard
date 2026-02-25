@@ -482,9 +482,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         private static string WriteByteStringData(IEncoder encoder)
         {
-            encoder.WriteByteString("ByteString1", [0, 1, 2, 3, 4, 5], 1, 3);
+            encoder.WriteByteString("ByteString1", ByteString.From([0, 1, 2, 3, 4, 5]).Slice(1, 3));
             encoder.WriteByteString("ByteString2", ByteString.Empty);
-            encoder.WriteByteString("ByteString3", null, 1, 2);
+            encoder.WriteByteString("ByteString3", default(ByteString));
 #if SPAN_SUPPORT
             var span = new ReadOnlySpan<byte>([0, 1, 2, 3, 4, 5], 1, 3);
             encoder.WriteByteString("ByteString4", span);

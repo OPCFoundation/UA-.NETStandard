@@ -999,11 +999,10 @@ namespace Opc.Ua
             // write encodeable bodies.
             if (encodeable == null)
             {
-                throw new ServiceResultException(
+                throw ServiceResultException.Create(
                     StatusCodes.BadEncodingError,
-                    CoreUtils.Format(
-                        "Cannot encode bodies of type '{0}' in extension objects.",
-                        body.GetType().FullName));
+                    "Cannot encode empty extension object '{0}'.",
+                    value);
             }
 
             // check if it possible to write the extension directly to the stream.

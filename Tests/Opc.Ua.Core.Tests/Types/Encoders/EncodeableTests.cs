@@ -86,7 +86,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 jsonEncodingType,
                 BuiltInType.ExtensionObject,
                 memoryStreamType,
-                new ExtensionObject(testObject.TypeId, testObject));
+                new ExtensionObject(testObject));
         }
 
         [Theory]

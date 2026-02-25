@@ -68,12 +68,6 @@ namespace Opc.Ua
             for (int jj = 0; jj < m_notificationData.Count; jj++)
             {
                 ExtensionObject extension = m_notificationData[jj];
-
-                if (ExtensionObject.IsNull(extension))
-                {
-                    continue;
-                }
-
                 if (!extension.TryGetEncodeable(out DataChangeNotification notification))
                 {
                     continue;
@@ -119,11 +113,6 @@ namespace Opc.Ua
 
             foreach (ExtensionObject extension in m_notificationData)
             {
-                if (ExtensionObject.IsNull(extension))
-                {
-                    continue;
-                }
-
                 if (!extension.TryGetEncodeable(out EventNotificationList notification))
                 {
                     continue;

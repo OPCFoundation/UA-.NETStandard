@@ -4081,7 +4081,7 @@ namespace Opc.Ua.Server
             result = null;
 
             // nothing to do if the filter is not specified.
-            if (ExtensionObject.IsNull(filter))
+            if (filter.IsNull)
             {
                 return StatusCodes.Good;
             }

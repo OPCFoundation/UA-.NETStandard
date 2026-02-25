@@ -176,7 +176,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     IEnumerable<DataTypeNode> response = DataTypeNodes
                         .Values.Where(n =>
                             n.NodeClass == NodeClass.DataType &&
-                            ((DataTypeNode)n).DataTypeDefinition.Body is StructureDefinition structureDefinition &&
+                            n is DataTypeNode dataType &&
+                            dataType.DataTypeDefinition.TryGetEncodeable(
+                                out StructureDefinition structureDefinition) &&
                             Utils.IsEqual(structureDefinition.BaseDataType, node))
                         .Cast<DataTypeNode>();
                     if (nestedSubTypes)

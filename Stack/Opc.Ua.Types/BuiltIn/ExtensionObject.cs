@@ -74,7 +74,7 @@ namespace Opc.Ua
         public ExtensionObject(ExpandedNodeId typeId)
         {
             TypeId = typeId;
-            Body = null;
+            m_body = null;
         }
 
         /// <summary>
@@ -87,7 +87,21 @@ namespace Opc.Ua
             if (body != null)
             {
                 TypeId = body.TypeId;
-                Body = copy ? body.Clone() : body;
+                m_body = copy ? body.Clone() : body;
+            }
+        }
+
+        /// <summary>
+        /// Create extension object from encodeable object
+        /// </summary>
+        /// <param name="typeId">Alternative type id</param>
+        /// <param name="body">Encodeable body</param>
+        internal ExtensionObject(ExpandedNodeId typeId, IEncodeable body)
+        {
+            if (body != null)
+            {
+                TypeId = typeId.IsNull ? body.TypeId : typeId;
+                m_body = body;
             }
         }
 
@@ -99,7 +113,7 @@ namespace Opc.Ua
         public ExtensionObject(ExpandedNodeId typeId, ByteString body)
         {
             TypeId = typeId;
-            Body = body;
+            m_body = body;
         }
 
         /// <summary>
@@ -110,7 +124,7 @@ namespace Opc.Ua
         public ExtensionObject(ExpandedNodeId typeId, XmlElement body)
         {
             TypeId = typeId;
-            Body = body;
+            m_body = body;
         }
 
         /// <summary>
@@ -121,7 +135,7 @@ namespace Opc.Ua
         public ExtensionObject(ExpandedNodeId typeId, string body)
         {
             TypeId = typeId;
-            Body = body;
+            m_body = body;
         }
 
         /// <summary>
@@ -129,12 +143,12 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="typeId">The type describing the body</param>
         /// <param name="body">The underlying data/body to wrap</param>
-       // [Obsolete("Use concrete constructor with typed body values instead.")]
+        [Obsolete("Use concrete constructor with typed body values instead.")]
         [JsonConstructor]
-        public ExtensionObject(ExpandedNodeId typeId, object body = null)
+        public ExtensionObject(ExpandedNodeId typeId, object body)
         {
             TypeId = typeId;
-            Body = body;
+            m_body = body;
 
             if (body is
                 not null and
@@ -147,7 +161,7 @@ namespace Opc.Ua
                     StatusCodes.BadNotSupported,
                     CoreUtils.Format(
                         "Cannot add an object with type '{0}' to an extension object.",
-                        Body.GetType().FullName));
+                        body.GetType().FullName));
             }
         }
 
@@ -156,7 +170,7 @@ namespace Opc.Ua
         /// the body.
         /// </summary>
         /// <value>The encoding for the embedded object.</value>
-        public ExtensionObjectEncoding Encoding => Body switch
+        public ExtensionObjectEncoding Encoding => m_body switch
         {
             string => ExtensionObjectEncoding.Json,
             XmlElement => ExtensionObjectEncoding.Xml,
@@ -168,8 +182,10 @@ namespace Opc.Ua
         /// <summary>
         /// The body of the extension object.
         /// </summary>
-        // [Obsolete("Use TryGetAsXXX API for type safe access to body.")]
-        public object Body { get; }
+        [Obsolete("Use TryGetAsXXX API for type safe access to body.")]
+#pragma warning disable RCS1085 // Use auto-implemented property
+        public object Body => m_body;
+#pragma warning restore RCS1085 // Use auto-implemented property
 
         /// <summary>
         /// The data type node id for the extension object.
@@ -183,7 +199,7 @@ namespace Opc.Ua
             {
                 return 0;
             }
-            return HashCode.Combine(TypeId.GetHashCode(), Body switch
+            return HashCode.Combine(TypeId.GetHashCode(), m_body switch
             {
                 ByteString b => b.GetHashCode(),
                 string s => StringComparer.Ordinal.GetHashCode(s),
@@ -219,7 +235,7 @@ namespace Opc.Ua
             }
             if (Encoding == value.Encoding)
             {
-                return Body switch
+                return m_body switch
                 {
                     ByteString b =>
                         b == (value.TryGetAsBinary(out ByteString b2) ? b2 : default),
@@ -233,7 +249,7 @@ namespace Opc.Ua
                     _ => false
                 };
             }
-            return CoreUtils.IsEqual(Body, value.Body);
+            return CoreUtils.IsEqual(m_body, value.m_body);
         }
 
         /// <inheritdoc/>
@@ -259,7 +275,7 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                if (Body is ByteString byteString)
+                if (m_body is ByteString byteString)
                 {
                     return string.Format(
                         formatProvider,
@@ -267,7 +283,7 @@ namespace Opc.Ua
                         byteString.Length);
                 }
 
-                if (Body is XmlElement element)
+                if (m_body is XmlElement element)
                 {
                     return string.Format(
                         formatProvider,
@@ -275,7 +291,7 @@ namespace Opc.Ua
                         element.OuterXml);
                 }
 
-                if (Body is string json)
+                if (m_body is string json)
                 {
                     return string.Format(
                         formatProvider,
@@ -283,7 +299,7 @@ namespace Opc.Ua
                         json);
                 }
 
-                if (Body is IFormattable formattable)
+                if (m_body is IFormattable formattable)
                 {
                     return string.Format(
                         formatProvider,
@@ -291,12 +307,12 @@ namespace Opc.Ua
                         formattable.ToString(null, formatProvider));
                 }
 
-                if (Body is IEncodeable)
+                if (m_body is IEncodeable)
                 {
                     var body = new StringBuilder();
 
                     foreach (
-                        PropertyInfo property in Body
+                        PropertyInfo property in m_body
                             .GetType()
                             .GetProperties(BindingFlags.Public |
                                 BindingFlags.FlattenHierarchy |
@@ -322,7 +338,7 @@ namespace Opc.Ua
                                 body.AppendFormat(
                                     formatProvider,
                                     "{0}",
-                                    property.GetGetMethod().Invoke(Body, null));
+                                    property.GetGetMethod().Invoke(m_body, null));
                             }
                         }
                     }
@@ -349,7 +365,7 @@ namespace Opc.Ua
         /// <summary>
         /// Tests if the extension object is null.
         /// </summary>
-        public bool IsNull => TypeId.IsNull && Body == null;
+        public bool IsNull => TypeId.IsNull && m_body == null;
 
         /// <summary>
         /// Try get encodeable from the extension object
@@ -358,7 +374,7 @@ namespace Opc.Ua
             out IEncodeable encodeable,
             IServiceMessageContext messageContext = null)
         {
-            if (Body is IEncodeable e)
+            if (m_body is IEncodeable e)
             {
                 encodeable = e;
                 return true;
@@ -401,7 +417,7 @@ namespace Opc.Ua
             out string json,
             IServiceMessageContext messageContext = null)
         {
-            if (Body is string s)
+            if (m_body is string s)
             {
                 json = s;
                 return true;
@@ -425,7 +441,7 @@ namespace Opc.Ua
             out XmlElement xml,
             IServiceMessageContext messageContext = null)
         {
-            if (Body is XmlElement x)
+            if (m_body is XmlElement x)
             {
                 xml = x;
                 return true;
@@ -449,7 +465,7 @@ namespace Opc.Ua
             out ByteString binary,
             IServiceMessageContext messageContext = null)
         {
-            if (Body is ByteString b)
+            if (m_body is ByteString b)
             {
                 binary = b;
                 return true;
@@ -473,7 +489,7 @@ namespace Opc.Ua
         /// <returns>Instance of <see cref="IEncodeable"/> for the embedded object.</returns>
         public static IEncodeable ToEncodeable(ExtensionObject extension)
         {
-            return extension.Body as IEncodeable;
+            return extension.m_body as IEncodeable;
         }
 
         /// <summary>
@@ -551,7 +567,7 @@ namespace Opc.Ua
         [Pure]
         public ExtensionObject WithTypeId(ExpandedNodeId typeId)
         {
-            return Body switch
+            return m_body switch
             {
                 ByteString v => new ExtensionObject(typeId, v),
                 string v => new ExtensionObject(typeId, v),
@@ -560,6 +576,8 @@ namespace Opc.Ua
                 _ => new ExtensionObject(typeId)
             };
         }
+
+        private readonly object m_body;
     }
 
     /// <summary>
@@ -735,21 +753,7 @@ namespace Opc.Ua
                 // create decoder.
                 IServiceMessageContext context = AmbientMessageContext.CurrentContext;
                 using var decoder = new XmlDecoder(value, context);
-                switch (decoder.ReadExtensionObjectBody(Value.TypeId))
-                {
-                    case IEncodeable encodeable:
-                        Value = new ExtensionObject(encodeable);
-                        break;
-                    case ByteString bytes:
-                        Value = new ExtensionObject(Value.TypeId, bytes);
-                        break;
-                    case XmlElement xml:
-                        Value = new ExtensionObject(Value.TypeId, xml);
-                        break;
-                    case string json:
-                        Value = new ExtensionObject(Value.TypeId, json);
-                        break;
-                }
+                Value = decoder.ReadExtensionObjectBody(Value.TypeId);
                 // close decoder.
                 try
                 {

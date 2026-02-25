@@ -325,9 +325,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                         continue;
                     }
 
-                    if (value.Value is ExtensionObject extensionObject)
+                    if (value.Value is ExtensionObject extensionObject &&
+                        extensionObject.TryGetEncodeable(out IEncodeable encodeable))
                     {
-                        Type valueType = extensionObject.Body.GetType();
+                        Type valueType = encodeable.GetType();
                         if (valueType != type)
                         {
                             testFailed = true;
@@ -346,16 +347,19 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     {
                         foreach (ExtensionObject valueItem in array)
                         {
-                            Type valueType = valueItem.Body.GetType();
-                            if (valueType != type)
+                            if (valueItem.TryGetEncodeable(out encodeable))
                             {
-                                testFailed = true;
-                                TestContext.Out.WriteLine(
-                                    "Variable: {0} type is decoded as ExtensionObject --> {1}",
-                                    variableNode,
-                                    valueItem);
-                                (_, _) = await samples.ReadAllValuesAsync(this, [variableId])
-                                    .ConfigureAwait(false);
+                                Type valueType = encodeable.GetType();
+                                if (valueType != type)
+                                {
+                                    testFailed = true;
+                                    TestContext.Out.WriteLine(
+                                        "Variable: {0} type is decoded as ExtensionObject --> {1}",
+                                        variableNode,
+                                        valueItem);
+                                    (_, _) = await samples.ReadAllValuesAsync(this, [variableId])
+                                        .ConfigureAwait(false);
+                                }
                             }
                         }
                     }

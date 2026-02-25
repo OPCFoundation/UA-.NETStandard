@@ -1684,13 +1684,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.WriteExtensionObject(
                 "D0",
-                new ExtensionObject(DataTypeIds.Range, new Range { High = 9876.5432 }));
+                new ExtensionObject(new Range { High = 9876.5432 }));
 
             encoder.WriteVariant(
                 "D1",
                 new Variant(
                     new ExtensionObject(
-                        Gds.DataTypeIds.ApplicationRecordDataType,
                         new Gds.ApplicationRecordDataType
                         {
                             ApplicationId = new NodeId("urn:123456789", 1),
@@ -1807,13 +1806,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             encoder.WriteExtensionObject(
                 "D0",
-                new ExtensionObject(DataTypeIds.Range, new Range { Low = 0, High = 9876.5432 }));
+                new ExtensionObject(new Range { Low = 0, High = 9876.5432 }));
 
             encoder.WriteVariant(
                 "D1",
                 new Variant(
                     new ExtensionObject(
-                        Gds.DataTypeIds.ApplicationRecordDataType,
                         new Gds.ApplicationRecordDataType
                         {
                             ApplicationId = new NodeId("urn:123456789", 1),
@@ -1931,13 +1929,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var encoder = new JsonEncoder(context, JsonEncodingType.Reversible);
             encoder.WriteExtensionObject(
                 "D0",
-                new ExtensionObject(DataTypeIds.Range, new Range { High = 9876.5432 }));
+                new ExtensionObject(new Range { High = 9876.5432 }));
 
             encoder.WriteVariant(
                 "D1",
                 new Variant(
                     new ExtensionObject(
-                        Gds.DataTypeIds.ApplicationRecordDataType,
                         new Gds.ApplicationRecordDataType
                         {
                             ApplicationId = new NodeId("urn:123456789", 1),
@@ -2028,13 +2025,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var encoder = new JsonEncoder(context, JsonEncodingType.NonReversible);
             encoder.WriteExtensionObject(
                 "D0",
-                new ExtensionObject(DataTypeIds.Range, new Range { Low = 0, High = 9876.5432 }));
+                new ExtensionObject(new Range { Low = 0, High = 9876.5432 }));
 
             encoder.WriteVariant(
                 "D1",
                 new Variant(
                     new ExtensionObject(
-                        Gds.DataTypeIds.ApplicationRecordDataType,
                         new Gds.ApplicationRecordDataType
                         {
                             ApplicationId = new NodeId("urn:123456789", 1),

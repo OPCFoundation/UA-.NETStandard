@@ -421,7 +421,7 @@ namespace Opc.Ua
         /// Reads the body extension object from the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public object ReadExtensionObjectBody(ExpandedNodeId typeId)
+        public ExtensionObject ReadExtensionObjectBody(ExpandedNodeId typeId)
         {
             m_reader.MoveToContent();
 
@@ -432,7 +432,7 @@ namespace Opc.Ua
                 ByteString bytes = ReadByteString("ByteString");
                 PopNamespace();
 
-                return bytes;
+                return new ExtensionObject(typeId, bytes);
             }
 
             // lookup type.
@@ -444,7 +444,7 @@ namespace Opc.Ua
                 PushNamespace(m_reader.NamespaceURI);
                 IEncodeable encodeable = ReadEncodeable(m_reader.LocalName, systemType, typeId);
                 PopNamespace();
-                return encodeable;
+                return new ExtensionObject(encodeable);
             }
 
             try
@@ -457,7 +457,7 @@ namespace Opc.Ua
                         "Invalid xml in extension object body: {0}",
                         xmlElement);
                 }
-                return xmlElement;
+                return new ExtensionObject(typeId, xmlElement);
             }
             catch (Exception ae)
             {
@@ -1274,7 +1274,7 @@ namespace Opc.Ua
             }
 
             // read the body.
-            object body = ReadExtensionObjectBody(absoluteId);
+            ExtensionObject result = ReadExtensionObjectBody(absoluteId);
 
             // read end of body.
             EndField("Body");
@@ -1283,13 +1283,7 @@ namespace Opc.Ua
             // read end of extension object.
             EndField(fieldName);
 
-            if (body is IEncodeable encodeable)
-            {
-                // Set the known TypeId for encodeables.
-                absoluteId = encodeable.TypeId;
-            }
-
-            return new ExtensionObject(absoluteId, body);
+            return result;
         }
 
         /// <summary>

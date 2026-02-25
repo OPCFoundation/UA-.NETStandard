@@ -1960,7 +1960,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             // validate history details parameter.
-            if (ExtensionObject.IsNull(historyReadDetails))
+            if (historyReadDetails.IsNull)
             {
                 throw new ServiceResultException(StatusCodes.BadHistoryOperationInvalid);
             }
@@ -2200,16 +2200,13 @@ namespace Opc.Ua.Server
             // verify that all extension objects in the list have the same type.
             foreach (ExtensionObject details in historyUpdateDetails)
             {
-                if (detailsType == null)
+                if (!details.TryGetEncodeable(out HistoryUpdateDetails historyUpdateDetail))
                 {
-                    detailsType = details.Body.GetType();
+                    nodesToUpdate.Add(null); // Retain old behavior
+                    continue;
                 }
-
-                if (!ExtensionObject.IsNull(details))
-                {
-                    nodesToUpdate.Add(
-                        details.TryGetEncodeable(out HistoryUpdateDetails h) ? h : null);
-                }
+                detailsType = historyUpdateDetail.GetType();
+                nodesToUpdate.Add(historyUpdateDetail);
             }
 
             // create result lists.
@@ -2623,12 +2620,6 @@ namespace Opc.Ua.Server
 
                 if (!itemToCreate.Processed)
                 {
-                    // must make sure the filter is not null before checking its type.
-                    if (ExtensionObject.IsNull(itemToCreate.RequestedParameters.Filter))
-                    {
-                        continue;
-                    }
-
                     // all event subscriptions required an event filter.
                     if (!itemToCreate.RequestedParameters.Filter.TryGetEncodeable(out EventFilter filter))
                     {
@@ -3038,7 +3029,7 @@ namespace Opc.Ua.Server
                 itemToModify.Processed = true;
 
                 // check for a valid filter.
-                if (ExtensionObject.IsNull(itemToModify.RequestedParameters.Filter))
+                if (itemToModify.RequestedParameters.Filter.IsNull)
                 {
                     errors[ii] = StatusCodes.BadEventFilterInvalid;
                     continue;
@@ -3435,7 +3426,7 @@ namespace Opc.Ua.Server
         protected static ServiceResult ValidateMonitoringFilter(ExtensionObject filter)
         {
             // check that no filter is specified for non-value attributes.
-            if (!ExtensionObject.IsNull(filter))
+            if (!filter.IsNull)
             {
                 // validate data change filter.
                 if (filter.TryGetEncodeable(out DataChangeFilter datachangeFilter))
@@ -3501,7 +3492,7 @@ namespace Opc.Ua.Server
             if (item.ItemToMonitor.AttributeId is not Attributes.Value and not Attributes
                 .EventNotifier)
             {
-                if (!ExtensionObject.IsNull(attributes.Filter))
+                if (!attributes.Filter.IsNull)
                 {
                     return new ServiceResult(StatusCodes.BadFilterNotAllowed);
                 }

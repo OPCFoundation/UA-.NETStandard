@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -1165,7 +1164,8 @@ namespace Opc.Ua.Client.Tests
             NamespaceTable namespaceUris = Session.NamespaceUris;
             var testSet = GetTestSetStatic(namespaceUris).ToList();
             testSet.AddRange(GetTestSetFullSimulation(namespaceUris));
-            (var values, var errors) = await Session.ReadValuesAsync([.. testSet]).ConfigureAwait(false);
+            (ArrayOf<DataValue> values, ArrayOf<ServiceResult> errors) =
+                await Session.ReadValuesAsync([.. testSet]).ConfigureAwait(false);
             Assert.AreEqual(testSet.Count, values.Count);
             Assert.AreEqual(testSet.Count, errors.Count);
         }
@@ -1193,7 +1193,7 @@ namespace Opc.Ua.Client.Tests
         public async Task ReadDataTypeDefinitionNodesAsync()
         {
             // Test Read a DataType Node, the nodeclass is known
-            (var nodes, var errors) = await Session
+            (ArrayOf<Node> nodes, ArrayOf<ServiceResult> errors) = await Session
                 .ReadNodesAsync([DataTypeIds.ProgramDiagnosticDataType], NodeClass.DataType, false)
                 .ConfigureAwait(false);
             Assert.AreEqual(nodes.Count, errors.Count);
@@ -1291,13 +1291,18 @@ namespace Opc.Ua.Client.Tests
                         sre.StatusCode);
                     while (nodeIds.Count > 0)
                     {
-                        (var displayNames, var errors) = await Session.ReadDisplayNameAsync(
-                            nodeIds.Slice(0, (int)OperationLimits.MaxNodesPerRead)).ConfigureAwait(false);
+                        ArrayOf<NodeId> slice = nodeIds.Count <= OperationLimits.MaxNodesPerRead ?
+                            nodeIds :
+                            nodeIds[..(int)OperationLimits.MaxNodesPerRead];
+                        (ArrayOf<string> displayNames, ArrayOf<ServiceResult> errors) =
+                            await Session.ReadDisplayNameAsync(slice).ConfigureAwait(false);
                         foreach (string name in displayNames)
                         {
                             TestContext.Out.WriteLine("{0}", name);
                         }
-                        nodeIds = nodeIds.Slice((int)OperationLimits.MaxNodesPerRead);
+                        nodeIds = nodeIds.Count <= OperationLimits.MaxNodesPerRead ?
+                            default :
+                            nodeIds[(int)OperationLimits.MaxNodesPerRead..];
                     }
                 }
                 finally
@@ -1307,7 +1312,7 @@ namespace Opc.Ua.Client.Tests
             }
             else
             {
-                (var displayNames, var errors) =
+                (ArrayOf<string> displayNames, ArrayOf<ServiceResult> errors) =
                     await Session.ReadDisplayNameAsync(nodeIds).ConfigureAwait(false);
                 foreach (string name in displayNames)
                 {
@@ -1413,7 +1418,7 @@ namespace Opc.Ua.Client.Tests
                         reference.NodeId,
                         Session.NamespaceUris)));
 
-            (var nodeCollection, var errors) = await Session.ReadNodesAsync(nodes)
+            (ArrayOf<Node> nodeCollection, ArrayOf<ServiceResult> errors) = await Session.ReadNodesAsync(nodes)
                 .ConfigureAwait(false);
             Assert.False(nodeCollection.IsNull);
             Assert.False(errors.IsNull);
@@ -1452,7 +1457,7 @@ namespace Opc.Ua.Client.Tests
                 ii++;
             }
 
-            (var values, errors) = await Session.ReadValuesAsync(nodes)
+            (ArrayOf<DataValue> values, errors) = await Session.ReadValuesAsync(nodes)
                 .ConfigureAwait(false);
 
             Assert.False(values.IsNull);
@@ -1486,7 +1491,7 @@ namespace Opc.Ua.Client.Tests
                         reference.NodeId,
                         Session.NamespaceUris)));
 
-            (var nodeCollection, var errors) = await Session
+            (ArrayOf<Node> nodeCollection, ArrayOf<ServiceResult> errors) = await Session
                 .ReadNodesAsync(nodes, true)
                 .ConfigureAwait(false);
             Assert.False(nodeCollection.IsNull);
@@ -1527,7 +1532,7 @@ namespace Opc.Ua.Client.Tests
                 ii++;
             }
 
-            (var values, errors) = await Session.ReadValuesAsync(nodes).ConfigureAwait(false);
+            (ArrayOf<DataValue> values, errors) = await Session.ReadValuesAsync(nodes).ConfigureAwait(false);
 
             Assert.False(values.IsNull);
             Assert.False(errors.IsNull);
@@ -1777,21 +1782,21 @@ namespace Opc.Ua.Client.Tests
                 VariableIds.Server_ServerStatus_BuildInfo_BuildDate
             };
 
-            (var nodeCollection, var errors) =
+            (ArrayOf<Node> nodeCollection, ArrayOf<ServiceResult> errors) =
                 await Session.ReadNodesAsync(nodes).ConfigureAwait(false);
             Assert.False(nodeCollection.IsNull);
             Assert.False(errors.IsNull);
             Assert.AreEqual(nodes.Count, nodeCollection.Count);
             Assert.AreEqual(nodes.Count, errors.Count);
 
-            (var values, var errors2) =
+            (ArrayOf<DataValue> values, ArrayOf<ServiceResult> errors2) =
                 await Session.ReadValuesAsync(nodes).ConfigureAwait(false);
             Assert.False(values.IsNull);
             Assert.False(errors2.IsNull);
             Assert.AreEqual(nodes.Count, values.Count);
             Assert.AreEqual(nodes.Count, errors2.Count);
 
-            var variableNodes = nodeCollection.ConvertAll(n => (VariableNode)n);
+            ArrayOf<VariableNode> variableNodes = nodeCollection.ConvertAll(n => (VariableNode)n);
             Assert.False(variableNodes.IsNull);
 
             // test build info contains the equal values as the properties
@@ -1998,14 +2003,14 @@ namespace Opc.Ua.Client.Tests
 
             const uint expectedRevised = 5;
 
-            var outputParameters = new List<object> { expectedRevised };
+            ArrayOf<Variant> outputParameters = [expectedRevised];
 
             var sessionMock = new Mock<ISession>();
 
             sessionMock
                 .Setup(mock => mock.CallAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<CallMethodRequestCollection>(c => c.HasArgsOfType(typeof(uint), typeof(uint))),
+                    It.Is<ArrayOf<CallMethodRequest>>(c => c.HasArgsOfType(typeof(uint), typeof(uint))),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(outputParameters.ToResponse());
 
@@ -2037,7 +2042,7 @@ namespace Opc.Ua.Client.Tests
             sessionMock
                  .Setup(mock => mock.CallAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<CallMethodRequestCollection>(c => c.HasArgsOfType(typeof(uint), typeof(uint))),
+                    It.Is<ArrayOf<CallMethodRequest>>(c => c.HasArgsOfType(typeof(uint), typeof(uint))),
                     It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid));
 
@@ -2058,14 +2063,14 @@ namespace Opc.Ua.Client.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var outputParameters = new List<object>();
+            ArrayOf<Variant> outputParameters = [];
 
             var sessionMock = new Mock<ISession>();
 
             sessionMock
                  .Setup(mock => mock.CallAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<CallMethodRequestCollection>(c => c.HasArgsOfType(typeof(uint), typeof(uint))),
+                    It.Is<ArrayOf<CallMethodRequest>>(c => c.HasArgsOfType(typeof(uint), typeof(uint))),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(outputParameters.ToResponse());
 
@@ -2086,14 +2091,14 @@ namespace Opc.Ua.Client.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            List<object> outputParameters = null;
+            ArrayOf<Variant> outputParameters = [];
 
             var sessionMock = new Mock<ISession>();
 
             sessionMock
                 .Setup(mock => mock.CallAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<CallMethodRequestCollection>(c => c.HasArgsOfType(typeof(uint), typeof(uint))),
+                    It.Is<ArrayOf<CallMethodRequest>>(c => c.HasArgsOfType(typeof(uint), typeof(uint))),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(outputParameters.ToResponse());
 
@@ -2116,14 +2121,14 @@ namespace Opc.Ua.Client.Tests
 
             const uint expectedRevised = 5;
 
-            var outputParameters = new List<object> { expectedRevised, expectedRevised };
+            ArrayOf<Variant> outputParameters = [expectedRevised, expectedRevised];
 
             var sessionMock = new Mock<ISession>();
 
             sessionMock
                 .Setup(mock => mock.CallAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<CallMethodRequestCollection>(c => c.HasArgsOfType(typeof(uint), typeof(uint))),
+                    It.Is<ArrayOf<CallMethodRequest>>(c => c.HasArgsOfType(typeof(uint), typeof(uint))),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(outputParameters.ToResponse());
 
@@ -2143,24 +2148,24 @@ namespace Opc.Ua.Client.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var outputParameters = new List<object>
-            {
-                new uint[] { 1, 2, 3, 4, 5 },
-                new uint[] { 6, 7, 8, 9, 10 }
-            };
+            ArrayOf<Variant> outputParameters =
+            [
+                Variant.From(new uint[] { 1, 2, 3, 4, 5 }),
+                Variant.From(new uint[] { 6, 7, 8, 9, 10 })
+            ];
 
             var sessionMock = new Mock<ISession>();
 
             sessionMock
                 .Setup(mock => mock.CallAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<CallMethodRequestCollection>(c => c.HasArgsOfType(typeof(uint))),
+                    It.Is<ArrayOf<CallMethodRequest>>(c => c.HasArgsOfType(typeof(uint))),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(outputParameters.ToResponse());
 
             var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
-            (bool success, var serverHandles, var clientHandles) =
+            (bool success, ArrayOf<uint> serverHandles, ArrayOf<uint> clientHandles) =
                 await subscription.GetMonitoredItemsAsync().ConfigureAwait(false);
             Assert.IsTrue(success);
             Assert.AreEqual(5, serverHandles.Count);
@@ -2181,13 +2186,13 @@ namespace Opc.Ua.Client.Tests
             sessionMock
                 .Setup(mock => mock.CallAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<CallMethodRequestCollection>(c => c.HasArgsOfType(typeof(uint))),
+                    It.Is<ArrayOf<CallMethodRequest>>(c => c.HasArgsOfType(typeof(uint))),
                     It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid));
 
             var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
-            (bool success, var serverHandles, var clientHandles) =
+            (bool success, ArrayOf<uint> serverHandles, ArrayOf<uint> clientHandles) =
                 await subscription.GetMonitoredItemsAsync().ConfigureAwait(false);
             Assert.IsFalse(success);
         }
@@ -2202,20 +2207,20 @@ namespace Opc.Ua.Client.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var outputParameters = new List<object>();
+            ArrayOf<Variant> outputParameters = [];
 
             var sessionMock = new Mock<ISession>();
 
             sessionMock
                 .Setup(mock => mock.CallAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<CallMethodRequestCollection>(c => c.HasArgsOfType(typeof(uint))),
+                    It.Is<ArrayOf<CallMethodRequest>>(c => c.HasArgsOfType(typeof(uint))),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(outputParameters.ToResponse());
 
             var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
-            (bool success, var serverHandles, var clientHandles) =
+            (bool success, ArrayOf<uint> serverHandles, ArrayOf<uint> clientHandles) =
                 await subscription.GetMonitoredItemsAsync().ConfigureAwait(false);
             Assert.IsFalse(success);
         }
@@ -2230,20 +2235,20 @@ namespace Opc.Ua.Client.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            List<object> outputParameters = null;
+            ArrayOf<Variant> outputParameters = default;
 
             var sessionMock = new Mock<ISession>();
 
             sessionMock
                 .Setup(mock => mock.CallAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<CallMethodRequestCollection>(c => c.HasArgsOfType(typeof(uint))),
+                    It.Is<ArrayOf<CallMethodRequest>>(c => c.HasArgsOfType(typeof(uint))),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(outputParameters.ToResponse());
 
             var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
-            (bool success, var serverHandles, var clientHandles) =
+            (bool success, ArrayOf<uint> serverHandles, ArrayOf<uint> clientHandles) =
                 await subscription.GetMonitoredItemsAsync().ConfigureAwait(false);
             Assert.IsFalse(success);
         }
@@ -2258,25 +2263,25 @@ namespace Opc.Ua.Client.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var outputParameters = new List<object>
-            {
-                new uint[] { 1, 2, 3, 4, 5 },
-                new uint[] { 6, 7, 8, 9, 10 },
-                new uint[] { 11, 12, 13, 14, 15 }
-            };
+            ArrayOf<Variant> outputParameters =
+            [
+                Variant.From(new uint[] { 1, 2, 3, 4, 5 }),
+                Variant.From(new uint[] { 6, 7, 8, 9, 10 }),
+                Variant.From(new uint[] { 11, 12, 13, 14, 15 })
+            ];
 
             var sessionMock = new Mock<ISession>();
 
             sessionMock
                  .Setup(mock => mock.CallAsync(
                     It.IsAny<RequestHeader>(),
-                    It.Is<CallMethodRequestCollection>(c => c.HasArgsOfType(typeof(uint))),
+                    It.Is<ArrayOf<CallMethodRequest>>(c => c.HasArgsOfType(typeof(uint))),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(outputParameters.ToResponse());
 
             var subscription = new Subscription(telemetry) { Session = sessionMock.Object };
 
-            (bool success, var serverHandles, var clientHandles) =
+            (bool success, ArrayOf<uint> serverHandles, ArrayOf<uint> clientHandles) =
                 await subscription.GetMonitoredItemsAsync().ConfigureAwait(false);
 
             Assert.IsFalse(success);

@@ -4185,7 +4185,7 @@ namespace Opc.Ua.Server
             var result = new ValidateMonitoringFilterResult();
 
             // nothing to do if the filter is not specified.
-            if (ExtensionObject.IsNull(filter))
+            if (filter.IsNull)
             {
                 result.StatusCode = StatusCodes.Good;
                 return result;

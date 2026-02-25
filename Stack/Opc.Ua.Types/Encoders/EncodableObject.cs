@@ -107,13 +107,13 @@ namespace Opc.Ua
 
                     for (int ii = 0; ii < encodeables.Length; ii++)
                     {
-                        if (ExtensionObject.IsNull(extensions[ii]))
+                        if (extensions[ii].IsNull)
                         {
                             encodeables[ii] = null;
                             continue;
                         }
 
-                        if (extensions[ii].Body is not IEncodeable element)
+                        if (!extensions[ii].TryGetEncodeable(out IEncodeable element))
                         {
                             return StatusCodes.BadTypeMismatch;
                         }
@@ -136,14 +136,8 @@ namespace Opc.Ua
                 }
 
                 // check for scalar value.
-                IEncodeable encodeable = null;
-
-                if (value.TryGet(out ExtensionObject extension))
-                {
-                    encodeable = extension.Body as IEncodeable;
-                }
-
-                if (encodeable != null)
+                if (value.TryGet(out ExtensionObject extension) &&
+                    extension.TryGetEncodeable(out IEncodeable encodeable))
                 {
                     // do conversion.
                     value = Encode(context, encodeable, useXml);

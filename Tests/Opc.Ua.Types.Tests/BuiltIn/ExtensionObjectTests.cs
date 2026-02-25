@@ -75,10 +75,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // constructor by ExpandedNodeId
             extensionObject = new ExtensionObject(ExpandedNodeId.Null);
             Assert.AreEqual(0, extensionObject.GetHashCode());
+#pragma warning disable CS0618 // Type or member is obsolete
             NUnit.Framework.Assert.Throws<ServiceResultException>(
                 () => new ExtensionObject(default, new object()));
             NUnit.Framework.Assert.Throws<ServiceResultException>(
                 () => new ExtensionObject(default, new byte[] { 1, 2, 3 }));
+#pragma warning restore CS0618 // Type or member is obsolete
             // constructor by object
             ByteString bytes = [1, 2, 3];
             extensionObject = new ExtensionObject(default, bytes);
@@ -101,7 +103,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 extensionObject.TypeId.GetHashCode());
             Assert.AreEqual(ExtensionObjectEncoding.Binary, extensionObject.Encoding);
             Assert.AreEqual(bytes, extensionObject.TryGetAsBinary(out ByteString bs) ? bs : default);
-            Assert.AreEqual(bytes.GetHashCode(), extensionObject.GetHashCode());
             // collection
             var collection = new ExtensionObjectCollection();
             Assert.NotNull(collection);

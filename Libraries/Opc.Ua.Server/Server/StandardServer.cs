@@ -1221,7 +1221,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                if (historyReadDetails.TryGetEncodeable(out ReadEventDetails))
+                if (historyReadDetails.TryGetEncodeable(out ReadEventDetails _))
                 {
                     ValidateOperationLimits(
                         nodesToRead,

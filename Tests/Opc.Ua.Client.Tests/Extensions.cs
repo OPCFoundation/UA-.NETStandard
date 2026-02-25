@@ -36,7 +36,7 @@ namespace Opc.Ua.Client.Tests
     public static class Extensions
     {
         public static bool HasArgsOfType(
-            this CallMethodRequestCollection requests,
+            this ArrayOf<CallMethodRequest> requests,
             params Type[] argTypes)
         {
             if (requests.Count != 1 || requests[0].InputArguments.Count != argTypes.Length)
@@ -54,7 +54,9 @@ namespace Opc.Ua.Client.Tests
         }
 
         public static CallResponse ToResponse(
-            this List<object> outputArguments, StatusCode response = default, StatusCode result = default)
+            this ArrayOf<Variant> outputArguments,
+            StatusCode response = default,
+            StatusCode result = default)
         {
             return new CallResponse
             {
@@ -67,9 +69,7 @@ namespace Opc.Ua.Client.Tests
                     new CallMethodResult
                     {
                         StatusCode = result,
-                        OutputArguments = outputArguments == null ?
-                            null :
-                            [.. outputArguments.Select(o => new Variant(o))]
+                        OutputArguments = outputArguments
                     }
                 ]
             };

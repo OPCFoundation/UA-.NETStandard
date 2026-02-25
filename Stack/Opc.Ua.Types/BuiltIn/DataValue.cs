@@ -475,9 +475,10 @@ namespace Opc.Ua
                     return null;
                 }
 
-                if (value is ExtensionObject extension)
+                if (value is ExtensionObject extension &&
+                    extension.TryGetEncodeable(out IEncodeable encodeable))
                 {
-                    value = extension.Body;
+                    value = encodeable;
                 }
 
                 if (!expectedType.IsInstanceOfType(value))
@@ -512,23 +513,23 @@ namespace Opc.Ua
                 return default;
             }
 
-            object value = Value;
-            if (value != null)
+            if (!WrappedValue.IsNull)
             {
-                if (value is ExtensionObject extension)
+                if (WrappedValue.TryGet(out ExtensionObject extension) &&
+                    extension.TryGetEncodeable(out IEncodeable encodeable) &&
+                    encodeable is T typed)
                 {
-                    value = extension.Body;
+                    return typed;
+                }
+                else if (WrappedValue.TryCastTo(out typed))
+                {
+                    return typed;
                 }
 
-                if (value is not T typed)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadTypeMismatch,
-                        "DataValue is not of type {0}.",
-                        typeof(T).Name);
-                }
-
-                return typed;
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTypeMismatch,
+                    "DataValue is not of type {0}.",
+                    typeof(T).Name);
             }
 
             // a null value for a value type should throw
@@ -561,12 +562,13 @@ namespace Opc.Ua
                 return defaultValue;
             }
 
-            if (Value is T typedValue)
+            if (Value is ExtensionObject extension &&
+                extension.TryGetEncodeable(out IEncodeable encodeable) &&
+                encodeable is T typedBody)
             {
-                return typedValue;
+                return typedBody;
             }
-
-            if (Value is ExtensionObject extension && extension.Body is T typedBody)
+            if (WrappedValue.TryCastTo<T>(out typedBody))
             {
                 return typedBody;
             }

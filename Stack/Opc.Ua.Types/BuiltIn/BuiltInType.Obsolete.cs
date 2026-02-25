@@ -42,9 +42,6 @@ namespace Opc.Ua
             /// <summary>
             /// Checks if the node id represents a 'Null' node id.
             /// </summary>
-            /// <remarks>
-            /// Returns a true/false value to indicate if the specified NodeId is null.
-            /// </remarks>
             /// <param name="nodeId">The NodeId to validate</param>
             [Obsolete("Use NodeId.IsNull property instead.")]
             public static bool IsNull([NotNullWhen(false)] NodeId nodeId)
@@ -55,9 +52,6 @@ namespace Opc.Ua
             /// <summary>
             /// Checks if the node id represents a 'Null' node id.
             /// </summary>
-            /// <remarks>
-            /// Returns a true/false to indicate if the specified <see cref="ExpandedNodeId"/> is null.
-            /// </remarks>
             /// <param name="nodeId">The ExpandedNodeId to validate</param>
             [Obsolete("Use ExpandedNodeId.IsNull property instead.")]
             public static bool IsNull([NotNullWhen(false)] ExpandedNodeId nodeId)
@@ -143,11 +137,7 @@ namespace Opc.Ua
             /// <summary>
             /// Tests if the extension or embed objects are null value.
             /// </summary>
-            /// <param name="extension">The object to check if null</param>
-            /// <returns>
-            /// <c>true</c> if the specified <paramref name="extension"/> is null
-            /// of the embedded object is null; otherwise, <c>false</c>.
-            /// </returns>
+            [Obsolete("Use ExtensionObject.IsNull property instead.")]
             public static bool IsNull([NotNullWhen(false)] ExtensionObject extension)
             {
                 return extension.IsNull;

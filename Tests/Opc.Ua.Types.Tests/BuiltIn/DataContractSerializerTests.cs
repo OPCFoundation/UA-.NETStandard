@@ -29,7 +29,6 @@
 
 using System.IO;
 using System.Runtime.Serialization;
-using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
@@ -132,6 +131,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
         [DataMember(Order = 7)]
         public LocalizedText LocalizedText { get; set; }
+
+        [DataMember(Order = 8)]
+        public ByteString ByteString { get; set; }
     }
 
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
@@ -157,6 +159,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
         [DataMember(Order = 7)]
         public LocalizedTextCollection LocalizedTexts { get; set; }
+
+        [DataMember(Order = 8)]
+        public ByteStringCollection ByteStrings { get; set; }
     }
 
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
@@ -182,6 +187,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
         [DataMember(Order = 7)]
         public ArrayOf<LocalizedText> LocalizedTexts { get; set; }
+
+        [DataMember(Order = 8)]
+        public ArrayOf<ByteString> ByteStrings { get; set; }
     }
 
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
@@ -207,6 +215,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
         [DataMember(Order = 7)]
         public MatrixOf<LocalizedText> LocalizedTexts { get; set; }
+
+        [DataMember(Order = 8)]
+        public MatrixOf<ByteString> ByteStrings { get; set; }
     }
 
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
@@ -241,7 +252,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 StatusCode = StatusCodeConstants.BadUnexpectedError,
                 QualifiedName = new QualifiedName($"qn-{index}", (ushort)(index + 1)),
                 Variant = new Variant(index),
-                LocalizedText = new LocalizedText("en-US", $"text-{index}")
+                LocalizedText = new LocalizedText("en-US", $"text-{index}"),
+                ByteString = ByteString.From((byte)index, (byte)(index + 1), (byte)(index + 2))
             };
         }
 
@@ -281,6 +293,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 [
                     new LocalizedText("en-US", $"localized-{index}"),
                     new LocalizedText("de-DE", $"lokalisiert-{index}")
+                ],
+                ByteStrings =
+                [
+                    ByteString.From((byte)index, (byte)(index + 1), (byte)(index + 2)),
+                    ByteString.From((byte)index, (byte)(index + 2), (byte)(index + 3))
                 ]
             };
         }
@@ -321,6 +338,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 [
                     new LocalizedText("en-US", $"localized-{index}"),
                     new LocalizedText("de-DE", $"lokalisiert-{index}")
+                ],
+                ByteStrings =
+                [
+                    ByteString.From((byte)index, (byte)(index + 1), (byte)(index + 2)),
+                    ByteString.From((byte)index, (byte)(index + 2), (byte)(index + 3))
                 ]
             };
         }
@@ -377,6 +399,13 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                     new LocalizedText("en-US", $"localized-{index}"),
                     new LocalizedText("en-US", $"localized-{index}"),
                     new LocalizedText("de-DE", $"lokalisiert-{index}")
+                ]).ToMatrix(2, 2),
+                ByteStrings =
+                ArrayOf.Wrapped([
+                    ByteString.From((byte)index, (byte)(index + 1), (byte)(index + 2)),
+                    ByteString.From((byte)index, (byte)(index + 2), (byte)(index + 4)),
+                    ByteString.From((byte)index, (byte)(index + 1), (byte)(index + 2)),
+                    ByteString.From((byte)index, (byte)(index + 2), (byte)(index + 3))
                 ]).ToMatrix(2, 2)
             };
         }

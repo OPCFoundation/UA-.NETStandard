@@ -569,7 +569,7 @@ namespace Opc.Ua
 
                 ServiceResult operandResult;
                 // check for null.
-                if (ExtensionObject.IsNull(operand))
+                if (operand.IsNull)
                 {
                     operandResult = ServiceResult.Create(
                         StatusCodes.BadEventFilterInvalid,

@@ -1125,7 +1125,7 @@ namespace Opc.Ua
         /// Writes a byte string to the stream with a given index and count.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteByteString(string fieldName, byte[] value, int index, int count)
+        private void WriteByteString(string fieldName, byte[] value, int index, int count)
         {
             if (fieldName != null && !IncludeDefaultValues && value == null)
             {
@@ -1749,7 +1749,7 @@ namespace Opc.Ua
                 EncodingToUse == JsonEncodingType.NonReversible)
             {
                 // non reversible encoding, only the content of the Body field is encoded.
-                if (value.Body is IStructureTypeInfo structureType &&
+                if (encodeable is IStructureTypeInfo structureType &&
                     structureType.StructureType == StructureType.Union)
                 {
                     if (m_commaRequired)
@@ -1833,10 +1833,9 @@ namespace Opc.Ua
             {
                 WriteEncodeable("Body", encodeable);
             }
-            else if (value.Body is JObject json)
+            else if (value.TryGetAsJson(out string text))
             {
-                string text = json.ToString(Newtonsoft.Json.Formatting.None);
-                m_writer.Write(text[1..^1]);
+                m_writer.Write(text.Trim()[1..^1]);
             }
             else
             {
@@ -1844,15 +1843,15 @@ namespace Opc.Ua
 
                 if (value.Encoding == ExtensionObjectEncoding.Binary)
                 {
-                    WriteByteString("Body", value.Body is ByteString b ? b : default);
+                    WriteByteString("Body", value.TryGetAsBinary(out ByteString b) ? b : default);
                 }
                 else if (value.Encoding == ExtensionObjectEncoding.Xml)
                 {
-                    WriteXmlElement("Body", value.Body is XmlElement x ? x : default);
+                    WriteXmlElement("Body", value.TryGetAsXml(out XmlElement x) ? x : default);
                 }
                 else if (value.Encoding == ExtensionObjectEncoding.Json)
                 {
-                    WriteSimpleField("Body", value.Body as string);
+                    WriteSimpleField("Body", value.TryGetAsJson(out string j) ? j : default);
                 }
             }
 
@@ -2989,12 +2988,8 @@ namespace Opc.Ua
 
         private void WriteRawExtensionObject(object value)
         {
-            if (value is ExtensionObject eo)
-            {
-                value = eo.Body;
-            }
-
-            if (value is IEncodeable encodeable)
+            if (value is ExtensionObject eo &&
+                eo.TryGetEncodeable(out IEncodeable encodeable))
             {
                 PushStructure(null);
                 encodeable.Encode(this);

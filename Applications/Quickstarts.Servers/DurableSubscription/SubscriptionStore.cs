@@ -133,9 +133,8 @@ namespace Quickstarts.Servers
                 JsonSerializer serializer)
             {
                 var jo = JObject.Load(reader);
-                object body = jo["Body"].ToObject<object>(serializer);
                 ExpandedNodeId typeId = jo["TypeId"].ToObject<ExpandedNodeId>(serializer);
-                return new ExtensionObject(typeId, body);
+                return new ExtensionObject(typeId, jo["Body"].ToString(Formatting.None));
             }
 
             public override void WriteJson(
@@ -144,11 +143,13 @@ namespace Quickstarts.Servers
                 JsonSerializer serializer)
             {
                 var extensionObject = (ExtensionObject)value;
+#pragma warning disable CS0618 // Type or member is obsolete
                 var jo = new JObject
                 {
                     ["Body"] = JToken.FromObject(extensionObject.Body, serializer),
                     ["TypeId"] = JToken.FromObject(extensionObject.TypeId, serializer)
                 };
+#pragma warning restore CS0618 // Type or member is obsolete
                 jo.WriteTo(writer);
             }
         }

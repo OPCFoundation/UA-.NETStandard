@@ -87,6 +87,7 @@ namespace Opc.Ua
         /// <summary>
         /// Encodes a message with its header.
         /// </summary>
+        /// <typeparam name="T">The type of the message</typeparam>
         void EncodeMessage<T>(T message) where T : IEncodeable;
 
         /// <summary>
@@ -163,11 +164,6 @@ namespace Opc.Ua
         /// Writes a byte string to the stream.
         /// </summary>
         void WriteByteString(string fieldName, ByteString value);
-
-        /// <summary>
-        /// Writes a byte string to the stream with a given index and count.
-        /// </summary>
-        void WriteByteString(string fieldName, byte[] value, int index, int count);
 
 #if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
         /// <summary>

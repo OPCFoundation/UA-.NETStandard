@@ -916,17 +916,14 @@ namespace Opc.Ua.Test
             {
                 return ExtensionObject.Null;
             }
-            object body;
             if (m_random.NextInt32(1) != 0)
             {
-                body = GetRandomByteString();
+                return new ExtensionObject(typeId, GetRandomByteString());
             }
             else
             {
-                body = GetRandomXmlElement();
+                return new ExtensionObject(typeId, GetRandomXmlElement());
             }
-
-            return new ExtensionObject(typeId, body);
         }
 
         /// <summary>

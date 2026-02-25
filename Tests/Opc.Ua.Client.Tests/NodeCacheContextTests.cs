@@ -76,7 +76,7 @@ namespace Opc.Ua.Client.Tests
 
             // Assert
             Assert.That(result.Results, Is.EqualTo(dataValues));
-            Assert.That(result.Errors, Is.All.EqualTo(ServiceResult.Good));
+            Assert.That(result.Errors.ToList(), Is.All.EqualTo(ServiceResult.Good));
         }
 
         [Test]
@@ -309,8 +309,8 @@ namespace Opc.Ua.Client.Tests
 
             // Assert
             Assert.That(result.Results, Is.EqualTo(dataValues));
-            Assert.That(result.Errors, Is.All.EqualTo(ServiceResult.Good));
-            Assert.That(diagnosticInfos, Contains.Item(diagnosticInfo));
+            Assert.That(result.Errors.ToList(), Is.All.EqualTo(ServiceResult.Good));
+            Assert.That(diagnosticInfos.ToList(), Contains.Item(diagnosticInfo));
 
             session.Channel.Verify();
         }
@@ -387,7 +387,7 @@ namespace Opc.Ua.Client.Tests
             Assert.That(result.Results.Count, Is.EqualTo(2));
             Assert.That(Utils.IsEqual(nodes[0], result.Results[0]), Is.True);
             Assert.That(Utils.IsEqual(nodes[1], result.Results[1]), Is.True);
-            Assert.That(result.Errors, Is.All.EqualTo(ServiceResult.Good));
+            Assert.That(result.Errors.ToList(), Is.All.EqualTo(ServiceResult.Good));
         }
 
         [Test]
@@ -470,7 +470,7 @@ namespace Opc.Ua.Client.Tests
             Assert.That(result.Results.Count, Is.EqualTo(2));
             Assert.That(Utils.IsEqual(nodes[0], result.Results[0]), Is.False);
             Assert.That(Utils.IsEqual(nodes[1], result.Results[1]), Is.False);
-            Assert.That(result.Errors, Is.All.EqualTo(ServiceResult.Good));
+            Assert.That(result.Errors.ToList(), Is.All.EqualTo(ServiceResult.Good));
         }
 
         [Test]
@@ -903,7 +903,7 @@ namespace Opc.Ua.Client.Tests
             Assert.That(Utils.IsEqual(nodes[0], result.Results[0]), Is.True);
             Assert.That(Utils.IsEqual(nodes[1], result.Results[1]), Is.True);
             Assert.That(result.Errors.Count, Is.EqualTo(2));
-            Assert.That(result.Errors, Is.All.EqualTo(ServiceResult.Good));
+            Assert.That(result.Errors.ToList(), Is.All.EqualTo(ServiceResult.Good));
 
             session.Channel.Verify();
         }

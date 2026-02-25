@@ -160,9 +160,10 @@ namespace Opc.Ua
             ExtensionObject extension,
             bool throwOnError)
         {
-            if (targetType.IsInstanceOfType(extension.Body))
+            if (extension.TryGetEncodeable(out IEncodeable encodeable) &&
+                targetType.IsInstanceOfType(encodeable))
             {
-                return extension.Body;
+                return encodeable;
             }
 
             if (Activator.CreateInstance(targetType) is IEncodeable instance)
