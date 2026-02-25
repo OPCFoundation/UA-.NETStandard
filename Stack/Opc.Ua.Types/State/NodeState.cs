@@ -3667,7 +3667,7 @@ namespace Opc.Ua
             }
             else
             {
-                value.WrappedValue = new Variant(valueToRead);
+                value.WrappedValue = valueToRead;
             }
 
             // return result.
@@ -3861,7 +3861,7 @@ namespace Opc.Ua
                     break;
             }
 
-            return StatusCodes.BadAttributeIdInvalid;
+            return ServiceResult.Create(StatusCodes.BadAttributeIdInvalid, null);
         }
 
         /// <summary>

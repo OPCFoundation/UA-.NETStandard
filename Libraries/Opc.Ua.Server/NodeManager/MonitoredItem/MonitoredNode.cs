@@ -282,7 +282,7 @@ namespace Opc.Ua.Server
         {
             var value = new DataValue
             {
-                Value = null,
+                WrappedValue = default,
                 ServerTimestamp = DateTime.UtcNow,
                 SourceTimestamp = DateTime.MinValue,
                 StatusCode = StatusCodes.Good

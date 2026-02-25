@@ -356,8 +356,11 @@ namespace Opc.Ua
                 NamespaceUri = defaultNamespaceUri;
                 LocalizedText = defaultLocalizedText;
             }
-
+#if DEBUG
             AdditionalInfo = BuildExceptionTrace(e);
+#else
+            AdditionalInfo = e.Message;
+#endif
         }
 
         /// <summary>
@@ -672,6 +675,14 @@ namespace Opc.Ua
         /// </summary>
         public static implicit operator ServiceResult(StatusCode code)
         {
+            if (code == StatusCodes.Good)
+            {
+                return Good;
+            }
+            if (code == StatusCodes.Bad)
+            {
+                return Bad;
+            }
             return new ServiceResult(code);
         }
 
