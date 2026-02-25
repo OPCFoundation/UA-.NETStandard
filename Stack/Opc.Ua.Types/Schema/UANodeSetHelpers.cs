@@ -1116,7 +1116,7 @@ namespace Opc.Ua.Export
                 definition.SymbolicName = dataType.SymbolicName;
             }
 
-            if (source.Body is StructureDefinition sd)
+            if (source.TryGetEncodeable(out StructureDefinition sd))
             {
                 if (sd
                     .StructureType is StructureType.Union or StructureType.UnionWithSubtypedValues)
@@ -1185,7 +1185,7 @@ namespace Opc.Ua.Export
                 }
             }
 
-            if (source.Body is EnumDefinition ed)
+            if (source.TryGetEncodeable(out EnumDefinition ed))
             {
                 definition.IsOptionSet = ed.IsOptionSet;
 

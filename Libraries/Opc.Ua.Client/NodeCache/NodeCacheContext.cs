@@ -922,7 +922,8 @@ namespace Opc.Ua.Client
 
                     foreach (ExtensionObject rolePermission in rolePermissions)
                     {
-                        node.RolePermissions.Add(rolePermission.Body as RolePermissionType);
+                        node.RolePermissions.Add(rolePermission.TryGetEncodeable(
+                            out RolePermissionType rolePermissionType) ? rolePermissionType : null);
                     }
                 }
             }
@@ -936,7 +937,8 @@ namespace Opc.Ua.Client
 
                     foreach (ExtensionObject rolePermission in userRolePermissions)
                     {
-                        node.UserRolePermissions.Add(rolePermission.Body as RolePermissionType);
+                        node.UserRolePermissions.Add(rolePermission.TryGetEncodeable(
+                            out RolePermissionType rolePermissionType) ? rolePermissionType : null);
                     }
                 }
             }

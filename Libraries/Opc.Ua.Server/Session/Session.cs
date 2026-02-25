@@ -833,7 +833,7 @@ namespace Opc.Ua.Server
 
             // check for anonymous (same as empty) token.
             if (identityToken.IsNull ||
-                identityToken.Body is AnonymousIdentityToken)
+                identityToken.TryGetEncodeable(out AnonymousIdentityToken _))
             {
                 // check if an anonymous login is permitted.
                 if (EndpointDescription.UserIdentityTokens != null &&
@@ -866,7 +866,7 @@ namespace Opc.Ua.Server
 
             IUserIdentityTokenHandler token;
             // check for unrecognized token.
-            if (identityToken.Body is UserIdentityToken decodedToken)
+            if (identityToken.TryGetEncodeable(out UserIdentityToken decodedToken))
             {
                 // get the token.
                 token = decodedToken.AsTokenHandler();
@@ -875,7 +875,7 @@ namespace Opc.Ua.Server
             {
                 //handle the use case when the UserIdentityToken is binary encoded over xml message encoding
                 if (identityToken.Encoding != ExtensionObjectEncoding.Binary ||
-                    identityToken.Body is not ByteString)
+                    !identityToken.TryGetAsBinary(out ByteString _))
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadUserAccessDenied,

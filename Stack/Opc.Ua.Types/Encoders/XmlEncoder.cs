@@ -834,12 +834,10 @@ namespace Opc.Ua
                     return;
                 }
 
-                var encodeable = value.Body as IEncodeable;
-
                 // write the type id.
                 ExpandedNodeId typeId = value.TypeId;
 
-                if (encodeable != null)
+                if (value.TryGetEncodeable(out IEncodeable encodeable))
                 {
                     if (value.Encoding == ExtensionObjectEncoding.Binary)
                     {
@@ -869,9 +867,7 @@ namespace Opc.Ua
 
                 WriteNodeId("TypeId", localTypeId);
 
-                object body = value.Body;
-
-                if (body == null)
+                if (value.IsNull)
                 {
                     EndField(fieldName);
                     PopNamespace();

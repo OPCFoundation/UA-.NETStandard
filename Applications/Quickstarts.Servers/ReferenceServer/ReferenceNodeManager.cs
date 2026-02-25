@@ -4353,7 +4353,7 @@ namespace Quickstarts.ReferenceServer
             {
                 return StatusCodes.BadTypeMismatch;
             }
-            if (extensionObject.Body is not Range newRange ||
+            if (!extensionObject.TryGetEncodeable(out Range newRange) ||
                 variable.Parent is not AnalogItemState parent)
             {
                 return StatusCodes.BadTypeMismatch;

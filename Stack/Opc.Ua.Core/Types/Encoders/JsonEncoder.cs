@@ -1745,9 +1745,8 @@ namespace Opc.Ua
                 return;
             }
 
-            var encodeable = value.Body as IEncodeable;
-
-            if (encodeable != null && EncodingToUse == JsonEncodingType.NonReversible)
+            if (value.TryGetEncodeable(out IEncodeable encodeable) &&
+                EncodingToUse == JsonEncodingType.NonReversible)
             {
                 // non reversible encoding, only the content of the Body field is encoded.
                 if (value.Body is IStructureTypeInfo structureType &&
@@ -1793,7 +1792,7 @@ namespace Opc.Ua
 
                     encodeable.Encode(this);
                 }
-                else if (value.Body is JObject json)
+                else if (value.TryGetAsJson(out string text))
                 {
                     if (!SuppressArtifacts && !localTypeId.IsNull)
                     {
@@ -1801,8 +1800,7 @@ namespace Opc.Ua
                         m_writer.Write(kComma);
                     }
 
-                    string text = json.ToString(Newtonsoft.Json.Formatting.None);
-                    m_writer.Write(text[1..^1]);
+                    m_writer.Write(text.Trim()[1..^1]);
                 }
                 else if (value.Encoding == ExtensionObjectEncoding.Binary)
                 {
@@ -1812,7 +1810,7 @@ namespace Opc.Ua
                     }
 
                     WriteByte("UaEncoding", (byte)ExtensionObjectEncoding.Binary);
-                    WriteByteString("UaBody", value.Body is ByteString b ? b : default);
+                    WriteByteString("UaBody", value.TryGetAsBinary(out ByteString b) ? b : default);
                 }
                 else if (value.Encoding == ExtensionObjectEncoding.Xml)
                 {
@@ -1822,7 +1820,7 @@ namespace Opc.Ua
                     }
 
                     WriteByte("UaEncoding", (byte)ExtensionObjectEncoding.Xml);
-                    WriteXmlElement("UaBody", value.Body is XmlElement x ? x : default);
+                    WriteXmlElement("UaBody", value.TryGetAsXml(out XmlElement x) ? x : default);
                 }
 
                 PopStructure();

@@ -205,9 +205,10 @@ namespace Opc.Ua.Client
 
             if (expectedType != null)
             {
-                if (value is ExtensionObject extension)
+                if (dataValue.WrappedValue.TryGet(out ExtensionObject extension) &&
+                    extension.TryGetEncodeable(out IEncodeable encodeable))
                 {
-                    value = extension.Body;
+                    value = encodeable;
                 }
 
                 if (!expectedType.IsInstanceOfType(value))
@@ -407,10 +408,10 @@ namespace Opc.Ua.Client
                 object value = dataValues[ii].Value;
 
                 // extract the body from extension objects.
-                if (value is ExtensionObject extension &&
-                    extension.Body is IEncodeable)
+                if (dataValues[ii].WrappedValue.TryGet(out ExtensionObject extension) &&
+                    extension.TryGetEncodeable(out IEncodeable encodeable))
                 {
-                    value = extension.Body;
+                    value = encodeable;
                 }
 
                 // check expected type.

@@ -1965,7 +1965,7 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadHistoryOperationInvalid);
             }
 
-            if (historyReadDetails.Body is not HistoryReadDetails details)
+            if (!historyReadDetails.TryGetEncodeable(out HistoryReadDetails details))
             {
                 throw new ServiceResultException(StatusCodes.BadHistoryOperationInvalid);
             }
@@ -2207,7 +2207,8 @@ namespace Opc.Ua.Server
 
                 if (!ExtensionObject.IsNull(details))
                 {
-                    nodesToUpdate.Add(details.Body as HistoryUpdateDetails);
+                    nodesToUpdate.Add(
+                        details.TryGetEncodeable(out HistoryUpdateDetails h) ? h : null);
                 }
             }
 
@@ -2629,7 +2630,7 @@ namespace Opc.Ua.Server
                     }
 
                     // all event subscriptions required an event filter.
-                    if (itemToCreate.RequestedParameters.Filter.Body is not EventFilter filter)
+                    if (!itemToCreate.RequestedParameters.Filter.TryGetEncodeable(out EventFilter filter))
                     {
                         continue;
                     }
@@ -3045,7 +3046,7 @@ namespace Opc.Ua.Server
 
                 // all event subscriptions required an event filter.
 
-                if (itemToModify.RequestedParameters.Filter.Body is not EventFilter filter)
+                if (!itemToModify.RequestedParameters.Filter.TryGetEncodeable(out EventFilter filter))
                 {
                     errors[ii] = StatusCodes.BadEventFilterInvalid;
                     continue;
@@ -3419,8 +3420,7 @@ namespace Opc.Ua.Server
             }
 
             // check for known filter.
-            if (!ExtensionObject.IsNull(attributes.Filter) &&
-                attributes.Filter.Body is not MonitoringFilter)
+            if (!attributes.Filter.TryGetEncodeable(out MonitoringFilter _))
             {
                 return new ServiceResult(StatusCodes.BadMonitoredItemFilterInvalid);
             }
@@ -3438,7 +3438,7 @@ namespace Opc.Ua.Server
             if (!ExtensionObject.IsNull(filter))
             {
                 // validate data change filter.
-                if (filter.Body is DataChangeFilter datachangeFilter)
+                if (filter.TryGetEncodeable(out DataChangeFilter datachangeFilter))
                 {
                     ServiceResult error = datachangeFilter.Validate();
 

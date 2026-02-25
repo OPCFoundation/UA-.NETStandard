@@ -181,8 +181,7 @@ namespace Opc.Ua
                 {
                     continue;
                 }
-                if (item.Value.TryGet(out ExtensionObject eo) &&
-                    eo.Body is SpanContextDataType spanContext)
+                if (item.Value.TryGetStructure(out SpanContextDataType spanContext))
                 {
 #if NET8_0_OR_GREATER
                     Span<byte> spanIdBytes = stackalloc byte[8];

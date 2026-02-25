@@ -183,13 +183,13 @@ namespace Opc.Ua
                     if (extension.Encoding == ExtensionObjectEncoding.Binary)
                     {
                         decoder = new BinaryDecoder(
-                            extension.Body is ByteString b ? b.ToArray() : [],
+                            extension.TryGetAsBinary(out ByteString b) ? b.ToArray() : [],
                             messageContext);
                     }
                     else if (extension.Encoding == ExtensionObjectEncoding.Xml)
                     {
                         decoder = new XmlDecoder(
-                            extension.Body is XmlElement xe ? xe : default,
+                            extension.TryGetAsXml(out XmlElement xe) ? xe : default,
                             messageContext);
                     }
 

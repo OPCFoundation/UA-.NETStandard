@@ -429,8 +429,8 @@ namespace Opc.Ua
                     request.RequestHeader.AdditionalHeader
                         = new ExtensionObject(additionalHeader);
                 }
-                else if (request.RequestHeader.AdditionalHeader.Body is
-                    AdditionalParametersType existingParameters)
+                else if (request.RequestHeader.AdditionalHeader.TryGetEncodeable(
+                    out AdditionalParametersType existingParameters))
                 {
                     // Merge the trace data into the existing parameters.
                     existingParameters.Parameters.Add(spanContextParameter);

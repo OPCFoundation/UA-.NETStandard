@@ -2570,7 +2570,7 @@ namespace Opc.Ua.Client
                         {
                             foreach (ExtensionObject notificationData in message.NotificationData)
                             {
-                                if (notificationData.Body is DataChangeNotification datachange)
+                                if (notificationData.TryGetEncodeable(out DataChangeNotification datachange))
                                 {
                                     datachange.PublishTime = message.PublishTime;
                                     datachange.SequenceNumber = message.SequenceNumber;
@@ -2588,7 +2588,7 @@ namespace Opc.Ua.Client
                                         datachange,
                                         message.StringTable);
                                 }
-                                else if (notificationData.Body is EventNotificationList events)
+                                else if (notificationData.TryGetEncodeable(out EventNotificationList events))
                                 {
                                     events.PublishTime = message.PublishTime;
                                     events.SequenceNumber = message.SequenceNumber;
@@ -2603,8 +2603,7 @@ namespace Opc.Ua.Client
 
                                     eventCallback?.Invoke(this, events, message.StringTable);
                                 }
-                                else if (notificationData
-                                    .Body is StatusChangeNotification statusChanged)
+                                else if (notificationData.TryGetEncodeable(out StatusChangeNotification statusChanged))
                                 {
                                     statusChanged.PublishTime = message.PublishTime;
                                     statusChanged.SequenceNumber = message.SequenceNumber;

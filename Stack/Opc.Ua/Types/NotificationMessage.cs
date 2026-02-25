@@ -74,7 +74,7 @@ namespace Opc.Ua
                     continue;
                 }
 
-                if (extension.Body is not DataChangeNotification notification)
+                if (!extension.TryGetEncodeable(out DataChangeNotification notification))
                 {
                     continue;
                 }
@@ -124,7 +124,7 @@ namespace Opc.Ua
                     continue;
                 }
 
-                if (extension.Body is not EventNotificationList notification)
+                if (!extension.TryGetEncodeable(out EventNotificationList notification))
                 {
                     continue;
                 }

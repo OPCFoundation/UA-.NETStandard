@@ -103,9 +103,9 @@ namespace Opc.Ua.Client
 
                 // extract the body from extension objects.
                 if (value is ExtensionObject extension &&
-                    extension.Body is IEncodeable)
+                    extension.TryGetEncodeable(out IEncodeable encodeable))
                 {
-                    value = extension.Body;
+                    value = encodeable;
                 }
 
                 // check expected type.
@@ -515,9 +515,10 @@ namespace Opc.Ua.Client
             DataValue dataValue = await session.ReadValueAsync(nodeId, ct).ConfigureAwait(false);
             object value = dataValue.Value;
 
-            if (value is ExtensionObject extension)
+            if (dataValue.WrappedValue.TryGet(out ExtensionObject extension) &&
+                extension.TryGetEncodeable(out IEncodeable encodeable))
             {
-                value = extension.Body;
+                value = encodeable;
             }
 
             if (!typeof(T).IsInstanceOfType(value))

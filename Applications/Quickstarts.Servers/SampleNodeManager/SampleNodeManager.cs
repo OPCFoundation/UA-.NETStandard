@@ -2460,9 +2460,7 @@ namespace Opc.Ua.Sample
             range = null;
 
             // check for valid filter type.
-            filter = requestedFilter.Body as DataChangeFilter;
-
-            if (filter == null)
+            if (!requestedFilter.TryGetEncodeable(out filter))
             {
                 return StatusCodes.BadMonitoredItemFilterUnsupported;
             }

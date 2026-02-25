@@ -2026,9 +2026,9 @@ namespace Opc.Ua
                     ReadXmlElement(null));
 
                 // attempt to decode a known type.
-                if (systemType != null && extension.Body != null)
+                if (systemType != null && !extension.IsNull)
                 {
-                    var element = extension.Body is XmlElement xe ? xe : default;
+                    var element = extension.TryGetAsXml(out XmlElement xe) ? xe : default;
                     using var xmlDecoder = new XmlDecoder(element, Context);
                     try
                     {

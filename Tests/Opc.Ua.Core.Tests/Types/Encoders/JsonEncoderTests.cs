@@ -1506,8 +1506,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 extensionObjectFromXml = decoder.ReadExtensionObject("ExtensionObject");
                 decoder.PopNamespace();
             }
-            NUnit.Framework.Assert
-                .That(encodeable.IsEqual(extensionObjectFromXml.Body as IEncodeable), Is.True);
+            NUnit.Framework.Assert.That(
+                extensionObjectFromXml.TryGetEncodeable(out IEncodeable resultEncodeable), Is.True);
+            NUnit.Framework.Assert.That(encodeable.IsEqual(resultEncodeable), Is.True);
 
             // Encode to JSON
             string encodedJson;
@@ -1534,8 +1535,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 extensionObjectFromJson = decoder.ReadExtensionObject(null);
             }
-            NUnit.Framework.Assert
-                .That(encodeable.IsEqual(extensionObjectFromJson.Body as IEncodeable), Is.True);
+            NUnit.Framework.Assert.That(
+                extensionObjectFromJson.TryGetEncodeable(out resultEncodeable), Is.True);
+            NUnit.Framework.Assert.That(encodeable.IsEqual(resultEncodeable), Is.True);
         }
 
         /// <summary>

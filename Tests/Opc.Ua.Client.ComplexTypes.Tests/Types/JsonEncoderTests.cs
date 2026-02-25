@@ -305,11 +305,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             if (!expectedIsEmpty || jsonEncoding == JsonEncodingType.Compact)
             {
-                if (data.Body is UnionComplexType)
+                if (data.TryGetEncodeable(out UnionComplexType union))
                 {
                     if (jsonEncoding == JsonEncodingType.Reversible)
                     {
-                        var union = data.Body as UnionComplexType;
                         string json = $"{{\"{builtInType}\" :{{";
                         if (!data.TypeId.IsNull)
                         {
@@ -329,7 +328,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     }
                     else
                     {
-                        var union = data.Body as UnionComplexType;
                         string json = $"{{\"{builtInType}\" :{{";
 
                         if (!data.TypeId.IsNull)
@@ -356,7 +354,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                         expected = json;
                     }
                 }
-                else if (data.Body is OptionalFieldsComplexType)
+                else if (data.TryGetEncodeable(out OptionalFieldsComplexType optional))
                 {
                     if (jsonEncoding == JsonEncodingType.NonReversible)
                     {
@@ -365,7 +363,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     }
                     else
                     {
-                        var optional = data.Body as OptionalFieldsComplexType;
                         string json = $"{{\"{builtInType}\" :{{";
 
                         if (!data.TypeId.IsNull)
@@ -403,9 +400,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                         expected = json;
                     }
                 }
-                else if (data.Body is BaseComplexType)
+                else if (data.TryGetEncodeable(out BaseComplexType structure))
                 {
-                    var structure = data.Body as BaseComplexType;
                     string body = string.Empty;
                     bool commaNeeded = false;
                     foreach (ComplexTypePropertyInfo property in structure.GetPropertyEnumerator())

@@ -1623,7 +1623,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var decoder = new JsonDecoder(data, context);
             ExtensionObject eo = decoder.ReadExtensionObject("D0");
             Assert.AreEqual(DataTypeIds.Range.ToString(), eo.TypeId.ToString());
-            var range = eo.Body as Range;
+            Assert.IsTrue(eo.TryGetEncodeable(out Range range));
             Assert.IsNotNull(range);
             Assert.AreEqual(0, range.Low);
             Assert.AreEqual(9876.5432, range.High);
@@ -1637,7 +1637,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Gds.DataTypeIds.ApplicationRecordDataType.ToString(),
                 eo.TypeId.ToString());
 
-            var record = eo.Body as Gds.ApplicationRecordDataType;
+            Assert.IsTrue(eo.TryGetEncodeable(out Gds.ApplicationRecordDataType record));
             Assert.IsNotNull(record);
             Assert.AreEqual(ApplicationType.Client, record.ApplicationType);
             Assert.AreEqual("Test Client", record.ApplicationNames[0].Text);
@@ -1745,7 +1745,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var decoder = new JsonDecoder(data, context);
             ExtensionObject eo = decoder.ReadExtensionObject("D0");
             Assert.AreEqual(DataTypeIds.Range.ToString(), eo.TypeId.ToString());
-            var range = eo.Body as Range;
+            Assert.IsTrue(eo.TryGetEncodeable(out Range range));
             Assert.IsNotNull(range);
             Assert.AreEqual(0, range.Low);
             Assert.AreEqual(9876.5432, range.High);
@@ -1759,7 +1759,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Gds.DataTypeIds.ApplicationRecordDataType.ToString(),
                 eo.TypeId.ToString());
 
-            var record = eo.Body as Gds.ApplicationRecordDataType;
+            Assert.IsTrue(eo.TryGetEncodeable(out Gds.ApplicationRecordDataType record));
             Assert.IsNotNull(record);
             Assert.AreEqual(ApplicationType.Client, record.ApplicationType);
             Assert.AreEqual("Test Client", record.ApplicationNames[0].Text);
@@ -1868,7 +1868,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var decoder = new JsonDecoder(data, context);
             ExtensionObject eo = decoder.ReadExtensionObject("D0");
             Assert.AreEqual(DataTypeIds.Range.ToString(), eo.TypeId.ToString());
-            var range = eo.Body as Range;
+            Assert.IsTrue(eo.TryGetEncodeable(out Range range));
             Assert.IsNotNull(range);
             Assert.AreEqual(0, range.Low);
             Assert.AreEqual(9876.5432, range.High);
@@ -1882,7 +1882,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Gds.DataTypeIds.ApplicationRecordDataType.ToString(),
                 eo.TypeId.ToString());
 
-            var record = eo.Body as Gds.ApplicationRecordDataType;
+            Assert.IsTrue(eo.TryGetEncodeable(out Gds.ApplicationRecordDataType record));
             Assert.IsNotNull(record);
             Assert.AreEqual(ApplicationType.Client, record.ApplicationType);
             Assert.AreEqual("Test Client", record.ApplicationNames[0].Text);
