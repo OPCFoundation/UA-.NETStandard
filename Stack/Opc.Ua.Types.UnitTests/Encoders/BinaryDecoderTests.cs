@@ -1459,6 +1459,448 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void ReadDoubleThrowsWhenEndOfStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            // Simulate premuature EOS by truncating the last byte
+            byte[] buffer = BitConverter.GetBytes(0.124).AsSpan()[..^1].ToArray();
+            var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadDouble(null));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadBooleanThrowsWhenEndOfStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = [];
+            var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadBoolean(null));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadSByteThrowsWhenEndOfStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = [];
+            var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadSByte(null));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadByteThrowsWhenEndOfStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = [];
+            var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadByte(null));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadInt16ThrowsWhenEndOfStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = BitConverter.GetBytes((short)42).AsSpan()[..^1].ToArray();
+            var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadInt16(null));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadUInt16ThrowsWhenEndOfStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = BitConverter.GetBytes((ushort)42).AsSpan()[..^1].ToArray();
+            var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadUInt16(null));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadInt32ThrowsWhenEndOfStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = BitConverter.GetBytes(42).AsSpan()[..^1].ToArray();
+            var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadInt32(null));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadUInt32ThrowsWhenEndOfStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = BitConverter.GetBytes(42u).AsSpan()[..^1].ToArray();
+            var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadUInt32(null));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadInt64ThrowsWhenEndOfStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = BitConverter.GetBytes(42L).AsSpan()[..^1].ToArray();
+            var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadInt64(null));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadUInt64ThrowsWhenEndOfStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = BitConverter.GetBytes(42uL).AsSpan()[..^1].ToArray();
+            var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadUInt64(null));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadFloatThrowsWhenEndOfStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = BitConverter.GetBytes(1.0f).AsSpan()[..^1].ToArray();
+            var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadFloat(null));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadStringThrowsWhenEndOfStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            // Length says 5 bytes but only 4 data bytes follow
+            byte[] buffer = [0x05, 0x00, 0x00, 0x00, 0x48, 0x65, 0x6C, 0x6C];
+            var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadString(null));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadDateTimeThrowsWhenEndOfStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = BitConverter.GetBytes(0L).AsSpan()[..^1].ToArray();
+            var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadDateTime(null));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadGuidThrowsWhenEndOfStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = Guid.NewGuid().ToByteArray().AsSpan()[..^1].ToArray();
+            var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadGuid(null));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadByteStringThrowsWhenEndOfStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            // Length says 5 bytes but only 4 data bytes follow
+            byte[] buffer = [0x05, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04];
+            var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadByteString(null));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadXmlElementThrowsWhenEndOfStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            // Length says 10 bytes but only 5 data bytes follow
+            byte[] buffer = [0x0A, 0x00, 0x00, 0x00, 0x3C, 0x72, 0x6F, 0x6F, 0x74];
+            var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadXmlElement(null));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadNodeIdThrowsWhenEndOfStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = [];
+            var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadNodeId(null));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadExpandedNodeIdThrowsWhenEndOfStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = [];
+            var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadExpandedNodeId(null));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadStatusCodeThrowsWhenEndOfStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = BitConverter.GetBytes(0u).AsSpan()[..^1].ToArray();
+            var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadStatusCode(null));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadDiagnosticInfoThrowsWhenEndOfStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            // Encoding byte with SymbolicId flag set but no Int32 data follows
+            byte[] buffer = [0x01];
+            var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadDiagnosticInfo(null));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadQualifiedNameThrowsWhenEndOfStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = BitConverter.GetBytes((ushort)0).AsSpan()[..^1].ToArray();
+            var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadQualifiedName(null));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadLocalizedTextThrowsWhenEndOfStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            // Encoding byte with Locale flag set but no string data follows
+            byte[] buffer = [0x01];
+            var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadLocalizedText(null));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadVariantThrowsWhenEndOfStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            // Encoding byte for Int32 scalar but no Int32 data follows
+            byte[] buffer = [0x06];
+            var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadVariant(null));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadDataValueThrowsWhenEndOfStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            // Encoding byte with Value flag, variant encoding for Int32, but no Int32 data
+            byte[] buffer = [0x01, 0x06];
+            var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadDataValue(null));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadExtensionObjectThrowsWhenEndOfStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = [];
+            var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadExtensionObject(null));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadEncodeableThrowsWhenEndOfStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = [];
+            var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            var ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadEncodeable(null, typeof(TestEncodeableWithData)));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadEnumeratedThrowsWhenEndOfStream()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = BitConverter.GetBytes(0).AsSpan()[..^1].ToArray();
+            var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            var ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadEnumerated(null, typeof(TestEnum)));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
         public void ReadDoubleWithFieldNameReturnsNegativeInfinity()
         {
             // Arrange
@@ -3165,6 +3607,1082 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[2].Code, Is.EqualTo(0x40020000u));
         }
 
+        [Test]
+        public void EncodingTypeReturnsBinary()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = [0x01];
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act & Assert
+            Assert.That(decoder.EncodingType, Is.EqualTo(EncodingType.Binary));
+        }
+
+        [Test]
+        public void PushNamespaceAndPopNamespaceDoNotThrow()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = [0x01];
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act & Assert
+            Assert.DoesNotThrow(() => decoder.PushNamespace("http://test.namespace"));
+            Assert.DoesNotThrow(() => decoder.PopNamespace());
+        }
+
+        [Test]
+        public void ReadBooleanReturnsTrueForNonZero()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = [0x01];
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            bool result = decoder.ReadBoolean(null);
+
+            // Assert
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void ReadBooleanReturnsFalseForZero()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = [0x00];
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            bool result = decoder.ReadBoolean(null);
+
+            // Assert
+            Assert.That(result, Is.False);
+        }
+
+        [Test]
+        public void ReadStatusCodeReturnsGoodForZero()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = [0x00, 0x00, 0x00, 0x00];
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            StatusCode result = decoder.ReadStatusCode(null);
+
+            // Assert
+            Assert.That(result.Code, Is.EqualTo(0u));
+            Assert.That(StatusCode.IsGood(result), Is.True);
+        }
+
+        [Test]
+        public void ReadStatusCodeReturnsBadStatusCode()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = BitConverter.GetBytes(StatusCodes.BadDecodingError.Code);
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            StatusCode result = decoder.ReadStatusCode(null);
+
+            // Assert
+            Assert.That(result.Code, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(StatusCode.IsBad(result), Is.True);
+        }
+
+        [Test]
+        public void ReadDiagnosticInfoReturnsNullForZeroEncodingMask()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            // 0x00 encoding mask means null DiagnosticInfo in binary encoding
+            byte[] buffer = [0x00];
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            DiagnosticInfo result = decoder.ReadDiagnosticInfo(null);
+
+            // Assert
+            Assert.That(result, Is.Null);
+        }
+
+        [Test]
+        public void ReadDiagnosticInfoReturnsNullForNullEncodingMask()
+        {
+            // Arrange - encode a null DiagnosticInfo through the encoder
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            using var encoder = new BinaryEncoder(messageContext);
+            encoder.WriteDiagnosticInfo(null, null);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            DiagnosticInfo result = decoder.ReadDiagnosticInfo(null);
+
+            // Assert
+            Assert.That(result, Is.Null);
+        }
+
+        [Test]
+        public void ReadDiagnosticInfoWithAllFieldsRoundTrips()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var diagnosticInfo = new DiagnosticInfo
+            {
+                SymbolicId = 1,
+                NamespaceUri = 2,
+                Locale = 3,
+                LocalizedText = 4,
+                AdditionalInfo = "additional info",
+                InnerStatusCode = StatusCodes.BadUnexpectedError
+            };
+
+            using var encoder = new BinaryEncoder(messageContext);
+            encoder.WriteDiagnosticInfo(null, diagnosticInfo);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            DiagnosticInfo result = decoder.ReadDiagnosticInfo(null);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.SymbolicId, Is.EqualTo(1));
+            Assert.That(result.NamespaceUri, Is.EqualTo(2));
+            Assert.That(result.Locale, Is.EqualTo(3));
+            Assert.That(result.LocalizedText, Is.EqualTo(4));
+            Assert.That(result.AdditionalInfo, Is.EqualTo("additional info"));
+            Assert.That(result.InnerStatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+        }
+
+        [Test]
+        public void ReadQualifiedNameReturnsCorrectValue()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var expected = new QualifiedName("TestName", 5);
+
+            using var encoder = new BinaryEncoder(messageContext);
+            encoder.WriteQualifiedName(null, expected);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            QualifiedName result = decoder.ReadQualifiedName(null);
+
+            // Assert
+            Assert.That(result.Name, Is.EqualTo("TestName"));
+            Assert.That(result.NamespaceIndex, Is.EqualTo(5));
+        }
+
+        [Test]
+        public void ReadNodeIdWithGuidIdentifierReturnsCorrectNodeId()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var guid = Guid.NewGuid();
+            var expected = new NodeId(guid, 1);
+
+            using var encoder = new BinaryEncoder(messageContext);
+            encoder.WriteNodeId(null, expected);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            NodeId result = decoder.ReadNodeId(null);
+
+            // Assert
+            Assert.That(result.IdType, Is.EqualTo(IdType.Guid));
+            Assert.That(result.NamespaceIndex, Is.EqualTo(1));
+            Assert.That(result.TryGetIdentifier(out Guid resultGuid), Is.True);
+            Assert.That(resultGuid, Is.EqualTo(guid));
+        }
+
+        [Test]
+        public void ReadNodeIdWithOpaqueIdentifierReturnsCorrectNodeId()
+        {
+            // Arrange - manually encode an opaque NodeId (encoding byte 0x05 = Opaque)
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer =
+            [
+                0x05,                   // encoding: Opaque (String encoding type with opaque)
+                0x02, 0x00,             // namespace index = 2
+                0x04, 0x00, 0x00, 0x00, // byte string length = 4
+                0xAA, 0xBB, 0xCC, 0xDD  // opaque data
+            ];
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            NodeId result = decoder.ReadNodeId(null);
+
+            // Assert
+            Assert.That(result.IdType, Is.EqualTo(IdType.Opaque));
+            Assert.That(result.NamespaceIndex, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ReadNodeIdWithFourByteEncodingReturnsCorrectNodeId()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            // FourByte encoding: encoding byte 0x01, namespace (1 byte), id (2 bytes)
+            byte[] buffer = [0x01, 0x03, 0x00, 0x01]; // ns=3, id=256
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            NodeId result = decoder.ReadNodeId(null);
+
+            // Assert
+            Assert.That(result.IdType, Is.EqualTo(IdType.Numeric));
+            Assert.That(result.NamespaceIndex, Is.EqualTo(3));
+            Assert.That(result.TryGetIdentifier(out uint id), Is.True);
+            Assert.That(id, Is.EqualTo(256u));
+        }
+
+        [Test]
+        public void ReadExpandedNodeIdWithServerIndexRoundTrips()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var expected = new ExpandedNodeId(42, 0, null, 3);
+
+            using var encoder = new BinaryEncoder(messageContext);
+            encoder.WriteExpandedNodeId(null, expected);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            ExpandedNodeId result = decoder.ReadExpandedNodeId(null);
+
+            // Assert
+            Assert.That(result.ServerIndex, Is.EqualTo(3u));
+            Assert.That(result.TryGetIdentifier(out uint id), Is.True);
+            Assert.That(id, Is.EqualTo(42u));
+        }
+
+        [Test]
+        public void ReadExpandedNodeIdWithNamespaceUriRoundTrips()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var expected = new ExpandedNodeId(100, 0, "http://test.namespace", 0);
+
+            using var encoder = new BinaryEncoder(messageContext);
+            encoder.WriteExpandedNodeId(null, expected);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            ExpandedNodeId result = decoder.ReadExpandedNodeId(null);
+
+            // Assert
+            Assert.That(result.NamespaceUri, Is.EqualTo("http://test.namespace"));
+        }
+
+        [Test]
+        public void DecodeMessageWithNullBufferThrowsArgumentNullException()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            // Act & Assert
+            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(() =>
+                BinaryDecoder.DecodeMessage((byte[])null, typeof(TestEncodeable), messageContext));
+            Assert.That(ex.ParamName, Is.EqualTo("buffer"));
+        }
+
+        [Test]
+        public void LoadStringTableReturnsTrueForZeroCount()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = BitConverter.GetBytes(0); // count = 0
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+            var stringTable = new StringTable();
+
+            // Act
+            bool result = decoder.LoadStringTable(stringTable);
+
+            // Assert
+            Assert.That(result, Is.True);
+            Assert.That(stringTable.Count, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void LoadStringTableReturnsFalseForNegativeCount()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = BitConverter.GetBytes(-1); // count = -1
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+            var stringTable = new StringTable();
+
+            // Act
+            bool result = decoder.LoadStringTable(stringTable);
+
+            // Assert
+            Assert.That(result, Is.False);
+            Assert.That(stringTable.Count, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void ReadStringArrayReturnsNullForNegativeOne()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = [0xFF, 0xFF, 0xFF, 0xFF]; // -1 length
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            StringCollection result = decoder.ReadStringArray(null);
+
+            // Assert
+            Assert.That(result, Is.Null);
+        }
+
+        [Test]
+        public void ReadStringArrayReturnsMultipleElements()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            using var encoder = new BinaryEncoder(messageContext);
+            var values = new StringCollection { "Hello", "World", "" };
+            encoder.WriteStringArray(null, values);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            StringCollection result = decoder.ReadStringArray(null);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Count, Is.EqualTo(3));
+            Assert.That(result[0], Is.EqualTo("Hello"));
+            Assert.That(result[1], Is.EqualTo("World"));
+            Assert.That(result[2], Is.EqualTo(string.Empty));
+        }
+
+        [Test]
+        public void ReadLocalizedTextArrayRoundTrips()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            using var encoder = new BinaryEncoder(messageContext);
+            var values = new LocalizedTextCollection
+            {
+                new LocalizedText("en", "Hello"),
+                new LocalizedText("de", "Hallo")
+            };
+            encoder.WriteLocalizedTextArray(null, values);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            LocalizedTextCollection result = decoder.ReadLocalizedTextArray(null);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Count, Is.EqualTo(2));
+            Assert.That(result[0].Text, Is.EqualTo("Hello"));
+            Assert.That(result[0].Locale, Is.EqualTo("en"));
+            Assert.That(result[1].Text, Is.EqualTo("Hallo"));
+            Assert.That(result[1].Locale, Is.EqualTo("de"));
+        }
+
+        [Test]
+        public void ReadDiagnosticInfoArrayRoundTrips()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            using var encoder = new BinaryEncoder(messageContext);
+            var values = new DiagnosticInfoCollection
+            {
+                new DiagnosticInfo { SymbolicId = 1 },
+                new DiagnosticInfo { SymbolicId = 2, AdditionalInfo = "info" }
+            };
+            encoder.WriteDiagnosticInfoArray(null, values);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            DiagnosticInfoCollection result = decoder.ReadDiagnosticInfoArray(null);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Count, Is.EqualTo(2));
+            Assert.That(result[0].SymbolicId, Is.EqualTo(1));
+            Assert.That(result[1].SymbolicId, Is.EqualTo(2));
+            Assert.That(result[1].AdditionalInfo, Is.EqualTo("info"));
+        }
+
+        [Test]
+        public void ReadByteStringWithMaxLengthThrowsWhenExceeded()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] data = [0x01, 0x02, 0x03, 0x04, 0x05];
+
+            using var encoder = new BinaryEncoder(messageContext);
+            encoder.WriteByteString(null, data);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act & Assert
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadByteString(null, 3));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void ReadByteStringWithMaxLengthAllowsExactLength()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] data = [0x01, 0x02, 0x03];
+
+            using var encoder = new BinaryEncoder(messageContext);
+            encoder.WriteByteString(null, data);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            ByteString result = decoder.ReadByteString(null, 3);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Memory.ToArray(), Is.EqualTo(data));
+        }
+
+        [Test]
+        public void ReadVariantWithArrayValueRoundTrips()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var intArray = new Int32Collection { 1, 2, 3 };
+            var variant = new Variant(intArray);
+
+            using var encoder = new BinaryEncoder(messageContext);
+            encoder.WriteVariant(null, variant);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            Variant result = decoder.ReadVariant(null);
+
+            // Assert
+            Assert.That(result.Value, Is.Not.Null);
+            var resultArray = (Array)result.Value;
+            Assert.That(resultArray.Length, Is.EqualTo(3));
+            Assert.That(resultArray.GetValue(0), Is.EqualTo(1));
+            Assert.That(resultArray.GetValue(1), Is.EqualTo(2));
+            Assert.That(resultArray.GetValue(2), Is.EqualTo(3));
+        }
+
+        [Test]
+        public void ReadDataValueWithAllFieldsRoundTrips()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var sourceTime = new DateTime(2024, 6, 15, 12, 0, 0, DateTimeKind.Utc);
+            var serverTime = new DateTime(2024, 6, 15, 12, 0, 1, DateTimeKind.Utc);
+            var dataValue = new DataValue
+            {
+                Value = new Variant(42),
+                StatusCode = StatusCodes.Good,
+                SourceTimestamp = sourceTime,
+                SourcePicoseconds = 100,
+                ServerTimestamp = serverTime,
+                ServerPicoseconds = 200
+            };
+
+            using var encoder = new BinaryEncoder(messageContext);
+            encoder.WriteDataValue(null, dataValue);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            DataValue result = decoder.ReadDataValue(null);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Value, Is.EqualTo(new Variant(42)));
+            Assert.That(result.SourceTimestamp, Is.EqualTo(sourceTime));
+            Assert.That(result.SourcePicoseconds, Is.EqualTo(100));
+            Assert.That(result.ServerTimestamp, Is.EqualTo(serverTime));
+            Assert.That(result.ServerPicoseconds, Is.EqualTo(200));
+        }
+
+        [Test]
+        public void SetMappingTablesWithNamespaceMappingRemapsNodeIds()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var contextNamespaces = new NamespaceTable();
+            contextNamespaces.Append(Namespaces.OpcUa);
+            contextNamespaces.Append("http://namespace.a");
+            contextNamespaces.Append("http://namespace.b");
+            messageContext.NamespaceUris = contextNamespaces;
+
+            // Encode a NodeId in namespace index 1
+            var nodeId = new NodeId(100, 1);
+            using var encoder = new BinaryEncoder(messageContext);
+            encoder.WriteNodeId(null, nodeId);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+
+            // Decode with different namespace ordering
+            var streamNamespaces = new NamespaceTable();
+            streamNamespaces.Append(Namespaces.OpcUa);
+            streamNamespaces.Append("http://namespace.a");
+            streamNamespaces.Append("http://namespace.b");
+
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+            decoder.SetMappingTables(streamNamespaces, null);
+
+            // Act
+            NodeId result = decoder.ReadNodeId(null);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.TryGetIdentifier(out uint id), Is.True);
+            Assert.That(id, Is.EqualTo(100u));
+        }
+
+        [Test]
+        public void ReadExtensionObjectRoundTrips()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = SetupContextForDecodeMessage();
+
+            var testEncodeable = new TestEncodeable();
+            var extensionObject = new ExtensionObject(testEncodeable);
+
+            using var encoder = new BinaryEncoder(messageContext);
+            encoder.WriteExtensionObject(null, extensionObject);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            ExtensionObject result = decoder.ReadExtensionObject(null);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Body, Is.InstanceOf<TestEncodeable>());
+        }
+
+        [Test]
+        public void ReadEnumeratedArrayReturnsEmptyForZeroLength()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = [0x00, 0x00, 0x00, 0x00]; // 0 length
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            Array result = decoder.ReadEnumeratedArray(null, typeof(TestEnum));
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void ReadEnumeratedArrayReturnsMultipleElements()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer =
+            [
+                0x03, 0x00, 0x00, 0x00, // length = 3
+                0x00, 0x00, 0x00, 0x00, // Value0
+                0x01, 0x00, 0x00, 0x00, // Value1
+                0x02, 0x00, 0x00, 0x00  // Value2
+            ];
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            Array result = decoder.ReadEnumeratedArray(null, typeof(TestEnum));
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(3));
+            Assert.That(result.GetValue(0), Is.EqualTo(TestEnum.Value0));
+            Assert.That(result.GetValue(1), Is.EqualTo(TestEnum.Value1));
+            Assert.That(result.GetValue(2), Is.EqualTo(TestEnum.Value2));
+        }
+
+        [Test]
+        public void ReadArrayReturnsNullForNegativeOneDimension()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = [0xFF, 0xFF, 0xFF, 0xFF]; // -1 length
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.Int32);
+
+            // Assert
+            Assert.That(result, Is.Null);
+        }
+
+        [Test]
+        public void ReadArrayReturnsUInt32ArrayForOneDimension()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer =
+            [
+                0x02, 0x00, 0x00, 0x00, // length = 2
+                0xFF, 0xFF, 0xFF, 0xFF, // UInt32.MaxValue
+                0x00, 0x00, 0x00, 0x00  // 0
+            ];
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.UInt32);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(2));
+            Assert.That(result.GetValue(0), Is.EqualTo(uint.MaxValue));
+            Assert.That(result.GetValue(1), Is.EqualTo(0u));
+        }
+
+        [Test]
+        public void ReadArrayReturnsUInt64ArrayForOneDimension()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer =
+            [
+                0x01, 0x00, 0x00, 0x00, // length = 1
+                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF // UInt64.MaxValue
+            ];
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.UInt64);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(1));
+            Assert.That(result.GetValue(0), Is.EqualTo(ulong.MaxValue));
+        }
+
+        [Test]
+        public void ReadArrayReturnsDoubleArrayForOneDimension()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            List<byte> buffer =
+            [
+                .. BitConverter.GetBytes(2), // length = 2
+                .. BitConverter.GetBytes(3.14),
+                .. BitConverter.GetBytes(-2.71)
+            ];
+            using var decoder = new BinaryDecoder(buffer.ToArray(), messageContext);
+
+            // Act
+            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.Double);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(2));
+            Assert.That(result.GetValue(0), Is.EqualTo(3.14).Within(0.001));
+            Assert.That(result.GetValue(1), Is.EqualTo(-2.71).Within(0.001));
+        }
+
+        [Test]
+        public void ReadArrayReturnsBooleanArrayForOneDimension()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer =
+            [
+                0x03, 0x00, 0x00, 0x00, // length = 3
+                0x01, // true
+                0x00, // false
+                0x01  // true
+            ];
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.Boolean);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(3));
+            Assert.That(result.GetValue(0), Is.EqualTo(true));
+            Assert.That(result.GetValue(1), Is.EqualTo(false));
+            Assert.That(result.GetValue(2), Is.EqualTo(true));
+        }
+
+        [Test]
+        public void ReadArrayReturnsByteArrayForOneDimension()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer =
+            [
+                0x02, 0x00, 0x00, 0x00, // length = 2
+                0xAA,
+                0xFF
+            ];
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.Byte);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(2));
+            Assert.That(result.GetValue(0), Is.EqualTo((byte)0xAA));
+            Assert.That(result.GetValue(1), Is.EqualTo((byte)0xFF));
+        }
+
+        [Test]
+        public void ReadArrayReturnsStringArrayForOneDimension()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            using var encoder = new BinaryEncoder(messageContext);
+            var values = new StringCollection { "test1", "test2" };
+            encoder.WriteStringArray(null, values);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.String);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(2));
+            Assert.That(result.GetValue(0), Is.EqualTo("test1"));
+            Assert.That(result.GetValue(1), Is.EqualTo("test2"));
+        }
+
+        [Test]
+        public void ReadArrayReturnsDateTimeArrayForOneDimension()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var dt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+            using var encoder = new BinaryEncoder(messageContext);
+            var values = new DateTimeCollection { dt };
+            encoder.WriteDateTimeArray(null, values);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.DateTime);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(1));
+            Assert.That(result.GetValue(0), Is.EqualTo(dt));
+        }
+
+        [Test]
+        public void ReadArrayReturnsByteStringArrayForOneDimension()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            using var encoder = new BinaryEncoder(messageContext);
+            var values = new ByteStringCollection { (ByteString)new byte[] { 0x01 }, (ByteString)new byte[] { 0x02, 0x03 } };
+            encoder.WriteByteStringArray(null, values);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.ByteString);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ReadArrayReturnsXmlElementArrayForOneDimension()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            using var encoder = new BinaryEncoder(messageContext);
+            var element = XmlElement.From("<test>value</test>");
+            var values = new XmlElementCollection { element };
+            encoder.WriteXmlElementArray(null, values);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.XmlElement);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void ReadArrayReturnsNodeIdArrayForOneDimension()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            using var encoder = new BinaryEncoder(messageContext);
+            var values = new NodeIdCollection { new NodeId(1), new NodeId(2) };
+            encoder.WriteNodeIdArray(null, values);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.NodeId);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ReadArrayReturnsStatusCodeArrayForOneDimension()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            using var encoder = new BinaryEncoder(messageContext);
+            var values = new StatusCodeCollection { StatusCodes.Good, StatusCodes.BadUnexpectedError };
+            encoder.WriteStatusCodeArray(null, values);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.StatusCode);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ReadArrayReturnsVariantArrayForOneDimension()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            using var encoder = new BinaryEncoder(messageContext);
+            var values = new VariantCollection { new Variant(42), new Variant("text") };
+            encoder.WriteVariantArray(null, values);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.Variant);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ReadArrayReturnsExtensionObjectArrayForOneDimension()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            using var encoder = new BinaryEncoder(messageContext);
+            var values = new ExtensionObjectCollection { ExtensionObject.Null };
+            encoder.WriteExtensionObjectArray(null, values);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.ExtensionObject);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void ReadArrayReturnsEnumeratedArrayForOneDimension()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer =
+            [
+                0x02, 0x00, 0x00, 0x00, // length = 2
+                0x01, 0x00, 0x00, 0x00, // Value1
+                0x03, 0x00, 0x00, 0x00  // Value3
+            ];
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.Enumeration, typeof(TestEnum));
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(2));
+            Assert.That(result.GetValue(0), Is.EqualTo(TestEnum.Value1));
+            Assert.That(result.GetValue(1), Is.EqualTo(TestEnum.Value3));
+        }
+
+        [Test]
+        public void ReadSwitchFieldReturnsValueWithNullFieldNameForBinaryEncoding()
+        {
+            // Arrange - BinaryDecoder always returns null for fieldName
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer =
+            [
+                0x01, 0x00, 0x00, 0x00 // UInt32 value 1
+            ];
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+            var switches = new List<string> { "Field0", "Field1", "Field2" };
+
+            // Act
+            uint result = decoder.ReadSwitchField(switches, out string fieldName);
+
+            // Assert
+            Assert.That(result, Is.EqualTo(1u));
+            Assert.That(fieldName, Is.Null);
+        }
+
+        [Test]
+        public void ReadSwitchFieldReturnsNullFieldNameWhenValueExceedsSwitchCount()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer =
+            [
+                0x05, 0x00, 0x00, 0x00 // UInt32 value 5
+            ];
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+            var switches = new List<string> { "Field0", "Field1" };
+
+            // Act
+            uint result = decoder.ReadSwitchField(switches, out string fieldName);
+
+            // Assert
+            Assert.That(result, Is.EqualTo(5u));
+            Assert.That(fieldName, Is.Null);
+        }
+
+        [Test]
+        public void ConstructorWithStreamLeaveOpenTrueKeepsStreamOpen()
+        {
+            // Arrange
+            byte[] buffer = [1, 2, 3, 4, 5];
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var stream = new MemoryStream(buffer);
+
+            // Act
+            using (var decoder = new BinaryDecoder(stream, messageContext, leaveOpen: true))
+            {
+                Assert.That(decoder, Is.Not.Null);
+            }
+
+            // Assert - stream should still be open
+            Assert.That(stream.CanRead, Is.True);
+            stream.Dispose();
+        }
+
+        [Test]
+        public void PositionAdvancesAfterReading()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = [0x01, 0x00, 0x00, 0x00, 0x2A, 0x00, 0x00, 0x00];
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            Assert.That(decoder.Position, Is.EqualTo(0));
+            decoder.ReadInt32(null);
+
+            // Assert
+            Assert.That(decoder.Position, Is.EqualTo(4));
+        }
+
         private sealed class TestEncodeable : IEncodeable
         {
             public ExpandedNodeId TypeId => new(12345, 0);
@@ -3216,6 +4734,33 @@ namespace Opc.Ua.Types.Tests.Encoders
             public object Clone()
             {
                 return new TestComplexTypeInstance { TypeId = TypeId };
+            }
+        }
+
+        private sealed class TestEncodeableWithData : IEncodeable
+        {
+            public ExpandedNodeId TypeId => new(99999, 0);
+            public ExpandedNodeId BinaryEncodingId => new(99999, 0);
+            public ExpandedNodeId XmlEncodingId => new(99999, 0);
+
+            public void Encode(IEncoder encoder)
+            {
+                encoder.WriteInt32(null, 42);
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+                decoder.ReadInt32(null);
+            }
+
+            public bool IsEqual(IEncodeable encodeable)
+            {
+                return encodeable is TestEncodeableWithData;
+            }
+
+            public object Clone()
+            {
+                return new TestEncodeableWithData();
             }
         }
 
