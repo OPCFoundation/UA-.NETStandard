@@ -458,7 +458,7 @@ namespace Opc.Ua.Bindings
 
             // create the channel.
             var channel = new UaSCUaBinaryClientChannel(
-                Guid.NewGuid().ToString(),
+                id,
                 m_bufferManager,
                 m_messageSocketFactory,
                 m_quotas,

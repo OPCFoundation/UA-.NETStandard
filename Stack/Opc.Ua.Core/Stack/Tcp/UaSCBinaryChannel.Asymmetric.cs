@@ -574,6 +574,14 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Sends a OpenSecureChannel request.
         /// </summary>
+        /// <param name="messageType">The UA TCP message type (for example, Open or OpenFinal).</param>
+        /// <param name="requestId">The request identifier used in the sequence header.</param>
+        /// <param name="senderCertificate">The certificate used to sign the asymmetric message.</param>
+        /// <param name="senderCertificateChain">The optional sender certificate chain to include in the message header.</param>
+        /// <param name="receiverCertificate">The receiver certificate used for asymmetric encryption.</param>
+        /// <param name="messageBody">The encoded message body to send.</param>
+        /// <param name="oscRequestSignature">The signature from the OpenSecureChannel request.</param>
+        /// <param name="signature">Returns the signature generated for the message being written.</param>
         /// <exception cref="InvalidDataException"></exception>
         /// <exception cref="ServiceResultException"></exception>
         protected BufferCollection WriteAsymmetricMessage(

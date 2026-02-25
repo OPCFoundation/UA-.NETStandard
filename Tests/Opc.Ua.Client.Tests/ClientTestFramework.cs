@@ -136,6 +136,30 @@ namespace Opc.Ua.Client.Tests
             return displayNames.Select(SecurityPolicies.GetUri);
         }
 
+        protected async Task IgnoreIfPolicyNotAdvertisedAsync(string securityPolicyUri)
+        {
+            Endpoints ??= await ClientFixture.GetEndpointsAsync(ServerUrl).ConfigureAwait(false);
+            if (Endpoints?.Any(endpoint =>
+                    string.Equals(
+                        endpoint.SecurityPolicyUri,
+                        securityPolicyUri,
+                        StringComparison.Ordinal)) != true)
+            {
+                string advertisedPolicies = Endpoints == null
+                    ? "<none>"
+                    : string.Join(
+                        ", ",
+                        Endpoints
+                            .Select(endpoint => endpoint.SecurityPolicyUri)
+                            .Where(policy => !string.IsNullOrEmpty(policy))
+                            .Distinct()
+                            .OrderBy(policy => policy, StringComparer.Ordinal));
+                NUnit.Framework.Assert.Ignore(
+                    $"SecurityPolicy '{securityPolicyUri}' is not advertised by the server. " +
+                    $"Advertised: {advertisedPolicies}");
+            }
+        }
+
         /// <summary>
         /// Set up a Server and a Client instance.
         /// </summary>

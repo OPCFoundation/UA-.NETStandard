@@ -962,6 +962,13 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Sends an OpenSecureChannel response.
         /// </summary>
+        /// <param name="requestId">The request identifier.</param>
+        /// <param name="token">The security token to return in the response.</param>
+        /// <param name="request">The OpenSecureChannel request being answered.</param>
+        /// <param name="renew">
+        /// <c>true</c> when answering a token renewal request. Renewal keeps the same channel, but issues a new
+        /// security token (new token id and server nonce), <c>false</c> for the initial open.
+        /// </param>
         private void SendOpenSecureChannelResponse(
             uint requestId,
             ChannelToken token,
@@ -1007,7 +1014,7 @@ namespace Opc.Ua.Bindings
             CryptoTrace.WriteLine($"ChannelThumbprint={CryptoTrace.KeyToString(ChannelThumbprint)}");
             CryptoTrace.Finish("SendOpenSecureChannelResponse");
 
-            // write the message to the server.
+            // write the response to the client.
             try
             {
                 BeginWriteMessage(chunksToSend, null);

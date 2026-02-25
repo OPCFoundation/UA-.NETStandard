@@ -44,8 +44,8 @@ namespace Opc.Ua
         /// <param name="endpointDescription">The endpoint description.</param>
         /// <param name="messageEncoding">The message encoding.</param>
         /// <param name="channelThumbprint">The unique hash for the secure channel calculated during channel creation.</param>
-        /// <param name="clientChannelCertificate">The client certificate used to establsih the secure channel.</param>
-        /// <param name="serverChannelCertificate">The server certificate used to establsih the secure channel.</param>
+        /// <param name="clientChannelCertificate">The client certificate used to establish the secure channel.</param>
+        /// <param name="serverChannelCertificate">The server certificate used to establish the secure channel.</param>
         public SecureChannelContext(
             string secureChannelId,
             EndpointDescription endpointDescription,

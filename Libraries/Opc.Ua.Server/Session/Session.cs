@@ -243,7 +243,7 @@ namespace Opc.Ua.Server
         public byte[] ClientNonce { get; }
 
         /// <summary>
-        /// The application instance certificate associated with the server.
+        /// The server application instance certificate used by this session.
         /// </summary>
         public X509Certificate2 ServerCertificate => m_serverCertificate;
 

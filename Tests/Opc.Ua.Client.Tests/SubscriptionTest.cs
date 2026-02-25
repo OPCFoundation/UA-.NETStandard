@@ -1633,28 +1633,5 @@ namespace Opc.Ua.Client.Tests
             await subscription.DeleteAsync(true, CancellationToken.None).ConfigureAwait(false);
         }
 
-        private async Task IgnoreIfPolicyNotAdvertisedAsync(string securityPolicyUri)
-        {
-            Endpoints ??= await ClientFixture.GetEndpointsAsync(ServerUrl).ConfigureAwait(false);
-            if (Endpoints?.Any(endpoint =>
-                    string.Equals(
-                        endpoint.SecurityPolicyUri,
-                        securityPolicyUri,
-                        StringComparison.Ordinal)) != true)
-            {
-                string advertisedPolicies = Endpoints == null
-                    ? "<none>"
-                    : string.Join(
-                        ", ",
-                        Endpoints
-                            .Select(endpoint => endpoint.SecurityPolicyUri)
-                            .Where(policy => !string.IsNullOrEmpty(policy))
-                            .Distinct()
-                            .OrderBy(policy => policy, StringComparer.Ordinal));
-                NUnit.Framework.Assert.Ignore(
-                    $"SecurityPolicy '{securityPolicyUri}' is not advertised by the server. " +
-                    $"Advertised: {advertisedPolicies}");
-            }
-        }
     }
 }

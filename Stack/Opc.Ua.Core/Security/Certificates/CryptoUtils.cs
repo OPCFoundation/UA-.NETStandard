@@ -309,7 +309,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Computes an ECDSA signature.
+        /// Computes a signature.
         /// </summary>
         public static byte[] Sign(
             ArraySegment<byte> dataToSign,
@@ -321,7 +321,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Computes an signature.
+        /// Computes a signature.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         public static byte[] Sign(
@@ -392,7 +392,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Verifies a ECDsa signature.
+        /// Verifies a signature.
         /// </summary>
         public static bool Verify(
             ArraySegment<byte> dataToVerify,
@@ -417,7 +417,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Verifies a ECDsa signature.
+        /// Verifies a signature.
         /// </summary>
         public static bool Verify(
             ArraySegment<byte> dataToVerify,
