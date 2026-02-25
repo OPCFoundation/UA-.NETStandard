@@ -99,7 +99,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         [Explicit]
         [Order(100)]
-        public async Task ServerLoadTestAsync()
+        public async Task ServerSubscribeLoadTestAsync()
         {
             const int sessionCount = 50;
             const int subscriptionsPerSession = 15;

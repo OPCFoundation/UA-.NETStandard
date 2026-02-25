@@ -299,7 +299,7 @@ namespace Opc.Ua.Server
                 // check if not ready to publish in case it doesn't ResendData
                 if (!m_readyToPublish)
                 {
-                    ServerUtils.EventLog.MonitoredItemReady(Id, "FALSE");
+                    //ServerUtils.EventLog.MonitoredItemReady(Id, "FALSE");
                     //m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] FALSE", Id);
                     return false;
                 }
@@ -307,7 +307,7 @@ namespace Opc.Ua.Server
                 // check if it has been triggered.
                 if (MonitoringMode != MonitoringMode.Disabled && m_triggered)
                 {
-                    ServerUtils.EventLog.MonitoredItemReady(Id, "TRIGGERED");
+                    //ServerUtils.EventLog.MonitoredItemReady(Id, "TRIGGERED");
                     //m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] TRIGGERED", Id);
                     return true;
                 }
@@ -315,7 +315,7 @@ namespace Opc.Ua.Server
                 // check if monitoring was turned off.
                 if (MonitoringMode != MonitoringMode.Reporting)
                 {
-                    ServerUtils.EventLog.MonitoredItemReady(Id, "FALSE");
+                    //ServerUtils.EventLog.MonitoredItemReady(Id, "FALSE");
                     //m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] FALSE", Id);
                     return false;
                 }
@@ -327,14 +327,14 @@ namespace Opc.Ua.Server
 
                     if (m_nextSamplingTime > now)
                     {
-                        ServerUtils.EventLog.MonitoredItemReady(
-                            Id,
-                            Utils.Format("FALSE {0}ms", m_nextSamplingTime - now));
+                        //ServerUtils.EventLog.MonitoredItemReady(
+                        //    Id,
+                        //    Utils.Format("FALSE {0}ms", m_nextSamplingTime - now));
                         //m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] FALSE {Delay}ms", Id, m_nextSamplingTime - now);
                         return false;
                     }
                 }
-                ServerUtils.EventLog.MonitoredItemReady(Id, "NORMAL");
+                //ServerUtils.EventLog.MonitoredItemReady(Id, "NORMAL");
                 //m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] NORMAL", Id);
                 return true;
             }
@@ -347,16 +347,13 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (m_lock)
+                // only allow to trigger if sampling or reporting.
+                if (MonitoringMode == MonitoringMode.Disabled)
                 {
-                    // only allow to trigger if sampling or reporting.
-                    if (MonitoringMode == MonitoringMode.Disabled)
-                    {
-                        return false;
-                    }
-
-                    return m_readyToTrigger;
+                    return false;
                 }
+
+                return Volatile.Read(ref m_readyToTrigger);
             }
             set
             {
@@ -372,10 +369,7 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (m_lock)
-                {
-                    return m_resendData;
-                }
+                return Volatile.Read(ref m_resendData);
             }
         }
 
@@ -1418,12 +1412,15 @@ namespace Opc.Ua.Server
                 // publish last value if no queuing or no items are queued
                 else
                 {
-                    m_logger.LogTrace(
-                        "DEQUEUE VALUE: Value={Value} CODE={Code}<{Code:X8}> OVERFLOW={Overflow}",
-                        m_lastValue.WrappedValue,
-                        m_lastValue.StatusCode.Code,
-                        m_lastValue.StatusCode.Code,
-                        m_lastValue.StatusCode.Overflow);
+                    if (m_logger.IsEnabled(LogLevel.Trace))
+                    {
+                        m_logger.LogTrace(
+                            "DEQUEUE VALUE: Value={Value} CODE={Code}<{Code:X8}> OVERFLOW={Overflow}",
+                            m_lastValue.WrappedValue,
+                            m_lastValue.StatusCode.Code,
+                            m_lastValue.StatusCode.Code,
+                            m_lastValue.StatusCode.Overflow);
+                    }
                     Publish(context, notifications, diagnostics, m_lastValue, m_lastError);
                 }
 
