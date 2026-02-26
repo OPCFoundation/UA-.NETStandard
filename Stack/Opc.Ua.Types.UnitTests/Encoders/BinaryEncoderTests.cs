@@ -2410,7 +2410,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             messageContext.NamespaceUris = namespaceTable;
             var encoder = new BinaryEncoder(messageContext);
             var typeId = new ExpandedNodeId(456, 0);
-            XmlElement xmlElement = XmlElement.From("<root><child>Test</child></root>");
+            var xmlElement = XmlElement.From("<root><child>Test</child></root>");
             var extensionObject = new ExtensionObject(typeId, xmlElement);
             // Act
             encoder.WriteExtensionObject("test", extensionObject);
@@ -2628,7 +2628,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext);
             var encoder = new BinaryEncoder(messageContext);
-            var mockEncodeable = new Mock<IEncodeable>();
             var typeId = new ExpandedNodeId(1234, 5, "http://someurinotknowntous", 5);
             var extensionObject = new ExtensionObject(typeId, ByteString.From([1, 2]));
             // Act
@@ -10173,6 +10172,26 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void WriteVariantValueWithGuidMatrixSetsEncodingBits()
+        {
+            Variant variant = Variant.From(
+            ArrayOf.Wrapped([
+                Uuid.NewUuid(),
+                Uuid.NewUuid(),
+                Uuid.NewUuid(),
+                Uuid.NewUuid()
+            ]).ToMatrix(2, 2));
+
+            byte[] result = EncodeVariantValue(variant);
+
+            byte expectedEncodingByte = (byte)BuiltInType.Guid;
+            expectedEncodingByte |= (byte)VariantArrayEncodingBits.Array;
+            expectedEncodingByte |= (byte)VariantArrayEncodingBits.ArrayDimensions;
+
+            Assert.That(result[0], Is.EqualTo(expectedEncodingByte));
+        }
+
+        [Test]
         [TestCase(BuiltInType.DiagnosticInfo)]
         [TestCase(BuiltInType.Number)]
         [TestCase(BuiltInType.Integer)]
@@ -10266,7 +10285,6 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
         }
-
 
         [Test]
         public void WriteVariantValueWithDiagnosticMatrixThrows()
@@ -10410,10 +10428,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 return decoder.ReadVariant(null);
             }
-            else
-            {
-                return decoder.ReadVariantValue(null, variant.TypeInfo);
-            }
+
+            return decoder.ReadVariantValue(null, variant.TypeInfo);
         }
 
         private static System.Collections.IEnumerable ScalarVariantValueTestCases()
@@ -10521,19 +10537,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             yield return new TestCaseData(
                 Variant.From(new[]
                 {
-                    new Uuid(Guid.Empty),
-                    new Uuid(Guid.NewGuid()),
-                    new Uuid(Guid.Empty),
-                    new Uuid(Guid.NewGuid())
-                }.ToMatrixOf(2, 2)),
-                BuiltInType.Guid);
-            yield return new TestCaseData(
-                Variant.From(new[]
-                {
-                    new ByteString(new byte[] { 1 }),
-                    new ByteString(new byte[] { 2 }),
-                    new ByteString(new byte[] { 3 }),
-                    new ByteString(new byte[] { 4 })
+                    ByteString.From(new byte[] { 1 }),
+                    ByteString.From(new byte[] { 2 }),
+                    ByteString.From(new byte[] { 3 }),
+                    ByteString.From(new byte[] { 4 })
                 }.ToMatrixOf(2, 2)),
                 BuiltInType.ByteString);
             yield return new TestCaseData(
