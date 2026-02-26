@@ -30,6 +30,7 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -790,7 +791,7 @@ namespace Opc.Ua
 
             try
             {
-                WriteVariantValue(null, value);
+                WriteVariantValue(value, false);
             }
             finally
             {
@@ -897,14 +898,7 @@ namespace Opc.Ua
 
             if (value.TryGetEncodeable(out IEncodeable encodeable))
             {
-                if (value.Encoding == ExtensionObjectEncoding.Xml)
-                {
-                    typeId = encodeable.XmlEncodingId;
-                }
-                else
-                {
-                    typeId = encodeable.BinaryEncodingId;
-                }
+                typeId = encodeable.BinaryEncodingId;
             }
 
             var localTypeId = ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris);
@@ -924,13 +918,6 @@ namespace Opc.Ua
             }
 
             WriteNodeId(null, localTypeId);
-
-            if (value.IsNull)
-            {
-                // nothing more to do for null bodies.
-                WriteByte(null, (byte)ExtensionObjectEncoding.None);
-                return;
-            }
 
             // determine the encoding type.
             byte encoding;
@@ -963,6 +950,12 @@ namespace Opc.Ua
             // write encodeable bodies.
             if (encodeable == null)
             {
+                if (value.Encoding == ExtensionObjectEncoding.None)
+                {
+                    // nothing more to do for null bodies == None.
+                    return;
+                }
+
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingError,
                     "Cannot encode extension object '{0}'.",
@@ -1003,11 +996,18 @@ namespace Opc.Ua
                 // create a default object if a null object specified.
                 if (!Context.Factory.TryGetEncodeableType<T>(out IEncodeableType activator))
                 {
-                    throw new ArgumentNullException(nameof(value));
+                    throw ServiceResultException.Create(StatusCodes.BadEncodingError,
+                        "Cannot create default instance of type T because activator is not registered.");
                 }
                 value = (T)activator.CreateInstance();
             }
             WriteEncodeable(value);
+        }
+
+        /// <inheritdoc/>
+        public void WriteEncodeableAsExtensionObject<T>(string fieldName, T value) where T : IEncodeable
+        {
+            WriteExtensionObject(fieldName, new ExtensionObject(value));
         }
 
         /// <inheritdoc/>
@@ -1417,6 +1417,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public void WriteEncodeableArrayAsExtensionObjects<T>(string fieldName, ArrayOf<T> values)
+            where T : IEncodeable
+        {
+            WriteExtensionObjectArray(fieldName, values.ConvertAll(v => new ExtensionObject(v)));
+        }
+
+        /// <inheritdoc/>
         public void WriteEncodeableArray<T>(string fieldName, ArrayOf<T> values)
             where T : IEncodeable
         {
@@ -1453,12 +1460,38 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteVariantValue(string fieldName, Variant value)
         {
+            WriteVariantValue(value, true);
+        }
+
+        /// <inheritdoc/>
+        public void WriteSwitchField(uint switchField, out string fieldName)
+        {
+            fieldName = null;
+            WriteUInt32("SwitchField", switchField);
+        }
+
+        /// <inheritdoc/>
+        public void WriteEncodingMask(uint encodingMask)
+        {
+            WriteUInt32("EncodingMask", encodingMask);
+        }
+
+        /// <summary>
+        /// Write variant value either in raw mode (just the value)
+        /// or with type information.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void WriteVariantValue(Variant value, bool raw)
+        {
             // check for null.
             if (value.IsNull ||
                 value.TypeInfo.IsUnknown ||
                 value.TypeInfo.BuiltInType == BuiltInType.Null)
             {
-                WriteByte(null, 0);
+                if (!raw)
+                {
+                    WriteByte(null, 0);
+                }
                 return;
             }
 
@@ -1469,10 +1502,13 @@ namespace Opc.Ua
                 encodingByte = (byte)BuiltInType.Int32;
             }
 
-            if (value.TypeInfo.ValueRank < 0)
+            if (value.TypeInfo.IsScalar)
             {
                 // Write scalar
-                WriteByte(null, encodingByte);
+                if (!raw)
+                {
+                    WriteByte(null, encodingByte);
+                }
                 switch (value.TypeInfo.BuiltInType)
                 {
                     case BuiltInType.Boolean:
@@ -1565,7 +1601,13 @@ namespace Opc.Ua
             else if (value.TypeInfo.IsArray)
             {
                 // Write arrays
-                WriteByte(null, (byte)(encodingByte | (byte)VariantArrayEncodingBits.Array));
+
+                if (!raw)
+                {
+                    WriteByte(
+                        null,
+                        (byte)(encodingByte | (byte)VariantArrayEncodingBits.Array));
+                }
 
                 switch (value.TypeInfo.BuiltInType)
                 {
@@ -1660,6 +1702,9 @@ namespace Opc.Ua
             }
             else // Write multi dimensional arrays
             {
+                // Encode multi dimensional arrays as variant always with type information
+                // no matter whether we write raw or not raw.
+
                 WriteByte(null, (byte)(
                     encodingByte |
                     (byte)VariantArrayEncodingBits.Array |
@@ -1759,19 +1804,6 @@ namespace Opc.Ua
                 // write the dimensions.
                 WriteInt32Array(null, dim);
             }
-        }
-
-        /// <inheritdoc/>
-        public void WriteSwitchField(uint switchField, out string fieldName)
-        {
-            fieldName = null;
-            WriteUInt32("SwitchField", switchField);
-        }
-
-        /// <inheritdoc/>
-        public void WriteEncodingMask(uint encodingMask)
-        {
-            WriteUInt32("EncodingMask", encodingMask);
         }
 
         /// <summary>
@@ -1921,7 +1953,16 @@ namespace Opc.Ua
             NodeIdEncodingBits encoding;
             switch (nodeId.IdType)
             {
-                case IdType.Numeric:
+                case IdType.String:
+                    encoding = NodeIdEncodingBits.String;
+                    break;
+                case IdType.Guid:
+                    encoding = NodeIdEncodingBits.Guid;
+                    break;
+                case IdType.Opaque:
+                    encoding = NodeIdEncodingBits.ByteString;
+                    break;
+                default:
                     uint id = Convert.ToUInt32(nodeId.NumericIdentifier, CultureInfo.InvariantCulture);
 
                     if (id <= byte.MaxValue && namespaceIndex == 0)
@@ -1938,19 +1979,6 @@ namespace Opc.Ua
 
                     encoding = NodeIdEncodingBits.Numeric;
                     break;
-                case IdType.String:
-                    encoding = NodeIdEncodingBits.String;
-                    break;
-                case IdType.Guid:
-                    encoding = NodeIdEncodingBits.Guid;
-                    break;
-                case IdType.Opaque:
-                    encoding = NodeIdEncodingBits.ByteString;
-                    break;
-                default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadEncodingError,
-                        CoreUtils.Format("NodeId identifier type '{0}' not supported.", nodeId.IdType));
             }
 
             return Convert.ToByte(encoding, CultureInfo.InvariantCulture);
@@ -1966,15 +1994,15 @@ namespace Opc.Ua
             switch ((NodeIdEncodingBits)(0x3F & encoding))
             {
                 case NodeIdEncodingBits.TwoByte:
-                    WriteByte(null, Convert.ToByte(nodeId.NumericIdentifier, CultureInfo.InvariantCulture));
+                    WriteByte(null, unchecked((byte)nodeId.NumericIdentifier));
                     break;
                 case NodeIdEncodingBits.FourByte:
                     WriteByte(null, Convert.ToByte(namespaceIndex));
-                    WriteUInt16(null, Convert.ToUInt16(nodeId.NumericIdentifier, CultureInfo.InvariantCulture));
+                    WriteUInt16(null, unchecked((ushort)nodeId.NumericIdentifier));
                     break;
                 case NodeIdEncodingBits.Numeric:
                     WriteUInt16(null, namespaceIndex);
-                    WriteUInt32(null, Convert.ToUInt32(nodeId.NumericIdentifier, CultureInfo.InvariantCulture));
+                    WriteUInt32(null, nodeId.NumericIdentifier);
                     break;
                 case NodeIdEncodingBits.String:
                     WriteUInt16(null, namespaceIndex);
@@ -1988,9 +2016,6 @@ namespace Opc.Ua
                     WriteUInt16(null, namespaceIndex);
                     WriteByteString(null, nodeId.OpaqueIdentifer);
                     break;
-                default:
-                    throw ServiceResultException.Unexpected(
-                        $"Unexpected NodeIdEncodingBits {encoding}");
             }
         }
 

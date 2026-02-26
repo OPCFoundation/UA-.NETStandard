@@ -1,13 +1,13 @@
 // Copyright (c) 1996-2025 The OPC Foundation. All rights reserved.
 
 using System;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.Tests;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Types.Tests.Encoders
 {
@@ -25,27 +25,6 @@ namespace Opc.Ua.Types.Tests.Encoders
 #endif
     class XmlEncoderTests
     {
-#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
-        [GeneratedRegex(@"Value>([^<]*)<")]
-        internal static partial Regex REValue();
-#else
-#pragma warning disable IDE0079 // Remove unnecessary suppression
-#pragma warning disable SYSLIB1045 //Use 'GeneratedRegexAttribute' to generate the regular expression implementation at compile-time.
-        internal static Regex REValue()
-        {
-            return new Regex("Value>([^<]*)<");
-        }
-#pragma warning restore SYSLIB1045 //Use 'GeneratedRegexAttribute' to generate the regular expression implementation at compile-time.
-#pragma warning restore IDE0079 // Remove unnecessary suppression
-#endif
-
-        private static readonly ArrayOf<int> s_elements = [1, 2, 3, 4];
-        private static readonly int[] s_dimensions = [2, 2];
-        private static readonly bool[] s_booleanArray = new bool[] { true, false };
-        private static readonly float[] s_floatArray = new float[] { 1.0f, 2.0f };
-        private static readonly double[] s_doubleArray = new double[] { 1.0, 2.0 };
-        private static readonly string[] s_stringArray = new string[] { "a", "b" };
-
         [Test]
         public void ConstructorWithContextCreatesInstance()
         {
@@ -1470,6 +1449,48 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void WriteString_LargeStringExceedsLimit_ThrowsServiceResultException()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var context = new ServiceMessageContext(telemetryContext)
+            {
+                MaxArrayLength = int.MaxValue,
+                MaxStringLength = (1024 * 10) - 1,
+                MaxByteStringLength = int.MaxValue,
+                MaxMessageSize = int.MaxValue
+            };
+            var encoder = new XmlEncoder(context);
+            string largeString = new('A', 1024 * 10); // 10 KB
+            // Act & Assert
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteString(null, largeString));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void WriteString_Null_WritesNothing()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var sb = new StringBuilder();
+            var settings = new XmlWriterSettings { OmitXmlDeclaration = true, Indent = false };
+            using var writer = XmlWriter.Create(sb, settings);
+            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            // Act & Assert
+            encoder.WriteString(null, null);
+            encoder.Close();
+
+            // Assert
+            string result = sb.ToString();
+            Assert.That(result, Is.EqualTo(
+                "<uax:Root xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" " +
+                "xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\" />"));
+        }
+
+        [Test]
         public void WriteDateTimeWithFieldNameWritesValue()
         {
             // Arrange
@@ -1584,6 +1605,26 @@ namespace Opc.Ua.Types.Tests.Encoders
             string result = sb.ToString();
             Assert.That(result, Does.Contain("TestByteString"));
             Assert.That(result, Does.Contain("AQIDBAU="));
+        }
+
+        [Test]
+        public void WriteByteString_LargeBufferExceedsLimit_ThrowsServiceResultException()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var context = new ServiceMessageContext(telemetryContext)
+            {
+                MaxArrayLength = int.MaxValue,
+                MaxStringLength = int.MaxValue,
+                MaxByteStringLength = (1024 * 10) - 1,
+                MaxMessageSize = int.MaxValue
+            };
+            var encoder = new XmlEncoder(context);
+            byte[] largeBuffer = new byte[1024 * 10]; // 10 KB
+            // Act & Assert
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteByteString(null, new ByteString(largeBuffer)));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
         [Test]
@@ -1958,6 +1999,36 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void WriteQualifiedNameWithNamespaceMappingsUsesMappedNamespaceIndex()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                NamespaceUris = new NamespaceTable()
+            };
+            messageContext.NamespaceUris.Append("http://namespace1.com");
+            messageContext.NamespaceUris.Append("http://namespace2.com");
+            var encoderNamespaceUris = new NamespaceTable();
+            encoderNamespaceUris.Append("http://namespace2.com");
+            encoderNamespaceUris.Append("http://namespace1.com");
+
+            var sb = new StringBuilder();
+            var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
+            var writer = XmlWriter.Create(sb, settings);
+            var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
+            var qualifiedName = new QualifiedName("TestName", 1);
+            encoder.SetMappingTables(encoderNamespaceUris, null);
+
+            // Act
+            encoder.WriteQualifiedName("TestQualifiedName", qualifiedName);
+            encoder.Close();
+
+            // Assert
+            string result = sb.ToString();
+            Assert.That(result, Does.Contain("<uax:NamespaceIndex>2</uax:NamespaceIndex>"));
+        }
+
+        [Test]
         public void WriteQualifiedNameWithValueWritesValue()
         {
             // Arrange
@@ -2058,7 +2129,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
             var writer = XmlWriter.Create(sb, settings);
             var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
-            var variant = new Variant(42);
+            var variant = Variant.From(42);
 
             // Act
             encoder.WriteVariant("TestVariant", variant);
@@ -2081,7 +2152,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
             var writer = XmlWriter.Create(sb, settings);
             var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
-            var variant = new Variant("Test String");
+            var variant = Variant.From("Test String");
 
             // Act
             encoder.WriteVariant("TestVariant", variant);
@@ -2104,7 +2175,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
             var writer = XmlWriter.Create(sb, settings);
             var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
-            var variant = new Variant(true);
+            var variant = Variant.From(true);
 
             // Act
             encoder.WriteVariant("TestVariant", variant);
@@ -2241,7 +2312,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
             var writer = XmlWriter.Create(sb, settings);
             var encoder = new XmlEncoder(new XmlQualifiedName("Root", "http://test"), writer, messageContext);
-            var variant = new Variant(3.14159);
+            var variant = Variant.From(3.14159);
 
             // Act
             encoder.WriteVariant("DoubleVar", variant);
@@ -2288,7 +2359,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             var dataValue = new DataValue(
-                new Variant(42),
+                Variant.From(42),
                 StatusCodes.Good,
                 new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc),
                 new DateTime(2024, 1, 1, 12, 0, 5, DateTimeKind.Utc)
@@ -2409,6 +2480,52 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Assert
             string result = sb.ToString();
             Assert.That(result, Does.Contain("TestEncodeable"));
+        }
+
+        [Test]
+        public void WriteEncodeableAsExtensionObjectWritesXml()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxEncodingNestingLevels = 100
+            };
+
+            var sb = new StringBuilder();
+            var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
+            using var writer = XmlWriter.Create(sb, settings);
+            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+
+            var value = new TestEncodeable();
+
+            encoder.WriteEncodeableAsExtensionObject("TestExtension", value);
+            encoder.Close();
+
+            string result = sb.ToString();
+            Assert.That(result, Does.Contain("TestExtension").And.Contain("TestEncodeable"));
+        }
+
+        [Test]
+        public void WriteEncodeableArrayAsExtensionObjectsWritesXml()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxEncodingNestingLevels = 100
+            };
+
+            var sb = new StringBuilder();
+            var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
+            using var writer = XmlWriter.Create(sb, settings);
+            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+
+            ArrayOf<TestEncodeable> values = [new TestEncodeable(), new TestEncodeable()];
+
+            encoder.WriteEncodeableArrayAsExtensionObjects("Extensions", values);
+            encoder.Close();
+
+            string result = sb.ToString();
+            Assert.That(result, Does.Contain("Extensions").And.Contain("ExtensionObject").And.Contain("TestEncodeable"));
         }
 
         [Test]
@@ -4920,7 +5037,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var writer = XmlWriter.Create(stringWriter);
             var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
-            Variant[] variantValues = [new Variant(42), new Variant("test")];
+            Variant[] variantValues = [Variant.From(42), Variant.From("test")];
             var values = ArrayOf.Wrapped(variantValues);
 
             // Act
@@ -4948,7 +5065,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var writer = XmlWriter.Create(stringWriter);
             var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
-            Variant[] variantValues = [new Variant(42), new Variant("test"), new Variant(3.14)];
+            Variant[] variantValues = [Variant.From(42), Variant.From("test"), Variant.From(3.14)];
             var values = ArrayOf.Wrapped(variantValues);
 
             // Act & Assert
@@ -5022,7 +5139,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var writer = XmlWriter.Create(stringWriter);
             var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
-            DataValue[] dataValueValues = [new DataValue(new Variant(42)), new DataValue(new Variant("test"))];
+            DataValue[] dataValueValues = [new DataValue(Variant.From(42)), new DataValue(Variant.From("test"))];
             var values = ArrayOf.Wrapped(dataValueValues);
 
             // Act
@@ -5051,9 +5168,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
 
             DataValue[] dataValueValues = [
-                new DataValue(new Variant(42)),
-                new DataValue(new Variant("test")),
-                new DataValue(new Variant(3.14))
+                new DataValue(Variant.From(42)),
+                new DataValue(Variant.From("test")),
+                new DataValue(Variant.From(3.14))
             ];
             var values = ArrayOf.Wrapped(dataValueValues);
 
@@ -5496,78 +5613,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        #region WriteVariantValue Tests
-
-        private static string WriteVariantValueToString(Variant variant, string fieldName = "TestValue")
-        {
-            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext);
-            var sb = new StringBuilder();
-            var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
-            using var writer = XmlWriter.Create(sb, settings);
-            var encoder = new XmlEncoder(
-                new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
-            encoder.WriteVariantValue(fieldName, variant);
-            encoder.Close();
-            return sb.ToString();
-        }
-
-        private static System.Collections.IEnumerable ScalarVariantValueTestCases()
-        {
-            yield return new TestCaseData(new Variant(true), "Boolean", "true");
-            yield return new TestCaseData(new Variant((sbyte)-42), "SByte", "-42");
-            yield return new TestCaseData(new Variant((byte)255), "Byte", "255");
-            yield return new TestCaseData(new Variant((short)-1234), "Int16", "-1234");
-            yield return new TestCaseData(new Variant((ushort)65535), "UInt16", "65535");
-            yield return new TestCaseData(new Variant(123456), "Int32", "123456");
-            yield return new TestCaseData(new Variant(123456u), "UInt32", "123456");
-            yield return new TestCaseData(new Variant(123456789L), "Int64", "123456789");
-            yield return new TestCaseData(new Variant(123456789uL), "UInt64", "123456789");
-            yield return new TestCaseData(new Variant(3.14f), "Float", "3.14");
-            yield return new TestCaseData(new Variant(2.718), "Double", "2.718");
-            yield return new TestCaseData(new Variant("hello"), "String", "hello");
-            yield return new TestCaseData(
-                new Variant(new DateTime(2024, 1, 15, 10, 30, 0, DateTimeKind.Utc)),
-                "DateTime", "2024-01-15");
-            yield return new TestCaseData(
-                new Variant(new Uuid(new Guid("12345678-1234-1234-1234-123456789abc"))),
-                "Guid", "12345678-1234-1234-1234-123456789abc");
-            yield return new TestCaseData(
-                new Variant(new ByteString(new byte[] { 1, 2, 3 })),
-                "ByteString", "AQID");
-            yield return new TestCaseData(
-                new Variant(new NodeId(123, 1)),
-                "NodeId", "Identifier");
-            yield return new TestCaseData(
-                new Variant(new ExpandedNodeId(456, 1)),
-                "ExpandedNodeId", "Identifier");
-            yield return new TestCaseData(
-                new Variant(new StatusCode(0x80010000u)),
-                "StatusCode", "Code");
-            yield return new TestCaseData(
-                new Variant(new QualifiedName("qname")),
-                "QualifiedName", "qname");
-            yield return new TestCaseData(
-                new Variant(new LocalizedText("en", "loctext")),
-                "LocalizedText", "loctext");
-            yield return new TestCaseData(
-                new Variant(new ExtensionObject(new TestEncodeable())),
-                "ExtensionObject", "Body");
-            yield return new TestCaseData(
-                new Variant(new DataValue(new Variant(99))),
-                "DataValue", "99");
-            yield return new TestCaseData(
-                new Variant(TestEnum.Value1),
-                "Int32", "1");
-
-            var xmlDoc = new XmlDocument();
-            var sysElement = xmlDoc.CreateElement("TestElem");
-            sysElement.InnerText = "XmlVal";
-            yield return new TestCaseData(
-                new Variant(XmlElement.From(sysElement)),
-                "XmlElement", "TestElem");
-        }
-
         [Test]
         [TestCaseSource(nameof(ScalarVariantValueTestCases))]
         public void WriteVariantValueWithScalarWritesExpectedContent(
@@ -5577,77 +5622,6 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Assert.That(result, Does.Contain(expectedTypeName));
             Assert.That(result, Does.Contain(expectedContent));
-        }
-
-        private static System.Collections.IEnumerable ArrayVariantValueTestCases()
-        {
-            yield return new TestCaseData(
-                new Variant(s_booleanArray), "ListOfBoolean");
-            yield return new TestCaseData(
-                new Variant(new sbyte[] { 1, -1 }), "ListOfSByte");
-            yield return new TestCaseData(
-                new Variant(new ByteCollection(new byte[] { 1, 2 })), "ListOfByte");
-            yield return new TestCaseData(
-                new Variant(new short[] { 1, -1 }), "ListOfInt16");
-            yield return new TestCaseData(
-                new Variant(new ushort[] { 1, 2 }), "ListOfUInt16");
-            yield return new TestCaseData(
-                new Variant(new int[] { 1, -1 }), "ListOfInt32");
-            yield return new TestCaseData(
-                new Variant(new uint[] { 1, 2 }), "ListOfUInt32");
-            yield return new TestCaseData(
-                new Variant(new long[] { 1, -1 }), "ListOfInt64");
-            yield return new TestCaseData(
-                new Variant(new ulong[] { 1, 2 }), "ListOfUInt64");
-            yield return new TestCaseData(
-                new Variant(s_floatArray), "ListOfFloat");
-            yield return new TestCaseData(
-                new Variant(s_doubleArray), "ListOfDouble");
-            yield return new TestCaseData(
-                new Variant(s_stringArray), "ListOfString");
-            yield return new TestCaseData(
-                new Variant(new DateTime[]
-                {
-                    new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)
-                }), "ListOfDateTime");
-            yield return new TestCaseData(
-                new Variant(new Uuid[] { new Uuid(Guid.Empty) }), "ListOfGuid");
-            yield return new TestCaseData(
-                new Variant(new ByteStringCollection
-                {
-                    new ByteString(new byte[] { 1, 2 })
-                }), "ListOfByteString");
-            yield return new TestCaseData(
-                new Variant(new NodeId[] { new NodeId(1) }), "ListOfNodeId");
-            yield return new TestCaseData(
-                new Variant(new ExpandedNodeId[] { new ExpandedNodeId(1) }),
-                "ListOfExpandedNodeId");
-            yield return new TestCaseData(
-                new Variant(new StatusCode[] { StatusCodes.Good }),
-                "ListOfStatusCode");
-            yield return new TestCaseData(
-                new Variant(new QualifiedName[] { new QualifiedName("q") }),
-                "ListOfQualifiedName");
-            yield return new TestCaseData(
-                new Variant(new LocalizedText[] { new LocalizedText("en", "t") }),
-                "ListOfLocalizedText");
-            yield return new TestCaseData(
-                new Variant(new ExtensionObject[]
-                {
-                    new ExtensionObject(ExpandedNodeId.Null)
-                }), "ListOfExtensionObject");
-            yield return new TestCaseData(
-                new Variant(new DataValue[] { new DataValue(new Variant(1)) }),
-                "ListOfDataValue");
-            yield return new TestCaseData(
-                new Variant(new Variant[] { new Variant(1) }),
-                "ListOfVariant");
-
-            var xmlDoc = new XmlDocument();
-            var elem = XmlElement.From(xmlDoc.CreateElement("E"));
-            yield return new TestCaseData(
-                new Variant(new XmlElementCollection { elem }),
-                "ListOfXmlElement");
         }
 
         [Test]
@@ -5665,7 +5639,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void WriteVariantValueWithBooleanMatrixWritesMatrixElements()
         {
             ArrayOf<bool> elements = [true, false, true, false];
-            var variant = new Variant(elements.ToMatrix([2, 2]));
+            var variant = Variant.From(elements.ToMatrix([2, 2]));
 
             string result = WriteVariantValueToString(variant);
 
@@ -5678,7 +5652,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void WriteVariantValueWithInt32MatrixWritesMatrixElements()
         {
             ArrayOf<int> elements = [1, 2, 3, 4];
-            var variant = new Variant(elements.ToMatrix([2, 2]));
+            var variant = Variant.From(elements.ToMatrix([2, 2]));
 
             string result = WriteVariantValueToString(variant);
 
@@ -5691,7 +5665,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void WriteVariantValueWithDoubleMatrixWritesMatrixElements()
         {
             ArrayOf<double> elements = [1.0, 2.0, 3.0, 4.0];
-            var variant = new Variant(elements.ToMatrix([2, 2]));
+            var variant = Variant.From(elements.ToMatrix([2, 2]));
 
             string result = WriteVariantValueToString(variant);
 
@@ -5704,7 +5678,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void WriteVariantValueWithStringMatrixWritesMatrixElements()
         {
             ArrayOf<string> elements = ["a", "b", "c", "d"];
-            var variant = new Variant(elements.ToMatrix([2, 2]));
+            var variant = Variant.From(elements.ToMatrix([2, 2]));
 
             string result = WriteVariantValueToString(variant);
 
@@ -5718,10 +5692,10 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             ArrayOf<Variant> elements =
             [
-                new Variant(1), new Variant(2),
-                new Variant(3), new Variant(4)
+                Variant.From(1), Variant.From(2),
+                Variant.From(3), Variant.From(4)
             ];
-            var variant = new Variant(elements.ToMatrix([2, 2]));
+            var variant = Variant.From(elements.ToMatrix([2, 2]));
 
             string result = WriteVariantValueToString(variant);
 
@@ -5741,7 +5715,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void WriteVariantValueWithNullFieldNameWritesWithoutFieldWrapper()
         {
-            var variant = new Variant(42);
+            var variant = Variant.From(42);
 
             string result = WriteVariantValueToString(variant, null);
 
@@ -5750,11 +5724,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result, Does.Contain("42"));
         }
 
-        #endregion
-
-        /// <summary>
-        /// Validate the encoding and decoding of the float special values.
-        /// </summary>
         [Test]
         [TestCase(float.PositiveInfinity, "INF")]
         [TestCase(float.NegativeInfinity, "-INF")]
@@ -5779,9 +5748,9 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Check encode result against expected XML value
             Match m = REValue().Match(actualXmlValue);
-            Assert.True(m.Success);
-            Assert.True(m.Groups.Count == 2);
-            Assert.AreEqual(m.Groups[1].Value, expectedXmlValue);
+            Assert.That(m.Success, Is.True);
+            Assert.That(m.Groups.Count, Is.EqualTo(2));
+            Assert.That(m.Groups[1].Value, Is.EqualTo(expectedXmlValue));
 
             // Decode
             float actualBinaryValue;
@@ -5794,17 +5763,14 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Check decode result against input value
             if (float.IsNaN(actualBinaryValue)) // NaN is not equal to anything!
             {
-                Assert.True(float.IsNaN(binaryValue));
+                Assert.That(float.IsNaN(binaryValue), Is.True);
             }
             else
             {
-                Assert.AreEqual(actualBinaryValue, binaryValue);
+                Assert.That(actualBinaryValue, Is.EqualTo(binaryValue));
             }
         }
 
-        /// <summary>
-        /// Validate the encoding and decoding of the double special values.
-        /// </summary>
         [Test]
         [TestCase(double.PositiveInfinity, "INF")]
         [TestCase(double.NegativeInfinity, "-INF")]
@@ -5829,9 +5795,9 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Check encode result against expected XML value
             Match m = REValue().Match(actualXmlValue);
-            Assert.True(m.Success);
-            Assert.True(m.Groups.Count == 2);
-            Assert.AreEqual(m.Groups[1].Value, expectedXmlValue);
+            Assert.That(m.Success, Is.True);
+            Assert.That(m.Groups.Count, Is.EqualTo(2));
+            Assert.That(m.Groups[1].Value, Is.EqualTo(expectedXmlValue));
 
             // Decode
             double actualBinaryValue;
@@ -5844,23 +5810,20 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Check decode result against input value
             if (double.IsNaN(actualBinaryValue)) // NaN is not equal to anything!
             {
-                Assert.True(double.IsNaN(binaryValue));
+                Assert.That(double.IsNaN(binaryValue), Is.True);
             }
             else
             {
-                Assert.AreEqual(actualBinaryValue, binaryValue);
+                Assert.That(actualBinaryValue, Is.EqualTo(binaryValue));
             }
         }
 
-        /// <summary>
-        /// Validate the encoding and decoding of the a variant that consists of a matrix.
-        /// </summary>
         [Test]
         public void EncodeDecodeVariantMatrix()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             MatrixOf<int> value = s_elements.ToMatrix(s_dimensions);
-            var variant = new Variant(value);
+            var variant = Variant.From(value);
 
             const string expected =
                 """
@@ -5901,12 +5864,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
 
             // Check encode result against expected XML value
-            Assert.AreEqual(
+            Assert.That(
                 expected.Replace("\r", string.Empty, StringComparison.Ordinal)
                     .Replace("\n", string.Empty, StringComparison.Ordinal),
-                actualXmlValue.Replace("\r", string.Empty, StringComparison.Ordinal)
-                    .Replace("\n", string.Empty, StringComparison.Ordinal));
-
+                Is.EqualTo(actualXmlValue.Replace("\r", string.Empty, StringComparison.Ordinal)
+                    .Replace("\n", string.Empty, StringComparison.Ordinal)));
             // Decode
             Variant actualVariant;
             using (var reader = XmlReader.Create(new StringReader(actualXmlValue)))
@@ -5916,12 +5878,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
 
             // Check decode result against input value
-            Assert.AreEqual(actualVariant, variant);
+            Assert.That(actualVariant, Is.EqualTo(variant));
         }
 
-        /// <summary>
-        /// Validate the encoding and decoding of the a variant that contains a null value
-        /// </summary>
         [Test]
         public void EncodeDecodeVariantNil()
         {
@@ -5947,12 +5906,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
 
             // Check encode result against expected XML value
-            Assert.AreEqual(
+            Assert.That(
                 expected.Replace("\r", string.Empty, StringComparison.Ordinal)
                     .Replace("\n", string.Empty, StringComparison.Ordinal),
-                actualXmlValue.Replace("\r", string.Empty, StringComparison.Ordinal)
-                    .Replace("\n", string.Empty, StringComparison.Ordinal));
-
+                Is.EqualTo(actualXmlValue.Replace("\r", string.Empty, StringComparison.Ordinal)
+                    .Replace("\n", string.Empty, StringComparison.Ordinal)));
             // Decode
             Variant actualVariant;
             using (var reader = XmlReader.Create(new StringReader(actualXmlValue)))
@@ -5962,12 +5920,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
 
             // Check decode result against input value
-            Assert.AreEqual(actualVariant, Variant.Null);
+            Assert.That(actualVariant, Is.EqualTo(Variant.Null));
         }
 
-        /// <summary>
-        /// Validate that decoding errors include the failed value in the error message for Float.
-        /// </summary>
         [Test]
         public void DecodeInvalidFloatIncludesValueInError()
         {
@@ -5986,9 +5941,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.Message, Does.Contain("Value:"));
         }
 
-        /// <summary>
-        /// Validate that decoding errors include the failed value in the error message for Double.
-        /// </summary>
         [Test]
         public void DecodeInvalidDoubleIncludesValueInError()
         {
@@ -6007,9 +5959,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.Message, Does.Contain("Value:"));
         }
 
-        /// <summary>
-        /// Validate that decoding errors include the failed value in the error message for DateTime.
-        /// </summary>
         [Test]
         public void DecodeInvalidDateTimeIncludesValueInError()
         {
@@ -6028,9 +5977,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.Message, Does.Contain("Value:"));
         }
 
-        /// <summary>
-        /// Validate that decoding errors include the failed value in the error message for Int32.
-        /// </summary>
         [Test]
         public void DecodeInvalidInt32IncludesValueInError()
         {
@@ -6048,6 +5994,1346 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.Message, Does.Contain(invalidValue));
             Assert.That(ex.Message, Does.Contain("Value:"));
         }
+
+        [Test]
+        [TestCaseSource(nameof(ScalarVariantRoundTripTestCases))]
+        public void WriteVariantValueWithScalarRoundTripsCorrectly(Variant variant)
+        {
+            Variant decoded = RoundTripVariantValueFromXml(variant);
+
+            Assert.That(decoded, Is.EqualTo(variant));
+        }
+
+        [Test]
+        public void WriteVariantValueWithDateTimeScalarRoundTripsCorrectly()
+        {
+            var value = new DateTime(2024, 1, 15, 10, 30, 0, DateTimeKind.Utc);
+            Variant decoded = RoundTripVariantValueFromXml(Variant.From(value));
+
+            Assert.That(decoded.Value, Is.EqualTo(value));
+        }
+
+        [Test]
+        public void WriteVariantValueWithGuidScalarRoundTripsCorrectly()
+        {
+            var value = new Uuid(new Guid("12345678-1234-1234-1234-123456789abc"));
+            Variant decoded = RoundTripVariantValueFromXml(Variant.From(value));
+
+            Assert.That(decoded.Value, Is.EqualTo(value));
+        }
+
+        [Test]
+        public void WriteVariantValueWithByteStringScalarRoundTripsCorrectly()
+        {
+            var value = new ByteString(new byte[] { 1, 2, 3 });
+            Variant decoded = RoundTripVariantValueFromXml(Variant.From(value));
+
+            Assert.That(decoded.GetByteString(), Is.EqualTo(value));
+        }
+
+        [Test]
+        public void WriteVariantValueWithNodeIdScalarRoundTripsCorrectly()
+        {
+            var value = new NodeId(123, 1);
+            Variant decoded = RoundTripVariantValueFromXml(Variant.From(value));
+
+            Assert.That(decoded.Value, Is.EqualTo(value));
+        }
+
+        [Test]
+        public void WriteVariantValueWithExpandedNodeIdScalarRoundTripsCorrectly()
+        {
+            var value = new ExpandedNodeId(456, 1);
+            Variant decoded = RoundTripVariantValueFromXml(Variant.From(value));
+
+            Assert.That(decoded.Value, Is.EqualTo(value));
+        }
+
+        [Test]
+        public void WriteVariantValueWithQualifiedNameScalarRoundTripsCorrectly()
+        {
+            var value = new QualifiedName("qname", 1);
+            Variant decoded = RoundTripVariantValueFromXml(Variant.From(value));
+
+            Assert.That(decoded.Value, Is.EqualTo(value));
+        }
+
+        [Test]
+        public void WriteVariantValueWithLocalizedTextScalarRoundTripsCorrectly()
+        {
+            var value = new LocalizedText("en", "loctext");
+            Variant decoded = RoundTripVariantValueFromXml(Variant.From(value));
+
+            Assert.That(decoded.Value, Is.EqualTo(value));
+        }
+
+        [Test]
+        public void WriteVariantValueWithExtensionObjectScalarRoundTripsCorrectly()
+        {
+            var value = new ExtensionObject(
+                new ExpandedNodeId(1, 0),
+                new ByteString(new byte[] { 1 }));
+            Variant decoded = RoundTripVariantValueFromXml(Variant.From(value));
+
+            Assert.That(decoded.Value, Is.InstanceOf<ExtensionObject>());
+        }
+
+        [Test]
+        public void WriteVariantValueWithDataValueScalarRoundTripsCorrectly()
+        {
+            var value = new DataValue(Variant.From(99));
+            Variant decoded = RoundTripVariantValueFromXml(Variant.From(value));
+
+            Assert.That(decoded.GetDataValue().Value, Is.EqualTo(Variant.From(99)));
+        }
+
+        [Test]
+        public void WriteVariantValueWithEnumerationScalarRoundTripsAsInt32()
+        {
+            Variant decoded = RoundTripVariantValueFromXml(Variant.From(TestEnum.Value1));
+
+            Assert.That(decoded.Value, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void WriteVariantValueWithXmlElementScalarRoundTripsCorrectly()
+        {
+            var xmlDoc = new XmlDocument();
+            System.Xml.XmlElement sysElement = xmlDoc.CreateElement("TestElem");
+            sysElement.InnerText = "XmlVal";
+            var value = XmlElement.From(sysElement);
+            Variant decoded = RoundTripVariantValueFromXml(Variant.From(value));
+
+            Assert.That(decoded.Value, Is.InstanceOf<XmlElement>());
+        }
+
+        [Test]
+        [TestCaseSource(nameof(ArrayVariantValueTestCases))]
+        public void WriteVariantValueWithArrayRoundTripsCorrectly(Variant variant, string _)
+        {
+            Variant decoded = RoundTripVariantValueFromXml(variant);
+
+            Assert.That(decoded.TypeInfo.IsArray, Is.True);
+        }
+
+        [Test]
+        [TestCaseSource(nameof(MatrixVariantRoundTripTestCases))]
+        public void WriteVariantValueWithMatrixRoundTripsCorrectly(
+            Variant variant, BuiltInType expectedBuiltInType)
+        {
+            Variant decoded = RoundTripVariantValueFromXml(variant);
+
+            Assert.That(decoded.TypeInfo.IsMatrix, Is.True);
+            Assert.That(decoded.TypeInfo.BuiltInType, Is.EqualTo(expectedBuiltInType));
+            Assert.That(decoded, Is.EqualTo(variant));
+        }
+
+        [Test]
+        public void WriteVariantValueWithGuidMatrixRoundTripsCorrectly()
+        {
+            var variant = Variant.From(
+            ArrayOf.Wrapped([
+                Uuid.NewUuid(),
+                Uuid.NewUuid(),
+                Uuid.NewUuid(),
+                Uuid.NewUuid()
+            ]).ToMatrix(2, 2));
+
+            Variant decoded = RoundTripVariantValueFromXml(variant);
+
+            Assert.That(decoded.TypeInfo.IsMatrix, Is.True);
+            Assert.That(decoded.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Guid));
+            Assert.That(decoded, Is.EqualTo(variant));
+        }
+
+        [Test]
+        public void WriteVariantValueWithXmlElementArrayRoundTripsCorrectly()
+        {
+            var xmlDoc = new XmlDocument();
+            ArrayOf<XmlElement> elems = [XmlElement.From(xmlDoc.CreateElement("E"))];
+            var variant = Variant.From(elems);
+
+            Variant decoded = RoundTripVariantValueFromXml(variant);
+
+            Assert.That(decoded.TypeInfo.IsArray, Is.True);
+        }
+
+        [Test]
+        [TestCase(BuiltInType.DiagnosticInfo)]
+        [TestCase(BuiltInType.Number)]
+        [TestCase(BuiltInType.Integer)]
+        [TestCase(BuiltInType.UInteger)]
+        [TestCase(BuiltInType.Variant)]
+        public void WriteVariantValueWithUnsupportedScalarTypeThrows(BuiltInType builtInType)
+        {
+            Variant variant = CreateVariantWithTypeInfo(1, builtInType, ValueRanks.Scalar);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => WriteVariantValueToString(variant));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+        }
+
+        [Test]
+        public void WriteVariantValueWithInvalidScalarTypeThrows()
+        {
+            Variant variant = CreateVariantWithTypeInfo(1, (BuiltInType)999, ValueRanks.Scalar);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => WriteVariantValueToString(variant));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+        }
+
+        [Test]
+        [TestCase(BuiltInType.Number)]
+        [TestCase(BuiltInType.Integer)]
+        [TestCase(BuiltInType.UInteger)]
+        [TestCase(BuiltInType.DiagnosticInfo)]
+        public void WriteVariantValueWithUnsupportedArrayTypeThrows(BuiltInType builtInType)
+        {
+            ArrayOf<int> value = [1, 2, 3, 4];
+            Variant variant = CreateVariantWithTypeInfo(value, builtInType, ValueRanks.OneDimension);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => WriteVariantValueToString(variant));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+        }
+
+        [Test]
+        public void WriteVariantValueWithInvalidArrayTypeThrows()
+        {
+            ArrayOf<int> value = [1, 2, 3, 4];
+            Variant variant = CreateVariantWithTypeInfo(value, (BuiltInType)999, ValueRanks.OneDimension);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => WriteVariantValueToString(variant));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+        }
+
+        [Test]
+        [TestCase(BuiltInType.Number)]
+        [TestCase(BuiltInType.Integer)]
+        [TestCase(BuiltInType.UInteger)]
+        [TestCase(BuiltInType.DiagnosticInfo)]
+        public void WriteVariantValueWithUnsupportedMatrixTypeThrows(BuiltInType builtInType)
+        {
+            ArrayOf<int> value = [1, 2, 3, 4];
+            Variant variant = CreateVariantWithTypeInfo(value.ToMatrix(2, 2), builtInType, ValueRanks.TwoDimensions);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => WriteVariantValueToString(variant));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+        }
+
+        [Test]
+        public void WriteVariantValueWithInvalidMatrixTypeThrows()
+        {
+            ArrayOf<int> value = [1, 2, 3, 4];
+            Variant variant = CreateVariantWithTypeInfo(
+                value.ToMatrix(2, 2),
+                (BuiltInType)999,
+                ValueRanks.TwoDimensions);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => WriteVariantValueToString(variant));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+        }
+
+        [Test]
+        public void WriteVariantValueWithDiagnosticArrayThrows()
+        {
+            ArrayOf<DiagnosticInfo> value = [new DiagnosticInfo(), new DiagnosticInfo()];
+            Variant variant = CreateVariantWithTypeInfo(value, BuiltInType.DiagnosticInfo, ValueRanks.OneDimension);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => WriteVariantValueToString(variant));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+        }
+
+        [Test]
+        public void WriteVariantValueWithDiagnosticMatrixThrows()
+        {
+            ArrayOf<DiagnosticInfo> value =
+            [
+                new DiagnosticInfo(),
+                new DiagnosticInfo(),
+                new DiagnosticInfo(),
+                new DiagnosticInfo()
+            ];
+            Variant variant = CreateVariantWithTypeInfo(
+                value.ToMatrix(2, 2),
+                BuiltInType.DiagnosticInfo,
+                ValueRanks.TwoDimensions);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => WriteVariantValueToString(variant));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+        }
+
+        [Test]
+        public void WriteExpandedNodeIdWithNamespaceUriWritesNamespaceUri()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var nodeId = new NodeId(50u);
+            var expandedNodeId = new ExpandedNodeId(nodeId, "http://test.namespace.uri");
+
+            string result = WriteExpandedNodeIdToString(expandedNodeId, messageContext);
+            string identifier = GetIdentifierValue(result);
+
+            Assert.That(identifier, Does.Contain("nsu=http://test.namespace.uri;"));
+        }
+
+        [Test]
+        public void WriteExpandedNodeIdWithServerIndexWritesServerIndex()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var nodeId = new NodeId(25u);
+            var expandedNodeId = new ExpandedNodeId(nodeId, null, 1u);
+
+            string result = WriteExpandedNodeIdToString(expandedNodeId, messageContext);
+            string identifier = GetIdentifierValue(result);
+
+            Assert.That(identifier, Does.Contain("svr=1;"));
+        }
+
+        [Test]
+        public void WriteExpandedNodeIdWithNamespaceUriAndServerIndexWritesBoth()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var nodeId = new NodeId(75u);
+            var expandedNodeId = new ExpandedNodeId(nodeId, "http://test.namespace", 2u);
+
+            string result = WriteExpandedNodeIdToString(expandedNodeId, messageContext);
+            string identifier = GetIdentifierValue(result);
+
+            Assert.That(identifier, Does.Contain("svr=2;").And.Contain("nsu=http://test.namespace;"));
+        }
+
+        [Test]
+        public void WriteExpandedNodeIdWithServerIndexZeroDoesNotWriteServerIndex()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var nodeId = new NodeId(30u);
+            var expandedNodeId = new ExpandedNodeId(nodeId, null, 0u);
+
+            string result = WriteExpandedNodeIdToString(expandedNodeId, messageContext);
+            string identifier = GetIdentifierValue(result);
+
+            Assert.That(identifier, Does.Not.Contain("svr="));
+        }
+
+        [Test]
+        public void WriteExpandedNodeIdWithNullNamespaceUriDoesNotWriteNamespaceUri()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var nodeId = new NodeId(40u);
+            var expandedNodeId = new ExpandedNodeId(nodeId, null);
+
+            string result = WriteExpandedNodeIdToString(expandedNodeId, messageContext);
+            string identifier = GetIdentifierValue(result);
+
+            Assert.That(identifier, Does.Not.Contain("nsu="));
+        }
+
+        [Test]
+        public void WriteExpandedNodeIdWithEmptyNamespaceUriDoesNotWriteNamespaceUri()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var nodeId = new NodeId(45u);
+            var expandedNodeId = new ExpandedNodeId(nodeId, string.Empty);
+
+            string result = WriteExpandedNodeIdToString(expandedNodeId, messageContext);
+            string identifier = GetIdentifierValue(result);
+
+            Assert.That(identifier, Does.Not.Contain("nsu="));
+        }
+
+        [Test]
+        public void WriteExpandedNodeIdWithNamespaceMappingsUsesMappedNamespaceIndex()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                NamespaceUris = new NamespaceTable()
+            };
+            messageContext.NamespaceUris.Append("http://namespace1.com");
+            messageContext.NamespaceUris.Append("http://namespace2.com");
+            var encoderNamespaceUris = new NamespaceTable();
+            encoderNamespaceUris.Append("http://namespace2.com");
+            encoderNamespaceUris.Append("http://namespace1.com");
+            var expandedNodeId = new ExpandedNodeId(new NodeId(100u, 1));
+            string expected = FormatExpandedNodeIdIdentifier(expandedNodeId, 2, 0);
+
+            string result = WriteExpandedNodeIdToString(expandedNodeId, messageContext, encoderNamespaceUris);
+            string identifier = GetIdentifierValue(result);
+
+            Assert.That(identifier, Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void WriteExpandedNodeIdWithServerMappingsUsesMappedServerIndex()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                ServerUris = new StringTable()
+            };
+            messageContext.ServerUris.Append("urn:server1");
+            messageContext.ServerUris.Append("urn:server2");
+            var encoderServerUris = new StringTable();
+            encoderServerUris.Append("urn:server2");
+            encoderServerUris.Append("urn:server1");
+            var expandedNodeId = new ExpandedNodeId(new NodeId(50u), null, 0u);
+            string expected = FormatExpandedNodeIdIdentifier(expandedNodeId, 0, 1);
+
+            string result = WriteExpandedNodeIdToString(expandedNodeId, messageContext, null, encoderServerUris);
+            string identifier = GetIdentifierValue(result);
+
+            Assert.That(identifier, Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void WriteExpandedNodeIdWithGuidValueWritesIdentifier()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var guid = Guid.NewGuid();
+            var expandedNodeId = new ExpandedNodeId(new NodeId(guid, 0));
+            string expected = FormatExpandedNodeIdIdentifier(expandedNodeId, 0, 0);
+
+            string result = WriteExpandedNodeIdToString(expandedNodeId, messageContext);
+            string identifier = GetIdentifierValue(result);
+
+            Assert.That(identifier, Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void WriteExpandedNodeIdWithOpaqueValueWritesIdentifier()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var opaque = Guid.NewGuid().ToByteString();
+            var expandedNodeId = new ExpandedNodeId(new NodeId(opaque, 0));
+            string expected = FormatExpandedNodeIdIdentifier(expandedNodeId, 0, 0);
+
+            string result = WriteExpandedNodeIdToString(expandedNodeId, messageContext);
+            string identifier = GetIdentifierValue(result);
+
+            Assert.That(identifier, Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void WriteExpandedNodeIdWithMaxServerIndexWritesServerIndex()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var expandedNodeId = new ExpandedNodeId(new NodeId(10u), null, uint.MaxValue);
+            string expected = FormatExpandedNodeIdIdentifier(expandedNodeId, 0, uint.MaxValue);
+
+            string result = WriteExpandedNodeIdToString(expandedNodeId, messageContext);
+            string identifier = GetIdentifierValue(result);
+
+            Assert.That(identifier, Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void WriteExpandedNodeIdWithMaxByteNamespaceIndexWritesIdentifier()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var expandedNodeId = new ExpandedNodeId(new NodeId(200u, 255));
+            string expected = FormatExpandedNodeIdIdentifier(expandedNodeId, 255, 0);
+
+            string result = WriteExpandedNodeIdToString(expandedNodeId, messageContext);
+            string identifier = GetIdentifierValue(result);
+
+            Assert.That(identifier, Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void WriteExpandedNodeIdWithTwoByteNumericValueWritesIdentifier()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var expandedNodeId = new ExpandedNodeId(new NodeId(byte.MaxValue, 0));
+            string expected = FormatExpandedNodeIdIdentifier(expandedNodeId, 0, 0);
+
+            string result = WriteExpandedNodeIdToString(expandedNodeId, messageContext);
+            string identifier = GetIdentifierValue(result);
+
+            Assert.That(identifier, Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void WriteExpandedNodeIdWithFourByteNumericValueWritesIdentifier()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var expandedNodeId = new ExpandedNodeId(new NodeId(ushort.MaxValue, 100));
+            string expected = FormatExpandedNodeIdIdentifier(expandedNodeId, 100, 0);
+
+            string result = WriteExpandedNodeIdToString(expandedNodeId, messageContext);
+            string identifier = GetIdentifierValue(result);
+
+            Assert.That(identifier, Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void WriteExpandedNodeIdWithNumericValueWritesIdentifier()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var expandedNodeId = new ExpandedNodeId(new NodeId(ushort.MaxValue + 1, 100));
+            string expected = FormatExpandedNodeIdIdentifier(expandedNodeId, 100, 0);
+
+            string result = WriteExpandedNodeIdToString(expandedNodeId, messageContext);
+            string identifier = GetIdentifierValue(result);
+
+            Assert.That(identifier, Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void WriteExtensionObjectWithByteStringBodyWritesByteString()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                NamespaceUris = new NamespaceTable()
+            };
+            messageContext.NamespaceUris.Append(Namespaces.OpcUaXsd);
+            var value = new ExtensionObject(
+                new ExpandedNodeId(1, Namespaces.OpcUaXsd),
+                new ByteString(new byte[] { 1, 2 }));
+
+            string result = WriteExtensionObjectToString(value, messageContext);
+
+            Assert.That(result, Does.Contain("ByteString"));
+        }
+
+        [Test]
+        public void WriteExtensionObjectWithEmptyByteStringBodyWritesByteString()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                NamespaceUris = new NamespaceTable()
+            };
+            messageContext.NamespaceUris.Append(Namespaces.OpcUaXsd);
+            var value = new ExtensionObject(
+                new ExpandedNodeId(1, Namespaces.OpcUaXsd),
+                ByteString.Empty);
+
+            string result = WriteExtensionObjectToString(value, messageContext);
+
+            Assert.That(result, Does.Contain("ByteString"));
+        }
+
+        [Test]
+        public void WriteExtensionObjectWithXmlElementBodyWritesXmlElement()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                NamespaceUris = new NamespaceTable()
+            };
+            messageContext.NamespaceUris.Append(Namespaces.OpcUaXsd);
+            var xmlDoc = new XmlDocument();
+            System.Xml.XmlElement xmlElement = xmlDoc.CreateElement("TestElement");
+            var value = new ExtensionObject(
+                new ExpandedNodeId(1, Namespaces.OpcUaXsd),
+                XmlElement.From(xmlElement));
+
+            string result = WriteExtensionObjectToString(value, messageContext);
+
+            Assert.That(result, Does.Contain("TestElement"));
+        }
+
+        [Test]
+        public void WriteExtensionObjectWithEncodeableBodyWritesEncodeableElement()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                NamespaceUris = new NamespaceTable()
+            };
+            messageContext.NamespaceUris.Append(Namespaces.OpcUaXsd);
+            var value = new ExtensionObject(new TestEncodeable());
+
+            string result = WriteExtensionObjectToString(value, messageContext);
+
+            Assert.That(result, Does.Contain("TestEncodeable"));
+        }
+
+        [Test]
+        public void WriteExtensionObjectWithNullFieldNameWritesWithoutWrapper()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                NamespaceUris = new NamespaceTable()
+            };
+            messageContext.NamespaceUris.Append(Namespaces.OpcUaXsd);
+            var value = new ExtensionObject(
+                new ExpandedNodeId(1, Namespaces.OpcUaXsd),
+                new ByteString(new byte[] { 1 }));
+
+            string result = WriteExtensionObjectToString(
+                value,
+                messageContext,
+                fieldName: null);
+
+            Assert.That(result, Does.Not.Contain("TestExtension").And.Contain("TypeId"));
+        }
+
+        [Test]
+        public void WriteExtensionObjectWithUnknownNamespaceThrowsServiceResultException()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                NamespaceUris = new NamespaceTable()
+            };
+            var value = new ExtensionObject(new TestEncodeableWithNamespace());
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => WriteExtensionObjectToString(value, messageContext));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+        }
+
+        [Test]
+        public void WriteExtensionObjectWithUnsupportedBodyThrowsServiceResultException()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                NamespaceUris = new NamespaceTable()
+            };
+            messageContext.NamespaceUris.Append(Namespaces.OpcUaXsd);
+            var value = new ExtensionObject(new ExpandedNodeId(1, Namespaces.OpcUaXsd), "json");
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => WriteExtensionObjectToString(value, messageContext));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+        }
+
+        [Test]
+        public void WriteExtensionObjectWithNamespaceMappingsUsesMappedNamespaceIndex()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                NamespaceUris = new NamespaceTable()
+            };
+            messageContext.NamespaceUris.Append("http://namespace1.com");
+            messageContext.NamespaceUris.Append("http://namespace2.com");
+            var encoderNamespaceUris = new NamespaceTable();
+            encoderNamespaceUris.Append("http://namespace2.com");
+            encoderNamespaceUris.Append("http://namespace1.com");
+            var value = new ExtensionObject(new ExpandedNodeId(1, 1), new ByteString(new byte[] { 1 }));
+            string expected = FormatExpandedNodeIdIdentifier(value.TypeId, 2, 0);
+
+            string result = WriteExtensionObjectToString(
+                value,
+                messageContext,
+                encoderNamespaceUris);
+            string identifier = GetIdentifierValue(result);
+
+            Assert.That(identifier, Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void WriteExtensionObject_ByteStringEncodeableWithUnknownExternalTypeId_WritesNullNodeId()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var typeId = new ExpandedNodeId(1234, 5, "http://someurinotknowntous", 5);
+            var value = new ExtensionObject(typeId, ByteString.From([1, 2]));
+            var encoderNamespaceUris = new NamespaceTable();
+            // Act
+            string result = WriteExtensionObjectToString(
+                value,
+                messageContext,
+                encoderNamespaceUris);
+            string identifier = GetIdentifierValue(result);
+
+            Assert.That(identifier, Is.Empty);
+        }
+
+        [Test]
+        public void WriteDiagnosticInfoWithSymbolicIdWritesValue()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var value = new DiagnosticInfo { SymbolicId = 1 };
+
+            string result = WriteDiagnosticInfoToString(value, messageContext);
+
+            Assert.That(result, Does.Contain("SymbolicId").And.Contain(">1<"));
+        }
+
+        [Test]
+        public void WriteDiagnosticInfoWithNamespaceUriWritesValue()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var value = new DiagnosticInfo { NamespaceUri = 2 };
+
+            string result = WriteDiagnosticInfoToString(value, messageContext);
+
+            Assert.That(result, Does.Contain("NamespaceUri").And.Contain(">2<"));
+        }
+
+        [Test]
+        public void WriteDiagnosticInfoWithLocaleWritesValue()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var value = new DiagnosticInfo { Locale = 3 };
+
+            string result = WriteDiagnosticInfoToString(value, messageContext);
+
+            Assert.That(result, Does.Contain("Locale").And.Contain(">3<"));
+        }
+
+        [Test]
+        public void WriteDiagnosticInfoWithLocalizedTextWritesValue()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var value = new DiagnosticInfo { LocalizedText = 4 };
+
+            string result = WriteDiagnosticInfoToString(value, messageContext);
+
+            Assert.That(result, Does.Contain("LocalizedText").And.Contain(">4<"));
+        }
+
+        [Test]
+        public void WriteDiagnosticInfoWithAdditionalInfoWritesValue()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var value = new DiagnosticInfo { AdditionalInfo = "info" };
+
+            string result = WriteDiagnosticInfoToString(value, messageContext);
+
+            Assert.That(result, Does.Contain("AdditionalInfo").And.Contain("info"));
+        }
+
+        [Test]
+        public void WriteDiagnosticInfoWithInnerStatusCodeWritesValue()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var value = new DiagnosticInfo { InnerStatusCode = StatusCodes.BadUnexpectedError };
+
+            string result = WriteDiagnosticInfoToString(value, messageContext);
+
+            Assert.That(result, Does.Contain("InnerStatusCode"));
+        }
+
+        [Test]
+        public void WriteDiagnosticInfoWithInnerDiagnosticInfoWritesValue()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var value = new DiagnosticInfo
+            {
+                InnerDiagnosticInfo = new DiagnosticInfo { AdditionalInfo = "Inner" }
+            };
+
+            string result = WriteDiagnosticInfoToString(value, messageContext);
+
+            Assert.That(result, Does.Contain("InnerDiagnosticInfo").And.Contain("Inner"));
+        }
+
+        [Test]
+        public void WriteDiagnosticInfoWithEmptyAdditionalInfoWritesValue()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var value = new DiagnosticInfo { AdditionalInfo = string.Empty };
+
+            string result = WriteDiagnosticInfoToString(value, messageContext);
+
+            Assert.That(result, Does.Contain("AdditionalInfo"));
+        }
+
+        [Test]
+        public void WriteDiagnosticInfoWithNegativeSymbolicIdWritesValue()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var value = new DiagnosticInfo { SymbolicId = -1 };
+
+            string result = WriteDiagnosticInfoToString(value, messageContext);
+
+            Assert.That(result, Does.Contain("SymbolicId").And.Contain(">-1<"));
+        }
+
+        [Test]
+        public void WriteDiagnosticInfoWithZeroSymbolicIdWritesValue()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var value = new DiagnosticInfo { SymbolicId = 0 };
+
+            string result = WriteDiagnosticInfoToString(value, messageContext);
+
+            Assert.That(result, Does.Contain("SymbolicId").And.Contain(">0<"));
+        }
+
+        [Test]
+        public void WriteDiagnosticInfoWithNullFieldNameWritesWithoutWrapper()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var value = new DiagnosticInfo { AdditionalInfo = "info" };
+
+            string result = WriteDiagnosticInfoToString(value, messageContext, null);
+
+            Assert.That(result, Does.Not.Contain("TestDiagnosticInfo").And.Contain("AdditionalInfo"));
+        }
+
+        [Test]
+        public void WriteDiagnosticInfoWithEmptyFieldNameWritesWithoutWrapper()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var value = new DiagnosticInfo { AdditionalInfo = "info" };
+
+            string result = WriteDiagnosticInfoToString(value, messageContext, string.Empty);
+
+            Assert.That(result, Does.Not.Contain("TestDiagnosticInfo").And.Contain("AdditionalInfo"));
+        }
+
+        [Test]
+        public void WriteDiagnosticInfoExceedsMaxEncodingNestingLevelsThrowsServiceResultException()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxEncodingNestingLevels = 2
+            };
+            var value = new DiagnosticInfo
+            {
+                InnerDiagnosticInfo = new DiagnosticInfo
+                {
+                    InnerDiagnosticInfo = new DiagnosticInfo
+                    {
+                        InnerDiagnosticInfo = new DiagnosticInfo()
+                    }
+                }
+            };
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => WriteDiagnosticInfoToString(value, messageContext));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void WriteDiagnosticInfoExceedsMaxDiagnosticLevelsTruncates()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var deep = new DiagnosticInfo
+            {
+                InnerDiagnosticInfo = new DiagnosticInfo
+                {
+                    InnerDiagnosticInfo = new DiagnosticInfo
+                    {
+                        InnerDiagnosticInfo = new DiagnosticInfo
+                        {
+                            InnerDiagnosticInfo = new DiagnosticInfo
+                            {
+                                InnerDiagnosticInfo = new DiagnosticInfo
+                                {
+                                    InnerDiagnosticInfo = new DiagnosticInfo
+                                    {
+                                        InnerDiagnosticInfo = new DiagnosticInfo()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+
+            var truncated = new DiagnosticInfo
+            {
+                InnerDiagnosticInfo = new DiagnosticInfo
+                {
+                    InnerDiagnosticInfo = new DiagnosticInfo
+                    {
+                        InnerDiagnosticInfo = new DiagnosticInfo
+                        {
+                            InnerDiagnosticInfo = new DiagnosticInfo
+                            {
+                                InnerDiagnosticInfo = new DiagnosticInfo
+                                {
+                                    InnerDiagnosticInfo = new DiagnosticInfo()
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+
+            string resultDeep = WriteDiagnosticInfoToString(deep, messageContext);
+            string resultTruncated = WriteDiagnosticInfoToString(truncated, messageContext);
+
+            Assert.That(resultDeep, Is.EqualTo(resultTruncated));
+        }
+
+        private static Variant RoundTripVariantValueFromXml(Variant variant)
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var sb = new StringBuilder();
+            var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
+            using var writer = XmlWriter.Create(sb, settings);
+            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            encoder.WriteVariantValue("TestValue", variant);
+            encoder.Close();
+            string xml = sb.ToString();
+            using var reader = XmlReader.Create(new StringReader(xml));
+            using var decoder = new XmlDecoder(null, reader, messageContext);
+            return decoder.ReadVariantValue("TestValue", TypeInfo.Unknown);
+        }
+
+        private static Variant CreateVariantWithTypeInfo(object value, BuiltInType builtInType, int valueRank)
+        {
+            return new Variant(default, TypeInfo.Create(builtInType, valueRank), value);
+        }
+
+        private static string WriteExpandedNodeIdToString(
+            ExpandedNodeId value,
+            ServiceMessageContext messageContext,
+            NamespaceTable encoderNamespaceUris = null,
+            StringTable encoderServerUris = null,
+            string fieldName = "TestExpandedNodeId")
+        {
+            var sb = new StringBuilder();
+            var settings = new XmlWriterSettings
+            {
+                ConformanceLevel = ConformanceLevel.Fragment,
+                OmitXmlDeclaration = true
+            };
+            using var writer = XmlWriter.Create(sb, settings);
+            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            if (encoderNamespaceUris != null || encoderServerUris != null)
+            {
+                encoder.SetMappingTables(encoderNamespaceUris, encoderServerUris);
+            }
+            encoder.WriteExpandedNodeId(fieldName, value);
+            encoder.Close();
+            return sb.ToString();
+        }
+
+        private static string GetIdentifierValue(string xml)
+        {
+            var document = new XmlDocument();
+            using var reader = XmlReader.Create(
+                new StringReader(xml),
+                new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit });
+            document.Load(reader);
+            var manager = new XmlNamespaceManager(document.NameTable);
+            manager.AddNamespace("uax", Namespaces.OpcUaXsd);
+            XmlNode node = document.SelectSingleNode("//uax:Identifier", manager);
+            return node?.InnerText ?? string.Empty;
+        }
+
+        private static string FormatExpandedNodeIdIdentifier(
+            ExpandedNodeId value,
+            ushort namespaceIndex,
+            uint serverIndex)
+        {
+            var buffer = new StringBuilder();
+            ExpandedNodeId.Format(
+                CultureInfo.InvariantCulture,
+                buffer,
+                value.IdentifierAsString,
+                value.IdType,
+                namespaceIndex,
+                value.NamespaceUri,
+                serverIndex);
+            return buffer.ToString();
+        }
+
+        private static string WriteExtensionObjectToString(
+            ExtensionObject value,
+            ServiceMessageContext messageContext,
+            NamespaceTable encoderNamespaceUris = null,
+            StringTable encoderServerUris = null,
+            string fieldName = "TestExtension")
+        {
+            var sb = new StringBuilder();
+            var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
+            using var writer = XmlWriter.Create(sb, settings);
+            var encoder = new XmlEncoder(
+                new XmlQualifiedName("Root", Namespaces.OpcUaXsd),
+                writer,
+                messageContext);
+            if (encoderNamespaceUris != null || encoderServerUris != null)
+            {
+                encoder.SetMappingTables(encoderNamespaceUris, encoderServerUris);
+            }
+            encoder.WriteExtensionObject(fieldName, value);
+            encoder.Close();
+            return sb.ToString();
+        }
+
+        private static string WriteDiagnosticInfoToString(
+            DiagnosticInfo value,
+            ServiceMessageContext messageContext,
+            string fieldName = "TestDiagnosticInfo")
+        {
+            var sb = new StringBuilder();
+            var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
+            using var writer = XmlWriter.Create(sb, settings);
+            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            encoder.WriteDiagnosticInfo(fieldName, value);
+            encoder.Close();
+            return sb.ToString();
+        }
+
+        private static string WriteVariantValueToString(Variant variant, string fieldName = "TestValue")
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var sb = new StringBuilder();
+            var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
+            using var writer = XmlWriter.Create(sb, settings);
+            var encoder = new XmlEncoder(
+                new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            encoder.WriteVariantValue(fieldName, variant);
+            encoder.Close();
+            return sb.ToString();
+        }
+
+        private static System.Collections.IEnumerable ScalarVariantValueTestCases()
+        {
+            yield return new TestCaseData(Variant.From(true), "Boolean", "true");
+            yield return new TestCaseData(Variant.From((sbyte)-42), "SByte", "-42");
+            yield return new TestCaseData(Variant.From((byte)255), "Byte", "255");
+            yield return new TestCaseData(Variant.From((short)-1234), "Int16", "-1234");
+            yield return new TestCaseData(Variant.From((ushort)65535), "UInt16", "65535");
+            yield return new TestCaseData(Variant.From(123456), "Int32", "123456");
+            yield return new TestCaseData(Variant.From(123456u), "UInt32", "123456");
+            yield return new TestCaseData(Variant.From(123456789L), "Int64", "123456789");
+            yield return new TestCaseData(Variant.From(123456789uL), "UInt64", "123456789");
+            yield return new TestCaseData(Variant.From(3.14f), "Float", "3.14");
+            yield return new TestCaseData(Variant.From(2.718), "Double", "2.718");
+            yield return new TestCaseData(Variant.From("hello"), "String", "hello");
+            yield return new TestCaseData(
+                Variant.From(new DateTime(2024, 1, 15, 10, 30, 0, DateTimeKind.Utc)),
+                "DateTime", "2024-01-15");
+            yield return new TestCaseData(
+                Variant.From(new Uuid(new Guid("12345678-1234-1234-1234-123456789abc"))),
+                "Guid", "12345678-1234-1234-1234-123456789abc");
+            yield return new TestCaseData(
+                Variant.From(new ByteString(new byte[] { 1, 2, 3 })),
+                "ByteString", "AQID");
+            yield return new TestCaseData(
+                Variant.From(new NodeId(123, 1)),
+                "NodeId", "Identifier");
+            yield return new TestCaseData(
+                Variant.From(new ExpandedNodeId(456, 1)),
+                "ExpandedNodeId", "Identifier");
+            yield return new TestCaseData(
+                Variant.From(new StatusCode(0x80010000u)),
+                "StatusCode", "Code");
+            yield return new TestCaseData(
+                Variant.From(new QualifiedName("qname")),
+                "QualifiedName", "qname");
+            yield return new TestCaseData(
+                Variant.From(new LocalizedText("en", "loctext")),
+                "LocalizedText", "loctext");
+            yield return new TestCaseData(
+                Variant.From(new ExtensionObject(new TestEncodeable())),
+                "ExtensionObject", "Body");
+            yield return new TestCaseData(
+                Variant.From(new DataValue(Variant.From(99))),
+                "DataValue", "99");
+            yield return new TestCaseData(
+                Variant.From(TestEnum.Value1),
+                "Int32", "1");
+
+            var xmlDoc = new XmlDocument();
+            System.Xml.XmlElement sysElement = xmlDoc.CreateElement("TestElem");
+            sysElement.InnerText = "XmlVal";
+            yield return new TestCaseData(
+                Variant.From(XmlElement.From(sysElement)),
+                "XmlElement", "TestElem");
+        }
+
+        private static System.Collections.IEnumerable ScalarVariantRoundTripTestCases()
+        {
+            yield return new TestCaseData(Variant.From(true));
+            yield return new TestCaseData(Variant.From((sbyte)-42));
+            yield return new TestCaseData(Variant.From((byte)255));
+            yield return new TestCaseData(Variant.From((short)-1234));
+            yield return new TestCaseData(Variant.From((ushort)65535));
+            yield return new TestCaseData(Variant.From(123456));
+            yield return new TestCaseData(Variant.From(123456u));
+            yield return new TestCaseData(Variant.From(123456789L));
+            yield return new TestCaseData(Variant.From(123456789uL));
+            yield return new TestCaseData(Variant.From(3.14f));
+            yield return new TestCaseData(Variant.From(2.718));
+            yield return new TestCaseData(Variant.From("hello"));
+        }
+
+        private static System.Collections.IEnumerable ArrayVariantValueTestCases()
+        {
+            yield return new TestCaseData(
+                Variant.From(s_booleanArray), "ListOfBoolean");
+            yield return new TestCaseData(
+                Variant.From(new sbyte[] { 1, -1 }), "ListOfSByte");
+            yield return new TestCaseData(
+                Variant.From(new byte[] { 1, 2 }), "ListOfByte");
+            yield return new TestCaseData(
+                Variant.From(new short[] { 1, -1 }), "ListOfInt16");
+            yield return new TestCaseData(
+                Variant.From(new ushort[] { 1, 2 }), "ListOfUInt16");
+            yield return new TestCaseData(
+                Variant.From(new int[] { 1, -1 }), "ListOfInt32");
+            yield return new TestCaseData(
+                Variant.From(new uint[] { 1, 2 }), "ListOfUInt32");
+            yield return new TestCaseData(
+                Variant.From(new long[] { 1, -1 }), "ListOfInt64");
+            yield return new TestCaseData(
+                Variant.From(new ulong[] { 1, 2 }), "ListOfUInt64");
+            yield return new TestCaseData(
+                Variant.From(s_floatArray), "ListOfFloat");
+            yield return new TestCaseData(
+                Variant.From(s_doubleArray), "ListOfDouble");
+            yield return new TestCaseData(
+                Variant.From(s_stringArray), "ListOfString");
+            yield return new TestCaseData(
+                Variant.From([new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)]), "ListOfDateTime");
+            yield return new TestCaseData(
+                Variant.From([new Uuid(Guid.Empty)]),
+                "ListOfGuid");
+            yield return new TestCaseData(
+                Variant.From([ByteString.From(new byte[] { 1, 2 })]),
+                "ListOfByteString");
+            yield return new TestCaseData(
+                Variant.From([new NodeId(1)]), "ListOfNodeId");
+            yield return new TestCaseData(
+                Variant.From([new ExpandedNodeId(1)]),
+                "ListOfExpandedNodeId");
+            yield return new TestCaseData(
+                Variant.From([StatusCodes.Good]),
+                "ListOfStatusCode");
+            yield return new TestCaseData(
+                Variant.From([new QualifiedName("q")]),
+                "ListOfQualifiedName");
+            yield return new TestCaseData(
+                Variant.From([new LocalizedText("en", "t")]),
+                "ListOfLocalizedText");
+            yield return new TestCaseData(
+                Variant.From([new ExtensionObject(ExpandedNodeId.Null)]),
+                "ListOfExtensionObject");
+            yield return new TestCaseData(
+                Variant.From([new DataValue(Variant.From(1))]),
+                "ListOfDataValue");
+            yield return new TestCaseData(
+                Variant.From([Variant.From(1)]),
+                "ListOfVariant");
+            var xmlDoc = new XmlDocument();
+            yield return new TestCaseData(
+                Variant.From([XmlElement.From(xmlDoc.CreateElement("E"))]),
+                "ListOfXmlElement");
+            yield return new TestCaseData(
+               Variant.From([TestEnum.Value1, TestEnum.Value2]),
+               "ListOfInt32");
+        }
+
+        private static System.Collections.IEnumerable MatrixVariantRoundTripTestCases()
+        {
+            yield return new TestCaseData(
+                Variant.From(s_booleanMatrixElements.ToMatrixOf(2, 2)),
+                BuiltInType.Boolean);
+            yield return new TestCaseData(
+                Variant.From(new sbyte[] { 1, -1, 2, -2 }.ToMatrixOf(2, 2)),
+                BuiltInType.SByte);
+            yield return new TestCaseData(
+                Variant.From(new byte[] { 1, 2, 3, 4 }.ToMatrixOf(2, 2)),
+                BuiltInType.Byte);
+            yield return new TestCaseData(
+                Variant.From(new short[] { 1, -1, 2, -2 }.ToMatrixOf(2, 2)),
+                BuiltInType.Int16);
+            yield return new TestCaseData(
+                Variant.From(new ushort[] { 1, 2, 3, 4 }.ToMatrixOf(2, 2)),
+                BuiltInType.UInt16);
+            yield return new TestCaseData(
+                Variant.From(new int[] { 1, -1, 2, -2 }.ToMatrixOf(2, 2)),
+                BuiltInType.Int32);
+            yield return new TestCaseData(
+                Variant.From(new uint[] { 1, 2, 3, 4 }.ToMatrixOf(2, 2)),
+                BuiltInType.UInt32);
+            yield return new TestCaseData(
+                Variant.From(new long[] { 1, -1, 2, -2 }.ToMatrixOf(2, 2)),
+                BuiltInType.Int64);
+            yield return new TestCaseData(
+                Variant.From(new ulong[] { 1, 2, 3, 4 }.ToMatrixOf(2, 2)),
+                BuiltInType.UInt64);
+            yield return new TestCaseData(
+                Variant.From(s_floatMatrixElements.ToMatrixOf(2, 2)),
+                BuiltInType.Float);
+            yield return new TestCaseData(
+                Variant.From(s_doubleMatrixElements.ToMatrixOf(2, 2)),
+                BuiltInType.Double);
+            yield return new TestCaseData(
+                Variant.From(s_stringMatrixElements.ToMatrixOf(2, 2)),
+                BuiltInType.String);
+            yield return new TestCaseData(
+                Variant.From(new[]
+                {
+                    new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                    new DateTime(2024, 1, 2, 0, 0, 0, DateTimeKind.Utc),
+                    new DateTime(2024, 1, 3, 0, 0, 0, DateTimeKind.Utc),
+                    new DateTime(2024, 1, 4, 0, 0, 0, DateTimeKind.Utc)
+                }.ToMatrixOf(2, 2)),
+                BuiltInType.DateTime);
+            yield return new TestCaseData(
+                Variant.From(new[]
+                {
+                    new ByteString(new byte[] { 1 }),
+                    new ByteString(new byte[] { 2 }),
+                    new ByteString(new byte[] { 3 }),
+                    new ByteString(new byte[] { 4 })
+                }.ToMatrixOf(2, 2)),
+                BuiltInType.ByteString);
+            yield return new TestCaseData(
+                Variant.From(new[]
+                {
+                    XmlElement.From("<a />"),
+                    XmlElement.From("<b />"),
+                    XmlElement.From("<c />"),
+                    XmlElement.From("<d />")
+                }.ToMatrixOf(2, 2)),
+                BuiltInType.XmlElement);
+            yield return new TestCaseData(
+                Variant.From(new[]
+                {
+                    new NodeId(1),
+                    new NodeId(2),
+                    new NodeId(3),
+                    new NodeId(4)
+                }.ToMatrixOf(2, 2)),
+                BuiltInType.NodeId);
+            yield return new TestCaseData(
+                Variant.From(new[]
+                {
+                    new ExpandedNodeId(1),
+                    new ExpandedNodeId(2),
+                    new ExpandedNodeId(3),
+                    new ExpandedNodeId(4)
+                }.ToMatrixOf(2, 2)),
+                BuiltInType.ExpandedNodeId);
+            yield return new TestCaseData(
+                Variant.From(new[]
+                {
+                    StatusCodes.Good,
+                    StatusCodes.Bad,
+                    StatusCodes.Good,
+                    StatusCodes.Bad
+                }.ToMatrixOf(2, 2)),
+                BuiltInType.StatusCode);
+            yield return new TestCaseData(
+                Variant.From(new[]
+                {
+                    new QualifiedName("a"),
+                    new QualifiedName("b"),
+                    new QualifiedName("c"),
+                    new QualifiedName("d")
+                }.ToMatrixOf(2, 2)),
+                BuiltInType.QualifiedName);
+            yield return new TestCaseData(
+                Variant.From(new[]
+                {
+                    new LocalizedText("en", "a"),
+                    new LocalizedText("en", "b"),
+                    new LocalizedText("en", "c"),
+                    new LocalizedText("en", "d")
+                }.ToMatrixOf(2, 2)),
+                BuiltInType.LocalizedText);
+            yield return new TestCaseData(
+                Variant.From(new[]
+                {
+                    new ExtensionObject(ExpandedNodeId.Null),
+                    new ExtensionObject(ExpandedNodeId.Null),
+                    new ExtensionObject(ExpandedNodeId.Null),
+                    new ExtensionObject(ExpandedNodeId.Null)
+                }.ToMatrixOf(2, 2)),
+                BuiltInType.ExtensionObject);
+            yield return new TestCaseData(
+                Variant.From(new[]
+                {
+                    new DataValue(Variant.From(1)),
+                    new DataValue(Variant.From(2)),
+                    new DataValue(Variant.From(3)),
+                    new DataValue(Variant.From(4))
+                }.ToMatrixOf(2, 2)),
+                BuiltInType.DataValue);
+            yield return new TestCaseData(
+                Variant.From(new[]
+                {
+                    Variant.From(1),
+                    Variant.From(2),
+                    Variant.From(3),
+                    Variant.From(4)
+                }.ToMatrixOf(2, 2)),
+                BuiltInType.Variant);
+            yield return new TestCaseData(
+                CreateVariantWithTypeInfo(
+                    s_enumMatrixElements.ToMatrixOf(2, 2),
+                    BuiltInType.Enumeration,
+                    ValueRanks.TwoDimensions),
+                BuiltInType.Int32);
+        }
+#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
+        [GeneratedRegex(@"Value>([^<]*)<")]
+        internal static partial Regex REValue();
+#else
+#pragma warning disable IDE0079 // Remove unnecessary suppression
+#pragma warning disable SYSLIB1045 //Use 'GeneratedRegexAttribute' to generate the regular expression implementation at compile-time.
+        internal static Regex REValue()
+        {
+            return new Regex("Value>([^<]*)<");
+        }
+#pragma warning restore SYSLIB1045 //Use 'GeneratedRegexAttribute' to generate the regular expression implementation at compile-time.
+#pragma warning restore IDE0079 // Remove unnecessary suppression
+#endif
+        private static readonly ArrayOf<int> s_elements = [1, 2, 3, 4];
+        private static readonly int[] s_dimensions = [2, 2];
+        private static readonly bool[] s_booleanArray = [true, false];
+        private static readonly float[] s_floatArray = [1.0f, 2.0f];
+        private static readonly double[] s_doubleArray = [1.0, 2.0];
+        private static readonly string[] s_stringArray = ["a", "b"];
+        private static readonly bool[] s_booleanMatrixElements = [true, false, true, false];
+        private static readonly float[] s_floatMatrixElements = [1.0f, 2.0f, 3.0f, 4.0f];
+        private static readonly double[] s_doubleMatrixElements = [1.0, 2.0, 3.0, 4.0];
+        private static readonly string[] s_stringMatrixElements = ["a", "b", "c", "d"];
+        private static readonly int[] s_enumMatrixElements = [1, 2, 1, 2];
     }
 
     internal sealed class TestEncodeable : IEncodeable
@@ -6072,6 +7358,33 @@ namespace Opc.Ua.Types.Tests.Encoders
         public object Clone()
         {
             return new TestEncodeable();
+        }
+    }
+
+    internal sealed class TestEncodeableWithNamespace : IEncodeable
+    {
+        private static readonly ExpandedNodeId s_typeId = new(1, "urn:missing-namespace");
+
+        public ExpandedNodeId TypeId => s_typeId;
+        public ExpandedNodeId BinaryEncodingId => s_typeId;
+        public ExpandedNodeId XmlEncodingId => s_typeId;
+
+        public void Encode(IEncoder encoder)
+        {
+        }
+
+        public void Decode(IDecoder decoder)
+        {
+        }
+
+        public bool IsEqual(IEncodeable encodeable)
+        {
+            return false;
+        }
+
+        public object Clone()
+        {
+            return new TestEncodeableWithNamespace();
         }
     }
 

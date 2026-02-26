@@ -27,15 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Moq;
-using Opc.Ua.Tests;
-using Opc.Ua.Types;
 using System;
 using System.Buffers;
 using System.IO;
 using System.Reflection;
-using System.Xml;
+using Moq;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Types.Tests.Encoders
 {
@@ -49,10 +47,6 @@ namespace Opc.Ua.Types.Tests.Encoders
     [Parallelizable]
     public class BinaryEncoderTests
     {
-        /// <summary>
-        /// Tests that the constructor with a valid context creates a BinaryEncoder instance successfully
-        /// and initializes all required fields properly.
-        /// </summary>
         [Test]
         public void Constructor_ValidContext_CreatesInstance()
         {
@@ -68,10 +62,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(encoder.UseReversibleEncoding, Is.True);
         }
 
-        /// <summary>
-        /// Tests that the constructor with a valid context initializes the encoder correctly
-        /// and allows basic write operations.
-        /// </summary>
         [Test]
         public void Constructor_ValidContext_AllowsWriteOperations()
         {
@@ -88,9 +78,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Length, Is.GreaterThan(0));
         }
 
-        /// <summary>
-        /// Tests that the constructor correctly sets the Context property to the provided context instance.
-        /// </summary>
         [Test]
         public void Constructor_ValidContext_SetsContextProperty()
         {
@@ -104,10 +91,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(encoder.Position, Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Tests that the constructor initializes the encoder and allows position tracking
-        /// after write operations.
-        /// </summary>
         [Test]
         public void Constructor_ValidContext_AllowsPositionTracking()
         {
@@ -145,9 +128,6 @@ namespace Opc.Ua.Types.Tests.Encoders
                 .EncodeMessage<TestEncodeable>(null));
         }
 
-        /// <summary>
-        /// Tests that EncodeMessage successfully encodes a valid message without exceeding size limits.
-        /// </summary>
         [Test]
         public void EncodeMessage_ValidMessage_EncodesSuccessfully()
         {
@@ -199,9 +179,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Tests that EncodeMessage does not check size limits when MaxMessageSize is zero.
-        /// </summary>
         [Test]
         public void EncodeMessage_MaxMessageSizeZero_NoSizeCheck()
         {
@@ -229,9 +206,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(encoder.Position, Is.GreaterThan(0));
         }
 
-        /// <summary>
-        /// Tests that EncodeMessage does not check size limits when MaxMessageSize is negative.
-        /// </summary>
         [Test]
         public void EncodeMessage_MaxMessageSizeNegative_NoSizeCheck()
         {
@@ -257,9 +231,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.DoesNotThrow(() => encoder.EncodeMessage(mockMessage.Object));
         }
 
-        /// <summary>
-        /// Tests that EncodeMessage succeeds when message size is exactly at the MaxMessageSize boundary.
-        /// </summary>
         [Test]
         public void EncodeMessage_MessageAtMaxSizeBoundary_EncodesSuccessfully()
         {
@@ -280,9 +251,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.DoesNotThrow(() => encoder.EncodeMessage(mockMessage.Object));
         }
 
-        /// <summary>
-        /// Tests that EncodeMessage correctly writes the BinaryEncodingId as NodeId to the stream.
-        /// </summary>
         [Test]
         public void EncodeMessage_ValidMessage_WritesBinaryEncodingId()
         {
@@ -309,9 +277,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(buffer.Length, Is.GreaterThan(0));
         }
 
-        /// <summary>
-        /// Tests that EncodeMessage handles messages with different namespace indices correctly.
-        /// </summary>
         [Test]
         public void EncodeMessage_MessageWithDifferentNamespace_EncodesSuccessfully()
         {
@@ -338,9 +303,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             mockMessage.Verify(m => m.Encode(It.IsAny<IEncoder>()), Times.Once);
         }
 
-        /// <summary>
-        /// Tests that EncodeMessage throws ServiceResultException with correct error code when exceeding size.
-        /// </summary>
         [Test]
         public void EncodeMessage_ExceedsMaxMessageSize_ThrowsWithCorrectStatusCode()
         {
@@ -368,9 +330,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.Message, Does.Contain("MaxMessageSize"));
         }
 
-        /// <summary>
-        /// Tests that EncodeMessage with maximum positive MaxMessageSize value works correctly.
-        /// </summary>
         [Test]
         public void EncodeMessage_MaxMessageSizeIntMax_EncodesSuccessfully()
         {
@@ -391,9 +350,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.DoesNotThrow(() => encoder.EncodeMessage(mockMessage.Object));
         }
 
-        /// <summary>
-        /// Tests that EncodeMessage with minimum negative MaxMessageSize value does not check size.
-        /// </summary>
         [Test]
         public void EncodeMessage_MaxMessageSizeIntMin_NoSizeCheck()
         {
@@ -420,10 +376,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.DoesNotThrow(() => encoder.EncodeMessage(mockMessage.Object));
         }
 
-        /// <summary>
-        /// Tests that WriteDouble correctly encodes boundary double values.
-        /// Verifies MinValue, MaxValue, and Epsilon are encoded and decoded correctly.
-        /// </summary>
         [TestCase(double.MinValue)]
         [TestCase(double.MaxValue)]
         [TestCase(double.Epsilon)]
@@ -446,10 +398,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(readValue, Is.EqualTo(value));
         }
 
-        /// <summary>
-        /// Tests that WriteDouble correctly encodes special double values like NaN.
-        /// Verifies that NaN is properly encoded and can be identified when decoded.
-        /// </summary>
         [Test]
         public void WriteDouble_NaNValue_WritesCorrectBytes()
         {
@@ -470,10 +418,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(double.IsNaN(readValue), Is.True);
         }
 
-        /// <summary>
-        /// Tests that WriteDouble correctly encodes positive infinity.
-        /// Verifies that PositiveInfinity is properly encoded and can be identified when decoded.
-        /// </summary>
         [Test]
         public void WriteDouble_PositiveInfinity_WritesCorrectBytes()
         {
@@ -494,10 +438,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(double.IsPositiveInfinity(readValue), Is.True);
         }
 
-        /// <summary>
-        /// Tests that WriteDouble correctly encodes negative infinity.
-        /// Verifies that NegativeInfinity is properly encoded and can be identified when decoded.
-        /// </summary>
         [Test]
         public void WriteDouble_NegativeInfinity_WritesCorrectBytes()
         {
@@ -518,10 +458,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(double.IsNegativeInfinity(readValue), Is.True);
         }
 
-        /// <summary>
-        /// Tests that WriteDouble can write multiple double values in sequence.
-        /// Verifies that all values are correctly encoded and can be read back in order.
-        /// </summary>
         [Test]
         public void WriteDouble_MultipleValues_WritesAllCorrectly()
         {
@@ -557,10 +493,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
         }
 
-        /// <summary>
-        /// Tests that WriteDouble correctly encodes positive and negative zero.
-        /// Verifies that both zero values are encoded correctly.
-        /// </summary>
         [TestCase(0.0)]
         [TestCase(-0.0)]
         public void WriteDouble_ZeroValues_WritesCorrectBytes(double value)
@@ -581,10 +513,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(readValue, Is.EqualTo(value));
         }
 
-        /// <summary>
-        /// Tests that WriteDouble correctly encodes very small fractional values.
-        /// Verifies precision is maintained for values close to zero.
-        /// </summary>
         [TestCase(1e-100)]
         [TestCase(-1e-100)]
         [TestCase(1e-308)]
@@ -607,10 +535,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(readValue, Is.EqualTo(value));
         }
 
-        /// <summary>
-        /// Tests that WriteDouble correctly encodes very large values.
-        /// Verifies precision is maintained for values close to the maximum.
-        /// </summary>
         [TestCase(1e100)]
         [TestCase(-1e100)]
         [TestCase(1e308)]
@@ -633,9 +557,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(readValue, Is.EqualTo(value));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo writes a null DiagnosticInfo correctly.
-        /// </summary>
         [Test]
         public void WriteDiagnosticInfo_NullValue_WritesNullEncoding()
         {
@@ -653,9 +574,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0], Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo writes a default DiagnosticInfo correctly.
-        /// </summary>
         [Test]
         public void WriteDiagnosticInfo_DefaultValue_WritesNullEncoding()
         {
@@ -674,9 +592,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0], Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo writes a DiagnosticInfo with SymbolicId correctly.
-        /// </summary>
         [Test]
         public void WriteDiagnosticInfo_WithSymbolicId_WritesCorrectEncoding()
         {
@@ -698,9 +613,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0], Is.EqualTo(0x01)); // DiagnosticInfoEncodingBits.SymbolicId
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo writes a DiagnosticInfo with all fields correctly.
-        /// </summary>
         [Test]
         public void WriteDiagnosticInfo_WithAllFields_WritesCorrectEncoding()
         {
@@ -727,9 +639,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0], Is.EqualTo(0x3F)); // All bits except InnerDiagnosticInfo
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo writes a DiagnosticInfo with nested InnerDiagnosticInfo correctly.
-        /// </summary>
         [Test]
         public void WriteDiagnosticInfo_WithInnerDiagnosticInfo_WritesCorrectEncoding()
         {
@@ -756,9 +665,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0], Is.EqualTo(0x41)); // SymbolicId | InnerDiagnosticInfo
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo with null field name writes correctly.
-        /// </summary>
         [Test]
         public void WriteDiagnosticInfo_NullFieldName_WritesCorrectly()
         {
@@ -779,9 +685,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Length, Is.GreaterThan(0));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo with empty field name writes correctly.
-        /// </summary>
         [Test]
         public void WriteDiagnosticInfo_EmptyFieldName_WritesCorrectly()
         {
@@ -802,9 +705,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Length, Is.GreaterThan(0));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo with whitespace field name writes correctly.
-        /// </summary>
         [Test]
         public void WriteDiagnosticInfo_WhitespaceFieldName_WritesCorrectly()
         {
@@ -825,9 +725,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Length, Is.GreaterThan(0));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo with only NamespaceUri writes correctly.
-        /// </summary>
         [Test]
         public void WriteDiagnosticInfo_WithNamespaceUri_WritesCorrectEncoding()
         {
@@ -849,9 +746,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0], Is.EqualTo(0x02)); // DiagnosticInfoEncodingBits.NamespaceUri
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo with only Locale writes correctly.
-        /// </summary>
         [Test]
         public void WriteDiagnosticInfo_WithLocale_WritesCorrectEncoding()
         {
@@ -873,9 +767,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0], Is.EqualTo(0x08)); // DiagnosticInfoEncodingBits.Locale
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo with only LocalizedText writes correctly.
-        /// </summary>
         [Test]
         public void WriteDiagnosticInfo_WithLocalizedText_WritesCorrectEncoding()
         {
@@ -897,9 +788,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0], Is.EqualTo(0x04)); // DiagnosticInfoEncodingBits.LocalizedText
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo with only AdditionalInfo writes correctly.
-        /// </summary>
         [Test]
         public void WriteDiagnosticInfo_WithAdditionalInfo_WritesCorrectEncoding()
         {
@@ -921,9 +809,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0], Is.EqualTo(0x10)); // DiagnosticInfoEncodingBits.AdditionalInfo
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo with only InnerStatusCode writes correctly.
-        /// </summary>
         [Test]
         public void WriteDiagnosticInfo_WithInnerStatusCode_WritesCorrectEncoding()
         {
@@ -945,9 +830,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0], Is.EqualTo(0x20)); // DiagnosticInfoEncodingBits.InnerStatusCode
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo with empty AdditionalInfo string writes correctly.
-        /// </summary>
         [Test]
         public void WriteDiagnosticInfo_WithEmptyAdditionalInfo_WritesCorrectEncoding()
         {
@@ -969,9 +851,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0], Is.EqualTo(0x10)); // DiagnosticInfoEncodingBits.AdditionalInfo
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo with negative SymbolicId does not write it.
-        /// </summary>
         [Test]
         public void WriteDiagnosticInfo_WithNegativeSymbolicId_DoesNotWriteSymbolicId()
         {
@@ -994,9 +873,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0], Is.EqualTo(0x10)); // Only AdditionalInfo
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfo with zero SymbolicId writes it correctly.
-        /// </summary>
         [Test]
         public void WriteDiagnosticInfo_WithZeroSymbolicId_WritesSymbolicId()
         {
@@ -1018,9 +894,22 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0], Is.EqualTo(0x01)); // DiagnosticInfoEncodingBits.SymbolicId
         }
 
-        /// <summary>
-        /// Tests that WriteUInt16Array throws an exception when MaxArrayLength is exceeded.
-        /// </summary>
+        [Test]
+        public void WriteUInt16Array_EmptyArray_WritesZeroLength()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<ushort> emptyArray = [];
+            // Act
+            encoder.WriteUInt16Array("TestField", emptyArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
+        }
+
         [Test]
         public void WriteUInt16Array_ExceedsMaxArrayLength_ThrowsServiceResultException()
         {
@@ -1034,9 +923,22 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex?.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Verifies that WriteXmlElementArray correctly handles a null array by writing -1 as the length.
-        /// </summary>
+        [Test]
+        public void WriteExtensionObjectArray_EmptyArray_WritesZeroLength()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<ExtensionObject> emptyArray = [];
+            // Act
+            encoder.WriteExtensionObjectArray("TestField", emptyArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
+        }
+
         [Test]
         public void WriteXmlElementArray_NullArray_WritesNegativeOne()
         {
@@ -1053,9 +955,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(-1));
         }
 
-        /// <summary>
-        /// Verifies that WriteXmlElementArray correctly handles an empty array by writing 0 as the length and no elements.
-        /// </summary>
         [Test]
         public void WriteXmlElementArray_EmptyArray_WritesZeroLength()
         {
@@ -1072,9 +971,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Verifies that WriteXmlElementArray correctly handles an array containing an empty XmlElement.
-        /// </summary>
         [Test]
         public void WriteXmlElementArray_ArrayWithEmptyElement_WritesLengthAndEmptyMarker()
         {
@@ -1093,9 +989,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(buffer, 4), Is.EqualTo(-1));
         }
 
-        /// <summary>
-        /// Tests that CloseAndReturnText returns an empty base64 string when using an empty MemoryStream.
-        /// </summary>
         [Test]
         public void CloseAndReturnText_WithEmptyMemoryStream_ReturnsEmptyBase64String()
         {
@@ -1110,9 +1003,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result, Is.EqualTo(Convert.ToBase64String([])));
         }
 
-        /// <summary>
-        /// Tests that CloseAndReturnText correctly encodes written data to base64.
-        /// </summary>
         [Test]
         public void CloseAndReturnText_EncodesWrittenDataCorrectly()
         {
@@ -1134,9 +1024,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(decoded[1], Is.EqualTo(255)); // byte value
         }
 
-        /// <summary>
-        /// Tests that CloseAndReturnText with a custom stream that is not MemoryStream returns null.
-        /// </summary>
         [Test]
         public void CloseAndReturnText_WithCustomStream_ReturnsNull()
         {
@@ -1155,11 +1042,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result, Is.Null);
         }
 
-        /// <summary>
-        /// Tests WriteUInt32 with minimum uint value (0).
-        /// Verifies that zero is correctly encoded as 4 bytes in little-endian format.
-        /// Expected result: [0x00, 0x00, 0x00, 0x00]
-        /// </summary>
         [Test]
         public void WriteUInt32_MinValue_WritesCorrectBytes()
         {
@@ -1181,11 +1063,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(buffer[3], Is.EqualTo(0x00));
         }
 
-        /// <summary>
-        /// Tests WriteUInt32 with maximum uint value (4,294,967,295).
-        /// Verifies that the maximum value is correctly encoded in little-endian format.
-        /// Expected result: [0xFF, 0xFF, 0xFF, 0xFF]
-        /// </summary>
         [Test]
         public void WriteUInt32_MaxValue_WritesCorrectBytes()
         {
@@ -1207,11 +1084,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(buffer[3], Is.EqualTo(0xFF));
         }
 
-        /// <summary>
-        /// Tests WriteUInt32 with null field name.
-        /// Verifies that null field name does not cause exceptions and value is still written correctly.
-        /// Expected result: Value is written correctly regardless of field name.
-        /// </summary>
         [Test]
         public void WriteUInt32_NullFieldName_WritesValueCorrectly()
         {
@@ -1232,11 +1104,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(buffer[3], Is.EqualTo(0x00));
         }
 
-        /// <summary>
-        /// Tests WriteUInt32 with empty field name.
-        /// Verifies that empty field name does not cause exceptions and value is still written correctly.
-        /// Expected result: Value is written correctly regardless of field name.
-        /// </summary>
         [Test]
         public void WriteUInt32_EmptyFieldName_WritesValueCorrectly()
         {
@@ -1257,9 +1124,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(buffer[3], Is.EqualTo(0x00));
         }
 
-        /// <summary>
-        /// Tests WriteUInt32 with whitespace field name.
-        /// </summary>
         [Test]
         public void WriteUInt32_WhitespaceFieldName_WritesValueCorrectly()
         {
@@ -1280,9 +1144,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(buffer[3], Is.EqualTo(0x00));
         }
 
-        /// <summary>
-        /// Tests WriteUInt32 multiple times in sequence.
-        /// </summary>
         [Test]
         public void WriteUInt32_MultipleValues_WritesAllValuesSequentially()
         {
@@ -1318,11 +1179,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(buffer[11], Is.EqualTo(0x00));
         }
 
-        /// <summary>
-        /// Tests WriteUInt32 with a very long field name.
-        /// Verifies that long field names do not cause exceptions (field name is ignored in binary encoding).
-        /// Expected result: Value is written correctly regardless of field name length.
-        /// </summary>
         [Test]
         public void WriteUInt32_LongFieldName_WritesValueCorrectly()
         {
@@ -1344,11 +1200,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(buffer[3], Is.EqualTo(0x00));
         }
 
-        /// <summary>
-        /// Tests WriteUInt32 with special characters in field name.
-        /// Verifies that special characters in field name do not cause exceptions.
-        /// Expected result: Value is written correctly regardless of field name content.
-        /// </summary>
         [Test]
         public void WriteUInt32_SpecialCharactersInFieldName_WritesValueCorrectly()
         {
@@ -1370,9 +1221,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(buffer[3], Is.EqualTo(0x00));
         }
 
-        /// <summary>
-        /// Verifies that WriteXmlElement writes -1 when XmlElement is empty.
-        /// </summary>
         [Test]
         public void WriteXmlElement_EmptyXmlElement_WritesNegativeOne()
         {
@@ -1391,9 +1239,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(-1));
         }
 
-        /// <summary>
-        /// Verifies that WriteXmlElement writes the OuterXml string when XmlElement is not empty.
-        /// </summary>
         [Test]
         public void WriteXmlElement_ValidXmlElement_WritesOuterXml()
         {
@@ -1418,9 +1263,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(decodedString, Is.EqualTo(xmlString));
         }
 
-        /// <summary>
-        /// Verifies that WriteXmlElement correctly handles null fieldName parameter with valid XmlElement.
-        /// </summary>
         [Test]
         public void WriteXmlElement_NullFieldNameWithValidXml_WritesOuterXml()
         {
@@ -1444,9 +1286,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(decodedString, Is.EqualTo(xmlString));
         }
 
-        /// <summary>
-        /// Verifies that WriteXmlElement correctly handles empty fieldName parameter with valid XmlElement.
-        /// </summary>
         [Test]
         public void WriteXmlElement_EmptyFieldNameWithValidXml_WritesOuterXml()
         {
@@ -1470,9 +1309,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(decodedString, Is.EqualTo(xmlString));
         }
 
-        /// <summary>
-        /// Verifies that WriteXmlElement writes complex XML with attributes and nested elements correctly.
-        /// </summary>
         [Test]
         public void WriteXmlElement_ComplexXmlElement_WritesOuterXml()
         {
@@ -1496,9 +1332,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(decodedString, Is.EqualTo(xmlString));
         }
 
-        /// <summary>
-        /// Verifies that WriteXmlElement handles XML with special characters correctly.
-        /// </summary>
         [Test]
         public void WriteXmlElement_XmlWithSpecialCharacters_WritesOuterXml()
         {
@@ -1522,9 +1355,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(decodedString, Is.EqualTo(xmlString));
         }
 
-        /// <summary>
-        /// Tests that Close returns zero when no data has been written to the encoder.
-        /// </summary>
         [Test]
         public void Close_EmptyEncoder_ReturnsZero()
         {
@@ -1539,9 +1369,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(position, Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Tests that Close returns the correct position after writing a single byte.
-        /// </summary>
         [Test]
         public void Close_AfterWritingSingleByte_ReturnsOne()
         {
@@ -1557,10 +1384,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(position, Is.EqualTo(1));
         }
 
-        /// <summary>
-        /// Tests that Close returns the correct position after writing multiple primitive values.
-        /// Validates that the position accurately reflects all written data.
-        /// </summary>
         [Test]
         public void Close_AfterWritingMultiplePrimitiveValues_ReturnsCorrectPosition()
         {
@@ -1579,10 +1402,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(position, Is.EqualTo(expectedPosition));
         }
 
-        /// <summary>
-        /// Tests that Close returns the correct position when using the byte array constructor.
-        /// Validates that the encoder works correctly with a pre-allocated buffer.
-        /// </summary>
         [Test]
         public void Close_WithByteArrayConstructor_ReturnsCorrectPosition()
         {
@@ -1599,10 +1418,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(position, Is.EqualTo(8)); // Two int32 values = 8 bytes
         }
 
-        /// <summary>
-        /// Tests that Close returns the correct position when using a custom stream.
-        /// Validates that the encoder works correctly with different stream types.
-        /// </summary>
         [Test]
         public void Close_WithCustomStream_ReturnsCorrectPosition()
         {
@@ -1619,10 +1434,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(position, Is.EqualTo(12)); // uint32 (4 bytes) + uint64 (8 bytes)
         }
 
-        /// <summary>
-        /// Tests that Close returns the correct position when writing at maximum int32 boundary.
-        /// Validates behavior with large position values near int.MaxValue.
-        /// </summary>
         [Test]
         public void Close_WithLargePosition_ReturnsCorrectPosition()
         {
@@ -1640,10 +1451,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(position, Is.EqualTo(100000));
         }
 
-        /// <summary>
-        /// Tests that Close truncates position to int when stream position exceeds int.MaxValue.
-        /// Validates overflow behavior when casting from long to int.
-        /// </summary>
         [Test]
         public void Close_WithPositionExceedingIntMaxValue_TruncatesPosition()
         {
@@ -1666,10 +1473,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(position, Is.EqualTo(expectedPosition));
         }
 
-        /// <summary>
-        /// Tests that Close with zero-length byte array buffer returns zero.
-        /// Validates edge case with minimal buffer size.
-        /// </summary>
         [Test]
         public void Close_WithZeroLengthBuffer_ReturnsZero()
         {
@@ -1684,10 +1487,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(position, Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Tests that Close with buffer offset returns correct position relative to start.
-        /// Validates that position is relative to the buffer start, not the offset.
-        /// </summary>
         [Test]
         public void Close_WithBufferOffset_ReturnsPositionRelativeToStart()
         {
@@ -1704,10 +1503,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(position, Is.EqualTo(4)); // Position is relative to the stream start (offset position)
         }
 
-        /// <summary>
-        /// Tests that Close on encoder with minimum data writes returns correct position.
-        /// Validates position tracking with minimal data (single boolean).
-        /// </summary>
         [Test]
         public void Close_WithMinimalData_ReturnsOne()
         {
@@ -1722,10 +1517,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(position, Is.EqualTo(1));
         }
 
-        /// <summary>
-        /// Tests that Close flushes all buffered data before returning position.
-        /// Validates that Flush is called and data is properly written.
-        /// </summary>
         [Test]
         public void Close_FlushesData_DataIsWrittenToStream()
         {
@@ -1742,9 +1533,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(stream.Length, Is.EqualTo(4)); // Verify data was flushed to stream
         }
 
-        /// <summary>
-        /// Tests that WriteSByte correctly writes the minimum sbyte value to the stream.
-        /// </summary>
         [Test]
         public void WriteSByte_MinValue_WritesCorrectBytes()
         {
@@ -1762,9 +1550,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That((sbyte)result[0], Is.EqualTo(sbyte.MinValue));
         }
 
-        /// <summary>
-        /// Tests that WriteSByte correctly writes the maximum sbyte value to the stream.
-        /// </summary>
         [Test]
         public void WriteSByte_MaxValue_WritesCorrectBytes()
         {
@@ -1782,9 +1567,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That((sbyte)result[0], Is.EqualTo(sbyte.MaxValue));
         }
 
-        /// <summary>
-        /// Tests that WriteSByte correctly writes zero to the stream.
-        /// </summary>
         [Test]
         public void WriteSByte_Zero_WritesCorrectBytes()
         {
@@ -1802,9 +1584,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That((sbyte)result[0], Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Tests that WriteSByte correctly writes various sbyte values including positive, negative, and boundary values.
-        /// </summary>
         [TestCase((sbyte)-128, TestName = "WriteSByte_VariousValues_MinValue")]
         [TestCase((sbyte)-100, TestName = "WriteSByte_VariousValues_NegativeLarge")]
         [TestCase((sbyte)-1, TestName = "WriteSByte_VariousValues_NegativeOne")]
@@ -1829,9 +1608,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That((sbyte)result[0], Is.EqualTo(value));
         }
 
-        /// <summary>
-        /// Tests that WriteSByte accepts null field name without throwing an exception.
-        /// </summary>
         [Test]
         public void WriteSByte_NullFieldName_WritesCorrectBytes()
         {
@@ -1849,9 +1625,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That((sbyte)result[0], Is.EqualTo(42));
         }
 
-        /// <summary>
-        /// Tests that WriteSByte accepts empty string field name without throwing an exception.
-        /// </summary>
         [Test]
         public void WriteSByte_EmptyFieldName_WritesCorrectBytes()
         {
@@ -1869,9 +1642,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That((sbyte)result[0], Is.EqualTo(-42));
         }
 
-        /// <summary>
-        /// Tests that WriteSByte can write multiple values sequentially to the stream.
-        /// </summary>
         [Test]
         public void WriteSByte_MultipleValues_WritesAllValuesSequentially()
         {
@@ -1901,9 +1671,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That((sbyte)result[2], Is.EqualTo(sbyte.MaxValue));
         }
 
-        /// <summary>
-        /// Tests that WriteSByte with whitespace-only field name works correctly.
-        /// </summary>
         [Test]
         public void WriteSByte_WhitespaceFieldName_WritesCorrectBytes()
         {
@@ -1921,10 +1688,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That((sbyte)result[0], Is.EqualTo(10));
         }
 
-        /// <summary>
-        /// Tests WriteGuid with a valid non-empty Uuid.
-        /// Verifies that the correct 16 bytes are written to the stream.
-        /// </summary>
         [Test]
         public void WriteGuid_ValidNonEmptyUuid_Writes16Bytes()
         {
@@ -1945,10 +1708,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result, Is.EqualTo(expectedBytes), "Written bytes should match the Uuid byte representation");
         }
 
-        /// <summary>
-        /// Tests WriteGuid with an empty Uuid.
-        /// Verifies that 16 bytes of zeros are written to the stream.
-        /// </summary>
         [Test]
         public void WriteGuid_EmptyUuid_Writes16ZeroBytes()
         {
@@ -1968,10 +1727,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result, Is.EqualTo(expectedBytes), "Written bytes should be all zeros for empty Uuid");
         }
 
-        /// <summary>
-        /// Tests WriteGuid with various Uuid values to ensure correct byte encoding.
-        /// Verifies that different Uuid values produce different byte representations.
-        /// </summary>
         [TestCase("00000000-0000-0000-0000-000000000000")]
         [TestCase("ffffffff-ffff-ffff-ffff-ffffffffffff")]
         [TestCase("a1b2c3d4-e5f6-0718-2930-4a5b6c7d8e9f")]
@@ -1995,10 +1750,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result, Is.EqualTo(expectedBytes));
         }
 
-        /// <summary>
-        /// Tests WriteGuid with multiple consecutive calls.
-        /// Verifies that multiple Uuid values are written sequentially.
-        /// </summary>
         [Test]
         public void WriteGuid_MultipleCalls_WritesSequentially()
         {
@@ -2028,10 +1779,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(secondGuidBytes, Is.EqualTo(expectedBytes2));
         }
 
-        /// <summary>
-        /// Tests WriteGuid with null fieldName.
-        /// Verifies that the method works correctly regardless of fieldName value.
-        /// </summary>
         [Test]
         public void WriteGuid_NullFieldName_WritesCorrectly()
         {
@@ -2052,10 +1799,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result, Is.EqualTo(expectedBytes));
         }
 
-        /// <summary>
-        /// Tests WriteGuid with a stream-based encoder.
-        /// Verifies that WriteGuid works correctly when writing to a stream.
-        /// </summary>
         [Test]
         public void WriteGuid_WithStreamEncoder_WritesCorrectly()
         {
@@ -2078,10 +1821,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result, Is.EqualTo(expectedBytes));
         }
 
-        /// <summary>
-        /// Tests WriteGuid with fixed buffer encoder.
-        /// Verifies that WriteGuid works correctly when writing to a fixed-size buffer.
-        /// </summary>
         [Test]
         public void WriteGuid_WithFixedBufferEncoder_WritesCorrectly()
         {
@@ -2103,9 +1842,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(buffer, Is.EqualTo(expectedBytes));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32Array correctly encodes a null array by writing -1.
-        /// </summary>
         [Test]
         public void WriteInt32Array_NullArray_WritesMinusOne()
         {
@@ -2125,9 +1861,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(-1));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32Array correctly encodes an empty array by writing 0.
-        /// </summary>
         [Test]
         public void WriteInt32Array_EmptyArray_WritesZeroLength()
         {
@@ -2147,9 +1880,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32Array correctly encodes a single element array.
-        /// </summary>
         [Test]
         public void WriteInt32Array_SingleElement_WritesLengthAndValue()
         {
@@ -2171,9 +1901,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(value, Is.EqualTo(42));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32Array correctly encodes multiple elements in order.
-        /// </summary>
         [Test]
         public void WriteInt32Array_MultipleElements_WritesLengthAndAllValues()
         {
@@ -2198,9 +1925,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 20), Is.EqualTo(5));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32Array correctly encodes boundary values including int.MinValue, int.MaxValue, and 0.
-        /// </summary>
         [Test]
         public void WriteInt32Array_BoundaryValues_WritesCorrectly()
         {
@@ -2223,9 +1947,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 12), Is.EqualTo(int.MaxValue));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32Array correctly encodes negative values.
-        /// </summary>
         [Test]
         public void WriteInt32Array_NegativeValues_WritesCorrectly()
         {
@@ -2248,9 +1969,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 12), Is.EqualTo(-300));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32Array throws ServiceResultException when array count exceeds MaxArrayLength.
-        /// </summary>
         [Test]
         public void WriteInt32Array_ExceedsMaxArrayLength_ThrowsServiceResultException()
         {
@@ -2264,9 +1982,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex?.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Tests that WriteInt32Array correctly handles array with zero values.
-        /// </summary>
         [Test]
         public void WriteInt32Array_ArrayWithZeros_WritesCorrectly()
         {
@@ -2289,10 +2004,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 12), Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Writes a null StatusCode array and verifies the correct encoding.
-        /// Expected: Writes -1 as the length indicator for null arrays.
-        /// </summary>
         [Test]
         public void WriteStatusCodeArray_NullArray_WritesNullIndicator()
         {
@@ -2311,10 +2022,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(-1));
         }
 
-        /// <summary>
-        /// Writes an empty StatusCode array and verifies the correct encoding.
-        /// Expected: Writes 0 as the length and no additional data.
-        /// </summary>
         [Test]
         public void WriteStatusCodeArray_EmptyArray_WritesZeroLength()
         {
@@ -2334,10 +2041,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(stream.Position, Is.EqualTo(stream.Length));
         }
 
-        /// <summary>
-        /// Writes a StatusCode array with a single element and verifies the encoding.
-        /// Expected: Writes 1 as the length followed by the StatusCode value.
-        /// </summary>
         [Test]
         public void WriteStatusCodeArray_SingleElement_WritesLengthAndValue()
         {
@@ -2358,10 +2061,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(value, Is.EqualTo(statusCode.Code));
         }
 
-        /// <summary>
-        /// Writes a StatusCode array with multiple elements and verifies the encoding.
-        /// Expected: Writes the count followed by all StatusCode values in order.
-        /// </summary>
         [Test]
         public void WriteStatusCodeArray_MultipleElements_WritesLengthAndAllValues()
         {
@@ -2391,10 +2090,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
         }
 
-        /// <summary>
-        /// Writes a StatusCode array that exceeds MaxArrayLength and verifies an exception is thrown.
-        /// Expected: Throws ServiceResultException with BadEncodingLimitsExceeded status code.
-        /// </summary>
         [Test]
         public void WriteStatusCodeArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
         {
@@ -2414,10 +2109,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex?.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Writes a StatusCode array with various StatusCode values including edge cases.
-        /// Expected: All StatusCode values are written correctly in sequence.
-        /// </summary>
         [Test]
         public void WriteStatusCodeArray_WithVariousStatusCodes_WritesAllCorrectly()
         {
@@ -2448,10 +2139,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
         }
 
-        /// <summary>
-        /// Writes a StatusCode array with MaxArrayLength set to 0 (unlimited) and a large array.
-        /// Expected: All StatusCode values are written without throwing an exception.
-        /// </summary>
         [Test]
         public void WriteStatusCodeArray_MaxArrayLengthZero_AllowsAnySize()
         {
@@ -2475,10 +2162,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(100));
         }
 
-        /// <summary>
-        /// Writes a StatusCode array with fieldName parameter to verify it's accepted but not used.
-        /// Expected: The fieldName parameter is ignored and encoding proceeds normally.
-        /// </summary>
         [Test]
         public void WriteStatusCodeArray_WithFieldName_IgnoresFieldName()
         {
@@ -2498,9 +2181,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(code, Is.EqualTo(42u));
         }
 
-        /// <summary>
-        /// Tests that WriteEncodingMask correctly writes a zero value.
-        /// </summary>
         [Test]
         public void WriteEncodingMask_WithZero_WritesZeroValue()
         {
@@ -2522,9 +2202,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[3], Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Tests that WriteEncodingMask correctly writes the maximum uint value.
-        /// </summary>
         [Test]
         public void WriteEncodingMask_WithMaxValue_WritesMaxValue()
         {
@@ -2546,10 +2223,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[3], Is.EqualTo(0xFF));
         }
 
-        /// <summary>
-        /// Tests that EncodeMessage successfully encodes a valid message and returns a byte array.
-        /// Verifies that the method creates an encoder, encodes the message, and returns the buffer.
-        /// </summary>
         [Test]
         public void EncodeMessage_ValidMessageAndContext_ReturnsEncodedByteArray()
         {
@@ -2571,10 +2244,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             mockMessage.Verify(m => m.Encode(It.IsAny<IEncoder>()), Times.Once);
         }
 
-        /// <summary>
-        /// Tests that EncodeMessage returns a non-empty byte array for a valid encodeable message.
-        /// Verifies that encoding actually produces output data.
-        /// </summary>
         [Test]
         public void EncodeMessage_ValidMessage_ReturnsNonEmptyByteArray()
         {
@@ -2595,10 +2264,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Length, Is.GreaterThan(0));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with a null extension object.
-        /// Expects NodeId.Null and ExtensionObjectEncoding.None to be written.
-        /// </summary>
         [Test]
         public void WriteExtensionObject_NullExtensionObject_WritesNullNodeIdAndNoneEncoding()
         {
@@ -2624,10 +2289,32 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(encoding, Is.EqualTo((byte)ExtensionObjectEncoding.None));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with an extension object that has a null body.
-        /// Expects the TypeId to be written followed by ExtensionObjectEncoding.None.
-        /// </summary>
+        [Test]
+        public void WriteExtensionObject_ExtensionObjectWithNullBody_WritesNodeIdAndNoneEncoding()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var namespaceTable = new NamespaceTable();
+            namespaceTable.Append(Namespaces.OpcUa);
+            messageContext.NamespaceUris = namespaceTable;
+            var encoder = new BinaryEncoder(messageContext);
+            var typeId = new ExpandedNodeId(123, 0);
+            var extensionObject = new ExtensionObject(typeId);
+            // Act
+            encoder.WriteExtensionObject("test", extensionObject);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.GreaterThan(0));
+            // Verify that null NodeId and None encoding were written
+            var decoder = new BinaryDecoder(result, messageContext);
+            NodeId nodeId = decoder.ReadNodeId(null);
+            byte encoding = decoder.ReadByte(null);
+            Assert.That(nodeId, Is.EqualTo(new NodeId(123, 0)));
+            Assert.That(encoding, Is.EqualTo((byte)ExtensionObjectEncoding.None));
+        }
+
         [Test]
         public void WriteExtensionObject_NullByteString_WritesTypeIdAndNoneEncoding()
         {
@@ -2652,10 +2339,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(encoding, Is.EqualTo((byte)ExtensionObjectEncoding.Binary));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with a byte array body.
-        /// Expects the TypeId, Binary encoding byte, and ByteString to be written.
-        /// </summary>
         [Test]
         public void WriteExtensionObject_ByteArrayBody_WritesByteString()
         {
@@ -2690,10 +2373,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(decodedBytes.ToArray(), Is.EqualTo(bodyBytes));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with an empty byte array body.
-        /// Expects the TypeId, Binary encoding byte, and empty ByteString to be written.
-        /// </summary>
         [Test]
         public void WriteExtensionObject_EmptyByteArrayBody_WritesEmptyByteString()
         {
@@ -2720,10 +2399,33 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(decodedBytes.ToArray(), Is.Empty);
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with an IEncodeable body on a seekable stream.
-        /// Expects the TypeId, Binary encoding byte, length, and encoded body to be written.
-        /// </summary>
+        [Test]
+        public void WriteExtensionObject_XmlElementBody_WritesXmlElement()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var namespaceTable = new NamespaceTable();
+            namespaceTable.Append(Namespaces.OpcUa);
+            messageContext.NamespaceUris = namespaceTable;
+            var encoder = new BinaryEncoder(messageContext);
+            var typeId = new ExpandedNodeId(456, 0);
+            var xmlElement = XmlElement.From("<root><child>Test</child></root>");
+            var extensionObject = new ExtensionObject(typeId, xmlElement);
+            // Act
+            encoder.WriteExtensionObject("test", extensionObject);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            var decoder = new BinaryDecoder(result, messageContext);
+            NodeId decodedNodeId = decoder.ReadNodeId(null);
+            byte encoding = decoder.ReadByte(null);
+            XmlElement decodedXmlElement = decoder.ReadXmlElement(null);
+            Assert.That(decodedNodeId, Is.EqualTo(new NodeId(456, 0)));
+            Assert.That(encoding, Is.EqualTo((byte)ExtensionObjectEncoding.Xml));
+            Assert.That(decodedXmlElement, Is.EqualTo(xmlElement));
+        }
+
         [Test]
         public void WriteExtensionObject_EncodeableBodySeekableStream_WritesEncodedBody()
         {
@@ -2757,10 +2459,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(value, Is.EqualTo(42));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with an IEncodeable body on a non-seekable stream.
-        /// Expects the body to be pre-encoded and then written as ByteString.
-        /// </summary>
         [Test]
         public void WriteExtensionObject_EncodeableBodyNonSeekableStream_PreEncodesBody()
         {
@@ -2795,7 +2493,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void WriteExtensionObject_EncodeableWithXmlEncoding_UsesXmlEncodingId()
+        public void WriteExtensionObject_EncodeableUsesBinaryEncodingId()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -2823,10 +2521,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(decodedNodeId, Is.EqualTo(new NodeId(666, 0)));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with an IEncodeable body whose namespace is not in the encoder's namespace table.
-        /// Expects a ServiceResultException with StatusCodes.BadEncodingError.
-        /// </summary>
         [Test]
         public void WriteExtensionObject_EncodeableWithUnknownNamespace_ThrowsServiceResultException()
         {
@@ -2852,10 +2546,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.Message, Does.Contain(unknownNamespace));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with an unsupported body type (not byte[], XmlElement, or IEncodeable).
-        /// Expects a ServiceResultException with StatusCodes.BadEncodingError.
-        /// </summary>
         [Test]
         public void WriteExtensionObject_UnsupportedBodyType_ThrowsServiceResultException()
         {
@@ -2878,10 +2568,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.Message, Does.Contain("Cannot encode extension object"));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with a large byte array body.
-        /// Verifies that large bodies are handled correctly.
-        /// </summary>
         [Test]
         public void WriteExtensionObject_LargeByteArrayBody_WritesCorrectly()
         {
@@ -2912,10 +2598,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(decodedBytes.ToArray(), Is.EqualTo(bodyBytes));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with multiple namespace indices.
-        /// Verifies that namespace mapping works correctly.
-        /// </summary>
         [Test]
         public void WriteExtensionObject_MultipleNamespaces_HandlesNamespaceMapping()
         {
@@ -2939,10 +2621,25 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(decodedNodeId, Is.EqualTo(new NodeId(1234, 1)));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with null fieldName parameter.
-        /// Verifies that null fieldName is handled correctly (fieldName is not used in binary encoding).
-        /// </summary>
+        [Test]
+        public void WriteExtensionObject_BytetringEncodeableWithUnknownExternalTypeId_WritesNullNodeId()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            var typeId = new ExpandedNodeId(1234, 5, "http://someurinotknowntous", 5);
+            var extensionObject = new ExtensionObject(typeId, ByteString.From([1, 2]));
+            // Act
+            encoder.WriteExtensionObject("test", extensionObject);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            var decoder = new BinaryDecoder(result, messageContext);
+            NodeId decodedNodeId = decoder.ReadNodeId(null);
+            Assert.That(decodedNodeId, Is.EqualTo(NodeId.Null));
+        }
+
         [Test]
         public void WriteExtensionObject_NullFieldName_WritesCorrectly()
         {
@@ -2962,10 +2659,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Length, Is.GreaterThan(0));
         }
 
-        /// <summary>
-        /// Tests WriteExtensionObject with an IEncodeable that encodes complex nested data.
-        /// Verifies that complex encoding scenarios work correctly.
-        /// </summary>
         [Test]
         public void WriteExtensionObject_ComplexEncodeable_EncodesCorrectly()
         {
@@ -3008,10 +2701,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(flag, Is.True);
         }
 
-        /// <summary>
-        /// Tests that WriteDoubleArray throws ServiceResultException when array exceeds MaxArrayLength.
-        /// Expected: ServiceResultException with BadEncodingLimitsExceeded status code.
-        /// </summary>
         [Test]
         public void WriteDoubleArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
         {
@@ -3025,9 +2714,22 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Tests that WriteLocalizedTextArray writes 0 for empty array.
-        /// </summary>
+        [Test]
+        public void WriteDoubleArray_EmptyArray_WritesZeroLength()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<double> emptyArray = [];
+            // Act
+            encoder.WriteDoubleArray("TestField", emptyArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
+        }
+
         [Test]
         public void WriteLocalizedTextArray_EmptyArray_WritesZeroLength()
         {
@@ -3046,9 +2748,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Tests that WriteLocalizedTextArray writes single element array correctly.
-        /// </summary>
         [Test]
         public void WriteLocalizedTextArray_SingleElement_WritesLengthAndElement()
         {
@@ -3072,9 +2771,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(1));
         }
 
-        /// <summary>
-        /// Tests that WriteLocalizedTextArray writes multiple elements correctly.
-        /// </summary>
         [Test]
         public void WriteLocalizedTextArray_MultipleElements_WritesLengthAndAllElements()
         {
@@ -3100,9 +2796,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(3));
         }
 
-        /// <summary>
-        /// Tests that WriteLocalizedTextArray throws when array exceeds MaxArrayLength.
-        /// </summary>
         [Test]
         public void WriteLocalizedTextArray_ExceedsMaxLength_ThrowsServiceResultException()
         {
@@ -3120,9 +2813,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex?.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Tests that WriteLocalizedTextArray handles array with null LocalizedText elements.
-        /// </summary>
         [Test]
         public void WriteLocalizedTextArray_WithNullElements_WritesNullEncoding()
         {
@@ -3143,9 +2833,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(buffer[5], Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Tests that WriteLocalizedTextArray handles array with mixed null and non-null elements.
-        /// </summary>
         [Test]
         public void WriteLocalizedTextArray_MixedNullAndNonNull_WritesCorrectly()
         {
@@ -3169,9 +2856,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(3));
         }
 
-        /// <summary>
-        /// Tests that WriteLocalizedTextArray handles array with LocalizedText having only Text.
-        /// </summary>
         [Test]
         public void WriteLocalizedTextArray_OnlyText_WritesCorrectly()
         {
@@ -3195,9 +2879,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(1));
         }
 
-        /// <summary>
-        /// Tests that WriteLocalizedTextArray handles array at MaxArrayLength boundary.
-        /// </summary>
         [Test]
         public void WriteLocalizedTextArray_AtMaxLength_WritesCorrectly()
         {
@@ -3219,9 +2900,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(3));
         }
 
-        /// <summary>
-        /// Tests that WriteLocalizedTextArray handles very long locale and text strings.
-        /// </summary>
         [Test]
         public void WriteLocalizedTextArray_LongStrings_WritesCorrectly()
         {
@@ -3247,10 +2925,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(1));
         }
 
-        /// <summary>
-        /// Tests that CloseAndReturnBuffer returns a byte array when encoder is created with default constructor.
-        /// The encoder uses a MemoryStream internally.
-        /// </summary>
         [Test]
         public void CloseAndReturnBuffer_DefaultConstructor_ReturnsEmptyByteArray()
         {
@@ -3266,10 +2940,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Length, Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Tests that CloseAndReturnBuffer returns a byte array with written data when encoder is created with default constructor.
-        /// Writes some data before calling CloseAndReturnBuffer to verify the buffer contains the encoded data.
-        /// </summary>
         [Test]
         public void CloseAndReturnBuffer_DefaultConstructorWithData_ReturnsByteArrayWithData()
         {
@@ -3287,10 +2957,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Length, Is.GreaterThan(0));
         }
 
-        /// <summary>
-        /// Tests that CloseAndReturnBuffer returns a byte array when encoder is created with buffer constructor.
-        /// The encoder uses a MemoryStream over the provided buffer.
-        /// </summary>
         [Test]
         public void CloseAndReturnBuffer_BufferConstructor_ReturnsByteArray()
         {
@@ -3306,10 +2972,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result, Is.InstanceOf<byte[]>());
         }
 
-        /// <summary>
-        /// Tests that CloseAndReturnBuffer returns a byte array with data when encoder is created with buffer constructor.
-        /// Writes data to the buffer and verifies it is returned.
-        /// </summary>
         [Test]
         public void CloseAndReturnBuffer_BufferConstructorWithData_ReturnsByteArrayWithData()
         {
@@ -3328,10 +2990,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Length, Is.GreaterThan(0));
         }
 
-        /// <summary>
-        /// Tests that CloseAndReturnBuffer returns null when encoder is created with a non-MemoryStream.
-        /// Uses a FileStream to verify the method returns null for non-MemoryStream types.
-        /// </summary>
         [Test]
         public void CloseAndReturnBuffer_NonMemoryStream_ReturnsNull()
         {
@@ -3358,10 +3016,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
         }
 
-        /// <summary>
-        /// Tests that CloseAndReturnBuffer returns null when encoder is created with a custom stream.
-        /// Uses a generic Stream implementation to verify non-MemoryStream handling.
-        /// </summary>
         [Test]
         public void CloseAndReturnBuffer_CustomStream_ReturnsNull()
         {
@@ -3377,10 +3031,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result, Is.Null);
         }
 
-        /// <summary>
-        /// Tests that CloseAndReturnBuffer can be called multiple times without throwing.
-        /// After the first call, subsequent calls should handle disposed state gracefully.
-        /// </summary>
         [Test]
         public void CloseAndReturnBuffer_CalledMultipleTimes_DoesNotThrow()
         {
@@ -3397,10 +3047,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.Throws<ObjectDisposedException>(() => encoder.CloseAndReturnBuffer());
         }
 
-        /// <summary>
-        /// Tests that CloseAndReturnBuffer returns correct data for maximum buffer size.
-        /// Writes data up to the buffer limit to verify edge case handling.
-        /// </summary>
         [Test]
         public void CloseAndReturnBuffer_MaximumBufferSize_ReturnsCompleteData()
         {
@@ -3423,10 +3069,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Length, Is.GreaterThan(0));
         }
 
-        /// <summary>
-        /// Tests that CloseAndReturnBuffer returns byte array with offset and count parameters.
-        /// Verifies that the buffer constructor with offset and count works correctly.
-        /// </summary>
         [Test]
         public void CloseAndReturnBuffer_BufferWithOffsetAndCount_ReturnsByteArray()
         {
@@ -3445,10 +3087,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result, Is.InstanceOf<byte[]>());
         }
 
-        /// <summary>
-        /// Tests that CloseAndReturnBuffer flushes data before returning.
-        /// Verifies that all written data is included in the returned buffer.
-        /// </summary>
         [Test]
         public void CloseAndReturnBuffer_FlushesDataBeforeReturn_ReturnsCompleteData()
         {
@@ -3467,9 +3105,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(decodedValue, Is.EqualTo(testValue));
         }
 
-        /// <summary>
-        /// Tests that SaveStringTable writes -1 when stringTable parameter is null.
-        /// </summary>
         [Test]
         public void SaveStringTable_NullStringTable_WritesMinusOne()
         {
@@ -3487,9 +3122,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(value, Is.EqualTo(-1));
         }
 
-        /// <summary>
-        /// Tests that SaveStringTable writes -1 when stringTable has Count equal to 0.
-        /// </summary>
         [Test]
         public void SaveStringTable_EmptyStringTable_WritesMinusOne()
         {
@@ -3508,9 +3140,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(value, Is.EqualTo(-1));
         }
 
-        /// <summary>
-        /// Tests that SaveStringTable writes -1 when stringTable has Count equal to 1.
-        /// </summary>
         [Test]
         public void SaveStringTable_StringTableWithCountOne_WritesMinusOne()
         {
@@ -3529,9 +3158,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(value, Is.EqualTo(-1));
         }
 
-        /// <summary>
-        /// Tests that SaveStringTable correctly writes count and strings when stringTable has Count equal to 2.
-        /// </summary>
         [Test]
         public void SaveStringTable_StringTableWithCountTwo_WritesCountAndString()
         {
@@ -3557,9 +3183,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(decodedString, Is.EqualTo("SecondString"));
         }
 
-        /// <summary>
-        /// Tests that SaveStringTable correctly writes count and multiple strings when stringTable has Count greater than 2.
-        /// </summary>
         [Test]
         public void SaveStringTable_StringTableWithMultipleEntries_WritesCountAndAllStrings()
         {
@@ -3594,9 +3217,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
         }
 
-        /// <summary>
-        /// Tests that SaveStringTable handles stringTable with empty strings correctly.
-        /// </summary>
         [Test]
         public void SaveStringTable_StringTableWithEmptyStrings_WritesEmptyStrings()
         {
@@ -3630,9 +3250,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(decodedString, Is.EqualTo("Third"));
         }
 
-        /// <summary>
-        /// Tests that SaveStringTable handles stringTable with special characters correctly.
-        /// </summary>
         [Test]
         public void SaveStringTable_StringTableWithSpecialCharacters_WritesSpecialCharacters()
         {
@@ -3668,9 +3285,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(decodedString2, Is.EqualTo("Unicode日本語"));
         }
 
-        /// <summary>
-        /// Tests that SaveStringTable handles very long strings correctly.
-        /// </summary>
         [Test]
         public void SaveStringTable_StringTableWithLongStrings_WritesLongStrings()
         {
@@ -3701,11 +3315,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(decodedString, Is.EqualTo(longString));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64 correctly writes ulong minimum value to the binary stream.
-        /// Input: ulong.MinValue (0)
-        /// Expected: 8 bytes representing 0 in little-endian format
-        /// </summary>
         [Test]
         public void WriteUInt64_MinValue_WritesCorrectBytes()
         {
@@ -3723,11 +3332,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(buffer, Is.EqualTo(new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64 correctly writes ulong maximum value to the binary stream.
-        /// Input: ulong.MaxValue (18446744073709551615)
-        /// Expected: 8 bytes representing maximum ulong in little-endian format
-        /// </summary>
         [Test]
         public void WriteUInt64_MaxValue_WritesCorrectBytes()
         {
@@ -3745,11 +3349,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(buffer, Is.EqualTo(new byte[] { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF }));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64 can write multiple values sequentially to the stream.
-        /// Input: Multiple ulong values written sequentially
-        /// Expected: All values correctly written in order in the binary stream
-        /// </summary>
         [Test]
         public void WriteUInt64_MultipleValues_WritesAllValuesSequentially()
         {
@@ -3779,11 +3378,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(buffer[23], Is.EqualTo(0xFF));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64 correctly writes power of 2 boundary values.
-        /// Input: Powers of 2 (bit boundaries)
-        /// Expected: Correct binary representation with single bit set
-        /// </summary>
         [TestCase(1ul, 0, TestName = "WriteUInt64_PowerOf2_Bit0")]
         [TestCase(2ul, 1, TestName = "WriteUInt64_PowerOf2_Bit1")]
         [TestCase(4ul, 2, TestName = "WriteUInt64_PowerOf2_Bit2")]
@@ -3819,11 +3413,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
         }
 
-        /// <summary>
-        /// Tests that WriteExpandedNodeId writes a null ExpandedNodeId correctly by writing a single UInt16 with value 0.
-        /// Input: ExpandedNodeId.Null
-        /// Expected: Writes UInt16(0) and returns immediately without further processing.
-        /// </summary>
         [Test]
         public void WriteExpandedNodeId_NullExpandedNodeId_WritesZero()
         {
@@ -3843,11 +3432,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[1], Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Tests that WriteExpandedNodeId correctly writes a simple numeric ExpandedNodeId without namespace URI or server index.
-        /// Input: ExpandedNodeId with numeric NodeId, no namespace URI, server index 0
-        /// Expected: Writes encoding byte and node id body without namespace URI or server index.
-        /// </summary>
         [Test]
         public void WriteExpandedNodeId_SimpleNumericNodeId_WritesCorrectly()
         {
@@ -3870,11 +3454,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[1], Is.EqualTo(100));
         }
 
-        /// <summary>
-        /// Tests that WriteExpandedNodeId correctly sets the 0x80 bit when NamespaceUri is provided.
-        /// Input: ExpandedNodeId with non-null NamespaceUri
-        /// Expected: Encoding byte has 0x80 bit set, and namespace URI is written.
-        /// </summary>
         [Test]
         public void WriteExpandedNodeId_WithNamespaceUri_SetsNamespaceUriBit()
         {
@@ -3895,11 +3474,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0] & 0x80, Is.EqualTo(0x80));
         }
 
-        /// <summary>
-        /// Tests that WriteExpandedNodeId correctly sets the 0x40 bit when ServerIndex is greater than 0.
-        /// Input: ExpandedNodeId with ServerIndex > 0
-        /// Expected: Encoding byte has 0x40 bit set, and server index is written.
-        /// </summary>
         [Test]
         public void WriteExpandedNodeId_WithServerIndex_SetsServerIndexBit()
         {
@@ -3920,11 +3494,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0] & 0x40, Is.EqualTo(0x40));
         }
 
-        /// <summary>
-        /// Tests that WriteExpandedNodeId correctly sets both 0x80 and 0x40 bits when both NamespaceUri and ServerIndex are provided.
-        /// Input: ExpandedNodeId with non-null NamespaceUri and ServerIndex > 0
-        /// Expected: Encoding byte has both 0x80 and 0x40 bits set.
-        /// </summary>
         [Test]
         public void WriteExpandedNodeId_WithNamespaceUriAndServerIndex_SetsBothBits()
         {
@@ -3945,11 +3514,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0] & 0xC0, Is.EqualTo(0xC0));
         }
 
-        /// <summary>
-        /// Tests that WriteExpandedNodeId does not set the 0x40 bit when ServerIndex is 0.
-        /// Input: ExpandedNodeId with ServerIndex = 0
-        /// Expected: Encoding byte does not have 0x40 bit set.
-        /// </summary>
         [Test]
         public void WriteExpandedNodeId_WithServerIndexZero_DoesNotSetServerIndexBit()
         {
@@ -3970,11 +3534,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0] & 0x40, Is.EqualTo(0x00));
         }
 
-        /// <summary>
-        /// Tests that WriteExpandedNodeId does not set the 0x80 bit when NamespaceUri is null.
-        /// Input: ExpandedNodeId with null NamespaceUri
-        /// Expected: Encoding byte does not have 0x80 bit set.
-        /// </summary>
         [Test]
         public void WriteExpandedNodeId_WithNullNamespaceUri_DoesNotSetNamespaceUriBit()
         {
@@ -3995,11 +3554,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0] & 0x80, Is.EqualTo(0x00));
         }
 
-        /// <summary>
-        /// Tests that WriteExpandedNodeId does not set the 0x80 bit when NamespaceUri is empty.
-        /// Input: ExpandedNodeId with empty string NamespaceUri
-        /// Expected: Encoding byte does not have 0x80 bit set.
-        /// </summary>
         [Test]
         public void WriteExpandedNodeId_WithEmptyNamespaceUri_DoesNotSetNamespaceUriBit()
         {
@@ -4020,11 +3574,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0] & 0x80, Is.EqualTo(0x00));
         }
 
-        /// <summary>
-        /// Tests that WriteExpandedNodeId uses namespace mappings when SetMappingTables has been called.
-        /// Input: ExpandedNodeId with namespace index, and namespace mappings configured
-        /// Expected: Uses mapped namespace index.
-        /// </summary>
         [Test]
         public void WriteExpandedNodeId_WithNamespaceMappings_UsesMappedNamespaceIndex()
         {
@@ -4053,11 +3602,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Length, Is.GreaterThan(0));
         }
 
-        /// <summary>
-        /// Tests that WriteExpandedNodeId uses server mappings when SetMappingTables has been called.
-        /// Input: ExpandedNodeId with server index, and server mappings configured
-        /// Expected: Uses mapped server index.
-        /// </summary>
         [Test]
         public void WriteExpandedNodeId_WithServerMappings_UsesMappedServerIndex()
         {
@@ -4088,11 +3632,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0] & 0x40, Is.EqualTo(0x40));
         }
 
-        /// <summary>
-        /// Tests that WriteExpandedNodeId handles different node id types (String, Guid, ByteString).
-        /// Input: ExpandedNodeId with String-type NodeId
-        /// Expected: Writes string node id correctly with appropriate encoding.
-        /// </summary>
         [Test]
         public void WriteExpandedNodeId_WithStringNodeId_WritesCorrectly()
         {
@@ -4251,9 +3790,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0], Is.EqualTo(0x02)); // SevenByte encoding
         }
 
-        /// <summary>
-        /// Tests that WriteInt16Array writes -1 for a null array and returns early.
-        /// </summary>
         [Test]
         public void WriteInt16Array_NullArray_WritesMinusOneAndReturns()
         {
@@ -4270,9 +3806,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(-1));
         }
 
-        /// <summary>
-        /// Tests that WriteInt16Array writes 0 for an empty array and returns early.
-        /// </summary>
         [Test]
         public void WriteInt16Array_EmptyArray_WritesZeroAndReturns()
         {
@@ -4289,9 +3822,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Tests that WriteInt16Array writes a single element array correctly.
-        /// </summary>
         [Test]
         public void WriteInt16Array_SingleElement_WritesLengthAndValue()
         {
@@ -4313,9 +3843,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt16(result, 4), Is.EqualTo(expectedValue));
         }
 
-        /// <summary>
-        /// Tests that WriteInt16Array writes multiple elements correctly.
-        /// </summary>
         [Test]
         public void WriteInt16Array_MultipleElements_WritesAllValues()
         {
@@ -4344,9 +3871,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
         }
 
-        /// <summary>
-        /// Tests that WriteInt16Array handles boundary values correctly (short.MinValue, short.MaxValue, 0).
-        /// </summary>
         [TestCase(short.MinValue)]
         [TestCase(short.MaxValue)]
         [TestCase((short)0)]
@@ -4371,9 +3895,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt16(result, 4), Is.EqualTo(value));
         }
 
-        /// <summary>
-        /// Tests that WriteInt16Array throws ServiceResultException when array exceeds MaxArrayLength.
-        /// </summary>
         [Test]
         public void WriteInt16Array_ExceedsMaxArrayLength_ThrowsServiceResultException()
         {
@@ -4393,9 +3914,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex?.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Tests that WriteInt16Array writes array with mixed positive and negative values correctly.
-        /// </summary>
         [Test]
         public void WriteInt16Array_MixedValues_WritesCorrectly()
         {
@@ -4424,9 +3942,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
         }
 
-        /// <summary>
-        /// Tests that WriteInt16Array with fieldName parameter writes correctly.
-        /// </summary>
         [Test]
         public void WriteInt16Array_WithFieldName_WritesCorrectly()
         {
@@ -4449,9 +3964,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt16(result, 6), Is.EqualTo((short)20));
         }
 
-        /// <summary>
-        /// Tests that WriteInt16Array handles large arrays within limits.
-        /// </summary>
         [Test]
         public void WriteInt16Array_LargeArrayWithinLimits_WritesCorrectly()
         {
@@ -4477,9 +3989,35 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
         }
 
-        /// <summary>
-        /// Tests that WriteNodeIdArray correctly handles an empty array by writing 0 as the length.
-        /// </summary>
+        [Test]
+        public void WriteNodeId_WithNamespaceMappings_UsesMappedNamespaceIndex()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var contextNamespaceUris = new NamespaceTable();
+            var encoderNamespaceUris = new NamespaceTable();
+
+            messageContext.NamespaceUris = contextNamespaceUris;
+            // Add namespace URIs in different order to create a mapping
+            contextNamespaceUris.Append("http://namespace1.com");
+            contextNamespaceUris.Append("http://namespace2.com");
+            encoderNamespaceUris.Append("http://namespace2.com");
+            encoderNamespaceUris.Append("http://namespace1.com");
+            var encoder = new BinaryEncoder(messageContext);
+            encoder.SetMappingTables(encoderNamespaceUris, null);
+            var nodeId = new NodeId(100u, 1); // namespace index 1 in encoder space
+            // Act
+            encoder.WriteNodeId("TestField", nodeId);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(result[1], Is.EqualTo(2)); // namespace index 2 via mapping
+            Assert.That(result[2], Is.EqualTo(100)); // namespace index 2 via mapping
+        }
+
         [Test]
         public void WriteNodeIdArray_EmptyArray_WritesZeroLength()
         {
@@ -4498,9 +4036,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeIdArray correctly encodes a single NodeId element.
-        /// </summary>
         [Test]
         public void WriteNodeIdArray_SingleElement_WritesLengthAndNodeId()
         {
@@ -4520,9 +4055,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(1));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeIdArray correctly encodes multiple NodeId elements.
-        /// </summary>
         [Test]
         public void WriteNodeIdArray_MultipleElements_WritesAllNodeIds()
         {
@@ -4658,10 +4190,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Length, Is.GreaterThan(4));
         }
 
-        /// <summary>
-        /// Tests that the constructor creates a BinaryEncoder instance with valid parameters and leaveOpen set to true.
-        /// Verifies that Context property is set correctly.
-        /// </summary>
         [Test]
         public void BinaryEncoder_ValidParametersLeaveOpenTrue_CreatesInstance()
         {
@@ -4677,10 +4205,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(encoder.Context, Is.EqualTo(messageContext));
         }
 
-        /// <summary>
-        /// Tests that the constructor creates a BinaryEncoder instance with valid parameters and leaveOpen set to false.
-        /// Verifies that Context property is set correctly.
-        /// </summary>
         [Test]
         public void BinaryEncoder_ValidParametersLeaveOpenFalse_CreatesInstance()
         {
@@ -4696,10 +4220,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(encoder.Context, Is.EqualTo(messageContext));
         }
 
-        /// <summary>
-        /// Tests that the constructor can write to the stream after creation.
-        /// Verifies that the BinaryWriter is properly initialized.
-        /// </summary>
         [Test]
         public void BinaryEncoder_ValidParameters_CanWriteToStream()
         {
@@ -4717,11 +4237,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(stream.Length, Is.GreaterThan(0));
         }
 
-        /// <summary>
-        /// Tests that the constructor works with different stream types.
-        /// Verifies that the encoder can be created with various stream implementations.
-        /// </summary>
-        /// <param name = "leaveOpen">The leaveOpen parameter value to test.</param>
         [TestCase(true)]
         [TestCase(false)]
         public void BinaryEncoder_DifferentLeaveOpenValues_CreatesInstance(bool leaveOpen)
@@ -4738,10 +4253,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(encoder.Context, Is.EqualTo(messageContext));
         }
 
-        /// <summary>
-        /// Tests that WriteBoolean correctly writes a true value to the stream.
-        /// Verifies the encoded byte matches the expected binary representation (0x01).
-        /// </summary>
         [Test]
         public void WriteBoolean_TrueValue_WritesCorrectByte()
         {
@@ -4759,10 +4270,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0], Is.EqualTo(0x01));
         }
 
-        /// <summary>
-        /// Tests that WriteBoolean correctly writes a false value to the stream.
-        /// Verifies the encoded byte matches the expected binary representation (0x00).
-        /// </summary>
         [Test]
         public void WriteBoolean_FalseValue_WritesCorrectByte()
         {
@@ -4780,10 +4287,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0], Is.EqualTo(0x00));
         }
 
-        /// <summary>
-        /// Tests that WriteBoolean can write multiple boolean values in sequence.
-        /// Verifies each value is correctly encoded in the output stream.
-        /// </summary>
         [Test]
         public void WriteBoolean_MultipleBooleans_WritesCorrectSequence()
         {
@@ -4807,10 +4310,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[3], Is.EqualTo(0x00));
         }
 
-        /// <summary>
-        /// Tests that WriteBoolean works correctly with both boolean values using parameterized test.
-        /// Verifies the correct byte representation for each boolean value.
-        /// </summary>
         [TestCase(true, 0x01)]
         [TestCase(false, 0x00)]
         public void WriteBoolean_BooleanValue_WritesExpectedByte(bool value, byte expectedByte)
@@ -4829,10 +4328,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0], Is.EqualTo(expectedByte));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTime with DateTime.MaxValue writes long.MaxValue to the stream.
-        /// This verifies the boundary condition where ticks >= DateTime.MaxValue.Ticks.
-        /// </summary>
         [Test]
         public void WriteDateTime_MaxValue_WritesLongMaxValue()
         {
@@ -4851,10 +4346,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(writtenValue, Is.EqualTo(long.MaxValue));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTime with DateTime.MinValue writes 0 to the stream.
-        /// This verifies the boundary condition where ticks after subtraction are <  =  0 .
-        /// </summary>
         [Test]
         public void WriteDateTime_MinValue_WritesZero()
         {
@@ -4873,10 +4364,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(writtenValue, Is.EqualTo(0L));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTime with a date equal to TimeBase (1601-01-01) writes 0 to the stream.
-        /// This verifies the boundary condition where ticks exactly equal TimeBase.Ticks.
-        /// </summary>
         [Test]
         public void WriteDateTime_TimeBase_WritesZero()
         {
@@ -4896,10 +4383,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(writtenValue, Is.EqualTo(0L));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTime with a date before TimeBase writes 0 to the stream.
-        /// This verifies that dates before the OPC UA epoch result in zero ticks.
-        /// </summary>
         [Test]
         public void WriteDateTime_BeforeTimeBase_WritesZero()
         {
@@ -4919,10 +4402,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(writtenValue, Is.EqualTo(0L));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTime with a normal date after TimeBase writes the correct ticks.
-        /// This verifies the standard path where ticks are calculated as (value.Ticks - TimeBase.Ticks).
-        /// </summary>
         [Test]
         public void WriteDateTime_NormalDate_WritesCorrectTicks()
         {
@@ -4944,10 +4423,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(writtenValue, Is.EqualTo(expectedTicks));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTime with DateTimeKind.Local converts to UTC and writes correct ticks.
-        /// This verifies that local times are properly converted to universal time.
-        /// </summary>
         [Test]
         public void WriteDateTime_LocalKind_ConvertsToUtcAndWritesCorrectTicks()
         {
@@ -4970,10 +4445,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(writtenValue, Is.EqualTo(expectedTicks));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTime with DateTimeKind.Unspecified converts to UTC and writes correct ticks.
-        /// This verifies that unspecified kind dates are treated as local time and converted to UTC.
-        /// </summary>
         [Test]
         public void WriteDateTime_UnspecifiedKind_ConvertsToUtcAndWritesCorrectTicks()
         {
@@ -4996,10 +4467,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(writtenValue, Is.EqualTo(expectedTicks));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTime with DateTimeKind.Utc writes correct ticks without conversion.
-        /// This verifies that UTC dates are written directly without conversion.
-        /// </summary>
         [Test]
         public void WriteDateTime_UtcKind_WritesCorrectTicksWithoutConversion()
         {
@@ -5021,10 +4488,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(writtenValue, Is.EqualTo(expectedTicks));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTime with a date just after TimeBase writes positive ticks.
-        /// This verifies the boundary just above the OPC UA epoch.
-        /// </summary>
         [Test]
         public void WriteDateTime_JustAfterTimeBase_WritesPositiveTicks()
         {
@@ -5047,13 +4510,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(writtenValue, Is.GreaterThan(0));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTime with various historical dates writes correct ticks.
-        /// This verifies handling of dates across different centuries.
-        /// </summary>
-        /// <param name = "year">The year to test.</param>
-        /// <param name = "month">The month to test.</param>
-        /// <param name = "day">The day to test.</param>
         [TestCase(1700, 6, 15)]
         [TestCase(1800, 12, 25)]
         [TestCase(1900, 1, 1)]
@@ -5079,9 +4535,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(writtenValue, Is.EqualTo(expectedTicks));
         }
 
-        /// <summary>
-        /// Test that WriteDataValue writes a single zero byte when the DataValue is null.
-        /// </summary>
         [Test]
         public void WriteDataValue_NullValue_WritesZeroByte()
         {
@@ -5097,9 +4550,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0], Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Test that WriteDataValue writes only the encoding byte when DataValue has all default values.
-        /// </summary>
         [Test]
         public void WriteDataValue_DefaultDataValue_WritesZeroEncodingByte()
         {
@@ -5116,16 +4566,13 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0], Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Test that WriteDataValue correctly encodes a DataValue with only a Variant value set.
-        /// </summary>
         [Test]
         public void WriteDataValue_WithVariantValue_WritesValueEncodingBit()
         {
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
-            var dataValue = new DataValue(new Variant(42));
+            var dataValue = new DataValue(Variant.From(42));
             // Act
             encoder.WriteDataValue("test", dataValue);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -5135,9 +4582,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0] & 0x01, Is.EqualTo(0x01)); // Value bit set
         }
 
-        /// <summary>
-        /// Test that WriteDataValue correctly encodes a DataValue with a non-Good StatusCode.
-        /// </summary>
         [Test]
         public void WriteDataValue_WithNonGoodStatusCode_WritesStatusCodeEncodingBit()
         {
@@ -5154,9 +4598,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0] & 0x02, Is.EqualTo(0x02)); // StatusCode bit set
         }
 
-        /// <summary>
-        /// Test that WriteDataValue correctly encodes a DataValue with a SourceTimestamp.
-        /// </summary>
         [Test]
         public void WriteDataValue_WithSourceTimestamp_WritesSourceTimestampEncodingBit()
         {
@@ -5176,9 +4617,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0] & 0x04, Is.EqualTo(0x04)); // SourceTimestamp bit set
         }
 
-        /// <summary>
-        /// Test that WriteDataValue correctly encodes a DataValue with SourceTimestamp and SourcePicoseconds.
-        /// </summary>
         [Test]
         public void WriteDataValue_WithSourceTimestampAndPicoseconds_WritesBothEncodingBits()
         {
@@ -5200,9 +4638,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0] & 0x10, Is.EqualTo(0x10)); // SourcePicoseconds bit set
         }
 
-        /// <summary>
-        /// Test that WriteDataValue correctly encodes a DataValue with SourceTimestamp but zero SourcePicoseconds.
-        /// </summary>
         [Test]
         public void WriteDataValue_WithSourceTimestampAndZeroPicoseconds_WritesOnlyTimestampBit()
         {
@@ -5224,9 +4659,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0] & 0x10, Is.EqualTo(0x00)); // SourcePicoseconds bit not set
         }
 
-        /// <summary>
-        /// Test that WriteDataValue correctly encodes a DataValue with a ServerTimestamp.
-        /// </summary>
         [Test]
         public void WriteDataValue_WithServerTimestamp_WritesServerTimestampEncodingBit()
         {
@@ -5246,9 +4678,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0] & 0x08, Is.EqualTo(0x08)); // ServerTimestamp bit set
         }
 
-        /// <summary>
-        /// Test that WriteDataValue correctly encodes a DataValue with ServerTimestamp and ServerPicoseconds.
-        /// </summary>
         [Test]
         public void WriteDataValue_WithServerTimestampAndPicoseconds_WritesBothEncodingBits()
         {
@@ -5270,9 +4699,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0] & 0x20, Is.EqualTo(0x20)); // ServerPicoseconds bit set
         }
 
-        /// <summary>
-        /// Test that WriteDataValue correctly encodes a DataValue with ServerTimestamp but zero ServerPicoseconds.
-        /// </summary>
         [Test]
         public void WriteDataValue_WithServerTimestampAndZeroPicoseconds_WritesOnlyTimestampBit()
         {
@@ -5294,9 +4720,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0] & 0x20, Is.EqualTo(0x00)); // ServerPicoseconds bit not set
         }
 
-        /// <summary>
-        /// Test that WriteDataValue correctly encodes a DataValue with all fields populated.
-        /// </summary>
         [Test]
         public void WriteDataValue_WithAllFields_WritesAllEncodingBits()
         {
@@ -5305,7 +4728,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(context);
             var dataValue = new DataValue
             {
-                WrappedValue = new Variant(42),
+                WrappedValue = Variant.From(42),
                 StatusCode = StatusCodes.Bad,
                 SourceTimestamp = DateTime.UtcNow,
                 SourcePicoseconds = 1234,
@@ -5326,9 +4749,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0] & 0x20, Is.EqualTo(0x20)); // ServerPicoseconds bit set
         }
 
-        /// <summary>
-        /// Test that WriteDataValue handles a DataValue with DateTime.MinValue for timestamps.
-        /// </summary>
         [Test]
         public void WriteDataValue_WithMinValueTimestamps_DoesNotWriteTimestampBits()
         {
@@ -5350,16 +4770,13 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0] & 0x08, Is.EqualTo(0x00)); // ServerTimestamp bit not set
         }
 
-        /// <summary>
-        /// Test that WriteDataValue correctly handles a DataValue with StatusCodes.Good.
-        /// </summary>
         [Test]
         public void WriteDataValue_WithGoodStatusCode_DoesNotWriteStatusCodeBit()
         {
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
-            var dataValue = new DataValue(new Variant(42), StatusCodes.Good);
+            var dataValue = new DataValue(Variant.From(42), StatusCodes.Good);
             // Act
             encoder.WriteDataValue("test", dataValue);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -5369,9 +4786,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0] & 0x02, Is.EqualTo(0x00)); // StatusCode bit not set
         }
 
-        /// <summary>
-        /// Test that WriteDataValue handles a DataValue with a null Variant value.
-        /// </summary>
         [Test]
         public void WriteDataValue_WithNullVariant_DoesNotWriteValueBit()
         {
@@ -5391,9 +4805,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0] & 0x01, Is.EqualTo(0x00)); // Value bit not set
         }
 
-        /// <summary>
-        /// Test that WriteDataValue handles maximum ushort values for picoseconds.
-        /// </summary>
         [Test]
         public void WriteDataValue_WithMaxPicoseconds_WritesCorrectly()
         {
@@ -5417,9 +4828,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0] & 0x20, Is.EqualTo(0x20)); // ServerPicoseconds bit set
         }
 
-        /// <summary>
-        /// Test that WriteDataValue handles boundary values for picoseconds.
-        /// </summary>
         [Test]
         public void WriteDataValue_WithBoundaryPicoseconds_WritesCorrectly()
         {
@@ -5443,9 +4851,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0] & 0x20, Is.EqualTo(0x20)); // ServerPicoseconds bit set
         }
 
-        /// <summary>
-        /// Test that WriteDataValue can handle various StatusCode values.
-        /// </summary>
         [TestCase(typeof(StatusCodes), "Bad")]
         [TestCase(typeof(StatusCodes), "Uncertain")]
         [TestCase(typeof(StatusCodes), "BadUnexpectedError")]
@@ -5466,9 +4871,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0] & 0x02, Is.EqualTo(0x02)); // StatusCode bit set
         }
 
-        /// <summary>
-        /// Test that WriteDataValue handles DateTime.MaxValue for timestamps.
-        /// </summary>
         [Test]
         public void WriteDataValue_WithMaxValueTimestamps_WritesCorrectly()
         {
@@ -5490,10 +4892,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0] & 0x08, Is.EqualTo(0x08)); // ServerTimestamp bit set
         }
 
-        /// <summary>
-        /// Tests that WriteInt64Array correctly encodes a null array.
-        /// Verifies that -1 is written as the array length and no elements are written.
-        /// </summary>
         [Test]
         public void WriteInt64Array_NullArray_WritesNegativeOneLength()
         {
@@ -5510,10 +4908,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(-1));
         }
 
-        /// <summary>
-        /// Tests that WriteInt64Array correctly encodes an empty array.
-        /// Verifies that 0 is written as the array length and no elements are written.
-        /// </summary>
         [Test]
         public void WriteInt64Array_EmptyArray_WritesZeroLength()
         {
@@ -5531,10 +4925,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Tests that WriteInt64Array correctly encodes an array with a single element.
-        /// Verifies that the length (1) and the element value are written to the stream.
-        /// </summary>
         [Test]
         public void WriteInt64Array_SingleElement_WritesLengthAndValue()
         {
@@ -5553,10 +4943,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt64(result, 4), Is.EqualTo(12345L));
         }
 
-        /// <summary>
-        /// Tests that WriteInt64Array correctly encodes an array with multiple elements.
-        /// Verifies that the length and all element values are written in the correct order.
-        /// </summary>
         [Test]
         public void WriteInt64Array_MultipleElements_WritesLengthAndAllValues()
         {
@@ -5577,10 +4963,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt64(result, 20), Is.EqualTo(300L));
         }
 
-        /// <summary>
-        /// Tests that WriteInt64Array correctly encodes boundary values including long.MinValue and long.MaxValue.
-        /// Verifies that extreme long values are encoded correctly without overflow or data loss.
-        /// </summary>
         [Test]
         public void WriteInt64Array_BoundaryValues_EncodesCorrectly()
         {
@@ -5603,10 +4985,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt64(result, 36), Is.EqualTo(1L));
         }
 
-        /// <summary>
-        /// Tests that WriteInt64Array throws ServiceResultException when the array length exceeds MaxArrayLength.
-        /// Verifies that the correct exception with BadEncodingLimitsExceeded status code is thrown.
-        /// </summary>
         [Test]
         public void WriteInt64Array_ExceedsMaxArrayLength_ThrowsServiceResultException()
         {
@@ -5620,10 +4998,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Tests that WriteInt64Array correctly handles the case when array length equals MaxArrayLength.
-        /// Verifies that no exception is thrown and the array is encoded correctly.
-        /// </summary>
         [Test]
         public void WriteInt64Array_ArrayLengthEqualsMaxArrayLength_EncodesSuccessfully()
         {
@@ -5643,10 +5017,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt64(result, 20), Is.EqualTo(30L));
         }
 
-        /// <summary>
-        /// Tests that WriteInt64Array correctly encodes negative values.
-        /// Verifies that negative long values are encoded correctly.
-        /// </summary>
         [Test]
         public void WriteInt64Array_NegativeValues_EncodesCorrectly()
         {
@@ -5667,10 +5037,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt64(result, 20), Is.EqualTo(-1L));
         }
 
-        /// <summary>
-        /// Tests that WriteInt64Array correctly encodes an array with zero value.
-        /// Verifies that zero is encoded correctly.
-        /// </summary>
         [Test]
         public void WriteInt64Array_ZeroValue_EncodesCorrectly()
         {
@@ -5688,10 +5054,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt64(result, 4), Is.EqualTo(0L));
         }
 
-        /// <summary>
-        /// Tests that WriteQualifiedNameArray correctly encodes a null array
-        /// by writing -1 to the stream.
-        /// </summary>
         [Test]
         public void WriteQualifiedNameArray_NullArray_WritesNegativeOne()
         {
@@ -5709,10 +5071,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(-1));
         }
 
-        /// <summary>
-        /// Tests that WriteQualifiedNameArray correctly encodes an empty array
-        /// by writing 0 to the stream and no elements.
-        /// </summary>
         [Test]
         public void WriteQualifiedNameArray_EmptyArray_WritesZeroLength()
         {
@@ -5730,10 +5088,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Tests that WriteQualifiedNameArray correctly encodes an array with a single element
-        /// by writing the length and the qualified name data.
-        /// </summary>
         [Test]
         public void WriteQualifiedNameArray_SingleElement_WritesLengthAndElement()
         {
@@ -5752,10 +5106,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(1));
         }
 
-        /// <summary>
-        /// Tests that WriteQualifiedNameArray correctly encodes an array with multiple elements
-        /// by writing the length and all qualified name data.
-        /// </summary>
         [Test]
         public void WriteQualifiedNameArray_MultipleElements_WritesLengthAndAllElements()
         {
@@ -5776,10 +5126,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(3));
         }
 
-        /// <summary>
-        /// Tests that WriteQualifiedNameArray throws ServiceResultException
-        /// when the array length exceeds MaxArrayLength.
-        /// </summary>
         [Test]
         public void WriteQualifiedNameArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
         {
@@ -5796,9 +5142,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Tests that WriteQualifiedNameArray handles qualified names with empty name strings.
-        /// </summary>
         [Test]
         public void WriteQualifiedNameArray_ElementsWithEmptyNames_WritesCorrectly()
         {
@@ -5817,9 +5160,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(2));
         }
 
-        /// <summary>
-        /// Tests that WriteQualifiedNameArray handles qualified names with various namespace indices.
-        /// </summary>
         [Test]
         public void WriteQualifiedNameArray_VariousNamespaceIndices_WritesCorrectly()
         {
@@ -5839,9 +5179,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(3));
         }
 
-        /// <summary>
-        /// Tests that WriteQualifiedNameArray handles qualified names with special characters in names.
-        /// </summary>
         [Test]
         public void WriteQualifiedNameArray_NamesWithSpecialCharacters_WritesCorrectly()
         {
@@ -5861,9 +5198,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(3));
         }
 
-        /// <summary>
-        /// Tests that WriteQualifiedNameArray handles qualified names with very long name strings.
-        /// </summary>
         [Test]
         public void WriteQualifiedNameArray_VeryLongNames_WritesCorrectly()
         {
@@ -5882,9 +5216,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(1));
         }
 
-        /// <summary>
-        /// Tests that EncodeMessage successfully encodes a valid message with leaveOpen set to false.
-        /// </summary>
         [Test]
         public void EncodeMessage_ValidInputsLeaveOpenFalse_EncodesSuccessfully()
         {
@@ -5899,9 +5230,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             mockMessage.Verify(m => m.Encode(It.IsAny<IEncoder>()), Times.Once);
         }
 
-        /// <summary>
-        /// Tests that EncodeMessage successfully encodes a valid message with leaveOpen set to true.
-        /// </summary>
         [Test]
         public void EncodeMessage_ValidInputsLeaveOpenTrue_EncodesSuccessfully()
         {
@@ -5917,9 +5245,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             mockMessage.Verify(m => m.Encode(It.IsAny<IEncoder>()), Times.Once);
         }
 
-        /// <summary>
-        /// Tests that EncodeMessage with leaveOpen true leaves the stream open for subsequent operations.
-        /// </summary>
         [Test]
         public void EncodeMessage_LeaveOpenTrue_StreamRemainsOpen()
         {
@@ -5935,9 +5260,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.DoesNotThrow(() => stream.WriteByte(0), "Should be able to write to stream after encoding");
         }
 
-        /// <summary>
-        /// Tests that EncodeMessage with leaveOpen false allows stream to be disposed.
-        /// </summary>
         [Test]
         public void EncodeMessage_LeaveOpenFalse_StreamCanBeClosed()
         {
@@ -5952,9 +5274,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.DoesNotThrow(stream.Dispose, "Stream should be disposable after encoding");
         }
 
-        /// <summary>
-        /// Tests that EncodeMessage encodes message to an empty stream.
-        /// </summary>
         [Test]
         public void EncodeMessage_EmptyStream_WritesData()
         {
@@ -5970,9 +5289,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(stream.Length, Is.GreaterThan(initialLength), "Data should be written to stream");
         }
 
-        /// <summary>
-        /// Tests that EncodeMessage encodes message to a stream with existing data.
-        /// </summary>
         [Test]
         public void EncodeMessage_StreamWithExistingData_AppendsData()
         {
@@ -5989,9 +5305,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(stream.Length, Is.GreaterThan(initialLength), "Data should be appended to stream");
         }
 
-        /// <summary>
-        /// Tests that EncodeMessage works with different stream types - FileStream.
-        /// </summary>
         [Test]
         public void EncodeMessage_FileStream_EncodesSuccessfully()
         {
@@ -6018,9 +5331,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
         }
 
-        /// <summary>
-        /// Tests WriteInt64 with sequential writes to verify multiple values are written correctly.
-        /// </summary>
         [Test]
         public void WriteInt64_MultipleSequentialWrites_WritesAllValuesCorrectly()
         {
@@ -6054,10 +5364,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
         }
 
-        /// <summary>
-        /// Tests WriteInt64 to verify the exact byte representation for known values.
-        /// Ensures little-endian encoding is used correctly.
-        /// </summary>
         [Test]
         public void WriteInt64_KnownValue_WritesCorrectByteSequence()
         {
@@ -6082,9 +5388,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(buffer[7], Is.EqualTo(0x01), "Eighth byte should be 0x01");
         }
 
-        /// <summary>
-        /// Tests WriteInt64 with a stream-based encoder to verify compatibility.
-        /// </summary>
         [Test]
         public void WriteInt64_WithStreamEncoder_WritesCorrectValue()
         {
@@ -6105,9 +5408,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(readValue, Is.EqualTo(testValue), "Read value should match written value");
         }
 
-        /// <summary>
-        /// Tests WriteInt64 with a fixed-size buffer encoder to verify compatibility.
-        /// </summary>
         [Test]
         public void WriteInt64_WithFixedBufferEncoder_WritesCorrectValue()
         {
@@ -6126,9 +5426,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(readValue, Is.EqualTo(testValue), "Read value should match written value");
         }
 
-        /// <summary>
-        /// Verifies that WriteSByteArray correctly handles a null array by writing -1 as the length indicator.
-        /// </summary>
         [Test]
         public void WriteSByteArray_NullArray_WritesNegativeOneLength()
         {
@@ -6145,9 +5442,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(-1));
         }
 
-        /// <summary>
-        /// Verifies that WriteSByteArray correctly handles an empty array by writing 0 as the length and no elements.
-        /// </summary>
         [Test]
         public void WriteSByteArray_EmptyArray_WritesZeroLength()
         {
@@ -6164,9 +5458,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Verifies that WriteSByteArray correctly writes a single element array.
-        /// </summary>
         [Test]
         public void WriteSByteArray_SingleElement_WritesLengthAndValue()
         {
@@ -6188,10 +5479,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That((sbyte)result[4], Is.EqualTo(42));
         }
 
-        /// <summary>
-        /// Verifies that WriteSByteArray correctly writes multiple elements including boundary values.
-        /// </summary>
-        /// <param name = "values">The array of signed byte values to test.</param>
         [TestCase(new sbyte[] { sbyte.MinValue })]
         [TestCase(new sbyte[] { sbyte.MaxValue })]
         [TestCase(new sbyte[] { 0 })]
@@ -6219,9 +5506,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
         }
 
-        /// <summary>
-        /// Verifies that WriteSByteArray throws ServiceResultException when array length exceeds MaxArrayLength limit.
-        /// </summary>
         [Test]
         public void WriteSByteArray_ExceedsMaxArrayLength_ThrowsException()
         {
@@ -6235,9 +5519,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Verifies that WriteSByteArray handles an array at the exact MaxArrayLength boundary.
-        /// </summary>
         [Test]
         public void WriteSByteArray_AtMaxArrayLength_WritesSuccessfully()
         {
@@ -6254,9 +5535,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(10));
         }
 
-        /// <summary>
-        /// Verifies that WriteSByteArray with null fieldName parameter still writes correctly.
-        /// </summary>
         [Test]
         public void WriteSByteArray_NullFieldName_WritesCorrectly()
         {
@@ -6279,9 +5557,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(3));
         }
 
-        /// <summary>
-        /// Verifies that WriteSByteArray handles a large array with many elements.
-        /// </summary>
         [Test]
         public void WriteSByteArray_LargeArray_WritesAllElements()
         {
@@ -6308,9 +5583,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
         }
 
-        /// <summary>
-        /// Tests that WriteGuidArray writes -1 when the array is null.
-        /// </summary>
         [Test]
         public void WriteGuidArray_NullArray_WritesMinusOne()
         {
@@ -6329,9 +5601,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(-1));
         }
 
-        /// <summary>
-        /// Tests that WriteGuidArray writes 0 when the array is empty.
-        /// </summary>
         [Test]
         public void WriteGuidArray_EmptyArray_WritesZero()
         {
@@ -6350,9 +5619,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Tests that WriteGuidArray correctly writes a single Guid element.
-        /// </summary>
         [Test]
         public void WriteGuidArray_SingleElement_WritesLengthAndGuid()
         {
@@ -6376,9 +5642,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(writtenGuid, Is.EqualTo(testGuid));
         }
 
-        /// <summary>
-        /// Tests that WriteGuidArray correctly writes multiple Guid elements.
-        /// </summary>
         [Test]
         public void WriteGuidArray_MultipleElements_WritesLengthAndAllGuids()
         {
@@ -6412,9 +5675,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(writtenGuid3, Is.EqualTo(guid3));
         }
 
-        /// <summary>
-        /// Tests that WriteGuidArray throws ServiceResultException when array length exceeds MaxArrayLength.
-        /// </summary>
         [Test]
         public void WriteGuidArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
         {
@@ -6431,9 +5691,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Tests that WriteGuidArray correctly handles an array with Uuid.Empty values.
-        /// </summary>
         [Test]
         public void WriteGuidArray_EmptyGuids_WritesCorrectly()
         {
@@ -6461,9 +5718,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(writtenGuid2, Is.EqualTo(emptyGuid));
         }
 
-        /// <summary>
-        /// Tests that WriteGuidArray correctly handles an array at the MaxArrayLength boundary.
-        /// </summary>
         [Test]
         public void WriteGuidArray_AtMaxArrayLength_WritesSuccessfully()
         {
@@ -6484,9 +5738,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(3));
         }
 
-        /// <summary>
-        /// Tests that WriteGuidArray ignores the fieldName parameter.
-        /// </summary>
         [Test]
         public void WriteGuidArray_DifferentFieldNames_ProducesSameOutput()
         {
@@ -6509,9 +5760,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result1, Is.EqualTo(result3));
         }
 
-        /// <summary>
-        /// Tests that WriteGuidArray correctly handles a large array within limits.
-        /// </summary>
         [Test]
         public void WriteGuidArray_LargeArrayWithinLimits_WritesSuccessfully()
         {
@@ -6536,9 +5784,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(100));
         }
 
-        /// <summary>
-        /// Test that WriteRawBytes throws ArgumentNullException when buffer is null.
-        /// </summary>
         [Test]
         public void WriteRawBytes_NullBuffer_ThrowsArgumentNullException()
         {
@@ -6550,9 +5795,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.Throws<ArgumentNullException>(() => encoder.WriteRawBytes(null, 0, 0));
         }
 
-        /// <summary>
-        /// Test that WriteRawBytes throws ArgumentOutOfRangeException when offset is negative.
-        /// </summary>
         [Test]
         public void WriteRawBytes_NegativeOffset_ThrowsArgumentOutOfRangeException()
         {
@@ -6571,9 +5813,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.Throws<ArgumentOutOfRangeException>(() => encoder.WriteRawBytes(buffer, -1, 1));
         }
 
-        /// <summary>
-        /// Test that WriteRawBytes throws ArgumentOutOfRangeException when count is negative.
-        /// </summary>
         [Test]
         public void WriteRawBytes_NegativeCount_ThrowsArgumentOutOfRangeException()
         {
@@ -6591,9 +5830,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.Throws<ArgumentOutOfRangeException>(() => encoder.WriteRawBytes(buffer, 0, -1));
         }
 
-        /// <summary>
-        /// Test that WriteRawBytes throws ArgumentException when offset plus count exceeds buffer length.
-        /// </summary>
         [Test]
         public void WriteRawBytes_OffsetPlusCountExceedsBufferLength_ThrowsArgumentException()
         {
@@ -6611,9 +5847,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.Throws<ArgumentException>(() => encoder.WriteRawBytes(buffer, 2, 2));
         }
 
-        /// <summary>
-        /// Test that WriteRawBytes throws ArgumentException when offset exceeds buffer length.
-        /// </summary>
         [Test]
         public void WriteRawBytes_OffsetExceedsBufferLength_ThrowsArgumentException()
         {
@@ -6632,9 +5865,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.Throws<ArgumentException>(() => encoder.WriteRawBytes(buffer, 4, 0));
         }
 
-        /// <summary>
-        /// Test that WriteRawBytes throws ArgumentException when count exceeds buffer length.
-        /// </summary>
         [Test]
         public void WriteRawBytes_CountExceedsBufferLength_ThrowsArgumentException()
         {
@@ -6652,9 +5882,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.Throws<ArgumentException>(() => encoder.WriteRawBytes(buffer, 0, 5));
         }
 
-        /// <summary>
-        /// Test that WriteRawBytes with maximum integer values for offset and count throws ArgumentException.
-        /// </summary>
         [Test]
         public void WriteRawBytes_MaxIntegerOffsetAndCount_ThrowsArgumentException()
         {
@@ -6672,10 +5899,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.Throws<ArgumentException>(() => encoder.WriteRawBytes(buffer, int.MaxValue, int.MaxValue));
         }
 
-        /// <summary>
-        /// Verifies that the EncodingType property returns EncodingType.Binary
-        /// when the encoder is created with default constructor.
-        /// </summary>
         [Test]
         public void EncodingType_DefaultConstructor_ReturnsBinary()
         {
@@ -6689,10 +5912,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result, Is.EqualTo(EncodingType.Binary));
         }
 
-        /// <summary>
-        /// Verifies that the EncodingType property returns EncodingType.Binary
-        /// when the encoder is created with buffer constructor.
-        /// </summary>
         [Test]
         public void EncodingType_BufferConstructor_ReturnsBinary()
         {
@@ -6707,10 +5926,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result, Is.EqualTo(EncodingType.Binary));
         }
 
-        /// <summary>
-        /// Verifies that the EncodingType property returns EncodingType.Binary
-        /// when the encoder is created with stream constructor.
-        /// </summary>
         [Test]
         public void EncodingType_StreamConstructor_ReturnsBinary()
         {
@@ -6725,10 +5940,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result, Is.EqualTo(EncodingType.Binary));
         }
 
-        /// <summary>
-        /// Verifies that the EncodingType property returns a consistent value
-        /// across multiple calls.
-        /// </summary>
         [Test]
         public void EncodingType_MultipleCalls_ReturnsConsistentValue()
         {
@@ -6748,10 +5959,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result2, Is.EqualTo(result3));
         }
 
-        /// <summary>
-        /// Verifies that the EncodingType property returns EncodingType.Binary
-        /// and not Xml or Json.
-        /// </summary>
         [Test]
         public void EncodingType_Value_IsNotXmlOrJson()
         {
@@ -6766,11 +5973,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result, Is.Not.EqualTo(EncodingType.Json));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt16 correctly encodes minimum value (0).
-        /// Verifies that the value is written as two bytes in little-endian format.
-        /// Expected result: Bytes [0x00, 0x00] are written to the stream.
-        /// </summary>
         [Test]
         public void WriteUInt16_MinValue_WritesCorrectBytes()
         {
@@ -6789,11 +5991,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[1], Is.EqualTo(0x00));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt16 correctly encodes maximum value (65535).
-        /// Verifies that the value is written as two bytes in little-endian format.
-        /// Expected result: Bytes [0xFF, 0xFF] are written to the stream.
-        /// </summary>
         [Test]
         public void WriteUInt16_MaxValue_WritesCorrectBytes()
         {
@@ -6812,11 +6009,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[1], Is.EqualTo(0xFF));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt16 correctly encodes various ushort values.
-        /// Verifies that values are written in little-endian byte order.
-        /// Expected result: Each value is correctly encoded as two bytes with LSB first.
-        /// </summary>
         [TestCase((ushort)0, new byte[] { 0x00, 0x00 })]
         [TestCase((ushort)1, new byte[] { 0x01, 0x00 })]
         [TestCase((ushort)255, new byte[] { 0xFF, 0x00 })]
@@ -6839,11 +6031,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result, Is.EqualTo(expectedBytes));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt16 works correctly when fieldName is null.
-        /// The fieldName parameter is not used in the implementation.
-        /// Expected result: Value is written correctly regardless of fieldName being null.
-        /// </summary>
         [Test]
         public void WriteUInt16_NullFieldName_WritesValueCorrectly()
         {
@@ -6862,11 +6049,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[1], Is.EqualTo(0x30));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt16 works correctly when fieldName is empty string.
-        /// The fieldName parameter is not used in the implementation.
-        /// Expected result: Value is written correctly regardless of fieldName being empty.
-        /// </summary>
         [Test]
         public void WriteUInt16_EmptyFieldName_WritesValueCorrectly()
         {
@@ -6885,11 +6067,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[1], Is.EqualTo(0x26));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt16 can write multiple values sequentially.
-        /// Verifies that multiple calls append bytes to the stream in order.
-        /// Expected result: All values are written sequentially in the correct byte order.
-        /// </summary>
         [Test]
         public void WriteUInt16_MultipleValues_WritesAllValuesSequentially()
         {
@@ -6916,11 +6093,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[5], Is.EqualTo(0xFF));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt16 writes to a fixed size buffer correctly.
-        /// Verifies the encoder works with a pre-allocated byte array.
-        /// Expected result: Value is written to the provided buffer.
-        /// </summary>
         [Test]
         public void WriteUInt16_WithFixedBuffer_WritesValueToBuffer()
         {
@@ -6952,7 +6124,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 MaxMessageSize = int.MaxValue
             };
             var encoder = new BinaryEncoder(stream, context, false);
-            string largeString = new string('A', 1024 * 10); // 10 KB
+            string largeString = new('A', 1024 * 10); // 10 KB
             // Act & Assert
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => encoder.WriteString(null, largeString));
@@ -6964,8 +6136,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             var stream = new MemoryStream();
-            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var context = CreateContext(0);
+            ServiceMessageContext context = CreateContext(0);
             var encoder = new BinaryEncoder(stream, context, false);
             // Act
             encoder.WriteString(null, string.Empty);
@@ -6982,11 +6153,10 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             var stream = new MemoryStream();
-            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var context = CreateContext(0);
+            ServiceMessageContext context = CreateContext(0);
             var encoder = new BinaryEncoder(stream, context, false);
             // Act
-            encoder.WriteString(null, (string)null);
+            encoder.WriteString(null, null);
             byte[] result = stream.ToArray();
 
             // Assert
@@ -6995,9 +6165,36 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(-1), "Length should be -1 for null string");
         }
 
-        /// <summary>
-        /// Tests that WriteByteString writes -1 as length when an empty span is provided.
-        /// </summary>
+        [Test]
+        public void WriteStringArray_EmptyArray_WritesZeroLength()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<string> emptyArray = [];
+            // Act
+            encoder.WriteStringArray("TestField", emptyArray);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(4));
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
+        }
+
+        [Test]
+        public void WriteStringArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(2);
+            var encoder = new BinaryEncoder(messageContext);
+            var array = ArrayOf.Wrapped("test", "test", "test");
+            // Act & Assert
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteStringArray("TestField", array));
+            Assert.That(exception, Is.Not.Null);
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
         [Test]
         public void WriteByteString_EmptySpan_WritesNegativeOne()
         {
@@ -7019,10 +6216,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(-1), "Length should be -1 for empty span");
         }
 
-        /// <summary>
-        /// Tests that WriteByteString correctly encodes a valid byte array within limits.
-        /// </summary>
-        /// <param name = "arraySize">The size of the byte array to test.</param>
         [TestCase(1)]
         [TestCase(10)]
         [TestCase(100)]
@@ -7056,9 +6249,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(encodedData, Is.EqualTo(testData), "Encoded data should match original data");
         }
 
-        /// <summary>
-        /// Tests that WriteByteString succeeds when byte string length equals MaxByteStringLength (boundary case).
-        /// </summary>
         [Test]
         public void WriteByteString_EqualsMaxLength_Succeeds()
         {
@@ -7108,9 +6298,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Tests that WriteByteString succeeds when byte string is just under MaxByteStringLength (boundary case).
-        /// </summary>
         [Test]
         public void WriteByteString_JustUnderMaxLength_Succeeds()
         {
@@ -7134,9 +6321,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(encodedLength, Is.EqualTo(maxLength - 1));
         }
 
-        /// <summary>
-        /// Tests that WriteByteString accepts any size when MaxByteStringLength is 0 (no limit).
-        /// </summary>
         [Test]
         public void WriteByteString_NoLimit_AcceptsAnySize()
         {
@@ -7159,9 +6343,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(encodedLength, Is.EqualTo(10000));
         }
 
-        /// <summary>
-        /// Tests that WriteByteString correctly handles single-byte arrays.
-        /// </summary>
         [Test]
         public void WriteByteString_SingleByte_EncodesCorrectly()
         {
@@ -7185,9 +6366,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[4], Is.EqualTo(0x42));
         }
 
-        /// <summary>
-        /// Tests that WriteByteString accepts large arrays when MaxByteStringLength is negative (treated as no limit).
-        /// </summary>
         [Test]
         public void WriteByteString_NegativeMaxLength_AcceptsAnySize()
         {
@@ -7210,9 +6388,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(encodedLength, Is.EqualTo(1000));
         }
 
-        /// <summary>
-        /// Tests WriteEnumerated with uint-backed enum max value.
-        /// </summary>
         [Test]
         public void WriteEnumerated_UInt32BackedEnumMaxValue_WritesCorrectInt32Value()
         {
@@ -7231,9 +6406,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(actualValue, Is.EqualTo(-1));
         }
 
-        /// <summary>
-        /// Tests WriteEnumerated with undefined enum value writes correct int32 value.
-        /// </summary>
         [Test]
         public void WriteEnumerated_UndefinedEnumValue_WritesCorrectInt32Value()
         {
@@ -7253,9 +6425,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(actualValue, Is.EqualTo(999));
         }
 
-        /// <summary>
-        /// Tests WriteEnumerated ignores fieldName parameter.
-        /// </summary>
         [Test]
         public void WriteEnumerated_WithFieldName_IgnoresFieldName()
         {
@@ -7274,11 +6443,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result1, Is.EqualTo(result2));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray writes -1 for null array and returns early.
-        /// Input: Default (null) ArrayOf&lt;float&gt;
-        /// Expected: -1 written to stream, no float values written
-        /// </summary>
         [Test]
         public void WriteFloatArray_NullArray_WritesMinusOne()
         {
@@ -7296,11 +6460,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(-1));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray writes 0 for empty array and returns early.
-        /// Input: Empty ArrayOf&lt;float&gt;
-        /// Expected: 0 written to stream, no float values written
-        /// </summary>
         [Test]
         public void WriteFloatArray_EmptyArray_WritesZero()
         {
@@ -7318,11 +6477,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray correctly writes a single float value.
-        /// Input: ArrayOf&lt;float&gt; with one element (1.5f)
-        /// Expected: Length 1 followed by the float value
-        /// </summary>
         [Test]
         public void WriteFloatArray_SingleElement_WritesLengthAndValue()
         {
@@ -7341,11 +6495,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(1.5f));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray correctly writes multiple float values.
-        /// Input: ArrayOf&lt;float&gt; with three elements
-        /// Expected: Length 3 followed by three float values in order
-        /// </summary>
         [Test]
         public void WriteFloatArray_MultipleElements_WritesLengthAndValues()
         {
@@ -7366,11 +6515,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToSingle(buffer, 12), Is.EqualTo(3.75f));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray correctly handles float.NaN.
-        /// Input: ArrayOf&lt;float&gt; with NaN value
-        /// Expected: NaN is written correctly
-        /// </summary>
         [Test]
         public void WriteFloatArray_NaNValue_WritesCorrectly()
         {
@@ -7389,11 +6533,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(float.IsNaN(BitConverter.ToSingle(buffer, 4)), Is.True);
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray correctly handles float.PositiveInfinity.
-        /// Input: ArrayOf&lt;float&gt; with PositiveInfinity value
-        /// Expected: PositiveInfinity is written correctly
-        /// </summary>
         [Test]
         public void WriteFloatArray_PositiveInfinity_WritesCorrectly()
         {
@@ -7411,11 +6550,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(float.PositiveInfinity));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray correctly handles float.NegativeInfinity.
-        /// Input: ArrayOf&lt;float&gt; with NegativeInfinity value
-        /// Expected: NegativeInfinity is written correctly
-        /// </summary>
         [Test]
         public void WriteFloatArray_NegativeInfinity_WritesCorrectly()
         {
@@ -7433,11 +6567,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(float.NegativeInfinity));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray correctly handles float.MinValue.
-        /// Input: ArrayOf&lt;float&gt; with MinValue
-        /// Expected: MinValue is written correctly
-        /// </summary>
         [Test]
         public void WriteFloatArray_MinValue_WritesCorrectly()
         {
@@ -7455,11 +6584,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(float.MinValue));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray correctly handles float.MaxValue.
-        /// Input: ArrayOf&lt;float&gt; with MaxValue
-        /// Expected: MaxValue is written correctly
-        /// </summary>
         [Test]
         public void WriteFloatArray_MaxValue_WritesCorrectly()
         {
@@ -7477,11 +6601,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(float.MaxValue));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray correctly handles zero value.
-        /// Input: ArrayOf&lt;float&gt; with zero
-        /// Expected: Zero is written correctly
-        /// </summary>
         [Test]
         public void WriteFloatArray_ZeroValue_WritesCorrectly()
         {
@@ -7499,11 +6618,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(0.0f));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray correctly handles negative zero.
-        /// Input: ArrayOf&lt;float&gt; with -0.0f
-        /// Expected: Negative zero is written correctly
-        /// </summary>
         [Test]
         public void WriteFloatArray_NegativeZero_WritesCorrectly()
         {
@@ -7521,11 +6635,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToSingle(buffer, 4), Is.EqualTo(-0.0f));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray throws ServiceResultException when array exceeds MaxArrayLength.
-        /// Input: ArrayOf&lt;float&gt; with 3 elements, MaxArrayLength = 2
-        /// Expected: ServiceResultException with BadEncodingLimitsExceeded status code
-        /// </summary>
         [Test]
         public void WriteFloatArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
         {
@@ -7534,16 +6643,12 @@ namespace Opc.Ua.Types.Tests.Encoders
             var encoder = new BinaryEncoder(messageContext);
             var array = ArrayOf.Wrapped(1.0f, 2.0f, 3.0f);
             // Act & Assert
-            ServiceResultException exception = Assert.Throws<ServiceResultException>(() => encoder.WriteFloatArray("TestField", array));
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteFloatArray("TestField", array));
             Assert.That(exception, Is.Not.Null);
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray correctly writes a large array.
-        /// Input: ArrayOf&lt;float&gt; with 100 elements
-        /// Expected: Length 100 followed by all float values
-        /// </summary>
         [Test]
         public void WriteFloatArray_LargeArray_WritesCorrectly()
         {
@@ -7570,11 +6675,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray correctly handles mixed special values.
-        /// Input: ArrayOf&lt;float&gt; with NaN, Infinity, -Infinity, zero, and normal values
-        /// Expected: All values written correctly in order
-        /// </summary>
         [Test]
         public void WriteFloatArray_MixedSpecialValues_WritesCorrectly()
         {
@@ -7597,11 +6697,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToSingle(buffer, 24), Is.EqualTo(-2.5f));
         }
 
-        /// <summary>
-        /// Tests that WriteFloatArray respects MaxArrayLength boundary.
-        /// Input: ArrayOf&lt;float&gt; with exactly MaxArrayLength elements
-        /// Expected: Array is written successfully without exception
-        /// </summary>
         [Test]
         public void WriteFloatArray_ExactlyMaxArrayLength_WritesSuccessfully()
         {
@@ -7618,9 +6713,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(buffer, 0), Is.EqualTo(5));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValueArray writes -1 when the array is null and returns early.
-        /// </summary>
         [Test]
         public void WriteDataValueArray_NullArray_WritesNegativeOneAndReturns()
         {
@@ -7637,9 +6729,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(-1));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValueArray writes 0 when the array is empty and returns early.
-        /// </summary>
         [Test]
         public void WriteDataValueArray_EmptyArray_WritesZeroAndReturns()
         {
@@ -7656,16 +6745,13 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValueArray writes the count and then each DataValue for a single item array.
-        /// </summary>
         [Test]
         public void WriteDataValueArray_SingleItem_WritesCountAndValue()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
             var encoder = new BinaryEncoder(messageContext);
-            var dataValue = new DataValue(new Variant(42));
+            var dataValue = new DataValue(Variant.From(42));
             var array = new ArrayOf<DataValue>([dataValue]);
             // Act
             encoder.WriteDataValueArray("TestField", array);
@@ -7676,18 +6762,15 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValueArray writes the count and then each DataValue for multiple items.
-        /// </summary>
         [Test]
         public void WriteDataValueArray_MultipleItems_WritesCountAndAllValues()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
             var encoder = new BinaryEncoder(messageContext);
-            var dataValue1 = new DataValue(new Variant(42));
-            var dataValue2 = new DataValue(new Variant(100));
-            var dataValue3 = new DataValue(new Variant(200));
+            var dataValue1 = new DataValue(Variant.From(42));
+            var dataValue2 = new DataValue(Variant.From(100));
+            var dataValue3 = new DataValue(Variant.From(200));
             var array = new ArrayOf<DataValue>([dataValue1, dataValue2, dataValue3]);
             // Act
             encoder.WriteDataValueArray("TestField", array);
@@ -7698,18 +6781,15 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(3));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValueArray throws ServiceResultException when array length exceeds MaxArrayLength.
-        /// </summary>
         [Test]
         public void WriteDataValueArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(2);
             var encoder = new BinaryEncoder(messageContext);
-            var dataValue1 = new DataValue(new Variant(1));
-            var dataValue2 = new DataValue(new Variant(2));
-            var dataValue3 = new DataValue(new Variant(3));
+            var dataValue1 = new DataValue(Variant.From(1));
+            var dataValue2 = new DataValue(Variant.From(2));
+            var dataValue3 = new DataValue(Variant.From(3));
             var array = new ArrayOf<DataValue>([dataValue1, dataValue2, dataValue3]);
             // Act & Assert
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteDataValueArray("TestField", array));
@@ -7717,16 +6797,13 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValueArray handles array with null DataValue elements.
-        /// </summary>
         [Test]
         public void WriteDataValueArray_ArrayWithNullElements_WritesNullDataValues()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
             var encoder = new BinaryEncoder(messageContext);
-            var array = new ArrayOf<DataValue>([null, new DataValue(new Variant(42)), null]);
+            var array = new ArrayOf<DataValue>([null, new DataValue(Variant.From(42)), null]);
             // Act
             encoder.WriteDataValueArray("TestField", array);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -7736,9 +6813,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(3));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValueArray ignores the fieldName parameter.
-        /// </summary>
         [Test]
         public void WriteDataValueArray_FieldNameParameter_IsIgnored()
         {
@@ -7746,7 +6820,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = CreateContext(0);
             var encoder1 = new BinaryEncoder(messageContext);
             var encoder2 = new BinaryEncoder(messageContext);
-            var dataValue = new DataValue(new Variant(42));
+            var dataValue = new DataValue(Variant.From(42));
             var array = new ArrayOf<DataValue>([dataValue]);
             // Act
             encoder1.WriteDataValueArray("Field1", array);
@@ -7759,21 +6833,18 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result1, Is.EqualTo(result2));
         }
 
-        /// <summary>
-        /// Tests that WriteDataValueArray writes DataValues with various properties set.
-        /// </summary>
         [Test]
         public void WriteDataValueArray_DataValuesWithVariousProperties_WritesCorrectly()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
             var encoder = new BinaryEncoder(messageContext);
-            var dataValue1 = new DataValue(new Variant(42))
+            var dataValue1 = new DataValue(Variant.From(42))
             {
                 StatusCode = StatusCodes.Good,
                 SourceTimestamp = DateTime.UtcNow
             };
-            var dataValue2 = new DataValue(new Variant("test"))
+            var dataValue2 = new DataValue(Variant.From("test"))
             {
                 StatusCode = StatusCodes.Bad,
                 ServerTimestamp = DateTime.UtcNow
@@ -7788,11 +6859,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(2));
         }
 
-        /// <summary>
-        /// Tests that the constructor successfully creates an instance with valid parameters.
-        /// Input: valid buffer, start, count, and context
-        /// Expected: Instance created successfully with Context property set
-        /// </summary>
         [Test]
         public void Constructor_ValidParameters_CreatesInstanceSuccessfully()
         {
@@ -7809,11 +6875,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(encoder.Context, Is.EqualTo(messageContext));
         }
 
-        /// <summary>
-        /// Tests that the constructor works with an empty buffer and zero count.
-        /// Input: empty buffer (length 0), start = 0, count = 0
-        /// Expected: Instance created successfully
-        /// </summary>
         [Test]
         public void Constructor_EmptyBufferZeroCount_CreatesInstanceSuccessfully()
         {
@@ -7830,11 +6891,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(encoder.Context, Is.EqualTo(messageContext));
         }
 
-        /// <summary>
-        /// Tests that the constructor throws ArgumentOutOfRangeException when start is negative.
-        /// Input: start = -1
-        /// Expected: ArgumentOutOfRangeException
-        /// </summary>
         [Test]
         public void Constructor_NegativeStart_ThrowsArgumentOutOfRangeException()
         {
@@ -7848,11 +6904,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.Throws<ArgumentOutOfRangeException>(() => new BinaryEncoder(buffer, start, count, messageContext));
         }
 
-        /// <summary>
-        /// Tests that the constructor throws ArgumentOutOfRangeException when count is negative.
-        /// Input: count = -1
-        /// Expected: ArgumentOutOfRangeException
-        /// </summary>
         [Test]
         public void Constructor_NegativeCount_ThrowsArgumentOutOfRangeException()
         {
@@ -7866,11 +6917,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.Throws<ArgumentOutOfRangeException>(() => new BinaryEncoder(buffer, start, count, messageContext));
         }
 
-        /// <summary>
-        /// Tests that the constructor throws ArgumentException when start is beyond buffer length.
-        /// Input: start greater than buffer length
-        /// Expected: ArgumentException
-        /// </summary>
         [Test]
         public void Constructor_StartBeyondBufferLength_ThrowsArgumentException()
         {
@@ -7884,11 +6930,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.Throws<ArgumentException>(() => new BinaryEncoder(buffer, start, count, messageContext));
         }
 
-        /// <summary>
-        /// Tests that the constructor throws ArgumentException when count exceeds available buffer space.
-        /// Input: start + count greater than buffer length
-        /// Expected: ArgumentException
-        /// </summary>
         [Test]
         public void Constructor_CountExceedsAvailableSpace_ThrowsArgumentException()
         {
@@ -7902,11 +6943,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.Throws<ArgumentException>(() => new BinaryEncoder(buffer, start, count, messageContext));
         }
 
-        /// <summary>
-        /// Tests that the constructor works when start is at buffer length and count is zero.
-        /// Input: start = buffer.Length, count = 0
-        /// Expected: Instance created successfully
-        /// </summary>
         [Test]
         public void Constructor_StartAtBufferLengthWithZeroCount_CreatesInstanceSuccessfully()
         {
@@ -7923,11 +6959,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(encoder.Context, Is.EqualTo(messageContext));
         }
 
-        /// <summary>
-        /// Tests that the constructor works with a subset of the buffer.
-        /// Input: start = 5, count = 3 with buffer of length 10
-        /// Expected: Instance created successfully
-        /// </summary>
         [Test]
         public void Constructor_SubsetOfBuffer_CreatesInstanceSuccessfully()
         {
@@ -7944,11 +6975,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(encoder.Context, Is.EqualTo(messageContext));
         }
 
-        /// <summary>
-        /// Tests that the constructor throws when start is int.MinValue.
-        /// Input: start = int.MinValue
-        /// Expected: ArgumentOutOfRangeException
-        /// </summary>
         [Test]
         public void Constructor_StartIsMinValue_ThrowsArgumentOutOfRangeException()
         {
@@ -7962,11 +6988,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.Throws<ArgumentOutOfRangeException>(() => new BinaryEncoder(buffer, start, count, messageContext));
         }
 
-        /// <summary>
-        /// Tests that the constructor throws when count is int.MinValue.
-        /// Input: count = int.MinValue
-        /// Expected: ArgumentOutOfRangeException
-        /// </summary>
         [Test]
         public void Constructor_CountIsMinValue_ThrowsArgumentOutOfRangeException()
         {
@@ -7980,11 +7001,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.Throws<ArgumentOutOfRangeException>(() => new BinaryEncoder(buffer, start, count, messageContext));
         }
 
-        /// <summary>
-        /// Tests that the constructor throws when start is int.MaxValue.
-        /// Input: start = int.MaxValue
-        /// Expected: ArgumentException (start beyond buffer length)
-        /// </summary>
         [Test]
         public void Constructor_StartIsMaxValue_ThrowsArgumentException()
         {
@@ -7998,11 +7014,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.Throws<ArgumentException>(() => new BinaryEncoder(buffer, start, count, messageContext));
         }
 
-        /// <summary>
-        /// Tests that the constructor throws when count is int.MaxValue.
-        /// Input: count = int.MaxValue
-        /// Expected: ArgumentException (count exceeds available space)
-        /// </summary>
         [Test]
         public void Constructor_CountIsMaxValue_ThrowsArgumentException()
         {
@@ -8016,11 +7027,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.Throws<ArgumentException>(() => new BinaryEncoder(buffer, start, count, messageContext));
         }
 
-        /// <summary>
-        /// Tests that the constructor works with a large buffer.
-        /// Input: buffer of size 10000
-        /// Expected: Instance created successfully
-        /// </summary>
         [Test]
         public void Constructor_LargeBuffer_CreatesInstanceSuccessfully()
         {
@@ -8037,11 +7043,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(encoder.Context, Is.EqualTo(messageContext));
         }
 
-        /// <summary>
-        /// Tests that WriteInt16 correctly writes various short values to the binary stream.
-        /// Verifies that values are encoded in little-endian format as expected.
-        /// Edge cases include short.MinValue, short.MaxValue, zero, and typical positive/negative values.
-        /// </summary>
         [TestCase((short)0, new byte[] { 0x00, 0x00 })]
         [TestCase((short)1, new byte[] { 0x01, 0x00 })]
         [TestCase((short)-1, new byte[] { 0xFF, 0xFF })]
@@ -8067,10 +7068,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[1], Is.EqualTo(expectedBytes[1]));
         }
 
-        /// <summary>
-        /// Tests that multiple consecutive WriteInt16 calls write values in sequence.
-        /// Verifies that the encoder correctly maintains position in the stream.
-        /// </summary>
         [Test]
         public void WriteInt16_MultipleValues_WritesSequentially()
         {
@@ -8100,9 +7097,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[5], Is.EqualTo(0x00));
         }
 
-        /// <summary>
-        /// Tests that WriteByteString writes -1 for an empty ReadOnlySequence.
-        /// </summary>
         [Test]
         public void WriteByteString_EmptyReadOnlySequence_WritesMinusOne()
         {
@@ -8121,9 +7115,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(stream.Length, Is.EqualTo(4));
         }
 
-        /// <summary>
-        /// Tests that WriteByteString correctly encodes a single-segment ReadOnlySequence with no length limit.
-        /// </summary>
         [Test]
         public void WriteByteString_SingleSegmentReadOnlySequence_NoLimit_WritesLengthAndData()
         {
@@ -8151,9 +7142,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(readData, Is.EqualTo(data));
         }
 
-        /// <summary>
-        /// Tests that WriteByteString succeeds when the sequence length is within the MaxByteStringLength limit.
-        /// </summary>
         [Test]
         public void WriteByteString_ReadOnlySequenceWithinLimit_WritesSuccessfully()
         {
@@ -8181,9 +7169,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(readData, Is.EqualTo(data));
         }
 
-        /// <summary>
-        /// Tests that WriteByteString succeeds when the sequence length equals MaxByteStringLength.
-        /// </summary>
         [Test]
         public void WriteByteString_ReadOnlySequenceAtLimit_WritesSuccessfully()
         {
@@ -8211,9 +7196,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(readData, Is.EqualTo(data));
         }
 
-        /// <summary>
-        /// Tests that WriteByteString throws ServiceResultException when the sequence length exceeds MaxByteStringLength.
-        /// </summary>
         [Test]
         public void WriteByteString_ReadOnlySequenceExceedsLimit_ThrowsServiceResultException()
         {
@@ -8240,9 +7222,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.Message, Does.Contain("MaxByteStringLength"));
         }
 
-        /// <summary>
-        /// Tests that WriteByteString handles a very large ReadOnlySequence when no limit is set.
-        /// </summary>
         [Test]
         public void WriteByteString_LargeReadOnlySequence_NoLimit_WritesSuccessfully()
         {
@@ -8290,9 +7269,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Tests that WriteByteString correctly handles a single-byte ReadOnlySequence.
-        /// </summary>
         [Test]
         public void WriteByteString_SingleByteReadOnlySequence_WritesCorrectly()
         {
@@ -8313,9 +7289,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(readData, Is.EqualTo(data));
         }
 
-        /// <summary>
-        /// Tests that WriteBooleanArray writes -1 for null array and returns immediately.
-        /// </summary>
         [Test]
         public void WriteBooleanArray_NullArray_WritesNegativeOne()
         {
@@ -8332,9 +7305,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(-1));
         }
 
-        /// <summary>
-        /// Tests that WriteBooleanArray writes 0 for empty array and returns immediately.
-        /// </summary>
         [Test]
         public void WriteBooleanArray_EmptyArray_WritesZero()
         {
@@ -8351,9 +7321,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Tests that WriteBooleanArray correctly writes a single boolean value.
-        /// </summary>
         [TestCase(true)]
         [TestCase(false)]
         public void WriteBooleanArray_SingleElement_WritesLengthAndValue(bool value)
@@ -8375,9 +7342,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[4], Is.EqualTo(value ? (byte)1 : (byte)0));
         }
 
-        /// <summary>
-        /// Tests that WriteBooleanArray correctly writes multiple boolean values.
-        /// </summary>
         [Test]
         public void WriteBooleanArray_MultipleElements_WritesLengthAndAllValues()
         {
@@ -8404,9 +7368,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[7], Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Tests that WriteBooleanArray correctly writes an array with all true values.
-        /// </summary>
         [Test]
         public void WriteBooleanArray_AllTrueValues_WritesCorrectly()
         {
@@ -8431,9 +7392,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[6], Is.EqualTo(1));
         }
 
-        /// <summary>
-        /// Tests that WriteBooleanArray correctly writes an array with all false values.
-        /// </summary>
         [Test]
         public void WriteBooleanArray_AllFalseValues_WritesCorrectly()
         {
@@ -8458,9 +7416,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[6], Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Tests that WriteBooleanArray throws ServiceResultException when array exceeds MaxArrayLength.
-        /// </summary>
         [Test]
         public void WriteBooleanArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
         {
@@ -8474,9 +7429,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Tests that WriteBooleanArray correctly handles a large valid array.
-        /// </summary>
         [Test]
         public void WriteBooleanArray_LargeValidArray_WritesCorrectly()
         {
@@ -8503,9 +7455,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
         }
 
-        /// <summary>
-        /// Tests that WriteBooleanArray correctly handles MaxArrayLength at exact boundary.
-        /// </summary>
         [Test]
         public void WriteBooleanArray_ExactMaxArrayLength_WritesCorrectly()
         {
@@ -8529,9 +7478,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(5));
         }
 
-        /// <summary>
-        /// Tests that WriteBooleanArray ignores fieldName parameter and uses only values.
-        /// </summary>
         [Test]
         public void WriteBooleanArray_DifferentFieldNames_ProducesSameOutput()
         {
@@ -8553,9 +7499,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result1, Is.EqualTo(result2));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTimeArray correctly encodes a null array.
-        /// </summary>
         [Test]
         public void WriteDateTimeArray_NullArray_WritesNegativeOne()
         {
@@ -8572,9 +7515,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(-1));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTimeArray correctly encodes an empty array.
-        /// </summary>
         [Test]
         public void WriteDateTimeArray_EmptyArray_WritesZeroLength()
         {
@@ -8591,9 +7531,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTimeArray correctly encodes a single DateTime value.
-        /// </summary>
         [Test]
         public void WriteDateTimeArray_SingleElement_WritesLengthAndValue()
         {
@@ -8611,9 +7548,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTimeArray correctly encodes multiple DateTime values.
-        /// </summary>
         [Test]
         public void WriteDateTimeArray_MultipleElements_WritesLengthAndAllValues()
         {
@@ -8636,9 +7570,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(3));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTimeArray handles DateTime.MinValue correctly.
-        /// </summary>
         [Test]
         public void WriteDateTimeArray_MinValue_EncodesCorrectly()
         {
@@ -8655,9 +7586,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTimeArray handles DateTime.MaxValue correctly.
-        /// </summary>
         [Test]
         public void WriteDateTimeArray_MaxValue_EncodesCorrectly()
         {
@@ -8674,9 +7602,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTimeArray throws when array length exceeds MaxArrayLength.
-        /// </summary>
         [Test]
         public void WriteDateTimeArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
         {
@@ -8696,9 +7621,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTimeArray handles various DateTime values including edge cases.
-        /// </summary>
         [Test]
         public void WriteDateTimeArray_VariousDateTimeValues_EncodesAllCorrectly()
         {
@@ -8723,9 +7645,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(5));
         }
 
-        /// <summary>
-        /// Tests that WriteDateTimeArray with null fieldName processes correctly.
-        /// </summary>
         [Test]
         public void WriteDateTimeArray_NullFieldName_EncodesCorrectly()
         {
@@ -8743,10 +7662,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
         }
 
-        /// <summary>
-        /// Tests WriteVariantArray with a null array.
-        /// Should write -1 as length and return without writing elements.
-        /// </summary>
         [Test]
         public void WriteVariantArray_NullArray_WritesNegativeOne()
         {
@@ -8766,10 +7681,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(-1));
         }
 
-        /// <summary>
-        /// Tests WriteVariantArray with an empty array.
-        /// Should write 0 as length and return without writing elements.
-        /// </summary>
         [Test]
         public void WriteVariantArray_EmptyArray_WritesZeroLength()
         {
@@ -8789,10 +7700,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Tests WriteVariantArray with a single element array.
-        /// Should write length 1 followed by the variant data.
-        /// </summary>
         [Test]
         public void WriteVariantArray_SingleElement_WritesLengthAndElement()
         {
@@ -8804,7 +7711,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 MaxMessageSize = 0
             };
             var encoder = new BinaryEncoder(messageContext);
-            var variant = new Variant(42);
+            var variant = Variant.From(42);
             var array = new ArrayOf<Variant>([variant]);
             // Act
             encoder.WriteVariantArray("TestField", array);
@@ -8818,10 +7725,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(1));
         }
 
-        /// <summary>
-        /// Tests WriteVariantArray with multiple elements.
-        /// Should write length followed by all variant elements in order.
-        /// </summary>
         [Test]
         public void WriteVariantArray_MultipleElements_WritesAllElements()
         {
@@ -8833,13 +7736,12 @@ namespace Opc.Ua.Types.Tests.Encoders
                 MaxMessageSize = 0
             };
             var encoder = new BinaryEncoder(messageContext);
-            var variants = new Variant[]
-            {
-                new(42),
-                new("test"),
-                new(true)
-            };
-            var array = new ArrayOf<Variant>(variants);
+            ArrayOf<Variant> array =
+            [
+                Variant.From(42),
+                Variant.From("test"),
+                Variant.From(true)
+            ];
             // Act
             encoder.WriteVariantArray("TestField", array);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -8851,10 +7753,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(3));
         }
 
-        /// <summary>
-        /// Tests WriteVariantArray with null field name.
-        /// Should still write the array correctly as fieldName is not used.
-        /// </summary>
         [Test]
         public void WriteVariantArray_NullFieldName_WritesArraySuccessfully()
         {
@@ -8866,8 +7764,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 MaxMessageSize = 0
             };
             var encoder = new BinaryEncoder(messageContext);
-            var variant = new Variant(123);
-            var array = new ArrayOf<Variant>([variant]);
+            ArrayOf<Variant> array = [Variant.From(123)];
             // Act
             encoder.WriteVariantArray(null, array);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -8879,33 +7776,25 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(1));
         }
 
-        /// <summary>
-        /// Tests WriteVariantArray when MaxArrayLength is exceeded.
-        /// Should throw ServiceResultException with BadEncodingLimitsExceeded.
-        /// </summary>
         [Test]
         public void WriteVariantArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
         {
             // Arrange
             ServiceMessageContext messageContext = CreateContext(2);
             var encoder = new BinaryEncoder(messageContext);
-            var variants = new Variant[]
-            {
-                new(1),
-                new(2),
-                new(3)
-            };
-            var array = new ArrayOf<Variant>(variants);
+            ArrayOf<Variant> array =
+            [
+                Variant.From(1),
+                Variant.From(2),
+                Variant.From(3)
+            ];
             // Act & Assert
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteVariantArray("TestField", array));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteVariantArray("TestField", array));
             Assert.That(ex, Is.Not.Null);
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Tests WriteVariantArray with variants containing different data types.
-        /// Should write all variants with their respective types correctly.
-        /// </summary>
         [Test]
         public void WriteVariantArray_DifferentVariantTypes_WritesAllCorrectly()
         {
@@ -8917,16 +7806,15 @@ namespace Opc.Ua.Types.Tests.Encoders
                 MaxMessageSize = 0
             };
             var encoder = new BinaryEncoder(messageContext);
-            var variants = new Variant[]
-            {
+            ArrayOf<Variant> array =
+            [
                 Variant.From((byte)1),
                 Variant.From((short)2),
                 Variant.From(3),
                 Variant.From(4L),
                 Variant.From(5.5f),
                 Variant.From(6.6)
-            };
-            var array = new ArrayOf<Variant>(variants);
+            ];
             // Act
             encoder.WriteVariantArray("TestField", array);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -8938,10 +7826,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(6));
         }
 
-        /// <summary>
-        /// Tests WriteVariantArray with array containing null Variant values.
-        /// Should write the array with null variants encoded properly.
-        /// </summary>
         [Test]
         public void WriteVariantArray_WithNullVariants_WritesArrayWithNulls()
         {
@@ -8953,13 +7837,12 @@ namespace Opc.Ua.Types.Tests.Encoders
                 MaxMessageSize = 0
             };
             var encoder = new BinaryEncoder(messageContext);
-            var variants = new Variant[]
-            {
-                new(42),
+            ArrayOf<Variant> array =
+            [
+                Variant.From(42),
                 Variant.Null,
-                new(84)
-            };
-            var array = new ArrayOf<Variant>(variants);
+                Variant.From(84)
+            ];
             // Act
             encoder.WriteVariantArray("TestField", array);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -8971,10 +7854,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(3));
         }
 
-        /// <summary>
-        /// Tests WriteVariantArray with large array at boundary of MaxArrayLength.
-        /// Should write successfully when count equals MaxArrayLength.
-        /// </summary>
         [Test]
         public void WriteVariantArray_ArrayAtMaxLength_WritesSuccessfully()
         {
@@ -8982,13 +7861,12 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = CreateContext(3);
             messageContext.MaxMessageSize = 0;
             var encoder = new BinaryEncoder(messageContext);
-            var variants = new Variant[]
-            {
-                new(1),
-                new(2),
-                new(3)
-            };
-            var array = new ArrayOf<Variant>(variants);
+            ArrayOf<Variant> array =
+            [
+                Variant.From(1),
+                Variant.From(2),
+                Variant.From(3)
+            ];
             // Act
             encoder.WriteVariantArray("TestField", array);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -9000,9 +7878,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(3));
         }
 
-        /// <summary>
-        /// Tests that Dispose correctly disposes the writer and stream when leaveOpen is false.
-        /// </summary>
         [Test]
         public void Dispose_WithLeaveOpenFalse_DisposesWriterAndStream()
         {
@@ -9018,9 +7893,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(() => stream.WriteByte(0), Throws.TypeOf<ObjectDisposedException>());
         }
 
-        /// <summary>
-        /// Tests that Dispose correctly disposes the writer but leaves the stream open when leaveOpen is true.
-        /// </summary>
         [Test]
         public void Dispose_WithLeaveOpenTrue_DisposesWriterButLeavesStreamOpen()
         {
@@ -9039,9 +7911,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             stream.Dispose();
         }
 
-        /// <summary>
-        /// Tests that Dispose can be called multiple times without throwing exceptions (idempotency).
-        /// </summary>
         [Test]
         public void Dispose_CalledMultipleTimes_DoesNotThrow()
         {
@@ -9056,9 +7925,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(encoder.Dispose, Throws.Nothing);
         }
 
-        /// <summary>
-        /// Tests that Dispose correctly flushes and disposes resources after writing data.
-        /// </summary>
         [Test]
         public void Dispose_AfterWritingData_FlushesAndDisposesCorrectly()
         {
@@ -9078,9 +7944,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(() => stream.Position, Throws.TypeOf<ObjectDisposedException>());
         }
 
-        /// <summary>
-        /// Tests that Dispose with default constructor disposes internal MemoryStream.
-        /// </summary>
         [Test]
         public void Dispose_WithDefaultConstructor_DisposesInternalStream()
         {
@@ -9097,9 +7960,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(() => encoder.WriteInt32("AnotherField", 456), Throws.Exception);
         }
 
-        /// <summary>
-        /// Tests that Dispose can be called on an encoder that has not written any data.
-        /// </summary>
         [Test]
         public void Dispose_WithoutWritingData_DisposesCleanly()
         {
@@ -9112,9 +7972,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(encoder.Dispose, Throws.Nothing);
         }
 
-        /// <summary>
-        /// Tests that Dispose works correctly with encoder created from buffer constructor.
-        /// </summary>
         [Test]
         public void Dispose_WithBufferConstructor_DisposesCorrectly()
         {
@@ -9132,10 +7989,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(() => encoder.WriteInt32("AnotherField", 888), Throws.Exception);
         }
 
-        /// <summary>
-        /// Tests that PopNamespace can be called on a newly created encoder without throwing an exception.
-        /// This verifies that the no-op implementation doesn't cause any issues.
-        /// </summary>
         [Test]
         public void PopNamespace_CalledOnNewEncoder_DoesNotThrowException()
         {
@@ -9148,10 +8001,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.DoesNotThrow(encoder.PopNamespace);
         }
 
-        /// <summary>
-        /// Tests that PopNamespace can be called multiple times consecutively without throwing an exception.
-        /// Verifies that repeated calls to the no-op method don't accumulate state or cause errors.
-        /// </summary>
         [Test]
         public void PopNamespace_CalledMultipleTimes_DoesNotThrowException()
         {
@@ -9169,10 +8018,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             });
         }
 
-        /// <summary>
-        /// Tests that PopNamespace can be called after writing data without affecting the encoded output.
-        /// Verifies that the no-op PopNamespace method doesn't interfere with binary encoding.
-        /// </summary>
         [Test]
         public void PopNamespace_CalledAfterWritingData_DoesNotAffectOutput()
         {
@@ -9194,10 +8039,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(output2, Is.EqualTo(output1));
         }
 
-        /// <summary>
-        /// Tests that PopNamespace can be called after PushNamespace without throwing an exception.
-        /// Verifies that the Push/Pop pair works correctly even though both are no-ops in binary encoding.
-        /// </summary>
         [Test]
         public void PopNamespace_CalledAfterPushNamespace_DoesNotThrowException()
         {
@@ -9214,10 +8055,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             });
         }
 
-        /// <summary>
-        /// Tests that PopNamespace can be called with multiple PushNamespace calls without throwing an exception.
-        /// Verifies proper handling of nested namespace operations in binary encoding.
-        /// </summary>
         [Test]
         public void PopNamespace_CalledWithMultiplePushNamespace_DoesNotThrowException()
         {
@@ -9236,10 +8073,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             });
         }
 
-        /// <summary>
-        /// Tests that PopNamespace called without matching PushNamespace does not throw an exception.
-        /// In binary encoding, both operations are no-ops, so unbalanced calls should not cause errors.
-        /// </summary>
         [Test]
         public void PopNamespace_CalledWithoutPushNamespace_DoesNotThrowException()
         {
@@ -9252,11 +8085,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.DoesNotThrow(encoder.PopNamespace);
         }
 
-        /// <summary>
-        /// Tests WriteQualifiedName with a QualifiedName that has namespace index 0 and a simple name,
-        /// when no namespace mappings are configured.
-        /// Verifies that the namespace index and name are written correctly to the binary stream.
-        /// </summary>
         [Test]
         public void WriteQualifiedName_WithoutNamespaceMappings_WritesIndexAndName()
         {
@@ -9276,11 +8104,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Length, Is.GreaterThan(0));
         }
 
-        /// <summary>
-        /// Tests WriteQualifiedName with a QualifiedName that has a non-zero namespace index,
-        /// when no namespace mappings are configured.
-        /// Verifies that the original namespace index is preserved and written correctly.
-        /// </summary>
         [TestCase((ushort)1)]
         [TestCase((ushort)10)]
         [TestCase((ushort)255)]
@@ -9305,11 +8128,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(writtenIndex, Is.EqualTo(namespaceIndex));
         }
 
-        /// <summary>
-        /// Tests WriteQualifiedName with namespace mappings configured and the namespace index
-        /// is within the bounds of the mapping array.
-        /// Verifies that the mapped namespace index is written instead of the original.
-        /// </summary>
         [Test]
         public void WriteQualifiedName_WithNamespaceMappings_WritesMappedIndex()
         {
@@ -9338,11 +8156,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(writtenIndex, Is.Not.EqualTo((ushort)1));
         }
 
-        /// <summary>
-        /// Tests WriteQualifiedName with namespace mappings configured but the namespace index
-        /// exceeds the bounds of the mapping array.
-        /// Verifies that the original namespace index is used when no mapping exists.
-        /// </summary>
         [Test]
         public void WriteQualifiedName_WithNamespaceMappingsIndexOutOfBounds_WritesOriginalIndex()
         {
@@ -9369,10 +8182,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(writtenIndex, Is.EqualTo((ushort)100));
         }
 
-        /// <summary>
-        /// Tests WriteQualifiedName with a QualifiedName that has a null Name property.
-        /// Verifies that null names are handled correctly.
-        /// </summary>
         [Test]
         public void WriteQualifiedName_WithNullName_WritesNullString()
         {
@@ -9392,10 +8201,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Length, Is.GreaterThan(0));
         }
 
-        /// <summary>
-        /// Tests WriteQualifiedName with a QualifiedName that has an empty Name property.
-        /// Verifies that empty names are written correctly.
-        /// </summary>
         [Test]
         public void WriteQualifiedName_WithEmptyName_WritesEmptyString()
         {
@@ -9415,10 +8220,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Length, Is.GreaterThan(0));
         }
 
-        /// <summary>
-        /// Tests WriteQualifiedName with a QualifiedName that has a Name with special characters.
-        /// Verifies that special characters in names are encoded correctly.
-        /// </summary>
         [TestCase("Name with spaces")]
         [TestCase("Name\twith\ttabs")]
         [TestCase("Name\nwith\nnewlines")]
@@ -9443,10 +8244,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Length, Is.GreaterThan(0));
         }
 
-        /// <summary>
-        /// Tests WriteQualifiedName with multiple QualifiedNames written sequentially.
-        /// Verifies that multiple qualified names can be written to the same encoder.
-        /// </summary>
         [Test]
         public void WriteQualifiedName_MultipleQualifiedNames_WritesAllCorrectly()
         {
@@ -9470,10 +8267,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Length, Is.GreaterThan(0));
         }
 
-        /// <summary>
-        /// Tests WriteQualifiedName with namespace index at the boundary (0).
-        /// Verifies that the minimum namespace index is handled correctly.
-        /// </summary>
         [Test]
         public void WriteQualifiedName_WithNamespaceIndexZero_WritesCorrectly()
         {
@@ -9494,10 +8287,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(writtenIndex, Is.EqualTo((ushort)0));
         }
 
-        /// <summary>
-        /// Tests WriteQualifiedName with a very long name string.
-        /// Verifies that long names are handled correctly without errors.
-        /// </summary>
         [Test]
         public void WriteQualifiedName_WithVeryLongName_WritesCorrectly()
         {
@@ -9518,10 +8307,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Length, Is.GreaterThan(10000));
         }
 
-        /// <summary>
-        /// Tests WriteQualifiedName with whitespace-only name.
-        /// Verifies that whitespace-only names are written correctly.
-        /// </summary>
         [TestCase("   ")]
         [TestCase("\t\t\t")]
         [TestCase("\n\n")]
@@ -9543,10 +8328,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Length, Is.GreaterThan(0));
         }
 
-        /// <summary>
-        /// Tests WriteQualifiedName with namespace index exactly at the length of mapping array.
-        /// Verifies that boundary condition when index equals mapping array length is handled correctly.
-        /// </summary>
         [Test]
         public void WriteQualifiedName_WithIndexAtMappingArrayLength_WritesOriginalIndex()
         {
@@ -9573,10 +8354,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(writtenIndex, Is.EqualTo((ushort)2));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt32Array correctly encodes a null array.
-        /// The binary format should write -1 as the length for null arrays.
-        /// </summary>
         [Test]
         public void WriteUInt32Array_NullArray_WritesNegativeOne()
         {
@@ -9595,10 +8372,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(-1));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt32Array correctly encodes an empty array.
-        /// The binary format should write 0 as the length for empty arrays.
-        /// </summary>
         [Test]
         public void WriteUInt32Array_EmptyArray_WritesZeroLength()
         {
@@ -9617,10 +8390,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt32Array correctly encodes a single element array.
-        /// Verifies both the length prefix and the element value are written correctly.
-        /// </summary>
         [Test]
         public void WriteUInt32Array_SingleElement_WritesLengthAndValue()
         {
@@ -9641,10 +8410,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(value, Is.EqualTo(42u));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt32Array correctly encodes multiple elements.
-        /// Verifies the length prefix and all element values are written in order.
-        /// </summary>
         [Test]
         public void WriteUInt32Array_MultipleElements_WritesAllValues()
         {
@@ -9676,10 +8441,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
         }
 
-        /// <summary>
-        /// Tests that WriteUInt32Array correctly encodes the minimum uint value (0).
-        /// Verifies that zero is encoded correctly in the binary format.
-        /// </summary>
         [Test]
         public void WriteUInt32Array_MinValue_WritesZero()
         {
@@ -9700,10 +8461,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(value, Is.EqualTo(0u));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt32Array correctly encodes the maximum uint value (4294967295).
-        /// Verifies that the maximum value is encoded correctly in the binary format.
-        /// </summary>
         [Test]
         public void WriteUInt32Array_MaxValue_WritesMaxUInt()
         {
@@ -9724,10 +8481,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(value, Is.EqualTo(uint.MaxValue));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt32Array correctly encodes various boundary values.
-        /// Tests powers of 2 and boundary values to ensure proper encoding.
-        /// </summary>
         [Test]
         public void WriteUInt32Array_BoundaryValues_WritesCorrectly()
         {
@@ -9761,10 +8514,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
         }
 
-        /// <summary>
-        /// Tests that WriteUInt32Array ignores the fieldName parameter.
-        /// The fieldName is not used in binary encoding but should not cause errors.
-        /// </summary>
         [Test]
         public void WriteUInt32Array_WithNullFieldName_WritesCorrectly()
         {
@@ -9783,9 +8532,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(value, Is.EqualTo(123u));
         }
 
-        /// <summary>
-        /// Tests that WriteExpandedNodeIdArray writes -1 for a null array and returns without writing elements.
-        /// </summary>
         [Test]
         public void WriteExpandedNodeIdArray_NullArray_WritesMinusOne()
         {
@@ -9803,9 +8549,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(-1));
         }
 
-        /// <summary>
-        /// Tests that WriteExpandedNodeIdArray writes 0 for an empty array and returns without writing elements.
-        /// </summary>
         [Test]
         public void WriteExpandedNodeIdArray_EmptyArray_WritesZeroLength()
         {
@@ -9823,10 +8566,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Tests that WriteSwitchField writes data to the stream by verifying
-        /// the stream position changes after the write operation.
-        /// </summary>
         [Test]
         public void WriteSwitchField_WritesDataToStream()
         {
@@ -9843,10 +8582,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(finalPosition, Is.EqualTo(initialPosition + 4), "position should advance by 4 bytes after writing uint");
         }
 
-        /// <summary>
-        /// Tests that multiple consecutive calls to PushNamespace do not cause any issues.
-        /// This verifies that the no-op implementation can be called multiple times safely.
-        /// </summary>
         [Test]
         public void PushNamespace_MultipleConsecutiveCalls_DoesNotThrow()
         {
@@ -9865,11 +8600,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             });
         }
 
-        /// <summary>
-        /// Tests that WriteStatusCode correctly encodes predefined OPC UA status codes.
-        /// </summary>
-        /// <param name = "statusCode">The predefined StatusCode to test.</param>
-        /// <param name = "expectedCode">The expected uint code value.</param>
         [TestCase(0x00000000u, 0x00000000u, TestName = "WriteStatusCode_GoodStatusCode_WritesGoodCode")]
         [TestCase(0x80000000u, 0x80000000u, TestName = "WriteStatusCode_BadStatusCode_WritesBadCode")]
         [TestCase(0x40000000u, 0x40000000u, TestName = "WriteStatusCode_UncertainStatusCode_WritesUncertainCode")]
@@ -9896,9 +8626,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(writtenValue, Is.EqualTo(expectedCode));
         }
 
-        /// <summary>
-        /// Tests that WriteStatusCode writes multiple status codes sequentially to the stream.
-        /// </summary>
         [Test]
         public void WriteStatusCode_MultipleStatusCodes_WritesAllCodesSequentially()
         {
@@ -9926,9 +8653,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(value3, Is.EqualTo(uint.MaxValue));
         }
 
-        /// <summary>
-        /// Tests that WriteStatusCode uses little-endian byte order for encoding.
-        /// </summary>
         [Test]
         public void WriteStatusCode_EncodesInLittleEndian_VerifiesByteOrder()
         {
@@ -9951,9 +8675,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[3], Is.EqualTo(0x12));
         }
 
-        /// <summary>
-        /// Tests that WriteStatusCode works correctly with a default StatusCode (all zeros).
-        /// </summary>
         [Test]
         public void WriteStatusCode_DefaultStatusCode_WritesZero()
         {
@@ -9973,10 +8694,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(writtenValue, Is.EqualTo(0u));
         }
 
-        /// <summary>
-        /// Tests that WriteByteArray handles an empty array correctly.
-        /// Expects the method to write 0 as the length and return early without writing any elements.
-        /// </summary>
         [Test]
         public void WriteByteArray_EmptyArray_WritesZeroLength()
         {
@@ -9993,10 +8710,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Tests that WriteByteArray writes a single-element array correctly.
-        /// Expects the method to write the length (1) followed by the byte value.
-        /// </summary>
         [Test]
         public void WriteByteArray_SingleElement_WritesLengthAndValue()
         {
@@ -10014,10 +8727,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[4], Is.EqualTo(42));
         }
 
-        /// <summary>
-        /// Tests that WriteByteArray writes a multiple-element array correctly.
-        /// Expects the method to write the length followed by all byte values in order.
-        /// </summary>
         [Test]
         public void WriteByteArray_MultipleElements_WritesLengthAndAllValues()
         {
@@ -10039,10 +8748,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[8], Is.EqualTo(5));
         }
 
-        /// <summary>
-        /// Tests that WriteByteArray correctly writes all byte boundary values.
-        /// Expects the method to correctly encode minimum (0), maximum (255), and mid-range values.
-        /// </summary>
         [Test]
         public void WriteByteArray_BoundaryValues_WritesCorrectly()
         {
@@ -10062,10 +8767,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[6], Is.EqualTo(128));
         }
 
-        /// <summary>
-        /// Tests that WriteByteArray throws ServiceResultException when array length exceeds MaxArrayLength.
-        /// Expects the method to throw with BadEncodingLimitsExceeded status code.
-        /// </summary>
         [Test]
         public void WriteByteArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
         {
@@ -10079,10 +8780,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Tests that WriteByteArray accepts array at exact MaxArrayLength boundary.
-        /// Expects the method to successfully encode the array without throwing.
-        /// </summary>
         [Test]
         public void WriteByteArray_AtMaxArrayLength_WritesSuccessfully()
         {
@@ -10099,10 +8796,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(5));
         }
 
-        /// <summary>
-        /// Tests that WriteByteArray handles null fieldName parameter correctly.
-        /// Expects the method to work normally as fieldName is not used in the implementation.
-        /// </summary>
         [Test]
         public void WriteByteArray_NullFieldName_WritesSuccessfully()
         {
@@ -10121,10 +8814,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[5], Is.EqualTo(20));
         }
 
-        /// <summary>
-        /// Tests that WriteByteArray handles empty string fieldName parameter correctly.
-        /// Expects the method to work normally as fieldName is not used in the implementation.
-        /// </summary>
         [Test]
         public void WriteByteArray_EmptyFieldName_WritesSuccessfully()
         {
@@ -10142,10 +8831,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[4], Is.EqualTo(100));
         }
 
-        /// <summary>
-        /// Tests that WriteByteArray writes a large array correctly.
-        /// Expects the method to write all bytes in the correct order.
-        /// </summary>
         [Test]
         public void WriteByteArray_LargeArray_WritesAllElements()
         {
@@ -10172,9 +8857,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
         }
 
-        /// <summary>
-        /// Tests that WriteByteStringArray writes -1 for a null array.
-        /// </summary>
         [Test]
         public void WriteByteStringArray_NullArray_WritesMinusOne()
         {
@@ -10193,9 +8875,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(-1));
         }
 
-        /// <summary>
-        /// Tests that WriteByteStringArray writes 0 for an empty array.
-        /// </summary>
         [Test]
         public void WriteByteStringArray_EmptyArray_WritesZero()
         {
@@ -10214,9 +8893,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Tests that WriteByteStringArray correctly encodes a single element array.
-        /// </summary>
         [Test]
         public void WriteByteStringArray_SingleElement_EncodesCorrectly()
         {
@@ -10246,9 +8922,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[10], Is.EqualTo(0x03));
         }
 
-        /// <summary>
-        /// Tests that WriteByteStringArray correctly encodes multiple elements.
-        /// </summary>
         [Test]
         public void WriteByteStringArray_MultipleElements_EncodesCorrectly()
         {
@@ -10279,9 +8952,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[16], Is.EqualTo(0x05));
         }
 
-        /// <summary>
-        /// Tests that WriteByteStringArray correctly handles empty ByteStrings in the array.
-        /// </summary>
         [Test]
         public void WriteByteStringArray_EmptyByteStrings_WritesMinusOne()
         {
@@ -10302,9 +8972,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(elementLength, Is.EqualTo(-1));
         }
 
-        /// <summary>
-        /// Tests that WriteByteStringArray correctly handles mixed content (empty and non-empty ByteStrings).
-        /// </summary>
         [Test]
         public void WriteByteStringArray_MixedContent_EncodesCorrectly()
         {
@@ -10337,9 +9004,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[18], Is.EqualTo(0xCC));
         }
 
-        /// <summary>
-        /// Tests that WriteByteStringArray correctly encodes large byte strings.
-        /// </summary>
         [Test]
         public void WriteByteStringArray_LargeByteStrings_EncodesCorrectly()
         {
@@ -10367,9 +9031,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Length, Is.EqualTo(8 + 1000));
         }
 
-        /// <summary>
-        /// Tests that WriteByteStringArray handles null fieldName parameter correctly.
-        /// </summary>
         [Test]
         public void WriteByteStringArray_NullFieldName_EncodesCorrectly()
         {
@@ -10388,9 +9049,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(arrayLength, Is.EqualTo(1));
         }
 
-        /// <summary>
-        /// Verifies that WriteEnumeratedArray correctly handles an empty array by writing 0 and returning early.
-        /// </summary>
         [Test]
         public void WriteEnumeratedArray_EmptyArray_WritesZero()
         {
@@ -10409,10 +9067,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(0));
         }
 
-        /// <summary>
-        /// Verifies that WriteEnumeratedArray correctly writes a single-item array.
-        /// Expected output: count (4 bytes) + enum value as int32 (4 bytes).
-        /// </summary>
         [Test]
         public void WriteEnumeratedArray_SingleItem_WritesCountAndValue()
         {
@@ -10433,10 +9087,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(value, Is.EqualTo((int)TestEnum.Value2));
         }
 
-        /// <summary>
-        /// Verifies that WriteEnumeratedArray correctly writes multiple enum values.
-        /// Expected output: count + each enum value as int32.
-        /// </summary>
         [Test]
         public void WriteEnumeratedArray_MultipleItems_WritesCountAndAllValues()
         {
@@ -10461,9 +9111,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(value3, Is.EqualTo((int)TestEnum.Value3));
         }
 
-        /// <summary>
-        /// Verifies that WriteEnumeratedArray correctly writes enum values including edge cases (zero, negative, large values).
-        /// </summary>
         [Test]
         public void WriteEnumeratedArray_EdgeCaseEnumValues_WritesCorrectly()
         {
@@ -10488,10 +9135,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(value3, Is.EqualTo((int)TestEnum.LargeValue));
         }
 
-        /// <summary>
-        /// Verifies that WriteEnumeratedArray correctly handles invalid enum values (cast from integers outside defined range).
-        /// The method should encode them as their integer representation.
-        /// </summary>
         [Test]
         public void WriteEnumeratedArray_InvalidEnumValue_EncodesAsInteger()
         {
@@ -10513,10 +9156,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(value, Is.EqualTo(999));
         }
 
-        /// <summary>
-        /// Verifies that WriteEnumeratedArray accepts null as fieldName without issue.
-        /// The fieldName parameter is not used in the implementation.
-        /// </summary>
         [Test]
         public void WriteEnumeratedArray_NullFieldName_WritesCorrectly()
         {
@@ -10535,11 +9174,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(count, Is.EqualTo(1));
         }
 
-        /// <summary>
-        /// Tests that WriteByte correctly writes byte boundary values to the stream.
-        /// Verifies that minimum and maximum byte values are encoded correctly.
-        /// </summary>
-        /// <param name = "value">The byte value to write (0 or 255).</param>
         [TestCase((byte)0)]
         [TestCase((byte)255)]
         public void WriteByte_BoundaryValues_WritesCorrectByte(byte value)
@@ -10558,11 +9192,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0], Is.EqualTo(value));
         }
 
-        /// <summary>
-        /// Tests that WriteByte correctly writes various byte values to the stream.
-        /// Verifies that different byte values are encoded correctly.
-        /// </summary>
-        /// <param name = "value">The byte value to write.</param>
         [TestCase((byte)1)]
         [TestCase((byte)127)]
         [TestCase((byte)128)]
@@ -10583,10 +9212,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0], Is.EqualTo(value));
         }
 
-        /// <summary>
-        /// Tests that WriteByte works correctly when fieldName is null.
-        /// Verifies that the method does not throw and writes the byte correctly.
-        /// </summary>
         [Test]
         public void WriteByte_NullFieldName_WritesCorrectByte()
         {
@@ -10605,10 +9230,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0], Is.EqualTo(testValue));
         }
 
-        /// <summary>
-        /// Tests that WriteByte can write multiple bytes sequentially.
-        /// Verifies that multiple calls accumulate bytes in the correct order.
-        /// </summary>
         [Test]
         public void WriteByte_MultipleWrites_WritesAllBytesInOrder()
         {
@@ -10641,10 +9262,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
         }
 
-        /// <summary>
-        /// Tests that WriteByte works with empty string fieldName.
-        /// Verifies that an empty field name does not affect the write operation.
-        /// </summary>
         [Test]
         public void WriteByte_EmptyFieldName_WritesCorrectByte()
         {
@@ -10663,10 +9280,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0], Is.EqualTo(testValue));
         }
 
-        /// <summary>
-        /// Tests that WriteByte works correctly with a stream-based encoder.
-        /// Verifies that WriteByte works with different encoder constructor overloads.
-        /// </summary>
         [Test]
         public void WriteByte_WithStreamConstructor_WritesCorrectByte()
         {
@@ -10687,10 +9300,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0], Is.EqualTo(testValue));
         }
 
-        /// <summary>
-        /// Tests that WriteByte works correctly with a buffer-based encoder.
-        /// Verifies that WriteByte works with the fixed buffer constructor.
-        /// </summary>
         [Test]
         public void WriteByte_WithBufferConstructor_WritesCorrectByte()
         {
@@ -10709,9 +9318,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(buffer[0], Is.EqualTo(testValue));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64Array writes -1 for null array and exits early.
-        /// </summary>
         [Test]
         public void WriteUInt64Array_NullArray_WritesMinusOneAndReturns()
         {
@@ -10730,9 +9336,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(stream.Position, Is.EqualTo(4)); // Only 4 bytes written (the -1 length)
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64Array writes 0 for empty array and exits early.
-        /// </summary>
         [Test]
         public void WriteUInt64Array_EmptyArray_WritesZeroAndReturns()
         {
@@ -10751,9 +9354,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(stream.Position, Is.EqualTo(4)); // Only 4 bytes written (the 0 length)
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64Array correctly writes a single element array.
-        /// </summary>
         [Test]
         public void WriteUInt64Array_SingleElement_WritesCountAndValue()
         {
@@ -10773,9 +9373,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(value, Is.EqualTo(12345UL));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64Array correctly writes multiple elements with boundary values.
-        /// </summary>
         [Test]
         public void WriteUInt64Array_MultipleElementsWithBoundaryValues_WritesCountAndAllValues()
         {
@@ -10804,9 +9401,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(reader.ReadUInt64(), Is.EqualTo(ulong.MaxValue - 1));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64Array throws ServiceResultException when array exceeds MaxArrayLength.
-        /// </summary>
         [Test]
         public void WriteUInt64Array_ArrayExceedsMaxArrayLength_ThrowsServiceResultException()
         {
@@ -10820,9 +9414,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex?.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64Array correctly writes a large array within limits.
-        /// </summary>
         [Test]
         public void WriteUInt64Array_LargeArrayWithinLimits_WritesCountAndAllValues()
         {
@@ -10850,9 +9441,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64Array handles fieldName parameter (even though it's not used in binary encoding).
-        /// </summary>
         [Test]
         public void WriteUInt64Array_WithNullFieldName_WritesCorrectly()
         {
@@ -10872,9 +9460,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(value, Is.EqualTo(999UL));
         }
 
-        /// <summary>
-        /// Tests that WriteUInt64Array with MaxArrayLength set to 0 allows any array size.
-        /// </summary>
         [Test]
         public void WriteUInt64Array_MaxArrayLengthZero_AllowsAnySize()
         {
@@ -10892,10 +9477,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(5));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfoArray correctly writes an empty ArrayOf to the stream.
-        /// Expects 0 to be written as the array length with no additional data.
-        /// </summary>
         [Test]
         public void WriteDiagnosticInfoArray_EmptyArray_WritesZeroLength()
         {
@@ -10914,10 +9495,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(stream.Position, Is.EqualTo(4)); // Only length written, no elements
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfoArray correctly writes a single DiagnosticInfo to the stream.
-        /// Expects the array length (1) followed by the encoded DiagnosticInfo.
-        /// </summary>
         [Test]
         public void WriteDiagnosticInfoArray_SingleElement_WritesLengthAndElement()
         {
@@ -10943,10 +9520,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(stream.Length, Is.GreaterThan(4)); // More than just the length
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfoArray correctly writes multiple DiagnosticInfo elements to the stream.
-        /// Expects the array length followed by all encoded elements in order.
-        /// </summary>
         [Test]
         public void WriteDiagnosticInfoArray_MultipleElements_WritesAllElements()
         {
@@ -10982,10 +9555,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(stream.Length, Is.GreaterThan(4)); // More than just the length
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfoArray throws ServiceResultException when array length exceeds MaxArrayLength.
-        /// Expects StatusCodes.BadEncodingLimitsExceeded exception.
-        /// </summary>
         [Test]
         public void WriteDiagnosticInfoArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
         {
@@ -11012,14 +9581,112 @@ namespace Opc.Ua.Types.Tests.Encoders
                 diagnosticInfo3
             }.ToArrayOf();
             // Act & Assert
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteDiagnosticInfoArray("testField", array));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteDiagnosticInfoArray("testField", array));
             Assert.That(ex?.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfoArray correctly handles array at MaxArrayLength boundary.
-        /// Expects successful encoding when array count equals MaxArrayLength.
-        /// </summary>
+        [Test]
+        public void WriteDiagnosticInfo_ExceedsMaxEncodingNestingLevels_ThrowsServiceResultException()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(2);
+            messageContext.MaxEncodingNestingLevels = 4;
+            var stream = new MemoryStream();
+            var encoder = new BinaryEncoder(stream, messageContext, true);
+            var diagnosticInfo = new DiagnosticInfo
+            {
+                AdditionalInfo = "Level0",
+                InnerDiagnosticInfo = new DiagnosticInfo
+                {
+                    AdditionalInfo = "Level1",
+                    InnerDiagnosticInfo = new DiagnosticInfo
+                    {
+                        AdditionalInfo = "Level2",
+                        InnerDiagnosticInfo = new DiagnosticInfo
+                        {
+                            AdditionalInfo = "Level3",
+                            InnerDiagnosticInfo = new DiagnosticInfo
+                            {
+                                AdditionalInfo = "Level4",
+                                InnerDiagnosticInfo = new DiagnosticInfo
+                                {
+                                    AdditionalInfo = "Level5"
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+            // Act & Assert
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteDiagnosticInfo("testField", diagnosticInfo));
+            Assert.That(ex?.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void WriteDiagnosticInfo_ExceedsMaxDiagnosticLevels_Truncates()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(2);
+            var stream1 = new MemoryStream();
+            var stream2 = new MemoryStream();
+            var encoder1 = new BinaryEncoder(stream1, messageContext, true);
+            var encoder2 = new BinaryEncoder(stream2, messageContext, true);
+            var diagnosticInfo = new DiagnosticInfo
+            {
+                AdditionalInfo = "Level0",
+                InnerDiagnosticInfo = new DiagnosticInfo
+                {
+                    AdditionalInfo = "Level1",
+                    InnerDiagnosticInfo = new DiagnosticInfo
+                    {
+                        AdditionalInfo = "Level2",
+                        InnerDiagnosticInfo = new DiagnosticInfo
+                        {
+                            AdditionalInfo = "Level3",
+                            InnerDiagnosticInfo = new DiagnosticInfo
+                            {
+                                AdditionalInfo = "Level4",
+                                InnerDiagnosticInfo = new DiagnosticInfo
+                                {
+                                    AdditionalInfo = "Level5",
+                                    InnerDiagnosticInfo = new DiagnosticInfo
+                                    {
+                                        AdditionalInfo = "Level6",
+                                        InnerDiagnosticInfo = new DiagnosticInfo
+                                        {
+                                            AdditionalInfo = "Level7"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+            // Act
+            encoder1.WriteDiagnosticInfo("testField", diagnosticInfo);
+            Assert.That(diagnosticInfo
+                .InnerDiagnosticInfo
+                .InnerDiagnosticInfo
+                .InnerDiagnosticInfo
+                .InnerDiagnosticInfo
+                .InnerDiagnosticInfo
+                .InnerDiagnosticInfo.AdditionalInfo, Is.EqualTo("Level6"));
+            diagnosticInfo
+                .InnerDiagnosticInfo
+                .InnerDiagnosticInfo
+                .InnerDiagnosticInfo
+                .InnerDiagnosticInfo
+                .InnerDiagnosticInfo
+                .InnerDiagnosticInfo = null; // Truncate to 5 levels
+            encoder2.WriteDiagnosticInfo("testField", diagnosticInfo);
+
+            // Assert
+            Assert.That(stream1.ToArray(), Is.EqualTo(stream2.ToArray()));
+        }
+
         [Test]
         public void WriteDiagnosticInfoArray_AtMaxArrayLength_WritesSuccessfully()
         {
@@ -11055,10 +9722,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(stream.Length, Is.GreaterThan(4));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfoArray ignores the fieldName parameter.
-        /// Expects same output regardless of fieldName value.
-        /// </summary>
         [Test]
         public void WriteDiagnosticInfoArray_DifferentFieldNames_ProducesSameOutput()
         {
@@ -11083,10 +9746,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(stream1.ToArray(), Is.EqualTo(stream2.ToArray()));
         }
 
-        /// <summary>
-        /// Tests that WriteDiagnosticInfoArray correctly writes array with null DiagnosticInfo element.
-        /// Expects the null element to be encoded according to DiagnosticInfo encoding rules.
-        /// </summary>
         [Test]
         public void WriteDiagnosticInfoArray_WithNullElement_EncodesNullElement()
         {
@@ -11142,6 +9801,72 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
+        }
+
+        [Test]
+        public void WriteEncodeableWithNull_ThrowsIfNoEncodeableInFactory()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                Factory = EncodeableFactory.Create()
+            };
+            var encoder = new BinaryEncoder(messageContext);
+            // Act
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteEncodeable<TestEncodeable>("Test", null));
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+        }
+
+        [Test]
+        public void WriteEncodeableAsExtensionObjectWritesEncodedBody()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            var value = new TestEncodeable(42);
+
+            encoder.WriteEncodeableAsExtensionObject("Test", value);
+            byte[] result = encoder.CloseAndReturnBuffer();
+
+            var decoder = new BinaryDecoder(result, messageContext);
+            (NodeId, byte, int, int) actual = (
+                decoder.ReadNodeId(null),
+                decoder.ReadByte(null),
+                decoder.ReadInt32(null),
+                decoder.ReadInt32(null));
+            (NodeId, byte, int, int) expected = (
+                new NodeId(2, 0),
+                (byte)ExtensionObjectEncoding.Binary,
+                4,
+                42);
+
+            Assert.That(actual, Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void WriteEncodeableArrayAsExtensionObjectsWritesEncodedBodies()
+        {
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<TestEncodeable> values = [new TestEncodeable(1), new TestEncodeable(2)];
+
+            encoder.WriteEncodeableArrayAsExtensionObjects("Test", values);
+            byte[] result = encoder.CloseAndReturnBuffer();
+
+            var decoder = new BinaryDecoder(result, messageContext);
+
+            Assert.That(decoder.ReadInt32(null), Is.EqualTo(2));
+            Assert.That(decoder.ReadNodeId(null), Is.EqualTo(new NodeId(2, 0)));
+            Assert.That(decoder.ReadByte(null), Is.EqualTo((byte)ExtensionObjectEncoding.Binary));
+            Assert.That(decoder.ReadInt32(null), Is.EqualTo(4));
+            Assert.That(decoder.ReadInt32(null), Is.EqualTo(1));
+            Assert.That(decoder.ReadNodeId(null), Is.EqualTo(new NodeId(2, 0)));
+            Assert.That(decoder.ReadByte(null), Is.EqualTo((byte)ExtensionObjectEncoding.Binary));
+            Assert.That(decoder.ReadInt32(null), Is.EqualTo(4));
+            Assert.That(decoder.ReadInt32(null), Is.EqualTo(2));
         }
 
         [Test]
@@ -11258,51 +9983,24 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0], Is.EqualTo(0x02));
         }
 
-        #region WriteVariantValue Tests
-
-        private static byte[] EncodeVariantValue(Variant variant)
+        [Test]
+        [TestCaseSource(nameof(ScalarVariantValueTestCases))]
+        public void WriteVariantValueWithScalarRawRoundTripsCorrectly(
+            Variant variant)
         {
-            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext);
-            var encoder = new BinaryEncoder(messageContext);
-            encoder.WriteVariantValue(null, variant);
-            return encoder.CloseAndReturnBuffer();
-        }
+            Variant decoded = RoundTripVariantValue(variant, true);
 
-        private static Variant RoundTripVariantValue(Variant variant)
-        {
-            byte[] encoded = EncodeVariantValue(variant);
-            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext);
-            using var decoder = new BinaryDecoder(encoded, messageContext);
-            return decoder.ReadVariant(null);
-        }
-
-        private static System.Collections.IEnumerable ScalarVariantValueTestCases()
-        {
-            yield return new TestCaseData(new Variant(true), true);
-            yield return new TestCaseData(new Variant((sbyte)-42), (sbyte)-42);
-            yield return new TestCaseData(new Variant((byte)255), (byte)255);
-            yield return new TestCaseData(new Variant((short)-1234), (short)-1234);
-            yield return new TestCaseData(new Variant((ushort)65535), (ushort)65535);
-            yield return new TestCaseData(new Variant(123456), 123456);
-            yield return new TestCaseData(new Variant(123456u), 123456u);
-            yield return new TestCaseData(new Variant(123456789L), 123456789L);
-            yield return new TestCaseData(new Variant(123456789uL), 123456789uL);
-            yield return new TestCaseData(new Variant(3.14f), 3.14f);
-            yield return new TestCaseData(new Variant(2.718), 2.718);
-            yield return new TestCaseData(new Variant("hello"), "hello");
-            yield return new TestCaseData(new Variant(new StatusCode(0x80010000u)), new StatusCode(0x80010000u));
+            Assert.That(decoded, Is.EqualTo(variant));
         }
 
         [Test]
         [TestCaseSource(nameof(ScalarVariantValueTestCases))]
         public void WriteVariantValueWithScalarRoundTripsCorrectly(
-            Variant variant, object expectedValue)
+            Variant variant)
         {
-            Variant decoded = RoundTripVariantValue(variant);
+            Variant decoded = RoundTripVariantValue(variant, false);
 
-            Assert.That(decoded.Value, Is.EqualTo(expectedValue));
+            Assert.That(decoded, Is.EqualTo(variant));
         }
 
         [Test]
@@ -11314,111 +10012,111 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0], Is.EqualTo(0x00));
         }
 
-        [Test]
-        public void WriteVariantValueWithDateTimeScalarRoundTripsCorrectly()
+        [Theory]
+        public void WriteVariantValueWithDateTimeScalarRoundTripsCorrectly(bool raw)
         {
             var dt = new DateTime(2024, 1, 15, 10, 30, 0, DateTimeKind.Utc);
-            Variant decoded = RoundTripVariantValue(new Variant(dt));
+            Variant decoded = RoundTripVariantValue(Variant.From(dt), raw);
 
             Assert.That(decoded.Value, Is.EqualTo(dt));
         }
 
-        [Test]
-        public void WriteVariantValueWithGuidScalarRoundTripsCorrectly()
+        [Theory]
+        public void WriteVariantValueWithGuidScalarRoundTripsCorrectly(bool raw)
         {
             var guid = new Uuid(new Guid("12345678-1234-1234-1234-123456789abc"));
-            Variant decoded = RoundTripVariantValue(new Variant(guid));
+            Variant decoded = RoundTripVariantValue(Variant.From(guid), raw);
 
             Assert.That(decoded.Value, Is.EqualTo(guid));
         }
 
-        [Test]
-        public void WriteVariantValueWithByteStringScalarRoundTripsCorrectly()
+        [Theory]
+        public void WriteVariantValueWithByteStringScalarRoundTripsCorrectly(bool raw)
         {
             var bs = new ByteString(new byte[] { 1, 2, 3 });
-            Variant decoded = RoundTripVariantValue(new Variant(bs));
+            Variant decoded = RoundTripVariantValue(Variant.From(bs), raw);
 
             Assert.That(decoded.GetByteString(), Is.EqualTo(bs));
         }
 
-        [Test]
-        public void WriteVariantValueWithNodeIdScalarRoundTripsCorrectly()
+        [Theory]
+        public void WriteVariantValueWithNodeIdScalarRoundTripsCorrectly(bool raw)
         {
             var nodeId = new NodeId(123, 1);
-            Variant decoded = RoundTripVariantValue(new Variant(nodeId));
+            Variant decoded = RoundTripVariantValue(Variant.From(nodeId), raw);
 
             Assert.That(decoded.Value, Is.EqualTo(nodeId));
         }
 
-        [Test]
-        public void WriteVariantValueWithExpandedNodeIdScalarRoundTripsCorrectly()
+        [Theory]
+        public void WriteVariantValueWithExpandedNodeIdScalarRoundTripsCorrectly(bool raw)
         {
             var expandedNodeId = new ExpandedNodeId(456, 1);
-            Variant decoded = RoundTripVariantValue(new Variant(expandedNodeId));
+            Variant decoded = RoundTripVariantValue(Variant.From(expandedNodeId), raw);
 
             Assert.That(decoded.Value, Is.EqualTo(expandedNodeId));
         }
 
-        [Test]
-        public void WriteVariantValueWithQualifiedNameScalarRoundTripsCorrectly()
+        [Theory]
+        public void WriteVariantValueWithQualifiedNameScalarRoundTripsCorrectly(bool raw)
         {
             var qname = new QualifiedName("qname", 1);
-            Variant decoded = RoundTripVariantValue(new Variant(qname));
+            Variant decoded = RoundTripVariantValue(Variant.From(qname), raw);
 
             Assert.That(decoded.Value, Is.EqualTo(qname));
         }
 
-        [Test]
-        public void WriteVariantValueWithLocalizedTextScalarRoundTripsCorrectly()
+        [Theory]
+        public void WriteVariantValueWithLocalizedTextScalarRoundTripsCorrectly(bool raw)
         {
             var lt = new LocalizedText("en", "loctext");
-            Variant decoded = RoundTripVariantValue(new Variant(lt));
+            Variant decoded = RoundTripVariantValue(Variant.From(lt), raw);
 
             Assert.That(decoded.Value, Is.EqualTo(lt));
         }
 
-        [Test]
-        public void WriteVariantValueWithExtensionObjectScalarRoundTripsCorrectly()
+        [Theory]
+        public void WriteVariantValueWithExtensionObjectScalarRoundTripsCorrectly(bool raw)
         {
             var extObj = new ExtensionObject(ExpandedNodeId.Null);
-            Variant decoded = RoundTripVariantValue(new Variant(extObj));
+            Variant decoded = RoundTripVariantValue(Variant.From(extObj), raw);
 
             Assert.That(decoded.Value, Is.InstanceOf<ExtensionObject>());
         }
 
-        [Test]
-        public void WriteVariantValueWithDataValueScalarRoundTripsCorrectly()
+        [Theory]
+        public void WriteVariantValueWithDataValueScalarRoundTripsCorrectly(bool raw)
         {
-            var dv = new DataValue(new Variant(99));
-            Variant decoded = RoundTripVariantValue(new Variant(dv));
+            var dv = new DataValue(Variant.From(99));
+            Variant decoded = RoundTripVariantValue(Variant.From(dv), raw);
 
-            Assert.That(decoded.GetDataValue().Value, Is.EqualTo(new Variant(99)));
+            Assert.That(decoded.GetDataValue().Value, Is.EqualTo(Variant.From(99)));
         }
 
         [Test]
         public void WriteVariantValueWithEnumerationScalarWritesAsInt32()
         {
-            byte[] result = EncodeVariantValue(new Variant(TestEnum.Value1));
+            byte[] result = EncodeVariantValue(Variant.From(TestEnum.Value1));
 
             Assert.That(result[0], Is.EqualTo((byte)BuiltInType.Int32));
         }
 
-        [Test]
-        public void WriteVariantValueWithEnumerationScalarRoundTripsAsInt32()
+        [Theory]
+        public void WriteVariantValueWithEnumerationScalarRoundTripsAsInt32(bool raw)
         {
-            Variant decoded = RoundTripVariantValue(new Variant(TestEnum.Value1));
+            Variant decoded = RoundTripVariantValue(Variant.From(TestEnum.Value1), raw);
 
             Assert.That(decoded.Value, Is.EqualTo(1));
         }
 
-        [Test]
-        public void WriteVariantValueWithXmlElementScalarRoundTripsCorrectly()
+        [Theory]
+        public void WriteVariantValueWithXmlElementScalarRoundTripsCorrectly(bool raw)
         {
             var xmlDoc = new System.Xml.XmlDocument();
-            var sysElement = xmlDoc.CreateElement("TestElem");
+            System.Xml.XmlElement sysElement = xmlDoc.CreateElement("TestElem");
             sysElement.InnerText = "XmlVal";
             var xmlElement = XmlElement.From(sysElement);
-            Variant decoded = RoundTripVariantValue(new Variant(xmlElement));
+            Variant decoded = RoundTripVariantValue(Variant.From(xmlElement), raw);
 
             Assert.That(decoded.Value, Is.InstanceOf<XmlElement>());
         }
@@ -11426,80 +10124,14 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void WriteVariantValueWithScalarWritesCorrectEncodingByte()
         {
-            byte[] result = EncodeVariantValue(new Variant(42));
+            byte[] result = EncodeVariantValue(Variant.From(42));
 
             Assert.That(result[0], Is.EqualTo((byte)BuiltInType.Int32));
         }
 
-        private static System.Collections.IEnumerable ArrayVariantValueTestCases()
-        {
-            yield return new TestCaseData(
-                new Variant(s_booleanArray), typeof(bool));
-            yield return new TestCaseData(
-                new Variant(new sbyte[] { 1, -1 }), typeof(sbyte));
-            yield return new TestCaseData(
-                new Variant(new byte[] { 1, 2 }), typeof(byte));
-            yield return new TestCaseData(
-                new Variant(new short[] { 1, -1 }), typeof(short));
-            yield return new TestCaseData(
-                new Variant(new ushort[] { 1, 2 }), typeof(ushort));
-            yield return new TestCaseData(
-                new Variant(new int[] { 1, -1 }), typeof(int));
-            yield return new TestCaseData(
-                new Variant(new uint[] { 1, 2 }), typeof(uint));
-            yield return new TestCaseData(
-                new Variant(new long[] { 1, -1 }), typeof(long));
-            yield return new TestCaseData(
-                new Variant(new ulong[] { 1, 2 }), typeof(ulong));
-            yield return new TestCaseData(
-                new Variant(s_floatArray), typeof(float));
-            yield return new TestCaseData(
-                new Variant(s_doubleArray), typeof(double));
-            yield return new TestCaseData(
-                new Variant(s_stringArray), typeof(string));
-            yield return new TestCaseData(
-                new Variant(new DateTime[]
-                {
-                    new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)
-                }), typeof(DateTime));
-            yield return new TestCaseData(
-                new Variant(new Uuid[] { new Uuid(Guid.Empty) }), typeof(Uuid));
-            yield return new TestCaseData(
-                new Variant(new NodeId[] { new NodeId(1) }), typeof(NodeId));
-            yield return new TestCaseData(
-                new Variant(new ExpandedNodeId[] { new ExpandedNodeId(1) }),
-                typeof(ExpandedNodeId));
-            yield return new TestCaseData(
-                new Variant(new StatusCode[] { StatusCodes.Good }),
-                typeof(StatusCode));
-            yield return new TestCaseData(
-                new Variant(new QualifiedName[] { new QualifiedName("q") }),
-                typeof(QualifiedName));
-            yield return new TestCaseData(
-                new Variant(new LocalizedText[] { new LocalizedText("en", "t") }),
-                typeof(LocalizedText));
-            yield return new TestCaseData(
-                new Variant(new ExtensionObject[]
-                {
-                    new ExtensionObject(ExpandedNodeId.Null)
-                }), typeof(ExtensionObject));
-            yield return new TestCaseData(
-                new Variant(new DataValue[] { new DataValue(new Variant(1)) }),
-                typeof(DataValue));
-            yield return new TestCaseData(
-                new Variant(new Variant[] { new Variant(1) }),
-                typeof(Variant));
-            yield return new TestCaseData(
-                new Variant(new ByteStringCollection
-                {
-                    new ByteString(new byte[] { 1, 2 })
-                }), typeof(ByteString));
-        }
-
         [Test]
         [TestCaseSource(nameof(ArrayVariantValueTestCases))]
-        public void WriteVariantValueWithArraySetsArrayBitInEncodingByte(
-            Variant variant, Type expectedElementType)
+        public void WriteVariantValueWithArraySetsArrayBitInEncodingByte(Variant variant)
         {
             byte[] result = EncodeVariantValue(variant);
 
@@ -11509,22 +10141,201 @@ namespace Opc.Ua.Types.Tests.Encoders
 
         [Test]
         [TestCaseSource(nameof(ArrayVariantValueTestCases))]
-        public void WriteVariantValueWithArrayRoundTripsCorrectly(
-            Variant variant, Type expectedElementType)
+        public void WriteVariantValueWithArrayRoundTripsCorrectly(Variant variant)
         {
-            Variant decoded = RoundTripVariantValue(variant);
+            Variant decoded = RoundTripVariantValue(variant, false);
 
             Assert.That(decoded.TypeInfo.IsArray, Is.True);
         }
 
         [Test]
-        public void WriteVariantValueWithXmlElementArrayRoundTripsCorrectly()
+        [TestCaseSource(nameof(ArrayVariantValueTestCases))]
+        public void WriteVariantValueWithArrayRawRoundTripsCorrectly(Variant variant)
+        {
+            Variant decoded = RoundTripVariantValue(variant, true);
+
+            Assert.That(decoded.TypeInfo.IsArray, Is.True);
+        }
+
+        [Test]
+        [TestCaseSource(nameof(MatrixVariantValueTestCases))]
+        public void WriteVariantValueWithMatrixSetsEncodingBits(
+            Variant variant, BuiltInType expectedBuiltInType)
+        {
+            byte[] result = EncodeVariantValue(variant);
+
+            byte expectedEncodingByte = (byte)expectedBuiltInType;
+            expectedEncodingByte |= (byte)VariantArrayEncodingBits.Array;
+            expectedEncodingByte |= (byte)VariantArrayEncodingBits.ArrayDimensions;
+
+            Assert.That(result[0], Is.EqualTo(expectedEncodingByte));
+        }
+
+        [Test]
+        public void WriteVariantValueWithGuidMatrixSetsEncodingBits()
+        {
+            Variant variant = Variant.From(
+            ArrayOf.Wrapped([
+                Uuid.NewUuid(),
+                Uuid.NewUuid(),
+                Uuid.NewUuid(),
+                Uuid.NewUuid()
+            ]).ToMatrix(2, 2));
+
+            byte[] result = EncodeVariantValue(variant);
+
+            byte expectedEncodingByte = (byte)BuiltInType.Guid;
+            expectedEncodingByte |= (byte)VariantArrayEncodingBits.Array;
+            expectedEncodingByte |= (byte)VariantArrayEncodingBits.ArrayDimensions;
+
+            Assert.That(result[0], Is.EqualTo(expectedEncodingByte));
+        }
+
+        [Test]
+        [TestCase(BuiltInType.DiagnosticInfo)]
+        [TestCase(BuiltInType.Number)]
+        [TestCase(BuiltInType.Integer)]
+        [TestCase(BuiltInType.UInteger)]
+        [TestCase(BuiltInType.Variant)]
+        public void WriteVariantValueWithUnsupportedScalarTypeThrows(BuiltInType builtInType)
+        {
+            var variant = new Variant(
+                default,
+                TypeInfo.Create(builtInType, ValueRanks.Scalar),
+                "test");
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => EncodeVariantValue(variant));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+        }
+
+        [Test]
+        public void WriteVariantValueWithInvalidScalarTypeThrows()
+        {
+            var variant = new Variant(
+                default,
+                TypeInfo.Create((BuiltInType)999, ValueRanks.Scalar),
+                "test");
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => EncodeVariantValue(variant));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+        }
+
+        [Test]
+        [TestCase(BuiltInType.Number)]
+        [TestCase(BuiltInType.Integer)]
+        [TestCase(BuiltInType.UInteger)]
+        public void WriteVariantValueWithUnsupportedArrayTypeThrows(BuiltInType builtInType)
+        {
+            ArrayOf<int> value = [1, 2, 3, 4];
+            var variant = new Variant(
+                default,
+                TypeInfo.Create(builtInType, ValueRanks.OneDimension),
+                value);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => EncodeVariantValue(variant));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+        }
+
+        [Test]
+        public void WriteVariantValueWithInvalidArrayTypeThrows()
+        {
+            ArrayOf<int> value = [1, 2, 3, 4];
+            var variant = new Variant(
+                default,
+                TypeInfo.Create((BuiltInType)999, ValueRanks.OneDimension),
+                value);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => EncodeVariantValue(variant));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+        }
+
+        [Test]
+        [TestCase(BuiltInType.Number)]
+        [TestCase(BuiltInType.Integer)]
+        [TestCase(BuiltInType.UInteger)]
+        public void WriteVariantValueWithUnsupportedMatrixTypeThrows(BuiltInType builtInType)
+        {
+            ArrayOf<int> value = [1, 2, 3, 4];
+            var variant = new Variant(
+                default,
+                TypeInfo.Create(builtInType,
+                ValueRanks.TwoDimensions), value.ToMatrix(2, 2));
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => EncodeVariantValue(variant));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+        }
+
+        [Test]
+        public void WriteVariantValueWithInvalidMatrixTypeThrows()
+        {
+            ArrayOf<int> value = [1, 2, 3, 4];
+            var variant = new Variant(
+                default,
+                TypeInfo.Create((BuiltInType)999,
+                ValueRanks.TwoDimensions), value.ToMatrix(2, 2));
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => EncodeVariantValue(variant));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+        }
+
+        [Test]
+        public void WriteVariantValueWithDiagnosticMatrixThrows()
+        {
+            ArrayOf<DiagnosticInfo> value =
+            [
+                new DiagnosticInfo(),
+                new DiagnosticInfo(),
+                new DiagnosticInfo(),
+                new DiagnosticInfo()
+            ];
+            var variant = new Variant(
+                default,
+                TypeInfo.Create(BuiltInType.DiagnosticInfo,
+                ValueRanks.TwoDimensions), value.ToMatrix(2, 2));
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => EncodeVariantValue(variant));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+        }
+
+        [Test]
+        public void WriteVariantValueWithDiagnosticArrayThrows()
+        {
+            ArrayOf<DiagnosticInfo> value =
+            [
+                new DiagnosticInfo(),
+                new DiagnosticInfo(),
+                new DiagnosticInfo(),
+                new DiagnosticInfo()
+            ];
+            var variant = new Variant(
+                default,
+                TypeInfo.Create(BuiltInType.DiagnosticInfo,
+                ValueRanks.OneDimension), value);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => EncodeVariantValue(variant));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+        }
+
+        [Theory]
+        public void WriteVariantValueWithXmlElementArrayRoundTripsCorrectly(bool raw)
         {
             var xmlDoc = new System.Xml.XmlDocument();
-            var elem = XmlElement.From(xmlDoc.CreateElement("E"));
-            var variant = new Variant(new XmlElementCollection { elem });
+            ArrayOf<XmlElement> elems = [XmlElement.From(xmlDoc.CreateElement("E"))];
+            var variant = Variant.From(elems);
 
-            Variant decoded = RoundTripVariantValue(variant);
+            Variant decoded = RoundTripVariantValue(variant, raw);
 
             Assert.That(decoded.TypeInfo.IsArray, Is.True);
         }
@@ -11533,7 +10344,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void WriteVariantValueWithBooleanMatrixRoundTripsCorrectly()
         {
             ArrayOf<bool> elements = [true, false, true, false];
-            var variant = new Variant(elements.ToMatrix([2, 2]));
+            var variant = Variant.From(elements.ToMatrix([2, 2]));
 
             byte[] result = EncodeVariantValue(variant);
 
@@ -11541,60 +10352,293 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Is.Not.EqualTo(0), "ArrayDimensions bit should be set");
         }
 
-        [Test]
-        public void WriteVariantValueWithInt32MatrixRoundTripsCorrectly()
+        [Theory]
+        public void WriteVariantValueWithInt32MatrixRoundTripsCorrectly(bool raw)
         {
             ArrayOf<int> elements = [1, 2, 3, 4];
-            var variant = new Variant(elements.ToMatrix([2, 2]));
+            var variant = Variant.From(elements.ToMatrix([2, 2]));
 
-            Variant decoded = RoundTripVariantValue(variant);
+            Variant decoded = RoundTripVariantValue(variant, raw);
 
             Assert.That(decoded.TypeInfo.ValueRank, Is.GreaterThan(1));
         }
 
-        [Test]
-        public void WriteVariantValueWithDoubleMatrixRoundTripsCorrectly()
+        [Theory]
+        public void WriteVariantValueWithDoubleMatrixRoundTripsCorrectly(bool raw)
         {
             ArrayOf<double> elements = [1.0, 2.0, 3.0, 4.0];
-            var variant = new Variant(elements.ToMatrix([2, 2]));
+            var variant = Variant.From(elements.ToMatrix([2, 2]));
 
-            Variant decoded = RoundTripVariantValue(variant);
+            Variant decoded = RoundTripVariantValue(variant, raw);
 
             Assert.That(decoded.TypeInfo.ValueRank, Is.GreaterThan(1));
         }
 
-        [Test]
-        public void WriteVariantValueWithStringMatrixRoundTripsCorrectly()
+        [Theory]
+        public void WriteVariantValueWithStringMatrixRoundTripsCorrectly(bool raw)
         {
             ArrayOf<string> elements = ["a", "b", "c", "d"];
-            var variant = new Variant(elements.ToMatrix([2, 2]));
+            var variant = Variant.From(elements.ToMatrix([2, 2]));
 
-            Variant decoded = RoundTripVariantValue(variant);
+            Variant decoded = RoundTripVariantValue(variant, raw);
 
             Assert.That(decoded.TypeInfo.ValueRank, Is.GreaterThan(1));
         }
 
-        [Test]
-        public void WriteVariantValueWithVariantMatrixRoundTripsCorrectly()
+        [Theory]
+        public void WriteVariantValueWithVariantMatrixRoundTripsCorrectly(bool raw)
         {
             ArrayOf<Variant> elements =
             [
-                new Variant(1), new Variant(2),
-                new Variant(3), new Variant(4)
+                Variant.From(1),
+                Variant.From(2),
+                Variant.From(3),
+                Variant.From(4)
             ];
-            var variant = new Variant(elements.ToMatrix([2, 2]));
+            var variant = Variant.From(elements.ToMatrix([2, 2]));
 
-            Variant decoded = RoundTripVariantValue(variant);
+            Variant decoded = RoundTripVariantValue(variant, raw);
 
             Assert.That(decoded.TypeInfo.ValueRank, Is.GreaterThan(1));
         }
 
-        #endregion
+        private static byte[] EncodeVariantValue(Variant variant, bool raw = false)
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            if (!raw)
+            {
+                encoder.WriteVariant(null, variant);
+            }
+            else
+            {
+                encoder.WriteVariantValue(null, variant);
+            }
+            return encoder.CloseAndReturnBuffer();
+        }
+
+        private static Variant RoundTripVariantValue(Variant variant, bool raw)
+        {
+            byte[] encoded = EncodeVariantValue(variant, raw);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            using var decoder = new BinaryDecoder(encoded, messageContext);
+            if (!raw)
+            {
+                return decoder.ReadVariant(null);
+            }
+
+            return decoder.ReadVariantValue(null, variant.TypeInfo);
+        }
+
+        private static System.Collections.IEnumerable ScalarVariantValueTestCases()
+        {
+            yield return new TestCaseData(Variant.From(true));
+            yield return new TestCaseData(Variant.From((sbyte)-42));
+            yield return new TestCaseData(Variant.From((byte)255));
+            yield return new TestCaseData(Variant.From((short)-1234));
+            yield return new TestCaseData(Variant.From((ushort)65535));
+            yield return new TestCaseData(Variant.From(123456));
+            yield return new TestCaseData(Variant.From(123456u));
+            yield return new TestCaseData(Variant.From(123456789L));
+            yield return new TestCaseData(Variant.From(123456789uL));
+            yield return new TestCaseData(Variant.From(3.14f));
+            yield return new TestCaseData(Variant.From(2.718));
+            yield return new TestCaseData(Variant.From("hello"));
+            yield return new TestCaseData(Variant.From(new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
+            yield return new TestCaseData(Variant.From(new Uuid(Guid.Empty)));
+            yield return new TestCaseData(Variant.From(new NodeId(1)));
+            yield return new TestCaseData(Variant.From(new ExpandedNodeId(1)));
+            yield return new TestCaseData(Variant.From(new QualifiedName("q")));
+            yield return new TestCaseData(Variant.From(new LocalizedText("en", "t")));
+            yield return new TestCaseData(Variant.From(new ExtensionObject(ExpandedNodeId.Null)));
+            yield return new TestCaseData(Variant.From(new DataValue(Variant.From(1))));
+            yield return new TestCaseData(Variant.From(ByteString.From([1, 2])));
+            yield return new TestCaseData(Variant.From(TestEnum.Value1));
+            yield return new TestCaseData(Variant.From(new StatusCode(0x80010000u)));
+        }
+
+        private static System.Collections.IEnumerable ArrayVariantValueTestCases()
+        {
+            yield return new TestCaseData(Variant.From(s_booleanArray));
+            yield return new TestCaseData(Variant.From(new sbyte[] { 1, -1 }));
+            yield return new TestCaseData(Variant.From(new byte[] { 1, 2 }));
+            yield return new TestCaseData(Variant.From(new short[] { 1, -1 }));
+            yield return new TestCaseData(Variant.From(new ushort[] { 1, 2 }));
+            yield return new TestCaseData(Variant.From(new int[] { 1, -1 }));
+            yield return new TestCaseData(Variant.From(new uint[] { 1, 2 }));
+            yield return new TestCaseData(Variant.From(new long[] { 1, -1 }));
+            yield return new TestCaseData(Variant.From(new ulong[] { 1, 2 }));
+            yield return new TestCaseData(Variant.From(s_floatArray));
+            yield return new TestCaseData(Variant.From(s_doubleArray));
+            yield return new TestCaseData(Variant.From(s_stringArray));
+            yield return new TestCaseData(Variant.From([new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)]));
+            yield return new TestCaseData(Variant.From([new Uuid(Guid.Empty)]));
+            yield return new TestCaseData(Variant.From([new NodeId(1)]));
+            yield return new TestCaseData(Variant.From([new ExpandedNodeId(1)]));
+            yield return new TestCaseData(Variant.From([StatusCodes.Good]));
+            yield return new TestCaseData(Variant.From([new QualifiedName("q")]));
+            yield return new TestCaseData(Variant.From([new LocalizedText("en", "t")]));
+            yield return new TestCaseData(Variant.From([new ExtensionObject(ExpandedNodeId.Null)]));
+            yield return new TestCaseData(Variant.From([new DataValue(Variant.From(1))]));
+            yield return new TestCaseData(Variant.From([Variant.From(1)]));
+            yield return new TestCaseData(Variant.From([ByteString.From([1, 2])]));
+            yield return new TestCaseData(Variant.From([TestEnum.Value1, TestEnum.Value2]));
+        }
+
+        private static System.Collections.IEnumerable MatrixVariantValueTestCases()
+        {
+            yield return new TestCaseData(
+                Variant.From(s_booleanArray.ToMatrixOf(2, 2)),
+                BuiltInType.Boolean);
+            yield return new TestCaseData(
+                Variant.From(new sbyte[] { 1, -1, 2, -2 }.ToMatrixOf(2, 2)),
+                BuiltInType.SByte);
+            yield return new TestCaseData(
+                Variant.From(new byte[] { 1, 2, 3, 4 }.ToMatrixOf(2, 2)),
+                BuiltInType.Byte);
+            yield return new TestCaseData(
+                Variant.From(new short[] { 1, -1, 2, -2 }.ToMatrixOf(2, 2)),
+                BuiltInType.Int16);
+            yield return new TestCaseData(
+                Variant.From(new ushort[] { 1, 2, 3, 4 }.ToMatrixOf(2, 2)),
+                BuiltInType.UInt16);
+            yield return new TestCaseData(
+                Variant.From(new int[] { 1, -1, 2, -2 }.ToMatrixOf(2, 2)),
+                BuiltInType.Int32);
+            yield return new TestCaseData(
+                Variant.From(new uint[] { 1, 2, 3, 4 }.ToMatrixOf(2, 2)),
+                BuiltInType.UInt32);
+            yield return new TestCaseData(
+                Variant.From(new long[] { 1, -1, 2, -2 }.ToMatrixOf(2, 2)),
+                BuiltInType.Int64);
+            yield return new TestCaseData(
+                Variant.From(new ulong[] { 1, 2, 3, 4 }.ToMatrixOf(2, 2)),
+                BuiltInType.UInt64);
+            yield return new TestCaseData(
+                Variant.From(s_floatArray.ToMatrixOf(2, 2)),
+                BuiltInType.Float);
+            yield return new TestCaseData(
+                Variant.From(s_doubleArray.ToMatrixOf(2, 2)),
+                BuiltInType.Double);
+            yield return new TestCaseData(
+                Variant.From(s_stringArray.ToMatrixOf(2, 2)),
+                BuiltInType.String);
+            yield return new TestCaseData(
+                Variant.From(new[]
+                {
+                    new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                    new DateTime(2024, 1, 2, 0, 0, 0, DateTimeKind.Utc),
+                    new DateTime(2024, 1, 3, 0, 0, 0, DateTimeKind.Utc),
+                    new DateTime(2024, 1, 4, 0, 0, 0, DateTimeKind.Utc)
+                }.ToMatrixOf(2, 2)),
+                BuiltInType.DateTime);
+            yield return new TestCaseData(
+                Variant.From(new[]
+                {
+                    ByteString.From(new byte[] { 1 }),
+                    ByteString.From(new byte[] { 2 }),
+                    ByteString.From(new byte[] { 3 }),
+                    ByteString.From(new byte[] { 4 })
+                }.ToMatrixOf(2, 2)),
+                BuiltInType.ByteString);
+            yield return new TestCaseData(
+                Variant.From(new[]
+                {
+                    XmlElement.From("<a/>"),
+                    XmlElement.From("<b/>"),
+                    XmlElement.From("<c/>"),
+                    XmlElement.From("<d/>")
+                }.ToMatrixOf(2, 2)),
+                BuiltInType.XmlElement);
+            yield return new TestCaseData(
+                Variant.From(new[]
+                {
+                    new NodeId(1),
+                    new NodeId(2),
+                    new NodeId(3),
+                    new NodeId(4)
+                }.ToMatrixOf(2, 2)),
+                BuiltInType.NodeId);
+            yield return new TestCaseData(
+                Variant.From(new[]
+                {
+                    new ExpandedNodeId(1),
+                    new ExpandedNodeId(2),
+                    new ExpandedNodeId(3),
+                    new ExpandedNodeId(4)
+                }.ToMatrixOf(2, 2)),
+                BuiltInType.ExpandedNodeId);
+            yield return new TestCaseData(
+                Variant.From(new[]
+                {
+                    StatusCodes.Good,
+                    StatusCodes.Bad,
+                    StatusCodes.Good,
+                    StatusCodes.Bad
+                }.ToMatrixOf(2, 2)),
+                BuiltInType.StatusCode);
+            yield return new TestCaseData(
+                Variant.From(new[]
+                {
+                    new QualifiedName("a"),
+                    new QualifiedName("b"),
+                    new QualifiedName("c"),
+                    new QualifiedName("d")
+                }.ToMatrixOf(2, 2)),
+                BuiltInType.QualifiedName);
+            yield return new TestCaseData(
+                Variant.From(new[]
+                {
+                    new LocalizedText("en", "a"),
+                    new LocalizedText("en", "b"),
+                    new LocalizedText("en", "c"),
+                    new LocalizedText("en", "d")
+                }.ToMatrixOf(2, 2)),
+                BuiltInType.LocalizedText);
+            yield return new TestCaseData(
+                Variant.From(new[]
+                {
+                    new ExtensionObject(ExpandedNodeId.Null),
+                    new ExtensionObject(ExpandedNodeId.Null),
+                    new ExtensionObject(ExpandedNodeId.Null),
+                    new ExtensionObject(ExpandedNodeId.Null)
+                }.ToMatrixOf(2, 2)),
+                BuiltInType.ExtensionObject);
+            yield return new TestCaseData(
+                Variant.From(new[]
+                {
+                    new DataValue(Variant.From(1)),
+                    new DataValue(Variant.From(2)),
+                    new DataValue(Variant.From(3)),
+                    new DataValue(Variant.From(4))
+                }.ToMatrixOf(2, 2)),
+                BuiltInType.DataValue);
+            yield return new TestCaseData(
+                Variant.From(new[]
+                {
+                    Variant.From(1),
+                    Variant.From(2),
+                    Variant.From(3),
+                    Variant.From(4)
+                }.ToMatrixOf(2, 2)),
+                BuiltInType.Variant);
+            yield return new TestCaseData(
+                Variant.From(ArrayOf.Wrapped(
+                    TestEnum.Value1,
+                    TestEnum.Value2,
+                    TestEnum.Value2,
+                    TestEnum.Value3)
+                .ToMatrix(2, 2)),
+                BuiltInType.Int32);
+        }
 
         /// <summary>
         /// Creates a mock IServiceMessageContext for testing.
         /// </summary>
-        /// <param name = "maxArrayLength">The maximum array length to set in the context. Default is 0 (no limit).</param>
+        /// <param name = "maxArrayLength">The maximum array length to set in the context.
+        /// Default is 0 (no limit).</param>
         /// <returns>A configured IServiceMessageContext instance.</returns>
         private static ServiceMessageContext CreateContext(int maxArrayLength)
         {
@@ -11706,7 +10750,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
         private sealed class TestEncodeableType : EncodeableType<TestEncodeable>
         {
-            public override XmlQualifiedName XmlName => new("TestEncodeable", Namespaces.OpcUaXsd);
+            public override System.Xml.XmlQualifiedName XmlName
+                => new("TestEncodeable", Namespaces.OpcUaXsd);
 
             public override IEncodeable CreateInstance()
             {
@@ -11799,9 +10844,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             LargeValue = 1000000
         }
 
-        private static readonly bool[] s_booleanArray = new bool[] { true, false };
-        private static readonly float[] s_floatArray = new float[] { 1.0f, 2.0f };
-        private static readonly double[] s_doubleArray = new double[] { 1.0, 2.0 };
-        private static readonly string[] s_stringArray = new string[] { "a", "b" };
+        private static readonly bool[] s_booleanArray = [true, false, true, false];
+        private static readonly double[] s_doubleArray = [1.0, 2.0, 3.0, 4.0];
+        private static readonly string[] s_stringArray = ["a", "b", "c", "d"];
+        private static readonly float[] s_floatArray = [1.0f, 2.0f, 3.0f, 4.0f];
     }
 }

@@ -43,7 +43,7 @@ namespace Opc.Ua
     /// <summary>
     /// Writes objects to a XML stream.
     /// </summary>
-    public class XmlEncoder : IEncoder
+    public sealed class XmlEncoder : IEncoder
     {
         /// <summary>
         /// Initializes the object with default values.
@@ -237,25 +237,14 @@ namespace Opc.Ua
             return null;
         }
 
-        /// <summary>
-        /// Frees any unmanaged resources.
-        /// </summary>
+        /// <inheritdoc/>
         public void Dispose()
         {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        /// <summary>
-        /// An overrideable version of the Dispose.
-        /// </summary>
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing && m_writer != null)
+            if (!m_disposed)
             {
                 m_writer.Flush();
                 m_writer.Dispose();
-                m_writer = null;
+                m_disposed = true;
             }
         }
 
@@ -818,27 +807,12 @@ namespace Opc.Ua
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                // check for null.
-                if (value.IsNull)
-                {
-                    EndField(fieldName);
-                    PopNamespace();
-                    return;
-                }
-
                 // write the type id.
                 ExpandedNodeId typeId = value.TypeId;
 
                 if (value.TryGetEncodeable(out IEncodeable encodeable))
                 {
-                    if (value.Encoding == ExtensionObjectEncoding.Binary)
-                    {
-                        typeId = encodeable.BinaryEncodingId;
-                    }
-                    else
-                    {
-                        typeId = encodeable.XmlEncodingId;
-                    }
+                    typeId = encodeable.XmlEncodingId;
                 }
 
                 var localTypeId = ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris);
@@ -858,13 +832,6 @@ namespace Opc.Ua
                 }
 
                 WriteNodeId("TypeId", localTypeId);
-
-                if (value.IsNull)
-                {
-                    EndField(fieldName);
-                    PopNamespace();
-                    return;
-                }
 
                 // write the body.
                 m_writer.WriteStartElement("Body", Namespaces.OpcUaXsd);
@@ -895,24 +862,22 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public void WriteEncodeableAsExtensionObject<T>(string fieldName, T value)
+            where T : IEncodeable
+        {
+            WriteExtensionObject(fieldName, new ExtensionObject(value));
+        }
+
+        /// <inheritdoc/>
         public void WriteEnumerated<T>(string fieldName, T value) where T : Enum
         {
             if (BeginField(fieldName, value == null, true))
             {
                 if (value != null)
                 {
-                    string valueSymbol = value.ToString();
-                    string valueInt32 = Convert
-                        .ToInt32(value, CultureInfo.InvariantCulture)
-                        .ToString(CultureInfo.InvariantCulture);
-                    if (valueSymbol != valueInt32)
-                    {
-                        m_writer.WriteString(CoreUtils.Format("{0}_{1}", valueSymbol, valueInt32));
-                    }
-                    else
-                    {
-                        m_writer.WriteString(valueSymbol);
-                    }
+                    m_writer.WriteString(CoreUtils.Format("{0}_{1}",
+                        value.ToString(),
+                        EnumHelper.EnumToInt32(value)));
                 }
 
                 EndField(fieldName);
@@ -1595,6 +1560,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public void WriteEncodeableArrayAsExtensionObjects<T>(string fieldName, ArrayOf<T> values)
+            where T : IEncodeable
+        {
+            WriteExtensionObjectArray(fieldName, values.ConvertAll(v => new ExtensionObject(v)));
+        }
+
+        /// <inheritdoc/>
         public void WriteEncodeableArray<T>(string fieldName, ArrayOf<T> values) where T : IEncodeable
         {
             if (BeginField(fieldName, values.IsNull, true, true))
@@ -1713,6 +1685,7 @@ namespace Opc.Ua
                                 WriteUInt16("UInt16", value.GetUInt16());
                                 return;
                             case BuiltInType.Int32:
+                            case BuiltInType.Enumeration:
                                 WriteInt32("Int32", value.GetInt32());
                                 return;
                             case BuiltInType.UInt32:
@@ -1766,9 +1739,6 @@ namespace Opc.Ua
                             case BuiltInType.DataValue:
                                 WriteDataValue("DataValue", value.GetDataValue());
                                 return;
-                            case BuiltInType.Enumeration:
-                                WriteInt32("Int32", value.GetInt32());
-                                return;
                             case BuiltInType.Null:
                             case BuiltInType.Variant:
                             case BuiltInType.DiagnosticInfo:
@@ -1806,6 +1776,7 @@ namespace Opc.Ua
                                 WriteUInt16Array("ListOfUInt16", value.GetUInt16Array());
                                 return;
                             case BuiltInType.Int32:
+                            case BuiltInType.Enumeration:
                                 WriteInt32Array("ListOfInt32", value.GetInt32Array());
                                 return;
                             case BuiltInType.UInt32:
@@ -1862,9 +1833,6 @@ namespace Opc.Ua
                                 return;
                             case BuiltInType.DataValue:
                                 WriteDataValueArray("ListOfDataValue", value.GetDataValueArray());
-                                return;
-                            case BuiltInType.Enumeration:
-                                WriteInt32Array("ListOfInt32", value.GetInt32Array());
                                 return;
                             case BuiltInType.Variant:
                                 WriteVariantArray("ListOfVariant", value.GetVariantArray());
@@ -1934,6 +1902,7 @@ namespace Opc.Ua
                                         break;
                                     }
                                     case BuiltInType.Int32:
+                                    case BuiltInType.Enumeration:
                                     {
                                         MatrixOf<int> matrix = value.GetInt32Matrix();
                                         WriteDimensions(matrix);
@@ -2057,13 +2026,6 @@ namespace Opc.Ua
                                         MatrixOf<DataValue> matrix = value.GetDataValueMatrix();
                                         WriteDimensions(matrix);
                                         WriteDataValueArray(elements, matrix.ToArrayOf());
-                                        break;
-                                    }
-                                    case BuiltInType.Enumeration:
-                                    {
-                                        MatrixOf<int> matrix = value.GetInt32Matrix();
-                                        WriteDimensions(matrix);
-                                        WriteInt32Array(elements, matrix.ToArrayOf());
                                         break;
                                     }
                                     case BuiltInType.Variant:
@@ -2251,11 +2213,12 @@ namespace Opc.Ua
 
         private readonly ILogger m_logger;
         private readonly StringBuilder m_destination;
-        private XmlWriter m_writer;
+        private readonly XmlWriter m_writer;
         private readonly Stack<string> m_namespaces = [];
         private XmlQualifiedName m_root;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
+        private bool m_disposed;
     }
 }

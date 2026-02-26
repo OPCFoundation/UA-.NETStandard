@@ -834,68 +834,51 @@ namespace Opc.Ua.SourceGeneration
 
                     break;
                 case BasicDataType.UserDefined:
-                    if (field.AllowSubTypes)
+                    if (!field.AllowSubTypes)
                     {
+                        // Write as encodeable as we do not allow sub type values
+                        functionName = "Encodeable";
                         if (field.ValueRank == ValueRank.Array)
                         {
-                            context.Out.WriteLine("encoder.WriteExtensionObjectArray(");
-                            context.Out.WriteLine("    {0},", fieldName);
-                            context.Out.WriteLine(
-                                "    global::Opc.Ua.ExtensionObjectCollection.ToExtensionObjects({0}));",
-                                field.Name);
-
+                            if (isServiceType)
+                            {
+                                context.Out.WriteLine(
+                                    "encoder.WriteEncodeableArray({0}, {1});",
+                                    fieldName,
+                                    field.Name);
+                            }
+                            else
+                            {
+                                context.Out.WriteLine(
+                                    "encoder.WriteEncodeableArray({0}, global::Opc.Ua.ArrayOf.ToArrayOf({1}));",
+                                    fieldName,
+                                    field.Name);
+                            }
                             if (isUnion)
                             {
                                 context.Out.WriteLine("break;");
                                 context.Out.WriteLine("}");
                             }
-
                             return null;
                         }
-
-                        if (field.ValueRank == ValueRank.Scalar)
-                        {
-                            context.Out.WriteLine(
-                                "encoder.WriteExtensionObject({0}, new global::Opc.Ua.ExtensionObject({1}));",
-                                fieldName,
-                                field.Name);
-
-                            if (isUnion)
-                            {
-                                context.Out.WriteLine("break;");
-                                context.Out.WriteLine("}");
-                            }
-
-                            return null;
-                        }
-
-                        context.Out.WriteLine(
-                            "encoder.WriteVariant({0}, {1});",
-                            fieldName,
-                            field.Name);
-                        if (isUnion)
-                        {
-                            context.Out.WriteLine("break;");
-                            context.Out.WriteLine("}");
-                        }
-
-                        return null;
+                        break;
                     }
 
-                    functionName = "Encodeable";
+                    // Write as array
+
                     if (field.ValueRank == ValueRank.Array)
                     {
                         if (isServiceType)
                         {
                             context.Out.WriteLine(
-                                "encoder.WriteEncodeableArray({0}, {1});",
+                                "encoder.WriteEncodeableArrayAsExtensionObjects({0}, {1});",
                                 fieldName,
                                 field.Name);
                         }
                         else
                         {
                             context.Out.WriteLine(
-                                "encoder.WriteEncodeableArray({0}, global::Opc.Ua.ArrayOf.ToArrayOf({1}));",
+                                "encoder.WriteEncodeableArrayAsExtensionObjects({0}, global::Opc.Ua.ArrayOf.ToArrayOf({1}));",
                                 fieldName,
                                 field.Name);
                         }
@@ -904,9 +887,41 @@ namespace Opc.Ua.SourceGeneration
                             context.Out.WriteLine("break;");
                             context.Out.WriteLine("}");
                         }
+
                         return null;
                     }
-                    break;
+
+                    // Write as scalar
+
+                    if (field.ValueRank == ValueRank.Scalar)
+                    {
+                        context.Out.WriteLine(
+                            "encoder.WriteEncodeableAsExtensionObject({0}, {1});",
+                            fieldName,
+                            field.Name);
+
+                        if (isUnion)
+                        {
+                            context.Out.WriteLine("break;");
+                            context.Out.WriteLine("}");
+                        }
+
+                        return null;
+                    }
+
+                    // Write matrix
+
+                    context.Out.WriteLine(
+                        "encoder.WriteVariant({0}, {1});",
+                        fieldName,
+                        field.Name);
+                    if (isUnion)
+                    {
+                        context.Out.WriteLine("break;");
+                        context.Out.WriteLine("}");
+                    }
+
+                    return null;
             }
 
             if (field.ValueRank == ValueRank.Array)
@@ -1006,49 +1021,35 @@ namespace Opc.Ua.SourceGeneration
                         useArrayTypeInsteadOfCollection: isServiceType);
                     break;
                 case BasicDataType.UserDefined:
-                    if (field.AllowSubTypes)
+                    if (!field.AllowSubTypes)
                     {
-                        context.Out.Write($"{valueName} = ");
+                        // Read as encodeable as we do not allow subtype values
+                        functionName = "Encodeable";
                         elementName = field.DataTypeNode.GetDotNetTypeName(
                             ValueRank.Scalar,
                             m_context.ModelDesign.TargetNamespace.Value,
                             m_context.ModelDesign.Namespaces,
                             nullable: NullableAnnotation.NonNullable,
                             useArrayTypeInsteadOfCollection: isServiceType);
+                        break;
+                    }
 
-                        if (field.ValueRank == ValueRank.Array)
-                        {
-                            context.Out.WriteLine(
-                                $"({elementName}[])global::Opc.Ua.ExtensionObject.ToArray(");
-                            context.Out.WriteLine(
-                                $"    decoder.ReadExtensionObjectArray({fieldName}), typeof({elementName}));");
+                    context.Out.Write($"{valueName} = ");
+                    elementName = field.DataTypeNode.GetDotNetTypeName(
+                        ValueRank.Scalar,
+                        m_context.ModelDesign.TargetNamespace.Value,
+                        m_context.ModelDesign.Namespaces,
+                        nullable: NullableAnnotation.NonNullable,
+                        useArrayTypeInsteadOfCollection: isServiceType);
 
-                            if (isUnion)
-                            {
-                                context.Out.WriteLine("break;");
-                                context.Out.WriteLine("}");
-                            }
+                    // Read array
 
-                            return null;
-                        }
-
-                        if (field.ValueRank == ValueRank.Scalar)
-                        {
-                            context.Out.WriteLine(
-                                $"({elementName})global::Opc.Ua.ExtensionObject.ToEncodeable(");
-                            context.Out.WriteLine(
-                                $"    decoder.ReadExtensionObject({fieldName}));");
-
-                            if (isUnion)
-                            {
-                                context.Out.WriteLine("break;");
-                                context.Out.WriteLine("}");
-                            }
-
-                            return null;
-                        }
-
-                        context.Out.WriteLine($"decoder.ReadVariant({fieldName});");
+                    if (field.ValueRank == ValueRank.Array)
+                    {
+                        context.Out.WriteLine(
+                            $"({elementName}[])global::Opc.Ua.ExtensionObject.ToArray(");
+                        context.Out.WriteLine(
+                            $"    decoder.ReadExtensionObjectArray({fieldName}), typeof({elementName}));");
 
                         if (isUnion)
                         {
@@ -1059,14 +1060,35 @@ namespace Opc.Ua.SourceGeneration
                         return null;
                     }
 
-                    functionName = "Encodeable";
-                    elementName = field.DataTypeNode.GetDotNetTypeName(
-                        ValueRank.Scalar,
-                        m_context.ModelDesign.TargetNamespace.Value,
-                        m_context.ModelDesign.Namespaces,
-                        nullable: NullableAnnotation.NonNullable,
-                        useArrayTypeInsteadOfCollection: isServiceType);
-                    break;
+                    // Read scalar
+
+                    if (field.ValueRank == ValueRank.Scalar)
+                    {
+                        context.Out.WriteLine(
+                            $"({elementName})global::Opc.Ua.ExtensionObject.ToEncodeable(");
+                        context.Out.WriteLine(
+                            $"    decoder.ReadExtensionObject({fieldName}));");
+
+                        if (isUnion)
+                        {
+                            context.Out.WriteLine("break;");
+                            context.Out.WriteLine("}");
+                        }
+
+                        return null;
+                    }
+
+                    // Matrix or other non-scalar, non-array
+
+                    context.Out.WriteLine($"decoder.ReadVariant({fieldName});");
+
+                    if (isUnion)
+                    {
+                        context.Out.WriteLine("break;");
+                        context.Out.WriteLine("}");
+                    }
+
+                    return null;
             }
 
             if (field.ValueRank == ValueRank.Array)
