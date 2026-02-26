@@ -99,30 +99,4 @@ namespace Opc.Ua
             T value,
             JsonEncodingType useEncodingType);
     }
-
-    /// <summary>
-    /// The type of JSON encoding to use.
-    /// </summary>
-    public enum JsonEncodingType
-    {
-        /// <summary>
-        /// The compact encoding that may require a schema to interpret.
-        /// </summary>
-        Compact,
-
-        /// <summary>
-        /// A verbose encoding that is more useable even without a schema.
-        /// </summary>
-        Verbose,
-
-        /// <summary>
-        /// The reversible encoding supported for backward compatibitility.
-        /// </summary>
-        Reversible,
-
-        /// <summary>
-        /// The non reversible encoding supported for backward compatibitility.
-        /// </summary>
-        NonReversible
-    }
 }

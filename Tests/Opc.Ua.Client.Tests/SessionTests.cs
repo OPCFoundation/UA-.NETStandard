@@ -1091,7 +1091,7 @@ namespace Opc.Ua.Client.Tests
 
             await sut.ReconnectAsync(ct).ConfigureAwait(false);
 
-            Assert.That(sut.ServerNonce, Is.Null);
+            Assert.That(sut.ServerNonce.IsEmpty, Is.True);
             sut.Channel.Verify();
         }
 

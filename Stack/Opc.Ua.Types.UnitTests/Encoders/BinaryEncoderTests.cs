@@ -34,6 +34,7 @@ using System;
 using System.Buffers;
 using System.IO;
 using System.Reflection;
+using System.Xml;
 using NUnit.Framework;
 
 namespace Opc.Ua.Types.Tests.Encoders
@@ -122,6 +123,28 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(position, Is.EqualTo(4)); // int32 is 4 bytes
         }
 
+        [Test]
+        public void EncodeMessage_ThrowsArgumentNullExceptionWhenParametersAreNull()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var mockMessage = new Mock<IEncodeable>();
+            using var stream = new MemoryStream();
+
+            // Act & Assert
+            Assert.Throws<ArgumentNullException>(() => BinaryEncoder.EncodeMessage(null, messageContext));
+            Assert.Throws<ArgumentNullException>(() => BinaryEncoder.EncodeMessage(mockMessage.Object, null));
+            Assert.Throws<ArgumentNullException>(() => BinaryEncoder.EncodeMessage(null, null));
+            Assert.Throws<ArgumentNullException>(() => new BinaryEncoder(null, messageContext, true));
+            Assert.Throws<ArgumentNullException>(() => new BinaryEncoder(stream, null, true));
+            Assert.Throws<ArgumentNullException>(() => new BinaryEncoder(null));
+            Assert.Throws<ArgumentNullException>(() => new BinaryEncoder([], 0, 0, null));
+            Assert.Throws<ArgumentNullException>(() => new BinaryEncoder(null, 0, 0, messageContext));
+            Assert.Throws<ArgumentNullException>(() => new BinaryEncoder([], 0, 0, messageContext)
+                .EncodeMessage<TestEncodeable>(null));
+        }
+
         /// <summary>
         /// Tests that EncodeMessage successfully encodes a valid message without exceeding size limits.
         /// </summary>
@@ -149,9 +172,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             mockMessage.Verify(m => m.Encode(It.IsAny<IEncoder>()), Times.Once);
         }
 
-        /// <summary>
-        /// Tests that EncodeMessage throws ServiceResultException when the encoded message exceeds MaxMessageSize.
-        /// </summary>
         [Test]
         public void EncodeMessage_ExceedsMaxMessageSize_ThrowsServiceResultException()
         {
@@ -2609,7 +2629,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         /// Expects the TypeId to be written followed by ExtensionObjectEncoding.None.
         /// </summary>
         [Test]
-        public void WriteExtensionObject_NullBody_WritesTypeIdAndNoneEncoding()
+        public void WriteExtensionObject_NullByteString_WritesTypeIdAndNoneEncoding()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -2619,7 +2639,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             messageContext.NamespaceUris = namespaceTable;
             var encoder = new BinaryEncoder(messageContext);
             var typeId = new ExpandedNodeId(123, 0);
-            var extensionObject = new ExtensionObject(typeId);
+            var extensionObject = new ExtensionObject(typeId, (ByteString)default);
             // Act
             encoder.WriteExtensionObject("test", extensionObject);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -2629,7 +2649,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             NodeId decodedNodeId = decoder.ReadNodeId(null);
             byte encoding = decoder.ReadByte(null);
             Assert.That(decodedNodeId, Is.EqualTo(new NodeId(123, 0)));
-            Assert.That(encoding, Is.EqualTo((byte)ExtensionObjectEncoding.None));
+            Assert.That(encoding, Is.EqualTo((byte)ExtensionObjectEncoding.Binary));
         }
 
         /// <summary>
@@ -2855,7 +2875,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // so it should throw when it doesn't match any known body type.
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() => encoder.WriteExtensionObject("test", extensionObject));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
-            Assert.That(ex.Message, Does.Contain("Cannot encode bodies of type"));
+            Assert.That(ex.Message, Does.Contain("Cannot encode extension object"));
         }
 
         /// <summary>
@@ -2908,7 +2928,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             messageContext.NamespaceUris = namespaceTable;
             var encoder = new BinaryEncoder(messageContext);
             var typeId = new ExpandedNodeId(1234, 1);
-            var extensionObject = new ExtensionObject(typeId);
+            var extensionObject = new ExtensionObject(typeId, ByteString.From([0, 1, 2]));
             // Act
             encoder.WriteExtensionObject("test", extensionObject);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -4088,16 +4108,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(0));
+            Assert.That(result.Length, Is.EqualTo(23));
             // First byte should be String encoding (0x03)
             Assert.That(result[0] & 0x0F, Is.EqualTo(0x03));
         }
 
-        /// <summary>
-        /// Tests that WriteExpandedNodeId handles Guid-type NodeIds.
-        /// Input: ExpandedNodeId with Guid-type NodeId
-        /// Expected: Writes guid node id correctly with appropriate encoding.
-        /// </summary>
         [Test]
         public void WriteExpandedNodeId_WithGuidNodeId_WritesCorrectly()
         {
@@ -4114,16 +4129,32 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.GreaterThan(0));
+            Assert.That(result.Length, Is.EqualTo(19));
             // First byte should be Guid encoding (0x04)
             Assert.That(result[0] & 0x0F, Is.EqualTo(0x04));
         }
 
-        /// <summary>
-        /// Tests that WriteExpandedNodeId handles maximum server index values.
-        /// Input: ExpandedNodeId with ServerIndex = uint.MaxValue
-        /// Expected: Writes correctly with 0x40 bit set.
-        /// </summary>
+        [Test]
+        public void WriteExpandedNodeId_WithOpaqueNodeId_WritesCorrectly()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            var guid = Guid.NewGuid();
+            var nodeId = new NodeId(guid.ToByteString(), 0);
+            var expandedNodeId = new ExpandedNodeId(nodeId);
+            // Act
+            encoder.WriteExpandedNodeId("TestField", expandedNodeId);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(23));
+            // First byte should be ByteString encoding (0x05)
+            Assert.That(result[0] & 0x0F, Is.EqualTo(0x05));
+        }
+
         [Test]
         public void WriteExpandedNodeId_WithMaxServerIndex_WritesCorrectly()
         {
@@ -4144,11 +4175,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[0] & 0x40, Is.EqualTo(0x40));
         }
 
-        /// <summary>
-        /// Tests that WriteExpandedNodeId handles namespace index at boundary (byte.MaxValue).
-        /// Input: ExpandedNodeId with namespace index = 255
-        /// Expected: Writes correctly with appropriate encoding.
-        /// </summary>
         [Test]
         public void WriteExpandedNodeId_WithMaxByteNamespaceIndex_WritesCorrectly()
         {
@@ -4167,11 +4193,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Length, Is.GreaterThan(0));
         }
 
-        /// <summary>
-        /// Tests that WriteExpandedNodeId handles numeric id at TwoByte boundary.
-        /// Input: ExpandedNodeId with numeric id = byte.MaxValue, namespace index = 0
-        /// Expected: Uses TwoByte encoding.
-        /// </summary>
         [Test]
         public void WriteExpandedNodeId_WithTwoByteNumericId_UsesTwoByteEncoding()
         {
@@ -4192,10 +4213,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[1], Is.EqualTo(byte.MaxValue));
         }
 
-        /// <summary>
-        /// Tests that WriteExpandedNodeId handles numeric id at FourByte boundary.
-        /// Input: ExpandedNodeId with numeric id = ushort.MaxValue, namespace index <  =  byte.MaxValue  ///Expected :  Uses  FourByte  encoding.
-        /// </summary>
         [Test]
         public void WriteExpandedNodeId_WithFourByteNumericId_UsesFourByteEncoding()
         {
@@ -4213,6 +4230,25 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Length, Is.EqualTo(4)); // FourByte encoding: 1 byte encoding + 1 byte namespace + 2 bytes value
             Assert.That(result[0], Is.EqualTo(0x01)); // FourByte encoding
+        }
+
+        [Test]
+        public void WriteExpandedNodeId_WithNumericId_UsesSevenByteEncoding()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+
+            var encoder = new BinaryEncoder(messageContext);
+            var nodeId = new NodeId(ushort.MaxValue + 1, 100);
+            var expandedNodeId = new ExpandedNodeId(nodeId);
+            // Act
+            encoder.WriteExpandedNodeId("TestField", expandedNodeId);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Length, Is.EqualTo(7)); // SevenByte encoding: 1 byte encoding + 2 byte namespace + 4 bytes value
+            Assert.That(result[0], Is.EqualTo(0x02)); // SevenByte encoding
         }
 
         /// <summary>
@@ -4511,9 +4547,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(3));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeIdArray correctly handles an array containing null NodeId elements.
-        /// </summary>
         [Test]
         public void WriteNodeIdArray_ArrayWithNullNodeIds_WritesNullNodeIds()
         {
@@ -4538,9 +4571,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(3));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeIdArray throws ServiceResultException when array length exceeds MaxArrayLength.
-        /// </summary>
         [Test]
         public void WriteNodeIdArray_ExceedsMaxArrayLength_ThrowsServiceResultException()
         {
@@ -4560,9 +4590,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex?.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeIdArray correctly handles NodeIds with different namespace indices.
-        /// </summary>
         [Test]
         public void WriteNodeIdArray_DifferentNamespaces_WritesCorrectly()
         {
@@ -4587,9 +4614,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(3));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeIdArray correctly handles a large array of NodeIds.
-        /// </summary>
         [Test]
         public void WriteNodeIdArray_LargeArray_WritesAllElements()
         {
@@ -4614,9 +4638,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(length, Is.EqualTo(1000));
         }
 
-        /// <summary>
-        /// Tests that WriteNodeIdArray uses null for fieldName parameter when writing individual NodeIds.
-        /// </summary>
         [Test]
         public void WriteNodeIdArray_FieldNameParameter_IsIgnored()
         {
@@ -4635,33 +4656,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] result = stream.ToArray();
             // Assert - should produce same output regardless of fieldName
             Assert.That(result.Length, Is.GreaterThan(4));
-        }
-
-        /// <summary>
-        /// Tests that the constructor throws ArgumentNullException when stream parameter is null.
-        /// </summary>
-        [Test]
-        public void BinaryEncoder_NullStream_ThrowsArgumentNullException()
-        {
-            // Arrange
-            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext);
-
-            // Act & Assert
-            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(() => new BinaryEncoder(null, messageContext, false));
-            Assert.That(ex.ParamName, Is.EqualTo("stream"));
-        }
-
-        /// <summary>
-        /// Tests that the constructor throws NullReferenceException when context parameter is null.
-        /// </summary>
-        [Test]
-        public void BinaryEncoder_NullContext_ThrowsNullReferenceException()
-        {
-            // Arrange
-            var stream = new MemoryStream();
-            // Act & Assert
-            Assert.Throws<NullReferenceException>(() => new BinaryEncoder(stream, null, false));
         }
 
         /// <summary>
@@ -6944,6 +6938,63 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(buffer[1], Is.EqualTo(0x12));
         }
 
+        [Test]
+        public void WriteString_LargeStringExceedsLimit_ThrowsServiceResultException()
+        {
+            // Arrange
+            var stream = new MemoryStream();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var context = new ServiceMessageContext(telemetryContext)
+            {
+                MaxArrayLength = int.MaxValue,
+                MaxStringLength = (1024 * 10) - 1,
+                MaxByteStringLength = int.MaxValue,
+                MaxMessageSize = int.MaxValue
+            };
+            var encoder = new BinaryEncoder(stream, context, false);
+            string largeString = new string('A', 1024 * 10); // 10 KB
+            // Act & Assert
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteString(null, largeString));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void WriteString_Empty_WritesZero()
+        {
+            // Arrange
+            var stream = new MemoryStream();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var context = CreateContext(0);
+            var encoder = new BinaryEncoder(stream, context, false);
+            // Act
+            encoder.WriteString(null, string.Empty);
+            byte[] result = stream.ToArray();
+
+            // Assert
+            Assert.That(result.Length, Is.EqualTo(4), "Should write 4 bytes for Int32 length");
+            int length = BitConverter.ToInt32(result, 0);
+            Assert.That(length, Is.EqualTo(0), "Length should be 0 for empty string");
+        }
+
+        [Test]
+        public void WriteString_Null_WritesNegativeOne()
+        {
+            // Arrange
+            var stream = new MemoryStream();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var context = CreateContext(0);
+            var encoder = new BinaryEncoder(stream, context, false);
+            // Act
+            encoder.WriteString(null, (string)null);
+            byte[] result = stream.ToArray();
+
+            // Assert
+            Assert.That(result.Length, Is.EqualTo(4), "Should write 4 bytes for Int32 length");
+            int length = BitConverter.ToInt32(result, 0);
+            Assert.That(length, Is.EqualTo(-1), "Length should be -1 for null string");
+        }
+
         /// <summary>
         /// Tests that WriteByteString writes -1 as length when an empty span is provided.
         /// </summary>
@@ -7034,6 +7085,27 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Length, Is.EqualTo(4 + maxLength));
             int encodedLength = BitConverter.ToInt32(result, 0);
             Assert.That(encodedLength, Is.EqualTo(maxLength));
+        }
+
+        [Test]
+        public void WriteByteString_LargeReadOnlySpanExceedsLimit_ThrowsServiceResultException()
+        {
+            // Arrange
+            var stream = new MemoryStream();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var context = new ServiceMessageContext(telemetryContext)
+            {
+                MaxArrayLength = int.MaxValue,
+                MaxStringLength = int.MaxValue,
+                MaxByteStringLength = 1024,
+                MaxMessageSize = int.MaxValue
+            };
+            var encoder = new BinaryEncoder(stream, context, false);
+            byte[] data = new byte[1024 * 10]; // 10 KB
+            // Act & Assert
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteByteString(null, data.AsSpan()));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
         /// <summary>
@@ -8196,9 +8268,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(readData, Is.EqualTo(data));
         }
 
-        /// <summary>
-        /// Tests that WriteByteString throws ServiceResultException for a large ReadOnlySequence exceeding the limit.
-        /// </summary>
         [Test]
         public void WriteByteString_LargeReadOnlySequenceExceedsLimit_ThrowsServiceResultException()
         {
@@ -11042,6 +11111,486 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(stream.Length, Is.GreaterThan(4));
         }
 
+        [Test]
+        public void WriteEncodeableWithValueWritesEncodedValue()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            var value = new TestEncodeable(42);
+            // Act
+            encoder.WriteEncodeable("Test", value);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(42));
+        }
+
+        [Test]
+        public void WriteEncodeableWithNullValueUsesFactoryInstance()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                Factory = EncodeableFactory.Create()
+            };
+            messageContext.Factory.Builder.AddEncodeableType(new TestEncodeableType()).Commit();
+            var encoder = new BinaryEncoder(messageContext);
+            // Act
+            encoder.WriteEncodeable<TestEncodeable>("Test", null);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
+        }
+
+        [Test]
+        public void WriteEncodeableArrayNullArrayWritesNegativeOne()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<TestEncodeable> values = default;
+            // Act
+            encoder.WriteEncodeableArray(null, values);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(-1));
+        }
+
+        [Test]
+        public void WriteEncodeableArrayEmptyArrayWritesZeroLength()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<TestEncodeable> values = [];
+            // Act
+            encoder.WriteEncodeableArray(null, values);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(0));
+        }
+
+        [Test]
+        public void WriteEncodeableArraySingleElementWritesLength()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<TestEncodeable> values = [new TestEncodeable(42)];
+            // Act
+            encoder.WriteEncodeableArray(null, values);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
+        }
+
+        [Test]
+        public void WriteEncodeableArraySingleElementWritesValue()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<TestEncodeable> values = [new TestEncodeable(42)];
+            // Act
+            encoder.WriteEncodeableArray(null, values);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(BitConverter.ToInt32(result, 4), Is.EqualTo(42));
+        }
+
+        [Test]
+        public void WriteEncodeableArrayMultipleElementsWritesLength()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(0);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<TestEncodeable> values = [new TestEncodeable(1), new TestEncodeable(2)];
+            // Act
+            encoder.WriteEncodeableArray(null, values);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(2));
+        }
+
+        [Test]
+        public void WriteEncodeableArrayExceedsMaxArrayLengthThrowsServiceResultException()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateContext(1);
+            var encoder = new BinaryEncoder(messageContext);
+            ArrayOf<TestEncodeable> values = [new TestEncodeable(1), new TestEncodeable(2)];
+            // Act
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteEncodeableArray(null, values));
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void PositionSetterMovesToSpecifiedOffset()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            encoder.WriteByte(null, 0x01);
+            // Act
+            encoder.Position = 0;
+            // Assert
+            Assert.That(encoder.Position, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void PositionSetterOverwritesExistingData()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            encoder.WriteByte(null, 0x01);
+            encoder.Position = 0;
+            // Act
+            encoder.WriteByte(null, 0x02);
+            byte[] result = encoder.CloseAndReturnBuffer();
+            // Assert
+            Assert.That(result[0], Is.EqualTo(0x02));
+        }
+
+        #region WriteVariantValue Tests
+
+        private static byte[] EncodeVariantValue(Variant variant)
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var encoder = new BinaryEncoder(messageContext);
+            encoder.WriteVariantValue(null, variant);
+            return encoder.CloseAndReturnBuffer();
+        }
+
+        private static Variant RoundTripVariantValue(Variant variant)
+        {
+            byte[] encoded = EncodeVariantValue(variant);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            using var decoder = new BinaryDecoder(encoded, messageContext);
+            return decoder.ReadVariant(null);
+        }
+
+        private static System.Collections.IEnumerable ScalarVariantValueTestCases()
+        {
+            yield return new TestCaseData(new Variant(true), true);
+            yield return new TestCaseData(new Variant((sbyte)-42), (sbyte)-42);
+            yield return new TestCaseData(new Variant((byte)255), (byte)255);
+            yield return new TestCaseData(new Variant((short)-1234), (short)-1234);
+            yield return new TestCaseData(new Variant((ushort)65535), (ushort)65535);
+            yield return new TestCaseData(new Variant(123456), 123456);
+            yield return new TestCaseData(new Variant(123456u), 123456u);
+            yield return new TestCaseData(new Variant(123456789L), 123456789L);
+            yield return new TestCaseData(new Variant(123456789uL), 123456789uL);
+            yield return new TestCaseData(new Variant(3.14f), 3.14f);
+            yield return new TestCaseData(new Variant(2.718), 2.718);
+            yield return new TestCaseData(new Variant("hello"), "hello");
+            yield return new TestCaseData(new Variant(new StatusCode(0x80010000u)), new StatusCode(0x80010000u));
+        }
+
+        [Test]
+        [TestCaseSource(nameof(ScalarVariantValueTestCases))]
+        public void WriteVariantValueWithScalarRoundTripsCorrectly(
+            Variant variant, object expectedValue)
+        {
+            Variant decoded = RoundTripVariantValue(variant);
+
+            Assert.That(decoded.Value, Is.EqualTo(expectedValue));
+        }
+
+        [Test]
+        public void WriteVariantValueWithNullVariantWritesZeroByte()
+        {
+            byte[] result = EncodeVariantValue(Variant.Null);
+
+            Assert.That(result, Has.Length.EqualTo(1));
+            Assert.That(result[0], Is.EqualTo(0x00));
+        }
+
+        [Test]
+        public void WriteVariantValueWithDateTimeScalarRoundTripsCorrectly()
+        {
+            var dt = new DateTime(2024, 1, 15, 10, 30, 0, DateTimeKind.Utc);
+            Variant decoded = RoundTripVariantValue(new Variant(dt));
+
+            Assert.That(decoded.Value, Is.EqualTo(dt));
+        }
+
+        [Test]
+        public void WriteVariantValueWithGuidScalarRoundTripsCorrectly()
+        {
+            var guid = new Uuid(new Guid("12345678-1234-1234-1234-123456789abc"));
+            Variant decoded = RoundTripVariantValue(new Variant(guid));
+
+            Assert.That(decoded.Value, Is.EqualTo(guid));
+        }
+
+        [Test]
+        public void WriteVariantValueWithByteStringScalarRoundTripsCorrectly()
+        {
+            var bs = new ByteString(new byte[] { 1, 2, 3 });
+            Variant decoded = RoundTripVariantValue(new Variant(bs));
+
+            Assert.That(decoded.GetByteString(), Is.EqualTo(bs));
+        }
+
+        [Test]
+        public void WriteVariantValueWithNodeIdScalarRoundTripsCorrectly()
+        {
+            var nodeId = new NodeId(123, 1);
+            Variant decoded = RoundTripVariantValue(new Variant(nodeId));
+
+            Assert.That(decoded.Value, Is.EqualTo(nodeId));
+        }
+
+        [Test]
+        public void WriteVariantValueWithExpandedNodeIdScalarRoundTripsCorrectly()
+        {
+            var expandedNodeId = new ExpandedNodeId(456, 1);
+            Variant decoded = RoundTripVariantValue(new Variant(expandedNodeId));
+
+            Assert.That(decoded.Value, Is.EqualTo(expandedNodeId));
+        }
+
+        [Test]
+        public void WriteVariantValueWithQualifiedNameScalarRoundTripsCorrectly()
+        {
+            var qname = new QualifiedName("qname", 1);
+            Variant decoded = RoundTripVariantValue(new Variant(qname));
+
+            Assert.That(decoded.Value, Is.EqualTo(qname));
+        }
+
+        [Test]
+        public void WriteVariantValueWithLocalizedTextScalarRoundTripsCorrectly()
+        {
+            var lt = new LocalizedText("en", "loctext");
+            Variant decoded = RoundTripVariantValue(new Variant(lt));
+
+            Assert.That(decoded.Value, Is.EqualTo(lt));
+        }
+
+        [Test]
+        public void WriteVariantValueWithExtensionObjectScalarRoundTripsCorrectly()
+        {
+            var extObj = new ExtensionObject(ExpandedNodeId.Null);
+            Variant decoded = RoundTripVariantValue(new Variant(extObj));
+
+            Assert.That(decoded.Value, Is.InstanceOf<ExtensionObject>());
+        }
+
+        [Test]
+        public void WriteVariantValueWithDataValueScalarRoundTripsCorrectly()
+        {
+            var dv = new DataValue(new Variant(99));
+            Variant decoded = RoundTripVariantValue(new Variant(dv));
+
+            Assert.That(decoded.GetDataValue().Value, Is.EqualTo(new Variant(99)));
+        }
+
+        [Test]
+        public void WriteVariantValueWithEnumerationScalarWritesAsInt32()
+        {
+            byte[] result = EncodeVariantValue(new Variant(TestEnum.Value1));
+
+            Assert.That(result[0], Is.EqualTo((byte)BuiltInType.Int32));
+        }
+
+        [Test]
+        public void WriteVariantValueWithEnumerationScalarRoundTripsAsInt32()
+        {
+            Variant decoded = RoundTripVariantValue(new Variant(TestEnum.Value1));
+
+            Assert.That(decoded.Value, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void WriteVariantValueWithXmlElementScalarRoundTripsCorrectly()
+        {
+            var xmlDoc = new System.Xml.XmlDocument();
+            var sysElement = xmlDoc.CreateElement("TestElem");
+            sysElement.InnerText = "XmlVal";
+            var xmlElement = XmlElement.From(sysElement);
+            Variant decoded = RoundTripVariantValue(new Variant(xmlElement));
+
+            Assert.That(decoded.Value, Is.InstanceOf<XmlElement>());
+        }
+
+        [Test]
+        public void WriteVariantValueWithScalarWritesCorrectEncodingByte()
+        {
+            byte[] result = EncodeVariantValue(new Variant(42));
+
+            Assert.That(result[0], Is.EqualTo((byte)BuiltInType.Int32));
+        }
+
+        private static System.Collections.IEnumerable ArrayVariantValueTestCases()
+        {
+            yield return new TestCaseData(
+                new Variant(s_booleanArray), typeof(bool));
+            yield return new TestCaseData(
+                new Variant(new sbyte[] { 1, -1 }), typeof(sbyte));
+            yield return new TestCaseData(
+                new Variant(new byte[] { 1, 2 }), typeof(byte));
+            yield return new TestCaseData(
+                new Variant(new short[] { 1, -1 }), typeof(short));
+            yield return new TestCaseData(
+                new Variant(new ushort[] { 1, 2 }), typeof(ushort));
+            yield return new TestCaseData(
+                new Variant(new int[] { 1, -1 }), typeof(int));
+            yield return new TestCaseData(
+                new Variant(new uint[] { 1, 2 }), typeof(uint));
+            yield return new TestCaseData(
+                new Variant(new long[] { 1, -1 }), typeof(long));
+            yield return new TestCaseData(
+                new Variant(new ulong[] { 1, 2 }), typeof(ulong));
+            yield return new TestCaseData(
+                new Variant(s_floatArray), typeof(float));
+            yield return new TestCaseData(
+                new Variant(s_doubleArray), typeof(double));
+            yield return new TestCaseData(
+                new Variant(s_stringArray), typeof(string));
+            yield return new TestCaseData(
+                new Variant(new DateTime[]
+                {
+                    new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+                }), typeof(DateTime));
+            yield return new TestCaseData(
+                new Variant(new Uuid[] { new Uuid(Guid.Empty) }), typeof(Uuid));
+            yield return new TestCaseData(
+                new Variant(new NodeId[] { new NodeId(1) }), typeof(NodeId));
+            yield return new TestCaseData(
+                new Variant(new ExpandedNodeId[] { new ExpandedNodeId(1) }),
+                typeof(ExpandedNodeId));
+            yield return new TestCaseData(
+                new Variant(new StatusCode[] { StatusCodes.Good }),
+                typeof(StatusCode));
+            yield return new TestCaseData(
+                new Variant(new QualifiedName[] { new QualifiedName("q") }),
+                typeof(QualifiedName));
+            yield return new TestCaseData(
+                new Variant(new LocalizedText[] { new LocalizedText("en", "t") }),
+                typeof(LocalizedText));
+            yield return new TestCaseData(
+                new Variant(new ExtensionObject[]
+                {
+                    new ExtensionObject(ExpandedNodeId.Null)
+                }), typeof(ExtensionObject));
+            yield return new TestCaseData(
+                new Variant(new DataValue[] { new DataValue(new Variant(1)) }),
+                typeof(DataValue));
+            yield return new TestCaseData(
+                new Variant(new Variant[] { new Variant(1) }),
+                typeof(Variant));
+            yield return new TestCaseData(
+                new Variant(new ByteStringCollection
+                {
+                    new ByteString(new byte[] { 1, 2 })
+                }), typeof(ByteString));
+        }
+
+        [Test]
+        [TestCaseSource(nameof(ArrayVariantValueTestCases))]
+        public void WriteVariantValueWithArraySetsArrayBitInEncodingByte(
+            Variant variant, Type expectedElementType)
+        {
+            byte[] result = EncodeVariantValue(variant);
+
+            Assert.That(result[0] & (byte)VariantArrayEncodingBits.Array,
+                Is.Not.EqualTo(0), "Array bit should be set");
+        }
+
+        [Test]
+        [TestCaseSource(nameof(ArrayVariantValueTestCases))]
+        public void WriteVariantValueWithArrayRoundTripsCorrectly(
+            Variant variant, Type expectedElementType)
+        {
+            Variant decoded = RoundTripVariantValue(variant);
+
+            Assert.That(decoded.TypeInfo.IsArray, Is.True);
+        }
+
+        [Test]
+        public void WriteVariantValueWithXmlElementArrayRoundTripsCorrectly()
+        {
+            var xmlDoc = new System.Xml.XmlDocument();
+            var elem = XmlElement.From(xmlDoc.CreateElement("E"));
+            var variant = new Variant(new XmlElementCollection { elem });
+
+            Variant decoded = RoundTripVariantValue(variant);
+
+            Assert.That(decoded.TypeInfo.IsArray, Is.True);
+        }
+
+        [Test]
+        public void WriteVariantValueWithBooleanMatrixRoundTripsCorrectly()
+        {
+            ArrayOf<bool> elements = [true, false, true, false];
+            var variant = new Variant(elements.ToMatrix([2, 2]));
+
+            byte[] result = EncodeVariantValue(variant);
+
+            Assert.That(result[0] & (byte)VariantArrayEncodingBits.ArrayDimensions,
+                Is.Not.EqualTo(0), "ArrayDimensions bit should be set");
+        }
+
+        [Test]
+        public void WriteVariantValueWithInt32MatrixRoundTripsCorrectly()
+        {
+            ArrayOf<int> elements = [1, 2, 3, 4];
+            var variant = new Variant(elements.ToMatrix([2, 2]));
+
+            Variant decoded = RoundTripVariantValue(variant);
+
+            Assert.That(decoded.TypeInfo.ValueRank, Is.GreaterThan(1));
+        }
+
+        [Test]
+        public void WriteVariantValueWithDoubleMatrixRoundTripsCorrectly()
+        {
+            ArrayOf<double> elements = [1.0, 2.0, 3.0, 4.0];
+            var variant = new Variant(elements.ToMatrix([2, 2]));
+
+            Variant decoded = RoundTripVariantValue(variant);
+
+            Assert.That(decoded.TypeInfo.ValueRank, Is.GreaterThan(1));
+        }
+
+        [Test]
+        public void WriteVariantValueWithStringMatrixRoundTripsCorrectly()
+        {
+            ArrayOf<string> elements = ["a", "b", "c", "d"];
+            var variant = new Variant(elements.ToMatrix([2, 2]));
+
+            Variant decoded = RoundTripVariantValue(variant);
+
+            Assert.That(decoded.TypeInfo.ValueRank, Is.GreaterThan(1));
+        }
+
+        [Test]
+        public void WriteVariantValueWithVariantMatrixRoundTripsCorrectly()
+        {
+            ArrayOf<Variant> elements =
+            [
+                new Variant(1), new Variant(2),
+                new Variant(3), new Variant(4)
+            ];
+            var variant = new Variant(elements.ToMatrix([2, 2]));
+
+            Variant decoded = RoundTripVariantValue(variant);
+
+            Assert.That(decoded.TypeInfo.ValueRank, Is.GreaterThan(1));
+        }
+
+        #endregion
+
         /// <summary>
         /// Creates a mock IServiceMessageContext for testing.
         /// </summary>
@@ -11108,6 +11657,61 @@ namespace Opc.Ua.Types.Tests.Encoders
             mockMessage.Setup(m => m.TypeId).Returns(binaryEncodingId);
             mockMessage.Setup(m => m.Encode(It.IsAny<IEncoder>()));
             return mockMessage;
+        }
+
+        private sealed class TestEncodeable : IEncodeable
+        {
+            private static readonly ExpandedNodeId s_typeId = new(1, 0);
+            private static readonly ExpandedNodeId s_binaryEncodingId = new(2, 0);
+            private static readonly ExpandedNodeId s_xmlEncodingId = new(3, 0);
+
+            public TestEncodeable()
+                : this(0)
+            {
+            }
+
+            public TestEncodeable(int value)
+            {
+                Value = value;
+            }
+
+            public int Value { get; }
+
+            public ExpandedNodeId TypeId => s_typeId;
+
+            public ExpandedNodeId BinaryEncodingId => s_binaryEncodingId;
+
+            public ExpandedNodeId XmlEncodingId => s_xmlEncodingId;
+
+            public void Encode(IEncoder encoder)
+            {
+                encoder.WriteInt32(null, Value);
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+                decoder.ReadInt32(null);
+            }
+
+            public bool IsEqual(IEncodeable encodeable)
+            {
+                return false;
+            }
+
+            public object Clone()
+            {
+                return new TestEncodeable(Value);
+            }
+        }
+
+        private sealed class TestEncodeableType : EncodeableType<TestEncodeable>
+        {
+            public override XmlQualifiedName XmlName => new("TestEncodeable", Namespaces.OpcUaXsd);
+
+            public override IEncodeable CreateInstance()
+            {
+                return new TestEncodeable();
+            }
         }
 
         private enum TestByteEnum : byte
@@ -11194,5 +11798,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             Value3 = 3,
             LargeValue = 1000000
         }
+
+        private static readonly bool[] s_booleanArray = new bool[] { true, false };
+        private static readonly float[] s_floatArray = new float[] { 1.0f, 2.0f };
+        private static readonly double[] s_doubleArray = new double[] { 1.0, 2.0 };
+        private static readonly string[] s_stringArray = new string[] { "a", "b" };
     }
 }

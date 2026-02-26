@@ -41,8 +41,8 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Get private field m_serverNonce from base class using reflection
         /// </summary>
-        internal byte[] ServerNonce =>
-            (byte[])typeof(Session)
+        internal ByteString ServerNonce =>
+            (ByteString)typeof(Session)
                 .GetField(
                     "m_serverNonce",
                     System.Reflection.BindingFlags.NonPublic |

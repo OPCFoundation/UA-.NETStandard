@@ -935,6 +935,10 @@ namespace Quickstarts
                         m_logger.LogInformation("Browse aborted.");
                         break;
                     }
+					if (maxNodesPerBrowse >= browseDescriptionCollection.Count)
+                    {
+                        maxNodesPerBrowse = 0; // Do not slice, take all
+                    }
 
                     ArrayOf<BrowseDescription> browseCollection =
                         maxNodesPerBrowse == 0
@@ -1001,15 +1005,9 @@ namespace Quickstarts
                     }
                 } while (repeatBrowse);
 
-                if (maxNodesPerBrowse == 0)
-                {
-                    browseDescriptionCollection = [];
-                }
-                else
-                {
-                    browseDescriptionCollection =
-                        browseDescriptionCollection[browseResultCollection.Count..];
-                }
+                browseDescriptionCollection = maxNodesPerBrowse == 0 ?
+                    default :
+                    browseDescriptionCollection[(int)maxNodesPerBrowse..];
 
                 // Browse next
                 ArrayOf<ByteString> continuationPoints = PrepareBrowseNext(browseResultCollection);

@@ -153,14 +153,15 @@ namespace Opc.Ua.Client.Tests
                 "http://opcfoundation.org/Quickstarts/ReferenceServer");
             var nodeId = NodeId.Parse($"ns={namespaceIndex};s=Scalar_Static_ByteString");
 
-            byte[] chunk = new byte[MaxByteStringLengthForTest];
-            UnsecureRandom.Shared.NextBytes(chunk);
+            byte[] buffer = new byte[MaxByteStringLengthForTest];
+            UnsecureRandom.Shared.NextBytes(buffer);
+            ByteString chunk = ByteString.From(buffer);
 
             var writeValue = new WriteValue
             {
                 NodeId = nodeId,
                 AttributeId = Attributes.Value,
-                Value = new DataValue { WrappedValue = new Variant(ByteString.From(chunk)) },
+                Value = new DataValue { WrappedValue = new Variant(chunk) },
                 IndexRange = null
             };
             var writeValues = new WriteValueCollection { writeValue };
@@ -176,7 +177,7 @@ namespace Opc.Ua.Client.Tests
 
             ByteString readData = await theSession.ReadByteStringInChunksAsync(nodeId, default)
                 .ConfigureAwait(false);
-            Assert.IsTrue(Utils.IsEqual(chunk, readData));
+            Assert.AreEqual(chunk, readData);
         }
     }
 }

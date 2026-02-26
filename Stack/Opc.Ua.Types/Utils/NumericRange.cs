@@ -996,6 +996,7 @@ namespace Opc.Ua
             }
 
             bool isString = false;
+            bool isByteString = false;
 
             // check for array.
             if (array == null && list == null)
@@ -1006,6 +1007,12 @@ namespace Opc.Ua
                 {
                     isString = true;
                     array = chars.ToCharArray();
+                }
+
+                if (value is ByteString byteString)
+                {
+                    isByteString = true;
+                    array = byteString.ToArray();
                 }
             }
 
@@ -1082,6 +1089,10 @@ namespace Opc.Ua
             {
                 clone = new char[subLength];
             }
+            else if (isByteString)
+            {
+                clone = new byte[subLength];
+            }
             else
             {
                 clone = Array.CreateInstance(array.GetType().GetElementType(), subLength);
@@ -1092,6 +1103,10 @@ namespace Opc.Ua
             if (isString)
             {
                 value = new string((char[])clone);
+            }
+            if (isByteString)
+            {
+                value = ByteString.From((byte[])clone);
             }
             else
             {

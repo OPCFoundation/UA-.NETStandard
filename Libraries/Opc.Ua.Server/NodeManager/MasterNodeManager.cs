@@ -3410,8 +3410,9 @@ namespace Opc.Ua.Server
                 return new ServiceResult(StatusCodes.BadStructureMissing);
             }
 
-            // check for known filter.
-            if (!attributes.Filter.TryGetEncodeable(out MonitoringFilter _))
+            // If a filter was specified, it needs to be a known filter structure.
+            if (!attributes.Filter.IsNull &&
+                !attributes.Filter.TryGetEncodeable(out MonitoringFilter _))
             {
                 return new ServiceResult(StatusCodes.BadMonitoredItemFilterInvalid);
             }

@@ -41,6 +41,10 @@ namespace Opc.Ua.Types.Tests.Encoders
 
         private static readonly ArrayOf<int> s_elements = [1, 2, 3, 4];
         private static readonly int[] s_dimensions = [2, 2];
+        private static readonly bool[] s_booleanArray = new bool[] { true, false };
+        private static readonly float[] s_floatArray = new float[] { 1.0f, 2.0f };
+        private static readonly double[] s_doubleArray = new double[] { 1.0, 2.0 };
+        private static readonly string[] s_stringArray = new string[] { "a", "b" };
 
         [Test]
         public void ConstructorWithContextCreatesInstance()
@@ -1627,7 +1631,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void WriteByteStringWithIndexAndCountWritesValue()
+        public void WriteByteStringWritesValue()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -1637,10 +1641,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var settings = new XmlWriterSettings { ConformanceLevel = ConformanceLevel.Fragment };
             using var writer = XmlWriter.Create(sb, settings);
             var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
-            byte[] bytes = [0, 1, 2, 3, 4, 5, 6, 7];
+            ByteString bytes = [0, 1, 2, 3, 4, 5, 6, 7];
 
             // Act
-            encoder.WriteByteString("TestByteString", bytes, 0, 8);
+            encoder.WriteByteString("TestByteString", bytes);
             encoder.Close();
 
             // Assert
@@ -5491,6 +5495,262 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(exception, Is.Not.Null);
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
+
+        #region WriteVariantValue Tests
+
+        private static string WriteVariantValueToString(Variant variant, string fieldName = "TestValue")
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var sb = new StringBuilder();
+            var settings = new XmlWriterSettings { Indent = false, OmitXmlDeclaration = true };
+            using var writer = XmlWriter.Create(sb, settings);
+            var encoder = new XmlEncoder(
+                new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+            encoder.WriteVariantValue(fieldName, variant);
+            encoder.Close();
+            return sb.ToString();
+        }
+
+        private static System.Collections.IEnumerable ScalarVariantValueTestCases()
+        {
+            yield return new TestCaseData(new Variant(true), "Boolean", "true");
+            yield return new TestCaseData(new Variant((sbyte)-42), "SByte", "-42");
+            yield return new TestCaseData(new Variant((byte)255), "Byte", "255");
+            yield return new TestCaseData(new Variant((short)-1234), "Int16", "-1234");
+            yield return new TestCaseData(new Variant((ushort)65535), "UInt16", "65535");
+            yield return new TestCaseData(new Variant(123456), "Int32", "123456");
+            yield return new TestCaseData(new Variant(123456u), "UInt32", "123456");
+            yield return new TestCaseData(new Variant(123456789L), "Int64", "123456789");
+            yield return new TestCaseData(new Variant(123456789uL), "UInt64", "123456789");
+            yield return new TestCaseData(new Variant(3.14f), "Float", "3.14");
+            yield return new TestCaseData(new Variant(2.718), "Double", "2.718");
+            yield return new TestCaseData(new Variant("hello"), "String", "hello");
+            yield return new TestCaseData(
+                new Variant(new DateTime(2024, 1, 15, 10, 30, 0, DateTimeKind.Utc)),
+                "DateTime", "2024-01-15");
+            yield return new TestCaseData(
+                new Variant(new Uuid(new Guid("12345678-1234-1234-1234-123456789abc"))),
+                "Guid", "12345678-1234-1234-1234-123456789abc");
+            yield return new TestCaseData(
+                new Variant(new ByteString(new byte[] { 1, 2, 3 })),
+                "ByteString", "AQID");
+            yield return new TestCaseData(
+                new Variant(new NodeId(123, 1)),
+                "NodeId", "Identifier");
+            yield return new TestCaseData(
+                new Variant(new ExpandedNodeId(456, 1)),
+                "ExpandedNodeId", "Identifier");
+            yield return new TestCaseData(
+                new Variant(new StatusCode(0x80010000u)),
+                "StatusCode", "Code");
+            yield return new TestCaseData(
+                new Variant(new QualifiedName("qname")),
+                "QualifiedName", "qname");
+            yield return new TestCaseData(
+                new Variant(new LocalizedText("en", "loctext")),
+                "LocalizedText", "loctext");
+            yield return new TestCaseData(
+                new Variant(new ExtensionObject(new TestEncodeable())),
+                "ExtensionObject", "Body");
+            yield return new TestCaseData(
+                new Variant(new DataValue(new Variant(99))),
+                "DataValue", "99");
+            yield return new TestCaseData(
+                new Variant(TestEnum.Value1),
+                "Int32", "1");
+
+            var xmlDoc = new XmlDocument();
+            var sysElement = xmlDoc.CreateElement("TestElem");
+            sysElement.InnerText = "XmlVal";
+            yield return new TestCaseData(
+                new Variant(XmlElement.From(sysElement)),
+                "XmlElement", "TestElem");
+        }
+
+        [Test]
+        [TestCaseSource(nameof(ScalarVariantValueTestCases))]
+        public void WriteVariantValueWithScalarWritesExpectedContent(
+            Variant variant, string expectedTypeName, string expectedContent)
+        {
+            string result = WriteVariantValueToString(variant);
+
+            Assert.That(result, Does.Contain(expectedTypeName));
+            Assert.That(result, Does.Contain(expectedContent));
+        }
+
+        private static System.Collections.IEnumerable ArrayVariantValueTestCases()
+        {
+            yield return new TestCaseData(
+                new Variant(s_booleanArray), "ListOfBoolean");
+            yield return new TestCaseData(
+                new Variant(new sbyte[] { 1, -1 }), "ListOfSByte");
+            yield return new TestCaseData(
+                new Variant(new ByteCollection(new byte[] { 1, 2 })), "ListOfByte");
+            yield return new TestCaseData(
+                new Variant(new short[] { 1, -1 }), "ListOfInt16");
+            yield return new TestCaseData(
+                new Variant(new ushort[] { 1, 2 }), "ListOfUInt16");
+            yield return new TestCaseData(
+                new Variant(new int[] { 1, -1 }), "ListOfInt32");
+            yield return new TestCaseData(
+                new Variant(new uint[] { 1, 2 }), "ListOfUInt32");
+            yield return new TestCaseData(
+                new Variant(new long[] { 1, -1 }), "ListOfInt64");
+            yield return new TestCaseData(
+                new Variant(new ulong[] { 1, 2 }), "ListOfUInt64");
+            yield return new TestCaseData(
+                new Variant(s_floatArray), "ListOfFloat");
+            yield return new TestCaseData(
+                new Variant(s_doubleArray), "ListOfDouble");
+            yield return new TestCaseData(
+                new Variant(s_stringArray), "ListOfString");
+            yield return new TestCaseData(
+                new Variant(new DateTime[]
+                {
+                    new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+                }), "ListOfDateTime");
+            yield return new TestCaseData(
+                new Variant(new Uuid[] { new Uuid(Guid.Empty) }), "ListOfGuid");
+            yield return new TestCaseData(
+                new Variant(new ByteStringCollection
+                {
+                    new ByteString(new byte[] { 1, 2 })
+                }), "ListOfByteString");
+            yield return new TestCaseData(
+                new Variant(new NodeId[] { new NodeId(1) }), "ListOfNodeId");
+            yield return new TestCaseData(
+                new Variant(new ExpandedNodeId[] { new ExpandedNodeId(1) }),
+                "ListOfExpandedNodeId");
+            yield return new TestCaseData(
+                new Variant(new StatusCode[] { StatusCodes.Good }),
+                "ListOfStatusCode");
+            yield return new TestCaseData(
+                new Variant(new QualifiedName[] { new QualifiedName("q") }),
+                "ListOfQualifiedName");
+            yield return new TestCaseData(
+                new Variant(new LocalizedText[] { new LocalizedText("en", "t") }),
+                "ListOfLocalizedText");
+            yield return new TestCaseData(
+                new Variant(new ExtensionObject[]
+                {
+                    new ExtensionObject(ExpandedNodeId.Null)
+                }), "ListOfExtensionObject");
+            yield return new TestCaseData(
+                new Variant(new DataValue[] { new DataValue(new Variant(1)) }),
+                "ListOfDataValue");
+            yield return new TestCaseData(
+                new Variant(new Variant[] { new Variant(1) }),
+                "ListOfVariant");
+
+            var xmlDoc = new XmlDocument();
+            var elem = XmlElement.From(xmlDoc.CreateElement("E"));
+            yield return new TestCaseData(
+                new Variant(new XmlElementCollection { elem }),
+                "ListOfXmlElement");
+        }
+
+        [Test]
+        [TestCaseSource(nameof(ArrayVariantValueTestCases))]
+        public void WriteVariantValueWithArrayWritesExpectedListType(
+            Variant variant, string expectedListName)
+        {
+            string result = WriteVariantValueToString(variant);
+
+            Assert.That(result, Does.Contain("TestValue"));
+            Assert.That(result, Does.Contain(expectedListName));
+        }
+
+        [Test]
+        public void WriteVariantValueWithBooleanMatrixWritesMatrixElements()
+        {
+            ArrayOf<bool> elements = [true, false, true, false];
+            var variant = new Variant(elements.ToMatrix([2, 2]));
+
+            string result = WriteVariantValueToString(variant);
+
+            Assert.That(result, Does.Contain("Matrix"));
+            Assert.That(result, Does.Contain("Dimensions"));
+            Assert.That(result, Does.Contain("Elements"));
+        }
+
+        [Test]
+        public void WriteVariantValueWithInt32MatrixWritesMatrixElements()
+        {
+            ArrayOf<int> elements = [1, 2, 3, 4];
+            var variant = new Variant(elements.ToMatrix([2, 2]));
+
+            string result = WriteVariantValueToString(variant);
+
+            Assert.That(result, Does.Contain("Matrix"));
+            Assert.That(result, Does.Contain("Dimensions"));
+            Assert.That(result, Does.Contain("Elements"));
+        }
+
+        [Test]
+        public void WriteVariantValueWithDoubleMatrixWritesMatrixElements()
+        {
+            ArrayOf<double> elements = [1.0, 2.0, 3.0, 4.0];
+            var variant = new Variant(elements.ToMatrix([2, 2]));
+
+            string result = WriteVariantValueToString(variant);
+
+            Assert.That(result, Does.Contain("Matrix"));
+            Assert.That(result, Does.Contain("Dimensions"));
+            Assert.That(result, Does.Contain("Elements"));
+        }
+
+        [Test]
+        public void WriteVariantValueWithStringMatrixWritesMatrixElements()
+        {
+            ArrayOf<string> elements = ["a", "b", "c", "d"];
+            var variant = new Variant(elements.ToMatrix([2, 2]));
+
+            string result = WriteVariantValueToString(variant);
+
+            Assert.That(result, Does.Contain("Matrix"));
+            Assert.That(result, Does.Contain("Dimensions"));
+            Assert.That(result, Does.Contain("Elements"));
+        }
+
+        [Test]
+        public void WriteVariantValueWithVariantMatrixWritesMatrixElements()
+        {
+            ArrayOf<Variant> elements =
+            [
+                new Variant(1), new Variant(2),
+                new Variant(3), new Variant(4)
+            ];
+            var variant = new Variant(elements.ToMatrix([2, 2]));
+
+            string result = WriteVariantValueToString(variant);
+
+            Assert.That(result, Does.Contain("Matrix"));
+            Assert.That(result, Does.Contain("Dimensions"));
+            Assert.That(result, Does.Contain("Elements"));
+        }
+
+        [Test]
+        public void WriteVariantValueWithNullVariantWritesNil()
+        {
+            string result = WriteVariantValueToString(Variant.Null);
+
+            Assert.That(result, Does.Contain("nil"));
+        }
+
+        [Test]
+        public void WriteVariantValueWithNullFieldNameWritesWithoutFieldWrapper()
+        {
+            var variant = new Variant(42);
+
+            string result = WriteVariantValueToString(variant, null);
+
+            Assert.That(result, Does.Not.Contain("TestValue"));
+            Assert.That(result, Does.Contain("Int32"));
+            Assert.That(result, Does.Contain("42"));
+        }
+
+        #endregion
 
         /// <summary>
         /// Validate the encoding and decoding of the float special values.

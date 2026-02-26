@@ -53,10 +53,10 @@ namespace Opc.Ua
         /// </summary>
         public BinaryEncoder(IServiceMessageContext context)
         {
+            Context = context ?? throw new ArgumentNullException(nameof(context));
             m_logger = context.Telemetry.CreateLogger<BinaryEncoder>();
             m_ostrm = new MemoryStream();
             m_writer = new BinaryWriter(m_ostrm);
-            Context = context;
             m_leaveOpen = false;
             m_nestingLevel = 0;
         }
@@ -75,10 +75,10 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(buffer));
             }
 
+            Context = context ?? throw new ArgumentNullException(nameof(context));
             m_logger = context.Telemetry.CreateLogger<BinaryEncoder>();
             m_ostrm = new MemoryStream(buffer, start, count);
             m_writer = new BinaryWriter(m_ostrm);
-            Context = context;
             m_leaveOpen = false;
             m_nestingLevel = 0;
         }
@@ -94,10 +94,10 @@ namespace Opc.Ua
             IServiceMessageContext context,
             bool leaveOpen)
         {
+            Context = context ?? throw new ArgumentNullException(nameof(context));
             m_logger = context.Telemetry.CreateLogger<BinaryEncoder>();
             m_ostrm = stream ?? throw new ArgumentNullException(nameof(stream));
             m_writer = new BinaryWriter(m_ostrm, Encoding.UTF8, leaveOpen);
-            Context = context;
             m_leaveOpen = leaveOpen;
             m_nestingLevel = 0;
         }
@@ -251,28 +251,14 @@ namespace Opc.Ua
         /// <summary>
         /// Encodes a message in a stream.
         /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="message"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="message"/> is <c>null</c>.</exception>
         public static void EncodeMessage(
             IEncodeable message,
             Stream stream,
             IServiceMessageContext context,
             bool leaveOpen)
         {
-            if (message == null)
-            {
-                throw new ArgumentNullException(nameof(message));
-            }
-
-            if (stream == null)
-            {
-                throw new ArgumentNullException(nameof(stream));
-            }
-
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-
             // create encoder.
             using var encoder = new BinaryEncoder(stream, context, leaveOpen);
             // encode message
@@ -282,8 +268,10 @@ namespace Opc.Ua
         /// <summary>
         /// Encodes a message with its header.
         /// </summary>
+        /// <typeparam name="T"></typeparam>
         /// <exception cref="ArgumentNullException">
-        /// <paramref name="message"/> is <c>null</c>.</exception>
+        /// <paramref name="message"/> is <c>null</c>.
+        /// </exception>
         /// <exception cref="ServiceResultException"></exception>
         public void EncodeMessage<T>(T message) where T : IEncodeable
         {
@@ -504,7 +492,8 @@ namespace Opc.Ua
             try
             {
                 int count = Encoding.UTF8.GetBytes(value, 0, value.Length, encodedBytes, 0);
-                WriteByteString(null, encodedBytes, 0, count);
+                WriteInt32(null, count);
+                m_writer.Write(encodedBytes, 0, count);
             }
             finally
             {
@@ -560,31 +549,6 @@ namespace Opc.Ua
             }
 
             WriteByteString(fieldName, value.Span);
-        }
-
-        /// <summary>
-        /// Writes a byte string to the stream from a given index and length.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public void WriteByteString(string fieldName, byte[] value, int index, int count)
-        {
-            if (value == null)
-            {
-                WriteInt32(null, -1);
-                return;
-            }
-
-            if (Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < count)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "MaxByteStringLength {0} < {1}",
-                    Context.MaxByteStringLength,
-                    count);
-            }
-
-            WriteInt32(null, count);
-            m_writer.Write(value, index, count);
         }
 
         /// <summary>
@@ -1001,7 +965,7 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingError,
-                    "Cannot encode empty extension object '{0}'.",
+                    "Cannot encode extension object '{0}'.",
                     value);
             }
 
@@ -1946,33 +1910,6 @@ namespace Opc.Ua
             // write length.
             WriteInt32(null, values.Count);
             return values.Count == 0;
-        }
-
-        /// <summary>
-        /// Write the length of an array. Returns true if the array is empty.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        private bool WriteArrayLength(Array values)
-        {
-            // check for null.
-            if (values == null)
-            {
-                WriteInt32(null, -1);
-                return true;
-            }
-
-            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Length)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "MaxArrayLength {0} < {1}",
-                    Context.MaxArrayLength,
-                    values.Length);
-            }
-
-            // write length.
-            WriteInt32(null, values.Length);
-            return values.Length == 0;
         }
 
         /// <summary>

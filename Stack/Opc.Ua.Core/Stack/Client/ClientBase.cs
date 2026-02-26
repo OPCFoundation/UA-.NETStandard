@@ -646,7 +646,7 @@ namespace Opc.Ua
             IReadOnlyList<TRequest> request)
         {
             // returning an empty list for diagnostic info arrays is allowed.
-            if (response != null && response.Count != request.Count)
+            if (response != null && response.Count != 0 && response.Count != request.Count)
             {
                 throw ServiceResultException.Unexpected(
                     "The server failed to fill in the DiagnosticInfos array correctly when returning an operation level error.");

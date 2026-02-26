@@ -475,14 +475,6 @@ namespace Opc.Ua
 #endif
         }
 
-        /// <summary>
-        /// Writes a byte string to the stream with a given index and count.
-        /// </summary>
-        public void WriteByteString(string fieldName, byte[] value, int index, int count)
-        {
-            WriteByteString(fieldName, value.ToByteString(), false);
-        }
-
 #if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
         /// <summary>
         /// Writes a byte string to the stream.
