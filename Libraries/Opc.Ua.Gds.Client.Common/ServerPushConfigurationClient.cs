@@ -503,6 +503,7 @@ namespace Opc.Ua.Gds.Client
                     ExpandedNodeId.ToNodeId(certificateGroupId, session.NamespaceUris),
                     Ua.ObjectTypeIds.TrustListType,
                     ct).ConfigureAwait(false);
+
                 NodeId openWithMasksMethodId =
                     await BrowseNodeIdAsync(trustListNodeId,
                             Ua.MethodIds.TrustListType_OpenWithMasks, ReferenceTypeIds.HasComponent, ct)
@@ -527,14 +528,14 @@ namespace Opc.Ua.Gds.Client
 
                     long totalBytesRead = 0;
 
+                    NodeId readMethodId =
+                        await BrowseNodeIdAsync(trustListNodeId,
+                                Ua.MethodIds.FileType_Read, ReferenceTypeIds.HasComponent, ct)
+                            .ConfigureAwait(false);
+
                     while (true)
                     {
                         const int length = 256;
-
-                        NodeId readMethodId =
-                            await BrowseNodeIdAsync(trustListNodeId,
-                                    Ua.MethodIds.FileType_Read, ReferenceTypeIds.HasComponent, ct)
-                                .ConfigureAwait(false);
 
                         outputArguments = await session.CallAsync(
                                 trustListNodeId,
@@ -708,6 +709,10 @@ namespace Opc.Ua.Gds.Client
                     bool writing = true;
                     byte[] buffer = new byte[256];
 
+                    NodeId writeMethodId =
+                        await BrowseNodeIdAsync(trustListNodeId,
+                            Ua.MethodIds.FileType_Write, ReferenceTypeIds.HasComponent, ct).ConfigureAwait(false);
+
                     while (writing)
                     {
                         int bytesWritten = strm.Read(buffer, 0, buffer.Length);
@@ -719,10 +724,6 @@ namespace Opc.Ua.Gds.Client
                             buffer = copy;
                             writing = false;
                         }
-
-                        NodeId writeMethodId =
-                            await BrowseNodeIdAsync(trustListNodeId,
-                                Ua.MethodIds.FileType_Write, ReferenceTypeIds.HasComponent, ct).ConfigureAwait(false);
 
                         await session.CallAsync(
                             trustListNodeId,
