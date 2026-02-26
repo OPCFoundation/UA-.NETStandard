@@ -1367,13 +1367,13 @@ namespace Opc.Ua.Gds.Client
             NodeId methodTypeId,
             CancellationToken ct = default)
         {
-            if (s_trustListMethodsByTrustListAndType
-                    .TryGetValue(
-                        trustListNodeId.WithNamespaceIndex(0),
-                        out Dictionary<NodeId, NodeId> methodsByType) &&
-                methodsByType
+            if (s_trustListMethodsByTypeAndTrustList
                     .TryGetValue(
                         methodTypeId.WithNamespaceIndex(0),
+                        out Dictionary<NodeId, NodeId> methodsByTrustList) &&
+                methodsByTrustList
+                    .TryGetValue(
+                        trustListNodeId.WithNamespaceIndex(0),
                         out NodeId methodId))
             {
                 return Task.FromResult(ExpandedNodeId.ToNodeId(methodId, Session.NamespaceUris));
@@ -1493,93 +1493,93 @@ namespace Opc.Ua.Gds.Client
                 $"Could not find child with TypeDefinition {targetTypeDefinitionId} under {parentNodeId}");
         }
 
-        private static readonly Dictionary<NodeId, Dictionary<NodeId, NodeId>> s_trustListMethodsByTrustListAndType =
+        private static readonly Dictionary<NodeId, Dictionary<NodeId, NodeId>> s_trustListMethodsByTypeAndTrustList =
             new()
             {
-                [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList] =
-                    new Dictionary<NodeId, NodeId>
-                    {
-                        [Ua.MethodIds.TrustListType_AddCertificate] =
-                            Ua.MethodIds
-                                .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_AddCertificate,
-                        [Ua.MethodIds.TrustListType_RemoveCertificate] =
-                            Ua.MethodIds
-                                .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_RemoveCertificate,
-                        [Ua.MethodIds.TrustListType_OpenWithMasks] =
-                            Ua.MethodIds
-                                .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_OpenWithMasks,
-                        [Ua.MethodIds.TrustListType_CloseAndUpdate] =
-                            Ua.MethodIds
-                                .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_CloseAndUpdate,
-                        [Ua.MethodIds.FileType_Open] =
-                            Ua.MethodIds
-                                .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Open,
-                        [Ua.MethodIds.FileType_Read] =
-                            Ua.MethodIds
-                                .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Read,
-                        [Ua.MethodIds.FileType_Write] =
-                            Ua.MethodIds
-                                .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Write,
-                        [Ua.MethodIds.FileType_Close] =
-                            Ua.MethodIds
-                                .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Close
-                    },
-                [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList] =
-                    new Dictionary<NodeId, NodeId>
-                    {
-                        [Ua.MethodIds.TrustListType_AddCertificate] =
-                            Ua.MethodIds
-                                .ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList_AddCertificate,
-                        [Ua.MethodIds.TrustListType_RemoveCertificate] =
-                            Ua.MethodIds
-                                .ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList_RemoveCertificate,
-                        [Ua.MethodIds.TrustListType_OpenWithMasks] =
-                            Ua.MethodIds
-                                .ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList_OpenWithMasks,
-                        [Ua.MethodIds.TrustListType_CloseAndUpdate] =
-                            Ua.MethodIds
-                                .ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList_CloseAndUpdate,
-                        [Ua.MethodIds.FileType_Open] =
-                            Ua.MethodIds
-                                .ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList_Open,
-                        [Ua.MethodIds.FileType_Read] =
-                            Ua.MethodIds
-                                .ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList_Read,
-                        [Ua.MethodIds.FileType_Write] =
-                            Ua.MethodIds
-                                .ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList_Write,
-                        [Ua.MethodIds.FileType_Close] =
-                            Ua.MethodIds
-                                .ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList_Close
-                    },
-                [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList] =
-                    new Dictionary<NodeId, NodeId>
-                    {
-                        [Ua.MethodIds.TrustListType_AddCertificate] =
-                            Ua.MethodIds
-                                .ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList_AddCertificate,
-                        [Ua.MethodIds.TrustListType_RemoveCertificate] =
-                            Ua.MethodIds
-                                .ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList_RemoveCertificate,
-                        [Ua.MethodIds.TrustListType_OpenWithMasks] =
-                            Ua.MethodIds
-                                .ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList_OpenWithMasks,
-                        [Ua.MethodIds.TrustListType_CloseAndUpdate] =
-                            Ua.MethodIds
-                                .ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList_CloseAndUpdate,
-                        [Ua.MethodIds.FileType_Open] =
-                            Ua.MethodIds
-                                .ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList_Open,
-                        [Ua.MethodIds.FileType_Read] =
-                            Ua.MethodIds
-                                .ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList_Read,
-                        [Ua.MethodIds.FileType_Write] =
-                            Ua.MethodIds
-                                .ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList_Write,
-                        [Ua.MethodIds.FileType_Close] =
-                            Ua.MethodIds
-                                .ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList_Close
-                    }
+                [Ua.MethodIds.TrustListType_AddCertificate] = new Dictionary<NodeId, NodeId>
+                {
+                    [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList] =
+                        Ua.MethodIds
+                            .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_AddCertificate,
+                    [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList] =
+                        Ua.MethodIds
+                            .ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList_AddCertificate,
+                    [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList] =
+                        Ua.MethodIds
+                            .ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList_AddCertificate
+                },
+                [Ua.MethodIds.TrustListType_RemoveCertificate] = new Dictionary<NodeId, NodeId>
+                {
+                    [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList] =
+                        Ua.MethodIds
+                            .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_RemoveCertificate,
+                    [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList] =
+                        Ua.MethodIds
+                            .ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList_RemoveCertificate,
+                    [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList] =
+                        Ua.MethodIds
+                            .ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList_RemoveCertificate
+                },
+                [Ua.MethodIds.TrustListType_OpenWithMasks] = new Dictionary<NodeId, NodeId>
+                {
+                    [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList] =
+                        Ua.MethodIds
+                            .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_OpenWithMasks,
+                    [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList] =
+                        Ua.MethodIds
+                            .ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList_OpenWithMasks,
+                    [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList] =
+                        Ua.MethodIds
+                            .ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList_OpenWithMasks
+                },
+                [Ua.MethodIds.TrustListType_CloseAndUpdate] = new Dictionary<NodeId, NodeId>
+                {
+                    [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList] =
+                        Ua.MethodIds
+                            .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_CloseAndUpdate,
+                    [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList] =
+                        Ua.MethodIds
+                            .ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList_CloseAndUpdate,
+                    [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList] =
+                        Ua.MethodIds
+                            .ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList_CloseAndUpdate
+                },
+                [Ua.MethodIds.FileType_Open] = new Dictionary<NodeId, NodeId>
+                {
+                    [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList] =
+                        Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Open,
+                    [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList] =
+                        Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList_Open,
+                    [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList] =
+                        Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList_Open
+                },
+                [Ua.MethodIds.FileType_Read] = new Dictionary<NodeId, NodeId>
+                {
+                    [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList] =
+                        Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Read,
+                    [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList] =
+                        Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList_Read,
+                    [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList] =
+                        Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList_Read
+                },
+                [Ua.MethodIds.FileType_Write] = new Dictionary<NodeId, NodeId>
+                {
+                    [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList] =
+                        Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Write,
+                    [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList] =
+                        Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList_Write,
+                    [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList] =
+                        Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList_Write
+                },
+                [Ua.MethodIds.FileType_Close] = new Dictionary<NodeId, NodeId>
+                {
+                    [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList] =
+                        Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Close,
+                    [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList] =
+                        Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList_Close,
+                    [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList] =
+                        Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList_Close
+                }
             };
 
         private readonly SemaphoreSlim m_lock = new(1, 1);
