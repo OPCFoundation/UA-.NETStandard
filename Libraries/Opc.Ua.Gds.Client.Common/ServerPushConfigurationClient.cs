@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -499,14 +500,13 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                NodeId trustListNodeId = await FindChildByTypeDefinitionAsync(
+                NodeId trustListNodeId = await GetRelatedTrustListIdByCertificateGroupIdAsync(
                     ExpandedNodeId.ToNodeId(certificateGroupId, session.NamespaceUris),
-                    Ua.ObjectTypeIds.TrustListType,
                     ct).ConfigureAwait(false);
 
                 NodeId openWithMasksMethodId =
-                    await BrowseNodeIdAsync(trustListNodeId,
-                            Ua.MethodIds.TrustListType_OpenWithMasks, ReferenceTypeIds.HasComponent, ct)
+                    await BrowseTrustListMethodIdAsync(trustListNodeId,
+                            Ua.MethodIds.TrustListType_OpenWithMasks, ct)
                         .ConfigureAwait(false);
 
                 VariantCollection outputArguments = await session.CallAsync(
@@ -529,8 +529,8 @@ namespace Opc.Ua.Gds.Client
                     long totalBytesRead = 0;
 
                     NodeId readMethodId =
-                        await BrowseNodeIdAsync(trustListNodeId,
-                                Ua.MethodIds.FileType_Read, ReferenceTypeIds.HasComponent, ct)
+                        await BrowseTrustListMethodIdAsync(trustListNodeId,
+                                Ua.MethodIds.FileType_Read, ct)
                             .ConfigureAwait(false);
 
                     while (true)
@@ -567,8 +567,8 @@ namespace Opc.Ua.Gds.Client
                     }
 
                     NodeId closeMethodId =
-                        await BrowseNodeIdAsync(trustListNodeId,
-                                Ua.MethodIds.FileType_Close, ReferenceTypeIds.HasComponent, ct)
+                        await BrowseTrustListMethodIdAsync(trustListNodeId,
+                                Ua.MethodIds.FileType_Close, ct)
                             .ConfigureAwait(false);
 
                     await session.CallAsync(
@@ -583,8 +583,8 @@ namespace Opc.Ua.Gds.Client
                     if (IsConnected)
                     {
                         NodeId closeMethodId =
-                            await BrowseNodeIdAsync(trustListNodeId,
-                                    Ua.MethodIds.FileType_Close, ReferenceTypeIds.HasComponent, ct)
+                            await BrowseTrustListMethodIdAsync(trustListNodeId,
+                                    Ua.MethodIds.FileType_Close, ct)
                                 .ConfigureAwait(false);
 
                         await session.CallAsync(
@@ -663,9 +663,8 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                NodeId trustListNodeId = await FindChildByTypeDefinitionAsync(
+                NodeId trustListNodeId = await GetRelatedTrustListIdByCertificateGroupIdAsync(
                     ExpandedNodeId.ToNodeId(certificateGroupId, session.NamespaceUris),
-                    Ua.ObjectTypeIds.TrustListType,
                     ct).ConfigureAwait(false);
                 using var strm = new MemoryStream();
                 using (var encoder = new BinaryEncoder(strm, session.MessageContext, true))
@@ -692,8 +691,8 @@ namespace Opc.Ua.Gds.Client
                 }
 
                 NodeId openMethodId =
-                    await BrowseNodeIdAsync(trustListNodeId,
-                            Ua.MethodIds.FileType_Open, ReferenceTypeIds.HasComponent, ct)
+                    await BrowseTrustListMethodIdAsync(trustListNodeId,
+                            Ua.MethodIds.FileType_Open, ct)
                         .ConfigureAwait(false);
 
                 VariantCollection outputArguments = await session.CallAsync(
@@ -710,8 +709,8 @@ namespace Opc.Ua.Gds.Client
                     byte[] buffer = new byte[256];
 
                     NodeId writeMethodId =
-                        await BrowseNodeIdAsync(trustListNodeId,
-                            Ua.MethodIds.FileType_Write, ReferenceTypeIds.HasComponent, ct).ConfigureAwait(false);
+                        await BrowseTrustListMethodIdAsync(trustListNodeId,
+                            Ua.MethodIds.FileType_Write, ct).ConfigureAwait(false);
 
                     while (writing)
                     {
@@ -734,8 +733,8 @@ namespace Opc.Ua.Gds.Client
                     }
 
                     NodeId closeAndUpdateMethodId =
-                        await BrowseNodeIdAsync(trustListNodeId,
-                                Ua.MethodIds.TrustListType_CloseAndUpdate, ReferenceTypeIds.HasComponent, ct)
+                        await BrowseTrustListMethodIdAsync(trustListNodeId,
+                                Ua.MethodIds.TrustListType_CloseAndUpdate, ct)
                             .ConfigureAwait(false);
 
                     outputArguments = await session.CallAsync(
@@ -751,8 +750,8 @@ namespace Opc.Ua.Gds.Client
                     if (IsConnected)
                     {
                         NodeId closeMethodId =
-                            await BrowseNodeIdAsync(trustListNodeId,
-                                Ua.MethodIds.FileType_Close, ReferenceTypeIds.HasComponent, ct).ConfigureAwait(false);
+                            await BrowseTrustListMethodIdAsync(trustListNodeId,
+                                Ua.MethodIds.FileType_Close, ct).ConfigureAwait(false);
 
                         await session.CallAsync(
                             trustListNodeId,
@@ -803,13 +802,12 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                NodeId trustListNodeId = await FindChildByTypeDefinitionAsync(
+                NodeId trustListNodeId = await GetRelatedTrustListIdByCertificateGroupIdAsync(
                     ExpandedNodeId.ToNodeId(certificateGroupId, session.NamespaceUris),
-                    Ua.ObjectTypeIds.TrustListType,
                     ct).ConfigureAwait(false);
                 NodeId addCertificateMethodId =
-                    await BrowseNodeIdAsync(trustListNodeId,
-                            Ua.MethodIds.TrustListType_AddCertificate, ReferenceTypeIds.HasComponent, ct)
+                    await BrowseTrustListMethodIdAsync(trustListNodeId,
+                            Ua.MethodIds.TrustListType_AddCertificate, ct)
                         .ConfigureAwait(false);
                 await session.CallAsync(
                     trustListNodeId,
@@ -857,13 +855,12 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                NodeId trustListNodeId = await FindChildByTypeDefinitionAsync(
+                NodeId trustListNodeId = await GetRelatedTrustListIdByCertificateGroupIdAsync(
                     ExpandedNodeId.ToNodeId(certificateGroupId, session.NamespaceUris),
-                    Ua.ObjectTypeIds.TrustListType,
                     ct).ConfigureAwait(false);
                 NodeId removeCertificateMethodId =
-                    await BrowseNodeIdAsync(trustListNodeId,
-                            Ua.MethodIds.TrustListType_RemoveCertificate, ReferenceTypeIds.HasComponent, ct)
+                    await BrowseTrustListMethodIdAsync(trustListNodeId,
+                            Ua.MethodIds.TrustListType_RemoveCertificate, ct)
                         .ConfigureAwait(false);
                 await session.CallAsync(
                     trustListNodeId,
@@ -1365,6 +1362,26 @@ namespace Opc.Ua.Gds.Client
             }
         }
 
+        private Task<NodeId> BrowseTrustListMethodIdAsync(
+            NodeId trustListNodeId,
+            NodeId methodTypeId,
+            CancellationToken ct = default)
+        {
+            if (s_trustListMethodsByTrustListAndType
+                    .TryGetValue(
+                        trustListNodeId.WithNamespaceIndex(0),
+                        out Dictionary<NodeId, NodeId> methodsByType) &&
+                methodsByType
+                    .TryGetValue(
+                        methodTypeId.WithNamespaceIndex(0),
+                        out NodeId methodId))
+            {
+                return Task.FromResult(ExpandedNodeId.ToNodeId(methodId, Session.NamespaceUris));
+            }
+
+            return BrowseNodeIdAsync(trustListNodeId, methodTypeId, ReferenceTypeIds.HasComponent, ct);
+        }
+
         private async Task<NodeId> BrowseNodeIdAsync(
             NodeId rootNode,
             NodeId searchNodeId,
@@ -1411,6 +1428,38 @@ namespace Opc.Ua.Gds.Client
                 $"Could not find declaration id {searchNodeId} under {rootNode} with reference type {referenceTypeId}");
         }
 
+        private Task<NodeId> GetRelatedTrustListIdByCertificateGroupIdAsync(
+            NodeId certificateGroupId,
+            CancellationToken ct = default)
+        {
+            NodeId normalizedCertificateGroupId = certificateGroupId.WithNamespaceIndex(0);
+            if (normalizedCertificateGroupId ==
+                Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup)
+            {
+                return Task.FromResult(ExpandedNodeId.ToNodeId(Ua.ObjectIds
+                    .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, Session.NamespaceUris));
+            }
+
+            if (normalizedCertificateGroupId ==
+                Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup)
+            {
+                return Task.FromResult(ExpandedNodeId.ToNodeId(Ua.ObjectIds
+                    .ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList, Session.NamespaceUris));
+            }
+
+            if (normalizedCertificateGroupId ==
+                Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup)
+            {
+                return Task.FromResult(ExpandedNodeId.ToNodeId(Ua.ObjectIds
+                    .ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList, Session.NamespaceUris));
+            }
+
+            return FindChildByTypeDefinitionAsync(
+                ExpandedNodeId.ToNodeId(certificateGroupId, Session.NamespaceUris),
+                Ua.ObjectTypeIds.TrustListType,
+                ct);
+        }
+
         private async Task<NodeId> FindChildByTypeDefinitionAsync(
             NodeId parentNodeId,
             NodeId targetTypeDefinitionId,
@@ -1443,6 +1492,95 @@ namespace Opc.Ua.Gds.Client
                 StatusCodes.BadNotFound,
                 $"Could not find child with TypeDefinition {targetTypeDefinitionId} under {parentNodeId}");
         }
+
+        private static readonly Dictionary<NodeId, Dictionary<NodeId, NodeId>> s_trustListMethodsByTrustListAndType =
+            new()
+            {
+                [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList] =
+                    new Dictionary<NodeId, NodeId>
+                    {
+                        [Ua.MethodIds.TrustListType_AddCertificate] =
+                            Ua.MethodIds
+                                .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_AddCertificate,
+                        [Ua.MethodIds.TrustListType_RemoveCertificate] =
+                            Ua.MethodIds
+                                .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_RemoveCertificate,
+                        [Ua.MethodIds.TrustListType_OpenWithMasks] =
+                            Ua.MethodIds
+                                .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_OpenWithMasks,
+                        [Ua.MethodIds.TrustListType_CloseAndUpdate] =
+                            Ua.MethodIds
+                                .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_CloseAndUpdate,
+                        [Ua.MethodIds.FileType_Open] =
+                            Ua.MethodIds
+                                .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Open,
+                        [Ua.MethodIds.FileType_Read] =
+                            Ua.MethodIds
+                                .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Read,
+                        [Ua.MethodIds.FileType_Write] =
+                            Ua.MethodIds
+                                .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Write,
+                        [Ua.MethodIds.FileType_Close] =
+                            Ua.MethodIds
+                                .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Close
+                    },
+                [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList] =
+                    new Dictionary<NodeId, NodeId>
+                    {
+                        [Ua.MethodIds.TrustListType_AddCertificate] =
+                            Ua.MethodIds
+                                .ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList_AddCertificate,
+                        [Ua.MethodIds.TrustListType_RemoveCertificate] =
+                            Ua.MethodIds
+                                .ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList_RemoveCertificate,
+                        [Ua.MethodIds.TrustListType_OpenWithMasks] =
+                            Ua.MethodIds
+                                .ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList_OpenWithMasks,
+                        [Ua.MethodIds.TrustListType_CloseAndUpdate] =
+                            Ua.MethodIds
+                                .ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList_CloseAndUpdate,
+                        [Ua.MethodIds.FileType_Open] =
+                            Ua.MethodIds
+                                .ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList_Open,
+                        [Ua.MethodIds.FileType_Read] =
+                            Ua.MethodIds
+                                .ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList_Read,
+                        [Ua.MethodIds.FileType_Write] =
+                            Ua.MethodIds
+                                .ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList_Write,
+                        [Ua.MethodIds.FileType_Close] =
+                            Ua.MethodIds
+                                .ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList_Close
+                    },
+                [Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList] =
+                    new Dictionary<NodeId, NodeId>
+                    {
+                        [Ua.MethodIds.TrustListType_AddCertificate] =
+                            Ua.MethodIds
+                                .ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList_AddCertificate,
+                        [Ua.MethodIds.TrustListType_RemoveCertificate] =
+                            Ua.MethodIds
+                                .ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList_RemoveCertificate,
+                        [Ua.MethodIds.TrustListType_OpenWithMasks] =
+                            Ua.MethodIds
+                                .ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList_OpenWithMasks,
+                        [Ua.MethodIds.TrustListType_CloseAndUpdate] =
+                            Ua.MethodIds
+                                .ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList_CloseAndUpdate,
+                        [Ua.MethodIds.FileType_Open] =
+                            Ua.MethodIds
+                                .ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList_Open,
+                        [Ua.MethodIds.FileType_Read] =
+                            Ua.MethodIds
+                                .ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList_Read,
+                        [Ua.MethodIds.FileType_Write] =
+                            Ua.MethodIds
+                                .ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList_Write,
+                        [Ua.MethodIds.FileType_Close] =
+                            Ua.MethodIds
+                                .ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList_Close
+                    }
+            };
 
         private readonly SemaphoreSlim m_lock = new(1, 1);
         private readonly ISessionFactory m_sessionFactory;
