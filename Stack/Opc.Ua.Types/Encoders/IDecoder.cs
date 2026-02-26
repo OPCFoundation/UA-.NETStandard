@@ -360,6 +360,20 @@ namespace Opc.Ua
         Array ReadEnumeratedArray(string fieldName, Type enumType);
 
         /// <summary>
+        /// Reads a variant value from the stream with the specified TypeInfo.
+        /// If type info is <see cref="TypeInfo.Unknown"/> the value is read
+        /// as <see cref="ReadVariant(string)"/>.
+        /// </summary>
+        /// <remarks>
+        /// Replaced the former untyped ReadArray method to read any value
+        /// corresponding to the type information.
+        /// </remarks>
+        /// <param name="fieldName">The field name.</param>
+        /// <param name="typeInfo">The type info deciding the Variant</param>
+        /// <returns></returns>
+        Variant ReadVariantValue(string fieldName, TypeInfo typeInfo);
+
+        /// <summary>
         /// Reads an array with the specified valueRank and the specified BuiltInType.
         /// </summary>
         /// <param name="fieldName">The array field name.</param>

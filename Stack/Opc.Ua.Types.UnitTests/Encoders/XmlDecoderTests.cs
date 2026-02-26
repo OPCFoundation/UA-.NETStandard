@@ -1056,7 +1056,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantContents();
+            Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
             Assert.That(result.Value, Is.Null);
@@ -1074,7 +1074,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantContents();
+            Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
             Assert.That(result.Value, Is.EqualTo(true));
@@ -1092,7 +1092,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantContents();
+            Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
             Assert.That(result.Value, Is.EqualTo((sbyte)-128));
@@ -1110,7 +1110,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantContents();
+            Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
             Assert.That(result.Value, Is.EqualTo((byte)255));
@@ -1128,7 +1128,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantContents();
+            Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
             Assert.That(result.Value, Is.EqualTo((short)-32768));
@@ -1146,7 +1146,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantContents();
+            Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
             Assert.That(result.Value, Is.EqualTo((ushort)65535));
@@ -1164,7 +1164,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantContents();
+            Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
             Assert.That(result.Value, Is.EqualTo(-2147483648));
@@ -1182,7 +1182,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantContents();
+            Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
             Assert.That(result.Value, Is.EqualTo(4294967295u));
@@ -1200,7 +1200,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantContents();
+            Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
             Assert.That(result.Value, Is.EqualTo(-9223372036854775808));
@@ -1218,7 +1218,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantContents();
+            Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
             Assert.That(result.Value, Is.EqualTo(18446744073709551615ul));
@@ -1236,7 +1236,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantContents();
+            Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
             Assert.That(result.Value, Is.EqualTo(3.14159f).Within(0.00001f));
@@ -1254,7 +1254,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantContents();
+            Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
             Assert.That(result.Value, Is.EqualTo(3.141592653589793).Within(0.000000000000001));
@@ -1272,7 +1272,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantContents();
+            Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
             Assert.That(result.Value, Is.EqualTo("Hello World"));
@@ -1290,7 +1290,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantContents();
+            Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
             Assert.That(result.Value, Is.EqualTo(new DateTime(2024, 1, 15, 12, 30, 45, DateTimeKind.Utc)));
@@ -1310,7 +1310,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantContents();
+            Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
             Assert.That(result.Value, Is.EqualTo(new Uuid("12345678-1234-1234-1234-123456789012")));
@@ -1328,7 +1328,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantContents();
+            Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
             Assert.That(result.Value, Is.EqualTo(s_expectedByteArray));
@@ -1348,7 +1348,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantContents();
+            Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
             Assert.That(result.Value, Is.InstanceOf<XmlElement>());
@@ -1368,7 +1368,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantContents();
+            Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
             Assert.That(result.Value, Is.EqualTo(new NodeId(123)));
@@ -1388,7 +1388,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantContents();
+            Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
             Assert.That(result.Value, Is.EqualTo(new ExpandedNodeId(456)));
@@ -1408,7 +1408,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantContents();
+            Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
             Assert.That(result.Value, Is.EqualTo(new StatusCode(0x80000000)));
@@ -1429,7 +1429,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantContents();
+            Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
             Assert.That(result.Value, Is.EqualTo(new QualifiedName("TestName", 1)));
@@ -1450,7 +1450,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantContents();
+            Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
             Assert.That(result.Value, Is.EqualTo(new LocalizedText("en-US", "Hello")));
@@ -1472,7 +1472,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantContents();
+            Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
             Assert.That(result.Value, Is.EqualTo(s_expectedBoolArray));
@@ -1494,7 +1494,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantContents();
+            Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
             Assert.That(result.Value, Is.EqualTo(s_expectedInt32Array));
@@ -1516,7 +1516,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new XmlDecoder(reader, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantContents();
+            Variant result = decoder.ReadVariantValue(null, default);
 
             // Assert
             Assert.That(result.Value, Is.EqualTo(s_expectedStringArray));
@@ -1534,7 +1534,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new XmlDecoder(reader, messageContext);
 
             // Act & Assert
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadVariantContents());
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadVariantValue(null, default));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
             Assert.That(ex.Message, Does.Contain("not allowed in a Variant"));
         }
@@ -1553,7 +1553,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new XmlDecoder(reader, messageContext);
 
             // Act & Assert
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadVariantContents());
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadVariantValue(null, default));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
             Assert.That(ex.Message, Does.Contain("not allowed in a Variant"));
         }

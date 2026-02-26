@@ -249,6 +249,15 @@ namespace Opc.Ua
                             depth--;
                         }
                     }
+                    else if (m_reader.NodeType == XmlNodeType.Element)
+                    {
+                        if (m_reader.LocalName == qname.Name &&
+                            m_reader.NamespaceURI == qname.Namespace)
+                        {
+                            // depth++;
+                            // Handled by skip, skipping the entire tree
+                        }
+                    }
 
                     m_reader.Skip();
                     m_reader.MoveToContent();
@@ -264,11 +273,45 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// Reads the contents of an Variant object.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public Variant ReadVariantContents()
+        /// <inheritdoc/>
+        public Variant ReadVariantValue(string fieldName, TypeInfo typeInfo)
+        {
+            CheckAndIncrementNestingLevel();
+
+            try
+            {
+                Variant value = Variant.Null;
+
+                if (BeginField(fieldName, true))
+                {
+                    PushNamespace(Namespaces.OpcUaXsd);
+
+                    value = ReadVariantValue();
+
+                    // Allow reading with unknown type info
+                    if (!typeInfo.IsUnknown && value.TypeInfo != typeInfo)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "Error reading value as variant. Type mismatch: Expected {0} != Actual {1}",
+                            typeInfo, value.TypeInfo);
+                    }
+
+                    PopNamespace();
+
+                    EndField(fieldName);
+                }
+
+                return value;
+            }
+            finally
+            {
+                m_nestingLevel--;
+            }
+        }
+
+        /// <inheritdoc/>
+        public Variant ReadVariantValue()
         {
             // skip whitespace.
             while (m_reader.NodeType != XmlNodeType.Element)
@@ -282,70 +325,9 @@ namespace Opc.Ua
 
                 string typeName = m_reader.LocalName;
 
-                // process array types.
-                if (typeName.StartsWith("ListOf", StringComparison.Ordinal))
+                if (!typeName.StartsWith("ListOf", StringComparison.Ordinal))
                 {
-                    switch (typeName["ListOf".Length..])
-                    {
-                        case "Boolean":
-                            return Variant.From(ReadBooleanArray(typeName));
-                        case "SByte":
-                            return Variant.From(ReadSByteArray(typeName));
-                        case "Byte":
-                            return Variant.From(ReadByteArray(typeName));
-                        case "Int16":
-                            return Variant.From(ReadInt16Array(typeName));
-                        case "UInt16":
-                            return Variant.From(ReadUInt16Array(typeName));
-                        case "Int32":
-                            return Variant.From(ReadInt32Array(typeName));
-                        case "UInt32":
-                            return Variant.From(ReadUInt32Array(typeName));
-                        case "Int64":
-                            return Variant.From(ReadInt64Array(typeName));
-                        case "UInt64":
-                            return Variant.From(ReadUInt64Array(typeName));
-                        case "Float":
-                            return Variant.From(ReadFloatArray(typeName));
-                        case "Double":
-                            return Variant.From(ReadDoubleArray(typeName));
-                        case "String":
-                            return Variant.From(ReadStringArray(typeName));
-                        case "DateTime":
-                            return Variant.From(ReadDateTimeArray(typeName));
-                        case "Guid":
-                            return Variant.From(ReadGuidArray(typeName));
-                        case "ByteString":
-                            return Variant.From(ReadByteStringArray(typeName));
-                        case "XmlElement":
-                            return Variant.From(ReadXmlElementArray(typeName));
-                        case "NodeId":
-                            return Variant.From(ReadNodeIdArray(typeName));
-                        case "ExpandedNodeId":
-                            return Variant.From(ReadExpandedNodeIdArray(typeName));
-                        case "StatusCode":
-                            return Variant.From(ReadStatusCodeArray(typeName));
-                        case "QualifiedName":
-                            return Variant.From(ReadQualifiedNameArray(typeName));
-                        case "LocalizedText":
-                            return Variant.From(ReadLocalizedTextArray(typeName));
-                        case "ExtensionObject":
-                            return Variant.From(ReadExtensionObjectArray(typeName));
-                        case "DataValue":
-                            return Variant.From(ReadDataValueArray(typeName));
-                        case "Variant":
-                            return Variant.From(ReadVariantArray(typeName));
-                        default:
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadDecodingError,
-                                "Element '{1}:{0}' is not allowed in a Variant.",
-                                m_reader.LocalName,
-                                m_reader.NamespaceURI);
-                    }
-                }
-                // process scalar types.
-                else
-                {
+                    // process scalar types.
                     switch (typeName)
                     {
                         case "Null":
@@ -402,6 +384,67 @@ namespace Opc.Ua
                             return ReadDataValue(typeName);
                         case "Matrix":
                             return ReadMatrix(typeName);
+                        default:
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadDecodingError,
+                                "Element '{1}:{0}' is not allowed in a Variant.",
+                                m_reader.LocalName,
+                                m_reader.NamespaceURI);
+                    }
+                }
+                else
+                {
+                    // process array types.
+                    switch (typeName["ListOf".Length..])
+                    {
+                        case "Boolean":
+                            return Variant.From(ReadBooleanArray(typeName));
+                        case "SByte":
+                            return Variant.From(ReadSByteArray(typeName));
+                        case "Byte":
+                            return Variant.From(ReadByteArray(typeName));
+                        case "Int16":
+                            return Variant.From(ReadInt16Array(typeName));
+                        case "UInt16":
+                            return Variant.From(ReadUInt16Array(typeName));
+                        case "Int32":
+                            return Variant.From(ReadInt32Array(typeName));
+                        case "UInt32":
+                            return Variant.From(ReadUInt32Array(typeName));
+                        case "Int64":
+                            return Variant.From(ReadInt64Array(typeName));
+                        case "UInt64":
+                            return Variant.From(ReadUInt64Array(typeName));
+                        case "Float":
+                            return Variant.From(ReadFloatArray(typeName));
+                        case "Double":
+                            return Variant.From(ReadDoubleArray(typeName));
+                        case "String":
+                            return Variant.From(ReadStringArray(typeName));
+                        case "DateTime":
+                            return Variant.From(ReadDateTimeArray(typeName));
+                        case "Guid":
+                            return Variant.From(ReadGuidArray(typeName));
+                        case "ByteString":
+                            return Variant.From(ReadByteStringArray(typeName));
+                        case "XmlElement":
+                            return Variant.From(ReadXmlElementArray(typeName));
+                        case "NodeId":
+                            return Variant.From(ReadNodeIdArray(typeName));
+                        case "ExpandedNodeId":
+                            return Variant.From(ReadExpandedNodeIdArray(typeName));
+                        case "StatusCode":
+                            return Variant.From(ReadStatusCodeArray(typeName));
+                        case "QualifiedName":
+                            return Variant.From(ReadQualifiedNameArray(typeName));
+                        case "LocalizedText":
+                            return Variant.From(ReadLocalizedTextArray(typeName));
+                        case "ExtensionObject":
+                            return Variant.From(ReadExtensionObjectArray(typeName));
+                        case "DataValue":
+                            return Variant.From(ReadDataValueArray(typeName));
+                        case "Variant":
+                            return Variant.From(ReadVariantArray(typeName));
                         default:
                             throw ServiceResultException.Create(
                                 StatusCodes.BadDecodingError,
@@ -1179,7 +1222,7 @@ namespace Opc.Ua
 
             try
             {
-                var value = new Variant();
+                Variant value = Variant.Null;
 
                 if (BeginField(fieldName, true))
                 {
@@ -1189,7 +1232,7 @@ namespace Opc.Ua
                     {
                         try
                         {
-                            value = ReadVariantContents();
+                            value = ReadVariantValue();
                         }
                         catch (Exception ex) when (ex is not ServiceResultException)
                         {

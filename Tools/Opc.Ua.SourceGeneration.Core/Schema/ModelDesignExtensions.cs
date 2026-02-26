@@ -38,6 +38,7 @@ using System.Xml.Linq;
 using Opc.Ua.Schema.Types;
 using Opc.Ua.SourceGeneration;
 using Opc.Ua.Types;
+using static Opc.Ua.SourceGeneration.ParsedTemplateString;
 
 namespace Opc.Ua.Schema.Model
 {
@@ -753,8 +754,12 @@ namespace Opc.Ua.Schema.Model
 
             if (decodedValue == null && defaultValue != null)
             {
-                using var decoder = new XmlDecoder((XmlElement)defaultValue, context);
-                Variant variant = decoder.ReadVariantContents();
+                // <opc:DefaultValue>
+                //   <uax:Boolean>true</uax:Boolean>
+                // </opc:DefaultValue >
+
+              using var decoder = new XmlDecoder((XmlElement)defaultValue, context);
+                Variant variant = decoder.ReadVariantValue(null, default);
                 decodedValueType = variant.TypeInfo;
                 decodedValue = variant.AsBoxedObject(true);
             }

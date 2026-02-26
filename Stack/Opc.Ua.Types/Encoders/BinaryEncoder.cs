@@ -791,7 +791,7 @@ namespace Opc.Ua
 
             try
             {
-                WriteVariantValue(null, value);
+                WriteVariantValue(value, false);
             }
             finally
             {
@@ -898,14 +898,7 @@ namespace Opc.Ua
 
             if (value.TryGetEncodeable(out IEncodeable encodeable))
             {
-                if (value.Encoding == ExtensionObjectEncoding.Xml)
-                {
-                    typeId = encodeable.XmlEncodingId;
-                }
-                else
-                {
-                    typeId = encodeable.BinaryEncodingId;
-                }
+                typeId = encodeable.BinaryEncodingId;
             }
 
             var localTypeId = ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris);
@@ -1467,12 +1460,38 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteVariantValue(string fieldName, Variant value)
         {
+            WriteVariantValue(value, true);
+        }
+
+        /// <inheritdoc/>
+        public void WriteSwitchField(uint switchField, out string fieldName)
+        {
+            fieldName = null;
+            WriteUInt32("SwitchField", switchField);
+        }
+
+        /// <inheritdoc/>
+        public void WriteEncodingMask(uint encodingMask)
+        {
+            WriteUInt32("EncodingMask", encodingMask);
+        }
+
+        /// <summary>
+        /// Write variant value either in raw mode (just the value)
+        /// or with type information.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void WriteVariantValue(Variant value, bool raw)
+        {
             // check for null.
             if (value.IsNull ||
                 value.TypeInfo.IsUnknown ||
                 value.TypeInfo.BuiltInType == BuiltInType.Null)
             {
-                WriteByte(null, 0);
+                if (!raw)
+                {
+                    WriteByte(null, 0);
+                }
                 return;
             }
 
@@ -1483,10 +1502,13 @@ namespace Opc.Ua
                 encodingByte = (byte)BuiltInType.Int32;
             }
 
-            if (value.TypeInfo.ValueRank < 0)
+            if (value.TypeInfo.IsScalar)
             {
                 // Write scalar
-                WriteByte(null, encodingByte);
+                if (!raw)
+                {
+                    WriteByte(null, encodingByte);
+                }
                 switch (value.TypeInfo.BuiltInType)
                 {
                     case BuiltInType.Boolean:
@@ -1579,7 +1601,13 @@ namespace Opc.Ua
             else if (value.TypeInfo.IsArray)
             {
                 // Write arrays
-                WriteByte(null, (byte)(encodingByte | (byte)VariantArrayEncodingBits.Array));
+
+                if (!raw)
+                {
+                    WriteByte(
+                        null,
+                        (byte)(encodingByte | (byte)VariantArrayEncodingBits.Array));
+                }
 
                 switch (value.TypeInfo.BuiltInType)
                 {
@@ -1674,6 +1702,9 @@ namespace Opc.Ua
             }
             else // Write multi dimensional arrays
             {
+                // Encode multi dimensional arrays as variant always with type information
+                // no matter whether we write raw or not raw.
+
                 WriteByte(null, (byte)(
                     encodingByte |
                     (byte)VariantArrayEncodingBits.Array |
@@ -1773,19 +1804,6 @@ namespace Opc.Ua
                 // write the dimensions.
                 WriteInt32Array(null, dim);
             }
-        }
-
-        /// <inheritdoc/>
-        public void WriteSwitchField(uint switchField, out string fieldName)
-        {
-            fieldName = null;
-            WriteUInt32("SwitchField", switchField);
-        }
-
-        /// <inheritdoc/>
-        public void WriteEncodingMask(uint encodingMask)
-        {
-            WriteUInt32("EncodingMask", encodingMask);
         }
 
         /// <summary>

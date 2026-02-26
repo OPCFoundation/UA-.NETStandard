@@ -2412,6 +2412,52 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void WriteEncodeableAsExtensionObjectWritesXml()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxEncodingNestingLevels = 100
+            };
+
+            var sb = new StringBuilder();
+            var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
+            using var writer = XmlWriter.Create(sb, settings);
+            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+
+            var value = new TestEncodeable();
+
+            encoder.WriteEncodeableAsExtensionObject("TestExtension", value);
+            encoder.Close();
+
+            string result = sb.ToString();
+            Assert.That(result, Does.Contain("TestExtension").And.Contain("TestEncodeable"));
+        }
+
+        [Test]
+        public void WriteEncodeableArrayAsExtensionObjectsWritesXml()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext)
+            {
+                MaxEncodingNestingLevels = 100
+            };
+
+            var sb = new StringBuilder();
+            var settings = new XmlWriterSettings { OmitXmlDeclaration = true };
+            using var writer = XmlWriter.Create(sb, settings);
+            var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
+
+            ArrayOf<TestEncodeable> values = [new TestEncodeable(), new TestEncodeable()];
+
+            encoder.WriteEncodeableArrayAsExtensionObjects("Extensions", values);
+            encoder.Close();
+
+            string result = sb.ToString();
+            Assert.That(result, Does.Contain("Extensions").And.Contain("ExtensionObject").And.Contain("TestEncodeable"));
+        }
+
+        [Test]
         public void WriteEncodeableWithValueDecrementsNestingLevel()
         {
             // Arrange
@@ -5752,9 +5798,6 @@ namespace Opc.Ua.Types.Tests.Encoders
 
         #endregion
 
-        /// <summary>
-        /// Validate the encoding and decoding of the float special values.
-        /// </summary>
         [Test]
         [TestCase(float.PositiveInfinity, "INF")]
         [TestCase(float.NegativeInfinity, "-INF")]
@@ -5802,9 +5845,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
         }
 
-        /// <summary>
-        /// Validate the encoding and decoding of the double special values.
-        /// </summary>
         [Test]
         [TestCase(double.PositiveInfinity, "INF")]
         [TestCase(double.NegativeInfinity, "-INF")]
@@ -5852,9 +5892,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
         }
 
-        /// <summary>
-        /// Validate the encoding and decoding of the a variant that consists of a matrix.
-        /// </summary>
         [Test]
         public void EncodeDecodeVariantMatrix()
         {
@@ -5919,9 +5956,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.AreEqual(actualVariant, variant);
         }
 
-        /// <summary>
-        /// Validate the encoding and decoding of the a variant that contains a null value
-        /// </summary>
         [Test]
         public void EncodeDecodeVariantNil()
         {
@@ -5965,9 +5999,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.AreEqual(actualVariant, Variant.Null);
         }
 
-        /// <summary>
-        /// Validate that decoding errors include the failed value in the error message for Float.
-        /// </summary>
         [Test]
         public void DecodeInvalidFloatIncludesValueInError()
         {
@@ -5986,9 +6017,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.Message, Does.Contain("Value:"));
         }
 
-        /// <summary>
-        /// Validate that decoding errors include the failed value in the error message for Double.
-        /// </summary>
         [Test]
         public void DecodeInvalidDoubleIncludesValueInError()
         {
@@ -6007,9 +6035,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.Message, Does.Contain("Value:"));
         }
 
-        /// <summary>
-        /// Validate that decoding errors include the failed value in the error message for DateTime.
-        /// </summary>
         [Test]
         public void DecodeInvalidDateTimeIncludesValueInError()
         {
@@ -6028,9 +6053,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.Message, Does.Contain("Value:"));
         }
 
-        /// <summary>
-        /// Validate that decoding errors include the failed value in the error message for Int32.
-        /// </summary>
         [Test]
         public void DecodeInvalidInt32IncludesValueInError()
         {

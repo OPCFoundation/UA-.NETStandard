@@ -957,7 +957,7 @@ namespace Opc.Ua
         /// <summary>
         /// Private constructor for internal use.
         /// </summary>
-        private Variant(Union union, TypeInfo typeInfo, object value = null)
+        internal Variant(Union union, TypeInfo typeInfo, object value = null)
         {
             m_union = union;
             m_value = value;
@@ -7323,7 +7323,7 @@ namespace Opc.Ua
         {
             using var reader = XmlReader.Create(istrm, CoreUtils.DefaultXmlReaderSettings());
             using var decoder = new XmlDecoder(reader, context);
-            return decoder.ReadVariantContents();
+            return decoder.ReadVariantValue();
         }
 
         /// <summary>
@@ -7885,7 +7885,7 @@ namespace Opc.Ua
                 try
                 {
                     // read value.
-                    Value = decoder.ReadVariantContents();
+                    Value = decoder.ReadVariantValue();
                 }
                 catch (Exception e)
                 {
