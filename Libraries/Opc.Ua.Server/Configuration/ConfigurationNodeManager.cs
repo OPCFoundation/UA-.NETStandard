@@ -250,6 +250,39 @@ namespace Opc.Ua.Server
             return base.AddBehaviourToPredefinedNode(context, predefinedNode);
         }
 
+        /// <summary>
+        /// Frees any unmanaged resources.
+        /// </summary>
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                if (FindPredefinedNode<NamespacesState>(ObjectIds.Server_Namespaces)
+                    is NamespacesState serverNamespacesNode)
+                {
+                    serverNamespacesNode.StateChanged -= ServerNamespacesChanged;
+                }
+
+                foreach (NodeState node in PredefinedNodes.Values)
+                {
+                    if (node is NamespaceMetadataState metadataState)
+                    {
+                        if (metadataState.DefaultRolePermissions != null)
+                        {
+                            metadataState.DefaultRolePermissions.StateChanged -= OnNamespaceDefaultPermissionsChanged;
+                        }
+
+                        if (metadataState.DefaultUserRolePermissions != null)
+                        {
+                            metadataState.DefaultUserRolePermissions.StateChanged -= OnNamespaceDefaultPermissionsChanged;
+                        }
+                    }
+                }
+            }
+
+            base.Dispose(disposing);
+        }
+
         ///<inheritdoc/>
         public void CreateServerConfiguration(
             ServerSystemContext systemContext,
@@ -313,6 +346,17 @@ namespace Opc.Ua.Server
                 is NamespacesState serverNamespacesNode)
             {
                 serverNamespacesNode.StateChanged += ServerNamespacesChanged;
+
+                IList<BaseInstanceState> children = [];
+                serverNamespacesNode.GetChildren(systemContext, children);
+
+                foreach (BaseInstanceState child in children)
+                {
+                    if (child is NamespaceMetadataState metadataState)
+                    {
+                        SubscribeToNamespaceDefaultPermissions(metadataState);
+                    }
+                }
             }
         }
 
@@ -375,6 +419,8 @@ namespace Opc.Ua.Server
                 namespaceMetadataState.DisplayName = LocalizedText.From(namespaceUri);
                 namespaceMetadataState.SymbolicName = namespaceUri;
                 namespaceMetadataState.NamespaceUri.Value = namespaceUri;
+                namespaceMetadataState.AddDefaultRolePermissions(SystemContext);
+                namespaceMetadataState.AddDefaultUserRolePermissions(SystemContext);
 
                 // add node as child of ServerNamespaces and in predefined nodes
                 serverNamespacesNode.AddChild(namespaceMetadataState);
@@ -1237,6 +1283,20 @@ namespace Opc.Ua.Server
                     lock (Lock)
                     {
                         m_namespaceMetadataStates.Clear();
+                    }
+
+                    if (node is NamespacesState serverNamespacesNode)
+                    {
+                        IList<BaseInstanceState> children = [];
+                        serverNamespacesNode.GetChildren(context, children);
+
+                        foreach (BaseInstanceState child in children)
+                        {
+                            if (child is NamespaceMetadataState metadataState)
+                            {
+                                SubscribeToNamespaceDefaultPermissions(metadataState);
+                            }
+                        }
                     }
                 }
                 catch

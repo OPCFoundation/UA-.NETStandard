@@ -129,7 +129,6 @@ namespace Opc.Ua.Server
             {
                 // Remove the cached context for the monitored item
                 m_contextCache.TryRemove(datachangeItem.Id, out _);
-                m_operationContextCache.TryRemove(datachangeItem.Id, out _);
                 m_permissionCache.TryRemove(datachangeItem.Id, out _);
             }
 
@@ -258,16 +257,24 @@ namespace Opc.Ua.Server
                 foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in DataChangeMonitoredItems)
                 {
                     IDataChangeMonitoredItem2 monitoredItem = kvp.Value;
+                    OperationContext operationContext;
+                    ISystemContext contextToUse;
+
+                    if (context is ServerSystemContext serverContext)
+                    {
+                        ServerSystemContext serverSystemContextToUse = GetOrCreateContext(serverContext, monitoredItem);
+                        operationContext = serverSystemContextToUse.OperationContext;
+                        contextToUse = serverSystemContextToUse;
+                    }
+                    else
+                    {
+                        operationContext = new OperationContext(monitoredItem);
+                        contextToUse = context;
+                    }
 
                     if (monitoredItem.AttributeId == Attributes.Value &&
                         (changes & NodeStateChangeMasks.Value) != 0)
                     {
-                        if (!m_operationContextCache.TryGetValue(monitoredItem.Id, out OperationContext operationContext))
-                        {
-                            operationContext = new OperationContext(monitoredItem);
-                            m_operationContextCache[monitoredItem.Id] = operationContext;
-                        }
-
                         // Use cached permission result to avoid validating on every value change.
                         // The cache is invalidated when RolePermissions/UserRolePermissions change
                         // or when the user identity of the monitored item changes.
@@ -286,14 +293,14 @@ namespace Opc.Ua.Server
                             continue;
                         }
 
-                        QueueValue(context, node, monitoredItem);
+                        QueueValue(contextToUse, node, monitoredItem);
                         continue;
                     }
 
                     if (monitoredItem.AttributeId != Attributes.Value &&
                         (changes & NodeStateChangeMasks.NonValue) != 0)
                     {
-                        QueueValue(context, node, monitoredItem);
+                        QueueValue(contextToUse, node, monitoredItem);
                     }
                 }
             }
@@ -314,16 +321,8 @@ namespace Opc.Ua.Server
                 SourceTimestamp = DateTime.MinValue,
                 StatusCode = StatusCodes.Good
             };
-
-            ISystemContext contextToUse = context;
-
-            if (context is ServerSystemContext systemContext)
-            {
-                contextToUse = GetOrCreateContext(systemContext, monitoredItem);
-            }
-
             ServiceResult error = node.ReadAttribute(
-                contextToUse,
+                context,
                 monitoredItem.AttributeId,
                 monitoredItem.IndexRange,
                 monitoredItem.DataEncoding,
@@ -363,7 +362,6 @@ namespace Opc.Ua.Server
                     (currentTicks - cachedEntry.CreatedAtTicks) > m_cacheLifetimeTicks)
                 {
                     operationContext = new OperationContext(monitoredItem);
-                    m_operationContextCache[monitoredItemId] = operationContext;
 
                     ServerSystemContext updatedContext = context.Copy(
                         operationContext);
@@ -382,7 +380,6 @@ namespace Opc.Ua.Server
             operationContext = new OperationContext(monitoredItem);
             ServerSystemContext newContext = context.Copy(operationContext);
             m_contextCache.TryAdd(monitoredItemId, (newContext, currentTicks));
-            m_operationContextCache[monitoredItemId] = operationContext;
 
             return newContext;
         }
@@ -398,9 +395,6 @@ namespace Opc.Ua.Server
         }
 
         private readonly ConcurrentDictionary<uint, (ServerSystemContext Context, int CreatedAtTicks)> m_contextCache =
-            new();
-
-        private readonly ConcurrentDictionary<uint, OperationContext> m_operationContextCache =
             new();
 
         private readonly ConcurrentDictionary<uint, ServiceResult> m_permissionCache =
