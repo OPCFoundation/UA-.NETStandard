@@ -325,11 +325,14 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            if (m_namespaceMetadataStates.TryGetValue(
-                namespaceUri,
-                out NamespaceMetadataState value))
+            lock (Lock)
             {
-                return value;
+                if (m_namespaceMetadataStates.TryGetValue(
+                    namespaceUri,
+                    out NamespaceMetadataState value))
+                {
+                    return value;
+                }
             }
 
             NamespaceMetadataState namespaceMetadataState = FindNamespaceMetadataState(
@@ -347,11 +350,14 @@ namespace Opc.Ua.Server
         ///<inheritdoc/>
         public NamespaceMetadataState GetNamespaceMetadataState(ushort namespaceIndex)
         {
-            if (m_namespaceMetadataStatesByIndex.TryGetValue(
-                namespaceIndex,
-                out NamespaceMetadataState value))
+            lock (Lock)
             {
-                return value;
+                if (m_namespaceMetadataStatesByIndex.TryGetValue(
+                    namespaceIndex,
+                    out NamespaceMetadataState value))
+                {
+                    return value;
+                }
             }
 
             string namespaceUri = Server.NamespaceUris.GetString(namespaceIndex);
@@ -1289,7 +1295,7 @@ namespace Opc.Ua.Server
         private readonly ApplicationConfiguration m_configuration;
         private readonly List<ServerCertificateGroup> m_certificateGroups;
         private readonly CertificateStoreIdentifier m_rejectedStore;
-        private readonly ConcurrentDictionary<string, NamespaceMetadataState> m_namespaceMetadataStates = [];
-        private readonly ConcurrentDictionary<ushort, NamespaceMetadataState> m_namespaceMetadataStatesByIndex = [];
+        private readonly Dictionary<string, NamespaceMetadataState> m_namespaceMetadataStates = [];
+        private readonly Dictionary<ushort, NamespaceMetadataState> m_namespaceMetadataStatesByIndex = [];
     }
 }

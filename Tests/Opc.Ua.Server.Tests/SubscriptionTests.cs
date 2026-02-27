@@ -85,8 +85,10 @@ namespace Opc.Ua.Server.Tests
             // private readonly Dictionary<uint, LinkedListNode<IMonitoredItem>> m_monitoredItems;
             // private readonly LinkedList<IMonitoredItem> m_itemsToCheck;
 
-            FieldInfo monitoredItemsField = typeof(Subscription).GetField("m_monitoredItems", BindingFlags.NonPublic | BindingFlags.Instance);
-            FieldInfo itemsToCheckField = typeof(Subscription).GetField("m_itemsToCheck", BindingFlags.NonPublic | BindingFlags.Instance);
+            FieldInfo monitoredItemsField = typeof(Subscription).GetField("m_monitoredItems", BindingFlags.NonPublic | BindingFlags.Instance)
+                ?? throw new InvalidOperationException("Field m_monitoredItems not found");
+            FieldInfo itemsToCheckField = typeof(Subscription).GetField("m_itemsToCheck", BindingFlags.NonPublic | BindingFlags.Instance)
+                ?? throw new InvalidOperationException("Field m_itemsToCheck not found");
 
             var monitoredItems = (System.Collections.IDictionary)monitoredItemsField.GetValue(subscription);
             var itemsToCheck = (LinkedList<IMonitoredItem>)itemsToCheckField.GetValue(subscription);
@@ -100,7 +102,8 @@ namespace Opc.Ua.Server.Tests
         private static void AddTriggerLink(Subscription subscription, uint triggeringId, ITriggeredMonitoredItem triggeredItem)
         {
             // private readonly Dictionary<uint, List<ITriggeredMonitoredItem>> m_itemsToTrigger;
-            FieldInfo itemsToTriggerField = typeof(Subscription).GetField("m_itemsToTrigger", BindingFlags.NonPublic | BindingFlags.Instance);
+            FieldInfo itemsToTriggerField = typeof(Subscription).GetField("m_itemsToTrigger", BindingFlags.NonPublic | BindingFlags.Instance)
+                ?? throw new InvalidOperationException("Field m_itemsToTrigger not found");
             var itemsToTrigger = (System.Collections.IDictionary)itemsToTriggerField.GetValue(subscription);
 
             if (!itemsToTrigger.Contains(triggeringId))
@@ -113,7 +116,8 @@ namespace Opc.Ua.Server.Tests
 
         private static int GetItemsToPublishCount(Subscription subscription)
         {
-            FieldInfo itemsToPublishField = typeof(Subscription).GetField("m_itemsToPublish", BindingFlags.NonPublic | BindingFlags.Instance);
+            FieldInfo itemsToPublishField = typeof(Subscription).GetField("m_itemsToPublish", BindingFlags.NonPublic | BindingFlags.Instance)
+                ?? throw new InvalidOperationException("Field m_itemsToPublish not found");
             var itemsToPublish = (LinkedList<IMonitoredItem>)itemsToPublishField.GetValue(subscription);
             return itemsToPublish.Count;
         }
@@ -210,7 +214,7 @@ namespace Opc.Ua.Server.Tests
             var itemAMock = new Mock<IMonitoredItem>();
             itemAMock.Setup(i => i.Id).Returns(1);
             itemAMock.Setup(i => i.IsReadyToPublish).Returns(true);
-            itemAMock.SetupProperty(i => i.IsReadyToTrigger, true); // Use propery behavior so it can be set to false by Subscription
+            itemAMock.SetupProperty(i => i.IsReadyToTrigger, true); // Use property behavior so it can be set to false by Subscription
 
             // Item B: Triggered item. Initially NOT ready to publish.
             // B must implement ITriggeredMonitoredItem as well.

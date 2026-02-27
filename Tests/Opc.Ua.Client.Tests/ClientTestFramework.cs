@@ -318,7 +318,6 @@ namespace Opc.Ua.Client.Tests
                 });
 
             ServerFixture.Config.ServerConfiguration.MaxChannelCount = MaxChannelCount;
-            ServerFixture.Config.ServerConfiguration.MaxRequestThreadCount = 10000;
             ServerFixture.Config.ServerConfiguration.MaxSubscriptionCount = 1000;
             ServerFixture.Config.ServerConfiguration.MaxQueuedRequestCount = 100000;
             ReferenceServer = await ServerFixture.StartAsync()
