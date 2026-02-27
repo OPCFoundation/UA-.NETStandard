@@ -494,26 +494,14 @@ namespace Opc.Ua
                 return default;
             }
 
-            var document = new XmlDocument();
-            try
+            // If 0 terminated, decrease length before converting to string
+            int utf8StringLength = bytes.Length;
+            while (utf8StringLength > 0 && bytes[utf8StringLength - 1] == 0)
             {
-                // If 0 terminated, decrease length before converting to string
-                int utf8StringLength = bytes.Length;
-                while (utf8StringLength > 0 && bytes[utf8StringLength - 1] == 0)
-                {
-                    utf8StringLength--;
-                }
-                string xmlString = Encoding.UTF8.GetString(bytes.ToArray(), 0, utf8StringLength);
-                using var stream = new StringReader(xmlString);
-                using var reader = XmlReader.Create(stream, CoreUtils.DefaultXmlReaderSettings());
-                document.Load(reader);
+                utf8StringLength--;
             }
-            catch (XmlException)
-            {
-                return default;
-            }
-
-            return XmlElement.From(document.DocumentElement);
+            string xmlString = Encoding.UTF8.GetString(bytes.ToArray(), 0, utf8StringLength);
+            return XmlElement.From(xmlString);
         }
 
         /// <inheritdoc/>

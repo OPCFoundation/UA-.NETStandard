@@ -2279,6 +2279,24 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void ReadXmlElementHandlesNullXmlElementEncoding()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = [0xff, 0xff, 0xff, 0xff];
+
+            messageContext.MaxStringLength = 0;
+            var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            XmlElement result = decoder.ReadXmlElement(null);
+
+            // Assert
+            Assert.That(result.IsEmpty, Is.True);
+        }
+
+        [Test]
         public void ReadNodeIdReturnsTwoByteNodeId()
         {
             // Arrange
@@ -2295,6 +2313,22 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.TryGetIdentifier(out uint identifier), Is.True);
             Assert.That(identifier, Is.EqualTo(5u));
             Assert.That(result.NamespaceIndex, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void ReadNodeIdThrowsWithBadByteEncoding()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = [0x99, 0x05]; // Invalid encoding, identifier 5
+            var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadNodeId(null));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
         [Test]
@@ -2343,6 +2377,32 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert - namespace 1 in input maps to 10 in context
             Assert.That(result.NamespaceIndex, Is.EqualTo(10));
+        }
+
+        [Test]
+        public void ReadNodeIdAppliesNamespaceMappingForNumericEncoding()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] buffer = [0x02, 0x01, 0x00, 0x2A, 0x00, 0x00, 0x00];
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            var streamNamespaces = new NamespaceTable();
+            streamNamespaces.Append("urn:ns1");
+
+            var contextNamespaces = new NamespaceTable();
+            contextNamespaces.Append("urn:ns0");
+            contextNamespaces.Append("urn:ns1");
+            messageContext.NamespaceUris = contextNamespaces;
+
+            decoder.SetMappingTables(streamNamespaces, null);
+
+            // Act
+            NodeId result = decoder.ReadNodeId(null);
+
+            // Assert
+            Assert.That(result.NamespaceIndex, Is.EqualTo(2));
         }
 
         [Test]
@@ -3879,6 +3939,37 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void ReadQualifiedNameAppliesNamespaceMapping()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            List<byte> buffer =
+            [
+                0x01, 0x00,
+                0x04, 0x00, 0x00, 0x00,
+                .. System.Text.Encoding.UTF8.GetBytes("Name")
+            ];
+            using var decoder = new BinaryDecoder(buffer.ToArray(), messageContext);
+
+            var streamNamespaces = new NamespaceTable();
+            streamNamespaces.Append("urn:ns1");
+
+            var contextNamespaces = new NamespaceTable();
+            contextNamespaces.Append("urn:ns0");
+            contextNamespaces.Append("urn:ns1");
+            messageContext.NamespaceUris = contextNamespaces;
+
+            decoder.SetMappingTables(streamNamespaces, null);
+
+            // Act
+            QualifiedName result = decoder.ReadQualifiedName(null);
+
+            // Assert
+            Assert.That(result.NamespaceIndex, Is.EqualTo(2));
+        }
+
+        [Test]
         public void ReadNodeIdWithGuidIdentifierReturnsCorrectNodeId()
         {
             // Arrange
@@ -3988,6 +4079,56 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.NamespaceUri, Is.EqualTo("http://test.namespace"));
+        }
+
+        [Test]
+        public void ReadExpandedNodeIdAppliesNamespaceAndServerMappingsForNumericEncoding()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            byte[] namespaceUriBytes = System.Text.Encoding.UTF8.GetBytes("urn:ns1");
+
+            List<byte> buffer =
+            [
+                0x42, // server and numeric id
+                0x02, 0x00, // namespace index 2
+                0x2A, 0x00, 0x00, 0x00, // Numeric id
+                .. BitConverter.GetBytes(0u) // server index 0
+            ];
+
+            using var decoder = new BinaryDecoder(buffer.ToArray(), messageContext);
+
+            var streamNamespaces = new NamespaceTable();
+            streamNamespaces.Append("urn:ns3");
+            streamNamespaces.Append("urn:ns2");
+            streamNamespaces.Append("urn:ns1");
+            streamNamespaces.Append("urn:ns0");
+
+            var streamServerUris = new StringTable();
+            streamServerUris.Append("urn:server1");
+            streamServerUris.Append("urn:server0");
+
+            var contextNamespaces = new NamespaceTable();
+            contextNamespaces.Append("urn:ns0");
+            contextNamespaces.Append("urn:ns1");
+            contextNamespaces.Append("urn:ns2");
+            contextNamespaces.Append("urn:ns3");
+            messageContext.NamespaceUris = contextNamespaces;
+
+            var contextServerUris = new StringTable();
+            contextServerUris.Append("urn:server0");
+            contextServerUris.Append("urn:server1");
+            messageContext.ServerUris = contextServerUris;
+
+            decoder.SetMappingTables(streamNamespaces, streamServerUris);
+
+            // Act
+            ExpandedNodeId result = decoder.ReadExpandedNodeId(null);
+
+            // Assert
+            Assert.That(result.NamespaceIndex, Is.EqualTo(3));
+            Assert.That(result.ServerIndex, Is.EqualTo(1u));
         }
 
         [Test]

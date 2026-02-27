@@ -968,27 +968,26 @@ namespace Opc.Ua.SourceGeneration
                     $"if ((EncodingMask & (uint){dataType.ClassName}Fields.{field.Name}) != 0) ");
             }
 
-            string functionName = field.DataTypeNode.BasicDataType.ToString();
             string valueName = field.Name;
-            string elementName = null;
             string fieldName = isUnion ? $"fieldName ?? \"{field.Name}\"" : $"\"{field.Name}\"";
-
+            string typeName = field.ValueRank == ValueRank.Array ? "Array" : string.Empty;
+            string functionName;
             switch (field.DataTypeNode.BasicDataType)
             {
                 case BasicDataType.Number:
                 case BasicDataType.Integer:
                 case BasicDataType.UInteger:
                 case BasicDataType.BaseDataType:
-                    functionName = "Variant";
+                    functionName = "Variant" + typeName;
                     break;
                 case BasicDataType.Structure:
-                    functionName = "ExtensionObject";
+                    functionName = "ExtensionObject" + typeName;
                     break;
                 case BasicDataType.Enumeration:
                     if (field.DataType ==
                         new XmlQualifiedName("Enumeration", Namespaces.OpcUa))
                     {
-                        functionName = "Int32";
+                        functionName = "Int32" + typeName;
                         break;
                     }
 
@@ -998,7 +997,8 @@ namespace Opc.Ua.SourceGeneration
                             new XmlQualifiedName("OptionSet", Namespaces.OpcUa))
                         {
                             functionName = CoreUtils.Format(
-                                "Encodeable<{0}>",
+                                "Encodeable{0}<{1}>",
+                                typeName,
                                 field.DataTypeNode.GetDotNetTypeName(
                                     ValueRank.Scalar,
                                     m_context.ModelDesign.TargetNamespace.Value,
@@ -1009,12 +1009,13 @@ namespace Opc.Ua.SourceGeneration
                         }
 
                         var fdt = (DataTypeDesign)field.DataTypeNode.BaseTypeNode;
-                        functionName = fdt.BasicDataType.ToString();
+                        functionName = fdt.BasicDataType.ToString() + typeName;
                         break;
                     }
 
                     functionName = CoreUtils.Format(
-                        "Enumerated<{0}>",
+                        "Enumerated{0}<{1}>",
+                        typeName,
                         field.DataTypeNode.GetDotNetTypeName(
                             ValueRank.Scalar,
                             m_context.ModelDesign.TargetNamespace.Value,
@@ -1027,7 +1028,8 @@ namespace Opc.Ua.SourceGeneration
                     {
                         // Read as encodeable as we do not allow subtype values
                         functionName = CoreUtils.Format(
-                            "Encodeable<{0}>",
+                            "Encodeable{0}<{1}>",
+                            typeName,
                             field.DataTypeNode.GetDotNetTypeName(
                             ValueRank.Scalar,
                             m_context.ModelDesign.TargetNamespace.Value,
@@ -1038,7 +1040,7 @@ namespace Opc.Ua.SourceGeneration
                     }
 
                     context.Out.Write($"{valueName} = ");
-                    elementName = field.DataTypeNode.GetDotNetTypeName(
+                    var elementName = field.DataTypeNode.GetDotNetTypeName(
                         ValueRank.Scalar,
                         m_context.ModelDesign.TargetNamespace.Value,
                         m_context.ModelDesign.Namespaces,
@@ -1082,18 +1084,16 @@ namespace Opc.Ua.SourceGeneration
                     }
 
                     // Matrix or other non-scalar, non-array
+                    functionName = "Variant";
+                    break;
+                default:
+                    functionName = field.DataTypeNode.BasicDataType.ToString() + typeName;
                     break;
             }
-
-            if (field.ValueRank == ValueRank.Array)
-            {
-                functionName += "Array";
-            }
-            else if (field.ValueRank != ValueRank.Scalar)
+            if (field.ValueRank is not ValueRank.Scalar and not ValueRank.Array)
             {
                 functionName = "Variant";
             }
-
             context.Out.WriteLine("{0} = decoder.Read{1}({2});", valueName, functionName, fieldName);
             if (isUnion)
             {
