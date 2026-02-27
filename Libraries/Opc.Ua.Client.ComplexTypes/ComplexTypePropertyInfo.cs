@@ -52,6 +52,13 @@ namespace Opc.Ua.Client.ComplexTypes
         public DataMemberAttribute DataAttribute { get; }
 
         /// <summary>
+        /// Type information object for the complex type property.
+        /// </summary>
+        public TypeInfo TypeInfo => TypeInfo.Create(
+            (BuiltInType)FieldAttribute.BuiltInType,
+            FieldAttribute.ValueRank);
+
+        /// <summary>
         /// Create the infos for the complex type.
         /// </summary>
         public ComplexTypePropertyInfo(
@@ -73,17 +80,17 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Get the value of a property.
         /// </summary>
-        public object GetValue(object o)
+        public Variant GetValue(object o)
         {
-            return PropertyInfo.GetValue(o);
+            return new Variant(PropertyInfo.GetValue(o), TypeInfo);
         }
 
         /// <summary>
         /// Set the value of a property.
         /// </summary>
-        public void SetValue(object o, object v)
+        public void SetValue(object o, Variant v)
         {
-            PropertyInfo.SetValue(o, v);
+            PropertyInfo.SetValue(o, v.AsBoxedObject());
         }
 
         /// <inheritdoc cref="PropertyInfo.PropertyType"/>

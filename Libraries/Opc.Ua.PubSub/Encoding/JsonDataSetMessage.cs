@@ -601,10 +601,9 @@ namespace Opc.Ua.PubSub.Encoding
                     }
                     if (fieldMetaData.ValueRank >= ValueRanks.OneDimension)
                     {
-                        return jsonDecoder.ReadArray(
+                        return jsonDecoder.ReadVariantValue(
                             fieldName,
-                            fieldMetaData.ValueRank,
-                            (BuiltInType)fieldMetaData.BuiltInType);
+                            TypeInfo.Create((BuiltInType)fieldMetaData.BuiltInType, fieldMetaData.ValueRank));
                     }
 
                     m_logger.LogInformation(
@@ -641,10 +640,8 @@ namespace Opc.Ua.PubSub.Encoding
                 jsonDecoder.ReadField(nameof(MetaDataVersion), out _))
             {
                 MetaDataVersion =
-                    jsonDecoder.ReadEncodeable(
-                        nameof(MetaDataVersion),
-                        typeof(ConfigurationVersionDataType)) as
-                    ConfigurationVersionDataType;
+                    jsonDecoder.ReadEncodeable<ConfigurationVersionDataType>(
+                        nameof(MetaDataVersion));
             }
 
             if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.Timestamp) != 0 &&

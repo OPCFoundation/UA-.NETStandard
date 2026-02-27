@@ -445,9 +445,7 @@ namespace Opc.Ua.PubSub.Encoding
             try
             {
                 m_metadata =
-                    jsonDecoder.ReadEncodeable(
-                        kFieldMetaData,
-                        typeof(DataSetMetaDataType)) as DataSetMetaDataType;
+                    jsonDecoder.ReadEncodeable<DataSetMetaDataType>(kFieldMetaData);
             }
             catch (Exception ex)
             {
@@ -478,9 +476,7 @@ namespace Opc.Ua.PubSub.Encoding
                 if (m_jsonNetworkMessageType == JSONNetworkMessageType.DataSetMetaData)
                 {
                     m_metadata =
-                        jsonDecoder.ReadEncodeable(
-                            kFieldMetaData,
-                            typeof(DataSetMetaDataType)) as DataSetMetaDataType;
+                        jsonDecoder.ReadEncodeable<DataSetMetaDataType>(kFieldMetaData);
                     return;
                 }
 

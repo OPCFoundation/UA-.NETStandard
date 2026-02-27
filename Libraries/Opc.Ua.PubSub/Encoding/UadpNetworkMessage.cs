@@ -838,9 +838,7 @@ namespace Opc.Ua.PubSub.Encoding
         private void DecodeMetaDataMessage(BinaryDecoder binaryDecoder)
         {
             DataSetWriterId = binaryDecoder.ReadUInt16("DataSetWriterId");
-            m_metadata = binaryDecoder.ReadEncodeable(
-                "MetaData",
-                typeof(DataSetMetaDataType)) as DataSetMetaDataType;
+            m_metadata = binaryDecoder.ReadEncodeable<DataSetMetaDataType>("MetaData");
 
             // temporary write StatusCode.Good
             StatusCode statusCode = binaryDecoder.ReadStatusCode("StatusCode");
@@ -852,12 +850,14 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         private void DecodePublisherEndpoints(BinaryDecoder binaryDecoder)
         {
-            PublisherEndpoints = (EndpointDescription[])
-                binaryDecoder.ReadEncodeableArray("Endpoints", typeof(EndpointDescription));
+            PublisherEndpoints =
+                binaryDecoder.ReadEncodeableArray<EndpointDescription>("Endpoints");
 
             PublisherProvideEndpoints = binaryDecoder.ReadStatusCode("statusCode");
 
-            m_logger.LogInformation("DecodePublisherEndpointsMessage returned: {PublisherProvideEndpoints}", PublisherProvideEndpoints);
+            m_logger.LogInformation(
+                "DecodePublisherEndpointsMessage returned: {PublisherProvideEndpoints}",
+                PublisherProvideEndpoints);
         }
 
         /// <summary>
@@ -869,10 +869,7 @@ namespace Opc.Ua.PubSub.Encoding
             DataSetWriterIds = [.. binaryDecoder.ReadUInt16Array("DataSetWriterIds")];
 
             var dataSetWriterConfigurationDecoded =
-                binaryDecoder.ReadEncodeable(
-                    "DataSetWriterConfiguration",
-                    typeof(WriterGroupDataType)) as
-                WriterGroupDataType;
+                binaryDecoder.ReadEncodeable<WriterGroupDataType>("DataSetWriterConfiguration");
 
             DataSetWriterConfiguration =
                 dataSetWriterConfigurationDecoded.MaxNetworkMessageSize != 0
@@ -1368,7 +1365,7 @@ namespace Opc.Ua.PubSub.Encoding
         {
             UADPDiscoveryType = (UADPNetworkMessageDiscoveryType)binaryDecoder.ReadByte(
                 "RequestType");
-            DataSetWriterIds = binaryDecoder.ReadUInt16Array("DataSetWriterIds")?.ToArray();
+            DataSetWriterIds = binaryDecoder.ReadUInt16Array("DataSetWriterIds").ToArray();
         }
 
         /// <summary>

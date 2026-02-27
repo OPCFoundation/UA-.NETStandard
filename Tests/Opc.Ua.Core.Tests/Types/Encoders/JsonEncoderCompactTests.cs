@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using BenchmarkDotNet.Attributes;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -714,18 +715,20 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var context = new ServiceMessageContext(telemetry);
 
             using var decoder = new JsonDecoder(data, context);
-            Array a1 = decoder.ReadArray("D0", 2, BuiltInType.Int64);
-            Assert.AreEqual(2, a1.Rank);
-            Assert.AreEqual(6, a1.Length);
-            Assert.AreEqual(2, a1.GetLength(0));
-            Assert.AreEqual(3, a1.GetLength(1));
+            Variant v1 = decoder.ReadVariantValue("D0", TypeInfo.Create(BuiltInType.Int64, 3));
+            var a1 = v1.GetInt64Matrix();
+            Assert.AreEqual(2, a1.Dimensions.Length);
+            Assert.AreEqual(6, a1.Count);
+            Assert.AreEqual(2, a1.Dimensions[0]);
+            Assert.AreEqual(3, a1.Dimensions[1]);
 
-            Array a2 = decoder.ReadArray("D1", 2, BuiltInType.Int64);
-            Assert.AreEqual(3, a2.Rank);
-            Assert.AreEqual(6, a2.Length);
-            Assert.AreEqual(1, a2.GetLength(0));
-            Assert.AreEqual(2, a2.GetLength(1));
-            Assert.AreEqual(3, a2.GetLength(2));
+            Variant v2 = decoder.ReadVariantValue("D1", TypeInfo.Create(BuiltInType.Int64, 3));
+            var a2 = v2.GetInt64Matrix();
+            Assert.AreEqual(3, a2.Dimensions.Length);
+            Assert.AreEqual(6, a2.Count);
+            Assert.AreEqual(1, a2.Dimensions[0]);
+            Assert.AreEqual(2, a2.Dimensions[1]);
+            Assert.AreEqual(3, a2.Dimensions[2]);
         }
 
         [Test]
@@ -772,38 +775,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
             Assert.AreEqual(expected, actual);
-        }
-
-        [Test]
-        public void DecodeReversibleMatrix()
-        {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-
-            const string data = /*lang=json,strict*/
-                """
-
-                {
-                    "D0": [[1, 2, 3], [4, 5, 6]],
-                    "D1": [[[1, 2, 3], [4, 5, 6]]]
-                }
-
-""";
-
-            var context = new ServiceMessageContext(telemetry);
-
-            using var decoder = new JsonDecoder(data, context);
-            Array a1 = decoder.ReadArray("D0", 2, BuiltInType.Int64);
-            Assert.AreEqual(2, a1.Rank);
-            Assert.AreEqual(6, a1.Length);
-            Assert.AreEqual(2, a1.GetLength(0));
-            Assert.AreEqual(3, a1.GetLength(1));
-
-            Array a2 = decoder.ReadArray("D1", 2, BuiltInType.Int64);
-            Assert.AreEqual(3, a2.Rank);
-            Assert.AreEqual(6, a2.Length);
-            Assert.AreEqual(1, a2.GetLength(0));
-            Assert.AreEqual(2, a2.GetLength(1));
-            Assert.AreEqual(3, a2.GetLength(2));
         }
 
         [Test]
@@ -1134,15 +1105,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
             using var decoder = new JsonDecoder(data, context);
-            var range = decoder.ReadEncodeable("D0", typeof(Range)) as Range;
+            var range = decoder.ReadEncodeable<Range>("D0");
             Assert.IsNotNull(range);
             Assert.AreEqual(0, range.Low);
             Assert.AreEqual(9876.5432, range.High);
 
             var record =
-                decoder.ReadEncodeable(
-                    "D1",
-                    typeof(Gds.ApplicationRecordDataType)) as Gds.ApplicationRecordDataType;
+                decoder.ReadEncodeable<Gds.ApplicationRecordDataType>(
+                    "D1");
             Assert.IsNotNull(record);
             Assert.AreEqual(ApplicationType.Client, record.ApplicationType);
             Assert.AreEqual("Test Client", record.ApplicationNames[0].Text);

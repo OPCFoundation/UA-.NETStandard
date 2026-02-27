@@ -168,7 +168,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     continue;
                 }
 
-                if (!Utils.IsEqual(property.GetValue(this), property.GetValue(valueBaseType)))
+                if (property.GetValue(this) != property.GetValue(valueBaseType))
                 {
                     return false;
                 }
@@ -191,10 +191,8 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
 
                     AppendPropertyValue(
-                        formatProvider,
                         body,
-                        property.GetValue(this),
-                        property.ValueRank);
+                        property.GetValue(this));
                 }
 
                 if (body.Length > 0)
@@ -215,14 +213,14 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <inheritdoc/>
-        public override object this[int index]
+        public override Variant this[int index]
         {
             get
             {
                 ComplexTypePropertyInfo property = m_propertyList[index];
                 if (property.IsOptional && (property.OptionalFieldMask & EncodingMask) == 0)
                 {
-                    return null;
+                    return default;
                 }
                 return property.GetValue(this);
             }
@@ -232,7 +230,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 property.SetValue(this, value);
                 if (property.IsOptional)
                 {
-                    if (value == null)
+                    if (value.IsNull)
                     {
                         EncodingMask &= ~property.OptionalFieldMask;
                     }
@@ -245,7 +243,7 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <inheritdoc/>
-        public override object this[string name]
+        public override Variant this[string name]
         {
             get
             {
@@ -253,7 +251,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     if (property.IsOptional && (property.OptionalFieldMask & EncodingMask) == 0)
                     {
-                        return null;
+                        return default;
                     }
                     return property.GetValue(this);
                 }
@@ -264,7 +262,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 if (m_propertyDict.TryGetValue(name, out ComplexTypePropertyInfo property))
                 {
                     property.SetValue(this, value);
-                    if (value == null)
+                    if (value.IsNull)
                     {
                         EncodingMask &= ~property.OptionalFieldMask;
                     }

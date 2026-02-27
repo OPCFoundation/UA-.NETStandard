@@ -168,7 +168,7 @@ namespace Opc.Ua.Fuzzing
             try
             {
                 using var decoder = new BinaryDecoder(stream, MessageContext);
-                return decoder.DecodeMessage(null);
+                return decoder.DecodeMessage<IEncodeable>();
             }
             catch (ServiceResultException sre)
             {

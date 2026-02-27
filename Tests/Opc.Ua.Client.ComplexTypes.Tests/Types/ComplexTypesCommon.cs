@@ -251,26 +251,26 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             {
                 BuiltInType builtInType = TypeInfo.GetBuiltInType(
                     TypeInfo.GetDataTypeId(property.PropertyType, namespaceUris));
-                object newObj = randomValues
-                    ? DataGenerator.GetRandom(builtInType)
-                    : TypeInfo.GetDefaultValue(builtInType);
-                if (newObj == null)
+                Variant newObj = randomValues
+                    ? DataGenerator.GetRandomVariant()
+                    : new Variant(TypeInfo.GetDefaultValue(builtInType));
+                if (newObj.IsNull)
                 {
                     // fill known missing default values (by design)
                     switch (builtInType)
                     {
                         case BuiltInType.XmlElement:
                             var doc = new XmlDocument();
-                            newObj = doc.CreateElement("name");
+                            newObj = Variant.From(XmlElement.From(doc.CreateElement("name")));
                             break;
                         case BuiltInType.ByteString:
-                            newObj = Array.Empty<byte>();
+                            newObj = Variant.From(ByteString.From([1, 2, 3]));
                             break;
                         case BuiltInType.String:
-                            newObj = "This is a test";
+                            newObj = Variant.From("This is a test");
                             break;
                         case BuiltInType.ExtensionObject:
-                            newObj = ExtensionObject.Null;
+                            newObj = Variant.From(ExtensionObject.Null);
                             break;
                         default:
                             NUnit.Framework.Assert.Fail("Unknown null default value");

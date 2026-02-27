@@ -375,7 +375,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                         else if (jsonEncoding != JsonEncodingType.Compact)
                         {
                             object o = property.GetValue(structure);
-                            string oText = o?.ToString().ToLowerInvariant();
+                            string oText = o.ToString().ToLowerInvariant();
                             if (property.Name == "DateTime")
                             {
                                 oText = "\"0001-01-01T00:00:00Z\"";

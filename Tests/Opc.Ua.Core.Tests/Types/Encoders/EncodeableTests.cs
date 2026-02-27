@@ -160,12 +160,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 systemType))
             {
                 decoder.PushNamespace("urn:This:is:another:namespace");
-                result = decoder.ReadArray(
+                result = decoder.ReadVariantValue(
                     objectName,
-                    ValueRanks.OneDimension,
-                    BuiltInType.Variant,
-                    systemType,
-                    dataTypeId);
+                    TypeInfo.Create(BuiltInType.Variant, ValueRanks.OneDimension));
                 decoder.PopNamespace();
             }
 
@@ -239,7 +236,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
             }
 
-            Array result;
+            Variant result;
             using (var decoderStream = new MemoryStream(buffer))
             using (IDecoder decoder = CreateDecoder(
                 encoderType,
@@ -247,12 +244,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 decoderStream,
                 systemType))
             {
-                result = decoder.ReadArray(
+                result = decoder.ReadVariantValue(
                     objectName,
-                    matrix.TypeInfo.ValueRank,
-                    BuiltInType.Variant,
-                    systemType,
-                    dataTypeId);
+                    matrix.TypeInfo);
             }
 
             TestContext.Out.WriteLine("Result:");

@@ -872,10 +872,9 @@ namespace Opc.Ua.PubSub.Encoding
                             return DecodeRawScalar(binaryDecoder, fieldMetaData.BuiltInType);
                         case ValueRanks.OneDimension:
                         case ValueRanks.TwoDimensions:
-                            return binaryDecoder.ReadArray(
+                            return binaryDecoder.ReadVariantValue(
                                 null,
-                                fieldMetaData.ValueRank,
-                                (BuiltInType)fieldMetaData.BuiltInType);
+                                TypeInfo.Create((BuiltInType)fieldMetaData.BuiltInType, fieldMetaData.ValueRank));
                         default:
                             m_logger.LogInformation(
                                 "Decoding ValueRank = {ValueRank} not supported yet !!!",

@@ -671,14 +671,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     break;
             }
 
-            object result;
+            Variant result;
             using (var decoderStream = new MemoryStream(buffer))
             using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, type))
             {
-                result = decoder.ReadArray(
+                result = decoder.ReadVariantValue(
                     builtInType.ToString(),
-                    ValueRanks.OneDimension,
-                    builtInType);
+                    TypeInfo.Create(BuiltInType.Variant, ValueRanks.OneDimension));
             }
 
             TestContext.Out.WriteLine("Result:");
@@ -738,25 +737,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 buffer = encoderStream.ToArray();
             }
 
-            object result;
+            Variant result;
             using (var decoderStream = new MemoryStream(buffer))
             using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, type))
             {
-                result = decoder.ReadArray(
+                result = decoder.ReadVariantValue(
                     builtInType.ToString(),
-                    ValueRanks.OneDimension,
-                    builtInType);
+                    TypeInfo.Create(builtInType, ValueRanks.OneDimension));
             }
 
             // Both are allowed, empty array or null
-            if (result is Array resultArray)
-            {
-                Assert.AreEqual(0, resultArray.Length, encodeInfo);
-            }
-            else
-            {
-                Assert.IsNull(result, encodeInfo);
-            }
+            Assert.That(result.IsNull, Is.True);
         }
 
         /// <summary>
@@ -881,10 +872,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using (var decoderStream = new MemoryStream(buffer))
             using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, type))
             {
-                result = decoder.ReadArray(
+                result = decoder.ReadVariantValue(
                     builtInType.ToString(),
-                    matrix.TypeInfo.ValueRank,
-                    builtInType);
+                    TypeInfo.Create(builtInType, matrix.TypeInfo.ValueRank));
             }
 
             TestContext.Out.WriteLine("Result:");
@@ -1166,7 +1156,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var decoderStream = new MemoryStream(buffer);
             using IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, type);
             ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                decoder.ReadArray(builtInType.ToString(), matrix.TypeInfo.ValueRank, builtInType));
+                decoder.ReadVariantValue(builtInType.ToString(),
+                TypeInfo.Create(builtInType, matrix.TypeInfo.ValueRank)));
 
             Assert.AreEqual(
                 StatusCodes.BadEncodingLimitsExceeded,

@@ -153,7 +153,7 @@ namespace Opc.Ua.Fuzzing
 
                     // TODO: match ns GetEncodeableFactory(typeName, namespaceUri, out IEncodeable encodeable, out _);
                     using var decoder = new XmlDecoder(reader, MessageContext);
-                    return decoder.DecodeMessage(systemType);
+                    return decoder.DecodeMessage<IEncodeable>();
                 }
                 finally
                 {

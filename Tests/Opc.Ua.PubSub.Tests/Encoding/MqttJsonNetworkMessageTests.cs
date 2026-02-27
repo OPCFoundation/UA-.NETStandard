@@ -2536,9 +2536,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetMetaDataType jsonDataSetMetaData = jsonNetworkMessage.DataSetMetaData;
 
             var dataSetMetaData =
-                jsonDecoder.ReadEncodeable(
-                    "MetaData",
-                    typeof(DataSetMetaDataType)) as DataSetMetaDataType;
+                jsonDecoder.ReadEncodeable<DataSetMetaDataType>("MetaData");
             Assert.IsNotNull(
                 dataSetMetaData,
                 "DataSetMetaData read by json decoder should not be null.");
@@ -3134,10 +3132,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         if (jsonDecoder.ReadField(DataSetMessageMetaDataVersion, out token))
                         {
                             var configurationVersion =
-                                jsonDecoder.ReadEncodeable(
-                                    DataSetMessageMetaDataVersion,
-                                    typeof(ConfigurationVersionDataType)
-                                ) as ConfigurationVersionDataType;
+                                jsonDecoder.ReadEncodeable<ConfigurationVersionDataType>(DataSetMessageMetaDataVersion);
                             Assert.IsTrue(
                                 Utils.IsEqual(
                                     jsonDataSetMessage.MetaDataVersion,
@@ -3203,10 +3198,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     }
                     if (fieldMetaData.ValueRank >= ValueRanks.OneDimension)
                     {
-                        return jsonDecoder.ReadArray(
+                        return jsonDecoder.ReadVariantValue(
                             fieldName,
-                            fieldMetaData.ValueRank,
-                            (BuiltInType)fieldMetaData.BuiltInType);
+                            TypeInfo.Create((BuiltInType)fieldMetaData.BuiltInType, fieldMetaData.ValueRank));
                     }
 
                     NUnit.Framework.Assert.Warn(

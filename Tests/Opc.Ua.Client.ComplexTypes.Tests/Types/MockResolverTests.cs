@@ -477,14 +477,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             TestContext.Out.WriteLine(arrays.ToString());
 
-            arrays["ArrayOfInteger"] = new int[] { 1, 4, 8, 12, 22 };
-            arrays["Array2DOfInteger"] = new int[,]
+            arrays["ArrayOfInteger"] = Variant.From(ArrayOf.Wrapped(1, 4, 8, 12, 22));
+            arrays["Array2DOfInteger"] = Variant.From(new int[,]
             {
                 { 11, 12, 13, 14, 15 },
                 { 21, 22, 23, 24, 25 },
                 { 31, 32, 33, 34, 35 }
-            };
-            arrays["Array3DOfInteger"] = new int[,,]
+            });
+            arrays["Array3DOfInteger"] = Variant.From(new int[,,]
             {
                 {
                     { 11, 12, 13, 14, 15 },
@@ -496,22 +496,22 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     { 51, 52, 53, 54, 55 },
                     { 61, 62, 63, 64, 65 }
                 }
-            };
-            arrays["ArrayOfNamingRuleType"] = new NamingRuleType[]
-            {
+            });
+            arrays["ArrayOfNamingRuleType"] = Variant.From(
+            [
                 NamingRuleType.Mandatory,
                 NamingRuleType.Optional,
                 NamingRuleType.Constraint
-            };
+            ]);
             // note: an assignement of the Int32[] to an enum type is a supported cast,
             // but the Encode/Decode test would fail because the int/Enum compare different
             // arrays["ArrayOfNamingRuleType"] = new Int32[] { 0,2,1 };
-            arrays["Array2DOfNamingRuleType"] = new NamingRuleType[,]
+            arrays["Array2DOfNamingRuleType"] = Variant.From(new NamingRuleType[,]
             {
                 { NamingRuleType.Mandatory, NamingRuleType.Optional, NamingRuleType.Constraint },
                 { NamingRuleType.Optional, NamingRuleType.Mandatory, NamingRuleType.Constraint }
-            };
-            arrays["Array3DOfNamingRuleType"] = new NamingRuleType[,,]
+            }.ToMatrixOf());
+            arrays["Array3DOfNamingRuleType"] = Variant.From(new NamingRuleType[,,]
             {
                 {
                     { NamingRuleType.Mandatory, NamingRuleType.Optional, NamingRuleType.Mandatory },
@@ -524,7 +524,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                         NamingRuleType.Constraint },
                     { NamingRuleType.Optional, NamingRuleType.Mandatory, NamingRuleType.Constraint }
                 }
-            };
+            }.ToMatrixOf());
 
             TestContext.Out.WriteLine(arrays.ToString());
 
@@ -667,7 +667,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             TestContext.Out.WriteLine(testType.ToString());
 
-            object value;
+            Variant value;
             Type valueType = TypeInfo.GetSystemType(field.DataType, mockResolver.FactoryBuilder);
             BuiltInType builtInType = TypeInfo.GetBuiltInType(field.DataType);
             if (valueRank == ValueRanks.Scalar)
@@ -676,7 +676,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 {
                     if (randomValues)
                     {
-                        value = DataGenerator.GetRandom(builtInType);
+                        value = DataGenerator.GetRandomVariant();
                     }
                     else
                     {
@@ -685,18 +685,15 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                             case BuiltInType.DataValue:
                                 value = new DataValue();
                                 break;
-                            case BuiltInType.DiagnosticInfo:
-                                value = new DiagnosticInfo();
-                                break;
-                            default:
-                                value = TypeInfo.GetDefaultValue(builtInType);
+                             default:
+                                value = new Variant(TypeInfo.GetDefaultValue(builtInType));
                                 break;
                         }
                     }
                 }
                 else
                 {
-                    value = Activator.CreateInstance(valueType);
+                    value = Variant.From(new ExtensionObject((IEncodeable)Activator.CreateInstance(valueType)));
                 }
             }
             else
@@ -718,11 +715,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                             array.SetValue(rndValue, indices);
                             Iterate(dimensions, indices);
                         }
-                        value = array;
+                        value = new Variant(array);
                     }
                     else
                     {
-                        value = TypeInfo.CreateArray(builtInType, dimensions);
+                        value = new Variant(TypeInfo.CreateArray(builtInType, dimensions));
                     }
                 }
                 else
@@ -739,7 +736,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                         }
                     }
 
-                    value = array;
+                    value = new Variant(array);
                 }
             }
             testType[field.Name] = value;
