@@ -1,8 +1,6 @@
 using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua;
-using Opc.Ua.Server;
 using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Server.Tests
@@ -37,7 +35,7 @@ namespace Opc.Ua.Server.Tests
 
             // Act 3: Verify Event Subscription
             bool eventRaised = false;
-            configManager.DefaultPermissionsChanged += (s, e) => { eventRaised = true; };
+            configManager.DefaultPermissionsChanged += (s, e) => eventRaised = true;
 
             // Trigger change
             // Use array initialization
@@ -70,7 +68,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task ConfigurationNodeManager_ServerNamespaces_Changed_TriggersSubscription()
+        public async Task ConfigurationNodeManager_ServerNamespaces_Changed_TriggersSubscriptionAsync()
         {
             // Arrange
             var fixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t));
@@ -85,43 +83,47 @@ namespace Opc.Ua.Server.Tests
             // Note: We need to access the node directly to modify it.
             // Since we are in the same process and using StandardServer, we can try to find it via NodeManager.
             // StandardServer.NodeManager is IMasterNodeManager which has FindNodeInAddressSpaceAsync.
-            var result = await serverInternal.NodeManager
+            NodeState result = await serverInternal.NodeManager
                 .FindNodeInAddressSpaceAsync(ObjectIds.Server_Namespaces)
                 .ConfigureAwait(false);
             var serverNamespacesNode = result as NamespacesState;
             Assert.That(serverNamespacesNode, Is.Not.Null, "ServerNamespaces node not found in address space");
 
             bool eventRaised = false;
-            configManager.DefaultPermissionsChanged += (s, e) => { eventRaised = true; };
+            configManager.DefaultPermissionsChanged += (s, e) => eventRaised = true;
 
-            string manualNamespaceUri = "http://manual.org/UA/Test";
+            const string manualNamespaceUri = "http://manual.org/UA/Test";
 
             // Act: Manually add a new metadata node to ServerNamespaces
             // This bypasses CreateNamespaceMetadataState to ensure the event handler picks it up
-            var manualMetadata = new NamespaceMetadataState(serverNamespacesNode);
-            // Assign a NodeId
-            manualMetadata.NodeId = new NodeId(Guid.NewGuid(), 1);
-            manualMetadata.BrowseName = new QualifiedName("ManualMetadata", 1);
+            var manualMetadata = new NamespaceMetadataState(serverNamespacesNode)
+            {
+                // Assign a NodeId
+                NodeId = new NodeId(Guid.NewGuid(), 1),
+                BrowseName = new QualifiedName("ManualMetadata", 1)
+            };
             // NamespaceUri property is required for it to be useful, though strictly not for the subscription
             manualMetadata.NamespaceUri = new PropertyState<string>(manualMetadata) { Value = manualNamespaceUri };
-            
+
             // Create DefaultRolePermissions property
-            manualMetadata.DefaultRolePermissions = new PropertyState<RolePermissionType[]>(manualMetadata);
-            manualMetadata.DefaultRolePermissions.NodeId = new NodeId(Guid.NewGuid(), 1);
-            manualMetadata.DefaultRolePermissions.BrowseName = new QualifiedName(BrowseNames.DefaultRolePermissions, manualMetadata.NodeId.NamespaceIndex);
-            manualMetadata.DefaultRolePermissions.Value = []; // Empty initially
+            manualMetadata.DefaultRolePermissions = new PropertyState<RolePermissionType[]>(manualMetadata)
+            {
+                NodeId = new NodeId(Guid.NewGuid(), 1),
+                BrowseName = new QualifiedName(BrowseNames.DefaultRolePermissions, manualMetadata.NodeId.NamespaceIndex),
+                Value = [] // Empty initially
+            };
             manualMetadata.AddChild(manualMetadata.DefaultRolePermissions);
 
             // Add to ServerNamespaces
             serverNamespacesNode.AddChild(manualMetadata);
-            
+
             // Trigger StateChanged on ServerNamespaces (simulating dynamic addition)
             // This is crucial because AddChild alone might not trigger the event depending on implementation
             serverNamespacesNode.ClearChangeMasks(serverInternal.DefaultSystemContext, true);
 
             // Verify subscription is active by modifying the protected property
             // We expect the event to fire
-            
+
             manualMetadata.DefaultRolePermissions.Value =
             [
                 new RolePermissionType { RoleId = ObjectIds.WellKnownRole_Observer, Permissions = (uint)PermissionType.Read }
