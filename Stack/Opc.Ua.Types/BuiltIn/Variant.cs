@@ -1165,7 +1165,7 @@ namespace Opc.Ua
         /// Converts the variant to a enum value or returns the default.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public T GetEnumeration<T>(T defaultValue = default) where T : Enum
+        public T GetEnumeration<T>(T defaultValue = default) where T : struct, Enum
         {
             return TryGet(out T v) ? v : defaultValue;
         }
@@ -1369,7 +1369,7 @@ namespace Opc.Ua
         /// Converts the variant to a enum array value or returns the default.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public ArrayOf<T> GetEnumerationArray<T>(ArrayOf<T> defaultValue = default) where T : Enum
+        public ArrayOf<T> GetEnumerationArray<T>(ArrayOf<T> defaultValue = default) where T : struct, Enum
         {
             return TryGet(out ArrayOf<T> v) ? v : defaultValue;
         }
@@ -1581,7 +1581,7 @@ namespace Opc.Ua
         /// Converts the variant to a enum array value or returns the default.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public MatrixOf<T> GetEnumerationMatrix<T>(MatrixOf<T> defaultValue = default) where T : Enum
+        public MatrixOf<T> GetEnumerationMatrix<T>(MatrixOf<T> defaultValue = default) where T : struct, Enum
         {
             return TryGet(out MatrixOf<T> v) ? v : defaultValue;
         }
@@ -1847,7 +1847,7 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         /// <param name="value">The enumeration value to get
         /// </param>
-        public bool TryGet<T>(out T value) where T : Enum
+        public bool TryGet<T>(out T value) where T : struct, Enum
         {
 #if NET8_0_OR_GREATER
             // On .net we convert between the base type of the
@@ -2268,7 +2268,7 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="value">The value to get</param>
-        public bool TryGet<T>(out ArrayOf<T> value) where T : Enum
+        public bool TryGet<T>(out ArrayOf<T> value) where T : struct, Enum
         {
             // All enum values are stored as integer arrays with type lost
             if (TryGetArray(out ArrayOf<int> int32Values, BuiltInType.Enumeration) ||
@@ -2594,7 +2594,7 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="value">The value to get</param>
-        public bool TryGet<T>(out MatrixOf<T> value) where T : Enum
+        public bool TryGet<T>(out MatrixOf<T> value) where T : struct, Enum
         {
             // All enum values are stored as integer matrices with type lost
             if (TryGetMatrix(out MatrixOf<int> int32Values, BuiltInType.Enumeration) ||
@@ -2877,7 +2877,7 @@ namespace Opc.Ua
         /// <param name="value">The Enum value to set
         /// this Variant to</param>
         /// <exception cref="ServiceResultException"></exception>
-        public static Variant From<T>(T value) where T : Enum
+        public static Variant From<T>(T value) where T : struct, Enum
         {
 #if NET8_0_OR_GREATER
             Union data = default;
@@ -3165,7 +3165,7 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         /// <param name="value">The Enum-array value to set
         /// this Variant to</param>
-        public static Variant From<T>(ArrayOf<T> value) where T : Enum
+        public static Variant From<T>(ArrayOf<T> value) where T : struct, Enum
         {
             // All enum arrays are stored as int32 arrays, so we
             // need to convert them to int32 if needed.
@@ -3181,7 +3181,7 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         /// <param name="value">The Enum-array value to set
         /// this Variant to</param>
-        public static Variant From<T>(T[] value) where T : Enum
+        public static Variant From<T>(T[] value) where T : struct, Enum
         {
             return From(value.ToArrayOf());
         }
@@ -3446,7 +3446,7 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         /// <param name="value">The Enum-matrix value to set
         /// this Variant to</param>
-        public static Variant From<T>(MatrixOf<T> value) where T : Enum
+        public static Variant From<T>(MatrixOf<T> value) where T : struct, Enum
         {
             // All enum matrices are stored as int32 matrices, so we
             // need to convert them to int32

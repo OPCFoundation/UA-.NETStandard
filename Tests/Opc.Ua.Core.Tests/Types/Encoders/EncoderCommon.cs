@@ -636,7 +636,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     return new XmlDecoder(systemType, xmlReader, context);
                 case EncodingType.Json:
                     var jsonTextReader = new JsonTextReader(new StreamReader(stream));
-                    return new JsonDecoder(systemType, jsonTextReader, context);
+                    return new JsonDecoder(jsonTextReader, context);
                 default:
                     return null;
             }

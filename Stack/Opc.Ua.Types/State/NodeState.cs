@@ -1095,7 +1095,7 @@ namespace Opc.Ua
         {
             if ((attributesToLoad & AttributesToSave.NodeClass) != 0)
             {
-                NodeClass = (NodeClass)decoder.ReadEnumerated(null, typeof(NodeClass));
+                NodeClass = decoder.ReadEnumerated<NodeClass>(null);
             }
 
             if ((attributesToLoad & AttributesToSave.SymbolicName) != 0)
@@ -1135,16 +1135,12 @@ namespace Opc.Ua
 
             if ((attributesToLoad & AttributesToSave.WriteMask) != 0)
             {
-                m_writeMask = (AttributeWriteMask)decoder.ReadEnumerated(
-                    null,
-                    typeof(AttributeWriteMask));
+                m_writeMask = decoder.ReadEnumerated<AttributeWriteMask>(null);
             }
 
             if ((attributesToLoad & AttributesToSave.UserWriteMask) != 0)
             {
-                m_userWriteMask = (AttributeWriteMask)decoder.ReadEnumerated(
-                    null,
-                    typeof(AttributeWriteMask));
+                m_userWriteMask = decoder.ReadEnumerated<AttributeWriteMask>(null);
             }
         }
 
@@ -1211,7 +1207,7 @@ namespace Opc.Ua
             string symbolicName = null;
             QualifiedName browseName = default;
 
-            var nodeClass = (NodeClass)decoder.ReadEnumerated(null, typeof(NodeClass));
+            var nodeClass = decoder.ReadEnumerated<NodeClass>(null);
             attributesToLoad &= ~AttributesToSave.NodeClass;
 
             if ((attributesToLoad & AttributesToSave.SymbolicName) != 0)
@@ -1284,7 +1280,7 @@ namespace Opc.Ua
             string symbolicName = null;
             QualifiedName browseName = default;
 
-            var nodeClass = (NodeClass)decoder.ReadEnumerated(null, typeof(NodeClass));
+            var nodeClass = decoder.ReadEnumerated<NodeClass>(null);
             attributesToLoad &= ~AttributesToSave.NodeClass;
 
             if ((attributesToLoad & AttributesToSave.SymbolicName) != 0)
@@ -1564,7 +1560,7 @@ namespace Opc.Ua
 
             if (decoder.Peek("NodeClass"))
             {
-                var nodeClass = (NodeClass)decoder.ReadEnumerated("NodeClass", typeof(NodeClass));
+                var nodeClass = decoder.ReadEnumerated<NodeClass>("NodeClass");
 
                 if (NodeClass != NodeClass.Unspecified && nodeClass != NodeClass)
                 {
@@ -1613,16 +1609,14 @@ namespace Opc.Ua
 
             if (decoder.Peek("WriteMask"))
             {
-                WriteMask = (AttributeWriteMask)decoder.ReadEnumerated(
-                    "WriteMask",
-                    typeof(AttributeWriteMask));
+                WriteMask = decoder.ReadEnumerated<AttributeWriteMask>(
+                    "WriteMask");
             }
 
             if (decoder.Peek("UserWriteMask"))
             {
-                UserWriteMask = (AttributeWriteMask)decoder.ReadEnumerated(
-                    "UserWriteMask",
-                    typeof(AttributeWriteMask));
+                UserWriteMask = decoder.ReadEnumerated<AttributeWriteMask>(
+                    "UserWriteMask");
             }
 
             decoder.PopNamespace();
@@ -1824,7 +1818,7 @@ namespace Opc.Ua
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // pre-fetch enough information to know what type of node to create.
-            var nodeClass = (NodeClass)decoder.ReadEnumerated("NodeClass", typeof(NodeClass));
+            var nodeClass = decoder.ReadEnumerated<NodeClass>("NodeClass");
             NodeId nodeId = decoder.ReadNodeId("NodeId");
             QualifiedName browseName = decoder.ReadQualifiedName("BrowseName");
 
@@ -1959,17 +1953,13 @@ namespace Opc.Ua
 
             if ((attributesToLoad & AttributesToSave.WriteMask) != 0)
             {
-                writeMask = (AttributeWriteMask)decoder.ReadEnumerated(
-                    null,
-                    typeof(AttributeWriteMask));
+                writeMask = decoder.ReadEnumerated<AttributeWriteMask>(null);
                 attributesToLoad &= ~AttributesToSave.WriteMask;
             }
 
             if ((attributesToLoad & AttributesToSave.UserWriteMask) != 0)
             {
-                writeMask = (AttributeWriteMask)decoder.ReadEnumerated(
-                    null,
-                    typeof(AttributeWriteMask));
+                writeMask = decoder.ReadEnumerated<AttributeWriteMask>(null);
                 attributesToLoad &= ~AttributesToSave.UserWriteMask;
             }
 
@@ -2107,7 +2097,7 @@ namespace Opc.Ua
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // pre-fetch enough information to know what type of node to create.
-            var nodeClass = (NodeClass)decoder.ReadEnumerated("NodeClass", typeof(NodeClass));
+            var nodeClass = decoder.ReadEnumerated<NodeClass>("NodeClass");
 
             decoder.PopNamespace();
 
@@ -2206,12 +2196,8 @@ namespace Opc.Ua
                 description = decoder.ReadLocalizedText("Description");
             }
 
-            var writeMask = (AttributeWriteMask)decoder.ReadEnumerated(
-                "WriteMask",
-                typeof(AttributeWriteMask));
-            var userWriteMask = (AttributeWriteMask)decoder.ReadEnumerated(
-                "UserWriteMask",
-                typeof(AttributeWriteMask));
+            var writeMask = decoder.ReadEnumerated<AttributeWriteMask>("WriteMask");
+            var userWriteMask = decoder.ReadEnumerated<AttributeWriteMask>("UserWriteMask");
             NodeId referenceTypeId = decoder.ReadNodeId("ReferenceTypeId");
             NodeId typeDefinitionId = decoder.ReadNodeId("TypeDefinitionId");
 
@@ -4619,7 +4605,7 @@ namespace Opc.Ua
         public bool SetChildValue<T>(
             ISystemContext context,
             string browseName,
-            T value) where T : Enum
+            T value) where T : struct, Enum
         {
             return SetChildValue(context, QualifiedName.From(browseName), value);
         }
@@ -4633,7 +4619,7 @@ namespace Opc.Ua
         public bool SetChildValue<T>(
             ISystemContext context,
             QualifiedName browseName,
-            T value) where T : Enum
+            T value) where T : struct, Enum
         {
             if (CreateChild(context, browseName) is not BaseVariableState child)
             {

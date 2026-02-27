@@ -171,14 +171,12 @@ namespace Opc.Ua
 
             if (typeId > 0)
             {
-                Type systemType =
-                    decoder.Context.Factory.GetSystemType(new ExpandedNodeId(typeId, 0))
-                    ?? throw ServiceResultException.Create(
+                Message =
+                    decoder.ReadEncodeable<IEncodeable>("Body", new ExpandedNodeId(typeId, 0)) ??
+                    throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
                         "SessionLessServiceMessage message body has an unknown TypeId. {0}",
                         typeId);
-
-                Message = decoder.ReadEncodeable("Body", systemType);
             }
         }
     }

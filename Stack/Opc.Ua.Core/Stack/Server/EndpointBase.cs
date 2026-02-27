@@ -295,11 +295,9 @@ namespace Opc.Ua
                 SetRequestContext(RequestEncoding.Binary);
 
                 // decoding incoming message.
-                var serviceRequest =
-                    BinaryDecoder.DecodeMessage(
-                        request.InvokeServiceRequest,
-                        null,
-                        MessageContext) as IServiceRequest;
+                IServiceRequest serviceRequest = BinaryDecoder.DecodeMessage<IServiceRequest>(
+                    request.InvokeServiceRequest,
+                    MessageContext);
 
                 // process the request.
                 IServiceResponse response = await ProcessRequestAsync(

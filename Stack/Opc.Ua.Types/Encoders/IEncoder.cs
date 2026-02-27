@@ -230,7 +230,7 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T">The type of the enumeration</typeparam>
         void WriteEnumerated<T>(string fieldName, T value)
-            where T : Enum;
+            where T : struct, Enum;
 
         /// <summary>
         /// Writes a boolean array to the stream.
@@ -376,7 +376,7 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T">The type of the array elements</typeparam>
         void WriteEnumeratedArray<T>(string fieldName, ArrayOf<T> values)
-            where T : Enum;
+            where T : struct, Enum;
 
         /// <summary>
         /// Writes just the value inside the variant. In essence

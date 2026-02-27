@@ -108,7 +108,7 @@ namespace Opc.Ua
         {
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
-            Fields = (EnumFieldCollection)decoder.ReadEncodeableArray("Fields", typeof(EnumField));
+            Fields = decoder.ReadEncodeableArray<EnumField>("Fields");
 
             decoder.PopNamespace();
         }

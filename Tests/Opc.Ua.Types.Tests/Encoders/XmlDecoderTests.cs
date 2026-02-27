@@ -1588,6 +1588,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             var encodeableType = new Mock<IEncodeableType>();
             encodeableType.SetupGet(x => x.Type).Returns(typeof(TestEncodeable));
+            encodeableType.Setup(x => x.CreateInstance()).Returns(new TestEncodeable());
             IEncodeableType type = encodeableType.Object;
             mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type))
                 .Returns(true);

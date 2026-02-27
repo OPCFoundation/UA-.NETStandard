@@ -249,16 +249,16 @@ namespace Opc.Ua
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             NodeId = decoder.ReadNodeId("NodeId");
-            NodeClass = (NodeClass)decoder.ReadEnumerated("NodeClass", typeof(NodeClass));
+            NodeClass = decoder.ReadEnumerated<NodeClass>("NodeClass");
             BrowseName = decoder.ReadQualifiedName("BrowseName");
             DisplayName = decoder.ReadLocalizedText("DisplayName");
             Description = decoder.ReadLocalizedText("Description");
             WriteMask = decoder.ReadUInt32("WriteMask");
             UserWriteMask = decoder.ReadUInt32("UserWriteMask");
-            RolePermissions = (RolePermissionTypeCollection)decoder.ReadEncodeableArray("RolePermissions", typeof(RolePermissionType));
-            UserRolePermissions = (RolePermissionTypeCollection)decoder.ReadEncodeableArray("UserRolePermissions", typeof(RolePermissionType));
+            RolePermissions = decoder.ReadEncodeableArray<RolePermissionType>("RolePermissions");
+            UserRolePermissions = decoder.ReadEncodeableArray<RolePermissionType>("UserRolePermissions");
             AccessRestrictions = decoder.ReadUInt16("AccessRestrictions");
-            References = (ReferenceNodeCollection)decoder.ReadEncodeableArray("References", typeof(ReferenceNode));
+            References = decoder.ReadEncodeableArray<ReferenceNode>("References");
 
             decoder.PopNamespace();
         }

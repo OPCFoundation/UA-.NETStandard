@@ -137,7 +137,7 @@ namespace Opc.Ua
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             NodeId = decoder.ReadNodeId("NodeId");
-            BrowseDirection = (BrowseDirection)decoder.ReadEnumerated("BrowseDirection", typeof(BrowseDirection));
+            BrowseDirection = decoder.ReadEnumerated<BrowseDirection>("BrowseDirection");
             ReferenceTypeId = decoder.ReadNodeId("ReferenceTypeId");
             IncludeSubtypes = decoder.ReadBoolean("IncludeSubtypes");
             NodeClassMask = decoder.ReadUInt32("NodeClassMask");

@@ -583,7 +583,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             stream.Position = 0;
             var jsonTextReader = new JsonTextReader(new StreamReader(stream));
-            using var decoder = new JsonDecoder(null, jsonTextReader, new ServiceMessageContext(Telemetry));
+            using var decoder = new JsonDecoder(jsonTextReader, new ServiceMessageContext(Telemetry));
             ReadByteStringData(decoder);
         }
 

@@ -385,15 +385,14 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                var input = (IServiceRequest)BinaryDecoder.DecodeMessage(
+                IServiceRequest input = BinaryDecoder.DecodeMessage<IServiceRequest>(
                     buffer,
-                    null,
                     m_quotas.MessageContext);
 
                 if (m_mutualTlsEnabled && input.TypeId == DataTypeIds.CreateSessionRequest)
                 {
                     // Match tls client certificate against client application certificate provided in CreateSessionRequest
-                    ByteString tlsClientCertificate = ByteString.From(context.Connection.ClientCertificate?.RawData);
+                    var tlsClientCertificate = ByteString.From(context.Connection.ClientCertificate?.RawData);
                     ByteString opcUaClientCertificate = ((CreateSessionRequest)input).ClientCertificate;
 
                     if (tlsClientCertificate != opcUaClientCertificate)

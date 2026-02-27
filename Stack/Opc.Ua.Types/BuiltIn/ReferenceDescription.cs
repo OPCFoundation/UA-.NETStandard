@@ -144,7 +144,7 @@ namespace Opc.Ua
             NodeId = decoder.ReadExpandedNodeId("NodeId");
             BrowseName = decoder.ReadQualifiedName("BrowseName");
             DisplayName = decoder.ReadLocalizedText("DisplayName");
-            NodeClass = (NodeClass)decoder.ReadEnumerated("NodeClass", typeof(NodeClass));
+            NodeClass = decoder.ReadEnumerated<NodeClass>("NodeClass");
             TypeDefinition = decoder.ReadExpandedNodeId("TypeDefinition");
 
             decoder.PopNamespace();

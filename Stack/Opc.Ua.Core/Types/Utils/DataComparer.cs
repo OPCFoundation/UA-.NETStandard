@@ -348,8 +348,8 @@ namespace Opc.Ua.Test
         /// False or ServiceResultException in case of unequal values.</returns>
         public bool CompareXmlElement(XmlElement xml1, XmlElement xml2)
         {
-            System.Xml.XmlElement value1 = (System.Xml.XmlElement)xml1;
-            System.Xml.XmlElement value2 = (System.Xml.XmlElement)xml2;
+            var value1 = (System.Xml.XmlElement)xml1;
+            var value2 = (System.Xml.XmlElement)xml2;
             if (value1 == null || value2 == null)
             {
                 if (value1 != value2)
@@ -1003,7 +1003,7 @@ namespace Opc.Ua.Test
                 using (var decoder = new XmlDecoder(xml, m_context))
                 {
                     decoder.PushNamespace(xmlName.Namespace);
-                    body = decoder.ReadEncodeable(xmlName.Name, expectedType);
+                    body = decoder.ReadEncodeable<IEncodeable>(xmlName.Name, value.TypeId);
                     decoder.PopNamespace();
                 }
 
@@ -1015,7 +1015,7 @@ namespace Opc.Ua.Test
                 IEncodeable body;
                 using (var decoder = new BinaryDecoder(bytes.ToArray(), m_context))
                 {
-                    body = decoder.ReadEncodeable(null, expectedType);
+                    body = decoder.ReadEncodeable<IEncodeable>(null, value.TypeId);
                 }
 
                 return body;

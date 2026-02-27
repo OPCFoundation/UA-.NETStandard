@@ -1011,7 +1011,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteEnumerated<T>(string fieldName, T value) where T : Enum
+        public void WriteEnumerated<T>(string fieldName, T value) where T : struct, Enum
         {
             WriteInt32(null, EnumHelper.EnumToInt32(value));
         }
@@ -1442,7 +1442,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public void WriteEnumeratedArray<T>(string fieldName, ArrayOf<T> values)
-            where T : Enum
+            where T : struct, Enum
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1702,13 +1702,13 @@ namespace Opc.Ua
             }
             else // Write multi dimensional arrays
             {
-                // Encode multi dimensional arrays as variant always with type information
-                // no matter whether we write raw or not raw.
-
-                WriteByte(null, (byte)(
-                    encodingByte |
-                    (byte)VariantArrayEncodingBits.Array |
-                    (byte)VariantArrayEncodingBits.ArrayDimensions));
+                if (!raw)
+                {
+                    WriteByte(null, (byte)(
+                        encodingByte |
+                        (byte)VariantArrayEncodingBits.Array |
+                        (byte)VariantArrayEncodingBits.ArrayDimensions));
+                }
                 int[] dim;
                 switch (value.TypeInfo.BuiltInType)
                 {

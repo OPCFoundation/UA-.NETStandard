@@ -980,7 +980,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteEnumerated<T>(string fieldName, T value) where T : Enum
+        public void WriteEnumerated<T>(string fieldName, T value) where T : struct, Enum
         {
             int numeric = Convert.ToInt32(value, CultureInfo.InvariantCulture);
             string numericString = numeric.ToString(CultureInfo.InvariantCulture);
@@ -1715,7 +1715,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteEnumeratedArray<T>(string fieldName, ArrayOf<T> values) where T : Enum
+        public void WriteEnumeratedArray<T>(string fieldName, ArrayOf<T> values) where T : struct, Enum
         {
             if (values.IsNull || values.Count == 0)
             {

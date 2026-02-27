@@ -1119,7 +1119,7 @@ namespace Opc.Ua
         }
 
         private static Variant FromEnumeration<T>(ArrayOf<T> values)
-            where T : Enum
+            where T : struct, Enum
         {
             return Variant.From(values);
         }

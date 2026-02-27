@@ -1201,11 +1201,10 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         private IServiceResponse ParseResponse(BufferCollection chunksToProcess)
         {
-            if (BinaryDecoder.DecodeMessage(
-                    new ArraySegmentStream(chunksToProcess),
-                    null,
-                    Quotas.MessageContext)
-                is not IServiceResponse response)
+            IServiceResponse response = BinaryDecoder.DecodeMessage<IServiceResponse>(
+                new ArraySegmentStream(chunksToProcess),
+                Quotas.MessageContext);
+            if (response == null)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadStructureMissing,

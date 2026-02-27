@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Xml;
 using Microsoft.Extensions.Logging;
@@ -94,10 +93,9 @@ namespace Opc.Ua
         /// <summary>
         /// Create a JSON decoder to decode a <see cref="Type"/>from a <see cref="JsonTextReader"/>.
         /// </summary>
-        /// <param name="systemType">The system type of the encoded JSON stream.</param>
         /// <param name="reader">The text reader.</param>
         /// <param name="context">The service message context to use.</param>
-        public JsonDecoder(Type systemType, JsonTextReader reader, IServiceMessageContext context)
+        public JsonDecoder(JsonTextReader reader, IServiceMessageContext context)
         {
             Context = context;
             m_logger = context.Telemetry.CreateLogger<JsonDecoder>();
@@ -111,23 +109,24 @@ namespace Opc.Ua
         /// <summary>
         /// Decodes a message from a buffer.
         /// </summary>
-        public static IEncodeable DecodeMessage(
+        /// <typeparam name="T">The type of the message to read</typeparam>
+        public static T DecodeMessage<T>(
             byte[] buffer,
-            Type expectedType,
-            IServiceMessageContext context)
+            IServiceMessageContext context) where T : IEncodeable
         {
-            return DecodeMessage(new ArraySegment<byte>(buffer), expectedType, context);
+            return DecodeMessage<T>(new ArraySegment<byte>(buffer), context);
         }
 
         /// <summary>
         /// Decodes a message from a buffer.
         /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="context"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
-        public static IEncodeable DecodeMessage(
+        /// <typeparam name="T">The type of the message to read</typeparam>
+        public static T DecodeMessage<T>(
             ArraySegment<byte> buffer,
-            Type expectedType,
-            IServiceMessageContext context)
+            IServiceMessageContext context) where T : IEncodeable
         {
             if (context == null)
             {
@@ -147,11 +146,11 @@ namespace Opc.Ua
             using var decoder = new JsonDecoder(
                 Encoding.UTF8.GetString(buffer.Array, buffer.Offset, buffer.Count),
                 context);
-            return decoder.DecodeMessage(expectedType);
+            return decoder.DecodeMessage<T>();
         }
 
         /// <inheritdoc/>
-        public IEncodeable DecodeMessage(Type expectedType)
+        public T DecodeMessage<T>() where T : IEncodeable
         {
             StringCollection namespaceUris = ReadStringArray("NamespaceUris");
             StringCollection serverUris = ReadStringArray("ServerUris");
@@ -173,21 +172,10 @@ namespace Opc.Ua
 
             // read the node id.
             NodeId typeId = ReadNodeId("TypeId");
-
             // convert to absolute node id.
             var absoluteId = NodeId.ToExpandedNodeId(typeId, Context.NamespaceUris);
-
-            // lookup message type.
-            Type actualType =
-                Context.Factory.GetSystemType(absoluteId)
-                ?? throw new ServiceResultException(
-                    StatusCodes.BadDecodingError,
-                    Utils.Format("Cannot decode message with type id: {0}.", absoluteId));
-
-            // read the message.
-
-            // return the message.
-            return ReadEncodeable("Body", actualType, absoluteId);
+            // Read the message.
+            return ReadEncodeable<T>("Body", absoluteId);
         }
 
         /// <inheritdoc/>
@@ -1190,7 +1178,7 @@ namespace Opc.Ua
                     return array;
                 }
 
-                return ReadVariantBody(valueName, builtInType);
+                return ReadVariantScalarBody(valueName, builtInType);
             }
 
             return Variant.Null;
@@ -1364,31 +1352,23 @@ namespace Opc.Ua
                     return new ExtensionObject(typeId, json);
                 }
 
-                Type systemType = Context.Factory.GetSystemType(typeId);
-
-                if (systemType != null)
+                if (Context.Factory.TryGetEncodeableType(typeId, out IEncodeableType activator))
                 {
                     IEncodeable encodeable = null;
 
                     if (inlineValues)
                     {
-                        encodeable = Activator.CreateInstance(systemType) as IEncodeable;
-
-                        if (encodeable == null)
-                        {
+                        encodeable = activator.CreateInstance() ??
                             throw new ServiceResultException(
                                 StatusCodes.BadDecodingError,
                                 Utils.Format(
                                     "Type does not support IEncodeable interface: '{0}'",
-                                    systemType.FullName));
-                        }
-
+                                    typeId));
                         encodeable.Decode(this);
                     }
                     else
                     {
-                        encodeable = ReadEncodeable("Body", systemType, typeId);
-
+                        encodeable = ReadEncodeable<IEncodeable>("Body", typeId);
                         if (encodeable == null)
                         {
                             return extension;
@@ -1414,37 +1394,54 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public IEncodeable ReadEncodeable(
-            string fieldName,
-            Type systemType,
-            ExpandedNodeId encodeableTypeId = default)
+        public T ReadEncodeable<T>(string fieldName) where T : IEncodeable, new()
         {
-            if (systemType == null)
-            {
-                throw new ArgumentNullException(nameof(systemType));
-            }
-
             if (!ReadField(fieldName, out object token))
             {
-                return null;
+                return default;
             }
 
-            if (Activator.CreateInstance(systemType) is not IEncodeable value)
+            CheckAndIncrementNestingLevel();
+
+            T value = new();
+            try
             {
-                throw new ServiceResultException(
+                m_stack.Push(token);
+                value.Decode(this);
+            }
+            finally
+            {
+                m_stack.Pop();
+                m_nestingLevel--;
+            }
+            return value;
+        }
+
+        /// <inheritdoc/>
+        public T ReadEncodeable<T>(string fieldName, ExpandedNodeId encodeableTypeId)
+            where T : IEncodeable
+        {
+            if (!ReadField(fieldName, out object token))
+            {
+                return default;
+            }
+
+            if (!Context.Factory.TryGetEncodeableType(
+                encodeableTypeId,
+                out IEncodeableType activator))
+            {
+                throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
-                    Utils.Format(
-                        "Type does not support IEncodeable interface: '{0}'",
-                        systemType.FullName));
+                    "Cannot decode type '{0}'.",
+                    encodeableTypeId);
             }
 
-            if (!encodeableTypeId.IsNull)
+            var value = (T)activator.CreateInstance();
+
+            // set type identifier for custom complex data types before decode.
+            if (value is IComplexTypeInstance complexTypeInstance)
             {
-                // set type identifier for custom complex data types before decode.
-                if (value is IComplexTypeInstance complexTypeInstance)
-                {
-                    complexTypeInstance.TypeId = encodeableTypeId;
-                }
+                complexTypeInstance.TypeId = encodeableTypeId;
             }
 
             CheckAndIncrementNestingLevel();
@@ -1464,21 +1461,16 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Enum ReadEnumerated(string fieldName, Type enumType)
+        public T ReadEnumerated<T>(string fieldName) where T : struct, Enum
         {
-            if (enumType == null)
-            {
-                throw new ArgumentNullException(nameof(enumType));
-            }
-
             if (!ReadField(fieldName, out object token))
             {
-                return (Enum)Enum.ToObject(enumType, 0);
+                return default;
             }
 
             if (token is long code)
             {
-                return (Enum)Enum.ToObject(enumType, code);
+                return EnumHelper.Int32ToEnum<T>((int)code);
             }
 
             if (token is string text)
@@ -1487,29 +1479,29 @@ namespace Opc.Ua
 
                 if (index > 0 && long.TryParse(text[(index + 1)..], out code))
                 {
-                    return (Enum)Enum.ToObject(enumType, code);
+                    return (T)Enum.ToObject(typeof(T), code);
                 }
             }
 
-            return (Enum)Enum.ToObject(enumType, 0);
+            return default;
         }
 
         /// <inheritdoc/>
-        public BooleanCollection ReadBooleanArray(string fieldName)
+        public ArrayOf<bool> ReadBooleanArray(string fieldName)
         {
-            var values = new BooleanCollection();
-
             if (!ReadArrayField(fieldName, out List<object> token))
             {
-                return values;
+                return default;
             }
+
+            bool[] values = new bool[token.Count];
 
             for (int ii = 0; ii < token.Count; ii++)
             {
                 try
                 {
                     m_stack.Push(token[ii]);
-                    values.Add(ReadBoolean(null));
+                    values[ii] = ReadBoolean(null);
                 }
                 finally
                 {
@@ -1521,21 +1513,21 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public SByteCollection ReadSByteArray(string fieldName)
+        public ArrayOf<sbyte> ReadSByteArray(string fieldName)
         {
-            var values = new SByteCollection();
-
             if (!ReadArrayField(fieldName, out List<object> token))
             {
-                return values;
+                return default;
             }
+
+            sbyte[] values = new sbyte[token.Count];
 
             for (int ii = 0; ii < token.Count; ii++)
             {
                 try
                 {
                     m_stack.Push(token[ii]);
-                    values.Add(ReadSByte(null));
+                    values[ii] = ReadSByte(null);
                 }
                 finally
                 {
@@ -1547,10 +1539,8 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ByteCollection ReadByteArray(string fieldName)
+        public ArrayOf<byte> ReadByteArray(string fieldName)
         {
-            var values = new ByteCollection();
-
             string value = ReadString(fieldName);
             if (value != null)
             {
@@ -1559,15 +1549,17 @@ namespace Opc.Ua
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
-                return values;
+                return default;
             }
+
+            byte[] values = new byte[token.Count];
 
             for (int ii = 0; ii < token.Count; ii++)
             {
                 try
                 {
                     m_stack.Push(token[ii]);
-                    values.Add(ReadByte(null));
+                    values[ii] = ReadByte(null);
                 }
                 finally
                 {
@@ -1579,21 +1571,21 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Int16Collection ReadInt16Array(string fieldName)
+        public ArrayOf<short> ReadInt16Array(string fieldName)
         {
-            var values = new Int16Collection();
-
             if (!ReadArrayField(fieldName, out List<object> token))
             {
-                return values;
+                return default;
             }
+
+            short[] values = new short[token.Count];
 
             for (int ii = 0; ii < token.Count; ii++)
             {
                 try
                 {
                     m_stack.Push(token[ii]);
-                    values.Add(ReadInt16(null));
+                    values[ii] = ReadInt16(null);
                 }
                 finally
                 {
@@ -1605,21 +1597,21 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public UInt16Collection ReadUInt16Array(string fieldName)
+        public ArrayOf<ushort> ReadUInt16Array(string fieldName)
         {
-            var values = new UInt16Collection();
-
             if (!ReadArrayField(fieldName, out List<object> token))
             {
-                return values;
+                return default;
             }
+
+            ushort[] values = new ushort[token.Count];
 
             for (int ii = 0; ii < token.Count; ii++)
             {
                 try
                 {
                     m_stack.Push(token[ii]);
-                    values.Add(ReadUInt16(null));
+                    values[ii] = ReadUInt16(null);
                 }
                 finally
                 {
@@ -1631,21 +1623,21 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Int32Collection ReadInt32Array(string fieldName)
+        public ArrayOf<int> ReadInt32Array(string fieldName)
         {
-            var values = new Int32Collection();
-
             if (!ReadArrayField(fieldName, out List<object> token))
             {
-                return values;
+                return default;
             }
+
+            int[] values = new int[token.Count];
 
             for (int ii = 0; ii < token.Count; ii++)
             {
                 try
                 {
                     m_stack.Push(token[ii]);
-                    values.Add(ReadInt32(null));
+                    values[ii] = ReadInt32(null);
                 }
                 finally
                 {
@@ -1657,21 +1649,21 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public UInt32Collection ReadUInt32Array(string fieldName)
+        public ArrayOf<uint> ReadUInt32Array(string fieldName)
         {
-            var values = new UInt32Collection();
-
             if (!ReadArrayField(fieldName, out List<object> token))
             {
-                return values;
+                return default;
             }
+
+            uint[] values = new uint[token.Count];
 
             for (int ii = 0; ii < token.Count; ii++)
             {
                 try
                 {
                     m_stack.Push(token[ii]);
-                    values.Add(ReadUInt32(null));
+                    values[ii] = ReadUInt32(null);
                 }
                 finally
                 {
@@ -1683,21 +1675,21 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Int64Collection ReadInt64Array(string fieldName)
+        public ArrayOf<long> ReadInt64Array(string fieldName)
         {
-            var values = new Int64Collection();
-
             if (!ReadArrayField(fieldName, out List<object> token))
             {
-                return values;
+                return default;
             }
+
+            long[] values = new long[token.Count];
 
             for (int ii = 0; ii < token.Count; ii++)
             {
                 try
                 {
                     m_stack.Push(token[ii]);
-                    values.Add(ReadInt64(null));
+                    values[ii] = ReadInt64(null);
                 }
                 finally
                 {
@@ -1709,21 +1701,21 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public UInt64Collection ReadUInt64Array(string fieldName)
+        public ArrayOf<ulong> ReadUInt64Array(string fieldName)
         {
-            var values = new UInt64Collection();
-
             if (!ReadArrayField(fieldName, out List<object> token))
             {
-                return values;
+                return default;
             }
+
+            ulong[] values = new ulong[token.Count];
 
             for (int ii = 0; ii < token.Count; ii++)
             {
                 try
                 {
                     m_stack.Push(token[ii]);
-                    values.Add(ReadUInt64(null));
+                    values[ii] = ReadUInt64(null);
                 }
                 finally
                 {
@@ -1735,21 +1727,21 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public FloatCollection ReadFloatArray(string fieldName)
+        public ArrayOf<float> ReadFloatArray(string fieldName)
         {
-            var values = new FloatCollection();
-
             if (!ReadArrayField(fieldName, out List<object> token))
             {
-                return values;
+                return default;
             }
+
+            float[] values = new float[token.Count];
 
             for (int ii = 0; ii < token.Count; ii++)
             {
                 try
                 {
                     m_stack.Push(token[ii]);
-                    values.Add(ReadFloat(null));
+                    values[ii] = ReadFloat(null);
                 }
                 finally
                 {
@@ -1761,21 +1753,21 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public DoubleCollection ReadDoubleArray(string fieldName)
+        public ArrayOf<double> ReadDoubleArray(string fieldName)
         {
-            var values = new DoubleCollection();
-
             if (!ReadArrayField(fieldName, out List<object> token))
             {
-                return values;
+                return default;
             }
+
+            double[] values = new double[token.Count];
 
             for (int ii = 0; ii < token.Count; ii++)
             {
                 try
                 {
                     m_stack.Push(token[ii]);
-                    values.Add(ReadDouble(null));
+                    values[ii] = ReadDouble(null);
                 }
                 finally
                 {
@@ -1787,21 +1779,21 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public StringCollection ReadStringArray(string fieldName)
+        public ArrayOf<string> ReadStringArray(string fieldName)
         {
-            var values = new StringCollection();
-
             if (!ReadArrayField(fieldName, out List<object> token))
             {
-                return values;
+                return default;
             }
+
+            string[] values = new string[token.Count];
 
             for (int ii = 0; ii < token.Count; ii++)
             {
                 try
                 {
                     m_stack.Push(token[ii]);
-                    values.Add(ReadString(null));
+                    values[ii] = ReadString(null);
                 }
                 finally
                 {
@@ -1813,21 +1805,21 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public DateTimeCollection ReadDateTimeArray(string fieldName)
+        public ArrayOf<DateTime> ReadDateTimeArray(string fieldName)
         {
-            var values = new DateTimeCollection();
-
             if (!ReadArrayField(fieldName, out List<object> token))
             {
-                return values;
+                return default;
             }
+
+            var values = new DateTime[token.Count];
 
             for (int ii = 0; ii < token.Count; ii++)
             {
                 try
                 {
                     m_stack.Push(token[ii]);
-                    values.Add(ReadDateTime(null));
+                    values[ii] = ReadDateTime(null);
                 }
                 finally
                 {
@@ -1839,22 +1831,21 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public UuidCollection ReadGuidArray(string fieldName)
+        public ArrayOf<Uuid> ReadGuidArray(string fieldName)
         {
-            var values = new UuidCollection();
-
             if (!ReadArrayField(fieldName, out List<object> token))
             {
-                return values;
+                return default;
             }
+
+            var values = new Uuid[token.Count];
 
             for (int ii = 0; ii < token.Count; ii++)
             {
                 try
                 {
                     m_stack.Push(token[ii]);
-                    Uuid element = ReadGuid(null);
-                    values.Add(element);
+                    values[ii] = ReadGuid(null);
                 }
                 finally
                 {
@@ -1866,22 +1857,21 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ByteStringCollection ReadByteStringArray(string fieldName)
+        public ArrayOf<ByteString> ReadByteStringArray(string fieldName)
         {
-            var values = new ByteStringCollection();
-
             if (!ReadArrayField(fieldName, out List<object> token))
             {
-                return values;
+                return default;
             }
+
+            var values = new ByteString[token.Count];
 
             for (int ii = 0; ii < token.Count; ii++)
             {
                 try
                 {
                     m_stack.Push(token[ii]);
-                    ByteString element = ReadByteString(null);
-                    values.Add(element);
+                    values[ii] = ReadByteString(null);
                 }
                 finally
                 {
@@ -1893,22 +1883,21 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public XmlElementCollection ReadXmlElementArray(string fieldName)
+        public ArrayOf<XmlElement> ReadXmlElementArray(string fieldName)
         {
-            var values = new XmlElementCollection();
-
             if (!ReadArrayField(fieldName, out List<object> token))
             {
-                return values;
+                return default;
             }
+
+            var values = new XmlElement[token.Count];
 
             for (int ii = 0; ii < token.Count; ii++)
             {
                 try
                 {
                     m_stack.Push(token[ii]);
-                    XmlElement element = ReadXmlElement(null);
-                    values.Add(element);
+                    values[ii] = ReadXmlElement(null);
                 }
                 finally
                 {
@@ -1920,22 +1909,21 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public NodeIdCollection ReadNodeIdArray(string fieldName)
+        public ArrayOf<NodeId> ReadNodeIdArray(string fieldName)
         {
-            var values = new NodeIdCollection();
-
             if (!ReadArrayField(fieldName, out List<object> token))
             {
-                return values;
+                return default;
             }
+
+            var values = new NodeId[token.Count];
 
             for (int ii = 0; ii < token.Count; ii++)
             {
                 try
                 {
                     m_stack.Push(token[ii]);
-                    NodeId element = ReadNodeId(null);
-                    values.Add(element);
+                    values[ii] = ReadNodeId(null);
                 }
                 finally
                 {
@@ -1947,22 +1935,21 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ExpandedNodeIdCollection ReadExpandedNodeIdArray(string fieldName)
+        public ArrayOf<ExpandedNodeId> ReadExpandedNodeIdArray(string fieldName)
         {
-            var values = new ExpandedNodeIdCollection();
-
             if (!ReadArrayField(fieldName, out List<object> token))
             {
-                return values;
+                return default;
             }
+
+            var values = new ExpandedNodeId[token.Count];
 
             for (int ii = 0; ii < token.Count; ii++)
             {
                 try
                 {
                     m_stack.Push(token[ii]);
-                    ExpandedNodeId element = ReadExpandedNodeId(null);
-                    values.Add(element);
+                    values[ii] = ReadExpandedNodeId(null);
                 }
                 finally
                 {
@@ -1974,22 +1961,21 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public StatusCodeCollection ReadStatusCodeArray(string fieldName)
+        public ArrayOf<StatusCode> ReadStatusCodeArray(string fieldName)
         {
-            var values = new StatusCodeCollection();
-
             if (!ReadArrayField(fieldName, out List<object> token))
             {
-                return values;
+                return default;
             }
+
+            var values = new StatusCode[token.Count];
 
             for (int ii = 0; ii < token.Count; ii++)
             {
                 try
                 {
                     m_stack.Push(token[ii]);
-                    StatusCode element = ReadStatusCode(null);
-                    values.Add(element);
+                    values[ii] = ReadStatusCode(null);
                 }
                 finally
                 {
@@ -2001,22 +1987,21 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public DiagnosticInfoCollection ReadDiagnosticInfoArray(string fieldName)
+        public ArrayOf<DiagnosticInfo> ReadDiagnosticInfoArray(string fieldName)
         {
-            var values = new DiagnosticInfoCollection();
-
             if (!ReadArrayField(fieldName, out List<object> token))
             {
-                return values;
+                return default;
             }
+
+            var values = new DiagnosticInfo[token.Count];
 
             for (int ii = 0; ii < token.Count; ii++)
             {
                 try
                 {
                     m_stack.Push(token[ii]);
-                    DiagnosticInfo element = ReadDiagnosticInfo(null);
-                    values.Add(element);
+                    values[ii] = ReadDiagnosticInfo(null);
                 }
                 finally
                 {
@@ -2028,22 +2013,21 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public QualifiedNameCollection ReadQualifiedNameArray(string fieldName)
+        public ArrayOf<QualifiedName> ReadQualifiedNameArray(string fieldName)
         {
-            var values = new QualifiedNameCollection();
-
             if (!ReadArrayField(fieldName, out List<object> token))
             {
-                return values;
+                return default;
             }
+
+            var values = new QualifiedName[token.Count];
 
             for (int ii = 0; ii < token.Count; ii++)
             {
                 try
                 {
                     m_stack.Push(token[ii]);
-                    QualifiedName element = ReadQualifiedName(null);
-                    values.Add(element);
+                    values[ii] = ReadQualifiedName(null);
                 }
                 finally
                 {
@@ -2055,22 +2039,21 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public LocalizedTextCollection ReadLocalizedTextArray(string fieldName)
+        public ArrayOf<LocalizedText> ReadLocalizedTextArray(string fieldName)
         {
-            var values = new LocalizedTextCollection();
-
             if (!ReadArrayField(fieldName, out List<object> token))
             {
-                return values;
+                return default;
             }
+
+            var values = new LocalizedText[token.Count];
 
             for (int ii = 0; ii < token.Count; ii++)
             {
                 try
                 {
                     m_stack.Push(token[ii]);
-                    LocalizedText element = ReadLocalizedText(null);
-                    values.Add(element);
+                    values[ii] = ReadLocalizedText(null);
                 }
                 finally
                 {
@@ -2082,22 +2065,21 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public VariantCollection ReadVariantArray(string fieldName)
+        public ArrayOf<Variant> ReadVariantArray(string fieldName)
         {
-            var values = new VariantCollection();
-
             if (!ReadArrayField(fieldName, out List<object> token))
             {
-                return values;
+                return default;
             }
+
+            var values = new Variant[token.Count];
 
             for (int ii = 0; ii < token.Count; ii++)
             {
                 try
                 {
                     m_stack.Push(token[ii]);
-                    Variant element = ReadVariant(null);
-                    values.Add(element);
+                    values[ii] = ReadVariant(null);
                 }
                 finally
                 {
@@ -2109,22 +2091,21 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public DataValueCollection ReadDataValueArray(string fieldName)
+        public ArrayOf<DataValue> ReadDataValueArray(string fieldName)
         {
-            var values = new DataValueCollection();
-
             if (!ReadArrayField(fieldName, out List<object> token))
             {
-                return values;
+                return default;
             }
+
+            var values = new DataValue[token.Count];
 
             for (int ii = 0; ii < token.Count; ii++)
             {
                 try
                 {
                     m_stack.Push(token[ii]);
-                    DataValue element = ReadDataValue(null);
-                    values.Add(element);
+                    values[ii] = ReadDataValue(null);
                 }
                 finally
                 {
@@ -2136,22 +2117,21 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ExtensionObjectCollection ReadExtensionObjectArray(string fieldName)
+        public ArrayOf<ExtensionObject> ReadExtensionObjectArray(string fieldName)
         {
-            var values = new ExtensionObjectCollection();
-
             if (!ReadArrayField(fieldName, out List<object> token))
             {
-                return values;
+                return default;
             }
+
+            var values = new ExtensionObject[token.Count];
 
             for (int ii = 0; ii < token.Count; ii++)
             {
                 try
                 {
                     m_stack.Push(token[ii]);
-                    ExtensionObject element = ReadExtensionObject(null);
-                    values.Add(element);
+                    values[ii] = ReadExtensionObject(null);
                 }
                 finally
                 {
@@ -2163,30 +2143,21 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Array ReadEncodeableArray(
-            string fieldName,
-            Type systemType,
-            ExpandedNodeId encodeableTypeId = default)
+        public ArrayOf<T> ReadEncodeableArray<T>(string fieldName) where T : IEncodeable, new()
         {
-            if (systemType == null)
-            {
-                throw new ArgumentNullException(nameof(systemType));
-            }
-
             if (!ReadArrayField(fieldName, out List<object> token))
             {
-                return Array.CreateInstance(systemType, 0);
+                return default;
             }
 
-            var values = Array.CreateInstance(systemType, token.Count);
+            var values = new T[token.Count];
 
             for (int ii = 0; ii < token.Count; ii++)
             {
                 try
                 {
                     m_stack.Push(token[ii]);
-                    IEncodeable element = ReadEncodeable(null, systemType, encodeableTypeId);
-                    values.SetValue(element, ii);
+                    values[ii] = ReadEncodeable<T>(null);
                 }
                 finally
                 {
@@ -2198,27 +2169,22 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Array ReadEnumeratedArray(string fieldName, Type enumType)
+        public ArrayOf<T> ReadEncodeableArray<T>(string fieldName, ExpandedNodeId encodeableTypeId)
+            where T : IEncodeable
         {
-            if (enumType == null)
-            {
-                throw new ArgumentNullException(nameof(enumType));
-            }
-
             if (!ReadArrayField(fieldName, out List<object> token))
             {
-                return Array.CreateInstance(enumType, 0);
+                return default;
             }
 
-            var values = Array.CreateInstance(enumType, token.Count);
+            var values = new T[token.Count];
 
             for (int ii = 0; ii < token.Count; ii++)
             {
                 try
                 {
                     m_stack.Push(token[ii]);
-                    Enum element = ReadEnumerated(null, enumType);
-                    values.SetValue(element, ii);
+                    values[ii] = ReadEncodeable<T>(null, encodeableTypeId);
                 }
                 finally
                 {
@@ -2230,101 +2196,48 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Array ReadArray(
-            string fieldName,
-            int valueRank,
-            BuiltInType builtInType,
-            Type systemType = null,
-            ExpandedNodeId encodeableTypeId = default)
+        public ArrayOf<T> ReadEnumeratedArray<T>(string fieldName) where T : struct, Enum
         {
-            if (valueRank == ValueRanks.OneDimension)
+            if (!ReadArrayField(fieldName, out List<object> token))
             {
-                switch (builtInType)
-                {
-                    case BuiltInType.Boolean:
-                        return ReadBooleanArray(fieldName).ToArray();
-                    case BuiltInType.SByte:
-                        return ReadSByteArray(fieldName).ToArray();
-                    case BuiltInType.Byte:
-                        return ReadByteArray(fieldName).ToArray();
-                    case BuiltInType.Int16:
-                        return ReadInt16Array(fieldName).ToArray();
-                    case BuiltInType.UInt16:
-                        return ReadUInt16Array(fieldName).ToArray();
-                    case BuiltInType.Enumeration:
-                        DetermineIEncodeableSystemType(ref systemType, encodeableTypeId);
-                        if (systemType?.IsEnum == true)
-                        {
-                            return ReadEnumeratedArray(fieldName, systemType);
-                        }
-                        goto case BuiltInType.Int32;
-                    case BuiltInType.Int32:
-                        return ReadInt32Array(fieldName).ToArray();
-                    case BuiltInType.UInt32:
-                        return ReadUInt32Array(fieldName).ToArray();
-                    case BuiltInType.Int64:
-                        return ReadInt64Array(fieldName).ToArray();
-                    case BuiltInType.UInt64:
-                        return ReadUInt64Array(fieldName).ToArray();
-                    case BuiltInType.Float:
-                        return ReadFloatArray(fieldName).ToArray();
-                    case BuiltInType.Double:
-                        return ReadDoubleArray(fieldName).ToArray();
-                    case BuiltInType.String:
-                        return ReadStringArray(fieldName).ToArray();
-                    case BuiltInType.DateTime:
-                        return ReadDateTimeArray(fieldName).ToArray();
-                    case BuiltInType.Guid:
-                        return ReadGuidArray(fieldName).ToArray();
-                    case BuiltInType.ByteString:
-                        return ReadByteStringArray(fieldName).ToArray();
-                    case BuiltInType.XmlElement:
-                        return ReadXmlElementArray(fieldName).ToArray();
-                    case BuiltInType.NodeId:
-                        return ReadNodeIdArray(fieldName).ToArray();
-                    case BuiltInType.ExpandedNodeId:
-                        return ReadExpandedNodeIdArray(fieldName).ToArray();
-                    case BuiltInType.StatusCode:
-                        return ReadStatusCodeArray(fieldName).ToArray();
-                    case BuiltInType.QualifiedName:
-                        return ReadQualifiedNameArray(fieldName).ToArray();
-                    case BuiltInType.LocalizedText:
-                        return ReadLocalizedTextArray(fieldName).ToArray();
-                    case BuiltInType.DataValue:
-                        return ReadDataValueArray(fieldName).ToArray();
-                    case BuiltInType.Variant:
-                        if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
-                        {
-                            return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
-                        }
-                        return ReadVariantArray(fieldName).ToArray();
-                    case BuiltInType.ExtensionObject:
-                        return ReadExtensionObjectArray(fieldName).ToArray();
-                    case BuiltInType.DiagnosticInfo:
-                        return ReadDiagnosticInfoArray(fieldName).ToArray();
-                    case BuiltInType.Null:
-                    case BuiltInType.Number:
-                    case BuiltInType.Integer:
-                    case BuiltInType.UInteger:
-                        if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
-                        {
-                            return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
-                        }
+                return default;
+            }
 
-                        throw new ServiceResultException(
-                            StatusCodes.BadDecodingError,
-                            Utils.Format(
-                                "Cannot decode unknown type in Array object with BuiltInType: {0}.",
-                                builtInType));
-                    default:
-                        throw ServiceResultException.Unexpected($"Unexpected BuiltInType {builtInType}");
+            var values = new T[token.Count];
+
+            for (int ii = 0; ii < token.Count; ii++)
+            {
+                try
+                {
+                    m_stack.Push(token[ii]);
+                    values[ii] = ReadEnumerated<T>(null);
+                }
+                finally
+                {
+                    m_stack.Pop();
                 }
             }
-            else if (valueRank >= ValueRanks.TwoDimensions)
+
+            return values;
+        }
+
+        /// <inheritdoc/>
+        public Variant ReadVariantValue(string fieldName, TypeInfo typeInfo)
+        {
+            if (typeInfo.IsScalar)
+            {
+                return ReadVariantScalarBody(fieldName, typeInfo.BuiltInType);
+            }
+            if (typeInfo.IsArray)
+            {
+                return ReadVariantArrayBody(fieldName, typeInfo.BuiltInType);
+            }
+#if FALSE
+            if (typeInfo.IsMatrix)
             {
                 if (!ReadField(fieldName, out object token))
                 {
-                    return null;
+                    return default;
                 }
 
                 if (token is Dictionary<string, object> value)
@@ -2337,7 +2250,7 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        dimensions2 = new Int32Collection(valueRank);
+                        dimensions2 = new Int32Collection(typeInfo.ValueRank);
                     }
 
                     Array array2 = ReadArray("Array", 1, builtInType, systemType, encodeableTypeId);
@@ -2360,7 +2273,7 @@ namespace Opc.Ua
 
                 if (token is not List<object> array)
                 {
-                    return null;
+                    return default;
                 }
 
                 var elements = new List<object>();
@@ -2631,6 +2544,8 @@ namespace Opc.Ua
                 return matrix.ToArray();
             }
             return null;
+#endif
+            return default;
         }
 
         /// <inheritdoc/>
@@ -2966,98 +2881,73 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Get the system type from the type factory if not specified by caller.
-        /// </summary>
-        /// <param name="systemType">The reference to the system type, or null</param>
-        /// <param name="encodeableTypeId">The encodeable type id of the system type.</param>
-        /// <returns>If the system type is assignable to <see cref="IEncodeable"/> </returns>
-        private bool DetermineIEncodeableSystemType(
-            ref Type systemType,
-            ExpandedNodeId encodeableTypeId)
-        {
-            if (!encodeableTypeId.IsNull && systemType == null)
-            {
-                systemType = Context.Factory.GetSystemType(encodeableTypeId);
-            }
-            return typeof(IEncodeable).IsAssignableFrom(systemType);
-        }
-
-        /// <summary>
         /// Read the body of a Variant as a BuiltInType
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private Variant ReadVariantBody(string fieldName, BuiltInType type)
+        private Variant ReadVariantScalarBody(string fieldName, BuiltInType type)
         {
             switch (type)
             {
                 case BuiltInType.Boolean:
-                    return new Variant(ReadBoolean(fieldName), TypeInfo.Scalars.Boolean);
+                    return Variant.From(ReadBoolean(fieldName));
                 case BuiltInType.SByte:
-                    return new Variant(ReadSByte(fieldName), TypeInfo.Scalars.SByte);
+                    return Variant.From(ReadSByte(fieldName));
                 case BuiltInType.Byte:
-                    return new Variant(ReadByte(fieldName), TypeInfo.Scalars.Byte);
+                    return Variant.From(ReadByte(fieldName));
                 case BuiltInType.Int16:
-                    return new Variant(ReadInt16(fieldName), TypeInfo.Scalars.Int16);
+                    return Variant.From(ReadInt16(fieldName));
                 case BuiltInType.UInt16:
-                    return new Variant(ReadUInt16(fieldName), TypeInfo.Scalars.UInt16);
+                    return Variant.From(ReadUInt16(fieldName));
                 case BuiltInType.Int32:
-                    return new Variant(ReadInt32(fieldName), TypeInfo.Scalars.Int32);
+                    return Variant.From(ReadInt32(fieldName));
                 case BuiltInType.UInt32:
-                    return new Variant(ReadUInt32(fieldName), TypeInfo.Scalars.UInt32);
+                    return Variant.From(ReadUInt32(fieldName));
                 case BuiltInType.Int64:
-                    return new Variant(ReadInt64(fieldName), TypeInfo.Scalars.Int64);
+                    return Variant.From(ReadInt64(fieldName));
                 case BuiltInType.UInt64:
-                    return new Variant(ReadUInt64(fieldName), TypeInfo.Scalars.UInt64);
+                    return Variant.From(ReadUInt64(fieldName));
                 case BuiltInType.Float:
-                    return new Variant(ReadFloat(fieldName), TypeInfo.Scalars.Float);
+                    return Variant.From(ReadFloat(fieldName));
                 case BuiltInType.Double:
-                    return new Variant(ReadDouble(fieldName), TypeInfo.Scalars.Double);
+                    return Variant.From(ReadDouble(fieldName));
                 case BuiltInType.String:
-                    return new Variant(ReadString(fieldName), TypeInfo.Scalars.String);
+                    return Variant.From(ReadString(fieldName));
                 case BuiltInType.ByteString:
-                    return new Variant(ReadByteString(fieldName), TypeInfo.Scalars.ByteString);
+                    return Variant.From(ReadByteString(fieldName));
                 case BuiltInType.DateTime:
-                    return new Variant(ReadDateTime(fieldName), TypeInfo.Scalars.DateTime);
+                    return Variant.From(ReadDateTime(fieldName));
                 case BuiltInType.Guid:
-                    return new Variant(ReadGuid(fieldName), TypeInfo.Scalars.Guid);
+                    return Variant.From(ReadGuid(fieldName));
                 case BuiltInType.NodeId:
-                    return new Variant(ReadNodeId(fieldName), TypeInfo.Scalars.NodeId);
+                    return Variant.From(ReadNodeId(fieldName));
                 case BuiltInType.ExpandedNodeId:
-                    return new Variant(
-                        ReadExpandedNodeId(fieldName),
-                        TypeInfo.Scalars.ExpandedNodeId);
+                    return Variant.From(ReadExpandedNodeId(fieldName));
                 case BuiltInType.QualifiedName:
-                    return new Variant(
-                        ReadQualifiedName(fieldName),
-                        TypeInfo.Scalars.QualifiedName);
+                    return Variant.From(ReadQualifiedName(fieldName));
                 case BuiltInType.LocalizedText:
-                    return new Variant(
-                        ReadLocalizedText(fieldName),
-                        TypeInfo.Scalars.LocalizedText);
+                    return Variant.From(ReadLocalizedText(fieldName));
                 case BuiltInType.StatusCode:
-                    return new Variant(ReadStatusCode(fieldName), TypeInfo.Scalars.StatusCode);
+                    return Variant.From(ReadStatusCode(fieldName));
                 case BuiltInType.XmlElement:
-                    return new Variant(ReadXmlElement(fieldName), TypeInfo.Scalars.XmlElement);
+                    return Variant.From(ReadXmlElement(fieldName));
                 case BuiltInType.ExtensionObject:
-                    return new Variant(
-                        ReadExtensionObject(fieldName),
-                        TypeInfo.Scalars.ExtensionObject);
-                case BuiltInType.Variant:
-                    return new Variant(ReadVariant(fieldName), TypeInfo.Scalars.Variant);
-                case BuiltInType.DiagnosticInfo:
-                    return new Variant(
-                        ReadDiagnosticInfo(fieldName),
-                        TypeInfo.Scalars.DiagnosticInfo);
+                    return Variant.From(ReadExtensionObject(fieldName));
                 case BuiltInType.DataValue:
-                    return new Variant(ReadDataValue(fieldName), TypeInfo.Scalars.DataValue);
-                case BuiltInType.Null:
+                    return Variant.From(ReadDataValue(fieldName));
+                case BuiltInType.Variant:
+                case BuiltInType.DiagnosticInfo:
                 case BuiltInType.Number:
                 case BuiltInType.Integer:
                 case BuiltInType.UInteger:
-                case BuiltInType.Enumeration:
-                    return Variant.Null;
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Unsupported built in type for Variant content ({0}).",
+                        type);
                 default:
-                    throw ServiceResultException.Unexpected($"Unexpected BuiltInType {type}");
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Unexpected scalar built in type ({0}).",
+                        type);
             }
         }
 
@@ -3070,73 +2960,66 @@ namespace Opc.Ua
             switch (type)
             {
                 case BuiltInType.Boolean:
-                    return new Variant(ReadBooleanArray(fieldName), TypeInfo.Arrays.Boolean);
+                    return Variant.From(ReadBooleanArray(fieldName));
                 case BuiltInType.SByte:
-                    return new Variant(ReadSByteArray(fieldName), TypeInfo.Arrays.SByte);
+                    return Variant.From(ReadSByteArray(fieldName));
                 case BuiltInType.Byte:
-                    return new Variant(ReadByteArray(fieldName), TypeInfo.Arrays.Byte);
+                    return Variant.From(ReadByteArray(fieldName));
                 case BuiltInType.Int16:
-                    return new Variant(ReadInt16Array(fieldName), TypeInfo.Arrays.Int16);
+                    return Variant.From(ReadInt16Array(fieldName));
                 case BuiltInType.UInt16:
-                    return new Variant(ReadUInt16Array(fieldName), TypeInfo.Arrays.UInt16);
+                    return Variant.From(ReadUInt16Array(fieldName));
                 case BuiltInType.Int32:
-                    return new Variant(ReadInt32Array(fieldName), TypeInfo.Arrays.Int32);
+                    return Variant.From(ReadInt32Array(fieldName));
                 case BuiltInType.UInt32:
-                    return new Variant(ReadUInt32Array(fieldName), TypeInfo.Arrays.UInt32);
+                    return Variant.From(ReadUInt32Array(fieldName));
                 case BuiltInType.Int64:
-                    return new Variant(ReadInt64Array(fieldName), TypeInfo.Arrays.Int64);
+                    return Variant.From(ReadInt64Array(fieldName));
                 case BuiltInType.UInt64:
-                    return new Variant(ReadUInt64Array(fieldName), TypeInfo.Arrays.UInt64);
+                    return Variant.From(ReadUInt64Array(fieldName));
                 case BuiltInType.Float:
-                    return new Variant(ReadFloatArray(fieldName), TypeInfo.Arrays.Float);
+                    return Variant.From(ReadFloatArray(fieldName));
                 case BuiltInType.Double:
-                    return new Variant(ReadDoubleArray(fieldName), TypeInfo.Arrays.Double);
+                    return Variant.From(ReadDoubleArray(fieldName));
                 case BuiltInType.String:
-                    return new Variant(ReadStringArray(fieldName), TypeInfo.Arrays.String);
+                    return Variant.From(ReadStringArray(fieldName));
                 case BuiltInType.ByteString:
-                    return new Variant(ReadByteStringArray(fieldName), TypeInfo.Arrays.ByteString);
+                    return Variant.From(ReadByteStringArray(fieldName));
                 case BuiltInType.DateTime:
-                    return new Variant(ReadDateTimeArray(fieldName), TypeInfo.Arrays.DateTime);
+                    return Variant.From(ReadDateTimeArray(fieldName));
                 case BuiltInType.Guid:
-                    return new Variant(ReadGuidArray(fieldName), TypeInfo.Arrays.Guid);
+                    return Variant.From(ReadGuidArray(fieldName));
                 case BuiltInType.NodeId:
-                    return new Variant(ReadNodeIdArray(fieldName), TypeInfo.Arrays.NodeId);
+                    return Variant.From(ReadNodeIdArray(fieldName));
                 case BuiltInType.ExpandedNodeId:
-                    return new Variant(
-                        ReadExpandedNodeIdArray(fieldName),
-                        TypeInfo.Arrays.ExpandedNodeId);
+                    return Variant.From(ReadExpandedNodeIdArray(fieldName));
                 case BuiltInType.QualifiedName:
-                    return new Variant(
-                        ReadQualifiedNameArray(fieldName),
-                        TypeInfo.Arrays.QualifiedName);
+                    return Variant.From(ReadQualifiedNameArray(fieldName));
                 case BuiltInType.LocalizedText:
-                    return new Variant(
-                        ReadLocalizedTextArray(fieldName),
-                        TypeInfo.Arrays.LocalizedText);
+                    return Variant.From(ReadLocalizedTextArray(fieldName));
                 case BuiltInType.StatusCode:
-                    return new Variant(ReadStatusCodeArray(fieldName), TypeInfo.Arrays.StatusCode);
+                    return Variant.From(ReadStatusCodeArray(fieldName));
                 case BuiltInType.XmlElement:
-                    return new Variant(ReadXmlElementArray(fieldName), TypeInfo.Arrays.XmlElement);
+                    return Variant.From(ReadXmlElementArray(fieldName));
                 case BuiltInType.ExtensionObject:
-                    return new Variant(
-                        ReadExtensionObjectArray(fieldName),
-                        TypeInfo.Arrays.ExtensionObject);
-                case BuiltInType.Variant:
-                    return new Variant(ReadVariantArray(fieldName), TypeInfo.Arrays.Variant);
-                case BuiltInType.DiagnosticInfo:
-                    return new Variant(
-                        ReadDiagnosticInfoArray(fieldName),
-                        TypeInfo.Arrays.DiagnosticInfo);
+                    return Variant.From(ReadExtensionObjectArray(fieldName));
                 case BuiltInType.DataValue:
-                    return new Variant(ReadDataValueArray(fieldName), TypeInfo.Arrays.DataValue);
-                case BuiltInType.Null:
+                    return Variant.From(ReadDataValueArray(fieldName));
                 case BuiltInType.Number:
                 case BuiltInType.Integer:
                 case BuiltInType.UInteger:
-                case BuiltInType.Enumeration:
-                    return Variant.Null;
+                case BuiltInType.Variant:
+                    return Variant.From(ReadVariantArray(null));
+                case BuiltInType.DiagnosticInfo:
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Unsupported built in type for Variant array content ({0}).",
+                        type);
                 default:
-                    throw ServiceResultException.Unexpected($"Unexpected BuiltInType {type}");
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Unexpected array built in type ({0}).",
+                        type);
             }
         }
 
@@ -3268,82 +3151,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Read the Matrix part (simple array or array of arrays)
-        /// </summary>
-        private void ReadMatrixPart(
-            string fieldName,
-            List<object> currentArray,
-            BuiltInType builtInType,
-            ref List<object> elements,
-            ref List<int> dimensions,
-            int level,
-            Type systemType,
-            ExpandedNodeId encodeableTypeId)
-        {
-            CheckAndIncrementNestingLevel();
-
-            try
-            {
-                if (currentArray?.Count > 0)
-                {
-                    bool hasInnerArray = false;
-                    for (int ii = 0; ii < currentArray.Count; ii++)
-                    {
-                        if (ii == 0 && dimensions.Count <= level)
-                        {
-                            // remember dimension length
-                            dimensions.Add(currentArray.Count);
-                        }
-                        if (currentArray[ii] is List<object>)
-                        {
-                            hasInnerArray = true;
-
-                            PushArray(fieldName, ii);
-
-                            ReadMatrixPart(
-                                null,
-                                currentArray[ii] as List<object>,
-                                builtInType,
-                                ref elements,
-                                ref dimensions,
-                                level + 1,
-                                systemType,
-                                encodeableTypeId);
-
-                            Pop();
-                        }
-                        else
-                        {
-                            break; // do not continue reading array of array
-                        }
-                    }
-                    if (!hasInnerArray)
-                    {
-                        // read array from one dimension
-                        Array part = ReadArray(
-                            null,
-                            ValueRanks.OneDimension,
-                            builtInType,
-                            systemType,
-                            encodeableTypeId);
-                        if (part != null && part.Length > 0)
-                        {
-                            // add part elements to final list
-                            foreach (object item in part)
-                            {
-                                elements.Add(item);
-                            }
-                        }
-                    }
-                }
-            }
-            finally
-            {
-                m_nestingLevel--;
-            }
-        }
-
-        /// <summary>
         /// Get Default value for NodeId for diferent IdTypes
         /// </summary>
         /// <returns>new NodeId</returns>
@@ -3470,19 +3277,6 @@ namespace Opc.Ua
                     Context.MaxEncodingNestingLevels);
             }
             m_nestingLevel++;
-        }
-
-        /// <summary>
-        /// TODO
-        /// TODO
-        /// </summary>
-        /// <param name="fieldName"></param>
-        /// <param name="typeInfo"></param>
-        /// <returns></returns>
-        /// <exception cref="NotImplementedException"></exception>
-        public Variant ReadVariantValue(string fieldName, TypeInfo typeInfo)
-        {
-            throw new NotImplementedException();
         }
     }
 }

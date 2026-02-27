@@ -805,10 +805,8 @@ namespace Opc.Ua.Bindings
                     null,
                     TcpMessageLimits.MaxSecurityPolicyUriSize);
                 certificateData = decoder.ReadByteString(
-                    null,
                     TcpMessageLimits.MaxCertificateSize);
                 thumbprintData = decoder.ReadByteString(
-                    null,
                     TcpMessageLimits.CertificateThumbprintSize);
             }
             catch (Exception e)
