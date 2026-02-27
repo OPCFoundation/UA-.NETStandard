@@ -164,15 +164,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         public static readonly EncodingTypeGroup[] EncodingTypesJson =
         [
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Reversible),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact),
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.NonReversible),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Verbose)
         ];
 
         public static readonly EncodingTypeGroup[] EncodingTypesJsonNonReversibleVerbose =
         [
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Reversible),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact)
         ];
 
@@ -180,7 +177,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [
             new EncodingTypeGroup(EncodingType.Binary),
             new EncodingTypeGroup(EncodingType.Xml),
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Reversible),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact)
         ];
 
@@ -188,7 +184,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [
             new EncodingTypeGroup(EncodingType.Binary),
             new EncodingTypeGroup(EncodingType.Xml),
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.NonReversible),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Verbose)
         ];
 
@@ -196,8 +191,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [
             new EncodingTypeGroup(EncodingType.Binary),
             new EncodingTypeGroup(EncodingType.Xml),
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.NonReversible),
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Reversible),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Verbose)
         ];
@@ -206,7 +199,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [
             new EncodingTypeGroup(EncodingType.Binary),
             new EncodingTypeGroup(EncodingType.Xml),
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Reversible),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Verbose)
         ];
@@ -449,11 +441,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                             includeDefaultValues,
                             includeDefaultNumbers))
                     {
-                        if (jsonEncoding is JsonEncodingType.Reversible or JsonEncodingType.NonReversible)
-                        {
-                            // encoder.SetMappingTables(nameSpaceUris, serverUris);
-                        }
-                        Encode(encoder, builtInType, builtInType.ToString(), data);
+                          Encode(encoder, builtInType, builtInType.ToString(), data);
                     }
                     buffer = encoderStream.ToArray();
                 }
@@ -602,7 +590,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             IServiceMessageContext context,
             Stream stream,
             Type systemType,
-            JsonEncodingType jsonEncoding = JsonEncodingType.Reversible,
+            JsonEncodingType jsonEncoding = JsonEncodingType.Verbose,
             bool topLevelIsArray = false,
             bool includeDefaultValues = false,
             bool includeDefaultNumbers = true)
@@ -610,14 +598,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             switch (encoderType)
             {
                 case EncodingType.Binary:
-                    Assume.That(
-                        jsonEncoding == JsonEncodingType.Reversible,
-                        "Binary encoding doesn't allow to set the JsonEncodingType.");
                     return new BinaryEncoder(stream, context, true);
                 case EncodingType.Xml:
-                    Assume.That(
-                        jsonEncoding == JsonEncodingType.Reversible,
-                        "Xml encoding only supports reversible option.");
                     var xmlWriter = XmlWriter.Create(stream, Utils.DefaultXmlWriterSettings());
                     return new XmlEncoder(systemType, xmlWriter, context);
                 case EncodingType.Json:
@@ -627,12 +609,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         topLevelIsArray,
                         stream,
                         true);
-                    // only deprecated encodings allow to set the default value
-                    if (jsonEncoding is JsonEncodingType.Reversible or JsonEncodingType.NonReversible)
-                    {
-                        encoder.IncludeDefaultValues = includeDefaultValues;
-                        encoder.IncludeDefaultNumberValues = includeDefaultNumbers;
-                    }
                     return encoder;
                 default:
                     throw new ArgumentOutOfRangeException(

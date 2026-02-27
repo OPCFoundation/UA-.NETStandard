@@ -4217,7 +4217,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Body, Is.InstanceOf<TestEncodeable>());
+            Assert.That(result.TryGetEncodeable(out TestEncodeable _), Is.True);
         }
 
         [Test]

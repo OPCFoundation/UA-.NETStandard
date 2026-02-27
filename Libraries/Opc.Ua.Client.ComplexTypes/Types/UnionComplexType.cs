@@ -107,16 +107,9 @@ namespace Opc.Ua.Client.ComplexTypes
                     unionSelector++;
                 }
 
-                if (encoder.UseReversibleEncoding)
-                {
-                    fieldName ??= unionProperty.Name;
-                }
+                fieldName ??= unionProperty.Name;
 
                 EncodeProperty(encoder, fieldName, unionProperty);
-            }
-            else if (!encoder.UseReversibleEncoding)
-            {
-                encoder.WriteString(null, null);
             }
 
             encoder.PopNamespace();

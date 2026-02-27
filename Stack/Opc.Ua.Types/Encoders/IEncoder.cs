@@ -28,8 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.Xml;
 
 namespace Opc.Ua
 {
@@ -42,15 +40,6 @@ namespace Opc.Ua
         /// The type of encoding being used.
         /// </summary>
         EncodingType EncodingType { get; }
-
-        /// <summary>
-        /// If the encoder is configured to produce a reversible encoding.
-        /// </summary>
-        /// <remarks>
-        /// The BinaryEncoder and XmlEncoder in this library are reversible encoders.
-        /// For a JsonEncoder, reversability depends on the encoding type.
-        /// </remarks>
-        bool UseReversibleEncoding { get; }
 
         /// <summary>
         /// The message context associated with the encoder.

@@ -89,7 +89,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void JsonEncoderConstructor()
         {
-            using var jsonEncoder = new JsonEncoder(m_context, false);
+            using var jsonEncoder = new JsonEncoder(m_context, JsonEncodingType.Compact);
             TestEncoding(jsonEncoder);
             _ = jsonEncoder.CloseAndReturnText();
         }
@@ -194,7 +194,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             using (var jsonEncoder = new JsonEncoder(
                 m_context,
-                false,
+                JsonEncodingType.Compact,
                 false,
                 memoryStream,
                 true,
@@ -205,7 +205,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
             using (var jsonEncoder = new JsonEncoder(
                 m_context,
-                false,
+                JsonEncodingType.Compact,
                 false,
                 memoryStream,
                 true,
@@ -235,7 +235,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             stream.Position = 0;
             using (var jsonEncoder = new JsonEncoder(
                 m_context,
-                false,
+                JsonEncodingType.Compact,
                 false,
                 stream,
                 true,
@@ -246,7 +246,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
             using (var jsonEncoder = new JsonEncoder(
                 m_context,
-                false,
+                JsonEncodingType.Compact,
                 false,
                 stream,
                 true,

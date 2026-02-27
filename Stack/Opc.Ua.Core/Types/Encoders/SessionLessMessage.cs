@@ -87,7 +87,7 @@ namespace Opc.Ua
             }
 
             // create encoder.
-            var encoder = new JsonEncoder(context, true, false, stream, leaveOpen);
+            var encoder = new JsonEncoder(context, JsonEncodingType.Verbose, false, stream, leaveOpen);
             try
             {
                 long start = stream.Position;

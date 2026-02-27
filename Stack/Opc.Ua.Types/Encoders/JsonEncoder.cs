@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing.Drawing2D;
 using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -45,25 +44,28 @@ namespace Opc.Ua
     /// <summary>
     /// Writes objects to a JSON stream.
     /// </summary>
-    public class JsonEncoder2 : IEncoder
+    public class JsonEncoder : IJsonEncoder
     {
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        public JsonEncoder2(
+        public JsonEncoder(
             IServiceMessageContext context,
             JsonEncodingType encoding,
             bool topLevelIsArray = false,
             Stream stream = null,
             bool leaveOpen = false,
             int streamSize = kStreamWriterBufferSize)
-             : this(encoding)
         {
-            Context = context;
-            m_logger = context.Telemetry.CreateLogger<JsonEncoder2>();
+            Context = context ?? throw new ArgumentNullException(nameof(context));
+            m_logger = context.Telemetry.CreateLogger<JsonEncoder>();
             m_stream = stream;
             m_leaveOpen = leaveOpen;
             m_topLevelIsArray = topLevelIsArray;
+            EncodingToUse = encoding;
+            IncludeDefaultValues = encoding == JsonEncodingType.Verbose;
+            m_includeDefaultNumberValues = encoding == JsonEncodingType.Verbose;
+            m_inVariantWithEncoding = IncludeDefaultValues;
 
             if (m_stream == null)
             {
@@ -82,17 +84,20 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        public JsonEncoder2(
+        public JsonEncoder(
             IServiceMessageContext context,
             JsonEncodingType encoding,
             StreamWriter writer,
             bool topLevelIsArray = false)
-            : this(encoding)
         {
-            Context = context;
-            m_logger = context.Telemetry.CreateLogger<JsonEncoder2>();
+            Context = context ?? throw new ArgumentNullException(nameof(context));
+            m_logger = context.Telemetry.CreateLogger<JsonEncoder>();
             m_writer = writer;
             m_topLevelIsArray = topLevelIsArray;
+            EncodingToUse = encoding;
+            IncludeDefaultValues = encoding == JsonEncodingType.Verbose;
+            m_includeDefaultNumberValues = encoding == JsonEncodingType.Verbose;
+            m_inVariantWithEncoding = IncludeDefaultValues;
 
             if (m_writer == null)
             {
@@ -101,22 +106,6 @@ namespace Opc.Ua
             }
 
             InitializeWriter();
-        }
-
-        /// <summary>
-        /// Sets default values.
-        /// </summary>
-        private JsonEncoder2(JsonEncodingType encoding)
-        {
-            // defaults for JSON encoding
-            EncodingToUse = encoding;
-            // defaults for compact and verbose JSON encoding, properties throw exception if modified
-            m_forceNamespaceUri = true;
-            m_forceNamespaceUriForIndex1 = true;
-            m_includeDefaultValues = encoding == JsonEncodingType.Verbose;
-            m_includeDefaultNumberValues = encoding == JsonEncodingType.Verbose;
-            m_encodeNodeIdAsString = true;
-            m_inVariantWithEncoding = IncludeDefaultValues;
         }
 
         /// <summary>
@@ -143,11 +132,6 @@ namespace Opc.Ua
             byte[] buffer,
             IServiceMessageContext context)
         {
-            if (message == null)
-            {
-                throw new ArgumentNullException(nameof(message));
-            }
-
             if (buffer == null)
             {
                 throw new ArgumentNullException(nameof(buffer));
@@ -159,7 +143,7 @@ namespace Opc.Ua
             }
 
             using var stream = new MemoryStream(buffer, true);
-            using var encoder = new JsonEncoder2(context, true, false, stream);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose, false, stream);
             // encode message
             encoder.EncodeMessage(message);
             int length = encoder.Close();
@@ -170,7 +154,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void EncodeMessage<T>(T message) where T : IEncodeable
         {
-            if (message == null)
+            if (EqualityComparer<T>.Default.Equals(message, default))
             {
                 throw new ArgumentNullException(nameof(message));
             }
@@ -287,33 +271,19 @@ namespace Opc.Ua
         /// </summary>
         public IServiceMessageContext Context { get; }
 
-        /// <summary>
-        /// The Json encoder to encoder namespace URI instead of
-        /// namespace Index in NodeIds.
-        /// </summary>
-        public bool ForceNamespaceUri => m_forceNamespaceUri;
-
-        /// <summary>
-        /// The Json encoder to encode namespace URI for all
-        /// namespaces
-        /// </summary>
-        public bool ForceNamespaceUriForIndex1 => m_forceNamespaceUriForIndex1;
+        /// <inheritdoc/>
+        public bool ForceNamespaceUri { get; set; } = true;
 
         /// <summary>
         /// The Json encoder default value option.
         /// </summary>
-        public bool IncludeDefaultValues => m_includeDefaultValues;
+        public bool IncludeDefaultValues { get; }
 
         /// <summary>
         /// The Json encoder default value option for numbers.
         /// </summary>
         public bool IncludeDefaultNumberValues
-            => m_includeDefaultNumberValues || m_includeDefaultValues;
-
-        /// <summary>
-        /// The Json encoder default encoding for NodeId as string or object.
-        /// </summary>
-        public bool EncodeNodeIdAsString => m_encodeNodeIdAsString;
+            => m_includeDefaultNumberValues || IncludeDefaultValues;
 
         /// <inheritdoc/>
         public void UsingAlternateEncoding<T>(
@@ -677,43 +647,6 @@ namespace Opc.Ua
             WriteSimpleField(fieldName, xml, EscapeOptions.Quotes);
         }
 
-        private void WriteNodeIdContents(NodeId value, string namespaceUri = null)
-        {
-            if (value.IdType > IdType.Numeric)
-            {
-                WriteInt32("IdType", (int)value.IdType);
-            }
-            if (value.TryGetIdentifier(out uint numericId))
-            {
-                WriteUInt32("Id", numericId);
-            }
-            else if (value.TryGetIdentifier(out string stringId))
-            {
-                WriteString("Id", stringId);
-            }
-            else if (value.TryGetIdentifier(out Guid guidIdentifier))
-            {
-                WriteGuid("Id", guidIdentifier);
-            }
-            else if (value.TryGetIdentifier(out ByteString opaqueId))
-            {
-                WriteByteString("Id", opaqueId);
-            }
-            else
-            {
-                throw ServiceResultException.Unexpected(
-                    $"Unexpected Node IdType {value.IdType}");
-            }
-            if (namespaceUri != null)
-            {
-                WriteString("Namespace", namespaceUri);
-            }
-            else
-            {
-                WriteNamespaceIndex("Namespace", value.NamespaceIndex);
-            }
-        }
-
         /// <inheritdoc/>
         public void WriteNodeId(string fieldName, NodeId value)
         {
@@ -724,32 +657,10 @@ namespace Opc.Ua
                 return;
             }
 
-            if (m_encodeNodeIdAsString)
-            {
-                WriteSimpleField(
-                    fieldName,
-                    isNull ? string.Empty : value.Format(Context, ForceNamespaceUri),
-                    EscapeOptions.Quotes);
-                return;
-            }
-
-            PushStructure(fieldName);
-
-            if (!isNull)
-            {
-                ushort namespaceIndex = value.NamespaceIndex;
-                if (ForceNamespaceUri && namespaceIndex > (ForceNamespaceUriForIndex1 ? 0 : 1))
-                {
-                    string namespaceUri = Context.NamespaceUris.GetString(namespaceIndex);
-                    WriteNodeIdContents(value, namespaceUri);
-                }
-                else
-                {
-                    WriteNodeIdContents(value);
-                }
-            }
-
-            PopStructure();
+            WriteSimpleField(
+                fieldName,
+                isNull ? string.Empty : value.Format(Context, ForceNamespaceUri),
+                EscapeOptions.Quotes);
         }
 
         /// <inheritdoc/>
@@ -762,46 +673,10 @@ namespace Opc.Ua
                 return;
             }
 
-            if (m_encodeNodeIdAsString)
-            {
-                WriteSimpleField(
-                    fieldName,
-                    isNull ? string.Empty : value.Format(Context, ForceNamespaceUri),
-                    EscapeOptions.Quotes);
-                return;
-            }
-
-            PushStructure(fieldName);
-
-            if (!isNull)
-            {
-                string namespaceUri = value.NamespaceUri;
-                ushort namespaceIndex = value.InnerNodeId.NamespaceIndex;
-                if (ForceNamespaceUri &&
-                    namespaceUri == null &&
-                    namespaceIndex > (ForceNamespaceUriForIndex1 ? 0 : 1))
-                {
-                    namespaceUri = Context.NamespaceUris.GetString(namespaceIndex);
-                }
-                WriteNodeIdContents(value.InnerNodeId, namespaceUri);
-
-                uint serverIndex = value.ServerIndex;
-
-                if (serverIndex >= 1)
-                {
-                    if (m_serverMappings != null && m_serverMappings.Length > serverIndex)
-                    {
-                        serverIndex = m_serverMappings[serverIndex];
-                    }
-
-                    if (serverIndex != 0)
-                    {
-                        WriteUInt32("ServerUri", serverIndex);
-                    }
-                }
-            }
-
-            PopStructure();
+            WriteSimpleField(
+                fieldName,
+                isNull ? string.Empty : value.Format(Context, ForceNamespaceUri),
+                EscapeOptions.Quotes);
         }
 
         /// <inheritdoc/>
@@ -826,24 +701,10 @@ namespace Opc.Ua
                 return;
             }
 
-            if (m_encodeNodeIdAsString)
-            {
-                WriteSimpleField(
-                    fieldName,
-                    isNull ? string.Empty : value.Format(Context, ForceNamespaceUri),
-                    EscapeOptions.Quotes);
-                return;
-            }
-
-            PushStructure(fieldName);
-
-            if (!isNull)
-            {
-                WriteString("Name", value.Name);
-                WriteNamespaceIndex("Uri", value.NamespaceIndex);
-            }
-
-            PopStructure();
+            WriteSimpleField(
+                fieldName,
+                isNull ? string.Empty : value.Format(Context, ForceNamespaceUri),
+                EscapeOptions.Quotes);
         }
 
         /// <inheritdoc/>
@@ -880,7 +741,6 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteVariant(string fieldName, Variant value)
         {
-
             CheckAndIncrementNestingLevel();
 
             try
@@ -903,9 +763,7 @@ namespace Opc.Ua
                         WriteVariantIntoObject("Value", value);
                     }
                     PopStructure();
-                    return;
                 }
-
             }
             finally
             {
@@ -1076,7 +934,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteEncodeable<T>(string fieldName, T value) where T : IEncodeable
         {
-            bool isNull = value == null;
+            bool isNull = EqualityComparer<T>.Default.Equals(value, default);
 
             if (fieldName != null && isNull && !IncludeDefaultValues)
             {
@@ -2190,35 +2048,6 @@ namespace Opc.Ua
                 writeNumber ? EscapeOptions.None : EscapeOptions.Quotes);
         }
 
-        private void WriteNamespaceIndex(string fieldName, ushort namespaceIndex)
-        {
-            if (namespaceIndex == 0)
-            {
-                return;
-            }
-
-            if (ForceNamespaceUri &&
-                namespaceIndex > (ForceNamespaceUriForIndex1 ? 0 : 1))
-            {
-                string uri = Context.NamespaceUris.GetString(namespaceIndex);
-                if (!string.IsNullOrEmpty(uri))
-                {
-                    WriteSimpleField(fieldName, uri, EscapeOptions.Quotes);
-                    return;
-                }
-            }
-
-            if (m_namespaceMappings != null && m_namespaceMappings.Length > namespaceIndex)
-            {
-                namespaceIndex = m_namespaceMappings[namespaceIndex];
-            }
-
-            if (namespaceIndex != 0)
-            {
-                WriteUInt16(fieldName, namespaceIndex);
-            }
-        }
-
         /// <summary>
         /// Writes the contents of a Variant to the stream.
         /// </summary>
@@ -2684,7 +2513,7 @@ namespace Opc.Ua
             // always include default values for non reversible/verbose
             // include default values when encoding in a Variant
             if (values.IsNull ||
-                (values.Count == 0 && !m_inVariantWithEncoding && !m_includeDefaultValues))
+                (values.Count == 0 && !m_inVariantWithEncoding && !IncludeDefaultValues))
             {
                 WriteSimpleFieldNull(fieldName);
                 return true;
@@ -2923,7 +2752,7 @@ namespace Opc.Ua
         /// <summary>
         /// The length of the DateTime string encoded by "o"
         /// </summary>
-        internal const int DateTimeRoundTripKindLength = 28;
+        public const int DateTimeRoundTripKindLength = 28;
 
         /// <summary>
         /// the index of the last digit which can be omitted if 0
@@ -2940,7 +2769,7 @@ namespace Opc.Ua
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
-        internal static void ConvertUniversalTimeToString(
+        public static void ConvertUniversalTimeToString(
             DateTime value,
             Span<char> valueString,
             out int charsWritten)
@@ -2983,7 +2812,7 @@ namespace Opc.Ua
             }
         }
 #else
-        internal static string ConvertUniversalTimeToString(DateTime value)
+        public static string ConvertUniversalTimeToString(DateTime value)
         {
             // Note: "o" is a shortcut for "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK" and implicitly
             // uses invariant culture and gregorian calendar, but executes up to 10 times faster.
@@ -3288,11 +3117,7 @@ namespace Opc.Ua
         private bool m_levelOneSkipped;
         private bool m_dontWriteClosing;
         private readonly bool m_leaveOpen;
-        private bool m_forceNamespaceUri;
-        private bool m_forceNamespaceUriForIndex1;
-        private bool m_includeDefaultNumberValues;
-        private bool m_includeDefaultValues;
-        private bool m_encodeNodeIdAsString;
+        private readonly bool m_includeDefaultNumberValues;
 
         [Flags]
         private enum EscapeOptions

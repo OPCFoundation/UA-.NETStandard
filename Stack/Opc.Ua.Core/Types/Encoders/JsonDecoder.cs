@@ -1002,7 +1002,7 @@ namespace Opc.Ua
 
             if (token is long code)
             {
-                return (StatusCode)code;
+                return (StatusCode)(uint)code;
             }
 
             bool wasPush = PushStructure(fieldName);
@@ -3470,6 +3470,19 @@ namespace Opc.Ua
                     Context.MaxEncodingNestingLevels);
             }
             m_nestingLevel++;
+        }
+
+        /// <summary>
+        /// TODO
+        /// TODO
+        /// </summary>
+        /// <param name="fieldName"></param>
+        /// <param name="typeInfo"></param>
+        /// <returns></returns>
+        /// <exception cref="NotImplementedException"></exception>
+        public Variant ReadVariantValue(string fieldName, TypeInfo typeInfo)
+        {
+            throw new NotImplementedException();
         }
     }
 }

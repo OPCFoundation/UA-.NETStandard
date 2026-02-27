@@ -525,7 +525,7 @@ namespace Opc.Ua.PubSub.Encoding
                         encoder.WriteVariant,
                         fieldName,
                         valueToEncode,
-                        JsonEncodingType.Reversible);
+                        JsonEncodingType.Verbose);
                     break;
                 case FieldTypeEncodingMask.RawData:
                     // If the DataSetFieldContentMask results in a RawData representation,
@@ -536,7 +536,7 @@ namespace Opc.Ua.PubSub.Encoding
                         encoder.WriteVariant,
                         fieldName,
                         valueToEncode,
-                        JsonEncodingType.NonReversible);
+                        JsonEncodingType.Compact);
                     break;
                 case FieldTypeEncodingMask.DataValue:
                     var dataValue = new DataValue { WrappedValue = valueToEncode };
@@ -573,7 +573,7 @@ namespace Opc.Ua.PubSub.Encoding
                         encoder.WriteDataValue,
                         fieldName,
                         dataValue,
-                        JsonEncodingType.NonReversible);
+                        JsonEncodingType.Compact);
                     break;
                 case FieldTypeEncodingMask.Reserved:
                     break;

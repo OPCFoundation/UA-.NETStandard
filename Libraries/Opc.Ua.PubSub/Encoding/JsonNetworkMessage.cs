@@ -185,7 +185,7 @@ namespace Opc.Ua.PubSub.Encoding
                 !HasSingleDataSetMessage &&
                 !IsMetaDataMessage;
 
-            using var encoder = new JsonEncoder(messageContext, true, topLevelIsArray, stream);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, topLevelIsArray, stream);
             if (IsMetaDataMessage)
             {
                 EncodeNetworkMessageHeader(encoder);

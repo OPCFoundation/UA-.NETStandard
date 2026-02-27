@@ -65,7 +65,7 @@ namespace Opc.Ua.Fuzzing
             // encode the fuzzed object and see if it crashes
             if (encodeable != null)
             {
-                using var encoder = new JsonEncoder(MessageContext, true);
+                using var encoder = new JsonEncoder(MessageContext, JsonEncodingType.Verbose);
                 encoder.EncodeMessage(encodeable);
                 encoder.Close();
             }

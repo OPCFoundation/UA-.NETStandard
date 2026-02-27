@@ -51,7 +51,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     {
         public EncodingTypeGroup(
             EncodingType encoderType,
-            JsonEncodingType jsonEncodingType = JsonEncodingType.Reversible)
+            JsonEncodingType jsonEncodingType = JsonEncodingType.Verbose)
         {
             EncoderType = encoderType;
             JsonEncodingType = jsonEncodingType;
@@ -319,7 +319,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         builtInType,
                         MemoryStreamType.ArraySegmentStream,
                         randomData,
-                        JsonEncodingType.NonReversible));
+                        JsonEncodingType.Compact));
                 return;
             }
             string json = EncodeDataValue(
@@ -327,7 +327,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 builtInType,
                 MemoryStreamType.MemoryStream,
                 randomData,
-                JsonEncodingType.NonReversible);
+                JsonEncodingType.Compact);
             PrettifyAndValidateJson(json);
         }
 
@@ -382,7 +382,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 builtInType,
                 MemoryStreamType.RecyclableMemoryStream,
                 randomData,
-                JsonEncodingType.NonReversible);
+                JsonEncodingType.Compact);
             PrettifyAndValidateJson(json);
         }
 
@@ -401,7 +401,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 builtInType,
                 MemoryStreamType.MemoryStream,
                 randomData,
-                JsonEncodingType.NonReversible);
+                JsonEncodingType.Compact);
             PrettifyAndValidateJson(json);
         }
 
@@ -573,7 +573,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string text;
             using (var encoder = new JsonEncoder(
                 new ServiceMessageContext(Telemetry),
-                true,
+                JsonEncodingType.Verbose,
                 false,
                 stream,
                 true))
@@ -687,7 +687,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // strip the locale information from localized text for non reversible
             if (builtInType == BuiltInType.LocalizedText &&
-                jsonEncodingType == JsonEncodingType.NonReversible)
+                jsonEncodingType == JsonEncodingType.Compact)
             {
                 expected = expected.GetLocalizedTextArray().ConvertAll(l => new LocalizedText(l.Text));
             }
@@ -893,7 +893,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // strip the locale information from localized text for non reversible
             if (builtInType == BuiltInType.LocalizedText &&
-                jsonEncodingType == JsonEncodingType.NonReversible)
+                jsonEncodingType == JsonEncodingType.Compact)
             {
                 expected = expected.GetLocalizedTextMatrix().ConvertAll(l => new LocalizedText(l.Text));
             }
@@ -959,7 +959,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         jsonEncodingType))
                 {
                     if (encoderType == EncodingType.Json &&
-                        jsonEncodingType == JsonEncodingType.NonReversible)
+                        jsonEncodingType == JsonEncodingType.Compact)
                     {
                         ServiceResultException sre = NUnit.Framework.Assert
                             .Throws<ServiceResultException>(() =>
@@ -1048,7 +1048,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         jsonEncodingType))
                 {
                     if (encoderType == EncodingType.Json &&
-                        jsonEncodingType == JsonEncodingType.NonReversible)
+                        jsonEncodingType == JsonEncodingType.Compact)
                     {
                         ServiceResultException sre = NUnit.Framework.Assert
                             .Throws<ServiceResultException>(() =>

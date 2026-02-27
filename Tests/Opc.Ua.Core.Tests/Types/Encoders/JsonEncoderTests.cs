@@ -1079,32 +1079,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_memoryStream = null;
         }
 
-        [Test]
-        [TestCase(JsonEncodingType.Compact)]
-        [TestCase(JsonEncodingType.Verbose)]
-        public void ForcePropertiesShouldThrow(JsonEncodingType jsonEncodingType)
-        {
-            using var encoder = new JsonEncoder(Context, jsonEncodingType);
-            NUnit.Framework.Assert
-                .Throws<NotSupportedException>(() => encoder.ForceNamespaceUri = true);
-            NUnit.Framework.Assert
-                .Throws<NotSupportedException>(() => encoder.ForceNamespaceUriForIndex1 = true);
-            NUnit.Framework.Assert
-                .Throws<NotSupportedException>(() => encoder.IncludeDefaultNumberValues = true);
-            NUnit.Framework.Assert
-                .Throws<NotSupportedException>(() => encoder.IncludeDefaultValues = true);
-            NUnit.Framework.Assert
-                .Throws<NotSupportedException>(() => encoder.EncodeNodeIdAsString = false);
-        }
-
         /// <summary>
         /// Validate constructor signature.
         /// </summary>
         [Theory]
-        public void ConstructorDefault(bool useReversible, bool topLevelIsArray)
+        public void ConstructorDefault(JsonEncodingType encodingType, bool topLevelIsArray)
         {
             var context = new ServiceMessageContext(m_telemetry);
-            using var jsonEncoder = new JsonEncoder(context, useReversible, topLevelIsArray);
+            using var jsonEncoder = new JsonEncoder(context, encodingType, topLevelIsArray);
             TestEncoding(jsonEncoder, topLevelIsArray);
             string result = jsonEncoder.CloseAndReturnText();
 
@@ -1159,7 +1141,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void ConstructorStream(MemoryStream memoryStream)
         {
             var context = new ServiceMessageContext(m_telemetry);
-            using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, true))
+            using (var jsonEncoder = new JsonEncoder(context, JsonEncodingType.Verbose, false, memoryStream, true))
             {
                 TestEncoding(jsonEncoder);
             }
@@ -1170,7 +1152,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // recycle the StreamWriter, ensure the result is equal
             memoryStream.Position = 0;
-            using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, true))
+            using (var jsonEncoder = new JsonEncoder(context, JsonEncodingType.Verbose, false, memoryStream, true))
             {
                 TestEncoding(jsonEncoder);
             }
@@ -1183,7 +1165,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // recycle the StreamWriter, ensure the result is equal,
             // use reflection to return result in external stream
             memoryStream.Position = 0;
-            using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, false))
+            using (var jsonEncoder = new JsonEncoder(context, JsonEncodingType.Verbose, false, memoryStream, false))
             {
                 TestEncoding(jsonEncoder);
                 string result3 = jsonEncoder.CloseAndReturnText();
@@ -1208,7 +1190,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             var context = new ServiceMessageContext(m_telemetry);
             using var memoryStream = new ArraySegmentStream(BufferManager);
-            using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, true))
+            using (var jsonEncoder = new JsonEncoder(context, JsonEncodingType.Verbose, false, memoryStream, true))
             {
                 TestEncoding(jsonEncoder);
             }
@@ -1232,7 +1214,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // recycle the memory stream, ensure the result is equal
             memoryStream.Position = 0;
-            using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, true))
+            using (var jsonEncoder = new JsonEncoder(context, JsonEncodingType.Verbose, false, memoryStream, true))
             {
                 TestEncoding(jsonEncoder);
             }
@@ -1245,7 +1227,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // recycle the StreamWriter, ensure the result is equal,
             // use reflection to return result in external stream
             memoryStream.Position = 0;
-            using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, false))
+            using (var jsonEncoder = new JsonEncoder(context, JsonEncodingType.Verbose, false, memoryStream, false))
             {
                 TestEncoding(jsonEncoder);
                 string result3 = jsonEncoder.CloseAndReturnText();
@@ -1270,7 +1252,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             var context = new ServiceMessageContext(m_telemetry);
             using var memoryStream = new RecyclableMemoryStream(RecyclableMemoryManager);
-            using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, true))
+            using (var jsonEncoder = new JsonEncoder(context, JsonEncodingType.Verbose, false, memoryStream, true))
             {
                 TestEncoding(jsonEncoder);
             }
@@ -1294,7 +1276,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // recycle the memory stream, ensure the result is equal
             memoryStream.Position = 0;
-            using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, true))
+            using (var jsonEncoder = new JsonEncoder(context, JsonEncodingType.Verbose, false, memoryStream, true))
             {
                 TestEncoding(jsonEncoder);
             }
@@ -1307,7 +1289,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // recycle the StreamWriter, ensure the result is equal,
             // use reflection to return result in external stream
             memoryStream.Position = 0;
-            using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, false))
+            using (var jsonEncoder = new JsonEncoder(context, JsonEncodingType.Verbose, false, memoryStream, false))
             {
                 TestEncoding(jsonEncoder);
                 string result3 = jsonEncoder.CloseAndReturnText();
@@ -1358,7 +1340,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             _ = PrettifyAndValidateJson(expected);
 
             using var encodeable = new FooBarEncodeable();
-            using var encoder = new JsonEncoder(Context, true, topLevelIsArray);
+            using var encoder = new JsonEncoder(Context, JsonEncodingType.Verbose, topLevelIsArray);
             encoder.WriteEncodeable(null, encodeable);
 
             string encoded = encoder.CloseAndReturnText();
@@ -1384,7 +1366,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             _ = PrettifyAndValidateJson(expected);
 
             using var encodeable = new FooBarEncodeable();
-            using var encoder = new JsonEncoder(Context, true, false);
+            using var encoder = new JsonEncoder(Context, JsonEncodingType.Verbose, false);
             encoder.WriteEncodeable(encodeable.Foo, encodeable);
 
             string encoded = encoder.CloseAndReturnText();
@@ -1420,7 +1402,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {
                     { "Foo", (1, "bar_1") }
                 });
-            using var encoder = new JsonEncoder(Context, true, false);
+            using var encoder = new JsonEncoder(Context, JsonEncodingType.Verbose, false);
             encoder.WriteEncodeable("bar_1", encodeable);
 
             string encoded = encoder.CloseAndReturnText();
@@ -1512,7 +1494,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // Encode to JSON
             string encodedJson;
-            using (var encoder = new JsonEncoder(Context, true, false))
+            using (var encoder = new JsonEncoder(Context, JsonEncodingType.Verbose, false))
             {
                 encoder.WriteExtensionObject(null, extensionObjectFromXml);
 
@@ -1547,7 +1529,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void TestWriteSingleEncodeableWithNameAndArrayAsTopLevelExpectException()
         {
             using var encodeable = new FooBarEncodeable();
-            using var encoder = new JsonEncoder(Context, true, true);
+            using var encoder = new JsonEncoder(Context, JsonEncodingType.Verbose, true);
             NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
                 encoder.WriteEncodeable(encodeable.Foo, encodeable));
         }
@@ -1562,7 +1544,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // "{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}"
             // "{{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}}"
             using var encodeable = new FooBarEncodeable();
-            using var encoder = new JsonEncoder(Context, true, false);
+            using var encoder = new JsonEncoder(Context, JsonEncodingType.Verbose, false);
             NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
             {
                 encoder.WriteEncodeable(null, encodeable);
@@ -1588,7 +1570,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var encodeables = new List<FooBarEncodeable> { new(), new(), new() };
             try
             {
-                using var encoder = new JsonEncoder(Context, true, topLevelIsArray);
+                using var encoder = new JsonEncoder(Context, JsonEncodingType.Verbose, topLevelIsArray);
                 foreach (FooBarEncodeable encodeable in encodeables)
                 {
                     encoder.WriteEncodeable(null, encodeable);
@@ -1624,7 +1606,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var encodeables = new List<FooBarEncodeable> { new(), new(), new() };
             try
             {
-                using var encoder = new JsonEncoder(Context, true, false);
+                using var encoder = new JsonEncoder(Context, JsonEncodingType.Verbose, false);
                 foreach (FooBarEncodeable encodeable in encodeables)
                 {
                     encoder.WriteEncodeable(encodeable.Foo, encodeable);
@@ -1737,7 +1719,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             _ = PrettifyAndValidateJson(expected);
 
             using var encodeable = new FooBarEncodeable(fieldname, foo);
-            using var encoder = new JsonEncoder(Context, true);
+            using var encoder = new JsonEncoder(Context, JsonEncodingType.Verbose);
             encoder.WriteEncodeable(encodeable.FieldName, encodeable);
 
             string encoded = encoder.CloseAndReturnText();
@@ -1769,7 +1751,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             using var encodeable = new FooBarEncodeable(fieldname, foo);
             ArrayOf<FooBarEncodeable> list = [encodeable, encodeable];
-            using var encoder = new JsonEncoder(Context, true);
+            using var encoder = new JsonEncoder(Context, JsonEncodingType.Verbose);
             encoder.WriteEncodeableArray(encodeable.FieldName, list);
 
             string encoded = encoder.CloseAndReturnText();
@@ -1802,7 +1784,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var encodeable = new FooBarEncodeable(fieldname, foo);
             var variant = new Variant(new ExtensionObject(encodeable));
             // non reversible to save some space
-            using var encoder = new JsonEncoder(Context, false);
+            using var encoder = new JsonEncoder(Context, JsonEncodingType.Verbose);
             encoder.WriteVariant(encodeable.FieldName, variant);
 
             string encoded = encoder.CloseAndReturnText();
@@ -1983,7 +1965,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void JsonEncoderConstructor()
         {
-            using var jsonEncoder = new JsonEncoder(m_context, false);
+            using var jsonEncoder = new JsonEncoder(m_context, JsonEncodingType.Compact);
             TestEncoding(jsonEncoder);
             _ = jsonEncoder.CloseAndReturnText();
         }
@@ -2022,7 +2004,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     _ = PrettifyAndValidateJson(expected);
                 }
 
-                using var encoder = new JsonEncoder(Context, true, topLevelIsArray);
+                using var encoder = new JsonEncoder(Context, JsonEncodingType.Verbose, topLevelIsArray);
                 encoder.WriteEncodeableArray(
                     fieldName,
                     encodeables.ToArrayOf());
