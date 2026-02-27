@@ -997,13 +997,14 @@ namespace Opc.Ua.SourceGeneration
                         if (field.DataTypeNode.BaseTypeNode.SymbolicId ==
                             new XmlQualifiedName("OptionSet", Namespaces.OpcUa))
                         {
-                            functionName = "Encodeable";
-                            elementName = field.DataTypeNode.GetDotNetTypeName(
-                                ValueRank.Scalar,
-                                m_context.ModelDesign.TargetNamespace.Value,
-                                m_context.ModelDesign.Namespaces,
-                                nullable: NullableAnnotation.NonNullable,
-                                useArrayTypeInsteadOfCollection: isServiceType);
+                            functionName = CoreUtils.Format(
+                                "Encodeable<{0}>",
+                                field.DataTypeNode.GetDotNetTypeName(
+                                    ValueRank.Scalar,
+                                    m_context.ModelDesign.TargetNamespace.Value,
+                                    m_context.ModelDesign.Namespaces,
+                                    nullable: NullableAnnotation.NonNullable,
+                                    useArrayTypeInsteadOfCollection: isServiceType));
                             break;
                         }
 
@@ -1012,25 +1013,27 @@ namespace Opc.Ua.SourceGeneration
                         break;
                     }
 
-                    functionName = "Enumerated";
-                    elementName = field.DataTypeNode.GetDotNetTypeName(
-                        ValueRank.Scalar,
-                        m_context.ModelDesign.TargetNamespace.Value,
-                        m_context.ModelDesign.Namespaces,
-                        nullable: NullableAnnotation.NonNullable,
-                        useArrayTypeInsteadOfCollection: isServiceType);
+                    functionName = CoreUtils.Format(
+                        "Enumerated<{0}>",
+                        field.DataTypeNode.GetDotNetTypeName(
+                            ValueRank.Scalar,
+                            m_context.ModelDesign.TargetNamespace.Value,
+                            m_context.ModelDesign.Namespaces,
+                            nullable: NullableAnnotation.NonNullable,
+                            useArrayTypeInsteadOfCollection: isServiceType));
                     break;
                 case BasicDataType.UserDefined:
                     if (!field.AllowSubTypes)
                     {
                         // Read as encodeable as we do not allow subtype values
-                        functionName = "Encodeable";
-                        elementName = field.DataTypeNode.GetDotNetTypeName(
+                        functionName = CoreUtils.Format(
+                            "Encodeable<{0}>",
+                            field.DataTypeNode.GetDotNetTypeName(
                             ValueRank.Scalar,
                             m_context.ModelDesign.TargetNamespace.Value,
                             m_context.ModelDesign.Namespaces,
                             nullable: NullableAnnotation.NonNullable,
-                            useArrayTypeInsteadOfCollection: isServiceType);
+                            useArrayTypeInsteadOfCollection: isServiceType));
                         break;
                     }
 
@@ -1079,16 +1082,7 @@ namespace Opc.Ua.SourceGeneration
                     }
 
                     // Matrix or other non-scalar, non-array
-
-                    context.Out.WriteLine($"decoder.ReadVariant({fieldName});");
-
-                    if (isUnion)
-                    {
-                        context.Out.WriteLine("break;");
-                        context.Out.WriteLine("}");
-                    }
-
-                    return null;
+                    break;
             }
 
             if (field.ValueRank == ValueRank.Array)
@@ -1098,30 +1092,9 @@ namespace Opc.Ua.SourceGeneration
             else if (field.ValueRank != ValueRank.Scalar)
             {
                 functionName = "Variant";
-                elementName = null;
             }
 
-            context.Out.Write("{0} = ", valueName);
-
-            if (elementName != null)
-            {
-                if (field.ValueRank == ValueRank.Array)
-                {
-                    context.Out.Write("({0}Collection)", elementName);
-                }
-                else
-                {
-                    context.Out.Write("({0})", elementName);
-                }
-
-                context.Out.WriteLine(
-                    $"decoder.Read{functionName}({fieldName}, typeof({elementName}));");
-            }
-            else
-            {
-                context.Out.WriteLine($"decoder.Read{functionName}({fieldName});");
-            }
-
+            context.Out.WriteLine("{0} = decoder.Read{1}({2});", valueName, functionName, fieldName);
             if (isUnion)
             {
                 context.Out.WriteLine("break;");

@@ -134,8 +134,8 @@ namespace Opc.Ua
 
             DefaultEncodingId = decoder.ReadNodeId("DefaultEncodingId");
             BaseDataType = decoder.ReadNodeId("BaseDataType");
-            StructureType = (StructureType)decoder.ReadEnumerated("StructureType", typeof(StructureType));
-            Fields = (StructureFieldCollection)decoder.ReadEncodeableArray("Fields", typeof(StructureField));
+            StructureType = decoder.ReadEnumerated<StructureType>("StructureType");
+            Fields = decoder.ReadEncodeableArray<StructureField>("Fields");
 
             decoder.PopNamespace();
         }

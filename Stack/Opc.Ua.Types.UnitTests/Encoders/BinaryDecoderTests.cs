@@ -359,7 +359,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Act & Assert
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(() =>
-                BinaryDecoder.DecodeMessage(stream, typeof(TestEncodeable), messageContext));
+                BinaryDecoder.DecodeMessage<TestEncodeable>(stream, messageContext));
             Assert.That(ex.ParamName, Is.EqualTo("stream"));
         }
 
@@ -372,11 +372,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var stream = new MemoryStream(encodedMessage);
 
             // Act
-            IEncodeable result = BinaryDecoder.DecodeMessage(stream, typeof(TestEncodeable), messageContext);
+            TestEncodeable result = BinaryDecoder.DecodeMessage<TestEncodeable>(stream, messageContext);
 
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result, Is.InstanceOf<TestEncodeable>());
         }
 
         [Test]
@@ -387,11 +386,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] encodedMessage = CreateEncodedTestMessage();
 
             // Act
-            IEncodeable result = BinaryDecoder.DecodeMessage(encodedMessage, typeof(TestEncodeable), messageContext);
+            TestEncodeable result = BinaryDecoder.DecodeMessage<TestEncodeable>(encodedMessage, messageContext);
 
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result, Is.InstanceOf<TestEncodeable>());
         }
 
         [Test]
@@ -415,7 +413,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Act & Assert
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => decoder.DecodeMessage(typeof(TestEncodeable)));
+                () => decoder.DecodeMessage<TestEncodeable>());
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
@@ -428,7 +426,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(encodedMessage, messageContext);
 
             // Act
-            IEncodeable result = decoder.DecodeMessage(typeof(TestEncodeable));
+            TestEncodeable result = decoder.DecodeMessage<TestEncodeable>();
 
             // Assert
             Assert.That(result, Is.Not.Null);
@@ -445,7 +443,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(encodedMessage, messageContext);
 
             // Act
-            IEncodeable result = decoder.DecodeMessage(typeof(TestEncodeable));
+            TestEncodeable result = decoder.DecodeMessage<TestEncodeable>();
 
             // Assert
             Assert.That(result, Is.Not.Null);
@@ -461,7 +459,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(encodedMessage, messageContext);
 
             // Act
-            IEncodeable result = decoder.DecodeMessage(typeof(TestEncodeable));
+            TestEncodeable result = decoder.DecodeMessage<TestEncodeable>();
 
             // Assert
             Assert.That(result, Is.Not.Null);
@@ -521,14 +519,14 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            ExtensionObjectCollection result = decoder.ReadExtensionObjectArray(null);
+            ArrayOf<ExtensionObject> result = decoder.ReadExtensionObjectArray(null);
 
             // Assert
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
-        public void ReadExtensionObjectArrayReturnsEmptyCollectionForZeroLength()
+        public void ReadExtensionObjectArrayReturnsEmptyArrayForZeroLength()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -537,10 +535,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            ExtensionObjectCollection result = decoder.ReadExtensionObjectArray(null);
+            ArrayOf<ExtensionObject> result = decoder.ReadExtensionObjectArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(0));
         }
 
@@ -554,11 +552,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Array result = decoder.ReadEncodeableArray(null, typeof(TestEncodeable));
+            ArrayOf<TestEncodeable> result = decoder.ReadEncodeableArray<TestEncodeable>(null);
 
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(0));
+            Assert.That(result.Count, Is.EqualTo(0));
         }
 
         [Test]
@@ -570,21 +568,21 @@ namespace Opc.Ua.Types.Tests.Encoders
             [
                 .. BitConverter.GetBytes(2), // length = 2
                 // First TestEncodeable
-                .. BitConverter.GetBytes((ushort)12345), // NodeId (numeric, namespace 0)
+                .. BitConverter.GetBytes((ushort)0x1100), // NodeId (numeric, namespace 0)
                 0x00, // encoding mask
                 // Second TestEncodeable
-                .. BitConverter.GetBytes((ushort)12345), // NodeId (numeric, namespace 0)
+                .. BitConverter.GetBytes((ushort)0x1100), // NodeId (numeric, namespace 0)
                 0x00 // encoding mask
             ];
 
             var decoder = new BinaryDecoder(buffer.ToArray(), messageContext);
 
             // Act
-            Array result = decoder.ReadEncodeableArray(null, typeof(TestEncodeable));
+            ArrayOf<TestEncodeable> result = decoder.ReadEncodeableArray<TestEncodeable>(null);
 
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(2));
+            Assert.That(result.Count, Is.EqualTo(2));
         }
 
         [Test]
@@ -597,10 +595,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Array result = decoder.ReadEnumeratedArray(null, typeof(TestEnum));
+            ArrayOf<TestEnum> result = decoder.ReadEnumeratedArray<TestEnum>(null);
 
             // Assert
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
@@ -618,13 +616,15 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.SByte);
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.SByte, ValueRanks.OneDimension));
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(2));
-            Assert.That(result.GetValue(0), Is.EqualTo((sbyte)127));
-            Assert.That(result.GetValue(1), Is.EqualTo((sbyte)-128));
+            Assert.That(result.IsNull, Is.False);
+            ArrayOf<sbyte> resultArray = result.GetSByteArray();
+            Assert.That(resultArray.IsNull, Is.False);
+            Assert.That(resultArray.Count, Is.EqualTo(2));
+            Assert.That(resultArray[0], Is.EqualTo((sbyte)127));
+            Assert.That(resultArray[1], Is.EqualTo((sbyte)-128));
         }
 
         [Test]
@@ -642,13 +642,15 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.Int16);
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.Int16, ValueRanks.OneDimension));
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(2));
-            Assert.That(result.GetValue(0), Is.EqualTo((short)32767));
-            Assert.That(result.GetValue(1), Is.EqualTo((short)-32768));
+            Assert.That(result.IsNull, Is.False);
+            ArrayOf<short> resultArray = result.GetInt16Array();
+            Assert.That(resultArray.IsNull, Is.False);
+            Assert.That(resultArray.Count, Is.EqualTo(2));
+            Assert.That(resultArray[0], Is.EqualTo((short)32767));
+            Assert.That(resultArray[1], Is.EqualTo((short)-32768));
         }
 
         [Test]
@@ -666,13 +668,15 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.UInt16);
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.UInt16, ValueRanks.OneDimension));
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(2));
-            Assert.That(result.GetValue(0), Is.EqualTo((ushort)65535));
-            Assert.That(result.GetValue(1), Is.EqualTo((ushort)0));
+            Assert.That(result.IsNull, Is.False);
+            ArrayOf<ushort> resultArray = result.GetUInt16Array();
+            Assert.That(resultArray.IsNull, Is.False);
+            Assert.That(resultArray.Count, Is.EqualTo(2));
+            Assert.That(resultArray[0], Is.EqualTo((ushort)65535));
+            Assert.That(resultArray[1], Is.EqualTo((ushort)0));
         }
 
         [Test]
@@ -690,13 +694,15 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.Enumeration, typeof(string));
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.Enumeration, ValueRanks.OneDimension));
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(2));
-            Assert.That(result.GetValue(0), Is.EqualTo(1));
-            Assert.That(result.GetValue(1), Is.EqualTo(2));
+            Assert.That(result.IsNull, Is.False);
+            ArrayOf<int> resultArray = result.GetInt32Array();
+            Assert.That(resultArray.IsNull, Is.False);
+            Assert.That(resultArray.Count, Is.EqualTo(2));
+            Assert.That(resultArray[0], Is.EqualTo(1));
+            Assert.That(resultArray[1], Is.EqualTo(2));
         }
 
         [Test]
@@ -714,13 +720,15 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.Int32);
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.Int32, ValueRanks.OneDimension));
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(2));
-            Assert.That(result.GetValue(0), Is.EqualTo(2147483647));
-            Assert.That(result.GetValue(1), Is.EqualTo(-2147483648));
+            Assert.That(result.IsNull, Is.False);
+            ArrayOf<int> resultArray = result.GetInt32Array();
+            Assert.That(resultArray.IsNull, Is.False);
+            Assert.That(resultArray.Count, Is.EqualTo(2));
+            Assert.That(resultArray[0], Is.EqualTo(2147483647));
+            Assert.That(resultArray[1], Is.EqualTo(-2147483648));
         }
 
         [Test]
@@ -738,13 +746,15 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.Int64);
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.Int64, ValueRanks.OneDimension));
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(2));
-            Assert.That(result.GetValue(0), Is.EqualTo(9223372036854775807L));
-            Assert.That(result.GetValue(1), Is.EqualTo(-9223372036854775808L));
+            Assert.That(result.IsNull, Is.False);
+            ArrayOf<long> resultArray = result.GetInt64Array();
+            Assert.That(resultArray.IsNull, Is.False);
+            Assert.That(resultArray.Count, Is.EqualTo(2));
+            Assert.That(resultArray[0], Is.EqualTo(9223372036854775807L));
+            Assert.That(resultArray[1], Is.EqualTo(-9223372036854775808L));
         }
 
         [Test]
@@ -762,13 +772,15 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.Float);
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.Float, ValueRanks.OneDimension));
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(2));
-            Assert.That(result.GetValue(0), Is.EqualTo(1.0f));
-            Assert.That(result.GetValue(1), Is.EqualTo(2.0f));
+            Assert.That(result.IsNull, Is.False);
+            ArrayOf<float> resultArray = result.GetFloatArray();
+            Assert.That(resultArray.IsNull, Is.False);
+            Assert.That(resultArray.Count, Is.EqualTo(2));
+            Assert.That(resultArray[0], Is.EqualTo(1.0f));
+            Assert.That(resultArray[1], Is.EqualTo(2.0f));
         }
 
         [Test]
@@ -790,13 +802,15 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer.ToArray(), messageContext);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.Guid);
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.Guid, ValueRanks.OneDimension));
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(2));
-            Assert.That(result.GetValue(0), Is.EqualTo(guid1));
-            Assert.That(result.GetValue(1), Is.EqualTo(guid2));
+            Assert.That(result.IsNull, Is.False);
+            ArrayOf<Uuid> resultArray = result.GetGuidArray();
+            Assert.That(resultArray.IsNull, Is.False);
+            Assert.That(resultArray.Count, Is.EqualTo(2));
+            Assert.That(resultArray[0], Is.EqualTo(guid1));
+            Assert.That(resultArray[1], Is.EqualTo(guid2));
         }
 
         [Test]
@@ -819,11 +833,13 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer.ToArray(), messageContext);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.ExpandedNodeId);
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.ExpandedNodeId, ValueRanks.OneDimension));
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(2));
+            Assert.That(result.IsNull, Is.False);
+            ArrayOf<ExpandedNodeId> resultArray = result.GetExpandedNodeIdArray();
+            Assert.That(resultArray.IsNull, Is.False);
+            Assert.That(resultArray.Count, Is.EqualTo(2));
         }
 
         [Test]
@@ -848,11 +864,13 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer.ToArray(), messageContext);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.QualifiedName);
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.QualifiedName, ValueRanks.OneDimension));
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(2));
+            Assert.That(result.IsNull, Is.False);
+            ArrayOf<QualifiedName> resultArray = result.GetQualifiedNameArray();
+            Assert.That(resultArray.IsNull, Is.False);
+            Assert.That(resultArray.Count, Is.EqualTo(2));
         }
 
         [Test]
@@ -875,11 +893,13 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer.ToArray(), messageContext);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.LocalizedText);
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.LocalizedText, ValueRanks.OneDimension));
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
+            Assert.That(result.IsNull, Is.False);
+            ArrayOf<LocalizedText> resultArray = result.GetLocalizedTextArray();
+            Assert.That(resultArray.IsNull, Is.False);
+            Assert.That(resultArray.Count, Is.EqualTo(1));
         }
 
         [Test]
@@ -898,15 +918,17 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer.ToArray(), messageContext);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.DataValue);
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.DataValue, ValueRanks.OneDimension));
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
+            Assert.That(result.IsNull, Is.False);
+            ArrayOf<DataValue> resultArray = result.GetDataValueArray();
+            Assert.That(resultArray.IsNull, Is.False);
+            Assert.That(resultArray.Count, Is.EqualTo(1));
         }
 
         [Test]
-        public void ReadArrayReturnsEncodeableArrayForOneDimensionWithVariantAndEncodeableType()
+        public void ReadArrayReturnsEncodeableArrayForOneDimensionEncodeableTypes()
         {
             // Arrange
             ServiceMessageContext messageContext = SetupContextForDecodeMessage();
@@ -914,7 +936,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             [
                 .. BitConverter.GetBytes(1), // length = 1
                 // TestEncodeable
-                .. BitConverter.GetBytes((ushort)12345), // NodeId (numeric, namespace 0)
+                .. BitConverter.GetBytes((ushort)0x1100), // NodeId (numeric, namespace 0)
                 0x00 // encoding mask
             ];
 
@@ -922,34 +944,14 @@ namespace Opc.Ua.Types.Tests.Encoders
             var encodeableTypeId = new ExpandedNodeId(12345, 0);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.Variant, typeof(TestEncodeable), encodeableTypeId);
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.ExtensionObject, ValueRanks.OneDimension));
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
-        }
-
-        [Test]
-        public void ReadArrayReturnsDiagnosticInfoArrayForOneDimension()
-        {
-            // Arrange
-            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext);
-            List<byte> buffer =
-            [
-                .. BitConverter.GetBytes(1), // length = 1
-                // DiagnosticInfo with no fields set
-                0x00 // encoding mask
-            ];
-
-            var decoder = new BinaryDecoder(buffer.ToArray(), messageContext);
-
-            // Act
-            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.DiagnosticInfo);
-
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
+            Assert.That(result.IsNull, Is.False);
+            ArrayOf<ExtensionObject> resultArray = result.GetExtensionObjectArray();
+            Assert.That(resultArray.IsNull, Is.False);
+            Assert.That(resultArray.Count, Is.EqualTo(1));
+            Assert.That(resultArray[0].TypeId, Is.EqualTo(new NodeId(0x11)));
         }
 
         [Test]
@@ -963,7 +965,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Act & Assert
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
-                decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.Null));
+                decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.Null, ValueRanks.OneDimension)));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
@@ -978,8 +980,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Act & Assert
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
-                decoder.ReadArray(null, ValueRanks.OneDimension, (BuiltInType)999));
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+                decoder.ReadVariantValue(null, TypeInfo.Create((BuiltInType)999, ValueRanks.OneDimension)));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
         [Test]
@@ -989,28 +991,32 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext messageContext = SetupContextForDecodeMessage();
             List<byte> buffer =
             [
+                // Elements (2*1 = 2 TestEncodeable values)
+                .. BitConverter.GetBytes(2), // Array count
+                .. BitConverter.GetBytes((ushort)0x1100), // NodeId
+                0x0, // encoding mask
+                .. BitConverter.GetBytes((ushort)0x1100), // NodeId
+                0x0, // encoding mask
                 // Dimensions array [2, 1]
                 .. BitConverter.GetBytes(2), // dimensions count
                 .. BitConverter.GetBytes(2), // dim 0
-                .. BitConverter.GetBytes(1) // dim 1
+                .. BitConverter.GetBytes(1)  // dim 1
             ];
-
-            // Elements (2*1 = 2 TestEncodeable values)
-            for (int i = 0; i < 2; i++)
-            {
-                buffer.AddRange(BitConverter.GetBytes((ushort)12345)); // NodeId
-                buffer.Add(0x00); // encoding mask
-            }
 
             var decoder = new BinaryDecoder(buffer.ToArray(), messageContext);
             var encodeableTypeId = new ExpandedNodeId(12345, 0);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.TwoDimensions, BuiltInType.Variant, typeof(TestEncodeable), encodeableTypeId);
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.ExtensionObject, ValueRanks.TwoDimensions));
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(2));
+            Assert.That(result.IsNull, Is.False);
+            var resultMatrix = result.GetExtensionObjectMatrix();
+            Assert.That(resultMatrix.IsNull, Is.False);
+            Assert.That(resultMatrix.Count, Is.EqualTo(2));
+            Assert.That(resultMatrix.Dimensions.Length, Is.EqualTo(2));
+            Assert.That(resultMatrix.Dimensions[0], Is.EqualTo(2));
+            Assert.That(resultMatrix.Dimensions[1], Is.EqualTo(1));
         }
 
         [Test]
@@ -1022,18 +1028,22 @@ namespace Opc.Ua.Types.Tests.Encoders
             List<byte> buffer =
             [
                 // Dimensions array [0]
+                .. BitConverter.GetBytes(0), // empty array
                 .. BitConverter.GetBytes(1), // dimensions count
-                .. BitConverter.GetBytes(0) // dim 0 = 0
+                .. BitConverter.GetBytes(0), // dim 0 = 0
             ];
 
             var decoder = new BinaryDecoder(buffer.ToArray(), messageContext);
 
             // Act
-            var result = decoder.ReadArray(null, ValueRanks.TwoDimensions, BuiltInType.Int32);
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.Int32, ValueRanks.TwoDimensions));
 
             // Assert
-            Assert.That(result.Rank, Is.EqualTo(1));
-            Assert.That(result.GetLength(0), Is.EqualTo(0));
+            Assert.That(result.IsNull, Is.False);
+            MatrixOf<int> resultMatrix = result.GetInt32Matrix();
+            Assert.That(resultMatrix.IsNull, Is.False);
+            Assert.That(resultMatrix.Dimensions.Length, Is.EqualTo(1));
+            Assert.That(resultMatrix.Count, Is.EqualTo(0));
         }
 
         [Test]
@@ -1053,12 +1063,12 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Act & Assert
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
-                decoder.ReadArray(null, ValueRanks.TwoDimensions, BuiltInType.Int32));
+                decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.Int32, ValueRanks.TwoDimensions)));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
         [Test]
-        public void ReadArrayReturnsNullForScalarValueRank()
+        public void ReadArrayReturnsScalarValue()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -1067,10 +1077,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.Scalar, BuiltInType.Int32);
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.Int32, ValueRanks.Scalar));
 
             // Assert
-            Assert.That(result, Is.Null);
+            Assert.That(result.GetInt32(99), Is.EqualTo(0));
         }
 
         [Test]
@@ -1469,7 +1479,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadDouble(null));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadDouble(null));
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1485,7 +1495,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadBoolean(null));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadBoolean(null));
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1501,7 +1511,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadSByte(null));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadSByte(null));
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1517,7 +1527,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadByte(null));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadByte(null));
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1533,7 +1543,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadInt16(null));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadInt16(null));
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1549,7 +1559,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadUInt16(null));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadUInt16(null));
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1565,7 +1575,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadInt32(null));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadInt32(null));
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1581,7 +1591,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadUInt32(null));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadUInt32(null));
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1597,7 +1607,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadInt64(null));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadInt64(null));
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1613,7 +1623,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadUInt64(null));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadUInt64(null));
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1629,7 +1639,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadFloat(null));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadFloat(null));
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1646,7 +1656,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadString(null));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadString(null));
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1662,7 +1672,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadDateTime(null));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadDateTime(null));
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1678,7 +1688,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadGuid(null));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadGuid(null));
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1695,7 +1705,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadByteString(null));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadByteString(null));
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1712,7 +1722,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadXmlElement(null));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadXmlElement(null));
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1728,7 +1738,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadNodeId(null));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadNodeId(null));
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1744,7 +1754,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadExpandedNodeId(null));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadExpandedNodeId(null));
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1760,7 +1770,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadStatusCode(null));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadStatusCode(null));
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1777,7 +1787,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadDiagnosticInfo(null));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadDiagnosticInfo(null));
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1793,7 +1803,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadQualifiedName(null));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadQualifiedName(null));
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1810,7 +1820,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadLocalizedText(null));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadLocalizedText(null));
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1827,7 +1837,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadVariant(null));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadVariant(null));
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1844,7 +1854,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadDataValue(null));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadDataValue(null));
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1860,7 +1870,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            var ex = Assert.Throws<ServiceResultException>(() => decoder.ReadExtensionObject(null));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadExtensionObject(null));
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1876,8 +1886,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            var ex = Assert.Throws<ServiceResultException>(
-                () => decoder.ReadEncodeable(null, typeof(TestEncodeableWithData)));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadEncodeable<TestEncodeableWithData>(null));
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1893,8 +1903,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            var ex = Assert.Throws<ServiceResultException>(
-                () => decoder.ReadEnumerated(null, typeof(TestEnum)));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadEnumerated<TestEnum>(null));
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -2152,7 +2162,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(lengthBytes, messageContext);
 
             // Act
-            ByteString result = decoder.ReadByteString(null, 10);
+            ByteString result = decoder.ReadByteString(10);
 
             // Assert
             Assert.That(result, Is.EqualTo(default(ByteString)));
@@ -2173,7 +2183,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            ByteString result = decoder.ReadByteString(null, 0);
+            ByteString result = decoder.ReadByteString(0);
 
             // Assert
             Assert.That(result, Is.Not.Null);
@@ -2523,10 +2533,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer.ToArray(), messageContext);
 
             // Act
-            QualifiedNameCollection result = decoder.ReadQualifiedNameArray(null);
+            ArrayOf<QualifiedName> result = decoder.ReadQualifiedNameArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(2));
             Assert.That(result[0].Name, Is.EqualTo("Name1"));
             Assert.That(result[0].NamespaceIndex, Is.EqualTo(0));
@@ -2559,10 +2569,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer.ToArray(), messageContext);
 
             // Act
-            VariantCollection result = decoder.ReadVariantArray(null);
+            ArrayOf<Variant> result = decoder.ReadVariantArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(3));
             Assert.That(result[0].Value, Is.EqualTo(42));
             Assert.That(result[1].Value, Is.EqualTo("Test"));
@@ -2594,10 +2604,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer.ToArray(), messageContext);
 
             // Act
-            DataValueCollection result = decoder.ReadDataValueArray(null);
+            ArrayOf<DataValue> result = decoder.ReadDataValueArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(2));
             Assert.That(result[0].WrappedValue.Value, Is.EqualTo(100));
             Assert.That(result[1].WrappedValue.Value, Is.EqualTo("OK"));
@@ -2614,7 +2624,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            IEncodeable result = decoder.ReadEncodeable(null, typeof(TestEncodeable));
+            TestEncodeable result = decoder.ReadEncodeable<TestEncodeable>(null);
 
             // Assert
             Assert.That(result, Is.Not.Null);
@@ -2631,11 +2641,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            IEncodeable result = decoder.ReadEncodeable(null, typeof(TestComplexTypeInstance));
+            TestComplexTypeInstance result = decoder.ReadEncodeable<TestComplexTypeInstance>(null);
 
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result, Is.InstanceOf<TestComplexTypeInstance>());
             Assert.That(((TestComplexTypeInstance)result).TypeId, Is.EqualTo(ExpandedNodeId.Null));
         }
 
@@ -2649,7 +2658,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Enum result = decoder.ReadEnumerated(null, typeof(TestEnum));
+            TestEnum result = decoder.ReadEnumerated<TestEnum>(null);
 
             // Assert
             Assert.That(result, Is.EqualTo(TestEnum.Value0));
@@ -2665,14 +2674,14 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Enum result = decoder.ReadEnumerated(null, typeof(TestEnum));
+            TestEnum result = decoder.ReadEnumerated<TestEnum>(null);
 
             // Assert
             Assert.That(Convert.ToInt32(result, System.Globalization.CultureInfo.InvariantCulture), Is.EqualTo(-1));
         }
 
         [Test]
-        public void ReadBooleanArrayReturnsEmptyCollectionForZeroLength()
+        public void ReadBooleanArrayReturnsEmptyArrayForZeroLength()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -2681,10 +2690,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            BooleanCollection result = decoder.ReadBooleanArray(null);
+            ArrayOf<bool> result = decoder.ReadBooleanArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(0));
         }
 
@@ -2705,10 +2714,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            BooleanCollection result = decoder.ReadBooleanArray(null);
+            ArrayOf<bool> result = decoder.ReadBooleanArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(4));
             Assert.That(result[0], Is.True);
             Assert.That(result[1], Is.False);
@@ -2717,7 +2726,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadSByteArrayReturnsEmptyCollectionForZeroLength()
+        public void ReadSByteArrayReturnsEmptyArrayForZeroLength()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -2726,10 +2735,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            SByteCollection result = decoder.ReadSByteArray(null);
+            ArrayOf<sbyte> result = decoder.ReadSByteArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(0));
         }
 
@@ -2747,10 +2756,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            SByteCollection result = decoder.ReadSByteArray(null);
+            ArrayOf<sbyte> result = decoder.ReadSByteArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(1));
             Assert.That(result[0], Is.EqualTo(127));
         }
@@ -2771,10 +2780,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            SByteCollection result = decoder.ReadSByteArray(null);
+            ArrayOf<sbyte> result = decoder.ReadSByteArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(3));
             Assert.That(result[0], Is.EqualTo(127));
             Assert.That(result[1], Is.EqualTo(0));
@@ -2791,14 +2800,14 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            ByteCollection result = decoder.ReadByteArray(null);
+            ArrayOf<byte> result = decoder.ReadByteArray(null);
 
             // Assert
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
-        public void ReadByteArrayReturnsEmptyCollectionForZeroLength()
+        public void ReadByteArrayReturnsEmptyArrayForZeroLength()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -2807,10 +2816,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            ByteCollection result = decoder.ReadByteArray(null);
+            ArrayOf<byte> result = decoder.ReadByteArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(0));
         }
 
@@ -2824,14 +2833,14 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Int16Collection result = decoder.ReadInt16Array(null);
+            ArrayOf<short> result = decoder.ReadInt16Array(null);
 
             // Assert
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
-        public void ReadInt16ArrayReturnsEmptyCollectionForZeroLength()
+        public void ReadInt16ArrayReturnsEmptyArrayForZeroLength()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -2840,10 +2849,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Int16Collection result = decoder.ReadInt16Array(null);
+            ArrayOf<short> result = decoder.ReadInt16Array(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(0));
         }
 
@@ -2861,10 +2870,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Int16Collection result = decoder.ReadInt16Array(null);
+            ArrayOf<short> result = decoder.ReadInt16Array(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(1));
             Assert.That(result[0], Is.EqualTo(32767));
         }
@@ -2879,10 +2888,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            UInt16Collection result = decoder.ReadUInt16Array(null);
+            ArrayOf<ushort> result = decoder.ReadUInt16Array(null);
 
             // Assert
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
@@ -2899,10 +2908,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            UInt16Collection result = decoder.ReadUInt16Array(null);
+            ArrayOf<ushort> result = decoder.ReadUInt16Array(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(1));
             Assert.That(result[0], Is.EqualTo(65535));
         }
@@ -2923,10 +2932,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            UInt16Collection result = decoder.ReadUInt16Array(null);
+            ArrayOf<ushort> result = decoder.ReadUInt16Array(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(3));
             Assert.That(result[0], Is.EqualTo(65535));
             Assert.That(result[1], Is.EqualTo(0));
@@ -2934,7 +2943,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadInt32ArrayReturnsEmptyCollectionForZeroLength()
+        public void ReadInt32ArrayReturnsEmptyArrayForZeroLength()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -2943,10 +2952,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Int32Collection result = decoder.ReadInt32Array(null);
+            ArrayOf<int> result = decoder.ReadInt32Array(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(0));
         }
 
@@ -2964,10 +2973,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Int32Collection result = decoder.ReadInt32Array(null);
+            ArrayOf<int> result = decoder.ReadInt32Array(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(1));
             Assert.That(result[0], Is.EqualTo(2147483647));
         }
@@ -2982,10 +2991,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            UInt32Collection result = decoder.ReadUInt32Array(null);
+            ArrayOf<uint> result = decoder.ReadUInt32Array(null);
 
             // Assert
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
@@ -3002,10 +3011,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            UInt32Collection result = decoder.ReadUInt32Array(null);
+            ArrayOf<uint> result = decoder.ReadUInt32Array(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(1));
             Assert.That(result[0], Is.EqualTo(4294967295));
         }
@@ -3020,14 +3029,14 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Int64Collection result = decoder.ReadInt64Array(null);
+            ArrayOf<long> result = decoder.ReadInt64Array(null);
 
             // Assert
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
-        public void ReadInt64ArrayReturnsEmptyCollectionForZeroLength()
+        public void ReadInt64ArrayReturnsEmptyArrayForZeroLength()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -3036,10 +3045,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Int64Collection result = decoder.ReadInt64Array(null);
+            ArrayOf<long> result = decoder.ReadInt64Array(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(0));
         }
 
@@ -3057,10 +3066,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Int64Collection result = decoder.ReadInt64Array(null);
+            ArrayOf<long> result = decoder.ReadInt64Array(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(1));
             Assert.That(result[0], Is.EqualTo(9223372036854775807));
         }
@@ -3081,10 +3090,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Int64Collection result = decoder.ReadInt64Array(null);
+            ArrayOf<long> result = decoder.ReadInt64Array(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(3));
             Assert.That(result[0], Is.EqualTo(9223372036854775807));
             Assert.That(result[1], Is.EqualTo(0));
@@ -3092,7 +3101,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadUInt64ArrayReturnsEmptyCollectionForZeroLength()
+        public void ReadUInt64ArrayReturnsEmptyArrayForZeroLength()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -3101,10 +3110,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            UInt64Collection result = decoder.ReadUInt64Array(null);
+            ArrayOf<ulong> result = decoder.ReadUInt64Array(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(0));
         }
 
@@ -3122,10 +3131,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            UInt64Collection result = decoder.ReadUInt64Array(null);
+            ArrayOf<ulong> result = decoder.ReadUInt64Array(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(1));
             Assert.That(result[0], Is.EqualTo(18446744073709551615));
         }
@@ -3144,10 +3153,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            FloatCollection result = decoder.ReadFloatArray(null);
+            ArrayOf<float> result = decoder.ReadFloatArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(1));
             Assert.That(result[0], Is.EqualTo(3.14f).Within(0.0001f));
         }
@@ -3162,10 +3171,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            DoubleCollection result = decoder.ReadDoubleArray(null);
+            ArrayOf<double> result = decoder.ReadDoubleArray(null);
 
             // Assert
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
@@ -3190,10 +3199,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            DoubleCollection result = decoder.ReadDoubleArray(null);
+            ArrayOf<double> result = decoder.ReadDoubleArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(3));
             Assert.That(result[0], Is.EqualTo(1.23456).Within(0.000001));
             Assert.That(result[1], Is.EqualTo(-7.89012).Within(0.000001));
@@ -3210,14 +3219,14 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            DateTimeCollection result = decoder.ReadDateTimeArray(null);
+            ArrayOf<DateTime> result = decoder.ReadDateTimeArray(null);
 
             // Assert
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
-        public void ReadDateTimeArrayReturnsEmptyCollectionForZeroLength()
+        public void ReadDateTimeArrayReturnsEmptyArrayForZeroLength()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -3226,10 +3235,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            DateTimeCollection result = decoder.ReadDateTimeArray(null);
+            ArrayOf<DateTime> result = decoder.ReadDateTimeArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(0));
         }
 
@@ -3249,16 +3258,16 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            DateTimeCollection result = decoder.ReadDateTimeArray(null);
+            ArrayOf<DateTime> result = decoder.ReadDateTimeArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(1));
             Assert.That(result[0], Is.EqualTo(testDate));
         }
 
         [Test]
-        public void ReadGuidArrayReturnsEmptyCollectionForZeroLength()
+        public void ReadGuidArrayReturnsEmptyArrayForZeroLength()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -3267,10 +3276,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            UuidCollection result = decoder.ReadGuidArray(null);
+            ArrayOf<Uuid> result = decoder.ReadGuidArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(0));
         }
 
@@ -3289,10 +3298,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            UuidCollection result = decoder.ReadGuidArray(null);
+            ArrayOf<Uuid> result = decoder.ReadGuidArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(1));
             Assert.That(result[0].Guid, Is.EqualTo(expectedGuid));
         }
@@ -3324,10 +3333,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            UuidCollection result = decoder.ReadGuidArray(null);
+            ArrayOf<Uuid> result = decoder.ReadGuidArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(3));
             Assert.That(result[0].Guid, Is.EqualTo(guid1));
             Assert.That(result[1].Guid, Is.EqualTo(guid2));
@@ -3344,10 +3353,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            ByteStringCollection result = decoder.ReadByteStringArray(null);
+            ArrayOf<ByteString> result = decoder.ReadByteStringArray(null);
 
             // Assert
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
@@ -3365,10 +3374,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            ByteStringCollection result = decoder.ReadByteStringArray(null);
+            ArrayOf<ByteString> result = decoder.ReadByteStringArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(1));
             Assert.That(result[0].ToArray(), Is.EqualTo(new byte[] { 0x01, 0x02, 0x03 }));
         }
@@ -3389,10 +3398,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            ByteStringCollection result = decoder.ReadByteStringArray(null);
+            ArrayOf<ByteString> result = decoder.ReadByteStringArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(3));
             Assert.That(result[0].ToArray(), Is.EqualTo(new byte[] { 0xAA, 0xBB }));
             Assert.That(result[1].ToArray(), Is.EqualTo(new byte[] { 0xCC }));
@@ -3400,7 +3409,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadXmlElementArrayReturnsEmptyCollectionForZeroLength()
+        public void ReadXmlElementArrayReturnsEmptyArrayForZeroLength()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -3409,10 +3418,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            XmlElementCollection result = decoder.ReadXmlElementArray(null);
+            ArrayOf<XmlElement> result = decoder.ReadXmlElementArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(0));
         }
 
@@ -3432,10 +3441,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            XmlElementCollection result = decoder.ReadXmlElementArray(null);
+            ArrayOf<XmlElement> result = decoder.ReadXmlElementArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(1));
             Assert.That(result[0].OuterXml, Is.EqualTo(xmlContent));
         }
@@ -3466,17 +3475,17 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            XmlElementCollection result = decoder.ReadXmlElementArray(null);
+            ArrayOf<XmlElement> result = decoder.ReadXmlElementArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(2));
             Assert.That(result[0].OuterXml, Is.EqualTo(xml1));
             Assert.That(result[1].OuterXml, Is.EqualTo(xml2));
         }
 
         [Test]
-        public void ReadNodeIdArrayReturnsEmptyCollectionForZeroLength()
+        public void ReadNodeIdArrayReturnsEmptyArrayForZeroLength()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -3485,10 +3494,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            NodeIdCollection result = decoder.ReadNodeIdArray(null);
+            ArrayOf<NodeId> result = decoder.ReadNodeIdArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(0));
         }
 
@@ -3505,10 +3514,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            NodeIdCollection result = decoder.ReadNodeIdArray(null);
+            ArrayOf<NodeId> result = decoder.ReadNodeIdArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(1));
             Assert.That(result[0].IdType, Is.EqualTo(IdType.Numeric));
             Assert.That(result[0].TryGetIdentifier(out uint id), Is.True);
@@ -3516,7 +3525,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadExpandedNodeIdArrayReturnsEmptyCollectionForZeroLength()
+        public void ReadExpandedNodeIdArrayReturnsEmptyArrayForZeroLength()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -3525,10 +3534,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            ExpandedNodeIdCollection result = decoder.ReadExpandedNodeIdArray(null);
+            ArrayOf<ExpandedNodeId> result = decoder.ReadExpandedNodeIdArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(0));
         }
 
@@ -3545,10 +3554,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            ExpandedNodeIdCollection result = decoder.ReadExpandedNodeIdArray(null);
+            ArrayOf<ExpandedNodeId> result = decoder.ReadExpandedNodeIdArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(1));
             Assert.That(result[0].IdType, Is.EqualTo(IdType.Numeric));
             Assert.That(result[0].TryGetIdentifier(out uint id), Is.True);
@@ -3569,10 +3578,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            ExpandedNodeIdCollection result = decoder.ReadExpandedNodeIdArray(null);
+            ArrayOf<ExpandedNodeId> result = decoder.ReadExpandedNodeIdArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(2));
 
             Assert.That(result[0].TryGetIdentifier(out uint id0), Is.True);
@@ -3597,10 +3606,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            StatusCodeCollection result = decoder.ReadStatusCodeArray(null);
+            ArrayOf<StatusCode> result = decoder.ReadStatusCodeArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(3));
             Assert.That(result[0].Code, Is.EqualTo(0u));
             Assert.That(result[1].Code, Is.EqualTo(0x80010000u));
@@ -3915,7 +3924,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Act & Assert
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(() =>
-                BinaryDecoder.DecodeMessage((byte[])null, typeof(TestEncodeable), messageContext));
+                BinaryDecoder.DecodeMessage<TestEncodeable>((byte[])null, messageContext));
             Assert.That(ex.ParamName, Is.EqualTo("buffer"));
         }
 
@@ -3965,10 +3974,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            StringCollection result = decoder.ReadStringArray(null);
+            ArrayOf<string> result = decoder.ReadStringArray(null);
 
             // Assert
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
@@ -3979,21 +3988,22 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = new ServiceMessageContext(telemetryContext);
 
             using var encoder = new BinaryEncoder(messageContext);
-            var values = new StringCollection { "Hello", "World", "" };
+            ArrayOf<string> values = ["Hello", "World", null, string.Empty];
             encoder.WriteStringArray(null, values);
             byte[] buffer = encoder.CloseAndReturnBuffer();
 
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            StringCollection result = decoder.ReadStringArray(null);
+            ArrayOf<string> result = decoder.ReadStringArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Count, Is.EqualTo(3));
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.Count, Is.EqualTo(4));
             Assert.That(result[0], Is.EqualTo("Hello"));
             Assert.That(result[1], Is.EqualTo("World"));
-            Assert.That(result[2], Is.EqualTo(string.Empty));
+            Assert.That(result[2], Is.Null);
+            Assert.That(result[3], Is.EqualTo(string.Empty));
         }
 
         [Test]
@@ -4004,21 +4014,21 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = new ServiceMessageContext(telemetryContext);
 
             using var encoder = new BinaryEncoder(messageContext);
-            var values = new LocalizedTextCollection
-            {
+            ArrayOf<LocalizedText> values =
+            [
                 new LocalizedText("en", "Hello"),
                 new LocalizedText("de", "Hallo")
-            };
+            ];
             encoder.WriteLocalizedTextArray(null, values);
             byte[] buffer = encoder.CloseAndReturnBuffer();
 
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            LocalizedTextCollection result = decoder.ReadLocalizedTextArray(null);
+            ArrayOf<LocalizedText> result = decoder.ReadLocalizedTextArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(2));
             Assert.That(result[0].Text, Is.EqualTo("Hello"));
             Assert.That(result[0].Locale, Is.EqualTo("en"));
@@ -4034,21 +4044,21 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = new ServiceMessageContext(telemetryContext);
 
             using var encoder = new BinaryEncoder(messageContext);
-            var values = new DiagnosticInfoCollection
-            {
+            ArrayOf<DiagnosticInfo> values =
+            [
                 new DiagnosticInfo { SymbolicId = 1 },
                 new DiagnosticInfo { SymbolicId = 2, AdditionalInfo = "info" }
-            };
+            ];
             encoder.WriteDiagnosticInfoArray(null, values);
             byte[] buffer = encoder.CloseAndReturnBuffer();
 
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            DiagnosticInfoCollection result = decoder.ReadDiagnosticInfoArray(null);
+            ArrayOf<DiagnosticInfo> result = decoder.ReadDiagnosticInfoArray(null);
 
             // Assert
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(2));
             Assert.That(result[0].SymbolicId, Is.EqualTo(1));
             Assert.That(result[1].SymbolicId, Is.EqualTo(2));
@@ -4071,7 +4081,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Act & Assert
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => decoder.ReadByteString(null, 3));
+                () => decoder.ReadByteString(3));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
@@ -4090,7 +4100,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            ByteString result = decoder.ReadByteString(null, 3);
+            ByteString result = decoder.ReadByteString(3);
 
             // Assert
             Assert.That(result, Is.Not.Null);
@@ -4103,7 +4113,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext);
-            var intArray = new Int32Collection { 1, 2, 3 };
+            ArrayOf<int> intArray = [1, 2, 3];
             var variant = new Variant(intArray);
 
             using var encoder = new BinaryEncoder(messageContext);
@@ -4230,11 +4240,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Array result = decoder.ReadEnumeratedArray(null, typeof(TestEnum));
+            ArrayOf<TestEnum> result = decoder.ReadEnumeratedArray<TestEnum>(null);
 
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(0));
+            Assert.That(result.Count, Is.EqualTo(0));
         }
 
         [Test]
@@ -4253,14 +4263,14 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Array result = decoder.ReadEnumeratedArray(null, typeof(TestEnum));
+            ArrayOf<TestEnum> result = decoder.ReadEnumeratedArray<TestEnum>(null);
 
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(3));
-            Assert.That(result.GetValue(0), Is.EqualTo(TestEnum.Value0));
-            Assert.That(result.GetValue(1), Is.EqualTo(TestEnum.Value1));
-            Assert.That(result.GetValue(2), Is.EqualTo(TestEnum.Value2));
+            Assert.That(result.Count, Is.EqualTo(3));
+            Assert.That(result[0], Is.EqualTo(TestEnum.Value0));
+            Assert.That(result[1], Is.EqualTo(TestEnum.Value1));
+            Assert.That(result[2], Is.EqualTo(TestEnum.Value2));
         }
 
         [Test]
@@ -4273,10 +4283,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.Int32);
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.Int32, ValueRanks.OneDimension));
 
             // Assert
-            Assert.That(result, Is.Null);
+            Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
@@ -4294,13 +4304,15 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.UInt32);
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.UInt32, ValueRanks.OneDimension));
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(2));
-            Assert.That(result.GetValue(0), Is.EqualTo(uint.MaxValue));
-            Assert.That(result.GetValue(1), Is.EqualTo(0u));
+            Assert.That(result.IsNull, Is.False);
+            ArrayOf<uint> resultArray = result.GetUInt32Array();
+            Assert.That(resultArray.IsNull, Is.False);
+            Assert.That(resultArray.Count, Is.EqualTo(2));
+            Assert.That(resultArray[0], Is.EqualTo(uint.MaxValue));
+            Assert.That(resultArray[1], Is.EqualTo(0u));
         }
 
         [Test]
@@ -4317,12 +4329,14 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.UInt64);
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.UInt64, ValueRanks.OneDimension));
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
-            Assert.That(result.GetValue(0), Is.EqualTo(ulong.MaxValue));
+            Assert.That(result.IsNull, Is.False);
+            ArrayOf<ulong> resultArray = result.GetUInt64Array();
+            Assert.That(resultArray.IsNull, Is.False);
+            Assert.That(resultArray.Count, Is.EqualTo(1));
+            Assert.That(resultArray[0], Is.EqualTo(ulong.MaxValue));
         }
 
         [Test]
@@ -4340,13 +4354,15 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer.ToArray(), messageContext);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.Double);
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.Double, ValueRanks.OneDimension));
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(2));
-            Assert.That(result.GetValue(0), Is.EqualTo(3.14).Within(0.001));
-            Assert.That(result.GetValue(1), Is.EqualTo(-2.71).Within(0.001));
+            Assert.That(result.IsNull, Is.False);
+            ArrayOf<double> resultArray = result.GetDoubleArray();
+            Assert.That(resultArray.IsNull, Is.False);
+            Assert.That(resultArray.Count, Is.EqualTo(2));
+            Assert.That(resultArray[0], Is.EqualTo(3.14).Within(0.001));
+            Assert.That(resultArray[1], Is.EqualTo(-2.71).Within(0.001));
         }
 
         [Test]
@@ -4365,14 +4381,16 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.Boolean);
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.Boolean, ValueRanks.OneDimension));
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(3));
-            Assert.That(result.GetValue(0), Is.EqualTo(true));
-            Assert.That(result.GetValue(1), Is.EqualTo(false));
-            Assert.That(result.GetValue(2), Is.EqualTo(true));
+            Assert.That(result.IsNull, Is.False);
+            ArrayOf<bool> resultArray = result.GetBooleanArray();
+            Assert.That(resultArray.IsNull, Is.False);
+            Assert.That(resultArray.Count, Is.EqualTo(3));
+            Assert.That(resultArray[0], Is.EqualTo(true));
+            Assert.That(resultArray[1], Is.EqualTo(false));
+            Assert.That(resultArray[2], Is.EqualTo(true));
         }
 
         [Test]
@@ -4390,13 +4408,15 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.Byte);
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.Byte, ValueRanks.OneDimension));
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(2));
-            Assert.That(result.GetValue(0), Is.EqualTo((byte)0xAA));
-            Assert.That(result.GetValue(1), Is.EqualTo((byte)0xFF));
+            Assert.That(result.IsNull, Is.False);
+            ArrayOf<byte> resultArray = result.GetByteArray();
+            Assert.That(resultArray.IsNull, Is.False);
+            Assert.That(resultArray.Count, Is.EqualTo(2));
+            Assert.That(resultArray[0], Is.EqualTo((byte)0xAA));
+            Assert.That(resultArray[1], Is.EqualTo((byte)0xFF));
         }
 
         [Test]
@@ -4407,20 +4427,22 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = new ServiceMessageContext(telemetryContext);
 
             using var encoder = new BinaryEncoder(messageContext);
-            var values = new StringCollection { "test1", "test2" };
+            ArrayOf<string> values = ["test1", "test2"];
             encoder.WriteStringArray(null, values);
             byte[] buffer = encoder.CloseAndReturnBuffer();
 
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.String);
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.String, ValueRanks.OneDimension));
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(2));
-            Assert.That(result.GetValue(0), Is.EqualTo("test1"));
-            Assert.That(result.GetValue(1), Is.EqualTo("test2"));
+            Assert.That(result.IsNull, Is.False);
+            ArrayOf<string> resultArray = result.GetStringArray();
+            Assert.That(resultArray.IsNull, Is.False);
+            Assert.That(resultArray.Count, Is.EqualTo(2));
+            Assert.That(resultArray[0], Is.EqualTo("test1"));
+            Assert.That(resultArray[1], Is.EqualTo("test2"));
         }
 
         [Test]
@@ -4432,19 +4454,21 @@ namespace Opc.Ua.Types.Tests.Encoders
             var dt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
             using var encoder = new BinaryEncoder(messageContext);
-            var values = new DateTimeCollection { dt };
+            ArrayOf<DateTime> values = [dt];
             encoder.WriteDateTimeArray(null, values);
             byte[] buffer = encoder.CloseAndReturnBuffer();
 
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.DateTime);
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.DateTime, ValueRanks.OneDimension));
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
-            Assert.That(result.GetValue(0), Is.EqualTo(dt));
+            Assert.That(result.IsNull, Is.False);
+            ArrayOf<DateTime> resultArray = result.GetDateTimeArray();
+            Assert.That(resultArray.IsNull, Is.False);
+            Assert.That(resultArray.Count, Is.EqualTo(1));
+            Assert.That(resultArray[0], Is.EqualTo(dt));
         }
 
         [Test]
@@ -4455,18 +4479,24 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = new ServiceMessageContext(telemetryContext);
 
             using var encoder = new BinaryEncoder(messageContext);
-            var values = new ByteStringCollection { (ByteString)new byte[] { 0x01 }, (ByteString)new byte[] { 0x02, 0x03 } };
+            ArrayOf<ByteString> values =
+            [
+                (ByteString)new byte[] { 0x01 },
+                (ByteString)new byte[] { 0x02, 0x03 }
+            ];
             encoder.WriteByteStringArray(null, values);
             byte[] buffer = encoder.CloseAndReturnBuffer();
 
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.ByteString);
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.ByteString, ValueRanks.OneDimension));
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(2));
+            Assert.That(result.IsNull, Is.False);
+            ArrayOf<ByteString> resultArray = result.GetByteStringArray();
+            Assert.That(resultArray.IsNull, Is.False);
+            Assert.That(resultArray.Count, Is.EqualTo(2));
         }
 
         [Test]
@@ -4478,18 +4508,20 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             using var encoder = new BinaryEncoder(messageContext);
             var element = XmlElement.From("<test>value</test>");
-            var values = new XmlElementCollection { element };
+            ArrayOf<XmlElement> values = [element];
             encoder.WriteXmlElementArray(null, values);
             byte[] buffer = encoder.CloseAndReturnBuffer();
 
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.XmlElement);
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.XmlElement, ValueRanks.OneDimension));
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
+            Assert.That(result.IsNull, Is.False);
+            ArrayOf<XmlElement> resultArray = result.GetXmlElementArray();
+            Assert.That(resultArray.IsNull, Is.False);
+            Assert.That(resultArray.Count, Is.EqualTo(1));
         }
 
         [Test]
@@ -4500,18 +4532,20 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = new ServiceMessageContext(telemetryContext);
 
             using var encoder = new BinaryEncoder(messageContext);
-            var values = new NodeIdCollection { new NodeId(1), new NodeId(2) };
+            ArrayOf<NodeId> values = [new NodeId(1), new NodeId(2)];
             encoder.WriteNodeIdArray(null, values);
             byte[] buffer = encoder.CloseAndReturnBuffer();
 
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.NodeId);
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.NodeId, ValueRanks.OneDimension));
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(2));
+            Assert.That(result.IsNull, Is.False);
+            ArrayOf<NodeId> resultArray = result.GetNodeIdArray();
+            Assert.That(resultArray.IsNull, Is.False);
+            Assert.That(resultArray.Count, Is.EqualTo(2));
         }
 
         [Test]
@@ -4522,18 +4556,20 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = new ServiceMessageContext(telemetryContext);
 
             using var encoder = new BinaryEncoder(messageContext);
-            var values = new StatusCodeCollection { StatusCodes.Good, StatusCodes.BadUnexpectedError };
+            ArrayOf<StatusCode> values = [StatusCodes.Good, StatusCodes.BadUnexpectedError];
             encoder.WriteStatusCodeArray(null, values);
             byte[] buffer = encoder.CloseAndReturnBuffer();
 
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.StatusCode);
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.StatusCode, ValueRanks.OneDimension));
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(2));
+            Assert.That(result.IsNull, Is.False);
+            ArrayOf<StatusCode> resultArray = result.GetStatusCodeArray();
+            Assert.That(resultArray.IsNull, Is.False);
+            Assert.That(resultArray.Count, Is.EqualTo(2));
         }
 
         [Test]
@@ -4544,18 +4580,20 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = new ServiceMessageContext(telemetryContext);
 
             using var encoder = new BinaryEncoder(messageContext);
-            var values = new VariantCollection { new Variant(42), new Variant("text") };
+            ArrayOf<Variant> values = [Variant.From(42), Variant.From("text")];
             encoder.WriteVariantArray(null, values);
             byte[] buffer = encoder.CloseAndReturnBuffer();
 
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.Variant);
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.Variant, ValueRanks.OneDimension));
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(2));
+            Assert.That(result.IsNull, Is.False);
+            ArrayOf<Variant> resultArray = result.GetVariantArray();
+            Assert.That(resultArray.IsNull, Is.False);
+            Assert.That(resultArray.Count, Is.EqualTo(2));
         }
 
         [Test]
@@ -4566,18 +4604,20 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = new ServiceMessageContext(telemetryContext);
 
             using var encoder = new BinaryEncoder(messageContext);
-            var values = new ExtensionObjectCollection { ExtensionObject.Null };
+            ArrayOf<ExtensionObject> values = [ExtensionObject.Null];
             encoder.WriteExtensionObjectArray(null, values);
             byte[] buffer = encoder.CloseAndReturnBuffer();
 
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.ExtensionObject);
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.ExtensionObject, ValueRanks.OneDimension));
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(1));
+            Assert.That(result.IsNull, Is.False);
+            ArrayOf<ExtensionObject> resultArray = result.GetExtensionObjectArray();
+            Assert.That(resultArray.IsNull, Is.False);
+            Assert.That(resultArray.Count, Is.EqualTo(1));
         }
 
         [Test]
@@ -4595,13 +4635,15 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Array result = decoder.ReadArray(null, ValueRanks.OneDimension, BuiltInType.Enumeration, typeof(TestEnum));
+            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.Enumeration, ValueRanks.OneDimension));
 
             // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(2));
-            Assert.That(result.GetValue(0), Is.EqualTo(TestEnum.Value1));
-            Assert.That(result.GetValue(1), Is.EqualTo(TestEnum.Value3));
+            Assert.That(result.IsNull, Is.False);
+            ArrayOf<TestEnum> resultArray = result.GetEnumerationArray<TestEnum>();
+            Assert.That(resultArray.IsNull, Is.False);
+            Assert.That(resultArray.Count, Is.EqualTo(2));
+            Assert.That(resultArray[0], Is.EqualTo(TestEnum.Value1));
+            Assert.That(resultArray[1], Is.EqualTo(TestEnum.Value3));
         }
 
         [Test]
@@ -4777,6 +4819,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var testTypeId = new ExpandedNodeId(12345, 0);
             var encodeableType = new Mock<IEncodeableType>();
             encodeableType.SetupGet(x => x.Type).Returns(typeof(TestEncodeable));
+            encodeableType.Setup(x => x.CreateInstance()).Returns(new TestEncodeable());
             IEncodeableType type = encodeableType.Object;
             mockFactory.Setup(f => f.TryGetEncodeableType(testTypeId, out type))
                 .Returns(true);

@@ -140,7 +140,7 @@ namespace Opc.Ua
         {
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
-            Elements = (RelativePathElementCollection)decoder.ReadEncodeableArray("Elements", typeof(RelativePathElement));
+            Elements = decoder.ReadEncodeableArray< RelativePathElement>("Elements");
 
             decoder.PopNamespace();
         }

@@ -64,7 +64,7 @@ namespace Opc.Ua.SourceGeneration.Tester
         }
     }
 
-    public readonly struct EnumerationBuilder<T> : IVariantBuilder<T> where T : Enum
+    public readonly struct EnumerationBuilder<T> : IVariantBuilder<T> where T : struct, Enum
     {
         public T GetValue()
         {

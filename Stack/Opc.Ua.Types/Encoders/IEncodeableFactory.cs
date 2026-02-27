@@ -182,8 +182,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="systemType">The underlying system type to add to
         /// the factory builder</param>
-        IEncodeableFactoryBuilder AddEncodeableType(
-            Type systemType);
+        IEncodeableFactoryBuilder AddEncodeableType(Type systemType);
 
         /// <summary>
         /// Associates an .net system type with an encoding id. The

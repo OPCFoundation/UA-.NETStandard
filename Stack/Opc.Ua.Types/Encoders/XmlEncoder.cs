@@ -869,15 +869,17 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteEnumerated<T>(string fieldName, T value) where T : Enum
+        public void WriteEnumerated<T>(string fieldName, T value) where T : struct, Enum
         {
-            if (BeginField(fieldName, value == null, true))
+            int int32Value = EnumHelper.EnumToInt32(value); // TODO: We assume 0 is default == null
+
+            if (BeginField(fieldName, int32Value == 0, true))
             {
-                if (value != null)
+                if (int32Value != 0)
                 {
                     m_writer.WriteString(CoreUtils.Format("{0}_{1}",
                         value.ToString(),
-                        EnumHelper.EnumToInt32(value)));
+                        int32Value));
                 }
 
                 EndField(fieldName);
@@ -1600,7 +1602,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteEnumeratedArray<T>(string fieldName, ArrayOf<T> values) where T : Enum
+        public void WriteEnumeratedArray<T>(string fieldName, ArrayOf<T> values) where T : struct, Enum
         {
             if (BeginField(fieldName, values.IsNull, true, true))
             {

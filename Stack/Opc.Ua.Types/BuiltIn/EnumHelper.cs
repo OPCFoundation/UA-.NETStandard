@@ -45,7 +45,7 @@ namespace Opc.Ua
         /// Cast to enum
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public static T Int32ToEnum<T>(int value) where T : Enum
+        public static T Int32ToEnum<T>(int value) where T : struct, Enum
         {
 #if NET8_0_OR_GREATER
             if (Unsafe.SizeOf<T>() <= sizeof(int))
@@ -61,7 +61,7 @@ namespace Opc.Ua
         /// Convert int to enum T
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public static int EnumToInt32<T>(T value) where T : Enum
+        public static int EnumToInt32<T>(T value) where T : struct, Enum
         {
 #if NET8_0_OR_GREATER
             switch (Unsafe.SizeOf<T>())

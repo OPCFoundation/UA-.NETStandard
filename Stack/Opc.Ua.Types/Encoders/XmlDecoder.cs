@@ -41,7 +41,7 @@ namespace Opc.Ua
     /// <summary>
     /// Reads objects from a XML stream.
     /// </summary>
-    public class XmlDecoder : IDecoder
+    public sealed class XmlDecoder : IDecoder
     {
         /// <summary>
         /// Initializes the object with default values.
@@ -274,6 +274,1630 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public void Dispose()
+        {
+            CoreUtils.SilentDispose(m_reader);
+            m_reader = null;
+        }
+
+        /// <inheritdoc/>
+        public EncodingType EncodingType => EncodingType.Xml;
+
+        /// <inheritdoc/>
+        public IServiceMessageContext Context { get; }
+
+        /// <inheritdoc/>
+        public void PushNamespace(string namespaceUri)
+        {
+            m_namespaces.Push(namespaceUri);
+        }
+
+        /// <inheritdoc/>
+        public void PopNamespace()
+        {
+            m_namespaces.Pop();
+        }
+
+        /// <inheritdoc/>
+        public void SetMappingTables(NamespaceTable namespaceUris, StringTable serverUris)
+        {
+            m_namespaceMappings = null;
+
+            if (namespaceUris != null && Context.NamespaceUris != null)
+            {
+                m_namespaceMappings = Context.NamespaceUris.CreateMapping(namespaceUris, false);
+            }
+
+            m_serverMappings = null;
+
+            if (serverUris != null && Context.ServerUris != null)
+            {
+                m_serverMappings = Context.ServerUris.CreateMapping(serverUris, false);
+            }
+        }
+
+        /// <inheritdoc/>
+        public T DecodeMessage<T>() where T : IEncodeable
+        {
+            if (!Context.Factory.TryGetEncodeableType<T>(out IEncodeableType activator))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Cannot decode message '{0}'.",
+                    typeof(T));
+            }
+
+            XmlQualifiedName typeName = activator.XmlName;
+            string ns = typeName.Namespace;
+            string name = typeName.Name;
+
+            int index = name.IndexOf(':', StringComparison.Ordinal);
+
+            if (index != -1)
+            {
+                name = name[(index + 1)..];
+            }
+
+            PushNamespace(ns);
+
+            // read the message.
+            T encodeable = ReadEncodeable(name, (T)activator.CreateInstance());
+
+            PopNamespace();
+
+            return encodeable;
+        }
+
+        /// <inheritdoc/>
+        public bool ReadBoolean(string fieldName)
+        {
+            if (BeginField(fieldName, true))
+            {
+                string xml = SafeReadString();
+
+                if (!string.IsNullOrEmpty(xml))
+                {
+                    bool value = SafeXmlConvert(
+                        fieldName,
+                        XmlConvert.ToBoolean,
+                        xml.ToLowerInvariant());
+                    EndField(fieldName);
+                    return value;
+                }
+            }
+
+            return false;
+        }
+
+        /// <inheritdoc/>
+        public sbyte ReadSByte(string fieldName)
+        {
+            if (BeginField(fieldName, true))
+            {
+                string xml = SafeReadString();
+
+                if (!string.IsNullOrEmpty(xml))
+                {
+                    sbyte value = SafeXmlConvert(fieldName, XmlConvert.ToSByte, xml);
+                    EndField(fieldName);
+                    return value;
+                }
+            }
+
+            return 0;
+        }
+
+        /// <inheritdoc/>
+        public byte ReadByte(string fieldName)
+        {
+            if (BeginField(fieldName, true))
+            {
+                string xml = SafeReadString();
+
+                if (!string.IsNullOrEmpty(xml))
+                {
+                    byte value = SafeXmlConvert(fieldName, XmlConvert.ToByte, xml);
+                    EndField(fieldName);
+                    return value;
+                }
+            }
+
+            return 0;
+        }
+
+        /// <inheritdoc/>
+        public short ReadInt16(string fieldName)
+        {
+            if (BeginField(fieldName, true))
+            {
+                string xml = SafeReadString();
+
+                if (!string.IsNullOrEmpty(xml))
+                {
+                    short value = SafeXmlConvert(fieldName, XmlConvert.ToInt16, xml);
+                    EndField(fieldName);
+                    return value;
+                }
+            }
+
+            return 0;
+        }
+
+        /// <inheritdoc/>
+        public ushort ReadUInt16(string fieldName)
+        {
+            if (BeginField(fieldName, true))
+            {
+                string xml = SafeReadString();
+
+                if (!string.IsNullOrEmpty(xml))
+                {
+                    ushort value = SafeXmlConvert(fieldName, XmlConvert.ToUInt16, xml);
+                    EndField(fieldName);
+                    return value;
+                }
+            }
+
+            return 0;
+        }
+
+        /// <inheritdoc/>
+        public int ReadInt32(string fieldName)
+        {
+            if (BeginField(fieldName, true))
+            {
+                string xml = SafeReadString();
+
+                if (!string.IsNullOrEmpty(xml))
+                {
+                    int value = SafeXmlConvert(fieldName, XmlConvert.ToInt32, xml);
+                    EndField(fieldName);
+                    return value;
+                }
+            }
+
+            return 0;
+        }
+
+        /// <inheritdoc/>
+        public uint ReadUInt32(string fieldName)
+        {
+            if (BeginField(fieldName, true))
+            {
+                string xml = SafeReadString();
+
+                if (!string.IsNullOrEmpty(xml))
+                {
+                    uint value = SafeXmlConvert(fieldName, XmlConvert.ToUInt32, xml);
+                    EndField(fieldName);
+                    return value;
+                }
+            }
+
+            return 0;
+        }
+
+        /// <inheritdoc/>
+        public long ReadInt64(string fieldName)
+        {
+            if (BeginField(fieldName, true))
+            {
+                string xml = SafeReadString();
+
+                if (!string.IsNullOrEmpty(xml))
+                {
+                    long value = SafeXmlConvert(fieldName, XmlConvert.ToInt64, xml);
+                    EndField(fieldName);
+                    return value;
+                }
+            }
+
+            return 0;
+        }
+
+        /// <inheritdoc/>
+        public ulong ReadUInt64(string fieldName)
+        {
+            if (BeginField(fieldName, true))
+            {
+                string xml = SafeReadString();
+
+                if (!string.IsNullOrEmpty(xml))
+                {
+                    ulong value = SafeXmlConvert(fieldName, XmlConvert.ToUInt64, xml);
+                    EndField(fieldName);
+                    return value;
+                }
+            }
+
+            return 0;
+        }
+
+        /// <inheritdoc/>
+        public float ReadFloat(string fieldName)
+        {
+            if (BeginField(fieldName, true))
+            {
+                string xml = SafeReadString();
+
+                if (!string.IsNullOrEmpty(xml))
+                {
+                    float value = SafeXmlConvert(fieldName, XmlConvert.ToSingle, xml);
+                    EndField(fieldName);
+                    return value;
+                }
+            }
+
+            return 0;
+        }
+
+        /// <inheritdoc/>
+        public double ReadDouble(string fieldName)
+        {
+            if (BeginField(fieldName, true))
+            {
+                string xml = SafeReadString();
+
+                if (!string.IsNullOrEmpty(xml))
+                {
+                    double value = SafeXmlConvert(fieldName, XmlConvert.ToDouble, xml);
+                    EndField(fieldName);
+                    return value;
+                }
+            }
+
+            return 0;
+        }
+
+        /// <inheritdoc/>
+        public string ReadString(string fieldName)
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                string value = SafeReadString();
+
+                if (value != null)
+                {
+                    value = value.Trim();
+                }
+
+                EndField(fieldName);
+                return value;
+            }
+
+            return !isNil ? string.Empty : null;
+        }
+
+        /// <inheritdoc/>
+        public DateTime ReadDateTime(string fieldName)
+        {
+            if (BeginField(fieldName, true))
+            {
+                string xml = SafeReadString();
+
+                // check the length.
+                if (Context.MaxStringLength > 0 && Context.MaxStringLength < xml.Length)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                if (!string.IsNullOrEmpty(xml))
+                {
+                    try
+                    {
+                        var value = XmlConvert.ToDateTime(xml, XmlDateTimeSerializationMode.Utc);
+                        EndField(fieldName);
+                        return value;
+                    }
+                    catch (FormatException fe)
+                    {
+                        throw CreateBadDecodingError(fieldName, fe, value: xml);
+                    }
+                }
+            }
+
+            return DateTime.MinValue;
+        }
+
+        /// <inheritdoc/>
+        public Uuid ReadGuid(string fieldName)
+        {
+            Uuid value = Uuid.Empty;
+
+            if (BeginField(fieldName, true))
+            {
+                PushNamespace(Namespaces.OpcUaXsd);
+                string guidString = ReadString("String");
+                PopNamespace();
+
+                try
+                {
+                    value = Uuid.Parse(guidString);
+                }
+                catch (FormatException fe)
+                {
+                    throw CreateBadDecodingError(fieldName, fe, value: guidString);
+                }
+
+                EndField(fieldName);
+            }
+
+            return value;
+        }
+
+        /// <inheritdoc/>
+        public ByteString ReadByteString(string fieldName)
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                ByteString value;
+                try
+                {
+                    string xml = m_reader.ReadContentAsString();
+
+                    if (!string.IsNullOrEmpty(xml))
+                    {
+                        value = ByteString.From(SafeConvertFromBase64String(xml));
+                    }
+                    else
+                    {
+                        value = ByteString.Empty;
+                    }
+                }
+                catch (XmlException xe)
+                {
+                    throw CreateBadDecodingError(fieldName, xe);
+                }
+                catch (InvalidOperationException ioe)
+                {
+                    throw CreateBadDecodingError(fieldName, ioe);
+                }
+
+                // check the length.
+                if (Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < value.Length)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                EndField(fieldName);
+                return value;
+            }
+
+            return isNil ? default : ByteString.Empty;
+        }
+
+        /// <inheritdoc/>
+        public XmlElement ReadXmlElement(string fieldName)
+        {
+            if (BeginField(fieldName, true) && MoveToElement(null))
+            {
+                var document = new XmlDocument();
+                System.Xml.XmlElement value = document.CreateElement(
+                    m_reader.Prefix,
+                    m_reader.LocalName,
+                    m_reader.NamespaceURI);
+                document.AppendChild(value);
+
+                if (m_reader.MoveToFirstAttribute())
+                {
+                    do
+                    {
+                        XmlAttribute attribute = document.CreateAttribute(m_reader.Name);
+                        attribute.Value = m_reader.Value;
+                        value.Attributes.Append(attribute);
+                    } while (m_reader.MoveToNextAttribute());
+
+                    m_reader.MoveToContent();
+                }
+
+                value.InnerXml = m_reader.ReadInnerXml();
+
+                EndField(fieldName);
+                return (XmlElement)value;
+            }
+
+            return default;
+        }
+
+        /// <inheritdoc/>
+        public NodeId ReadNodeId(string fieldName)
+        {
+            if (BeginField(fieldName, true))
+            {
+                PushNamespace(Namespaces.OpcUaXsd);
+                string identifierText = ReadString("Identifier");
+                PopNamespace();
+
+                NodeId value;
+                try
+                {
+                    value = NodeId.Parse(identifierText);
+                }
+                catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes
+                    .BadNodeIdInvalid)
+                {
+                    throw CreateBadDecodingError(fieldName, sre, value: identifierText);
+                }
+                catch (ArgumentException ae)
+                {
+                    throw CreateBadDecodingError(fieldName, ae, value: identifierText);
+                }
+
+                EndField(fieldName);
+
+                if (m_namespaceMappings != null &&
+                    m_namespaceMappings.Length > value.NamespaceIndex)
+                {
+                    return value.WithNamespaceIndex(m_namespaceMappings[value.NamespaceIndex]);
+                }
+
+                return value;
+            }
+
+            return NodeId.Null;
+        }
+
+        /// <inheritdoc/>
+        public ExpandedNodeId ReadExpandedNodeId(string fieldName)
+        {
+            if (BeginField(fieldName, true))
+            {
+                PushNamespace(Namespaces.OpcUaXsd);
+                string identifierText = ReadString("Identifier");
+                PopNamespace();
+
+                ExpandedNodeId value;
+                try
+                {
+                    value = ExpandedNodeId.Parse(identifierText);
+                }
+                catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes
+                    .BadNodeIdInvalid)
+                {
+                    throw CreateBadDecodingError(fieldName, sre, value: identifierText);
+                }
+                catch (ArgumentException ae)
+                {
+                    throw CreateBadDecodingError(fieldName, ae, value: identifierText);
+                }
+
+                EndField(fieldName);
+
+                if (m_namespaceMappings != null &&
+                    m_namespaceMappings.Length > value.NamespaceIndex &&
+                    !value.IsNull)
+                {
+                    value = value.WithNamespaceIndex(m_namespaceMappings[value.NamespaceIndex]);
+                }
+
+                if (m_serverMappings != null &&
+                    m_serverMappings.Length > value.ServerIndex &&
+                    !value.IsNull)
+                {
+                    value = value.WithServerIndex(m_serverMappings[value.ServerIndex]);
+                }
+
+                return value;
+            }
+
+            return ExpandedNodeId.Null;
+        }
+
+        /// <inheritdoc/>
+        public StatusCode ReadStatusCode(string fieldName)
+        {
+            StatusCode value;
+
+            if (BeginField(fieldName, true))
+            {
+                PushNamespace(Namespaces.OpcUaXsd);
+                value = ReadUInt32("Code");
+                PopNamespace();
+
+                EndField(fieldName);
+            }
+            else
+            {
+                value = StatusCodes.Good;
+            }
+            return value;
+        }
+
+        /// <inheritdoc/>
+        public DiagnosticInfo ReadDiagnosticInfo(string fieldName)
+        {
+            DiagnosticInfo value = null;
+
+            if (BeginField(fieldName, true))
+            {
+                PushNamespace(Namespaces.OpcUaXsd);
+                value = ReadDiagnosticInfo(0);
+                PopNamespace();
+
+                EndField(fieldName);
+                return value;
+            }
+
+            return value;
+        }
+
+        /// <inheritdoc/>
+        public QualifiedName ReadQualifiedName(string fieldName)
+        {
+            if (BeginField(fieldName, true))
+            {
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                ushort namespaceIndex = 0;
+
+                if (BeginField("NamespaceIndex", true))
+                {
+                    namespaceIndex = ReadUInt16(null);
+                    EndField("NamespaceIndex");
+                }
+
+                string name = null;
+
+                if (BeginField("Name", true, out bool isNil))
+                {
+                    name = ReadString(null);
+                    EndField("Name");
+                }
+                else if (!isNil)
+                {
+                    name = string.Empty;
+                }
+
+                PopNamespace();
+                EndField(fieldName);
+
+                if (m_namespaceMappings != null && m_namespaceMappings.Length > namespaceIndex)
+                {
+                    namespaceIndex = m_namespaceMappings[namespaceIndex];
+                }
+
+                return new QualifiedName(name, namespaceIndex);
+            }
+
+            return default;
+        }
+
+        /// <inheritdoc/>
+        public LocalizedText ReadLocalizedText(string fieldName)
+        {
+            if (BeginField(fieldName, true))
+            {
+                PushNamespace(Namespaces.OpcUaXsd);
+                string text = null;
+                string locale = null;
+
+                if (BeginField("Locale", true, out bool isNil))
+                {
+                    locale = ReadString(null);
+                    EndField("Locale");
+                }
+                else if (!isNil)
+                {
+                    locale = string.Empty;
+                }
+
+                if (BeginField("Text", true, out isNil))
+                {
+                    text = ReadString(null);
+                    EndField("Text");
+                }
+                else if (!isNil)
+                {
+                    text = string.Empty;
+                }
+
+                var value = new LocalizedText(locale, text);
+
+                PopNamespace();
+
+                EndField(fieldName);
+                return value;
+            }
+
+            return LocalizedText.Null;
+        }
+
+        /// <inheritdoc/>
+        public Variant ReadVariant(string fieldName)
+        {
+            CheckAndIncrementNestingLevel();
+
+            try
+            {
+                Variant value = Variant.Null;
+
+                if (BeginField(fieldName, true))
+                {
+                    PushNamespace(Namespaces.OpcUaXsd);
+
+                    if (BeginField("Value", true))
+                    {
+                        try
+                        {
+                            value = ReadVariantValue();
+                        }
+                        catch (Exception ex) when (ex is not ServiceResultException)
+                        {
+                            m_logger.LogError(ex, "XmlDecoder: Error reading variant.");
+                            value = new Variant(StatusCodes.BadDecodingError);
+                        }
+                        EndField("Value");
+                    }
+
+                    PopNamespace();
+
+                    EndField(fieldName);
+                }
+
+                return value;
+            }
+            finally
+            {
+                m_nestingLevel--;
+            }
+        }
+
+        /// <inheritdoc/>
+        public DataValue ReadDataValue(string fieldName)
+        {
+            var value = new DataValue();
+
+            if (BeginField(fieldName, true))
+            {
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                value.WrappedValue = ReadVariant("Value");
+                value.StatusCode = ReadStatusCode("StatusCode");
+                value.SourceTimestamp = ReadDateTime("SourceTimestamp");
+                value.SourcePicoseconds = ReadUInt16("SourcePicoseconds");
+                value.ServerTimestamp = ReadDateTime("ServerTimestamp");
+                value.ServerPicoseconds = ReadUInt16("ServerPicoseconds");
+
+                PopNamespace();
+
+                EndField(fieldName);
+            }
+
+            return value;
+        }
+
+        /// <inheritdoc/>
+        public ExtensionObject ReadExtensionObject(string fieldName)
+        {
+            if (!BeginField(fieldName, true))
+            {
+                return ExtensionObject.Null;
+            }
+
+            PushNamespace(Namespaces.OpcUaXsd);
+
+            // read local type id.
+            NodeId typeId = ReadNodeId("TypeId");
+
+            // convert to absolute type id.
+            var absoluteId = NodeId.ToExpandedNodeId(typeId, Context.NamespaceUris);
+
+            if (!typeId.IsNull && absoluteId.IsNull)
+            {
+                m_logger.LogWarning(
+                    "Cannot de-serialize extension objects if the NamespaceUri is not in the NamespaceTable: Type = {Type}",
+                    typeId);
+            }
+
+            // read body.
+            if (!BeginField("Body", true))
+            {
+                // read end of extension object.
+                EndField(fieldName);
+                PopNamespace();
+
+                return new ExtensionObject(absoluteId);
+            }
+
+            // read the body.
+            object body = ReadExtensionObjectBody(absoluteId);
+
+            // read end of body.
+            EndField("Body");
+            PopNamespace();
+
+            // read end of extension object.
+            EndField(fieldName);
+
+            if (body is IEncodeable encodeable)
+            {
+                // Set the known TypeId for encodeables.
+                absoluteId = encodeable.TypeId;
+            }
+
+            return new ExtensionObject(absoluteId, body);
+        }
+
+        /// <inheritdoc/>
+        public T ReadEncodeable<T>(string fieldName) where T : IEncodeable, new()
+        {
+            return ReadEncodeable(fieldName, new T());
+        }
+
+        /// <inheritdoc/>
+        public T ReadEncodeable<T>(string fieldName, ExpandedNodeId encodeableTypeId)
+            where T : IEncodeable
+        {
+            if (!Context.Factory.TryGetEncodeableType(
+                encodeableTypeId,
+                out IEncodeableType activator))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Cannot decode type '{0}'.",
+                    encodeableTypeId);
+            }
+
+            var value = (T)activator.CreateInstance();
+            if (!encodeableTypeId.IsNull)
+            {
+                // set type identifier for custom complex data types before decode.
+                if (value is IComplexTypeInstance complexTypeInstance)
+                {
+                    complexTypeInstance.TypeId = encodeableTypeId;
+                }
+            }
+            return ReadEncodeable(fieldName, value);
+        }
+
+        /// <inheritdoc/>
+        public T ReadEnumerated<T>(string fieldName) where T : struct, Enum
+        {
+            T value = default;
+
+            if (BeginField(fieldName, true))
+            {
+                string xml = SafeReadString();
+
+                if (!string.IsNullOrEmpty(xml))
+                {
+                    int index = xml.LastIndexOf('_');
+
+                    try
+                    {
+                        if (index != -1)
+                        {
+                            int numericValue = Convert.ToInt32(
+                                xml[(index + 1)..],
+                                CultureInfo.InvariantCulture);
+                            value = EnumHelper.Int32ToEnum<T>(numericValue);
+                        }
+                        else
+                        {
+#if NETSTANDARD2_1_OR_GREATER || NET8_0_OR_GREATER
+                            value = Enum.Parse<T>(xml, false);
+#else
+                            value = (T)Enum.Parse(typeof(T), xml, false);
+#endif
+                        }
+                    }
+                    catch (Exception ex) when (ex is
+                        ArgumentException or
+                        FormatException or
+                        OverflowException)
+                    {
+                        throw CreateBadDecodingError(fieldName, ex, value: xml);
+                    }
+                }
+
+                EndField(fieldName);
+            }
+
+            return value;
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<bool> ReadBooleanArray(string fieldName)
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var values = new BooleanCollection();
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                while (MoveToElement("Boolean"))
+                {
+                    values.Add(ReadBoolean("Boolean"));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+
+                EndField(fieldName);
+                return values;
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<sbyte> ReadSByteArray(string fieldName)
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var values = new SByteCollection();
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                while (MoveToElement("SByte"))
+                {
+                    values.Add(ReadSByte("SByte"));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+
+                EndField(fieldName);
+                return values;
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<byte> ReadByteArray(string fieldName)
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var values = new ByteCollection();
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                while (MoveToElement("Byte"))
+                {
+                    values.Add(ReadByte("Byte"));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+
+                EndField(fieldName);
+                return values;
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<short> ReadInt16Array(string fieldName)
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var values = new Int16Collection();
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                while (MoveToElement("Int16"))
+                {
+                    values.Add(ReadInt16("Int16"));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+
+                EndField(fieldName);
+                return values;
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<ushort> ReadUInt16Array(string fieldName)
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var values = new UInt16Collection();
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                while (MoveToElement("UInt16"))
+                {
+                    values.Add(ReadUInt16("UInt16"));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+
+                EndField(fieldName);
+                return values;
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<int> ReadInt32Array(string fieldName)
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var values = new Int32Collection();
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                while (MoveToElement("Int32"))
+                {
+                    values.Add(ReadInt32("Int32"));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+
+                EndField(fieldName);
+                return values;
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<uint> ReadUInt32Array(string fieldName)
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var values = new UInt32Collection();
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                while (MoveToElement("UInt32"))
+                {
+                    values.Add(ReadUInt32("UInt32"));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+
+                EndField(fieldName);
+                return values;
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<long> ReadInt64Array(string fieldName)
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var values = new Int64Collection();
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                while (MoveToElement("Int64"))
+                {
+                    values.Add(ReadInt64("Int64"));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+
+                EndField(fieldName);
+                return values;
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<ulong> ReadUInt64Array(string fieldName)
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var values = new UInt64Collection();
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                while (MoveToElement("UInt64"))
+                {
+                    values.Add(ReadUInt64("UInt64"));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+
+                EndField(fieldName);
+                return values;
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<float> ReadFloatArray(string fieldName)
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var values = new FloatCollection();
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                while (MoveToElement("Float"))
+                {
+                    values.Add(ReadFloat("Float"));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+
+                EndField(fieldName);
+                return values;
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<double> ReadDoubleArray(string fieldName)
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var values = new DoubleCollection();
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                while (MoveToElement("Double"))
+                {
+                    values.Add(ReadDouble("Double"));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+
+                EndField(fieldName);
+                return values;
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<string> ReadStringArray(string fieldName)
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var values = new StringCollection();
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                while (MoveToElement("String"))
+                {
+                    values.Add(ReadString("String"));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+
+                EndField(fieldName);
+                return values;
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<DateTime> ReadDateTimeArray(string fieldName)
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var values = new DateTimeCollection();
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                while (MoveToElement("DateTime"))
+                {
+                    values.Add(ReadDateTime("DateTime"));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+
+                EndField(fieldName);
+                return values;
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<Uuid> ReadGuidArray(string fieldName)
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var values = new UuidCollection();
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                while (MoveToElement("Guid"))
+                {
+                    values.Add(ReadGuid("Guid"));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+
+                EndField(fieldName);
+                return values;
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<ByteString> ReadByteStringArray(string fieldName)
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var values = new ByteStringCollection();
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                while (MoveToElement("ByteString"))
+                {
+                    values.Add(ReadByteString("ByteString"));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+
+                EndField(fieldName);
+                return values;
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<XmlElement> ReadXmlElementArray(string fieldName)
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var values = new XmlElementCollection();
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                while (MoveToElement("XmlElement"))
+                {
+                    values.Add(ReadXmlElement("XmlElement"));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+
+                EndField(fieldName);
+                return values;
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<NodeId> ReadNodeIdArray(string fieldName)
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var values = new NodeIdCollection();
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                while (MoveToElement("NodeId"))
+                {
+                    values.Add(ReadNodeId("NodeId"));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+
+                EndField(fieldName);
+                return values;
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<ExpandedNodeId> ReadExpandedNodeIdArray(string fieldName)
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var values = new ExpandedNodeIdCollection();
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                while (MoveToElement("ExpandedNodeId"))
+                {
+                    values.Add(ReadExpandedNodeId("ExpandedNodeId"));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+
+                EndField(fieldName);
+                return values;
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<StatusCode> ReadStatusCodeArray(string fieldName)
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var values = new StatusCodeCollection();
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                while (MoveToElement("StatusCode"))
+                {
+                    values.Add(ReadStatusCode("StatusCode"));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+
+                EndField(fieldName);
+                return values;
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<DiagnosticInfo> ReadDiagnosticInfoArray(string fieldName)
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var values = new DiagnosticInfoCollection();
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                while (MoveToElement("DiagnosticInfo"))
+                {
+                    values.Add(ReadDiagnosticInfo("DiagnosticInfo"));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+
+                EndField(fieldName);
+                return values;
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<QualifiedName> ReadQualifiedNameArray(string fieldName)
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var values = new QualifiedNameCollection();
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                while (MoveToElement("QualifiedName"))
+                {
+                    values.Add(ReadQualifiedName("QualifiedName"));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+
+                EndField(fieldName);
+                return values;
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<LocalizedText> ReadLocalizedTextArray(string fieldName)
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var values = new LocalizedTextCollection();
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                while (MoveToElement("LocalizedText"))
+                {
+                    values.Add(ReadLocalizedText("LocalizedText"));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+
+                EndField(fieldName);
+                return values;
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<Variant> ReadVariantArray(string fieldName)
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var values = new VariantCollection();
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                while (MoveToElement("Variant"))
+                {
+                    values.Add(ReadVariant("Variant"));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+
+                EndField(fieldName);
+                return values;
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<DataValue> ReadDataValueArray(string fieldName)
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var values = new DataValueCollection();
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                while (MoveToElement("DataValue"))
+                {
+                    values.Add(ReadDataValue("DataValue"));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+
+                EndField(fieldName);
+                return values.ToArrayOf();
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<ExtensionObject> ReadExtensionObjectArray(string fieldName)
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var values = new ExtensionObjectCollection();
+                PushNamespace(Namespaces.OpcUaXsd);
+
+                while (MoveToElement("ExtensionObject"))
+                {
+                    values.Add(ReadExtensionObject("ExtensionObject"));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+
+                EndField(fieldName);
+                return values.ToArrayOf();
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<T> ReadEncodeableArray<T>(string fieldName)
+            where T : IEncodeable, new()
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var encodeables = new List<T>();
+                XmlQualifiedName xmlName = TypeInfo.GetXmlName(typeof(T));
+                PushNamespace(xmlName.Namespace);
+
+                while (MoveToElement(xmlName.Name))
+                {
+                    encodeables.Add(ReadEncodeable<T>(xmlName.Name));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < encodeables.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+
+                EndField(fieldName);
+                return encodeables.ToArrayOf();
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<T> ReadEncodeableArray<T>(
+            string fieldName,
+            ExpandedNodeId encodeableTypeId) where T : IEncodeable
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var encodeables = new List<T>();
+                XmlQualifiedName xmlName = TypeInfo.GetXmlName(typeof(T));
+                PushNamespace(xmlName.Namespace);
+
+                while (MoveToElement(xmlName.Name))
+                {
+                    encodeables.Add(ReadEncodeable<T>(xmlName.Name, encodeableTypeId));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < encodeables.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+                EndField(fieldName);
+                return encodeables.ToArrayOf();
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<T> ReadEnumeratedArray<T>(string fieldName) where T : struct, Enum
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var enums = new List<T>();
+                XmlQualifiedName xmlName = TypeInfo.GetXmlName(typeof(T));
+                PushNamespace(xmlName.Namespace);
+
+                while (MoveToElement(xmlName.Name))
+                {
+                    enums.Add(ReadEnumerated<T>(xmlName.Name));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < enums.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+                EndField(fieldName);
+                return enums.ToArrayOf();
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
+        public uint ReadSwitchField(IList<string> switches, out string fieldName)
+        {
+            fieldName = null;
+            return ReadUInt32("SwitchField");
+        }
+
+        /// <inheritdoc/>
+        public uint ReadEncodingMask(IList<string> masks)
+        {
+            return ReadUInt32("EncodingMask");
+        }
+
+        /// <inheritdoc/>
         public Variant ReadVariantValue(string fieldName, TypeInfo typeInfo)
         {
             CheckAndIncrementNestingLevel();
@@ -479,13 +2103,11 @@ namespace Opc.Ua
             }
 
             // lookup type.
-            Type systemType = Context.Factory.GetSystemType(typeId);
-
-            // decode known type.
-            if (systemType != null)
+            if (Context.Factory.TryGetEncodeableType(typeId, out _))
             {
+                // decode known type.
                 PushNamespace(m_reader.NamespaceURI);
-                IEncodeable encodeable = ReadEncodeable(m_reader.LocalName, systemType, typeId);
+                IEncodeable encodeable = ReadEncodeable<IEncodeable>(m_reader.LocalName, typeId);
                 PopNamespace();
                 return encodeable;
             }
@@ -509,1941 +2131,6 @@ namespace Opc.Ua
                     "Failed to decode xml extension object body: {0}",
                     ae.Message);
             }
-        }
-
-        /// <summary>
-        /// Frees any unmanaged resources.
-        /// </summary>
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        /// <summary>
-        /// An overrideable version of the Dispose.
-        /// </summary>
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                CoreUtils.SilentDispose(m_reader);
-                m_reader = null;
-            }
-        }
-
-        /// <summary>
-        /// The type of encoding being used.
-        /// </summary>
-        public EncodingType EncodingType => EncodingType.Xml;
-
-        /// <summary>
-        /// The message context associated with the decoder.
-        /// </summary>
-        public IServiceMessageContext Context { get; }
-
-        /// <summary>
-        /// Pushes a namespace onto the namespace stack.
-        /// </summary>
-        public void PushNamespace(string namespaceUri)
-        {
-            m_namespaces.Push(namespaceUri);
-        }
-
-        /// <summary>
-        /// Pops a namespace from the namespace stack.
-        /// </summary>
-        public void PopNamespace()
-        {
-            m_namespaces.Pop();
-        }
-
-        /// <summary>
-        /// Initializes the tables used to map namespace and server uris during decoding.
-        /// </summary>
-        /// <param name="namespaceUris">The namespace URIs referenced by the data being decoded.</param>
-        /// <param name="serverUris">The server URIs referenced by the data being decoded.</param>
-        public void SetMappingTables(NamespaceTable namespaceUris, StringTable serverUris)
-        {
-            m_namespaceMappings = null;
-
-            if (namespaceUris != null && Context.NamespaceUris != null)
-            {
-                m_namespaceMappings = Context.NamespaceUris.CreateMapping(namespaceUris, false);
-            }
-
-            m_serverMappings = null;
-
-            if (serverUris != null && Context.ServerUris != null)
-            {
-                m_serverMappings = Context.ServerUris.CreateMapping(serverUris, false);
-            }
-        }
-
-        /// <summary>
-        /// Decodes an object from a buffer.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="expectedType"/> is <c>null</c>.</exception>
-        public IEncodeable DecodeMessage(Type expectedType)
-        {
-            if (expectedType == null)
-            {
-                throw new ArgumentNullException(nameof(expectedType));
-            }
-
-            XmlQualifiedName typeName = TypeInfo.GetXmlName(expectedType);
-            string ns = typeName.Namespace;
-            string name = typeName.Name;
-
-            int index = name.IndexOf(':', StringComparison.Ordinal);
-
-            if (index != -1)
-            {
-                name = name[(index + 1)..];
-            }
-
-            PushNamespace(ns);
-
-            // read the message.
-            IEncodeable encodeable = ReadEncodeable(name, expectedType);
-
-            PopNamespace();
-
-            return encodeable;
-        }
-
-        /// <summary>
-        /// Reads a boolean from the stream.
-        /// </summary>
-        public bool ReadBoolean(string fieldName)
-        {
-            if (BeginField(fieldName, true))
-            {
-                string xml = SafeReadString();
-
-                if (!string.IsNullOrEmpty(xml))
-                {
-                    bool value = SafeXmlConvert(
-                        fieldName,
-                        XmlConvert.ToBoolean,
-                        xml.ToLowerInvariant());
-                    EndField(fieldName);
-                    return value;
-                }
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Reads a sbyte from the stream.
-        /// </summary>
-        public sbyte ReadSByte(string fieldName)
-        {
-            if (BeginField(fieldName, true))
-            {
-                string xml = SafeReadString();
-
-                if (!string.IsNullOrEmpty(xml))
-                {
-                    sbyte value = SafeXmlConvert(fieldName, XmlConvert.ToSByte, xml);
-                    EndField(fieldName);
-                    return value;
-                }
-            }
-
-            return 0;
-        }
-
-        /// <summary>
-        /// Reads a byte from the stream.
-        /// </summary>
-        public byte ReadByte(string fieldName)
-        {
-            if (BeginField(fieldName, true))
-            {
-                string xml = SafeReadString();
-
-                if (!string.IsNullOrEmpty(xml))
-                {
-                    byte value = SafeXmlConvert(fieldName, XmlConvert.ToByte, xml);
-                    EndField(fieldName);
-                    return value;
-                }
-            }
-
-            return 0;
-        }
-
-        /// <summary>
-        /// Reads a short from the stream.
-        /// </summary>
-        public short ReadInt16(string fieldName)
-        {
-            if (BeginField(fieldName, true))
-            {
-                string xml = SafeReadString();
-
-                if (!string.IsNullOrEmpty(xml))
-                {
-                    short value = SafeXmlConvert(fieldName, XmlConvert.ToInt16, xml);
-                    EndField(fieldName);
-                    return value;
-                }
-            }
-
-            return 0;
-        }
-
-        /// <summary>
-        /// Reads a ushort from the stream.
-        /// </summary>
-        public ushort ReadUInt16(string fieldName)
-        {
-            if (BeginField(fieldName, true))
-            {
-                string xml = SafeReadString();
-
-                if (!string.IsNullOrEmpty(xml))
-                {
-                    ushort value = SafeXmlConvert(fieldName, XmlConvert.ToUInt16, xml);
-                    EndField(fieldName);
-                    return value;
-                }
-            }
-
-            return 0;
-        }
-
-        /// <summary>
-        /// Reads an int from the stream.
-        /// </summary>
-        public int ReadInt32(string fieldName)
-        {
-            if (BeginField(fieldName, true))
-            {
-                string xml = SafeReadString();
-
-                if (!string.IsNullOrEmpty(xml))
-                {
-                    int value = SafeXmlConvert(fieldName, XmlConvert.ToInt32, xml);
-                    EndField(fieldName);
-                    return value;
-                }
-            }
-
-            return 0;
-        }
-
-        /// <summary>
-        /// Reads a uint from the stream.
-        /// </summary>
-        public uint ReadUInt32(string fieldName)
-        {
-            if (BeginField(fieldName, true))
-            {
-                string xml = SafeReadString();
-
-                if (!string.IsNullOrEmpty(xml))
-                {
-                    uint value = SafeXmlConvert(fieldName, XmlConvert.ToUInt32, xml);
-                    EndField(fieldName);
-                    return value;
-                }
-            }
-
-            return 0;
-        }
-
-        /// <summary>
-        /// Reads a long from the stream.
-        /// </summary>
-        public long ReadInt64(string fieldName)
-        {
-            if (BeginField(fieldName, true))
-            {
-                string xml = SafeReadString();
-
-                if (!string.IsNullOrEmpty(xml))
-                {
-                    long value = SafeXmlConvert(fieldName, XmlConvert.ToInt64, xml);
-                    EndField(fieldName);
-                    return value;
-                }
-            }
-
-            return 0;
-        }
-
-        /// <summary>
-        /// Reads a ulong from the stream.
-        /// </summary>
-        public ulong ReadUInt64(string fieldName)
-        {
-            if (BeginField(fieldName, true))
-            {
-                string xml = SafeReadString();
-
-                if (!string.IsNullOrEmpty(xml))
-                {
-                    ulong value = SafeXmlConvert(fieldName, XmlConvert.ToUInt64, xml);
-                    EndField(fieldName);
-                    return value;
-                }
-            }
-
-            return 0;
-        }
-
-        /// <summary>
-        /// Reads a float from the stream.
-        /// </summary>
-        public float ReadFloat(string fieldName)
-        {
-            if (BeginField(fieldName, true))
-            {
-                string xml = SafeReadString();
-
-                if (!string.IsNullOrEmpty(xml))
-                {
-                    float value = SafeXmlConvert(fieldName, XmlConvert.ToSingle, xml);
-                    EndField(fieldName);
-                    return value;
-                }
-            }
-
-            return 0;
-        }
-
-        /// <summary>
-        /// Reads a double from the stream.
-        /// </summary>
-        public double ReadDouble(string fieldName)
-        {
-            if (BeginField(fieldName, true))
-            {
-                string xml = SafeReadString();
-
-                if (!string.IsNullOrEmpty(xml))
-                {
-                    double value = SafeXmlConvert(fieldName, XmlConvert.ToDouble, xml);
-                    EndField(fieldName);
-                    return value;
-                }
-            }
-
-            return 0;
-        }
-
-        /// <summary>
-        /// Reads a string from the stream.
-        /// </summary>
-        public string ReadString(string fieldName)
-        {
-            if (BeginField(fieldName, true, out bool isNil))
-            {
-                string value = SafeReadString();
-
-                if (value != null)
-                {
-                    value = value.Trim();
-                }
-
-                EndField(fieldName);
-                return value;
-            }
-
-            return !isNil ? string.Empty : null;
-        }
-
-        /// <summary>
-        /// Reads a UTC date/time from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public DateTime ReadDateTime(string fieldName)
-        {
-            if (BeginField(fieldName, true))
-            {
-                string xml = SafeReadString();
-
-                // check the length.
-                if (Context.MaxStringLength > 0 && Context.MaxStringLength < xml.Length)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                if (!string.IsNullOrEmpty(xml))
-                {
-                    try
-                    {
-                        var value = XmlConvert.ToDateTime(xml, XmlDateTimeSerializationMode.Utc);
-                        EndField(fieldName);
-                        return value;
-                    }
-                    catch (FormatException fe)
-                    {
-                        throw CreateBadDecodingError(fieldName, fe, value: xml);
-                    }
-                }
-            }
-
-            return DateTime.MinValue;
-        }
-
-        /// <summary>
-        /// Reads a GUID from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public Uuid ReadGuid(string fieldName)
-        {
-            Uuid value = Uuid.Empty;
-
-            if (BeginField(fieldName, true))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-                string guidString = ReadString("String");
-                PopNamespace();
-
-                try
-                {
-                    value = Uuid.Parse(guidString);
-                }
-                catch (FormatException fe)
-                {
-                    throw CreateBadDecodingError(fieldName, fe, value: guidString);
-                }
-
-                EndField(fieldName);
-            }
-
-            return value;
-        }
-
-        /// <summary>
-        /// Reads a byte string from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public ByteString ReadByteString(string fieldName)
-        {
-            if (BeginField(fieldName, true, out bool isNil))
-            {
-                ByteString value;
-                try
-                {
-                    string xml = m_reader.ReadContentAsString();
-
-                    if (!string.IsNullOrEmpty(xml))
-                    {
-                        value = ByteString.From(SafeConvertFromBase64String(xml));
-                    }
-                    else
-                    {
-                        value = ByteString.Empty;
-                    }
-                }
-                catch (XmlException xe)
-                {
-                    throw CreateBadDecodingError(fieldName, xe);
-                }
-                catch (InvalidOperationException ioe)
-                {
-                    throw CreateBadDecodingError(fieldName, ioe);
-                }
-
-                // check the length.
-                if (Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < value.Length)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                EndField(fieldName);
-                return value;
-            }
-
-            return default;
-        }
-
-        /// <summary>
-        /// Reads an XmlElement from the stream.
-        /// </summary>
-        public XmlElement ReadXmlElement(string fieldName)
-        {
-            if (BeginField(fieldName, true) && MoveToElement(null))
-            {
-                var document = new XmlDocument();
-                System.Xml.XmlElement value = document.CreateElement(
-                    m_reader.Prefix,
-                    m_reader.LocalName,
-                    m_reader.NamespaceURI);
-                document.AppendChild(value);
-
-                if (m_reader.MoveToFirstAttribute())
-                {
-                    do
-                    {
-                        XmlAttribute attribute = document.CreateAttribute(m_reader.Name);
-                        attribute.Value = m_reader.Value;
-                        value.Attributes.Append(attribute);
-                    } while (m_reader.MoveToNextAttribute());
-
-                    m_reader.MoveToContent();
-                }
-
-                value.InnerXml = m_reader.ReadInnerXml();
-
-                EndField(fieldName);
-                return (XmlElement)value;
-            }
-
-            return default;
-        }
-
-        /// <summary>
-        /// Reads an NodeId from the stream.
-        /// </summary>
-        public NodeId ReadNodeId(string fieldName)
-        {
-            if (BeginField(fieldName, true))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-                string identifierText = ReadString("Identifier");
-                PopNamespace();
-
-                NodeId value;
-                try
-                {
-                    value = NodeId.Parse(identifierText);
-                }
-                catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes
-                    .BadNodeIdInvalid)
-                {
-                    throw CreateBadDecodingError(fieldName, sre, value: identifierText);
-                }
-                catch (ArgumentException ae)
-                {
-                    throw CreateBadDecodingError(fieldName, ae, value: identifierText);
-                }
-
-                EndField(fieldName);
-
-                if (m_namespaceMappings != null &&
-                    m_namespaceMappings.Length > value.NamespaceIndex)
-                {
-                    return value.WithNamespaceIndex(m_namespaceMappings[value.NamespaceIndex]);
-                }
-
-                return value;
-            }
-
-            return NodeId.Null;
-        }
-
-        /// <summary>
-        /// Reads an ExpandedNodeId from the stream.
-        /// </summary>
-        public ExpandedNodeId ReadExpandedNodeId(string fieldName)
-        {
-            if (BeginField(fieldName, true))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-                string identifierText = ReadString("Identifier");
-                PopNamespace();
-
-                ExpandedNodeId value;
-                try
-                {
-                    value = ExpandedNodeId.Parse(identifierText);
-                }
-                catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes
-                    .BadNodeIdInvalid)
-                {
-                    throw CreateBadDecodingError(fieldName, sre, value: identifierText);
-                }
-                catch (ArgumentException ae)
-                {
-                    throw CreateBadDecodingError(fieldName, ae, value: identifierText);
-                }
-
-                EndField(fieldName);
-
-                if (m_namespaceMappings != null &&
-                    m_namespaceMappings.Length > value.NamespaceIndex &&
-                    !value.IsNull)
-                {
-                    value = value.WithNamespaceIndex(m_namespaceMappings[value.NamespaceIndex]);
-                }
-
-                if (m_serverMappings != null &&
-                    m_serverMappings.Length > value.ServerIndex &&
-                    !value.IsNull)
-                {
-                    value = value.WithServerIndex(m_serverMappings[value.ServerIndex]);
-                }
-
-                return value;
-            }
-
-            return ExpandedNodeId.Null;
-        }
-
-        /// <summary>
-        /// Reads an StatusCode from the stream.
-        /// </summary>
-        public StatusCode ReadStatusCode(string fieldName)
-        {
-            StatusCode value;
-
-            if (BeginField(fieldName, true))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-                value = ReadUInt32("Code");
-                PopNamespace();
-
-                EndField(fieldName);
-            }
-            else
-            {
-                value = StatusCodes.Good;
-            }
-            return value;
-        }
-
-        /// <summary>
-        /// Reads an DiagnosticInfo from the stream.
-        /// </summary>
-        public DiagnosticInfo ReadDiagnosticInfo(string fieldName)
-        {
-            DiagnosticInfo value = null;
-
-            if (BeginField(fieldName, true))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-                value = ReadDiagnosticInfo(0);
-                PopNamespace();
-
-                EndField(fieldName);
-                return value;
-            }
-
-            return value;
-        }
-
-        /// <summary>
-        /// Reads an QualifiedName from the stream.
-        /// </summary>
-        public QualifiedName ReadQualifiedName(string fieldName)
-        {
-            if (BeginField(fieldName, true))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                ushort namespaceIndex = 0;
-
-                if (BeginField("NamespaceIndex", true))
-                {
-                    namespaceIndex = ReadUInt16(null);
-                    EndField("NamespaceIndex");
-                }
-
-                string name = null;
-
-                if (BeginField("Name", true, out bool isNil))
-                {
-                    name = ReadString(null);
-                    EndField("Name");
-                }
-                else if (!isNil)
-                {
-                    name = string.Empty;
-                }
-
-                PopNamespace();
-                EndField(fieldName);
-
-                if (m_namespaceMappings != null && m_namespaceMappings.Length > namespaceIndex)
-                {
-                    namespaceIndex = m_namespaceMappings[namespaceIndex];
-                }
-
-                return new QualifiedName(name, namespaceIndex);
-            }
-
-            return default;
-        }
-
-        /// <summary>
-        /// Reads an LocalizedText from the stream.
-        /// </summary>
-        public LocalizedText ReadLocalizedText(string fieldName)
-        {
-            if (BeginField(fieldName, true))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-                string text = null;
-                string locale = null;
-
-                if (BeginField("Locale", true, out bool isNil))
-                {
-                    locale = ReadString(null);
-                    EndField("Locale");
-                }
-                else if (!isNil)
-                {
-                    locale = string.Empty;
-                }
-
-                if (BeginField("Text", true, out isNil))
-                {
-                    text = ReadString(null);
-                    EndField("Text");
-                }
-                else if (!isNil)
-                {
-                    text = string.Empty;
-                }
-
-                var value = new LocalizedText(locale, text);
-
-                PopNamespace();
-
-                EndField(fieldName);
-                return value;
-            }
-
-            return LocalizedText.Null;
-        }
-
-        /// <summary>
-        /// Reads an Variant from the stream.
-        /// </summary>
-        public Variant ReadVariant(string fieldName)
-        {
-            CheckAndIncrementNestingLevel();
-
-            try
-            {
-                Variant value = Variant.Null;
-
-                if (BeginField(fieldName, true))
-                {
-                    PushNamespace(Namespaces.OpcUaXsd);
-
-                    if (BeginField("Value", true))
-                    {
-                        try
-                        {
-                            value = ReadVariantValue();
-                        }
-                        catch (Exception ex) when (ex is not ServiceResultException)
-                        {
-                            m_logger.LogError(ex, "XmlDecoder: Error reading variant.");
-                            value = new Variant(StatusCodes.BadDecodingError);
-                        }
-                        EndField("Value");
-                    }
-
-                    PopNamespace();
-
-                    EndField(fieldName);
-                }
-
-                return value;
-            }
-            finally
-            {
-                m_nestingLevel--;
-            }
-        }
-
-        /// <summary>
-        /// Reads an DataValue from the stream.
-        /// </summary>
-        public DataValue ReadDataValue(string fieldName)
-        {
-            var value = new DataValue();
-
-            if (BeginField(fieldName, true))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                value.WrappedValue = ReadVariant("Value");
-                value.StatusCode = ReadStatusCode("StatusCode");
-                value.SourceTimestamp = ReadDateTime("SourceTimestamp");
-                value.SourcePicoseconds = ReadUInt16("SourcePicoseconds");
-                value.ServerTimestamp = ReadDateTime("ServerTimestamp");
-                value.ServerPicoseconds = ReadUInt16("ServerPicoseconds");
-
-                PopNamespace();
-
-                EndField(fieldName);
-            }
-
-            return value;
-        }
-
-        /// <summary>
-        /// Reads an extension object from the stream.
-        /// </summary>
-        public ExtensionObject ReadExtensionObject(string fieldName)
-        {
-            if (!BeginField(fieldName, true))
-            {
-                return ExtensionObject.Null;
-            }
-
-            PushNamespace(Namespaces.OpcUaXsd);
-
-            // read local type id.
-            NodeId typeId = ReadNodeId("TypeId");
-
-            // convert to absolute type id.
-            var absoluteId = NodeId.ToExpandedNodeId(typeId, Context.NamespaceUris);
-
-            if (!typeId.IsNull && absoluteId.IsNull)
-            {
-                m_logger.LogWarning(
-                    "Cannot de-serialize extension objects if the NamespaceUri is not in the NamespaceTable: Type = {Type}",
-                    typeId);
-            }
-
-            // read body.
-            if (!BeginField("Body", true))
-            {
-                // read end of extension object.
-                EndField(fieldName);
-                PopNamespace();
-
-                return new ExtensionObject(absoluteId);
-            }
-
-            // read the body.
-            object body = ReadExtensionObjectBody(absoluteId);
-
-            // read end of body.
-            EndField("Body");
-            PopNamespace();
-
-            // read end of extension object.
-            EndField(fieldName);
-
-            if (body is IEncodeable encodeable)
-            {
-                // Set the known TypeId for encodeables.
-                absoluteId = encodeable.TypeId;
-            }
-
-            return new ExtensionObject(absoluteId, body);
-        }
-
-        /// <summary>
-        /// Reads an encodeable object from the stream.
-        /// </summary>
-        /// <param name="fieldName">The encodeable object field name</param>
-        /// <param name="systemType">The system type of the encodeable object to be read</param>
-        /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instance that will be read.</param>
-        /// <returns>An <see cref="IEncodeable"/> object that was read from the stream.</returns>
-        /// <exception cref="ArgumentNullException"><paramref name="systemType"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException"></exception>
-        public IEncodeable ReadEncodeable(
-            string fieldName,
-            Type systemType,
-            ExpandedNodeId encodeableTypeId = default)
-        {
-            if (systemType == null)
-            {
-                throw new ArgumentNullException(nameof(systemType));
-            }
-
-            if (Activator.CreateInstance(systemType) is not IEncodeable value)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadDecodingError,
-                    "Type does not support IEncodeable interface: '{0}'",
-                    systemType.FullName);
-            }
-
-            if (!encodeableTypeId.IsNull)
-            {
-                // set type identifier for custom complex data types before decode.
-
-                if (value is IComplexTypeInstance complexTypeInstance)
-                {
-                    complexTypeInstance.TypeId = encodeableTypeId;
-                }
-            }
-
-            CheckAndIncrementNestingLevel();
-
-            try
-            {
-                if (BeginField(fieldName, true))
-                {
-                    XmlQualifiedName xmlName = TypeInfo.GetXmlName(value, Context);
-
-                    PushNamespace(xmlName.Namespace);
-                    value.Decode(this);
-                    PopNamespace();
-
-                    // skip to end of encodeable object.
-                    m_reader.MoveToContent();
-
-                    while (
-                        !(
-                            m_reader.NodeType == XmlNodeType.EndElement &&
-                            m_reader.LocalName == fieldName &&
-                            m_reader.NamespaceURI == m_namespaces.Peek()))
-                    {
-                        if (m_reader.NodeType == XmlNodeType.None)
-                        {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadDecodingError,
-                                "Unexpected end of stream decoding field '{0}' for type '{1}'.",
-                                fieldName,
-                                systemType.FullName);
-                        }
-
-                        m_reader.Skip();
-                        m_reader.MoveToContent();
-                    }
-
-                    EndField(fieldName);
-                }
-            }
-            catch (XmlException xe)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadDecodingError,
-                    "Error decoding field '{0}' for type '{1}': {2}",
-                    fieldName,
-                    systemType.Name,
-                    xe.Message);
-            }
-            finally
-            {
-                m_nestingLevel--;
-            }
-
-            return value;
-        }
-
-        /// <summary>
-        ///  Reads an enumerated value from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public Enum ReadEnumerated(string fieldName, Type enumType)
-        {
-            var value = (Enum)Enum.GetValues(enumType).GetValue(0);
-
-            if (BeginField(fieldName, true))
-            {
-                string xml = SafeReadString();
-
-                if (!string.IsNullOrEmpty(xml))
-                {
-                    int index = xml.LastIndexOf('_');
-
-                    try
-                    {
-                        if (index != -1)
-                        {
-                            int numericValue = Convert.ToInt32(
-                                xml[(index + 1)..],
-                                CultureInfo.InvariantCulture);
-                            value = (Enum)Enum.ToObject(enumType, numericValue);
-                        }
-                        else
-                        {
-                            value = (Enum)Enum.Parse(enumType, xml, false);
-                        }
-                    }
-                    catch (Exception ex) when (ex is ArgumentException or FormatException or OverflowException)
-                    {
-                        throw CreateBadDecodingError(fieldName, ex, value: xml);
-                    }
-                }
-
-                EndField(fieldName);
-            }
-
-            return value;
-        }
-
-        /// <summary>
-        /// Reads a boolean array from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public BooleanCollection ReadBooleanArray(string fieldName)
-        {
-            var values = new BooleanCollection();
-
-            if (BeginField(fieldName, true, out bool isNil))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                while (MoveToElement("Boolean"))
-                {
-                    values.Add(ReadBoolean("Boolean"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                PopNamespace();
-
-                EndField(fieldName);
-                return values;
-            }
-
-            return isNil ? null : values;
-        }
-
-        /// <summary>
-        /// Reads a sbyte array from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public SByteCollection ReadSByteArray(string fieldName)
-        {
-            var values = new SByteCollection();
-
-            if (BeginField(fieldName, true, out bool isNil))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                while (MoveToElement("SByte"))
-                {
-                    values.Add(ReadSByte("SByte"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                PopNamespace();
-
-                EndField(fieldName);
-                return values;
-            }
-
-            return isNil ? null : values;
-        }
-
-        /// <summary>
-        /// Reads a byte array from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public ByteCollection ReadByteArray(string fieldName)
-        {
-            var values = new ByteCollection();
-
-            if (BeginField(fieldName, true, out bool isNil))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                while (MoveToElement("Byte"))
-                {
-                    values.Add(ReadByte("Byte"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                PopNamespace();
-
-                EndField(fieldName);
-                return values;
-            }
-
-            return isNil ? null : values;
-        }
-
-        /// <summary>
-        /// Reads a short array from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public Int16Collection ReadInt16Array(string fieldName)
-        {
-            var values = new Int16Collection();
-
-            if (BeginField(fieldName, true, out bool isNil))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                while (MoveToElement("Int16"))
-                {
-                    values.Add(ReadInt16("Int16"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                PopNamespace();
-
-                EndField(fieldName);
-                return values;
-            }
-
-            return isNil ? null : values;
-        }
-
-        /// <summary>
-        /// Reads a ushort array from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public UInt16Collection ReadUInt16Array(string fieldName)
-        {
-            var values = new UInt16Collection();
-
-            if (BeginField(fieldName, true, out bool isNil))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                while (MoveToElement("UInt16"))
-                {
-                    values.Add(ReadUInt16("UInt16"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                PopNamespace();
-
-                EndField(fieldName);
-                return values;
-            }
-
-            return isNil ? null : values;
-        }
-
-        /// <summary>
-        /// Reads a int array from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public Int32Collection ReadInt32Array(string fieldName)
-        {
-            var values = new Int32Collection();
-
-            if (BeginField(fieldName, true, out bool isNil))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                while (MoveToElement("Int32"))
-                {
-                    values.Add(ReadInt32("Int32"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                PopNamespace();
-
-                EndField(fieldName);
-                return values;
-            }
-
-            return isNil ? null : values;
-        }
-
-        /// <summary>
-        /// Reads a uint array from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public UInt32Collection ReadUInt32Array(string fieldName)
-        {
-            var values = new UInt32Collection();
-
-            if (BeginField(fieldName, true, out bool isNil))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                while (MoveToElement("UInt32"))
-                {
-                    values.Add(ReadUInt32("UInt32"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                PopNamespace();
-
-                EndField(fieldName);
-                return values;
-            }
-
-            return isNil ? null : values;
-        }
-
-        /// <summary>
-        /// Reads a long array from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public Int64Collection ReadInt64Array(string fieldName)
-        {
-            var values = new Int64Collection();
-
-            if (BeginField(fieldName, true, out bool isNil))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                while (MoveToElement("Int64"))
-                {
-                    values.Add(ReadInt64("Int64"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                PopNamespace();
-
-                EndField(fieldName);
-                return values;
-            }
-
-            return isNil ? null : values;
-        }
-
-        /// <summary>
-        /// Reads a ulong array from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public UInt64Collection ReadUInt64Array(string fieldName)
-        {
-            var values = new UInt64Collection();
-
-            if (BeginField(fieldName, true, out bool isNil))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                while (MoveToElement("UInt64"))
-                {
-                    values.Add(ReadUInt64("UInt64"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                PopNamespace();
-
-                EndField(fieldName);
-                return values;
-            }
-
-            return isNil ? null : values;
-        }
-
-        /// <summary>
-        /// Reads a float array from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public FloatCollection ReadFloatArray(string fieldName)
-        {
-            var values = new FloatCollection();
-
-            if (BeginField(fieldName, true, out bool isNil))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                while (MoveToElement("Float"))
-                {
-                    values.Add(ReadFloat("Float"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                PopNamespace();
-
-                EndField(fieldName);
-                return values;
-            }
-
-            return isNil ? null : values;
-        }
-
-        /// <summary>
-        /// Reads a double array from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public DoubleCollection ReadDoubleArray(string fieldName)
-        {
-            var values = new DoubleCollection();
-
-            if (BeginField(fieldName, true, out bool isNil))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                while (MoveToElement("Double"))
-                {
-                    values.Add(ReadDouble("Double"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                PopNamespace();
-
-                EndField(fieldName);
-                return values;
-            }
-
-            return isNil ? null : values;
-        }
-
-        /// <summary>
-        /// Reads a string array from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public StringCollection ReadStringArray(string fieldName)
-        {
-            var values = new StringCollection();
-
-            if (BeginField(fieldName, true, out bool isNil))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                while (MoveToElement("String"))
-                {
-                    values.Add(ReadString("String"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                PopNamespace();
-
-                EndField(fieldName);
-                return values;
-            }
-
-            return isNil ? null : values;
-        }
-
-        /// <summary>
-        /// Reads a UTC date/time array from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public DateTimeCollection ReadDateTimeArray(string fieldName)
-        {
-            var values = new DateTimeCollection();
-
-            if (BeginField(fieldName, true, out bool isNil))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                while (MoveToElement("DateTime"))
-                {
-                    values.Add(ReadDateTime("DateTime"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                PopNamespace();
-
-                EndField(fieldName);
-                return values;
-            }
-
-            return isNil ? null : values;
-        }
-
-        /// <summary>
-        /// Reads a GUID array from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public UuidCollection ReadGuidArray(string fieldName)
-        {
-            var values = new UuidCollection();
-
-            if (BeginField(fieldName, true, out bool isNil))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                while (MoveToElement("Guid"))
-                {
-                    values.Add(ReadGuid("Guid"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                PopNamespace();
-
-                EndField(fieldName);
-                return values;
-            }
-
-            return isNil ? null : values;
-        }
-
-        /// <summary>
-        /// Reads a byte string array from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public ByteStringCollection ReadByteStringArray(string fieldName)
-        {
-            var values = new ByteStringCollection();
-
-            if (BeginField(fieldName, true, out bool isNil))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                while (MoveToElement("ByteString"))
-                {
-                    values.Add(ReadByteString("ByteString"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                PopNamespace();
-
-                EndField(fieldName);
-                return values;
-            }
-
-            return isNil ? null : values;
-        }
-
-        /// <summary>
-        /// Reads an XmlElement array from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public XmlElementCollection ReadXmlElementArray(string fieldName)
-        {
-            var values = new XmlElementCollection();
-
-            if (BeginField(fieldName, true, out bool isNil))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                while (MoveToElement("XmlElement"))
-                {
-                    values.Add(ReadXmlElement("XmlElement"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                PopNamespace();
-
-                EndField(fieldName);
-                return values;
-            }
-
-            return isNil ? null : values;
-        }
-
-        /// <summary>
-        /// Reads an NodeId array from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public NodeIdCollection ReadNodeIdArray(string fieldName)
-        {
-            var values = new NodeIdCollection();
-
-            if (BeginField(fieldName, true, out bool isNil))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                while (MoveToElement("NodeId"))
-                {
-                    values.Add(ReadNodeId("NodeId"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                PopNamespace();
-
-                EndField(fieldName);
-                return values;
-            }
-
-            return isNil ? null : values;
-        }
-
-        /// <summary>
-        /// Reads an ExpandedNodeId array from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public ExpandedNodeIdCollection ReadExpandedNodeIdArray(string fieldName)
-        {
-            var values = new ExpandedNodeIdCollection();
-
-            if (BeginField(fieldName, true, out bool isNil))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                while (MoveToElement("ExpandedNodeId"))
-                {
-                    values.Add(ReadExpandedNodeId("ExpandedNodeId"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                PopNamespace();
-
-                EndField(fieldName);
-                return values;
-            }
-
-            return isNil ? null : values;
-        }
-
-        /// <summary>
-        /// Reads an StatusCode array from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public StatusCodeCollection ReadStatusCodeArray(string fieldName)
-        {
-            var values = new StatusCodeCollection();
-
-            if (BeginField(fieldName, true, out bool isNil))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                while (MoveToElement("StatusCode"))
-                {
-                    values.Add(ReadStatusCode("StatusCode"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                PopNamespace();
-
-                EndField(fieldName);
-                return values;
-            }
-
-            return isNil ? null : values;
-        }
-
-        /// <summary>
-        /// Reads an DiagnosticInfo array from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public DiagnosticInfoCollection ReadDiagnosticInfoArray(string fieldName)
-        {
-            var values = new DiagnosticInfoCollection();
-
-            if (BeginField(fieldName, true, out bool isNil))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                while (MoveToElement("DiagnosticInfo"))
-                {
-                    values.Add(ReadDiagnosticInfo("DiagnosticInfo"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                PopNamespace();
-
-                EndField(fieldName);
-                return values;
-            }
-
-            return isNil ? null : values;
-        }
-
-        /// <summary>
-        /// Reads an QualifiedName array from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public QualifiedNameCollection ReadQualifiedNameArray(string fieldName)
-        {
-            var values = new QualifiedNameCollection();
-
-            if (BeginField(fieldName, true, out bool isNil))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                while (MoveToElement("QualifiedName"))
-                {
-                    values.Add(ReadQualifiedName("QualifiedName"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                PopNamespace();
-
-                EndField(fieldName);
-                return values;
-            }
-
-            return isNil ? null : values;
-        }
-
-        /// <summary>
-        /// Reads an LocalizedText array from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public LocalizedTextCollection ReadLocalizedTextArray(string fieldName)
-        {
-            var values = new LocalizedTextCollection();
-
-            if (BeginField(fieldName, true, out bool isNil))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                while (MoveToElement("LocalizedText"))
-                {
-                    values.Add(ReadLocalizedText("LocalizedText"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                PopNamespace();
-
-                EndField(fieldName);
-                return values;
-            }
-
-            return isNil ? null : values;
-        }
-
-        /// <summary>
-        /// Reads an Variant array from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public VariantCollection ReadVariantArray(string fieldName)
-        {
-            var values = new VariantCollection();
-
-            if (BeginField(fieldName, true, out bool isNil))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                while (MoveToElement("Variant"))
-                {
-                    values.Add(ReadVariant("Variant"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                PopNamespace();
-
-                EndField(fieldName);
-                return values;
-            }
-
-            return isNil ? null : values;
-        }
-
-        /// <summary>
-        /// Reads an DataValue array from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public DataValueCollection ReadDataValueArray(string fieldName)
-        {
-            var values = new DataValueCollection();
-
-            if (BeginField(fieldName, true, out bool isNil))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                while (MoveToElement("DataValue"))
-                {
-                    values.Add(ReadDataValue("DataValue"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                PopNamespace();
-
-                EndField(fieldName);
-                return values;
-            }
-
-            return isNil ? null : values;
-        }
-
-        /// <summary>
-        /// Reads an array of extension objects from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public ExtensionObjectCollection ReadExtensionObjectArray(string fieldName)
-        {
-            var values = new ExtensionObjectCollection();
-
-            if (BeginField(fieldName, true, out bool isNil))
-            {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                while (MoveToElement("ExtensionObject"))
-                {
-                    values.Add(ReadExtensionObject("ExtensionObject"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                PopNamespace();
-
-                EndField(fieldName);
-                return values;
-            }
-
-            return isNil ? null : values;
-        }
-
-        /// <summary>
-        /// Reads an encodeable array from the stream.
-        /// </summary>
-        /// <param name="fieldName">The encodeable array field name</param>
-        /// <param name="systemType">The system type of the encodeable objects to be read object</param>
-        /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instances that will be read.</param>
-        /// <returns>An <see cref="IEncodeable"/> array that was read from the stream.</returns>
-        /// <exception cref="ArgumentNullException"><paramref name="systemType"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException"></exception>
-        public Array ReadEncodeableArray(
-            string fieldName,
-            Type systemType,
-            ExpandedNodeId encodeableTypeId = default)
-        {
-            if (systemType == null)
-            {
-                throw new ArgumentNullException(nameof(systemType));
-            }
-
-            var encodeables = new IEncodeableCollection();
-
-            if (BeginField(fieldName, true, out bool isNil))
-            {
-                XmlQualifiedName xmlName = TypeInfo.GetXmlName(systemType);
-                PushNamespace(xmlName.Namespace);
-
-                while (MoveToElement(xmlName.Name))
-                {
-                    encodeables.Add(ReadEncodeable(xmlName.Name, systemType, encodeableTypeId));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < encodeables.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                PopNamespace();
-
-                EndField(fieldName);
-
-                // convert to an array of the specified type.
-                var values = Array.CreateInstance(systemType, encodeables.Count);
-
-                for (int ii = 0; ii < encodeables.Count; ii++)
-                {
-                    values.SetValue(encodeables[ii], ii);
-                }
-
-                return values;
-            }
-
-            return isNil ? null : Array.CreateInstance(systemType, 0);
-        }
-
-        /// <summary>
-        /// Reads an enumerated value array from the stream.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="enumType"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException"></exception>
-        public Array ReadEnumeratedArray(string fieldName, Type enumType)
-        {
-            if (enumType == null)
-            {
-                throw new ArgumentNullException(nameof(enumType));
-            }
-
-            var enums = new List<Enum>();
-
-            if (BeginField(fieldName, true, out bool isNil))
-            {
-                XmlQualifiedName xmlName = TypeInfo.GetXmlName(enumType);
-                PushNamespace(xmlName.Namespace);
-
-                while (MoveToElement(xmlName.Name))
-                {
-                    enums.Add(ReadEnumerated(xmlName.Name, enumType));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < enums.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
-                PopNamespace();
-                EndField(fieldName);
-
-                var values = Array.CreateInstance(enumType, enums.Count);
-
-                for (int ii = 0; ii < enums.Count; ii++)
-                {
-                    values.SetValue(enums[ii], ii);
-                }
-
-                return values;
-            }
-
-            return isNil ? null : Array.CreateInstance(enumType, 0);
-        }
-
-        /// <inheritdoc/>
-        public Array ReadArray(
-            string fieldName,
-            int valueRank,
-            BuiltInType builtInType,
-            Type systemType,
-            ExpandedNodeId encodeableTypeId = default)
-        {
-            if (valueRank == ValueRanks.OneDimension)
-            {
-                /*One dimensional Array parameters are always encoded by wrapping the elements in a container element
-                 * and inserting the container into the structure. The name of the container element should be the name of the parameter.
-                 * The name of the element in the array shall be the type name.*/
-                return ReadArrayElements(fieldName, builtInType, systemType, encodeableTypeId);
-            }
-            // read matrix/array.
-            else if (valueRank > ValueRanks.OneDimension)
-            {
-                Array elements = null;
-                Int32Collection dimensions = null;
-
-                if (BeginField(fieldName, true))
-                {
-                    PushNamespace(Namespaces.OpcUaXsd);
-                    // dimensions are written before elements when encoding multi dimensional array!! UA Specs
-                    dimensions = ReadInt32Array("Dimensions");
-
-                    elements = ReadArrayElements(
-                        "Elements",
-                        builtInType,
-                        systemType,
-                        encodeableTypeId);
-
-                    PopNamespace();
-
-                    EndField(fieldName);
-                }
-
-                if (elements == null)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadDecodingError,
-                        "The Matrix contains invalid elements");
-                }
-
-                Matrix matrix;
-                if (dimensions != null && dimensions.Count > 0)
-                {
-                    matrix = new Matrix(elements, builtInType, [.. dimensions]);
-                }
-                else
-                {
-                    matrix = new Matrix(elements, builtInType);
-                }
-
-                return matrix.ToArray();
-            }
-
-            throw ServiceResultException.Create(
-                StatusCodes.BadDecodingError,
-                "Invalid ValueRank {0} for Array",
-                valueRank);
-        }
-
-        /// <inheritdoc/>
-        public uint ReadSwitchField(IList<string> switches, out string fieldName)
-        {
-            fieldName = null;
-            return ReadUInt32("SwitchField");
-        }
-
-        /// <inheritdoc/>
-        public uint ReadEncodingMask(IList<string> masks)
-        {
-            return ReadUInt32("EncodingMask");
         }
 
         /// <summary>
@@ -2533,7 +2220,7 @@ namespace Opc.Ua
                 {
                     PushNamespace(Namespaces.OpcUaXsd);
 
-                    var dimensions = ReadInt32Array("Dimensions").ToArray();
+                    int[] dimensions = ReadInt32Array("Dimensions").ToArray();
                     if (BeginField("Elements", true))
                     {
                         value = ReadMatrix(dimensions);
@@ -2553,57 +2240,56 @@ namespace Opc.Ua
 
             Variant ReadMatrix(int[] dimensions)
             {
-                var typeName = m_reader.LocalName;
-                switch (typeName)
+                switch (m_reader.LocalName)
                 {
                     case "Boolean":
-                        return Variant.From(ReadBooleanArray(null).ToMatrixOf(dimensions));
+                        return Variant.From(ReadBooleanArray(null).ToMatrix(dimensions));
                     case "SByte":
-                        return Variant.From(ReadSByteArray(null).ToMatrixOf(dimensions));
+                        return Variant.From(ReadSByteArray(null).ToMatrix(dimensions));
                     case "Byte":
-                        return Variant.From(ReadByteArray(null).ToMatrixOf(dimensions));
+                        return Variant.From(ReadByteArray(null).ToMatrix(dimensions));
                     case "Int16":
-                        return Variant.From(ReadInt16Array(null).ToMatrixOf(dimensions));
+                        return Variant.From(ReadInt16Array(null).ToMatrix(dimensions));
                     case "UInt16":
-                        return Variant.From(ReadUInt16Array(null).ToMatrixOf(dimensions));
+                        return Variant.From(ReadUInt16Array(null).ToMatrix(dimensions));
                     case "Int32":
-                        return Variant.From(ReadInt32Array(null).ToMatrixOf(dimensions));
+                        return Variant.From(ReadInt32Array(null).ToMatrix(dimensions));
                     case "UInt32":
-                        return Variant.From(ReadUInt32Array(null).ToMatrixOf(dimensions));
+                        return Variant.From(ReadUInt32Array(null).ToMatrix(dimensions));
                     case "Int64":
-                        return Variant.From(ReadInt64Array(null).ToMatrixOf(dimensions));
+                        return Variant.From(ReadInt64Array(null).ToMatrix(dimensions));
                     case "UInt64":
-                        return Variant.From(ReadUInt64Array(null).ToMatrixOf(dimensions));
+                        return Variant.From(ReadUInt64Array(null).ToMatrix(dimensions));
                     case "Float":
-                        return Variant.From(ReadFloatArray(null).ToMatrixOf(dimensions));
+                        return Variant.From(ReadFloatArray(null).ToMatrix(dimensions));
                     case "Double":
-                        return Variant.From(ReadDoubleArray(null).ToMatrixOf(dimensions));
+                        return Variant.From(ReadDoubleArray(null).ToMatrix(dimensions));
                     case "String":
-                        return Variant.From(ReadStringArray(null).ToMatrixOf(dimensions));
+                        return Variant.From(ReadStringArray(null).ToMatrix(dimensions));
                     case "DateTime":
-                        return Variant.From(ReadDateTimeArray(null).ToMatrixOf(dimensions));
+                        return Variant.From(ReadDateTimeArray(null).ToMatrix(dimensions));
                     case "Guid":
-                        return Variant.From(ReadGuidArray(null).ToMatrixOf(dimensions));
+                        return Variant.From(ReadGuidArray(null).ToMatrix(dimensions));
                     case "ByteString":
-                        return Variant.From(ReadByteStringArray(null).ToMatrixOf(dimensions));
+                        return Variant.From(ReadByteStringArray(null).ToMatrix(dimensions));
                     case "XmlElement":
-                        return Variant.From(ReadXmlElementArray(null).ToMatrixOf(dimensions));
+                        return Variant.From(ReadXmlElementArray(null).ToMatrix(dimensions));
                     case "NodeId":
-                        return Variant.From(ReadNodeIdArray(null).ToMatrixOf(dimensions));
+                        return Variant.From(ReadNodeIdArray(null).ToMatrix(dimensions));
                     case "ExpandedNodeId":
-                        return Variant.From(ReadExpandedNodeIdArray(null).ToMatrixOf(dimensions));
+                        return Variant.From(ReadExpandedNodeIdArray(null).ToMatrix(dimensions));
                     case "StatusCode":
-                        return Variant.From(ReadStatusCodeArray(null).ToMatrixOf(dimensions));
+                        return Variant.From(ReadStatusCodeArray(null).ToMatrix(dimensions));
                     case "QualifiedName":
-                        return Variant.From(ReadQualifiedNameArray(null).ToMatrixOf(dimensions));
+                        return Variant.From(ReadQualifiedNameArray(null).ToMatrix(dimensions));
                     case "LocalizedText":
-                        return Variant.From(ReadLocalizedTextArray(null).ToMatrixOf(dimensions));
+                        return Variant.From(ReadLocalizedTextArray(null).ToMatrix(dimensions));
                     case "ExtensionObject":
-                        return Variant.From(ReadExtensionObjectArray(null).ToMatrixOf(dimensions));
+                        return Variant.From(ReadExtensionObjectArray(null).ToMatrix(dimensions));
                     case "DataValue":
-                        return Variant.From(ReadDataValueArray(null).ToMatrixOf(dimensions));
+                        return Variant.From(ReadDataValueArray(null).ToMatrix(dimensions));
                     case "Variant":
-                        return Variant.From(ReadVariantArray(null).ToMatrixOf(dimensions));
+                        return Variant.From(ReadVariantArray(null).ToMatrix(dimensions));
                     default:
                         throw ServiceResultException.Create(
                             StatusCodes.BadDecodingError,
@@ -2614,203 +2300,58 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// Read array items from current ListOf element
-        /// </summary>
-        /// <param name="fieldName">provides the fieldName for the array</param>
-        /// <param name="builtInType">provides the BuiltInType of the elements that are read</param>
-        /// <param name="systemType">The system type of the elements to read.</param>
-        /// <param name="encodeableTypeId">provides the type id of the encodeable element</param>
-        /// <exception cref="ServiceResultException"></exception>
-        private Array ReadArrayElements(
-            string fieldName,
-            BuiltInType builtInType,
-            Type systemType,
-            ExpandedNodeId encodeableTypeId)
+        private T ReadEncodeable<T>(string fieldName, T value) where T : IEncodeable
         {
             CheckAndIncrementNestingLevel();
-
             try
             {
-                // skip whitespace.
-                while (m_reader.NodeType != XmlNodeType.Element)
+                if (BeginField(fieldName, true))
                 {
-                    m_reader.Read();
+                    XmlQualifiedName xmlName = TypeInfo.GetXmlName(value, Context);
+
+                    PushNamespace(xmlName.Namespace);
+                    value.Decode(this);
+                    PopNamespace();
+
+                    // skip to end of encodeable object.
+                    m_reader.MoveToContent();
+
+                    while (
+                        !(
+                            m_reader.NodeType == XmlNodeType.EndElement &&
+                            m_reader.LocalName == fieldName &&
+                            m_reader.NamespaceURI == m_namespaces.Peek()))
+                    {
+                        if (m_reader.NodeType == XmlNodeType.None)
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadDecodingError,
+                                "Unexpected end of stream decoding field '{0}' for type '{1}'.",
+                                fieldName,
+                                typeof(T).FullName);
+                        }
+
+                        m_reader.Skip();
+                        m_reader.MoveToContent();
+                    }
+
+                    EndField(fieldName);
                 }
-
-                // process array types.
-
-                switch (builtInType)
-                {
-                    case BuiltInType.Boolean:
-                    {
-                        BooleanCollection collection = ReadBooleanArray(fieldName);
-                        return collection?.ToArray();
-                    }
-                    case BuiltInType.SByte:
-                    {
-                        SByteCollection collection = ReadSByteArray(fieldName);
-                        return collection?.ToArray();
-                    }
-                    case BuiltInType.Byte:
-                    {
-                        ByteCollection collection = ReadByteArray(fieldName);
-                        return collection?.ToArray();
-                    }
-                    case BuiltInType.Int16:
-                    {
-                        Int16Collection collection = ReadInt16Array(fieldName);
-                        return collection?.ToArray();
-                    }
-                    case BuiltInType.UInt16:
-                    {
-                        UInt16Collection collection = ReadUInt16Array(fieldName);
-                        return collection?.ToArray();
-                    }
-                    case BuiltInType.Enumeration:
-                    case BuiltInType.Int32:
-                    {
-                        Int32Collection collection = ReadInt32Array(fieldName);
-                        if (collection != null)
-                        {
-                            if (builtInType == BuiltInType.Enumeration)
-                            {
-                                DetermineIEncodeableSystemType(ref systemType, encodeableTypeId);
-                                if (systemType?.IsEnum == true)
-                                {
-                                    var array = Array.CreateInstance(systemType, collection.Count);
-                                    int ii = 0;
-                                    foreach (int item in collection)
-                                    {
-                                        array.SetValue(Enum.ToObject(systemType, item), ii++);
-                                    }
-                                    return array;
-                                }
-                            }
-                            return collection.ToArray();
-                        }
-                        return null;
-                    }
-                    case BuiltInType.UInt32:
-                    {
-                        UInt32Collection collection = ReadUInt32Array(fieldName);
-                        return collection?.ToArray();
-                    }
-                    case BuiltInType.Int64:
-                    {
-                        Int64Collection collection = ReadInt64Array(fieldName);
-                        return collection?.ToArray();
-                    }
-                    case BuiltInType.UInt64:
-                    {
-                        UInt64Collection collection = ReadUInt64Array(fieldName);
-                        return collection?.ToArray();
-                    }
-                    case BuiltInType.Float:
-                    {
-                        FloatCollection collection = ReadFloatArray(fieldName);
-                        return collection?.ToArray();
-                    }
-                    case BuiltInType.Double:
-                    {
-                        DoubleCollection collection = ReadDoubleArray(fieldName);
-                        return collection?.ToArray();
-                    }
-                    case BuiltInType.String:
-                    {
-                        StringCollection collection = ReadStringArray(fieldName);
-                        return collection?.ToArray();
-                    }
-                    case BuiltInType.DateTime:
-                    {
-                        DateTimeCollection collection = ReadDateTimeArray(fieldName);
-                        return collection?.ToArray();
-                    }
-                    case BuiltInType.Guid:
-                    {
-                        UuidCollection collection = ReadGuidArray(fieldName);
-                        return collection?.ToArray();
-                    }
-                    case BuiltInType.ByteString:
-                    {
-                        ByteStringCollection collection = ReadByteStringArray(fieldName);
-                        return collection?.ToArray();
-                    }
-                    case BuiltInType.XmlElement:
-                    {
-                        XmlElementCollection collection = ReadXmlElementArray(fieldName);
-                        return collection?.ToArray();
-                    }
-                    case BuiltInType.NodeId:
-                    {
-                        NodeIdCollection collection = ReadNodeIdArray(fieldName);
-                        return collection?.ToArray();
-                    }
-                    case BuiltInType.ExpandedNodeId:
-                    {
-                        ExpandedNodeIdCollection collection = ReadExpandedNodeIdArray(fieldName);
-                        return collection?.ToArray();
-                    }
-                    case BuiltInType.StatusCode:
-                    {
-                        StatusCodeCollection collection = ReadStatusCodeArray(fieldName);
-                        return collection?.ToArray();
-                    }
-                    case BuiltInType.DiagnosticInfo:
-                    {
-                        DiagnosticInfoCollection collection = ReadDiagnosticInfoArray(fieldName);
-                        return collection?.ToArray();
-                    }
-                    case BuiltInType.QualifiedName:
-                    {
-                        QualifiedNameCollection collection = ReadQualifiedNameArray(fieldName);
-                        return collection?.ToArray();
-                    }
-                    case BuiltInType.LocalizedText:
-                    {
-                        LocalizedTextCollection collection = ReadLocalizedTextArray(fieldName);
-                        return collection?.ToArray();
-                    }
-                    case BuiltInType.ExtensionObject:
-                    {
-                        ExtensionObjectCollection collection = ReadExtensionObjectArray(fieldName);
-                        return collection?.ToArray();
-                    }
-                    case BuiltInType.DataValue:
-                    {
-                        DataValueCollection collection = ReadDataValueArray(fieldName);
-                        return collection?.ToArray();
-                    }
-                    case BuiltInType.Variant:
-                    {
-                        if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
-                        {
-                            return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
-                        }
-
-                        VariantCollection collection = ReadVariantArray(fieldName);
-                        return collection?.ToArray();
-                    }
-                    case BuiltInType.Null:
-                    case BuiltInType.Number:
-                    case BuiltInType.Integer:
-                    case BuiltInType.UInteger:
-                        if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
-                        {
-                            return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
-                        }
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadDecodingError,
-                            "Cannot decode unknown type in Array object with BuiltInType: {0}.",
-                            builtInType);
-                    default:
-                        throw ServiceResultException.Unexpected($"Unexpected BuiltInType {builtInType}");
-                }
+            }
+            catch (XmlException xe)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Error decoding field '{0}' for type '{1}': {2}",
+                    fieldName,
+                    typeof(T).Name,
+                    xe.Message);
             }
             finally
             {
                 m_nestingLevel--;
             }
+            return value;
         }
 
         /// <summary>
@@ -3019,23 +2560,6 @@ namespace Opc.Ua
 
             return m_reader.LocalName == elementName &&
                 m_reader.NamespaceURI == m_namespaces.Peek();
-        }
-
-        /// <summary>
-        /// Get the system type from the type factory if not specified by caller.
-        /// </summary>
-        /// <param name="systemType">The reference to the system type, or null</param>
-        /// <param name="encodeableTypeId">The encodeable type id of the system type.</param>
-        /// <returns>If the system type is assignable to <see cref="IEncodeable"/> </returns>
-        private bool DetermineIEncodeableSystemType(
-            ref Type systemType,
-            ExpandedNodeId encodeableTypeId)
-        {
-            if (!encodeableTypeId.IsNull && systemType == null)
-            {
-                systemType = Context.Factory.GetSystemType(encodeableTypeId);
-            }
-            return typeof(IEncodeable).IsAssignableFrom(systemType);
         }
 
         /// <summary>

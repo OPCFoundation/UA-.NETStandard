@@ -1063,7 +1063,7 @@ namespace Opc.Ua
         IVariantBuilder<T>,
         IVariantBuilder<ArrayOf<T>>,
         IVariantBuilder<MatrixOf<T>>
-        where T : Enum
+        where T : struct, Enum
     {
         /// <inheritdoc/>
         T IVariantBuilder<T>.GetValue(Variant value)
