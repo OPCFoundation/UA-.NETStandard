@@ -635,7 +635,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsSByteArrayForOneDimension()
+        public void ReadVariantValueReturnsSByteArrayForOneDimension()
         {
             // Arrange
             byte[] buffer =
@@ -661,7 +661,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsInt16ArrayForOneDimension()
+        public void ReadVariantValueReturnsInt16ArrayForOneDimension()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -687,7 +687,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsUInt16ArrayForOneDimension()
+        public void ReadVariantValueReturnsUInt16ArrayForOneDimension()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -713,7 +713,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsInt32ArrayForOneDimensionWhenEnumerationTypeIsNotEnum()
+        public void ReadVariantValueReturnsInt32ArrayForOneDimensionWhenEnumerationTypeIsNotEnum()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -739,7 +739,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsInt32ArrayForOneDimension()
+        public void ReadVariantValueReturnsInt32ArrayForOneDimension()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -765,7 +765,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsInt64ArrayForOneDimension()
+        public void ReadVariantValueReturnsInt64ArrayForOneDimension()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -791,7 +791,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsFloatArrayForOneDimension()
+        public void ReadVariantValueReturnsFloatArrayForOneDimension()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -817,7 +817,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsGuidArrayForOneDimension()
+        public void ReadVariantValueReturnsGuidArrayForOneDimension()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -847,7 +847,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsExpandedNodeIdArrayForOneDimension()
+        public void ReadVariantValueReturnsExpandedNodeIdArrayForOneDimension()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -876,7 +876,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsQualifiedNameArrayForOneDimension()
+        public void ReadVariantValueReturnsQualifiedNameArrayForOneDimension()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -907,7 +907,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsLocalizedTextArrayForOneDimension()
+        public void ReadVariantValueReturnsLocalizedTextArrayForOneDimension()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -936,7 +936,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsDataValueArrayForOneDimension()
+        public void ReadVariantValueReturnsDataValueArrayForOneDimension()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -961,7 +961,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsEncodeableArrayForOneDimensionEncodeableTypes()
+        public void ReadVariantValueReturnsEncodeableArrayForOneDimensionEncodeableTypes()
         {
             // Arrange
             ServiceMessageContext messageContext = SetupContextForDecodeMessage();
@@ -988,7 +988,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayThrowsForOneDimensionWithNullBuiltInTypeAndNoEncodeableType()
+        public void ReadVariantValueThrowsForOneDimensionWithNullBuiltInTypeAndNoEncodeableType()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -1003,7 +1003,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayThrowsForOneDimensionWithUnexpectedBuiltInType()
+        public void ReadVariantValueThrowsForOneDimensionWithUnexpectedBuiltInType()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -1018,7 +1018,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsMultidimensionalArrayWithEncodeableType()
+        public void ReadVariantValueReturnsMultidimensionalArrayWithEncodeableType()
         {
             // Arrange
             ServiceMessageContext messageContext = SetupContextForDecodeMessage();
@@ -1053,7 +1053,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReadsMultidimensionalEmptyArray()
+        public void ReadVariantValueReadsMultidimensionalEmptyArray()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -1080,7 +1080,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayThrowsWhenMultidimensionalArrayElementsIsNull()
+        public void ReadVariantValueThrowsWhenMultidimensionalArrayElementsIsNull()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -1101,7 +1101,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsScalarValue()
+        public void ReadVariantValueReturnsScalarValue()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -2739,6 +2739,32 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(((TestComplexTypeInstance)result).TypeId, Is.EqualTo(ExpandedNodeId.Null));
+        }
+
+        [Test]
+        public void ReadEncodeableSetsTypeIdInComplexTypeInstance()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            var mockFactory = new Mock<IEncodeableFactory>();
+            var encodeableType = new Mock<IEncodeableType>();
+            encodeableType.SetupGet(x => x.Type).Returns(typeof(TestComplexTypeInstance));
+            encodeableType.Setup(x => x.CreateInstance()).Returns(new TestComplexTypeInstance());
+            IEncodeableType type = encodeableType.Object;
+            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type))
+                .Returns(true);
+            messageContext.Factory = mockFactory.Object;
+            var decoder = new BinaryDecoder([0x00, 0x11], messageContext);
+
+            // Act
+            TestComplexTypeInstance result = decoder.ReadEncodeable<TestComplexTypeInstance>(
+                null,
+                new ExpandedNodeId(1234));
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.TypeId, Is.EqualTo(new ExpandedNodeId(1234)));
         }
 
         [Test]
@@ -4490,7 +4516,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsNullForNegativeOneDimension()
+        public void ReadVariantValueReturnsNullForNegativeOneDimension()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -4506,7 +4532,37 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsUInt32ArrayForOneDimension()
+        [TestCase(BuiltInType.Variant, ValueRanks.Scalar)]
+        [TestCase(BuiltInType.DiagnosticInfo, ValueRanks.Scalar)]
+        [TestCase(BuiltInType.UInteger, ValueRanks.Scalar)]
+        [TestCase(BuiltInType.Number, ValueRanks.Scalar)]
+        [TestCase(BuiltInType.Integer, ValueRanks.Scalar)]
+        [TestCase((BuiltInType)999, ValueRanks.Scalar)]
+        [TestCase(BuiltInType.DiagnosticInfo, ValueRanks.OneDimension)]
+        [TestCase(BuiltInType.UInteger, ValueRanks.OneDimension)]
+        [TestCase(BuiltInType.Number, ValueRanks.OneDimension)]
+        [TestCase(BuiltInType.Integer, ValueRanks.OneDimension)]
+        [TestCase((BuiltInType)999, ValueRanks.OneDimension)]
+        [TestCase(BuiltInType.DiagnosticInfo, ValueRanks.TwoDimensions)]
+        [TestCase(BuiltInType.UInteger, ValueRanks.TwoDimensions)]
+        [TestCase(BuiltInType.Number, ValueRanks.TwoDimensions)]
+        [TestCase(BuiltInType.Integer, ValueRanks.TwoDimensions)]
+        [TestCase((BuiltInType)999, ValueRanks.TwoDimensions)]
+        public void ReadVariantValueThrowsWithBadBuiltInTypes(BuiltInType builtInType, int valueRank)
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext);
+            using var decoder = new BinaryDecoder(Array.Empty<byte>(), messageContext);
+
+            // Act and Assert
+            var ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadVariantValue(null, TypeInfo.Create(builtInType, valueRank)));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadVariantValueReturnsUInt32ArrayForOneDimension()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -4532,7 +4588,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsUInt64ArrayForOneDimension()
+        public void ReadVariantValueReturnsUInt64ArrayForOneDimension()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -4556,7 +4612,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsDoubleArrayForOneDimension()
+        public void ReadVariantValueReturnsDoubleArrayForOneDimension()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -4582,7 +4638,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsBooleanArrayForOneDimension()
+        public void ReadVariantValueReturnsBooleanArrayForOneDimension()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -4610,7 +4666,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsByteArrayForOneDimension()
+        public void ReadVariantValueReturnsByteArrayForOneDimension()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -4636,7 +4692,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsStringArrayForOneDimension()
+        public void ReadVariantValueReturnsStringArrayForOneDimension()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -4662,7 +4718,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsDateTimeArrayForOneDimension()
+        public void ReadVariantValueReturnsDateTimeArrayForOneDimension()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -4688,7 +4744,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsByteStringArrayForOneDimension()
+        public void ReadVariantValueReturnsByteStringArrayForOneDimension()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -4716,7 +4772,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsXmlElementArrayForOneDimension()
+        public void ReadVariantValueReturnsXmlElementArrayForOneDimension()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -4741,7 +4797,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsNodeIdArrayForOneDimension()
+        public void ReadVariantValueReturnsNodeIdArrayForOneDimension()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -4765,7 +4821,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsStatusCodeArrayForOneDimension()
+        public void ReadVariantValueReturnsStatusCodeArrayForOneDimension()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -4789,7 +4845,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsVariantArrayForOneDimension()
+        public void ReadVariantValueReturnsVariantArrayForOneDimension()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -4813,7 +4869,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsExtensionObjectArrayForOneDimension()
+        public void ReadVariantValueReturnsExtensionObjectArrayForOneDimension()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -4837,7 +4893,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadArrayReturnsEnumeratedArrayForOneDimension()
+        public void ReadVariantValueReturnsEnumeratedArrayForOneDimension()
         {
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();

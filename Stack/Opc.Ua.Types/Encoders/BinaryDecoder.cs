@@ -1453,12 +1453,6 @@ namespace Opc.Ua
             }
             else
             {
-                // TODO: Remove on encoder side if (isRaw)
-                // TODO: Remove on encoder side {
-                // TODO: Remove on encoder side     // Need to read the encoding byte for multi dimensional raw mode
-                // TODO: Remove on encoder side     SafeReadByte();
-                // TODO: Remove on encoder side }
-
                 int[] ReadDims() => ReadInt32Array(null).ToArray();
                 switch (typeInfo.BuiltInType)
                 {
