@@ -680,7 +680,224 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public ExtensionObject ReadExtensionObject(string fieldName)
         {
-            return ReadExtensionObject();
+            // read type id.
+            NodeId typeId = ReadNodeId(null);
+
+            // convert to absolute node id.
+            var extension = new ExtensionObject(
+                NodeId.ToExpandedNodeId(typeId, Context.NamespaceUris));
+
+            if (!typeId.IsNull && extension.TypeId.IsNull)
+            {
+                m_logger.LogWarning(
+                    "Cannot deserialize extension objects if the NamespaceUri is not in the NamespaceTable: Type = {Type}",
+                    typeId);
+            }
+
+            // read encoding.
+            byte encoding = SafeReadByte();
+
+            // nothing more to do for empty bodies.
+            if (encoding == (byte)ExtensionObjectEncoding.None)
+            {
+                return extension;
+            }
+
+            if (encoding is
+                not ((byte)ExtensionObjectEncoding.Binary) and
+                not ((byte)ExtensionObjectEncoding.Xml))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Invalid encoding byte (0x{0:X2}) for ExtensionObject.",
+                    encoding);
+            }
+
+            // check for known type.
+            Type systemType = Context.Factory.GetSystemType(extension.TypeId);
+
+            // check for XML bodies.
+            if (encoding == (byte)ExtensionObjectEncoding.Xml)
+            {
+                extension = new ExtensionObject(
+                    extension.TypeId,
+                    ReadXmlElement(null));
+
+                // attempt to decode a known type.
+                if (systemType != null && !extension.IsNull)
+                {
+                    XmlElement element = extension.TryGetAsXml(out XmlElement xe) ? xe : default;
+                    using var xmlDecoder = new XmlDecoder(element, Context);
+                    try
+                    {
+                        System.Xml.XmlElement xmlElement = element.AsXmlElement();
+                        xmlDecoder.PushNamespace(xmlElement.NamespaceURI);
+                        IEncodeable body = xmlDecoder.ReadEncodeable<IEncodeable>(
+                            xmlElement.LocalName,
+                            extension.TypeId);
+                        xmlDecoder.PopNamespace();
+
+                        // update body.
+                        extension = new ExtensionObject(body);
+
+                        xmlDecoder.Close();
+                    }
+                    catch (Exception e)
+                    {
+                        m_logger.LogError(
+                            "Could not decode known type {Name} encoded as Xml. Error={Message}, Value={OuterXml}",
+                            systemType.FullName,
+                            e.Message,
+                            element.OuterXml);
+                    }
+                }
+
+                return extension;
+            }
+
+            // Get the length.
+            // Allow a length of -1 to support legacy devices that don't fill the length correctly
+            int length = SafeReadInt32();
+
+            // save the current position.
+            int start = Position;
+
+            // create instance of type.
+            IEncodeable encodeable = null;
+            if (systemType != null && length >= -1)
+            {
+                encodeable = Activator.CreateInstance(systemType) as IEncodeable;
+
+                // set type identifier for custom complex data types before decode.
+                if (encodeable is IComplexTypeInstance complexTypeInstance)
+                {
+                    complexTypeInstance.TypeId = extension.TypeId;
+                }
+            }
+
+            // process known type.
+            if (encodeable != null)
+            {
+                bool resetStream = true;
+                string errorMessage = string.Empty;
+                Exception exception = null;
+                uint nestingLevel = m_nestingLevel;
+
+                CheckAndIncrementNestingLevel();
+
+                try
+                {
+                    // decode body.
+                    encodeable.Decode(this);
+
+                    // verify the decoder did not exceed the length of the encodeable object
+                    int used = Position - start;
+                    if (length >= 0 && length != used)
+                    {
+                        errorMessage = "Length mismatch";
+                        exception = null;
+                    }
+                    else
+                    {
+                        // success!
+                        resetStream = false;
+                    }
+                }
+                catch (EndOfStreamException eofStream)
+                {
+                    errorMessage = "End of stream";
+                    exception = eofStream;
+                }
+                catch (ServiceResultException sre) when (
+                    sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded ||
+                    sre.StatusCode == StatusCodes.BadDecodingError)
+                {
+                    errorMessage = sre.Message;
+                    exception = sre;
+                }
+                finally
+                {
+                    m_nestingLevel = nestingLevel;
+                }
+
+                if (resetStream)
+                {
+                    // type was known but decoding failed,
+                    // reset stream to return ExtensionObject if configured to do so!
+                    // decoding failure of a known type in ns=0 is always a decoding error.
+                    if (typeId.NamespaceIndex == 0 ||
+                        m_encodeablesRecovered >= Context.MaxDecoderRecoveries)
+                    {
+                        throw exception
+                            ?? ServiceResultException.Create(
+                                StatusCodes.BadDecodingError,
+                                "{0}, failed to decode encodeable type '{1}', NodeId='{2}'.",
+                                errorMessage,
+                                systemType.Name,
+                                extension.TypeId);
+                    }
+                    else if (m_encodeablesRecovered == 0)
+                    {
+                        // log the error only once to avoid flooding the log.
+                        m_logger.LogWarning(
+                            exception,
+                            "{Message}, failed to decode encodeable type '{Name}', NodeId='{NodeId}'. BinaryDecoder recovered.",
+                            errorMessage,
+                            systemType.Name,
+                            extension.TypeId);
+                    }
+
+                    // reset the stream to the begin of the ExtensionObject body.
+                    m_reader.BaseStream.Position = start;
+                    encodeable = null;
+
+                    // count number of recoveries
+                    m_encodeablesRecovered++;
+                }
+            }
+
+            // process unknown type.
+            if (encodeable == null)
+            {
+                // figure out how long the object is.
+                if (length < 0)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Cannot determine length of unknown extension object body with type '{0}'.",
+                        extension.TypeId);
+                }
+
+                // check the length.
+                if (Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < length)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "MaxByteStringLength exceeded in ExtensionObject: {0} < {1}",
+                        Context.MaxByteStringLength,
+                        length);
+                }
+
+                // read the bytes of the body.
+                return new ExtensionObject(
+                    extension.TypeId,
+                    ByteString.From(SafeReadBytes(length)));
+            }
+
+            // any unread data indicates a decoding error.
+            if (length >= 0)
+            {
+                long unused = length - (Position - start);
+                if (unused > 0)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Cannot skip {0} bytes of unknown extension object body with type '{1}'.",
+                        unused,
+                        extension.TypeId);
+                }
+            }
+            return new ExtensionObject(encodeable);
         }
 
         /// <inheritdoc/>
@@ -1364,7 +1581,7 @@ namespace Opc.Ua
                     case BuiltInType.LocalizedText:
                         return Variant.From(ReadLocalizedText(null));
                     case BuiltInType.ExtensionObject:
-                        return Variant.From(ReadExtensionObject());
+                        return Variant.From(ReadExtensionObject(null));
                     case BuiltInType.DataValue:
                         return Variant.From(ReadDataValue(null));
                     case BuiltInType.Variant:
@@ -1673,232 +1890,6 @@ namespace Opc.Ua
                         "Invalid encoding byte (0x{0:X2}) for NodeId.",
                         encodingByte);
             }
-        }
-
-        /// <summary>
-        /// Reads an extension object from the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        private ExtensionObject ReadExtensionObject()
-        {
-            // read type id.
-            NodeId typeId = ReadNodeId(null);
-
-            // convert to absolute node id.
-            var extension = new ExtensionObject(
-                NodeId.ToExpandedNodeId(typeId, Context.NamespaceUris));
-
-            if (!typeId.IsNull && extension.TypeId.IsNull)
-            {
-                m_logger.LogWarning(
-                    "Cannot deserialize extension objects if the NamespaceUri is not in the NamespaceTable: Type = {Type}",
-                    typeId);
-            }
-
-            // read encoding.
-            byte encoding = SafeReadByte();
-
-            // nothing more to do for empty bodies.
-            if (encoding == (byte)ExtensionObjectEncoding.None)
-            {
-                return extension;
-            }
-
-            if (encoding is
-                not ((byte)ExtensionObjectEncoding.Binary) and
-                not ((byte)ExtensionObjectEncoding.Xml))
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadDecodingError,
-                    "Invalid encoding byte (0x{0:X2}) for ExtensionObject.",
-                    encoding);
-            }
-
-            // check for known type.
-            Type systemType = Context.Factory.GetSystemType(extension.TypeId);
-
-            // check for XML bodies.
-            if (encoding == (byte)ExtensionObjectEncoding.Xml)
-            {
-                extension = new ExtensionObject(
-                    extension.TypeId,
-                    ReadXmlElement(null));
-
-                // attempt to decode a known type.
-                if (systemType != null && !extension.IsNull)
-                {
-                    XmlElement element = extension.TryGetAsXml(out XmlElement xe) ? xe : default;
-                    using var xmlDecoder = new XmlDecoder(element, Context);
-                    try
-                    {
-                        System.Xml.XmlElement xmlElement = element.AsXmlElement();
-                        xmlDecoder.PushNamespace(xmlElement.NamespaceURI);
-                        IEncodeable body = xmlDecoder.ReadEncodeable<IEncodeable>(
-                            xmlElement.LocalName,
-                            extension.TypeId);
-                        xmlDecoder.PopNamespace();
-
-                        // update body.
-                        extension = new ExtensionObject(body);
-
-                        xmlDecoder.Close();
-                    }
-                    catch (Exception e)
-                    {
-                        m_logger.LogError(
-                            "Could not decode known type {Name} encoded as Xml. Error={Message}, Value={OuterXml}",
-                            systemType.FullName,
-                            e.Message,
-                            element.OuterXml);
-                    }
-                }
-
-                return extension;
-            }
-
-            // Get the length.
-            // Allow a length of -1 to support legacy devices that don't fill the length correctly
-            int length = SafeReadInt32();
-
-            // save the current position.
-            int start = Position;
-
-            // create instance of type.
-            IEncodeable encodeable = null;
-            if (systemType != null && length >= -1)
-            {
-                encodeable = Activator.CreateInstance(systemType) as IEncodeable;
-
-                // set type identifier for custom complex data types before decode.
-                if (encodeable is IComplexTypeInstance complexTypeInstance)
-                {
-                    complexTypeInstance.TypeId = extension.TypeId;
-                }
-            }
-
-            // process known type.
-            if (encodeable != null)
-            {
-                bool resetStream = true;
-                string errorMessage = string.Empty;
-                Exception exception = null;
-                uint nestingLevel = m_nestingLevel;
-
-                CheckAndIncrementNestingLevel();
-
-                try
-                {
-                    // decode body.
-                    encodeable.Decode(this);
-
-                    // verify the decoder did not exceed the length of the encodeable object
-                    int used = Position - start;
-                    if (length >= 0 && length != used)
-                    {
-                        errorMessage = "Length mismatch";
-                        exception = null;
-                    }
-                    else
-                    {
-                        // success!
-                        resetStream = false;
-                    }
-                }
-                catch (EndOfStreamException eofStream)
-                {
-                    errorMessage = "End of stream";
-                    exception = eofStream;
-                }
-                catch (ServiceResultException sre) when (
-                    sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded ||
-                    sre.StatusCode == StatusCodes.BadDecodingError)
-                {
-                    errorMessage = sre.Message;
-                    exception = sre;
-                }
-                finally
-                {
-                    m_nestingLevel = nestingLevel;
-                }
-
-                if (resetStream)
-                {
-                    // type was known but decoding failed,
-                    // reset stream to return ExtensionObject if configured to do so!
-                    // decoding failure of a known type in ns=0 is always a decoding error.
-                    if (typeId.NamespaceIndex == 0 ||
-                        m_encodeablesRecovered >= Context.MaxDecoderRecoveries)
-                    {
-                        throw exception
-                            ?? ServiceResultException.Create(
-                                StatusCodes.BadDecodingError,
-                                "{0}, failed to decode encodeable type '{1}', NodeId='{2}'.",
-                                errorMessage,
-                                systemType.Name,
-                                extension.TypeId);
-                    }
-                    else if (m_encodeablesRecovered == 0)
-                    {
-                        // log the error only once to avoid flooding the log.
-                        m_logger.LogWarning(
-                            exception,
-                            "{Message}, failed to decode encodeable type '{Name}', NodeId='{NodeId}'. BinaryDecoder recovered.",
-                            errorMessage,
-                            systemType.Name,
-                            extension.TypeId);
-                    }
-
-                    // reset the stream to the begin of the ExtensionObject body.
-                    m_reader.BaseStream.Position = start;
-                    encodeable = null;
-
-                    // count number of recoveries
-                    m_encodeablesRecovered++;
-                }
-            }
-
-            // process unknown type.
-            if (encodeable == null)
-            {
-                // figure out how long the object is.
-                if (length < 0)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadDecodingError,
-                        "Cannot determine length of unknown extension object body with type '{0}'.",
-                        extension.TypeId);
-                }
-
-                // check the length.
-                if (Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < length)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadEncodingLimitsExceeded,
-                        "MaxByteStringLength exceeded in ExtensionObject: {0} < {1}",
-                        Context.MaxByteStringLength,
-                        length);
-                }
-
-                // read the bytes of the body.
-                return new ExtensionObject(
-                    extension.TypeId,
-                    ByteString.From(SafeReadBytes(length)));
-            }
-
-            // any unread data indicates a decoding error.
-            if (length >= 0)
-            {
-                long unused = length - (Position - start);
-                if (unused > 0)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadDecodingError,
-                        "Cannot skip {0} bytes of unknown extension object body with type '{1}'.",
-                        unused,
-                        extension.TypeId);
-                }
-            }
-            return new ExtensionObject(encodeable);
         }
 
         /// <summary>
