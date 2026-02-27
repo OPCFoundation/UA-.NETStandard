@@ -494,26 +494,14 @@ namespace Opc.Ua
                 return default;
             }
 
-            var document = new XmlDocument();
-            try
+            // If 0 terminated, decrease length before converting to string
+            int utf8StringLength = bytes.Length;
+            while (utf8StringLength > 0 && bytes[utf8StringLength - 1] == 0)
             {
-                // If 0 terminated, decrease length before converting to string
-                int utf8StringLength = bytes.Length;
-                while (utf8StringLength > 0 && bytes[utf8StringLength - 1] == 0)
-                {
-                    utf8StringLength--;
-                }
-                string xmlString = Encoding.UTF8.GetString(bytes.ToArray(), 0, utf8StringLength);
-                using var stream = new StringReader(xmlString);
-                using var reader = XmlReader.Create(stream, CoreUtils.DefaultXmlReaderSettings());
-                document.Load(reader);
+                utf8StringLength--;
             }
-            catch (XmlException)
-            {
-                return default;
-            }
-
-            return XmlElement.From(document.DocumentElement);
+            string xmlString = Encoding.UTF8.GetString(bytes.ToArray(), 0, utf8StringLength);
+            return XmlElement.From(xmlString);
         }
 
         /// <inheritdoc/>
@@ -1249,7 +1237,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public ArrayOf<T> ReadEncodeableArray<T>(
             string fieldName,
-            ExpandedNodeId encodeableTypeId = default) where T : IEncodeable
+            ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
             int length = ReadArrayLength();
 
@@ -1364,20 +1352,7 @@ namespace Opc.Ua
                     case BuiltInType.ByteString:
                         return Variant.From(ReadByteString(null));
                     case BuiltInType.XmlElement:
-                        try
-                        {
-                            return Variant.From(ReadXmlElement(null));
-                        }
-                        catch (ServiceResultException)
-                        {
-                            // fatal decoder error, invalid data
-                            throw;
-                        }
-                        catch (Exception ex)
-                        {
-                            m_logger.LogDebug(ex, "Error reading xml element for Variant.");
-                            return Variant.From(StatusCodes.BadDecodingError);
-                        }
+                        return Variant.From(ReadXmlElement(null));
                     case BuiltInType.NodeId:
                         return Variant.From(ReadNodeId(null));
                     case BuiltInType.ExpandedNodeId:
@@ -1478,12 +1453,6 @@ namespace Opc.Ua
             }
             else
             {
-                // TODO: Remove on encoder side if (isRaw)
-                // TODO: Remove on encoder side {
-                // TODO: Remove on encoder side     // Need to read the encoding byte for multi dimensional raw mode
-                // TODO: Remove on encoder side     SafeReadByte();
-                // TODO: Remove on encoder side }
-
                 int[] ReadDims() => ReadInt32Array(null).ToArray();
                 switch (typeInfo.BuiltInType)
                 {
