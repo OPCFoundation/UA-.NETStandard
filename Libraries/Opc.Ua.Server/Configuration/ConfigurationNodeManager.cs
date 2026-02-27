@@ -267,15 +267,10 @@ namespace Opc.Ua.Server
                 {
                     if (node is NamespaceMetadataState metadataState)
                     {
-                        if (metadataState.DefaultRolePermissions != null)
-                        {
-                            metadataState.DefaultRolePermissions.StateChanged -= OnNamespaceDefaultPermissionsChanged;
-                        }
+                        metadataState.StateChanged -= OnNamespaceChildrenChanged;
+                        metadataState.DefaultRolePermissions?.StateChanged -= OnNamespaceDefaultPermissionsChanged;
 
-                        if (metadataState.DefaultUserRolePermissions != null)
-                        {
-                            metadataState.DefaultUserRolePermissions.StateChanged -= OnNamespaceDefaultPermissionsChanged;
-                        }
+                        metadataState.DefaultUserRolePermissions?.StateChanged -= OnNamespaceDefaultPermissionsChanged;
                     }
                 }
             }
@@ -424,7 +419,7 @@ namespace Opc.Ua.Server
 
                 // add node as child of ServerNamespaces and in predefined nodes
                 serverNamespacesNode.AddChild(namespaceMetadataState);
-                serverNamespacesNode.ClearChangeMasks(Server.DefaultSystemContext, true);
+                serverNamespacesNode.ClearChangeMasks(SystemContext, true);
                 AddPredefinedNode(SystemContext, namespaceMetadataState);
             }
 
@@ -1324,6 +1319,25 @@ namespace Opc.Ua.Server
             {
                 namespaceMetadataState.DefaultUserRolePermissions.StateChanged -= OnNamespaceDefaultPermissionsChanged;
                 namespaceMetadataState.DefaultUserRolePermissions.StateChanged += OnNamespaceDefaultPermissionsChanged;
+            }
+
+            namespaceMetadataState.StateChanged -= OnNamespaceChildrenChanged;
+            namespaceMetadataState.StateChanged += OnNamespaceChildrenChanged;
+        }
+
+        /// <summary>
+        /// Handles children change on NamespaceMetadataState and resubscribes to the default permissions nodes
+        /// to ensure we are notified of changes on those nodes even if they are recreated.
+        /// </summary>
+        private void OnNamespaceChildrenChanged(
+            ISystemContext context,
+            NodeState node,
+            NodeStateChangeMasks changes)
+        {
+            if ((changes & NodeStateChangeMasks.Children) != 0 &&
+                node is NamespaceMetadataState namespaceMetadataState)
+            {
+                SubscribeToNamespaceDefaultPermissions(namespaceMetadataState);
             }
         }
 
