@@ -1249,7 +1249,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public ArrayOf<T> ReadEncodeableArray<T>(
             string fieldName,
-            ExpandedNodeId encodeableTypeId = default) where T : IEncodeable
+            ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
             int length = ReadArrayLength();
 
@@ -1364,20 +1364,7 @@ namespace Opc.Ua
                     case BuiltInType.ByteString:
                         return Variant.From(ReadByteString(null));
                     case BuiltInType.XmlElement:
-                        try
-                        {
-                            return Variant.From(ReadXmlElement(null));
-                        }
-                        catch (ServiceResultException)
-                        {
-                            // fatal decoder error, invalid data
-                            throw;
-                        }
-                        catch (Exception ex)
-                        {
-                            m_logger.LogDebug(ex, "Error reading xml element for Variant.");
-                            return Variant.From(StatusCodes.BadDecodingError);
-                        }
+                        return Variant.From(ReadXmlElement(null));
                     case BuiltInType.NodeId:
                         return Variant.From(ReadNodeId(null));
                     case BuiltInType.ExpandedNodeId:
