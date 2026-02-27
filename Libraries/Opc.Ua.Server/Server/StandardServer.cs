@@ -462,14 +462,9 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                var parameters =
-                    ExtensionObject.ToEncodeable(
-                        requestHeader.AdditionalHeader) as AdditionalParametersType;
-
-                if (parameters != null)
-                {
-                    parameters = CreateSessionProcessAdditionalParameters(session, parameters);
-                }
+                AdditionalParametersType parameters = CreateSessionProcessAdditionalParameters(
+                    session,
+                    requestHeader.AdditionalHeader);
 
                 await m_semaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
                 try
@@ -494,26 +489,12 @@ namespace Opc.Ua.Server
                     serverEndpoints = GetEndpointDescriptions(endpointUrl, BaseAddresses, null);
 
                     // sign the nonce provided by the client.
-                    serverSignature = null;
-
-                    //  sign the client nonce (if provided).
-                    if (parsedClientCertificate != null && clientNonce != null)
-                    {
-                        SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(context.SecurityPolicyUri);
-
-                        byte[] dataToSign = securityPolicy.GetServerSignatureData(
-                            context.ChannelContext.ChannelThumbprint,
-                            clientNonce,
-                            context.ChannelContext.ServerChannelCertificate,
-                            parsedClientCertificate.RawData,
-                            context.ChannelContext.ClientChannelCertificate,
-                            serverNonce);
-
-                        serverSignature = SecurityPolicies.CreateSignatureData(
-                            context.SecurityPolicyUri,
-                            instanceCertificate,
-                            dataToSign);
-                    }
+                    serverSignature = CreateSessionServerSignature(
+                        context,
+                        instanceCertificate,
+                        parsedClientCertificate,
+                        clientNonce,
+                        serverNonce);
                 }
                 finally
                 {
@@ -593,7 +574,47 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Process additional parameters during the ECC session creation and set the session's UserToken security policy
+        /// Creates the server signature returned during CreateSession.
+        /// </summary>
+        /// <param name="context">The request context.</param>
+        /// <param name="instanceCertificate">The instance certificate used to sign data.</param>
+        /// <param name="parsedClientCertificate">The client certificate supplied in the request.</param>
+        /// <param name="clientNonce">The client nonce supplied in the request.</param>
+        /// <param name="serverNonce">The server nonce generated for the response.</param>
+        /// <returns>The server signature or <c>null</c> when signing is not required.</returns>
+        protected virtual SignatureData CreateSessionServerSignature(
+            OperationContext context,
+            X509Certificate2 instanceCertificate,
+            X509Certificate2 parsedClientCertificate,
+            byte[] clientNonce,
+            byte[] serverNonce)
+        {
+            return SessionSecurityPolicyHelper.CreateServerSignature(
+                context,
+                instanceCertificate,
+                parsedClientCertificate,
+                clientNonce,
+                serverNonce);
+        }
+
+        /// <summary>
+        /// Process additional header values during session creation for ephemeral-key user token policies.
+        /// </summary>
+        /// <param name="session">The session.</param>
+        /// <param name="additionalHeader">The additional request header.</param>
+        /// <returns>An AdditionalParametersType object containing the processed parameters.</returns>
+        protected virtual AdditionalParametersType CreateSessionProcessAdditionalParameters(
+            ISession session,
+            ExtensionObject additionalHeader)
+        {
+            AdditionalParametersType parameters = SessionSecurityPolicyHelper
+                .DecodeAdditionalParameters(additionalHeader);
+
+            return CreateSessionProcessAdditionalParameters(session, parameters);
+        }
+
+        /// <summary>
+        /// Process additional parameters during session creation and set the session's user token security policy.
         /// </summary>
         /// <param name="session">The session</param>
         /// <param name="parameters">The additional parameters for the session</param>
@@ -602,54 +623,30 @@ namespace Opc.Ua.Server
             ISession session,
             AdditionalParametersType parameters)
         {
-            AdditionalParametersType response = null;
-
-            if (parameters != null && parameters.Parameters != null)
-            {
-                response = new AdditionalParametersType();
-
-                foreach (KeyValuePair ii in parameters.Parameters)
-                {
-                    if (ii.Key == AdditionalParameterNames.ECDHPolicyUri)
-                    {
-                        string policyUri = ii.Value.ToString();
-                        m_logger.LogWarning("Received request for new EphmeralKey using {SecurityPolicyUri}.", policyUri);
-
-                        var securityPolicy = SecurityPolicies.GetInfo(policyUri);
-
-                        if (securityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
-                        {
-                            session.SetUserTokenSecurityPolicy(policyUri);
-                            EphemeralKeyType key = session.GetNewEphemeralKey();
-                            response.Parameters.Add(
-                                new KeyValuePair
-                                {
-                                    Key = QualifiedName.From(AdditionalParameterNames.ECDHKey),
-                                    Value = new ExtensionObject(key)
-                                });
-
-                            m_logger.LogWarning("Returning new EphemeralKey: {PublicKey} bytes.", key.PublicKey?.Length ?? 0);
-                        }
-                        else
-                        {
-                            response.Parameters.Add(
-                                new KeyValuePair
-                                {
-                                    Key = QualifiedName.From(AdditionalParameterNames.ECDHKey),
-                                    Value = StatusCodes.BadSecurityPolicyRejected
-                                });
-
-                            m_logger.LogWarning("Rejecting request for new EphemeralKey using {SecurityPolicyUri}.", policyUri);
-                        }
-                    }
-                }
-            }
-
-            return response;
+            return SessionSecurityPolicyHelper.ProcessCreateSessionAdditionalParameters(
+                session,
+                parameters,
+                m_logger);
         }
 
         /// <summary>
-        /// Process additional parameters during ECC session activation
+        /// Process additional header values during session activation for ephemeral-key user token policies.
+        /// </summary>
+        /// <param name="session">The session.</param>
+        /// <param name="additionalHeader">The additional request header.</param>
+        /// <returns>An AdditionalParametersType object containing the processed parameters.</returns>
+        protected virtual AdditionalParametersType ActivateSessionProcessAdditionalParameters(
+            ISession session,
+            ExtensionObject additionalHeader)
+        {
+            AdditionalParametersType parameters = SessionSecurityPolicyHelper
+                .DecodeAdditionalParameters(additionalHeader);
+
+            return ActivateSessionProcessAdditionalParameters(session, parameters);
+        }
+
+        /// <summary>
+        /// Process additional parameters during session activation for ephemeral-key user token policies.
         /// </summary>
         /// <param name="session">The session</param>
         /// <param name="parameters">The additional parameters for the session</param>
@@ -658,24 +655,10 @@ namespace Opc.Ua.Server
             ISession session,
             AdditionalParametersType parameters)
         {
-            AdditionalParametersType response = null;
-
-            EphemeralKeyType key = session.GetNewEphemeralKey();
-
-            if (key != null)
-            {
-                response = new AdditionalParametersType();
-                response.Parameters
-                    .Add(new KeyValuePair
-                    {
-                        Key = QualifiedName.From(AdditionalParameterNames.ECDHKey),
-                        Value = new ExtensionObject(key)
-                    });
-
-                m_logger.LogWarning("Returning new EphemeralKey: {PublicKey} bytes.", key.PublicKey?.Length ?? 0);
-            }
-
-            return response;
+            return SessionSecurityPolicyHelper.ProcessActivateSessionAdditionalParameters(
+                session,
+                parameters,
+                m_logger);
         }
 
         /// <inheritdoc/>
@@ -716,10 +699,9 @@ namespace Opc.Ua.Server
                 ISession session = ServerInternal.SessionManager
                     .GetSession(requestHeader.AuthenticationToken);
 
-                var parameters =
-                    ExtensionObject.ToEncodeable(
-                        requestHeader.AdditionalHeader) as AdditionalParametersType;
-                parameters = ActivateSessionProcessAdditionalParameters(session, parameters);
+                AdditionalParametersType parameters = ActivateSessionProcessAdditionalParameters(
+                    session,
+                    requestHeader.AdditionalHeader);
 
                 m_logger.LogInformation("Server - SESSION ACTIVATED.");
 
