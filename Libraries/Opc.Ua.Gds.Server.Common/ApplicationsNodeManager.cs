@@ -1819,7 +1819,9 @@ namespace Opc.Ua.Gds.Server
         protected void SetCertificateGroupNodes(ICertificateGroup certificateGroup)
         {
             certificateGroup.DefaultTrustList = null;
-            if (certificateGroup.CertificateTypes.Contains(Ua.ObjectTypeIds.HttpsCertificateType))
+            string groupId = certificateGroup.Configuration.Id;
+
+            if (string.Equals(groupId, "DefaultHttpsGroup", StringComparison.OrdinalIgnoreCase))
             {
                 certificateGroup.Id = m_defaultHttpsGroupId;
                 certificateGroup.DefaultTrustList = FindPredefinedNode<TrustListState>(
@@ -1828,8 +1830,7 @@ namespace Opc.Ua.Gds.Server
                         Server.NamespaceUris
                     ));
             }
-            else if (certificateGroup.CertificateTypes
-                .Contains(Ua.ObjectTypeIds.UserCertificateType))
+            else if (string.Equals(groupId, "DefaultUserTokenGroup", StringComparison.OrdinalIgnoreCase))
             {
                 certificateGroup.Id = m_defaultUserTokenGroupId;
                 certificateGroup.DefaultTrustList = FindPredefinedNode<TrustListState>(
@@ -1838,40 +1839,8 @@ namespace Opc.Ua.Gds.Server
                         Server.NamespaceUris
                     ));
             }
-            else if (certificateGroup.CertificateTypes.Any(certificateType =>
-                Utils.IsEqual(
-                    certificateType,
-                    Ua.ObjectTypeIds.ApplicationCertificateType) ||
-                Utils.IsEqual(
-                    certificateType,
-                    Ua.ObjectTypeIds.RsaMinApplicationCertificateType) ||
-                Utils.IsEqual(
-                    certificateType,
-                    Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType) ||
-                Utils.IsEqual(
-                    certificateType,
-                    Ua.ObjectTypeIds.EccApplicationCertificateType) ||
-                Utils.IsEqual(
-                    certificateType,
-                    Ua.ObjectTypeIds.EccNistP256ApplicationCertificateType) ||
-                Utils.IsEqual(
-                    certificateType,
-                    Ua.ObjectTypeIds.EccNistP384ApplicationCertificateType) ||
-                Utils.IsEqual(
-                    certificateType,
-                    Ua.ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType) ||
-                Utils.IsEqual(
-                    certificateType,
-                    Ua.ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType) ||
-#if CURVE25519
-                Utils.IsEqual(
-                    certificateType,
-                    Ua.ObjectTypeIds.EccCurve25519ApplicationCertificateType) ||
-                Utils.IsEqual(
-                    certificateType,
-                    Ua.ObjectTypeIds.EccCurve448ApplicationCertificateType) ||
-#endif
-                    false))
+            else if (string.Equals(groupId, "Default", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(groupId, "DefaultApplicationGroup", StringComparison.OrdinalIgnoreCase))
             {
                 certificateGroup.Id = m_defaultApplicationGroupId;
                 certificateGroup.DefaultTrustList = FindPredefinedNode<TrustListState>(
@@ -1882,9 +1851,43 @@ namespace Opc.Ua.Gds.Server
             }
             else
             {
-                throw new NotImplementedException(
-                    $"Unknown certificate type {string.Join(",", certificateGroup.CertificateTypes.Select(n => n.ToString()))}. " +
-                    "Use ApplicationCertificateType, HttpsCertificateType or UserCredentialCertificateType");
+                // Create a new custom certificate group node in the address space
+                // for any group whose Id does not match one of the three predefined groups.
+                var certGroupsFolder = FindPredefinedNode<Ua.CertificateGroupFolderState>(
+                    ExpandedNodeId.ToNodeId(ObjectIds.Directory_CertificateGroups, Server.NamespaceUris));
+
+                if (certGroupsFolder == null)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInternalError,
+                        "CertificateGroups folder node was not found in the address space.");
+                }
+
+                var customGroupNode = new Ua.CertificateGroupState(certGroupsFolder);
+                customGroupNode.Create(
+                    SystemContext,
+                    NodeId.Null,
+                    new QualifiedName(groupId, NamespaceIndex),
+                    new LocalizedText(groupId),
+                    true);
+
+                // Read back the NodeId assigned by Create (assignNodeIds: true reassigns the root id).
+                certificateGroup.Id = customGroupNode.NodeId;
+
+                if (customGroupNode.CertificateTypes != null)
+                {
+                    customGroupNode.CertificateTypes.Value = [.. certificateGroup.CertificateTypes];
+                }
+
+                certGroupsFolder.AddChild(customGroupNode);
+                AddPredefinedNode(SystemContext, customGroupNode);
+
+                certificateGroup.DefaultTrustList = customGroupNode.TrustList;
+
+                m_logger.LogInformation(
+                    "Created custom certificate group node: {Id} with NodeId {NodeId}",
+                    groupId,
+                    certificateGroup.Id);
             }
 
             certificateGroup.DefaultTrustList?.Handle = new TrustList(

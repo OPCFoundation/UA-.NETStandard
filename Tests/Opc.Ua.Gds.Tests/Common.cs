@@ -36,6 +36,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
+using Opc.Ua.Gds.Server;
 using Opc.Ua.Server.Tests;
 using Opc.Ua.Test;
 using Opc.Ua.Tests;
@@ -400,7 +401,8 @@ namespace Opc.Ua.Gds.Tests
         public static async Task<GlobalDiscoveryTestServer> StartGDSAsync(
             bool clean,
             string storeType = CertificateStoreType.Directory,
-            int maxTrustListSize = 0)
+            int maxTrustListSize = 0,
+            IEnumerable<CertificateGroupConfiguration> additionalCertGroups = null)
         {
             GlobalDiscoveryTestServer server = null;
             int testPort = ServerFixtureUtils.GetNextFreeIPPort();
@@ -411,7 +413,7 @@ namespace Opc.Ua.Gds.Tests
                 try
                 {
                     server = new GlobalDiscoveryTestServer(true, NUnitTelemetryContext.Create(true), maxTrustListSize);
-                    await server.StartServerAsync(clean, testPort, storeType).ConfigureAwait(false);
+                    await server.StartServerAsync(clean, testPort, storeType, additionalCertGroups).ConfigureAwait(false);
                 }
                 catch (ServiceResultException sre)
                 {
