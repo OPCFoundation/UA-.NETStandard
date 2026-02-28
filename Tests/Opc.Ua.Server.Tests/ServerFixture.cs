@@ -124,14 +124,109 @@ namespace Opc.Ua.Server.Tests
             {
                 // add deprecated policies for opc.tcp tests
                 serverConfig
-                    .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Basic128Rsa15)
-                    .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Basic256)
-                    .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic128Rsa15)
-                    .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256)
                     .AddSignPolicies()
                     .AddSignAndEncryptPolicies()
                     .AddEccSignPolicies()
                     .AddEccSignAndEncryptPolicies();
+
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.Sign,
+                    SecurityPolicies.Basic128Rsa15);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicies.Basic128Rsa15);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.Sign,
+                    SecurityPolicies.Basic256);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicies.Basic256);
+
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.Sign,
+                    SecurityPolicies.RSA_DH_AesGcm);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicies.RSA_DH_AesGcm);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.Sign,
+                    SecurityPolicies.RSA_DH_ChaChaPoly);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicies.RSA_DH_ChaChaPoly);
+
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.Sign,
+                    SecurityPolicies.ECC_nistP256_AesGcm);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicies.ECC_nistP256_AesGcm);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.Sign,
+                    SecurityPolicies.ECC_nistP256_ChaChaPoly);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicies.ECC_nistP256_ChaChaPoly);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.Sign,
+                    SecurityPolicies.ECC_nistP384_AesGcm);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicies.ECC_nistP384_AesGcm);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.Sign,
+                    SecurityPolicies.ECC_nistP384_ChaChaPoly);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicies.ECC_nistP384_ChaChaPoly);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.Sign,
+                    SecurityPolicies.ECC_brainpoolP256r1_AesGcm);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicies.ECC_brainpoolP256r1_AesGcm);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.Sign,
+                    SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.Sign,
+                    SecurityPolicies.ECC_brainpoolP384r1_AesGcm);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicies.ECC_brainpoolP384r1_AesGcm);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.Sign,
+                    SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly);
             }
 
             if (OperationLimits)
@@ -340,6 +435,17 @@ namespace Opc.Ua.Server.Tests
             ActivityListener?.Dispose();
             ActivityListener = null;
             await Task.Delay(100).ConfigureAwait(false);
+        }
+
+        private static void AddPolicyIfSupported(
+            IApplicationConfigurationBuilderServerSelected serverConfig,
+            MessageSecurityMode securityMode,
+            string securityPolicyUri)
+        {
+            if (SecurityPolicies.GetInfo(securityPolicyUri) != null)
+            {
+                serverConfig.AddPolicy(securityMode, securityPolicyUri);
+            }
         }
 
         private readonly Func<ITelemetryContext, T> m_factory;

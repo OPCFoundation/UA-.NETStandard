@@ -374,8 +374,17 @@ namespace Opc.Ua.Security
                     result = 2;
                     break;
                 case SecurityPolicies.Basic256:
-                    logger.LogWarning(
-                        "Deprecated Security Policy Basic256 requested - Not rcommended.");
+                    logger.LogWarning("Deprecated Security Policy Basic256 requested - Not recommended.");
+                    result = 4;
+                    break;
+                case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_nistP384:
+                    logger.LogWarning("Deprecated Security Policy {PolicyUri} requested - Use ECC_nistP[256/384]_AES.", policyUri);
+                    result = 4;
+                    break;
+                case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_brainpoolP384r1:
+                    logger.LogWarning("Deprecated Security Policy {PolicyUri} requested - Use ECC_brainpoolP[256/384]r1_AES.", policyUri);
                     result = 4;
                     break;
                 case SecurityPolicies.Basic256Sha256:
@@ -387,16 +396,20 @@ namespace Opc.Ua.Security
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
                     result = 10;
                     break;
-                case SecurityPolicies.ECC_brainpoolP256r1:
-                    result = 11;
-                    break;
-                case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.RSA_DH_AesGcm:
+                case SecurityPolicies.RSA_DH_ChaChaPoly:
                     result = 12;
                     break;
-                case SecurityPolicies.ECC_brainpoolP384r1:
-                    result = 13;
+                case SecurityPolicies.ECC_brainpoolP256r1_AesGcm:
+                case SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly:
+                case SecurityPolicies.ECC_nistP256_AesGcm:
+                case SecurityPolicies.ECC_nistP256_ChaChaPoly:
+                    result = 12;
                     break;
-                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_nistP384_AesGcm:
+                case SecurityPolicies.ECC_nistP384_ChaChaPoly:
+                case SecurityPolicies.ECC_brainpoolP384r1_AesGcm:
+                case SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly:
                     result = 14;
                     break;
                 case SecurityPolicies.None:

@@ -105,8 +105,60 @@ namespace Opc.Ua.Client.Tests
         [DatapointSource]
         public static readonly string[] Policies =
         [
-            .. SecurityPolicies.GetDisplayNames().Select(SecurityPolicies.GetUri)
+            .. GetPolicyUrisForTests()
         ];
+
+        protected static IEnumerable<string> GetSupportedEccPolicyUris(
+            bool includeCurvePolicies = true)
+        {
+            IEnumerable<string> displayNames = SecurityPolicies.GetDisplayNames()
+                .Where(name => name.StartsWith("ECC_", StringComparison.Ordinal));
+
+            if (!includeCurvePolicies)
+            {
+                displayNames = displayNames
+                    .Where(name => !name.StartsWith("ECC_curve", StringComparison.Ordinal));
+            }
+
+            return displayNames.Select(SecurityPolicies.GetUri);
+        }
+
+        private static IEnumerable<string> GetPolicyUrisForTests()
+        {
+            IEnumerable<string> displayNames = SecurityPolicies.GetDisplayNames();
+
+#if NETFRAMEWORK
+            displayNames = displayNames.Where(name =>
+                !name.EndsWith("_AesGcm", StringComparison.Ordinal) &&
+                !name.EndsWith("_ChaChaPoly", StringComparison.Ordinal));
+#endif
+
+            return displayNames.Select(SecurityPolicies.GetUri);
+        }
+
+        protected async Task IgnoreIfPolicyNotAdvertisedAsync(string securityPolicyUri)
+        {
+            Endpoints ??= await ClientFixture.GetEndpointsAsync(ServerUrl).ConfigureAwait(false);
+            if (Endpoints?.Any(endpoint =>
+                    string.Equals(
+                        endpoint.SecurityPolicyUri,
+                        securityPolicyUri,
+                        StringComparison.Ordinal)) != true)
+            {
+                string advertisedPolicies = Endpoints == null
+                    ? "<none>"
+                    : string.Join(
+                        ", ",
+                        Endpoints
+                            .Select(endpoint => endpoint.SecurityPolicyUri)
+                            .Where(policy => !string.IsNullOrEmpty(policy))
+                            .Distinct()
+                            .OrderBy(policy => policy, StringComparer.Ordinal));
+                NUnit.Framework.Assert.Ignore(
+                    $"SecurityPolicy '{securityPolicyUri}' is not advertised by the server. " +
+                    $"Advertised: {advertisedPolicies}");
+            }
+        }
 
         /// <summary>
         /// Set up a Server and a Client instance.
@@ -240,82 +292,28 @@ namespace Opc.Ua.Client.Tests
                     IssuedTokenType = Profiles.JwtUserToken
                 });
 
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.UserName)
-                {
-                    SecurityPolicyUri
-                        = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1"
-                });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.UserName)
-                {
-                    SecurityPolicyUri
-                        = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1"
-                });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.UserName)
-                {
-                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256"
-                });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.UserName)
-                {
-                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384"
-                });
+            foreach (string securityPolicyUri in GetSupportedEccPolicyUris())
+            {
+                ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                    new UserTokenPolicy(UserTokenType.UserName)
+                    {
+                        SecurityPolicyUri = securityPolicyUri
+                    });
 
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.Certificate)
-                {
-                    SecurityPolicyUri
-                        = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1"
-                });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.Certificate)
-                {
-                    SecurityPolicyUri
-                        = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1"
-                });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.Certificate)
-                {
-                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256"
-                });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.Certificate)
-                {
-                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384"
-                });
+                ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                    new UserTokenPolicy(UserTokenType.Certificate)
+                    {
+                        SecurityPolicyUri = securityPolicyUri
+                    });
 
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.IssuedToken)
-                {
-                    IssuedTokenType = Profiles.JwtUserToken,
-                    PolicyId = Profiles.JwtUserToken,
-                    SecurityPolicyUri
-                        = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1"
-                });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.IssuedToken)
-                {
-                    IssuedTokenType = Profiles.JwtUserToken,
-                    PolicyId = Profiles.JwtUserToken,
-                    SecurityPolicyUri
-                        = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1"
-                });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.IssuedToken)
-                {
-                    IssuedTokenType = Profiles.JwtUserToken,
-                    PolicyId = Profiles.JwtUserToken,
-                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256"
-                });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.IssuedToken)
-                {
-                    IssuedTokenType = Profiles.JwtUserToken,
-                    PolicyId = Profiles.JwtUserToken,
-                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384"
-                });
+                ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                    new UserTokenPolicy(UserTokenType.IssuedToken)
+                    {
+                        IssuedTokenType = Profiles.JwtUserToken,
+                        PolicyId = Profiles.JwtUserToken,
+                        SecurityPolicyUri = securityPolicyUri
+                    });
+            }
 
             ServerFixture.Config.ServerConfiguration.MaxChannelCount = MaxChannelCount;
             ServerFixture.Config.ServerConfiguration.MaxSubscriptionCount = 1000;

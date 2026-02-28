@@ -59,12 +59,14 @@ namespace Opc.Ua.Bindings
                     "No private key for certificate.");
 
             // create the signature.
-            return rsa.SignData(
+            var signature = rsa.SignData(
                 dataToSign.Array,
                 dataToSign.Offset,
                 dataToSign.Count,
                 algorithm,
                 padding);
+
+            return signature;
         }
 
         /// <summary>

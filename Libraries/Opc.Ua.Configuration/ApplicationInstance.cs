@@ -868,8 +868,10 @@ namespace Opc.Ua.Configuration
             else
             {
                 ECCurve? curve =
-                    EccUtils.GetCurveFromCertificateTypeId(id.CertificateType)
-                    ?? throw ServiceResultException.ConfigurationError("The Ecc certificate type is not supported.");
+                    CryptoUtils.GetCurveFromCertificateTypeId(id.CertificateType)
+                    ?? throw new ServiceResultException(
+                        StatusCodes.BadConfigurationError,
+                        "The Ecc certificate type is not supported.");
 
                 id.Certificate = builder.SetECCurve(curve.Value).CreateForECDsa();
 

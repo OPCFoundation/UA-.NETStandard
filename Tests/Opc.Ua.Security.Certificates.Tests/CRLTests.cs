@@ -111,7 +111,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
-            ECCurve? curve = EccUtils.GetCurveFromCertificateTypeId(m_certificateType);
+            ECCurve? curve = CryptoUtils.GetCurveFromCertificateTypeId(m_certificateType);
 
             if (curve != null)
             {

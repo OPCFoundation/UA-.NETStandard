@@ -95,6 +95,7 @@ namespace Opc.Ua.Server
             m_clientIssuerCertificates = clientCertificateChain;
 
             SecureChannelId = context.ChannelContext.SecureChannelId;
+            m_channelThumbprint = context.ChannelContext.ChannelThumbprint;
             MaxBrowseContinuationPoints = maxBrowseContinuationPoints;
             m_maxHistoryContinuationPoints = maxHistoryContinuationPoints;
             EndpointDescription = context.ChannelContext.EndpointDescription;
@@ -242,6 +243,11 @@ namespace Opc.Ua.Server
         public byte[] ClientNonce { get; }
 
         /// <summary>
+        /// The server application instance certificate used by this session.
+        /// </summary>
+        public X509Certificate2 ServerCertificate => m_serverCertificate;
+
+        /// <summary>
         /// The application instance certificate associated with the client.
         /// </summary>
         public X509Certificate2 ClientCertificate { get; }
@@ -289,12 +295,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Set the ECC security policy URI
         /// </summary>
-        public virtual void SetEccUserTokenSecurityPolicy(string securityPolicyUri)
+        public virtual void SetUserTokenSecurityPolicy(string securityPolicyUri)
         {
             lock (m_lock)
             {
-                m_eccUserTokenSecurityPolicyUri = securityPolicyUri;
-                m_eccUserTokenNonce = null;
+                m_userTokenSecurityPolicyUri = securityPolicyUri;
+                m_userTokenNonce = null;
             }
         }
 
@@ -302,23 +308,23 @@ namespace Opc.Ua.Server
         /// Create new ECC ephemeral key
         /// </summary>
         /// <returns>A new ephemeral key</returns>
-        public virtual EphemeralKeyType GetNewEccKey()
+        public virtual EphemeralKeyType GetNewEphemeralKey()
         {
             lock (m_lock)
             {
-                if (m_eccUserTokenSecurityPolicyUri == null)
+                if (m_userTokenSecurityPolicyUri == null)
                 {
                     return null;
                 }
 
-                m_eccUserTokenNonce = Nonce.CreateNonce(m_eccUserTokenSecurityPolicyUri);
+                m_userTokenNonce = Nonce.CreateNonce(m_userTokenSecurityPolicyUri);
 
-                var key = new EphemeralKeyType { PublicKey = m_eccUserTokenNonce.Data };
+                var key = new EphemeralKeyType { PublicKey = m_userTokenNonce.Data };
 
-                key.Signature = EccUtils.Sign(
+                key.Signature = CryptoUtils.Sign(
                     new ArraySegment<byte>(key.PublicKey),
                     m_serverCertificate,
-                    m_eccUserTokenSecurityPolicyUri);
+                    m_userTokenSecurityPolicyUri);
 
                 return key;
             }
@@ -474,15 +480,21 @@ namespace Opc.Ua.Server
                             StatusCodes.BadApplicationSignatureInvalid);
                     }
 
-                    byte[] dataToSign = Utils.Append(
-                        m_serverCertificate.RawData,
-                        m_serverNonce.Data);
+                    var securityPolicy = SecurityPolicies.GetInfo(EndpointDescription.SecurityPolicyUri);
 
-                    if (!SecurityPolicies.Verify(
-                            ClientCertificate,
+                    byte[] dataToSign = securityPolicy.GetClientSignatureData(
+                        context.ChannelContext.ChannelThumbprint,
+                        m_serverNonce.Data,
+                        m_serverCertificate.RawData,
+                        context.ChannelContext.ServerChannelCertificate,
+                        context.ChannelContext.ClientChannelCertificate,
+                        ClientNonce);
+
+                    if (!SecurityPolicies.VerifySignatureData(
+                            clientSignature,
                             EndpointDescription.SecurityPolicyUri,
-                            dataToSign,
-                            clientSignature))
+                            ClientCertificate,
+                            dataToSign))
                     {
                         // verify for certificate chain in endpoint.
                         // validate the signature with complete chain if the check with leaf certificate failed.
@@ -503,15 +515,19 @@ namespace Opc.Ua.Server
 
                             byte[] serverCertificateChainData = [.. serverCertificateChainList];
 
-                            dataToSign = Utils.Append(
+                            dataToSign = securityPolicy.GetClientSignatureData(
+                                context.ChannelContext.ChannelThumbprint,
+                                m_serverNonce.Data,
                                 serverCertificateChainData,
-                                m_serverNonce.Data);
+                                context.ChannelContext.ServerChannelCertificate,
+                                context.ChannelContext.ClientChannelCertificate,
+                                ClientNonce);
 
-                            if (!SecurityPolicies.Verify(
-                                    ClientCertificate,
-                                    EndpointDescription.SecurityPolicyUri,
-                                    dataToSign,
-                                    clientSignature))
+                            if (!SecurityPolicies.VerifySignatureData(
+                                  clientSignature,
+                                  EndpointDescription.SecurityPolicyUri,
+                                  ClientCertificate,
+                                  dataToSign))
                             {
                                 throw new ServiceResultException(
                                     StatusCodes.BadApplicationSignatureInvalid);
@@ -536,12 +552,14 @@ namespace Opc.Ua.Server
 
                 // validate the user identity token.
                 identityToken = ValidateUserIdentityToken(
+                    context,
                     userIdentityToken,
                     userTokenSignature,
                     out userTokenPolicy);
 
                 TraceState("VALIDATED");
             }
+
         }
 
         /// <summary>
@@ -825,6 +843,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private IUserIdentityTokenHandler ValidateUserIdentityToken(
+            OperationContext context,
             ExtensionObject identityToken,
             SignatureData userTokenSignature,
             out UserTokenPolicy policy)
@@ -997,7 +1016,7 @@ namespace Opc.Ua.Server
                         m_serverNonce,
                         securityPolicyUri,
                         m_server.MessageContext,
-                        m_eccUserTokenNonce,
+                        m_userTokenNonce,
                         ClientCertificate,
                         m_clientIssuerCertificates);
                 }
@@ -1012,9 +1031,16 @@ namespace Opc.Ua.Server
                 // verify the signature.
                 if (securityPolicyUri != SecurityPolicies.None)
                 {
-                    byte[] dataToSign = Utils.Append(
+                    var securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
+
+                    byte[] dataToSign = securityPolicy.GetUserTokenSignatureData(
+                        context.ChannelContext.ChannelThumbprint,
+                        m_serverNonce.Data,
                         m_serverCertificate.RawData,
-                        m_serverNonce.Data);
+                        context.ChannelContext.ServerChannelCertificate,
+                        ClientCertificate?.RawData,
+                        context.ChannelContext.ClientChannelCertificate,
+                        ClientNonce ?? []);
 
                     if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri))
                     {
@@ -1256,8 +1282,9 @@ namespace Opc.Ua.Server
         private readonly string m_sessionName;
         private X509Certificate2 m_serverCertificate;
         private Nonce m_serverNonce;
-        private string m_eccUserTokenSecurityPolicyUri;
-        private Nonce m_eccUserTokenNonce;
+        private byte[] m_channelThumbprint;
+        private string m_userTokenSecurityPolicyUri;
+        private Nonce m_userTokenNonce;
         private readonly X509Certificate2Collection m_clientIssuerCertificates;
         private readonly int m_maxHistoryContinuationPoints;
         private readonly SessionSecurityDiagnosticsDataType m_securityDiagnostics;

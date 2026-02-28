@@ -137,9 +137,9 @@ namespace Opc.Ua
             X509Certificate2 certificate = Certificate ??
                 CertificateFactory.Create(m_token.CertificateData);
 
-            SignatureData signatureData = SecurityPolicies.Sign(
-                certificate,
+            SignatureData signatureData = SecurityPolicies.CreateSignatureData(
                 securityPolicyUri,
+                certificate,
                 dataToSign);
 
             m_token.CertificateData = certificate.RawData;
@@ -158,11 +158,11 @@ namespace Opc.Ua
                 X509Certificate2 certificate = Certificate ??
                     CertificateFactory.Create(m_token.CertificateData);
 
-                bool valid = SecurityPolicies.Verify(
-                    certificate,
+                bool valid = SecurityPolicies.VerifySignatureData(
+                    signatureData,
                     securityPolicyUri,
-                    dataToVerify,
-                    signatureData);
+                    certificate,
+                    dataToVerify);
 
                 m_token.CertificateData = certificate.RawData;
 
@@ -189,7 +189,9 @@ namespace Opc.Ua
         {
             return new X509IdentityTokenHandler(Utils.Clone(m_token))
             {
-                // TODO: m_certificate = m_certificate
+                // Keep the in-memory certificate instance so private key operations
+                // continue to work when cloned handlers are used for signing.
+                Certificate = m_certificate
             };
         }
 

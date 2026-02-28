@@ -50,6 +50,11 @@ namespace Opc.Ua.Client.Tests
     [SetUICulture("en-us")]
     public class SubscriptionTest : ClientTestFramework
     {
+        public static readonly string[] SupportedEccPolicies =
+        [
+            .. GetSupportedEccPolicyUris(includeCurvePolicies: false)
+        ];
+
         private readonly string m_subscriptionTestXml = Path.Combine(
             Path.GetTempPath(),
             "SubscriptionTest.xml");
@@ -449,13 +454,7 @@ namespace Opc.Ua.Client.Tests
         [Order(351)]
         [Explicit]
         public Task ReconnectWithSavedSessionSecretsOnlyECCAsync(
-            [Values(
-                SecurityPolicies.ECC_nistP256,
-                SecurityPolicies.ECC_nistP384,
-                SecurityPolicies.ECC_brainpoolP256r1,
-                SecurityPolicies.ECC_brainpoolP384r1
-            )]
-                string securityPolicy,
+            [ValueSource(nameof(SupportedEccPolicies))] string securityPolicy,
             [Values(true, false)] bool anonymous,
             [Values(true, false)] bool sequentialPublishing,
             [Values(true, false)] bool sendInitialValues)
@@ -478,7 +477,9 @@ namespace Opc.Ua.Client.Tests
         public Task ReconnectWithSavedSessionSecretsOnlyAsync(
             [Values(SecurityPolicies.None,
                 SecurityPolicies.ECC_nistP256,
-                SecurityPolicies.Basic256Sha256)]
+                SecurityPolicies.Basic256Sha256,
+                SecurityPolicies.RSA_DH_AesGcm,
+                SecurityPolicies.RSA_DH_ChaChaPoly)]
                 string securityPolicy,
             [Values(true, false)] bool anonymous,
             [Values(true, false)] bool sequentialPublishing,
@@ -497,6 +498,8 @@ namespace Opc.Ua.Client.Tests
             bool sequentialPublishing,
             bool sendInitialValues)
         {
+            await IgnoreIfPolicyNotAdvertisedAsync(securityPolicy).ConfigureAwait(false);
+
             const int kTestSubscriptions = 5;
             const int kDelay = 2_000;
             const int kQueueSize = 10;
@@ -1629,5 +1632,6 @@ namespace Opc.Ua.Client.Tests
             // Clean up
             await subscription.DeleteAsync(true, CancellationToken.None).ConfigureAwait(false);
         }
+
     }
 }

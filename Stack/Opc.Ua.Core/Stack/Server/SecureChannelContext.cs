@@ -43,14 +43,23 @@ namespace Opc.Ua
         /// <param name="secureChannelId">The secure channel identifier.</param>
         /// <param name="endpointDescription">The endpoint description.</param>
         /// <param name="messageEncoding">The message encoding.</param>
+        /// <param name="channelThumbprint">The unique hash for the secure channel calculated during channel creation.</param>
+        /// <param name="clientChannelCertificate">The client certificate used to establish the secure channel.</param>
+        /// <param name="serverChannelCertificate">The server certificate used to establish the secure channel.</param>
         public SecureChannelContext(
             string secureChannelId,
             EndpointDescription endpointDescription,
-            RequestEncoding messageEncoding)
+            RequestEncoding messageEncoding,
+            byte[] clientChannelCertificate,
+            byte[] serverChannelCertificate,
+            byte[] channelThumbprint = null)
         {
             SecureChannelId = secureChannelId;
             EndpointDescription = endpointDescription;
             MessageEncoding = messageEncoding;
+            ClientChannelCertificate = clientChannelCertificate;
+            ServerChannelCertificate = serverChannelCertificate;
+            ChannelThumbprint = channelThumbprint;
         }
 
         /// <summary>
@@ -70,6 +79,21 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The message encoding.</value>
         public RequestEncoding MessageEncoding { get; }
+
+        /// <summary>
+        /// The unique hash for the secure channel calculated during channel creation.
+        /// </summary>
+        public byte[] ChannelThumbprint { get; }
+
+        /// <summary>
+        /// The client certificate used to establsih the secure channel.
+        /// </summary>
+        public byte[] ClientChannelCertificate { get; }
+
+        /// <summary>
+        /// The server certificate used to establsih the secure channel.
+        /// </summary>
+        public byte[] ServerChannelCertificate { get; }
 
         /// <summary>
         /// The active secure channel for the thread.
