@@ -107,9 +107,16 @@ namespace Opc.Ua.Server
         /// <param name="datachangeItem">The monitored item.</param>
         public void Add(IDataChangeMonitoredItem2 datachangeItem)
         {
+            bool wasEmpty = DataChangeMonitoredItems.IsEmpty;
             DataChangeMonitoredItems.TryAdd(datachangeItem.Id, datachangeItem);
 
             Node.OnStateChanged = OnMonitoredNodeChanged;
+
+            // Subscribe to namespace default permission changes when the first item is added.
+            if (wasEmpty && m_server.ConfigurationNodeManager != null)
+            {
+                m_server.ConfigurationNodeManager.DefaultPermissionsChanged += OnDefaultPermissionsChanged;
+            }
         }
 
         /// <summary>
@@ -122,12 +129,18 @@ namespace Opc.Ua.Server
             {
                 // Remove the cached context for the monitored item
                 m_contextCache.TryRemove(datachangeItem.Id, out _);
-                m_operationContextCache.TryRemove(datachangeItem.Id, out _);
+                m_permissionCache.TryRemove(datachangeItem.Id, out _);
             }
 
             if (DataChangeMonitoredItems.IsEmpty)
             {
                 Node.OnStateChanged = null;
+
+                // Unsubscribe from namespace default permission changes when the last item is removed.
+                if (m_server.ConfigurationNodeManager != null)
+                {
+                    m_server.ConfigurationNodeManager.DefaultPermissionsChanged -= OnDefaultPermissionsChanged;
+                }
             }
         }
 
@@ -234,24 +247,45 @@ namespace Opc.Ua.Server
                     return;
                 }
 
+                // If RolePermissions or UserRolePermissions have changed, invalidate the permission cache
+                // so it is revalidated on the next value change notification.
+                if ((changes & NodeStateChangeMasks.RolePermissions) != 0)
+                {
+                    m_permissionCache.Clear();
+                }
+
                 foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in DataChangeMonitoredItems)
                 {
                     IDataChangeMonitoredItem2 monitoredItem = kvp.Value;
+                    OperationContext operationContext;
+                    ISystemContext contextToUse;
+
+                    if (context is ServerSystemContext serverContext)
+                    {
+                        ServerSystemContext serverSystemContextToUse = GetOrCreateContext(serverContext, monitoredItem);
+                        operationContext = serverSystemContextToUse.OperationContext;
+                        contextToUse = serverSystemContextToUse;
+                    }
+                    else
+                    {
+                        operationContext = new OperationContext(monitoredItem);
+                        contextToUse = context;
+                    }
 
                     if (monitoredItem.AttributeId == Attributes.Value &&
                         (changes & NodeStateChangeMasks.Value) != 0)
                     {
-                        if (!m_operationContextCache.TryGetValue(monitoredItem.Id, out OperationContext operationContext))
+                        // Use cached permission result to avoid validating on every value change.
+                        // The cache is invalidated when RolePermissions/UserRolePermissions change
+                        // or when the user identity of the monitored item changes.
+                        if (!m_permissionCache.TryGetValue(monitoredItem.Id, out ServiceResult validationResult))
                         {
-                            operationContext = new OperationContext(monitoredItem);
-                            m_operationContextCache[monitoredItem.Id] = operationContext;
+                            validationResult = NodeManager.ValidateRolePermissions(
+                                operationContext,
+                                node.NodeId,
+                                PermissionType.Read);
+                            m_permissionCache[monitoredItem.Id] = validationResult;
                         }
-
-                        // validate if the monitored item has the required role permissions to read the value
-                        ServiceResult validationResult = NodeManager.ValidateRolePermissions(
-                            operationContext,
-                            node.NodeId,
-                            PermissionType.Read);
 
                         if (ServiceResult.IsBad(validationResult))
                         {
@@ -259,14 +293,14 @@ namespace Opc.Ua.Server
                             continue;
                         }
 
-                        QueueValue(context, node, monitoredItem);
+                        QueueValue(contextToUse, node, monitoredItem);
                         continue;
                     }
 
                     if (monitoredItem.AttributeId != Attributes.Value &&
                         (changes & NodeStateChangeMasks.NonValue) != 0)
                     {
-                        QueueValue(context, node, monitoredItem);
+                        QueueValue(contextToUse, node, monitoredItem);
                     }
                 }
             }
@@ -287,16 +321,8 @@ namespace Opc.Ua.Server
                 SourceTimestamp = DateTime.MinValue,
                 StatusCode = StatusCodes.Good
             };
-
-            ISystemContext contextToUse = context;
-
-            if (context is ServerSystemContext systemContext)
-            {
-                contextToUse = GetOrCreateContext(systemContext, monitoredItem);
-            }
-
             ServiceResult error = node.ReadAttribute(
-                contextToUse,
+                context,
                 monitoredItem.AttributeId,
                 monitoredItem.IndexRange,
                 monitoredItem.DataEncoding,
@@ -336,11 +362,13 @@ namespace Opc.Ua.Server
                     (currentTicks - cachedEntry.CreatedAtTicks) > m_cacheLifetimeTicks)
                 {
                     operationContext = new OperationContext(monitoredItem);
-                    m_operationContextCache[monitoredItemId] = operationContext;
 
                     ServerSystemContext updatedContext = context.Copy(
                         operationContext);
                     m_contextCache[monitoredItemId] = (updatedContext, currentTicks);
+
+                    // Invalidate the permission cache since the user identity may have changed.
+                    m_permissionCache.TryRemove(monitoredItemId, out _);
 
                     return updatedContext;
                 }
@@ -352,15 +380,24 @@ namespace Opc.Ua.Server
             operationContext = new OperationContext(monitoredItem);
             ServerSystemContext newContext = context.Copy(operationContext);
             m_contextCache.TryAdd(monitoredItemId, (newContext, currentTicks));
-            m_operationContextCache[monitoredItemId] = operationContext;
 
             return newContext;
+        }
+
+        /// <summary>
+        /// Called when the namespace default permissions (<c>DefaultRolePermissions</c> or
+        /// <c>DefaultUserRolePermissions</c>) change. Invalidates the entire permission cache
+        /// so that all entries are re-validated on the next value change.
+        /// </summary>
+        private void OnDefaultPermissionsChanged(object sender, EventArgs e)
+        {
+            m_permissionCache.Clear();
         }
 
         private readonly ConcurrentDictionary<uint, (ServerSystemContext Context, int CreatedAtTicks)> m_contextCache =
             new();
 
-        private readonly ConcurrentDictionary<uint, OperationContext> m_operationContextCache =
+        private readonly ConcurrentDictionary<uint, ServiceResult> m_permissionCache =
             new();
 
         private readonly int m_cacheLifetimeTicks = (int)TimeSpan.FromMinutes(5).TotalMilliseconds;

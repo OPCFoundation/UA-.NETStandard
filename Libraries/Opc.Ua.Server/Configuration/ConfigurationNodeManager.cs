@@ -251,6 +251,34 @@ namespace Opc.Ua.Server
             return base.AddBehaviourToPredefinedNode(context, predefinedNode);
         }
 
+        /// <summary>
+        /// Frees any unmanaged resources.
+        /// </summary>
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                if (FindPredefinedNode<NamespacesState>(ObjectIds.Server_Namespaces)
+                    is NamespacesState serverNamespacesNode)
+                {
+                    serverNamespacesNode.StateChanged -= ServerNamespacesChanged;
+                }
+
+                foreach (NodeState node in PredefinedNodes.Values)
+                {
+                    if (node is NamespaceMetadataState metadataState)
+                    {
+                        metadataState.StateChanged -= OnNamespaceChildrenChanged;
+                        metadataState.DefaultRolePermissions?.StateChanged -= OnNamespaceDefaultPermissionsChanged;
+
+                        metadataState.DefaultUserRolePermissions?.StateChanged -= OnNamespaceDefaultPermissionsChanged;
+                    }
+                }
+            }
+
+            base.Dispose(disposing);
+        }
+
         ///<inheritdoc/>
         public void CreateServerConfiguration(
             ServerSystemContext systemContext,
@@ -314,6 +342,17 @@ namespace Opc.Ua.Server
                 is NamespacesState serverNamespacesNode)
             {
                 serverNamespacesNode.StateChanged += ServerNamespacesChanged;
+
+                IList<BaseInstanceState> children = [];
+                serverNamespacesNode.GetChildren(systemContext, children);
+
+                foreach (BaseInstanceState child in children)
+                {
+                    if (child is NamespaceMetadataState metadataState)
+                    {
+                        SubscribeToNamespaceDefaultPermissions(metadataState);
+                    }
+                }
             }
         }
 
@@ -403,12 +442,18 @@ namespace Opc.Ua.Server
                 namespaceMetadataState.DisplayName = LocalizedText.From(namespaceUri);
                 namespaceMetadataState.SymbolicName = namespaceUri;
                 namespaceMetadataState.NamespaceUri.Value = namespaceUri;
+                namespaceMetadataState.AddDefaultRolePermissions(SystemContext);
+                namespaceMetadataState.AddDefaultUserRolePermissions(SystemContext);
 
                 // add node as child of ServerNamespaces and in predefined nodes
                 serverNamespacesNode.AddChild(namespaceMetadataState);
-                serverNamespacesNode.ClearChangeMasks(Server.DefaultSystemContext, true);
+                serverNamespacesNode.ClearChangeMasks(SystemContext, true);
                 AddPredefinedNode(SystemContext, namespaceMetadataState);
             }
+
+            // Subscribe to the default permission properties so that any future changes
+            // trigger a DefaultPermissionsChanged notification to allow caches to be invalidated.
+            SubscribeToNamespaceDefaultPermissions(namespaceMetadataState);
 
             return namespaceMetadataState;
         }
@@ -1263,6 +1308,20 @@ namespace Opc.Ua.Server
                         m_namespaceMetadataStates.Clear();
                         m_namespaceMetadataStatesByIndex.Clear();
                     }
+
+                    if (node is NamespacesState serverNamespacesNode)
+                    {
+                        IList<BaseInstanceState> children = [];
+                        serverNamespacesNode.GetChildren(context, children);
+
+                        foreach (BaseInstanceState child in children)
+                        {
+                            if (child is NamespaceMetadataState metadataState)
+                            {
+                                SubscribeToNamespaceDefaultPermissions(metadataState);
+                            }
+                        }
+                    }
                 }
                 catch
                 {
@@ -1270,6 +1329,64 @@ namespace Opc.Ua.Server
                 }
             }
         }
+
+        /// <summary>
+        /// Subscribes to the <c>StateChanged</c> events of the <c>DefaultRolePermissions</c>
+        /// and <c>DefaultUserRolePermissions</c> child nodes of a <see cref="NamespaceMetadataState"/>
+        /// to detect changes that require permission cache invalidation.
+        /// </summary>
+        private void SubscribeToNamespaceDefaultPermissions(NamespaceMetadataState namespaceMetadataState)
+        {
+            if (namespaceMetadataState.DefaultRolePermissions != null)
+            {
+                // unsubscribe first to avoid duplicate subscriptions if called multiple times
+                namespaceMetadataState.DefaultRolePermissions.StateChanged -= OnNamespaceDefaultPermissionsChanged;
+                namespaceMetadataState.DefaultRolePermissions.StateChanged += OnNamespaceDefaultPermissionsChanged;
+            }
+
+            if (namespaceMetadataState.DefaultUserRolePermissions != null)
+            {
+                namespaceMetadataState.DefaultUserRolePermissions.StateChanged -= OnNamespaceDefaultPermissionsChanged;
+                namespaceMetadataState.DefaultUserRolePermissions.StateChanged += OnNamespaceDefaultPermissionsChanged;
+            }
+
+            namespaceMetadataState.StateChanged -= OnNamespaceChildrenChanged;
+            namespaceMetadataState.StateChanged += OnNamespaceChildrenChanged;
+        }
+
+        /// <summary>
+        /// Handles children change on NamespaceMetadataState and resubscribes to the default permissions nodes
+        /// to ensure we are notified of changes on those nodes even if they are recreated.
+        /// </summary>
+        private void OnNamespaceChildrenChanged(
+            ISystemContext context,
+            NodeState node,
+            NodeStateChangeMasks changes)
+        {
+            if ((changes & NodeStateChangeMasks.Children) != 0 &&
+                node is NamespaceMetadataState namespaceMetadataState)
+            {
+                SubscribeToNamespaceDefaultPermissions(namespaceMetadataState);
+            }
+        }
+
+        /// <summary>
+        /// Handles value changes on <c>DefaultRolePermissions</c> or <c>DefaultUserRolePermissions</c>
+        /// and raises the <see cref="DefaultPermissionsChanged"/> event.
+        /// </summary>
+        private void OnNamespaceDefaultPermissionsChanged(
+            ISystemContext context,
+            NodeState node,
+            NodeStateChangeMasks changes)
+        {
+            if ((changes & NodeStateChangeMasks.Value) != 0)
+            {
+                DefaultPermissionsChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+
+        /// <inheritdoc/>
+        public event EventHandler DefaultPermissionsChanged;
 
         private class UpdateCertificateData
         {

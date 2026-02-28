@@ -553,7 +553,7 @@ namespace Opc.Ua
             {
                 if (m_rolePermissions != value)
                 {
-                    m_changeMasks |= NodeStateChangeMasks.NonValue;
+                    m_changeMasks |= NodeStateChangeMasks.NonValue | NodeStateChangeMasks.RolePermissions;
                 }
 
                 m_rolePermissions = value;
@@ -571,7 +571,7 @@ namespace Opc.Ua
             {
                 if (m_userRolePermissions != value)
                 {
-                    m_changeMasks |= NodeStateChangeMasks.NonValue;
+                    m_changeMasks |= NodeStateChangeMasks.NonValue | NodeStateChangeMasks.RolePermissions;
                 }
 
                 m_userRolePermissions = value;
@@ -4207,6 +4207,7 @@ namespace Opc.Ua
                     if (ServiceResult.IsGood(result))
                     {
                         m_rolePermissions = rolePermissions;
+                        m_changeMasks |= NodeStateChangeMasks.NonValue | NodeStateChangeMasks.RolePermissions;
                     }
 
                     return result;
@@ -5206,7 +5207,13 @@ namespace Opc.Ua
         /// <summary>
         /// The node has been deleted.
         /// </summary>
-        Deleted = 0x10
+        Deleted = 0x10,
+
+        /// <summary>
+        /// The RolePermissions or UserRolePermissions attribute has changed.
+        /// This is a subset of <see cref="NonValue"/> and is set in addition to it.
+        /// </summary>
+        RolePermissions = 0x20
     }
 
     /// <summary>
