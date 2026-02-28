@@ -1706,7 +1706,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var settings = new XmlWriterSettings { ConformanceLevel = ConformanceLevel.Fragment };
             using var writer = XmlWriter.Create(sb, settings);
             var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
-            ReadOnlySpan<byte> bytes = new byte[] { 1, 2, 3, 4, 5 };
+            ReadOnlySpan<byte> bytes = [1, 2, 3, 4, 5];
 
             // Act
             encoder.WriteByteString("TestByteString", bytes);
