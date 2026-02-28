@@ -1864,6 +1864,473 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void ReadDiagnosticInfoReturnsSymbolicId()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            const string xml = """
+            <DiagnosticInfo xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <SymbolicId>42</SymbolicId>
+            </DiagnosticInfo>
+            """;
+            using var reader = XmlReader.Create(new StringReader(xml));
+            var decoder = new XmlDecoder(reader, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            DiagnosticInfo result = decoder.ReadDiagnosticInfo("DiagnosticInfo");
+
+            // Assert
+            Assert.That(result.SymbolicId, Is.EqualTo(42));
+        }
+
+        [Test]
+        public void ReadDiagnosticInfoReturnsNullForEmptyElement()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            const string xml = """
+            <DiagnosticInfo xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" />
+            """;
+            using var reader = XmlReader.Create(new StringReader(xml));
+            var decoder = new XmlDecoder(reader, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            DiagnosticInfo result = decoder.ReadDiagnosticInfo("DiagnosticInfo");
+
+            // Assert
+            Assert.That(result, Is.Null);
+        }
+
+        [Test]
+        public void ReadDiagnosticInfoThrowsWhenInnerDepthExceeded()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            string xml = CreateDiagnosticInfoWithDepth(DiagnosticInfo.MaxInnerDepth + 1);
+            using var reader = XmlReader.Create(new StringReader(xml));
+            var decoder = new XmlDecoder(reader, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadDiagnosticInfo("DiagnosticInfo"));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void ReadDiagnosticInfoArrayReturnsCount()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            const string xml = """
+            <ListOfDiagnosticInfo xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <DiagnosticInfo>
+                    <SymbolicId>1</SymbolicId>
+                </DiagnosticInfo>
+                <DiagnosticInfo>
+                    <SymbolicId>2</SymbolicId>
+                </DiagnosticInfo>
+            </ListOfDiagnosticInfo>
+            """;
+            using var reader = XmlReader.Create(new StringReader(xml));
+            var decoder = new XmlDecoder(reader, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            ArrayOf<DiagnosticInfo> result = decoder.ReadDiagnosticInfoArray("ListOfDiagnosticInfo");
+
+            // Assert
+            Assert.That(result.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ReadDiagnosticInfoArrayThrowsWhenMaxArrayLengthExceeded()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            messageContext.MaxArrayLength = 1;
+            const string xml = """
+            <ListOfDiagnosticInfo xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <DiagnosticInfo>
+                    <SymbolicId>1</SymbolicId>
+                </DiagnosticInfo>
+                <DiagnosticInfo>
+                    <SymbolicId>2</SymbolicId>
+                </DiagnosticInfo>
+            </ListOfDiagnosticInfo>
+            """;
+            using var reader = XmlReader.Create(new StringReader(xml));
+            var decoder = new XmlDecoder(reader, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadDiagnosticInfoArray("ListOfDiagnosticInfo"));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void ReadEncodingMaskReturnsValue()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            const string xml = """
+            <EncodingMask xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">5</EncodingMask>
+            """;
+            using var reader = XmlReader.Create(new StringReader(xml));
+            var decoder = new XmlDecoder(reader, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            uint result = decoder.ReadEncodingMask(null);
+
+            // Assert
+            Assert.That(result, Is.EqualTo(5u));
+        }
+
+        [Test]
+        public void ReadEncodingMaskReturnsZeroWhenMissing()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            const string xml = """
+            <Root xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" />
+            """;
+            using var reader = XmlReader.Create(new StringReader(xml));
+            var decoder = new XmlDecoder(reader, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            uint result = decoder.ReadEncodingMask(null);
+
+            // Assert
+            Assert.That(result, Is.EqualTo(0u));
+        }
+
+        [Test]
+        public void ReadSwitchFieldReturnsValue()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            const string xml = """
+            <SwitchField xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">7</SwitchField>
+            """;
+            using var reader = XmlReader.Create(new StringReader(xml));
+            var decoder = new XmlDecoder(reader, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            uint result = decoder.ReadSwitchField(null, out _);
+
+            // Assert
+            Assert.That(result, Is.EqualTo(7u));
+        }
+
+        [Test]
+        public void ReadSwitchFieldSetsNullFieldName()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            const string xml = """
+            <SwitchField xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1</SwitchField>
+            """;
+            using var reader = XmlReader.Create(new StringReader(xml));
+            var decoder = new XmlDecoder(reader, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            decoder.ReadSwitchField(null, out string fieldName);
+
+            // Assert
+            Assert.That(fieldName, Is.Null);
+        }
+
+        [Test]
+        public void ReadEnumeratedReturnsEnumValue()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            const string xml = """
+            <TestEnum xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">Value1</TestEnum>
+            """;
+            using var reader = XmlReader.Create(new StringReader(xml));
+            var decoder = new XmlDecoder(reader, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            TestEnum result = decoder.ReadEnumerated<TestEnum>("TestEnum");
+
+            // Assert
+            Assert.That(result, Is.EqualTo(TestEnum.Value1));
+        }
+
+        [Test]
+        public void ReadEnumeratedReturnsNumericValueWhenSuffixed()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            const string xml = """
+            <TestEnum xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">Value_2</TestEnum>
+            """;
+            using var reader = XmlReader.Create(new StringReader(xml));
+            var decoder = new XmlDecoder(reader, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            TestEnum result = decoder.ReadEnumerated<TestEnum>("TestEnum");
+
+            // Assert
+            Assert.That(result, Is.EqualTo(TestEnum.Value2));
+        }
+
+        [Test]
+        public void ReadEnumeratedThrowsWhenInvalid()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            const string xml = """
+            <TestEnum xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">Invalid</TestEnum>
+            """;
+            using var reader = XmlReader.Create(new StringReader(xml));
+            var decoder = new XmlDecoder(reader, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadEnumerated<TestEnum>("TestEnum"));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadEnumeratedArrayReturnsCount()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            const string xml = """
+            <ListOfTestEnum xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <TestEnum>Value1</TestEnum>
+                <TestEnum>Value2</TestEnum>
+            </ListOfTestEnum>
+            """;
+            using var reader = XmlReader.Create(new StringReader(xml));
+            var decoder = new XmlDecoder(reader, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            ArrayOf<TestEnum> result = decoder.ReadEnumeratedArray<TestEnum>("ListOfTestEnum");
+
+            // Assert
+            Assert.That(result.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ReadEnumeratedArrayThrowsWhenMaxArrayLengthExceeded()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            messageContext.MaxArrayLength = 1;
+            const string xml = """
+            <ListOfTestEnum xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <TestEnum>Value1</TestEnum>
+                <TestEnum>Value2</TestEnum>
+            </ListOfTestEnum>
+            """;
+            using var reader = XmlReader.Create(new StringReader(xml));
+            var decoder = new XmlDecoder(reader, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadEnumeratedArray<TestEnum>("ListOfTestEnum"));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void DecodeMessageReturnsDecodedValue()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            var mockFactory = new Mock<IEncodeableFactory>();
+            var encodeableType = new Mock<IEncodeableType>();
+            encodeableType.SetupGet(x => x.Type).Returns(typeof(TestEncodeableWithData));
+            encodeableType.SetupGet(x => x.XmlName)
+                .Returns(new XmlQualifiedName("TestEncodeableWithData", Namespaces.OpcUaXsd));
+            encodeableType.Setup(x => x.CreateInstance()).Returns(new TestEncodeableWithData());
+            IEncodeableType type = encodeableType.Object;
+            mockFactory.Setup(f => f.TryGetEncodeableType<TestEncodeableWithData>(out type))
+                .Returns(true);
+            messageContext.Factory = mockFactory.Object;
+            const string xml = """
+            <TestEncodeableWithData xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <Value>5</Value>
+            </TestEncodeableWithData>
+            """;
+            using var reader = XmlReader.Create(new StringReader(xml));
+            var decoder = new XmlDecoder(reader, messageContext);
+
+            // Act
+            TestEncodeableWithData result = decoder.DecodeMessage<TestEncodeableWithData>();
+
+            // Assert
+            Assert.That(result.Value, Is.EqualTo(5));
+        }
+
+        [Test]
+        public void DecodeMessageThrowsWhenTypeUnknown()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            var mockFactory = new Mock<IEncodeableFactory>();
+            IEncodeableType type = null;
+            mockFactory.Setup(f => f.TryGetEncodeableType<TestEncodeableWithData>(out type))
+                .Returns(false);
+            messageContext.Factory = mockFactory.Object;
+            const string xml = """
+            <TestEncodeableWithData xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <Value>1</Value>
+            </TestEncodeableWithData>
+            """;
+            using var reader = XmlReader.Create(new StringReader(xml));
+            var decoder = new XmlDecoder(reader, messageContext);
+
+            // Act
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.DecodeMessage<TestEncodeableWithData>());
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadQualifiedNameAppliesNamespaceMapping()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            var streamNamespaces = new NamespaceTable();
+            streamNamespaces.Append("urn:stream0");
+            streamNamespaces.Append("urn:stream1");
+            var contextNamespaces = new NamespaceTable();
+            contextNamespaces.Append("urn:context");
+            contextNamespaces.Append("urn:stream0");
+            contextNamespaces.Append("urn:stream1");
+            messageContext.NamespaceUris = contextNamespaces;
+            const string xml = """
+            <QualifiedName xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <NamespaceIndex>1</NamespaceIndex>
+                <Name>Test</Name>
+            </QualifiedName>
+            """;
+            using var reader = XmlReader.Create(new StringReader(xml));
+            var decoder = new XmlDecoder(reader, messageContext);
+            decoder.SetMappingTables(streamNamespaces, null);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            QualifiedName result = decoder.ReadQualifiedName("QualifiedName");
+
+            // Assert
+            Assert.That(result.NamespaceIndex, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ReadNodeIdAppliesNamespaceMapping()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            var streamNamespaces = new NamespaceTable();
+            streamNamespaces.Append("urn:stream0");
+            streamNamespaces.Append("urn:stream1");
+            var contextNamespaces = new NamespaceTable();
+            contextNamespaces.Append("urn:context");
+            contextNamespaces.Append("urn:stream0");
+            contextNamespaces.Append("urn:stream1");
+            messageContext.NamespaceUris = contextNamespaces;
+            const string xml = """
+            <NodeId xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <Identifier>ns=1;i=1</Identifier>
+            </NodeId>
+            """;
+            using var reader = XmlReader.Create(new StringReader(xml));
+            var decoder = new XmlDecoder(reader, messageContext);
+            decoder.SetMappingTables(streamNamespaces, null);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            NodeId result = decoder.ReadNodeId("NodeId");
+
+            // Assert
+            Assert.That(result.NamespaceIndex, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ReadExpandedNodeIdAppliesNamespaceMapping()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            var streamNamespaces = new NamespaceTable();
+            streamNamespaces.Append("urn:stream0");
+            streamNamespaces.Append("urn:stream1");
+            var contextNamespaces = new NamespaceTable();
+            contextNamespaces.Append("urn:context");
+            contextNamespaces.Append("urn:stream0");
+            contextNamespaces.Append("urn:stream1");
+            messageContext.NamespaceUris = contextNamespaces;
+            const string xml = """
+            <ExpandedNodeId xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <Identifier>ns=1;i=1</Identifier>
+            </ExpandedNodeId>
+            """;
+            using var reader = XmlReader.Create(new StringReader(xml));
+            var decoder = new XmlDecoder(reader, messageContext);
+            decoder.SetMappingTables(streamNamespaces, null);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            ExpandedNodeId result = decoder.ReadExpandedNodeId("ExpandedNodeId");
+
+            // Assert
+            Assert.That(result.NamespaceIndex, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ReadExpandedNodeIdAppliesServerMapping()
+        {
+            // Arrange
+            ServiceMessageContext messageContext = CreateMockContext();
+            var streamServers = new StringTable();
+            streamServers.Append("urn:server1");
+            var contextServers = new StringTable();
+            contextServers.Append("urn:server0");
+            contextServers.Append("urn:server1");
+            messageContext.ServerUris = contextServers;
+            const string xml = """
+            <ExpandedNodeId xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <Identifier>svr=0;ns=0;i=1</Identifier>
+            </ExpandedNodeId>
+            """;
+            using var reader = XmlReader.Create(new StringReader(xml));
+            var decoder = new XmlDecoder(reader, messageContext);
+            decoder.SetMappingTables(null, streamServers);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // Act
+            ExpandedNodeId result = decoder.ReadExpandedNodeId("ExpandedNodeId");
+
+            // Assert
+            Assert.That(result.ServerIndex, Is.EqualTo(1u));
+        }
+
+        [Test]
         public void ReadExtensionObjectBodyInvalidXmlThrowsServiceResultException()
         {
             // Arrange
@@ -2067,6 +2534,33 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             return new ServiceMessageContext(telemetryContext);
+        }
+
+        private static string CreateDiagnosticInfoWithDepth(int depth)
+        {
+            string xml = "<DiagnosticInfo xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">";
+            for (int i = 0; i < depth; i++)
+            {
+                xml += "<InnerDiagnosticInfo>";
+            }
+
+            xml += "<SymbolicId>1</SymbolicId>";
+
+            for (int i = 0; i < depth; i++)
+            {
+                xml += "</InnerDiagnosticInfo>";
+            }
+
+            xml += "</DiagnosticInfo>";
+            return xml;
+        }
+
+        [DataContract(Name = "TestEnum", Namespace = Namespaces.OpcUaXsd)]
+        private enum TestEnum
+        {
+            Value0 = 0,
+            Value1 = 1,
+            Value2 = 2
         }
 
         private static readonly bool[] s_expectedBoolArray = [true, false, true];
