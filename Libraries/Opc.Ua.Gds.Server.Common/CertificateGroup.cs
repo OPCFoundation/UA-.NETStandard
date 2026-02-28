@@ -122,13 +122,6 @@ namespace Opc.Ua.Gds.Server
                     CertificateTypes.Add(certificateType);
                     Certificates.TryAdd(certificateType, null);
                 }
-                else if (NodeId.TryParse(certificateTypeString, out NodeId customCertificateType) &&
-                         !customCertificateType.IsNull)
-                {
-                    // Allow custom certificate type NodeIds (e.g. "ns=2;i=12345")
-                    CertificateTypes.Add(customCertificateType);
-                    Certificates.TryAdd(customCertificateType, null);
-                }
                 else
                 {
                     throw new NotImplementedException(
