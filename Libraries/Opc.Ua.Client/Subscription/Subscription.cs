@@ -46,8 +46,12 @@ namespace Opc.Ua.Client
     {
         private const int kMinKeepAliveTimerInterval = 1000;
         private const int kKeepAliveTimerMargin = 1000;
-        private const int kRepublishMessageTimeout = 2500;
         private const int kRepublishMessageExpiredTimeout = 10000;
+
+        /// <summary>
+        /// Duration to wait before republishing missed notification
+        /// </summary>
+        public const int RepublishMessageTimeout = 2500;
 
         /// <summary>
         /// Create subscription
@@ -1619,9 +1623,33 @@ namespace Opc.Ua.Client
 
                 // fill in any gaps in the queue
                 LinkedListNode<IncomingMessage>? node = m_incomingMessages.First;
+                if (node is not null)
+                {
+                    //gaps between m_lastSequenceNumberProcessed and starting node
+                    LinkedListNode<IncomingMessage> currentNode = node;
+                    for (uint i = node.Value.SequenceNumber; i > (m_lastSequenceNumberProcessed + 1); i--)
+                    {
+                        var placeholder = new IncomingMessage
+                        {
+                            SequenceNumber = i - 1,
+                            Timestamp = now,
+                            TickCount = tickCount
+                        };
+                        currentNode = m_incomingMessages.AddBefore(currentNode, placeholder);
+
+                        m_logger.LogInformation(
+                            "Session {SessionId}, subscription {SubscriptionName} ({SubscriptionId}): " +
+                            "added placeholder for missing incoming message with sequence number {MissingSequenceNumber}",
+                            Session?.SessionId,
+                            DisplayName,
+                            Id,
+                            placeholder.SequenceNumber);
+                    }
+                }
 
                 while (node != null)
                 {
+                    //gaps between neighbouring nodes
                     entry = node.Value;
                     LinkedListNode<IncomingMessage>? next = node.Next;
 
@@ -1969,8 +1997,8 @@ namespace Opc.Ua.Client
                     // only republish consecutive sequence numbers
                     // triggers the republish mechanism immediately,
                     // if event is in the past
-                    DateTime now = DateTime.UtcNow.AddMilliseconds(-kRepublishMessageTimeout * 2);
-                    int tickCount = HiResClock.TickCount - (kRepublishMessageTimeout * 2);
+                    DateTime now = DateTime.UtcNow.AddMilliseconds(-RepublishMessageTimeout * 2);
+                    int tickCount = HiResClock.TickCount - (RepublishMessageTimeout * 2);
                     uint lastSequenceNumberToRepublish = m_lastSequenceNumberProcessed - 1;
                     int availableNumbers = availableSequenceNumbers.Count;
                     int republishMessages = 0;
@@ -2505,7 +2533,7 @@ namespace Opc.Ua.Client
                             // tolerate if a single request was received out of order
                             if (ii.Next.Next != null &&
                                 (HiResClock.TickCount -
-                                    ii.Value.TickCount) > kRepublishMessageTimeout)
+                                    ii.Value.TickCount) > RepublishMessageTimeout)
                             {
                                 ii.Value.Republished = true;
                                 publishStateChangedMask |= PublishStateChangedMask.Republish;
