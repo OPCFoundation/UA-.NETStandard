@@ -37,6 +37,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 using System.Security.Cryptography;
 using System.Diagnostics;
+using System.Collections.Concurrent;
 #if !NET9_0_OR_GREATER
 using System.Runtime.InteropServices;
 #endif
@@ -324,11 +325,14 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            if (m_namespaceMetadataStates.TryGetValue(
-                namespaceUri,
-                out NamespaceMetadataState value))
+            lock (Lock)
             {
-                return value;
+                if (m_namespaceMetadataStates.TryGetValue(
+                    namespaceUri,
+                    out NamespaceMetadataState value))
+                {
+                    return value;
+                }
             }
 
             NamespaceMetadataState namespaceMetadataState = FindNamespaceMetadataState(
@@ -338,6 +342,30 @@ namespace Opc.Ua.Server
             {
                 // remember the result for faster access.
                 m_namespaceMetadataStates[namespaceUri] = namespaceMetadataState;
+            }
+
+            return namespaceMetadataState;
+        }
+
+        ///<inheritdoc/>
+        public NamespaceMetadataState GetNamespaceMetadataState(ushort namespaceIndex)
+        {
+            lock (Lock)
+            {
+                if (m_namespaceMetadataStatesByIndex.TryGetValue(
+                    namespaceIndex,
+                    out NamespaceMetadataState value))
+                {
+                    return value;
+                }
+            }
+
+            string namespaceUri = Server.NamespaceUris.GetString(namespaceIndex);
+            NamespaceMetadataState namespaceMetadataState = GetNamespaceMetadataState(namespaceUri);
+
+            lock (Lock)
+            {
+                m_namespaceMetadataStatesByIndex[namespaceIndex] = namespaceMetadataState;
             }
 
             return namespaceMetadataState;
@@ -1233,6 +1261,7 @@ namespace Opc.Ua.Server
                     lock (Lock)
                     {
                         m_namespaceMetadataStates.Clear();
+                        m_namespaceMetadataStatesByIndex.Clear();
                     }
                 }
                 catch
@@ -1267,5 +1296,6 @@ namespace Opc.Ua.Server
         private readonly List<ServerCertificateGroup> m_certificateGroups;
         private readonly CertificateStoreIdentifier m_rejectedStore;
         private readonly Dictionary<string, NamespaceMetadataState> m_namespaceMetadataStates = [];
+        private readonly Dictionary<ushort, NamespaceMetadataState> m_namespaceMetadataStatesByIndex = [];
     }
 }

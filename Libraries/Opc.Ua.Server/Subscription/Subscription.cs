@@ -493,29 +493,34 @@ namespace Opc.Ua.Server
                         IMonitoredItem monitoredItem = current.Value;
 
                         // check if the item is ready to publish.
-                        if (monitoredItem.IsReadyToPublish || monitoredItem.IsResendData)
+                        if (monitoredItem.IsResendData || monitoredItem.IsReadyToPublish)
                         {
                             m_itemsToCheck.Remove(current);
                             m_itemsToPublish.AddLast(current);
                         }
 
-                        // update any triggered items.
-
-                        if (monitoredItem.IsReadyToTrigger &&
-                            m_itemsToTrigger.TryGetValue(
-                                current.Value.Id,
-                                out List<ITriggeredMonitoredItem> triggeredItems))
+                        // Check for triggering only if there are triggered items configured
+                        if (m_itemsToTrigger.Count > 0)
                         {
-                            for (int ii = 0; ii < triggeredItems.Count; ii++)
-                            {
-                                if (triggeredItems[ii].SetTriggered())
-                                {
-                                    itemsTriggered = true;
-                                }
-                            }
+                            bool isReadyToTrigger = monitoredItem.IsReadyToTrigger;
 
-                            // clear ReadyToTrigger flag after trigger
-                            monitoredItem.IsReadyToTrigger = false;
+                            // update any triggered items.
+                            if (isReadyToTrigger &&
+                                m_itemsToTrigger.TryGetValue(
+                                    current.Value.Id,
+                                    out List<ITriggeredMonitoredItem> triggeredItems))
+                            {
+                                for (int ii = 0; ii < triggeredItems.Count; ii++)
+                                {
+                                    if (triggeredItems[ii].SetTriggered())
+                                    {
+                                        itemsTriggered = true;
+                                    }
+                                }
+
+                                // clear ReadyToTrigger flag after trigger
+                                monitoredItem.IsReadyToTrigger = false;
+                            }
                         }
 
                         current = next;

@@ -99,7 +99,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         [Explicit]
         [Order(100)]
-        public async Task ServerLoadTestAsync()
+        public async Task ServerSubscribeLoadTestAsync()
         {
             const int sessionCount = 50;
             const int subscriptionsPerSession = 15;
@@ -239,7 +239,7 @@ namespace Opc.Ua.Client.Tests
 
                 // Wait for server to process last write (testDurationSeconds / writeCount -> time for a single write)
                 // + some publishing intervals for notifications to be processed
-                await Task.Delay((testDurationSeconds / (writeCount - 1)) + (publishingInterval * 10)).ConfigureAwait(false);
+                await Task.Delay((testDurationSeconds / writeCount) + (publishingInterval * 10)).ConfigureAwait(false);
 
                 // Verification
                 TestContext.Out.WriteLine($"Writer task wrote {writeCount} times.");
@@ -284,6 +284,216 @@ namespace Opc.Ua.Client.Tests
                     try
                     {
                         await session.CloseAsync().ConfigureAwait(false);
+                        session.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        TestContext.Out.WriteLine($"Failed to close session: {ex.Message}");
+                    }
+                })).ToList();
+                await Task.WhenAll(closeTasks).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Load test a server with multiple sessions reading values.
+        /// </summary>
+        [Test]
+        [Explicit]
+        [Order(110)]
+        public async Task ServerReadLoadTestAsync()
+        {
+            const int sessionCount = 50;
+            const int readInterval = 10;
+            const int writerInterval = 15;
+            const int testDurationSeconds = 60;
+
+            var sessions = new ConcurrentBag<ISession>();
+            var readErrors = new ConcurrentBag<string>();
+            long totalReads = 0;
+            long totalWrites = 0;
+
+            using var testCts = new CancellationTokenSource(TimeSpan.FromSeconds(testDurationSeconds));
+            try
+            {
+                // Get nodes for simulation
+                IDictionary<NodeId, Type> nodeIds = GetTestSetStaticMassNumeric(Session.NamespaceUris);
+                if (nodeIds.Count == 0)
+                {
+                    NUnit.Framework.Assert.Ignore("No nodes for simulation found, ignoring test.");
+                }
+
+                TestContext.Out.WriteLine($"Reading from {nodeIds.Count} nodes.");
+
+                var nodesToRead = new ReadValueIdCollection();
+                foreach (NodeId nodeId in nodeIds.Keys)
+                {
+                    nodesToRead.Add(new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value });
+                }
+
+                // Create reader sessions
+                var readerTasks = new List<Task>();
+                for (int i = 0; i < sessionCount; i++)
+                {
+                    readerTasks.Add(Task.Run(async () =>
+                    {
+                        try
+                        {
+                            ISession session = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+                            sessions.Add(session);
+
+                            while (!testCts.IsCancellationRequested)
+                            {
+                                try
+                                {
+                                    ReadResponse response = await session.ReadAsync(
+                                        null,
+                                        0,
+                                        TimestampsToReturn.Both,
+                                        nodesToRead,
+                                        testCts.Token).ConfigureAwait(false);
+
+                                    Interlocked.Add(ref totalReads, response.Results.Count);
+
+                                    foreach (DataValue result in response.Results)
+                                    {
+                                        if (StatusCode.IsBad(result.StatusCode))
+                                        {
+                                            if (result.StatusCode == StatusCodes.BadRequestInterrupted)
+                                            {
+                                                continue;
+                                            }
+
+                                            readErrors.Add($"Bad status: {result.StatusCode}");
+                                        }
+                                    }
+                                }
+                                catch (OperationCanceledException)
+                                {
+                                }
+                                catch (Exception ex)
+                                {
+                                    if (ex is ServiceResultException sre && sre.StatusCode == StatusCodes.BadRequestInterrupted)
+                                    {
+                                        continue;
+                                    }
+
+                                    readErrors.Add($"Read error: {ex.Message}");
+                                }
+
+                                try
+                                {
+                                    await Task.Delay(readInterval, testCts.Token).ConfigureAwait(false);
+                                }
+                                catch (OperationCanceledException)
+                                {
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            TestContext.Out.WriteLine($"Session error: {ex.Message}");
+                        }
+                    }, testCts.Token));
+                }
+
+                // Create writer session
+                ISession writerSession = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+                sessions.Add(writerSession);
+
+                // Writer task
+                var writerTask = Task.Run(async () =>
+                {
+                    short writeCount = 0;
+                    while (!testCts.IsCancellationRequested)
+                    {
+                        writeCount++;
+                        var nodesToWrite = new WriteValueCollection();
+                        foreach (KeyValuePair<NodeId, Type> node in nodeIds)
+                        {
+                            nodesToWrite.Add(new WriteValue
+                            {
+                                NodeId = node.Key,
+                                AttributeId = Attributes.Value,
+                                Value = new DataValue(
+                                    new Variant(
+                                        Convert.ChangeType(writeCount, node.Value, CultureInfo.InvariantCulture)
+                                    )
+                                )
+                            });
+                        }
+                        try
+                        {
+                            await writerSession.WriteAsync(null, nodesToWrite, testCts.Token).ConfigureAwait(false);
+                            Interlocked.Increment(ref totalWrites);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                        }
+                        catch (ServiceResultException sre)
+                        {
+                            if (sre.StatusCode != StatusCodes.BadRequestInterrupted)
+                            {
+                                TestContext.Out.WriteLine($"Writer session write error: {sre.Message}");
+                            }
+                        }
+
+                        try
+                        {
+                            await Task.Delay(writerInterval, testCts.Token).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                        }
+                    }
+                }, testCts.Token);
+
+                // Wait for test duration
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(testDurationSeconds + 2), testCts.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Test time is up
+                }
+
+                // Wait for tasks to complete
+                try
+                {
+                    await Task.WhenAll(readerTasks.Concat([writerTask])).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                }
+
+                TestContext.Out.WriteLine($"Total reads: {totalReads}");
+                TestContext.Out.WriteLine($"Total writes: {totalWrites}");
+                TestContext.Out.WriteLine($"Total read errors: {readErrors.Count}");
+
+                if (!readErrors.IsEmpty)
+                {
+                    foreach (string error in readErrors.Take(10))
+                    {
+                        TestContext.Out.WriteLine(error);
+                    }
+                }
+
+                NUnit.Framework.Assert.That(readErrors.Count, Is.EqualTo(0), "There were read errors.");
+                NUnit.Framework.Assert.That(totalReads, Is.GreaterThan(0), "No reads were performed.");
+                NUnit.Framework.Assert.That(totalWrites, Is.GreaterThan(0), "No writes were performed.");
+            }
+            finally
+            {
+                // Cleanup
+                var closeTasks = sessions.Select(session => Task.Run(async () =>
+                {
+                    try
+                    {
+                        if (session.Connected)
+                        {
+                            await session.CloseAsync().ConfigureAwait(false);
+                        }
                         session.Dispose();
                     }
                     catch (Exception ex)
