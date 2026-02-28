@@ -1080,7 +1080,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder([.. buffer], messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.DataValue, ValueRanks.OneDimension));
+            Variant result = decoder.ReadVariantValue(
+                null,
+                TypeInfo.Create(BuiltInType.DataValue, ValueRanks.OneDimension));
 
             // Assert
             Assert.That(result.IsNull, Is.False);
@@ -1103,10 +1105,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             ];
 
             var decoder = new BinaryDecoder([.. buffer], messageContext);
-            var encodeableTypeId = new ExpandedNodeId(12345, 0);
 
             // Act
-            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.ExtensionObject, ValueRanks.OneDimension));
+            Variant result = decoder.ReadVariantValue(
+                null,
+                TypeInfo.Create(BuiltInType.ExtensionObject, ValueRanks.OneDimension));
 
             // Assert
             Assert.That(result.IsNull, Is.False);
@@ -1127,7 +1130,9 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Act & Assert
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
-                decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.Null, ValueRanks.OneDimension)));
+                decoder.ReadVariantValue(
+                    null,
+                    TypeInfo.Create(BuiltInType.Null, ValueRanks.OneDimension)));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
@@ -1142,7 +1147,9 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Act & Assert
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
-                decoder.ReadVariantValue(null, TypeInfo.Create((BuiltInType)999, ValueRanks.OneDimension)));
+                decoder.ReadVariantValue(
+                    null,
+                    TypeInfo.Create((BuiltInType)999, ValueRanks.OneDimension)));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
@@ -1166,10 +1173,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             ];
 
             var decoder = new BinaryDecoder([.. buffer], messageContext);
-            var encodeableTypeId = new ExpandedNodeId(12345, 0);
 
             // Act
-            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.ExtensionObject, ValueRanks.TwoDimensions));
+            Variant result = decoder.ReadVariantValue(
+                null,
+                TypeInfo.Create(BuiltInType.ExtensionObject, ValueRanks.TwoDimensions));
 
             // Assert
             Assert.That(result.IsNull, Is.False);
@@ -1198,7 +1206,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder([.. buffer], messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.Int32, ValueRanks.TwoDimensions));
+            Variant result = decoder.ReadVariantValue(
+                null,
+                TypeInfo.Create(BuiltInType.Int32, ValueRanks.TwoDimensions));
 
             // Assert
             Assert.That(result.IsNull, Is.False);
@@ -1225,7 +1235,9 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Act & Assert
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
-                decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.Int32, ValueRanks.TwoDimensions)));
+                decoder.ReadVariantValue(
+                    null,
+                    TypeInfo.Create(BuiltInType.Int32, ValueRanks.TwoDimensions)));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
@@ -1239,7 +1251,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.Int32, ValueRanks.Scalar));
+            Variant result = decoder.ReadVariantValue(
+                null,
+                TypeInfo.Create(BuiltInType.Int32, ValueRanks.Scalar));
 
             // Assert
             Assert.That(result.GetInt32(99), Is.EqualTo(0));
@@ -3889,7 +3903,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Act & Assert
             Assert.DoesNotThrow(() => decoder.PushNamespace("http://test.namespace"));
-            Assert.DoesNotThrow(() => decoder.PopNamespace());
+            Assert.DoesNotThrow(decoder.PopNamespace);
         }
 
         [Test]
@@ -4265,7 +4279,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext);
-            byte[] namespaceUriBytes = System.Text.Encoding.UTF8.GetBytes("urn:ns1");
 
             List<byte> buffer =
             [
@@ -5183,7 +5196,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = new ServiceMessageContext(telemetryContext);
             byte[] buffer = CreateMatrixBuffer(
                 messageContext,
-                encoder => encoder.WriteBooleanArray(null, new[] { true }),
+                encoder => encoder.WriteBooleanArray(null, [true]),
                 [1, 1]);
 
             using var decoder = new BinaryDecoder(buffer, messageContext);
@@ -5283,7 +5296,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = new ServiceMessageContext(telemetryContext);
             byte[] buffer = CreateMatrixBuffer(
                 messageContext,
-                encoder => encoder.WriteInt32Array(null, new[] { 1 }),
+                encoder => encoder.WriteInt32Array(null, [1]),
                 [1, 1]);
 
             using var decoder = new BinaryDecoder(buffer, messageContext);
@@ -5363,7 +5376,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = new ServiceMessageContext(telemetryContext);
             byte[] buffer = CreateMatrixBuffer(
                 messageContext,
-                encoder => encoder.WriteFloatArray(null, new[] { 1.0f }),
+                encoder => encoder.WriteFloatArray(null, [1.0f]),
                 [1, 1]);
 
             using var decoder = new BinaryDecoder(buffer, messageContext);
@@ -5383,13 +5396,15 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = new ServiceMessageContext(telemetryContext);
             byte[] buffer = CreateMatrixBuffer(
                 messageContext,
-                encoder => encoder.WriteDoubleArray(null, new[] { 1.0 }),
+                encoder => encoder.WriteDoubleArray(null, [1.0]),
                 [1, 1]);
 
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.Double, ValueRanks.TwoDimensions));
+            Variant result = decoder.ReadVariantValue(
+                null,
+                TypeInfo.Create(BuiltInType.Double, ValueRanks.TwoDimensions));
 
             // Assert
             Assert.That(result.GetDoubleMatrix().Dimensions, Is.EquivalentTo([1, 1]));
@@ -5410,7 +5425,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.String, ValueRanks.TwoDimensions));
+            Variant result = decoder.ReadVariantValue(
+                null,
+                TypeInfo.Create(BuiltInType.String, ValueRanks.TwoDimensions));
 
             // Assert
             Assert.That(result.GetStringMatrix().Dimensions, Is.EquivalentTo([1, 1]));
@@ -5432,7 +5449,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.DateTime, ValueRanks.TwoDimensions));
+            Variant result = decoder.ReadVariantValue(
+                null,
+                TypeInfo.Create(BuiltInType.DateTime, ValueRanks.TwoDimensions));
 
             // Assert
             Assert.That(result.GetDateTimeMatrix().Dimensions, Is.EquivalentTo([1, 1]));
@@ -5453,7 +5472,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.Guid, ValueRanks.TwoDimensions));
+            Variant result = decoder.ReadVariantValue(
+                null,
+                TypeInfo.Create(BuiltInType.Guid, ValueRanks.TwoDimensions));
 
             // Assert
             Assert.That(result.GetGuidMatrix().Dimensions, Is.EquivalentTo([1, 1]));
@@ -5474,7 +5495,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.ByteString, ValueRanks.TwoDimensions));
+            Variant result = decoder.ReadVariantValue(
+                null,
+                TypeInfo.Create(BuiltInType.ByteString, ValueRanks.TwoDimensions));
 
             // Assert
             Assert.That(result.GetByteStringMatrix().Dimensions, Is.EquivalentTo([1, 1]));
@@ -5495,7 +5518,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.XmlElement, ValueRanks.TwoDimensions));
+            Variant result = decoder.ReadVariantValue(
+                null,
+                TypeInfo.Create(BuiltInType.XmlElement, ValueRanks.TwoDimensions));
 
             // Assert
             Assert.That(result.GetXmlElementMatrix().Dimensions, Is.EquivalentTo([1, 1]));
@@ -5516,7 +5541,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.NodeId, ValueRanks.TwoDimensions));
+            Variant result = decoder.ReadVariantValue(
+                null,
+                TypeInfo.Create(BuiltInType.NodeId, ValueRanks.TwoDimensions));
 
             // Assert
             Assert.That(result.GetNodeIdMatrix().Dimensions, Is.EquivalentTo([1, 1]));
@@ -5537,7 +5564,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.ExpandedNodeId, ValueRanks.TwoDimensions));
+            Variant result = decoder.ReadVariantValue(
+                null,
+                TypeInfo.Create(BuiltInType.ExpandedNodeId, ValueRanks.TwoDimensions));
 
             // Assert
             Assert.That(result.GetExpandedNodeIdMatrix().Dimensions, Is.EquivalentTo([1, 1]));
@@ -5558,7 +5587,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.StatusCode, ValueRanks.TwoDimensions));
+            Variant result = decoder.ReadVariantValue(
+                null,
+                TypeInfo.Create(BuiltInType.StatusCode, ValueRanks.TwoDimensions));
 
             // Assert
             Assert.That(result.GetStatusCodeMatrix().Dimensions, Is.EquivalentTo([1, 1]));
@@ -5579,7 +5610,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.QualifiedName, ValueRanks.TwoDimensions));
+            Variant result = decoder.ReadVariantValue(
+                null,
+                TypeInfo.Create(BuiltInType.QualifiedName, ValueRanks.TwoDimensions));
 
             // Assert
             Assert.That(result.GetQualifiedNameMatrix().Dimensions, Is.EquivalentTo([1, 1]));
@@ -5600,7 +5633,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.LocalizedText, ValueRanks.TwoDimensions));
+            Variant result = decoder.ReadVariantValue(
+                null,
+                TypeInfo.Create(BuiltInType.LocalizedText, ValueRanks.TwoDimensions));
 
             // Assert
             Assert.That(result.GetLocalizedTextMatrix().Dimensions, Is.EquivalentTo([1, 1]));

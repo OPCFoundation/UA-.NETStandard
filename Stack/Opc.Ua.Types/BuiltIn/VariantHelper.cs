@@ -395,11 +395,7 @@ namespace Opc.Ua
             return true;
 
             // Helper to treat U as T which are the same
-            static T AsRefT<U>(U value) where U : class
-            {
-                // Debug.Assert(typeof(U) == typeof(T));
-                return (T)(object)value;
-            }
+            static T AsRefT<U>(U value) where U : class => (T)(object)value;
 
             // Helper to treat U as T which are the same
             static T AsT<U>(U value) where U : struct

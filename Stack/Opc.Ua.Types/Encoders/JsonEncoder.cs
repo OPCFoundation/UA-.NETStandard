@@ -44,7 +44,7 @@ namespace Opc.Ua
     /// <summary>
     /// Writes objects to a JSON stream.
     /// </summary>
-    public class JsonEncoder : IJsonEncoder
+    public sealed class JsonEncoder : IJsonEncoder
     {
         /// <summary>
         /// Initializes the object with default values.
@@ -92,17 +92,21 @@ namespace Opc.Ua
         {
             Context = context ?? throw new ArgumentNullException(nameof(context));
             m_logger = context.Telemetry.CreateLogger<JsonEncoder>();
-            m_writer = writer;
             m_topLevelIsArray = topLevelIsArray;
             EncodingToUse = encoding;
             IncludeDefaultValues = encoding == JsonEncodingType.Verbose;
             m_includeDefaultNumberValues = encoding == JsonEncodingType.Verbose;
             m_inVariantWithEncoding = IncludeDefaultValues;
 
-            if (m_writer == null)
+            if (writer == null)
             {
                 m_stream = new MemoryStream();
                 m_writer = new StreamWriter(m_stream, s_utf8Encoding, kStreamWriterBufferSize);
+                m_leaveOpen = false;
+            }
+            else
+            {
+                m_writer = writer;
             }
 
             InitializeWriter();
@@ -213,8 +217,8 @@ namespace Opc.Ua
             }
             finally
             {
-                m_writer?.Dispose();
-                m_writer = null;
+                m_writer.Dispose();
+                m_disposed = true;
             }
         }
 
@@ -230,22 +234,9 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void Dispose()
         {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        /// <summary>
-        /// An overrideable version of the Dispose.
-        /// </summary>
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
+            if (!m_disposed)
             {
-                if (m_writer != null)
-                {
-                    InternalClose(true);
-                    m_writer = null;
-                }
+                InternalClose(true);
 
                 if (!m_leaveOpen)
                 {
@@ -1794,247 +1785,6 @@ namespace Opc.Ua
             }
         }
 
-#if FALSE
-        /// <summary>
-        /// Encode an array according to its valueRank and BuiltInType
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public void WriteArray(
-            string fieldName,
-            object array,
-            int valueRank,
-            BuiltInType builtInType)
-        {
-            // write array.
-            if (valueRank == ValueRanks.OneDimension)
-            {
-                switch (builtInType)
-                {
-                    case BuiltInType.Boolean:
-                        WriteBooleanArray(fieldName, (bool[])array);
-                        return;
-                    case BuiltInType.SByte:
-                        WriteSByteArray(fieldName, (sbyte[])array);
-                        return;
-                    case BuiltInType.Byte:
-                        WriteByteArray(fieldName, (byte[])array);
-                        return;
-                    case BuiltInType.Int16:
-                        WriteInt16Array(fieldName, (short[])array);
-                        return;
-                    case BuiltInType.UInt16:
-                        WriteUInt16Array(fieldName, (ushort[])array);
-                        return;
-                    case BuiltInType.Int32:
-                        WriteInt32Array(fieldName, (int[])array);
-                        return;
-                    case BuiltInType.UInt32:
-                        WriteUInt32Array(fieldName, (uint[])array);
-                        return;
-                    case BuiltInType.Int64:
-                        WriteInt64Array(fieldName, (long[])array);
-                        return;
-                    case BuiltInType.UInt64:
-                        WriteUInt64Array(fieldName, (ulong[])array);
-                        return;
-                    case BuiltInType.Float:
-                        WriteFloatArray(fieldName, (float[])array);
-                        return;
-                    case BuiltInType.Double:
-                        WriteDoubleArray(fieldName, (double[])array);
-                        return;
-                    case BuiltInType.String:
-                        WriteStringArray(fieldName, (string[])array);
-                        return;
-                    case BuiltInType.DateTime:
-                        WriteDateTimeArray(fieldName, (DateTime[])array);
-                        return;
-                    case BuiltInType.Guid:
-                        WriteGuidArray(fieldName, (Uuid[])array);
-                        return;
-                    case BuiltInType.ByteString:
-                        WriteByteStringArray(fieldName, (ByteString[])array);
-                        return;
-                    case BuiltInType.XmlElement:
-                        WriteXmlElementArray(fieldName, (XmlElement[])array);
-                        return;
-                    case BuiltInType.NodeId:
-                        WriteNodeIdArray(fieldName, (NodeId[])array);
-                        return;
-                    case BuiltInType.ExpandedNodeId:
-                        WriteExpandedNodeIdArray(fieldName, (ExpandedNodeId[])array);
-                        return;
-                    case BuiltInType.StatusCode:
-                        WriteStatusCodeArray(fieldName, (StatusCode[])array);
-                        return;
-                    case BuiltInType.QualifiedName:
-                        WriteQualifiedNameArray(fieldName, (QualifiedName[])array);
-                        return;
-                    case BuiltInType.LocalizedText:
-                        WriteLocalizedTextArray(fieldName, (LocalizedText[])array);
-                        return;
-                    case BuiltInType.ExtensionObject:
-                        WriteExtensionObjectArray(fieldName, (ExtensionObject[])array);
-                        return;
-                    case BuiltInType.DataValue:
-                        WriteDataValueArray(fieldName, (DataValue[])array);
-                        return;
-                    case BuiltInType.DiagnosticInfo:
-                        WriteDiagnosticInfoArray(fieldName, (DiagnosticInfo[])array);
-                        return;
-                    case BuiltInType.Enumeration:
-                        if (array is null or Array)
-                        {
-                            WriteEnumeratedArray(
-                                fieldName,
-                                (Array)array,
-                                array?.GetType().GetElementType());
-                            return;
-                        }
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadEncodingError,
-                            "Unexpected non Array type encountered while encoding an array of enumeration: {0}",
-                            array.GetType());
-                    case BuiltInType.Variant:
-                        if (array is null or Variant[])
-                        {
-                            WriteVariantArray(fieldName, (Variant[])array);
-                            return;
-                        }
-
-                        // try to write IEncodeable Array
-                        if (array is IEncodeable[] encodeableArray)
-                        {
-                            WriteEncodeableArray(
-                                fieldName,
-                                encodeableArray,
-                                array.GetType().GetElementType());
-                            return;
-                        }
-
-                        if (array is object[] objects)
-                        {
-                            WriteObjectArray(fieldName, objects);
-                            return;
-                        }
-
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadEncodingError,
-                            "Unexpected type encountered while encoding an array of Variants: {0}",
-                            array.GetType());
-                    case BuiltInType.Null:
-                    case BuiltInType.Number:
-                    case BuiltInType.Integer:
-                    case BuiltInType.UInteger:
-                        // try to write IEncodeable Array
-                        if (array is null or IEncodeable[])
-                        {
-                            WriteEncodeableArray(
-                                fieldName,
-                                (IEncodeable[])array,
-                                array?.GetType().GetElementType());
-                            return;
-                        }
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadEncodingError,
-                            "Unexpected BuiltInType encountered while encoding an array: {0}",
-                            builtInType);
-                    default:
-                        throw ServiceResultException.Unexpected(
-                            $"Unexpected BuiltInType {builtInType}");
-                }
-            }
-            // write matrix.
-            else if (valueRank > ValueRanks.OneDimension)
-            {
-                if (array is not Matrix matrix)
-                {
-                    if (array is Array multiArray && multiArray.Rank == valueRank)
-                    {
-                        matrix = new Matrix(multiArray, builtInType);
-                    }
-                    else
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadEncodingError,
-                            "Unexpected array type encountered while encoding array: {0}",
-                            array.GetType().Name);
-                    }
-                }
-
-                if (EncodingToUse is JsonEncodingType.Compact or JsonEncodingType.Verbose)
-                {
-                    WriteArrayDimensionMatrix(fieldName, builtInType, matrix);
-                }
-                else
-                {
-                    int index = 0;
-                    WriteStructureMatrix(fieldName, matrix, 0, ref index, matrix.TypeInfo);
-                }
-                return;
-
-                // field is omitted
-            }
-        }
-
-        private void WriteRawExtensionObject(object value)
-        {
-            if (value is ExtensionObject eo &&
-                eo.TryGetEncodeable(out IEncodeable encodeable))
-            {
-                PushStructure(null);
-                encodeable.Encode(this);
-                PopStructure();
-            }
-            else
-            {
-                if (m_commaRequired)
-                {
-                    m_writer.Write(kComma);
-                }
-
-                m_writer.Write(kNull);
-            }
-
-            m_commaRequired = true;
-        }
-
-        private void WriteRawVariantArray(object value)
-        {
-            if (value is IList<Variant> list)
-            {
-                PushArray(null);
-
-                foreach (Variant ii in list)
-                {
-                    if (ii is Variant vt)
-                    {
-                        PushStructure(null);
-                        WriteVariantContents(vt.Value, vt.TypeInfo);
-                        PopStructure();
-                    }
-                    else
-                    {
-                        if (m_commaRequired)
-                        {
-                            m_writer.Write(kComma);
-                        }
-
-                        m_writer.Write(kNull);
-                    }
-                }
-
-                PopArray();
-            }
-            else
-            {
-                m_writer.Write(kNull);
-            }
-
-            m_commaRequired = true;
-        }
-#endif
-
         /// <summary>
         /// Writes an enumerated Int32 value to the stream.
         /// </summary>
@@ -2526,7 +2276,7 @@ namespace Opc.Ua
         /// </summary>
         private int InternalClose(bool dispose)
         {
-            if (m_writer == null)
+            if (m_disposed)
             {
                 return 0;
             }
@@ -2548,7 +2298,7 @@ namespace Opc.Ua
             if (dispose)
             {
                 m_writer.Dispose();
-                m_writer = null;
+                m_disposed = true;
             }
             return length;
         }
@@ -3105,7 +2855,7 @@ namespace Opc.Ua
         private const string kNull = "null";
         private Stream m_stream;
         private MemoryStream m_memoryStream;
-        private StreamWriter m_writer;
+        private readonly StreamWriter m_writer;
         private readonly Stack<string> m_namespaces = [];
         private bool m_commaRequired;
         private bool m_inVariantWithEncoding;
@@ -3116,6 +2866,7 @@ namespace Opc.Ua
         private readonly ILogger m_logger;
         private bool m_levelOneSkipped;
         private bool m_dontWriteClosing;
+        private bool m_disposed;
         private readonly bool m_leaveOpen;
         private readonly bool m_includeDefaultNumberValues;
 

@@ -160,7 +160,7 @@ namespace Opc.Ua.UnitTests
             encoder.WriteString("testField", null);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"{\"testField\":null}"));
+            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"""{"testField":null}"""));
         }
 
         [Test]
@@ -189,7 +189,7 @@ namespace Opc.Ua.UnitTests
             encoder.WriteString("testField", "testValue");
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"{\"testField\":\"testValue\"}"));
+            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"""{"testField":"testValue"}"""));
         }
 
         [Test]
@@ -204,7 +204,7 @@ namespace Opc.Ua.UnitTests
             encoder.WriteString("field", "line1\nline2");
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"{\"field\":\"line1\\nline2\"}"));
+            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"""{"field":"line1\nline2"}"""));
         }
 
         [Test]
@@ -215,10 +215,10 @@ namespace Opc.Ua.UnitTests
             using var stream = new MemoryStream();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             // Act
-            encoder.WriteString("field", "test\"value");
+            encoder.WriteString("field", """test"value""");
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"{\"field\":\"test\\\"value\"}"));
+            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"""{"field":"test\"value"}"""));
         }
 
         [Test]
@@ -233,7 +233,7 @@ namespace Opc.Ua.UnitTests
             encoder.WriteString("field", string.Empty);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"{\"field\":\"\"}"));
+            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"""{"field":""}"""));
         }
 
         [Test]
@@ -247,7 +247,7 @@ namespace Opc.Ua.UnitTests
             encoder.WriteString("field", "   ");
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"{\"field\":\"   \"}"));
+            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"""{"field":"   "}"""));
         }
 
         [Test]
@@ -262,7 +262,7 @@ namespace Opc.Ua.UnitTests
             encoder.WriteString(string.Empty, "value");
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Is.EqualTo("[\"value\"]"));
+            Assert.That(result, Is.EqualTo("""["value"]"""));
         }
 
         [Test]
@@ -293,7 +293,7 @@ namespace Opc.Ua.UnitTests
             encoder.WriteString("field\nname", "value");
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"{\"field\\nname\":\"value\"}"));
+            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"""{"field\nname":"value"}"""));
         }
 
         [Test]
@@ -309,7 +309,7 @@ namespace Opc.Ua.UnitTests
             encoder.WriteString("field2", "value2");
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"{\"field1\":\"value1\",\"field2\":\"value2\"}"));
+            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"""{"field1":"value1","field2":"value2"}"""));
         }
 
         [Test]
@@ -324,14 +324,14 @@ namespace Opc.Ua.UnitTests
             encoder.WriteString(null, "value2");
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Is.EqualTo("[\"value1\",\"value2\"]"));
+            Assert.That(result, Is.EqualTo("""["value1","value2"]"""));
         }
 
-        [TestCase("\t", "\\t")]
-        [TestCase("\r", "\\r")]
-        [TestCase("\b", "\\b")]
-        [TestCase("\f", "\\f")]
-        [TestCase("\\", "\\\\")]
+        [TestCase("\t", """\t""")]
+        [TestCase("\r", """\r""")]
+        [TestCase("\b", """\b""")]
+        [TestCase("\f", """\f""")]
+        [TestCase("""\""", """\\""")]
         public void WriteString_ValueWithControlCharacters_EscapesCorrectly(string input, string expected)
         {
             // Arrange
@@ -342,7 +342,7 @@ namespace Opc.Ua.UnitTests
             encoder.WriteString("field", input);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Is.EqualTo($"{{\"field\":\"{expected}\"}}"));
+            Assert.That(result, Is.EqualTo($$"""{"field":"{{expected}}"}"""));
         }
 
         [TestCase(JsonEncodingType.Compact)]
@@ -488,7 +488,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteInt16(fieldName, value);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":42"));
+            Assert.That(result, Does.Contain("""
+                "testField":42
+                """));
         }
 
         [Test]
@@ -521,7 +523,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteInt16(fieldName, value);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":0"));
+            Assert.That(result, Does.Contain("""
+                "testField":0
+                """));
         }
 
         [Test]
@@ -537,7 +541,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteInt16(fieldName, value);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain($"\"minField\":{short.MinValue}"));
+            Assert.That(result, Does.Contain($"""
+                "minField":{short.MinValue}
+                """));
         }
 
         [Test]
@@ -553,7 +559,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteInt16(fieldName, value);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain($"\"maxField\":{short.MaxValue}"));
+            Assert.That(result, Does.Contain($"""
+                "maxField":{short.MaxValue}
+                """));
         }
 
         [Test]
@@ -570,7 +578,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteInt16(fieldName, value);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"negativeField\":-1234"));
+            Assert.That(result, Does.Contain("""
+                "negativeField":-1234
+                """));
         }
 
         [Test]
@@ -587,7 +597,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteInt16(fieldName, value);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain($"\"testField\":{expectedValue}"));
+            Assert.That(result, Does.Contain($"""
+                "testField":{expectedValue}
+                """));
         }
 
         [Test]
@@ -619,7 +631,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteInt16(fieldName, value);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"   \":200"));
+            Assert.That(result, Does.Contain("""
+                "   ":200
+                """));
         }
 
         [Test]
@@ -630,14 +644,16 @@ namespace Opc.Ua.UnitTests
             var messageContext = new ServiceMessageContext(telemetryContext);
             var memoryStream = new MemoryStream();
             var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, memoryStream, false);
-            const string fieldName = "test\"field";
+            const string fieldName = """test"field""";
             const short value = 300;
             // Act
             encoder.WriteInt16(fieldName, value);
             string result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(result, Does.Contain("300"));
-            Assert.That(result, Does.Contain("\\\""));
+            Assert.That(result, Does.Contain("""
+                \"
+                """));
         }
 
         [Test]
@@ -653,7 +669,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteInt16(fieldName, value);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"negOneField\":-1"));
+            Assert.That(result, Does.Contain("""
+                "negOneField":-1
+                """));
         }
 
         [Test]
@@ -710,7 +728,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteXmlElement("testField", emptyXmlElement);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":null"));
+            Assert.That(result, Does.Contain("""
+                "testField":null
+                """));
         }
 
         [Test]
@@ -730,7 +750,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteXmlElement("testField", xmlElement);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":"));
+            Assert.That(result, Does.Contain("""
+                "testField":
+                """));
             Assert.That(result, Does.Contain(xmlContent));
         }
 
@@ -769,7 +791,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteXmlElement("testField", xmlElement);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":"));
+            Assert.That(result, Does.Contain("""
+                "testField":
+                """));
             Assert.That(result, Does.Contain(xmlContent));
         }
 
@@ -790,7 +814,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteXmlElement("testField", xmlElement);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":"));
+            Assert.That(result, Does.Contain("""
+                "testField":
+                """));
             Assert.That(result, Does.Contain(xmlContent));
         }
 
@@ -811,7 +837,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteXmlElement("testField", xmlElement);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":"));
+            Assert.That(result, Does.Contain("""
+                "testField":
+                """));
             Assert.That(result, Does.Contain(longXmlContent));
         }
 
@@ -832,9 +860,13 @@ namespace Opc.Ua.UnitTests
             encoder.WriteXmlElement("testField", xmlElement);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":"));
-            Assert.That(result, Does.Contain("\\\""));
-            Assert.That(result, Does.Contain("\\n"));
+            Assert.That(result, Does.Contain("""
+                "testField":
+                """));
+            Assert.That(result, Does.Contain("""
+                \"
+                """));
+            Assert.That(result, Does.Contain("""\n"""));
         }
 
         [Test]
@@ -874,7 +906,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteXmlElement("testField", xmlElement);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":"));
+            Assert.That(result, Does.Contain("""
+                "testField":
+                """));
             Assert.That(result.Length, Is.GreaterThan(5000));
         }
 
@@ -913,8 +947,10 @@ namespace Opc.Ua.UnitTests
             encoder.WriteXmlElement("testField", xmlElement);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":"));
-            Assert.That(result, Does.Contain("\\t").Or.Contain("\\r").Or.Contain("\\n"));
+            Assert.That(result, Does.Contain("""
+                "testField":
+                """));
+            Assert.That(result, Does.Contain("""\t""").Or.Contain("""\r""").Or.Contain("""\n"""));
         }
 
         [Test]
@@ -934,7 +970,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteXmlElement("testField", xmlElement);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":"));
+            Assert.That(result, Does.Contain("""
+                "testField":
+                """));
             Assert.That(result, Does.Contain(xmlContent));
         }
 
@@ -1177,30 +1215,6 @@ namespace Opc.Ua.UnitTests
             return reader.ReadToEnd();
         }
 
-        /// <summary>
-        /// Helper class to expose protected Dispose method for testing.
-        /// </summary>
-        private class TestableJsonEncoder : JsonEncoder
-        {
-            public TestableJsonEncoder(IServiceMessageContext context, JsonEncodingType encoding) : base(context, encoding)
-            {
-            }
-
-            public bool DisposeCalledWithTrue { get; private set; }
-            public int DisposeCallCount { get; private set; }
-
-            protected override void Dispose(bool disposing)
-            {
-                DisposeCallCount++;
-                if (disposing)
-                {
-                    DisposeCalledWithTrue = true;
-                }
-
-                base.Dispose(disposing);
-            }
-        }
-
         private enum TestEnum
         {
             None = 0,
@@ -1258,7 +1272,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":true"));
+            Assert.That(result, Does.Contain("""
+                "TestField":true
+                """));
         }
 
         /// <summary>
@@ -1277,7 +1293,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":false"));
+            Assert.That(result, Does.Contain("""
+                "TestField":false
+                """));
         }
 
         /// <summary>
@@ -1296,7 +1314,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":true"));
+            Assert.That(result, Does.Contain("""
+                "TestField":true
+                """));
         }
 
         /// <summary>
@@ -1308,11 +1328,9 @@ namespace Opc.Ua.UnitTests
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
-            encoder.PushArray(null);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, topLevelIsArray: true);
             // Act
             encoder.WriteBoolean(null, true);
-            encoder.PopArray();
             string result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(result, Does.Contain("true"));
@@ -1370,7 +1388,7 @@ namespace Opc.Ua.UnitTests
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushArray(null);
             // Act
-            encoder.WriteBoolean("", false);
+            encoder.WriteBoolean(string.Empty, false);
             encoder.PopArray();
             string result = encoder.CloseAndReturnText();
             // Assert
@@ -1393,7 +1411,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"  \":true"));
+            Assert.That(result, Does.Contain("""
+                "  ":true
+                """));
         }
 
         /// <summary>
@@ -1408,11 +1428,11 @@ namespace Opc.Ua.UnitTests
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
-            encoder.WriteBoolean("Test\"Field", true);
+            encoder.WriteBoolean("""Test"Field""", true);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("Test\\\"Field"));
+            Assert.That(result, Does.Contain("""Test\"Field"""));
             Assert.That(result, Does.Contain("true"));
         }
 
@@ -1434,9 +1454,15 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"Field1\":true"));
-            Assert.That(result, Does.Contain("\"Field2\":false"));
-            Assert.That(result, Does.Contain("\"Field3\":true"));
+            Assert.That(result, Does.Contain("""
+                "Field1":true
+                """));
+            Assert.That(result, Does.Contain("""
+                "Field2":false
+                """));
+            Assert.That(result, Does.Contain("""
+                "Field3":true
+                """));
             Assert.That(result, Does.Match(".*Field1.*,.*Field2.*,.*Field3.*"));
         }
 
@@ -1516,7 +1542,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":\"\""));
+            Assert.That(result, Does.Contain("""
+                "testField":""
+                """));
         }
 
         /// <summary>
@@ -1535,7 +1563,7 @@ namespace Opc.Ua.UnitTests
             encoder.PopArray();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Is.EqualTo("[\"\"]"));
+            Assert.That(result, Is.EqualTo("""[""]"""));
         }
 
         /// <summary>
@@ -1554,7 +1582,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"nodeId\":\"i=12345\""));
+            Assert.That(result, Does.Contain("""
+                "nodeId":"i=12345"
+                """));
         }
 
         /// <summary>
@@ -1573,7 +1603,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"nodeId\":\"ns=2;i=100\""));
+            Assert.That(result, Does.Contain("""
+                "nodeId":"ns=2;i=100"
+                """));
         }
 
         /// <summary>
@@ -1592,7 +1624,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"nodeId\":\"ns=1;s=TestNode\""));
+            Assert.That(result, Does.Contain("""
+                "nodeId":"ns=1;s=TestNode"
+                """));
         }
 
         /// <summary>
@@ -1612,7 +1646,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"nodeId\":\"ns=3;g=12345678-1234-1234-1234-123456789abc\""));
+            Assert.That(result, Does.Contain("""
+                "nodeId":"ns=3;g=12345678-1234-1234-1234-123456789abc"
+                """));
         }
 
         /// <summary>
@@ -1632,7 +1668,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"nodeId\":\"ns=4;b="));
+            Assert.That(result, Does.Contain("""
+                "nodeId":"ns=4;b=
+                """));
         }
 
         /// <summary>
@@ -1651,7 +1689,7 @@ namespace Opc.Ua.UnitTests
             encoder.PopArray();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Is.EqualTo("[\"i=42\"]"));
+            Assert.That(result, Is.EqualTo("""["i=42"]"""));
         }
 
         /// <summary>
@@ -1666,11 +1704,11 @@ namespace Opc.Ua.UnitTests
             encoder.PushStructure(null);
             var nodeId = new NodeId(123);
             // Act
-            encoder.WriteNodeId("field\"With\\Quotes", nodeId);
+            encoder.WriteNodeId("""field"With\Quotes""", nodeId);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("field\\\"With\\\\Quotes"));
+            Assert.That(result, Does.Contain("""field\"With\\Quotes"""));
         }
 
         /// <summary>
@@ -1689,7 +1727,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"   \":\"i=999\""));
+            Assert.That(result, Does.Contain("""
+                "   ":"i=999"
+                """));
         }
 
         /// <summary>
@@ -1712,8 +1752,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"field1\":\"i=100\""));
-            Assert.That(result, Does.Contain("\"field2\":\"ns=1;s=TestNode\""));
+            Assert.That(result, Does.Contain("""
+                "field1":"i=100"
+                """));
+            Assert.That(result, Does.Contain("""
+                "field2":"ns=1;s=TestNode"
+                """));
             Assert.That(result, Does.Not.Contain("field3"));
         }
 
@@ -1733,7 +1777,7 @@ namespace Opc.Ua.UnitTests
             encoder.WriteNodeId(null, nodeId2);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Is.EqualTo("[\"i=10\",\"i=20\"]"));
+            Assert.That(result, Is.EqualTo("""["i=10","i=20"]"""));
         }
 
         /// <summary>
@@ -1753,7 +1797,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"nodeId\":\"i=42\""));
+            Assert.That(result, Does.Contain("""
+                "nodeId":"i=42"
+                """));
         }
 
         /// <summary>
@@ -1772,7 +1818,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain($"\"nodeId\":\"i={uint.MaxValue}\""));
+            Assert.That(result, Does.Contain($"""
+                "nodeId":"i={uint.MaxValue}"
+                """));
         }
 
         /// <summary>
@@ -1791,7 +1839,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"nodeId\":\"ns=1;i=0\""));
+            Assert.That(result, Does.Contain("""
+                "nodeId":"ns=1;i=0"
+                """));
         }
 
         /// <summary>
@@ -1810,7 +1860,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"nodeId\":\"ns=1;s=\""));
+            Assert.That(result, Does.Contain("""
+                "nodeId":"ns=1;s="
+                """));
         }
 
         /// <summary>
@@ -1829,7 +1881,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"nodeId\":\"ns=1;g=00000000-0000-0000-0000-000000000000\""));
+            Assert.That(result, Does.Contain("""
+                "nodeId":"ns=1;g=00000000-0000-0000-0000-000000000000"
+                """));
         }
 
         /// <summary>
@@ -1842,13 +1896,15 @@ namespace Opc.Ua.UnitTests
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
-            var nodeId = new NodeId("Node\"With\\Special", 1);
+            var nodeId = new NodeId("""Node"With\Special""", 1);
             // Act
             encoder.WriteNodeId("nodeId", nodeId);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"nodeId\":"));
+            Assert.That(result, Does.Contain("""
+                "nodeId":
+                """));
             Assert.That(result, Does.Contain("Node"));
         }
 
@@ -1868,7 +1924,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain($"\"nodeId\":\"ns={ushort.MaxValue};i=42\""));
+            Assert.That(result, Does.Contain($"""
+                "nodeId":"ns={ushort.MaxValue};i=42"
+                """));
         }
 
         /// <summary>
@@ -1894,8 +1952,10 @@ namespace Opc.Ua.UnitTests
             string result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(fieldName, Is.Null);
-            Assert.That(result, Does.Contain("\"SwitchField\""));
-            Assert.That(result, Does.Contain(switchFieldValue.ToString()));
+            Assert.That(result, Does.Contain("""
+                "SwitchField"
+                """));
+            Assert.That(result, Does.Contain(switchFieldValue.ToString(CultureInfo.InvariantCulture)));
         }
 
         /// <summary>
@@ -1920,7 +1980,9 @@ namespace Opc.Ua.UnitTests
             string result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(fieldName, Is.Null);
-            Assert.That(result, Does.Not.Contain("\"SwitchField\""));
+            Assert.That(result, Does.Not.Contain("""
+                "SwitchField"
+                """));
         }
 
         /// <summary>
@@ -1948,7 +2010,9 @@ namespace Opc.Ua.UnitTests
             string result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(fieldName, Is.Null);
-            Assert.That(result, Does.Not.Contain("\"SwitchField\""));
+            Assert.That(result, Does.Not.Contain("""
+                "SwitchField"
+                """));
         }
 
         /// <summary>
@@ -1994,7 +2058,9 @@ namespace Opc.Ua.UnitTests
             string result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(fieldName, Is.Null);
-            Assert.That(result, Does.Contain("\"SwitchField\""));
+            Assert.That(result, Does.Contain("""
+                "SwitchField"
+                """));
             Assert.That(result, Does.Contain("0"));
         }
 
@@ -2018,8 +2084,10 @@ namespace Opc.Ua.UnitTests
             string result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(fieldName, Is.Null);
-            Assert.That(result, Does.Contain("\"SwitchField\""));
-            Assert.That(result, Does.Contain(uint.MaxValue.ToString()));
+            Assert.That(result, Does.Contain("""
+                "SwitchField"
+                """));
+            Assert.That(result, Does.Contain(uint.MaxValue.ToString(CultureInfo.InvariantCulture)));
         }
 
         /// <summary>
@@ -2040,7 +2108,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":null"));
+            Assert.That(result, Does.Contain("""
+                "TestField":null
+                """));
         }
 
         /// <summary>
@@ -2054,14 +2124,16 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose);
-            ArrayOf<float> emptyArray = ArrayOf<float>.Empty;
+            ArrayOf<float> emptyArray = [];
             // Act
             encoder.PushStructure(null);
             encoder.WriteFloatArray("TestField", emptyArray);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":[]"));
+            Assert.That(result, Does.Contain("""
+                "TestField":[]
+                """));
         }
 
         /// <summary>
@@ -2082,7 +2154,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":["));
+            Assert.That(result, Does.Contain("""
+                "TestField":[
+                """));
             Assert.That(result, Does.Contain("42.5"));
         }
 
@@ -2104,7 +2178,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":["));
+            Assert.That(result, Does.Contain("""
+                "TestField":[
+                """));
             Assert.That(result, Does.Contain("1.1"));
             Assert.That(result, Does.Contain("2.2"));
             Assert.That(result, Does.Contain("3.3"));
@@ -2153,7 +2229,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":["));
+            Assert.That(result, Does.Contain("""
+                "TestField":[
+                """));
             Assert.That(result, Does.Contain("1"));
             Assert.That(result, Does.Contain("2"));
             Assert.That(result, Does.Contain("3"));
@@ -2180,7 +2258,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":["));
+            Assert.That(result, Does.Contain("""
+                "TestField":[
+                """));
             Assert.That(result, Does.Contain("1"));
             Assert.That(result, Does.Contain("10"));
         }
@@ -2203,8 +2283,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":["));
-            Assert.That(result, Does.Contain("\"NaN\""));
+            Assert.That(result, Does.Contain("""
+                "TestField":[
+                """));
+            Assert.That(result, Does.Contain("""
+                "NaN"
+                """));
         }
 
         /// <summary>
@@ -2225,8 +2309,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":["));
-            Assert.That(result, Does.Contain("\"Infinity\""));
+            Assert.That(result, Does.Contain("""
+                "TestField":[
+                """));
+            Assert.That(result, Does.Contain("""
+                "Infinity"
+                """));
         }
 
         /// <summary>
@@ -2247,8 +2335,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":["));
-            Assert.That(result, Does.Contain("\"-Infinity\""));
+            Assert.That(result, Does.Contain("""
+                "TestField":[
+                """));
+            Assert.That(result, Does.Contain("""
+                "-Infinity"
+                """));
         }
 
         /// <summary>
@@ -2269,7 +2361,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":["));
+            Assert.That(result, Does.Contain("""
+                "TestField":[
+                """));
             Assert.That(result, Does.Contain("0"));
         }
 
@@ -2291,7 +2385,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":["));
+            Assert.That(result, Does.Contain("""
+                "TestField":[
+                """));
             Assert.That(result, Does.Contain("-42.5"));
             Assert.That(result, Does.Contain("-1.5"));
             Assert.That(result, Does.Contain("-0.5"));
@@ -2315,7 +2411,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":["));
+            Assert.That(result, Does.Contain("""
+                "TestField":[
+                """));
             string expectedValue = float.MinValue.ToString("R", CultureInfo.InvariantCulture);
             Assert.That(result, Does.Contain(expectedValue));
         }
@@ -2338,7 +2436,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":["));
+            Assert.That(result, Does.Contain("""
+                "TestField":[
+                """));
             string expectedValue = float.MaxValue.ToString("R", CultureInfo.InvariantCulture);
             Assert.That(result, Does.Contain(expectedValue));
         }
@@ -2361,7 +2461,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":["));
+            Assert.That(result, Does.Contain("""
+                "TestField":[
+                """));
             string expectedValue = float.Epsilon.ToString("R", CultureInfo.InvariantCulture);
             Assert.That(result, Does.Contain(expectedValue));
         }
@@ -2430,7 +2532,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"  \":["));
+            Assert.That(result, Does.Contain("""
+                "  ":[
+                """));
         }
 
         /// <summary>
@@ -2451,7 +2555,7 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("Field\\\"With\\\\Special\\nChars"));
+            Assert.That(result, Does.Contain("""Field\"With\\Special\nChars"""));
         }
 
         /// <summary>
@@ -2503,7 +2607,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteLocalizedTextArray("items", emptyArray);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"items\":[]"));
+            Assert.That(result, Does.Contain("""
+                "items":[]
+                """));
         }
 
         /// <summary>
@@ -2523,7 +2629,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteLocalizedTextArray("items", emptyArray);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"items\":null"));
+            Assert.That(result, Does.Contain("""
+                "items":null
+                """));
         }
 
         /// <summary>
@@ -2593,9 +2701,7 @@ namespace Opc.Ua.UnitTests
             // Act
             using var encoder = new JsonEncoder(messageContext, encoding, writer, topLevelIsArray);
             encoder.WriteString("test", "value");
-            encoder.Close();
-            memoryStream.Position = 0;
-            string result = new StreamReader(memoryStream).ReadToEnd();
+            string result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(result, Does.Contain("test"));
             Assert.That(result, Does.Contain("value"));
@@ -2798,7 +2904,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"TestField\":0"));
+            Assert.That(result, Does.Contain("""
+                "TestField":0
+                """));
         }
 
         /// <summary>
@@ -2834,7 +2942,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"TestField\":-2147483648"));
+            Assert.That(result, Does.Contain("""
+                "TestField":-2147483648
+                """));
         }
 
         /// <summary>
@@ -2852,15 +2962,23 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"TestField\":2147483647"));
+            Assert.That(result, Does.Contain("""
+                "TestField":2147483647
+                """));
         }
 
         /// <summary>
         /// Tests that WriteInt32 correctly writes negative values.
         /// </summary>
-        [TestCase(-1, "\"TestField\":-1")]
-        [TestCase(-100, "\"TestField\":-100")]
-        [TestCase(-999999, "\"TestField\":-999999")]
+        [TestCase(-1, """
+            "TestField":-1
+            """)]
+        [TestCase(-100, """
+            "TestField":-100
+            """)]
+        [TestCase(-999999, """
+            "TestField":-999999
+            """)]
         public void WriteInt32_NegativeValue_WritesCorrectValue(int value, string expected)
         {
             // Arrange
@@ -2878,9 +2996,15 @@ namespace Opc.Ua.UnitTests
         /// <summary>
         /// Tests that WriteInt32 correctly writes positive values.
         /// </summary>
-        [TestCase(1, "\"TestField\":1")]
-        [TestCase(100, "\"TestField\":100")]
-        [TestCase(999999, "\"TestField\":999999")]
+        [TestCase(1, """
+            "TestField":1
+            """)]
+        [TestCase(100, """
+            "TestField":100
+            """)]
+        [TestCase(999999, """
+            "TestField":999999
+            """)]
         public void WriteInt32_PositiveValue_WritesCorrectValue(int value, string expected)
         {
             // Arrange
@@ -2956,7 +3080,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\" \":42"));
+            Assert.That(result, Does.Contain("""
+                " ":42
+                """));
         }
 
         /// <summary>
@@ -2970,11 +3096,11 @@ namespace Opc.Ua.UnitTests
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
-            encoder.WriteInt32("Field\"Name", 42);
+            encoder.WriteInt32("""Field"Name""", 42);
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("Field\\\"Name"));
+            Assert.That(result, Does.Contain("""Field\"Name"""));
             Assert.That(result, Does.Contain(":42"));
         }
 
@@ -2995,9 +3121,15 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"Field1\":10"));
-            Assert.That(result, Does.Contain("\"Field2\":20"));
-            Assert.That(result, Does.Contain("\"Field3\":30"));
+            Assert.That(result, Does.Contain("""
+                "Field1":10
+                """));
+            Assert.That(result, Does.Contain("""
+                "Field2":20
+                """));
+            Assert.That(result, Does.Contain("""
+                "Field3":30
+                """));
         }
 
         /// <summary>
@@ -3033,7 +3165,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"TestField\":5"));
+            Assert.That(result, Does.Contain("""
+                "TestField":5
+                """));
         }
 
         /// <summary>
@@ -3051,7 +3185,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"TestField\":-1"));
+            Assert.That(result, Does.Contain("""
+                "TestField":-1
+                """));
         }
 
         /// <summary>
@@ -3069,7 +3205,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"TestField\":1"));
+            Assert.That(result, Does.Contain("""
+                "TestField":1
+                """));
         }
 
         /// <summary>
@@ -3089,7 +3227,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"\""));
+            Assert.That(result, Does.Contain("""
+                ""
+                """));
         }
 
         /// <summary>
@@ -3129,7 +3269,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":\"\""));
+            Assert.That(result, Does.Contain("""
+                "TestField":""
+                """));
         }
 
         /// <summary>
@@ -3150,7 +3292,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\""));
+            Assert.That(result, Does.Contain("""
+                "TestField"
+                """));
             Assert.That(result, Does.Contain("12345"));
         }
 
@@ -3172,7 +3316,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\""));
+            Assert.That(result, Does.Contain("""
+                "TestField"
+                """));
             Assert.That(result, Does.Contain("54321"));
         }
 
@@ -3209,11 +3355,11 @@ namespace Opc.Ua.UnitTests
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
-            encoder.WriteExpandedNodeId("Test\"Field", expandedNodeId);
+            encoder.WriteExpandedNodeId("""Test"Field""", expandedNodeId);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("Test\\\"Field"));
+            Assert.That(result, Does.Contain("""Test\"Field"""));
             Assert.That(result, Does.Contain("777"));
         }
 
@@ -3370,8 +3516,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"Field1\""));
-            Assert.That(result, Does.Contain("\"Field2\""));
+            Assert.That(result, Does.Contain("""
+                "Field1"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Field2"
+                """));
             Assert.That(result, Does.Contain("100"));
             Assert.That(result, Does.Contain("200"));
         }
@@ -3394,7 +3544,7 @@ namespace Opc.Ua.UnitTests
             string result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(result, Does.Contain("MaxField"));
-            Assert.That(result, Does.Contain(uint.MaxValue.ToString()));
+            Assert.That(result, Does.Contain(uint.MaxValue.ToString(CultureInfo.InvariantCulture)));
         }
 
         /// <summary>
@@ -3415,7 +3565,9 @@ namespace Opc.Ua.UnitTests
             string result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(result, Does.Contain("ZeroField"));
-            Assert.That(result, Does.Contain("\"i=0\""));
+            Assert.That(result, Does.Contain("""
+                "i=0"
+                """));
         }
 
         /// <summary>
@@ -3434,7 +3586,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteBooleanArray("boolArray", emptyArray);
             // Assert
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"boolArray\":[]"));
+            Assert.That(result, Does.Contain("""
+                "boolArray":[]
+                """));
         }
 
         /// <summary>
@@ -3491,7 +3645,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"field\":[]"));
+            Assert.That(result, Does.Contain("""
+                "field":[]
+                """));
         }
 
         /// <summary>
@@ -3510,7 +3666,7 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Is.EqualTo("{\"root\":{}}"));
+            Assert.That(result, Is.EqualTo(/*lang=json,strict*/ """{"root":{}}"""));
         }
 
         /// <summary>
@@ -3529,7 +3685,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":null"));
+            Assert.That(result, Does.Contain("""
+                "testField":null
+                """));
         }
 
         /// <summary>
@@ -3548,7 +3706,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":[]"));
+            Assert.That(result, Does.Contain("""
+                "testField":[]
+                """));
         }
 
         /// <summary>
@@ -3587,7 +3747,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":["));
+            Assert.That(result, Does.Contain("""
+                "testField":[
+                """));
             Assert.That(result, Does.Contain("]"));
         }
 
@@ -3610,7 +3772,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":["));
+            Assert.That(result, Does.Contain("""
+                "testField":[
+                """));
             Assert.That(result, Does.Contain("]"));
         }
 
@@ -3660,7 +3824,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":["));
+            Assert.That(result, Does.Contain("""
+                "testField":[
+                """));
         }
 
         /// <summary>
@@ -3685,7 +3851,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":["));
+            Assert.That(result, Does.Contain("""
+                "testField":[
+                """));
         }
 
         /// <summary>
@@ -3710,7 +3878,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":["));
+            Assert.That(result, Does.Contain("""
+                "testField":[
+                """));
         }
 
         /// <summary>
@@ -3764,11 +3934,11 @@ namespace Opc.Ua.UnitTests
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose);
             // Act
             encoder.PushStructure("root");
-            encoder.WriteExtensionObjectArray("test\"Field", values);
+            encoder.WriteExtensionObjectArray("""test"Field""", values);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("test\\\"Field"));
+            Assert.That(result, Does.Contain("""test\"Field"""));
         }
 
         /// <summary>
@@ -3814,7 +3984,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":["));
+            Assert.That(result, Does.Contain("""
+                "testField":[
+                """));
         }
 
         /// <summary>
@@ -3825,7 +3997,7 @@ namespace Opc.Ua.UnitTests
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
-            string longFieldName = new string ('a', 1000);
+            string longFieldName = new('a', 1000);
             var ext1 = new ExtensionObject(new ExpandedNodeId(1));
             var values = new ArrayOf<ExtensionObject>([ext1]);
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose);
@@ -3856,7 +4028,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"   \":["));
+            Assert.That(result, Does.Contain("""
+                "   ":[
+                """));
         }
 
         /// <summary>
@@ -3877,7 +4051,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteUInt16(fieldName, value);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":42"));
+            Assert.That(result, Does.Contain("""
+                "testField":42
+                """));
         }
 
         /// <summary>
@@ -3918,7 +4094,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteUInt16(fieldName, value);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":0"));
+            Assert.That(result, Does.Contain("""
+                "testField":0
+                """));
         }
 
         /// <summary>
@@ -3960,8 +4138,12 @@ namespace Opc.Ua.UnitTests
             encoder.WriteUInt16(fieldName, value);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain($"\"maxField\":{ushort.MaxValue}"));
-            Assert.That(result, Does.Contain("\"maxField\":65535"));
+            Assert.That(result, Does.Contain($"""
+                "maxField":{ushort.MaxValue}
+                """));
+            Assert.That(result, Does.Contain("""
+                "maxField":65535
+                """));
         }
 
         /// <summary>
@@ -3981,8 +4163,12 @@ namespace Opc.Ua.UnitTests
             encoder.WriteUInt16(fieldName, value);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain($"\"minField\":{ushort.MinValue}"));
-            Assert.That(result, Does.Contain("\"minField\":0"));
+            Assert.That(result, Does.Contain($"""
+                "minField":{ushort.MinValue}
+                """));
+            Assert.That(result, Does.Contain("""
+                "minField":0
+                """));
         }
 
         /// <summary>
@@ -4002,7 +4188,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteUInt16(fieldName, value);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"oneField\":1"));
+            Assert.That(result, Does.Contain("""
+                "oneField":1
+                """));
         }
 
         /// <summary>
@@ -4023,7 +4211,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteUInt16(fieldName, value);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain($"\"testField\":{expectedValue}"));
+            Assert.That(result, Does.Contain($"""
+                "testField":{expectedValue}
+                """));
         }
 
         /// <summary>
@@ -4063,7 +4253,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteUInt16(fieldName, value);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"   \":200"));
+            Assert.That(result, Does.Contain("""
+                "   ":200
+                """));
         }
 
         /// <summary>
@@ -4078,14 +4270,16 @@ namespace Opc.Ua.UnitTests
             var messageContext = new ServiceMessageContext(telemetryContext);
             var memoryStream = new MemoryStream();
             var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, memoryStream, false);
-            const string fieldName = "test\"field";
+            const string fieldName = """test"field""";
             const ushort value = 300;
             // Act
             encoder.WriteUInt16(fieldName, value);
             string result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(result, Does.Contain("300"));
-            Assert.That(result, Does.Contain("\\\""));
+            Assert.That(result, Does.Contain("""
+                \"
+                """));
         }
 
         /// <summary>
@@ -4105,9 +4299,15 @@ namespace Opc.Ua.UnitTests
             encoder.WriteUInt16("field3", 300);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"field1\":100"));
-            Assert.That(result, Does.Contain("\"field2\":200"));
-            Assert.That(result, Does.Contain("\"field3\":300"));
+            Assert.That(result, Does.Contain("""
+                "field1":100
+                """));
+            Assert.That(result, Does.Contain("""
+                "field2":200
+                """));
+            Assert.That(result, Does.Contain("""
+                "field3":300
+                """));
         }
 
         /// <summary>
@@ -4127,7 +4327,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteUInt16(fieldName, value);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"midField\":32768"));
+            Assert.That(result, Does.Contain("""
+                "midField":32768
+                """));
         }
 
         /// <summary>
@@ -4169,7 +4371,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteUInt16(fieldName, value);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain($"\"upperBoundary\":65534"));
+            Assert.That(result, Does.Contain($"""
+                "upperBoundary":65534
+                """));
         }
 
         /// <summary>
@@ -4205,7 +4409,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"status\""));
+            Assert.That(result, Does.Contain("""
+                "status"
+                """));
         }
 
         /// <summary>
@@ -4241,8 +4447,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"status\""));
-            Assert.That(result, Does.Contain("\"Code\""));
+            Assert.That(result, Does.Contain("""
+                "status"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Code"
+                """));
         }
 
         /// <summary>
@@ -4260,10 +4470,18 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"status\""));
-            Assert.That(result, Does.Contain("\"Code\""));
-            Assert.That(result, Does.Contain("\"Symbol\""));
-            Assert.That(result, Does.Contain("\"Bad\""));
+            Assert.That(result, Does.Contain("""
+                "status"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Code"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Symbol"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Bad"
+                """));
         }
 
         /// <summary>
@@ -4281,8 +4499,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"status\""));
-            Assert.That(result, Does.Contain("\"Code\""));
+            Assert.That(result, Does.Contain("""
+                "status"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Code"
+                """));
         }
 
         /// <summary>
@@ -4301,8 +4523,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"customStatus\""));
-            Assert.That(result, Does.Contain("\"Code\""));
+            Assert.That(result, Does.Contain("""
+                "customStatus"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Code"
+                """));
         }
 
         /// <summary>
@@ -4320,7 +4546,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopArray();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"Code\""));
+            Assert.That(result, Does.Contain("""
+                "Code"
+                """));
         }
 
         /// <summary>
@@ -4338,8 +4566,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"   \""));
-            Assert.That(result, Does.Contain("\"Code\""));
+            Assert.That(result, Does.Contain("""
+                "   "
+                """));
+            Assert.That(result, Does.Contain("""
+                "Code"
+                """));
         }
 
         /// <summary>
@@ -4353,12 +4585,16 @@ namespace Opc.Ua.UnitTests
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
-            encoder.WriteStatusCode("status\"field", StatusCodes.Bad);
+            encoder.WriteStatusCode("""status"field""", StatusCodes.Bad);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\\\""));
-            Assert.That(result, Does.Contain("\"Code\""));
+            Assert.That(result, Does.Contain("""
+                \"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Code"
+                """));
         }
 
         /// <summary>
@@ -4378,8 +4614,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"status2\""));
-            Assert.That(result, Does.Contain("\"status3\""));
+            Assert.That(result, Does.Contain("""
+                "status2"
+                """));
+            Assert.That(result, Does.Contain("""
+                "status3"
+                """));
         }
 
         /// <summary>
@@ -4397,9 +4637,15 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"error\""));
-            Assert.That(result, Does.Contain("\"Code\""));
-            Assert.That(result, Does.Contain("\"Symbol\""));
+            Assert.That(result, Does.Contain("""
+                "error"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Code"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Symbol"
+                """));
             Assert.That(result, Does.Contain("BadEncodingError"));
         }
 
@@ -4418,8 +4664,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"error\""));
-            Assert.That(result, Does.Contain("\"Symbol\""));
+            Assert.That(result, Does.Contain("""
+                "error"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Symbol"
+                """));
             Assert.That(result, Does.Contain("BadUnexpectedError"));
         }
 
@@ -4439,8 +4689,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"flaggedStatus\""));
-            Assert.That(result, Does.Contain("\"Code\""));
+            Assert.That(result, Does.Contain("""
+                "flaggedStatus"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Code"
+                """));
         }
 
         /// <summary>
@@ -4453,14 +4707,16 @@ namespace Opc.Ua.UnitTests
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
-            string longFieldName = new string ('a', 1000);
+            string longFieldName = new('a', 1000);
             // Act
             encoder.WriteStatusCode(longFieldName, StatusCodes.Bad);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(result, Does.Contain(longFieldName));
-            Assert.That(result, Does.Contain("\"Code\""));
+            Assert.That(result, Does.Contain("""
+                "Code"
+                """));
         }
 
         /// <summary>
@@ -4480,7 +4736,9 @@ namespace Opc.Ua.UnitTests
             string result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(result, Does.Contain("{}"));
-            Assert.That(result, Does.Contain("\"Code\""));
+            Assert.That(result, Does.Contain("""
+                "Code"
+                """));
         }
 
         /// <summary>
@@ -4499,7 +4757,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"structureChanged\""));
+            Assert.That(result, Does.Contain("""
+                "structureChanged"
+                """));
         }
 
         /// <summary>
@@ -4518,7 +4778,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"semanticsChanged\""));
+            Assert.That(result, Does.Contain("""
+                "semanticsChanged"
+                """));
         }
 
         /// <summary>
@@ -4537,8 +4799,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"maxStatus\""));
-            Assert.That(result, Does.Contain("\"Code\""));
+            Assert.That(result, Does.Contain("""
+                "maxStatus"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Code"
+                """));
         }
 
         /// <summary>
@@ -4575,9 +4841,15 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"test\""));
-            Assert.That(result, Does.Contain("\"Code\""));
-            Assert.That(result, Does.Contain("\"Symbol\""));
+            Assert.That(result, Does.Contain("""
+                "test"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Code"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Symbol"
+                """));
             Assert.That(result, Does.Contain("BadNotImplemented"));
         }
 
@@ -4600,7 +4872,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"EncodingMask\""));
+            Assert.That(result, Does.Contain("""
+                "EncodingMask"
+                """));
             Assert.That(result, Does.Contain("123"));
         }
 
@@ -4623,7 +4897,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Not.Contain("\"EncodingMask\""));
+            Assert.That(result, Does.Not.Contain("""
+                "EncodingMask"
+                """));
         }
 
         /// <summary>
@@ -4645,7 +4921,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Not.Contain("\"EncodingMask\""));
+            Assert.That(result, Does.Not.Contain("""
+                "EncodingMask"
+                """));
         }
 
         /// <summary>
@@ -4667,7 +4945,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Not.Contain("\"EncodingMask\""));
+            Assert.That(result, Does.Not.Contain("""
+                "EncodingMask"
+                """));
         }
 
         /// <summary>
@@ -4689,7 +4969,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"EncodingMask\""));
+            Assert.That(result, Does.Contain("""
+                "EncodingMask"
+                """));
             Assert.That(result, Does.Contain("4294967295"));
         }
 
@@ -4715,8 +4997,10 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"EncodingMask\""));
-            Assert.That(result, Does.Contain(encodingMask.ToString()));
+            Assert.That(result, Does.Contain("""
+                "EncodingMask"
+                """));
+            Assert.That(result, Does.Contain(encodingMask.ToString(CultureInfo.InvariantCulture)));
         }
 
         /// <summary>
@@ -4740,7 +5024,7 @@ namespace Opc.Ua.UnitTests
             // Assert
             Assert.That(result, Does.StartWith("{"));
             Assert.That(result, Does.EndWith("}"));
-            Assert.That(result, Does.Match("\\{\"EncodingMask\":42\\}"));
+            Assert.That(result, Does.Match("""\{"EncodingMask":42\}"""));
         }
 
         /// <summary>
@@ -4776,7 +5060,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":[]"));
+            Assert.That(result, Does.Contain("""
+                "testField":[]
+                """));
         }
 
         /// <summary>
@@ -4796,7 +5082,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":[]"));
+            Assert.That(result, Does.Contain("""
+                "testField":[]
+                """));
         }
 
         /// <summary>
@@ -4852,7 +5140,7 @@ namespace Opc.Ua.UnitTests
             }
 
             // Act
-            encoder.UsingAlternateEncoding<string>(TestAction, "field", "value", JsonEncodingType.Compact);
+            encoder.UsingAlternateEncoding(TestAction, "field", "value", JsonEncodingType.Compact);
             // Assert
             Assert.That(actionCalled, Is.True, "Action should have been called");
             Assert.That(encodingDuringAction, Is.EqualTo(JsonEncodingType.Compact), "Encoding should be Compact during action");
@@ -4871,7 +5159,7 @@ namespace Opc.Ua.UnitTests
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             // Act & Assert
-            Assert.Throws<NullReferenceException>(() => encoder.UsingAlternateEncoding<int>(null, "field", 42, JsonEncodingType.Verbose));
+            Assert.Throws<NullReferenceException>(() => encoder.UsingAlternateEncoding(null, "field", 42, JsonEncodingType.Verbose));
         }
 
         /// <summary>
@@ -4950,7 +5238,7 @@ namespace Opc.Ua.UnitTests
             }
 
             // Act
-            encoder.UsingAlternateEncoding<string>(TestAction, string.Empty, string.Empty, JsonEncodingType.Compact);
+            encoder.UsingAlternateEncoding(TestAction, string.Empty, string.Empty, JsonEncodingType.Compact);
             // Assert
             Assert.That(actionCalled, Is.True);
             Assert.That(receivedFieldName, Is.EqualTo(string.Empty));
@@ -5010,7 +5298,7 @@ namespace Opc.Ua.UnitTests
             }
 
             // Act
-            encoder.UsingAlternateEncoding<string>(OuterAction, "outer", "test", JsonEncodingType.Verbose);
+            encoder.UsingAlternateEncoding(OuterAction, "outer", "test", JsonEncodingType.Verbose);
             // Assert
             Assert.That(outerEncoding, Is.EqualTo(JsonEncodingType.Verbose), "Outer action should use Verbose");
             Assert.That(innerEncoding, Is.EqualTo(JsonEncodingType.Compact), "Inner action should use Compact");
@@ -5028,8 +5316,8 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
-            string longFieldName = new string ('a', 10000);
-            string longValue = new string ('b', 10000);
+            string longFieldName = new('a', 10000);
+            string longValue = new('b', 10000);
             string receivedFieldName = null;
             string receivedValue = null;
             bool actionCalled = false;
@@ -5041,7 +5329,7 @@ namespace Opc.Ua.UnitTests
             }
 
             // Act
-            encoder.UsingAlternateEncoding<string>(TestAction, longFieldName, longValue, JsonEncodingType.Verbose);
+            encoder.UsingAlternateEncoding(TestAction, longFieldName, longValue, JsonEncodingType.Verbose);
             // Assert
             Assert.That(actionCalled, Is.True);
             Assert.That(receivedFieldName, Is.EqualTo(longFieldName));
@@ -5073,7 +5361,7 @@ namespace Opc.Ua.UnitTests
             }
 
             // Act
-            encoder.UsingAlternateEncoding<string>(TestAction, specialFieldName, specialValue, JsonEncodingType.Verbose);
+            encoder.UsingAlternateEncoding(TestAction, specialFieldName, specialValue, JsonEncodingType.Verbose);
             // Assert
             Assert.That(actionCalled, Is.True);
             Assert.That(receivedFieldName, Is.EqualTo(specialFieldName));
@@ -5231,7 +5519,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopArray();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"00000000-0000-0000-0000-000000000000\""));
+            Assert.That(result, Does.Contain("""
+                "00000000-0000-0000-0000-000000000000"
+                """));
         }
 
         /// <summary>
@@ -5250,8 +5540,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Contain("\"00000000-0000-0000-0000-000000000000\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "00000000-0000-0000-0000-000000000000"
+                """));
         }
 
         /// <summary>
@@ -5270,8 +5564,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"myGuid\""));
-            Assert.That(result, Does.Contain("\"12345678-1234-5678-1234-567812345678\""));
+            Assert.That(result, Does.Contain("""
+                "myGuid"
+                """));
+            Assert.That(result, Does.Contain("""
+                "12345678-1234-5678-1234-567812345678"
+                """));
         }
 
         /// <summary>
@@ -5290,8 +5588,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopArray();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"abcdef12-3456-7890-abcd-ef1234567890\""));
-            Assert.That(result, Does.Not.Contain("\"\":"));
+            Assert.That(result, Does.Contain("""
+                "abcdef12-3456-7890-abcd-ef1234567890"
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "":
+                """));
         }
 
         /// <summary>
@@ -5306,12 +5608,14 @@ namespace Opc.Ua.UnitTests
             var testGuid = new Uuid(Guid.Parse("11111111-2222-3333-4444-555555555555"));
             encoder.PushStructure(null);
             // Act
-            encoder.WriteGuid("field\"with\\quotes", testGuid);
+            encoder.WriteGuid("""field"with\quotes""", testGuid);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("field\\\"with\\\\quotes"));
-            Assert.That(result, Does.Contain("\"11111111-2222-3333-4444-555555555555\""));
+            Assert.That(result, Does.Contain("""field\"with\\quotes"""));
+            Assert.That(result, Does.Contain("""
+                "11111111-2222-3333-4444-555555555555"
+                """));
         }
 
         /// <summary>
@@ -5330,8 +5634,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"   \""));
-            Assert.That(result, Does.Contain("\"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee\""));
+            Assert.That(result, Does.Contain("""
+                "   "
+                """));
+            Assert.That(result, Does.Contain("""
+                "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+                """));
         }
 
         /// <summary>
@@ -5354,12 +5662,24 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"first\""));
-            Assert.That(result, Does.Contain("\"11111111-1111-1111-1111-111111111111\""));
-            Assert.That(result, Does.Contain("\"second\""));
-            Assert.That(result, Does.Contain("\"22222222-2222-2222-2222-222222222222\""));
-            Assert.That(result, Does.Contain("\"third\""));
-            Assert.That(result, Does.Contain("\"33333333-3333-3333-3333-333333333333\""));
+            Assert.That(result, Does.Contain("""
+                "first"
+                """));
+            Assert.That(result, Does.Contain("""
+                "11111111-1111-1111-1111-111111111111"
+                """));
+            Assert.That(result, Does.Contain("""
+                "second"
+                """));
+            Assert.That(result, Does.Contain("""
+                "22222222-2222-2222-2222-222222222222"
+                """));
+            Assert.That(result, Does.Contain("""
+                "third"
+                """));
+            Assert.That(result, Does.Contain("""
+                "33333333-3333-3333-3333-333333333333"
+                """));
         }
 
         /// <summary>
@@ -5377,7 +5697,7 @@ namespace Opc.Ua.UnitTests
             encoder.PopArray();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Is.EqualTo("[\"00000000-0000-0000-0000-000000000000\"]"));
+            Assert.That(result, Is.EqualTo("""["00000000-0000-0000-0000-000000000000"]"""));
         }
 
         /// <summary>
@@ -5417,7 +5737,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"abcdef01-2345-6789-abcd-ef0123456789\""));
+            Assert.That(result, Does.Contain("""
+                "abcdef01-2345-6789-abcd-ef0123456789"
+                """));
         }
 
         /// <summary>
@@ -5436,8 +5758,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"emptyGuid\""));
-            Assert.That(result, Does.Contain("\"00000000-0000-0000-0000-000000000000\""));
+            Assert.That(result, Does.Contain("""
+                "emptyGuid"
+                """));
+            Assert.That(result, Does.Contain("""
+                "00000000-0000-0000-0000-000000000000"
+                """));
         }
 
         /// <summary>
@@ -5458,7 +5784,9 @@ namespace Opc.Ua.UnitTests
             string result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(result, Does.Contain(longFieldName));
-            Assert.That(result, Does.Contain("\"fedcba98-7654-3210-fedc-ba9876543210\""));
+            Assert.That(result, Does.Contain("""
+                "fedcba98-7654-3210-fedc-ba9876543210"
+                """));
         }
 
         /// <summary>
@@ -5477,8 +5805,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"compactField\""));
-            Assert.That(result, Does.Contain("\"99999999-8888-7777-6666-555555555555\""));
+            Assert.That(result, Does.Contain("""
+                "compactField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "99999999-8888-7777-6666-555555555555"
+                """));
         }
 
         /// <summary>
@@ -5512,7 +5844,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEncodeable<IEncodeable>("TestField", null);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\""));
+            Assert.That(result, Does.Contain("""
+                "TestField"
+                """));
         }
 
         /// <summary>
@@ -5581,7 +5915,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEncodeable<IEncodeable>("TestField", default);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\""));
+            Assert.That(result, Does.Contain("""
+                "TestField"
+                """));
         }
 
         /// <summary>
@@ -5621,7 +5957,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"emptyArray\""));
+            Assert.That(result, Does.Contain("""
+                "emptyArray"
+                """));
             Assert.That(result, Does.Contain("null"));
         }
 
@@ -5642,7 +5980,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"diagnostics\":null"));
+            Assert.That(result, Does.Contain("""
+                "diagnostics":null
+                """));
         }
 
         /// <summary>
@@ -5662,7 +6002,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"diagnostics\":[]"));
+            Assert.That(result, Does.Contain("""
+                "diagnostics":[]
+                """));
         }
 
         /// <summary>
@@ -5681,7 +6023,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"items\":["));
+            Assert.That(result, Does.Contain("""
+                "items":[
+                """));
         }
 
         /// <summary>
@@ -5734,7 +6078,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"   \":["));
+            Assert.That(result, Does.Contain("""
+                "   ":[
+                """));
         }
 
         /// <summary>
@@ -5748,12 +6094,14 @@ namespace Opc.Ua.UnitTests
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
-            encoder.PushArray("field\"name");
+            encoder.PushArray("""field"name""");
             encoder.PopArray();
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"field\\\"name\":["));
+            Assert.That(result, Does.Contain("""
+                "field\"name":[
+                """));
         }
 
         /// <summary>
@@ -5773,7 +6121,7 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain(",\"second\":["));
+            Assert.That(result, Does.Contain(""","second":["""));
         }
 
         /// <summary>
@@ -5823,7 +6171,7 @@ namespace Opc.Ua.UnitTests
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
-            string veryLongFieldName = new string ('a', 10000);
+            string veryLongFieldName = new('a', 10000);
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
@@ -5832,7 +6180,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain($"\"{veryLongFieldName}\":["));
+            Assert.That(result, Does.Contain($"""
+                "{veryLongFieldName}":[
+                """));
         }
 
         /// <summary>
@@ -5852,7 +6202,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"value\":42,\"array\":["));
+            Assert.That(result, Does.Contain("""
+                "value":42,"array":[
+                """));
         }
 
         /// <summary>
@@ -5871,7 +6223,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"field\\nname\":["));
+            Assert.That(result, Does.Contain("""
+                "field\nname":[
+                """));
         }
 
         /// <summary>
@@ -5885,12 +6239,14 @@ namespace Opc.Ua.UnitTests
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
-            encoder.PushArray("field\\name");
+            encoder.PushArray("""field\name""");
             encoder.PopArray();
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"field\\\\name\":["));
+            Assert.That(result, Does.Contain("""
+                "field\\name":[
+                """));
         }
 
         /// <summary>
@@ -5909,7 +6265,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"field\\tname\":["));
+            Assert.That(result, Does.Contain("""
+                "field\tname":[
+                """));
         }
 
         /// <summary>
@@ -5932,9 +6290,15 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"first\":[]"));
-            Assert.That(result, Does.Contain("\"second\":[]"));
-            Assert.That(result, Does.Contain("\"third\":[]"));
+            Assert.That(result, Does.Contain("""
+                "first":[]
+                """));
+            Assert.That(result, Does.Contain("""
+                "second":[]
+                """));
+            Assert.That(result, Does.Contain("""
+                "third":[]
+                """));
         }
 
         /// <summary>
@@ -5972,7 +6336,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"field\\u0001name\":["));
+            Assert.That(result, Does.Contain("""
+                "field\u0001name":[
+                """));
         }
 
         /// <summary>
@@ -5994,7 +6360,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"key\":\"value\",\"items\":["));
+            Assert.That(result, Does.Contain("""
+                "key":"value","items":[
+                """));
         }
 
         /// <summary>
@@ -6007,7 +6375,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             // Act
             encoder.WriteSByte("testField", 0);
@@ -6026,13 +6394,15 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, false, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, false, stream, true);
             encoder.PushStructure(null);
             // Act
             encoder.WriteSByte("testField", 0);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"testField\":0"));
+            Assert.That(result, Does.Contain("""
+                "testField":0
+                """));
         }
 
         /// <summary>
@@ -6045,13 +6415,15 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             // Act
             encoder.WriteSByte("testField", 42);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"testField\":42"));
+            Assert.That(result, Does.Contain("""
+                "testField":42
+                """));
         }
 
         /// <summary>
@@ -6063,13 +6435,15 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             // Act
             encoder.WriteSByte("testField", sbyte.MinValue);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"testField\":-128"));
+            Assert.That(result, Does.Contain("""
+                "testField":-128
+                """));
         }
 
         /// <summary>
@@ -6081,13 +6455,15 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             // Act
             encoder.WriteSByte("testField", sbyte.MaxValue);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"testField\":127"));
+            Assert.That(result, Does.Contain("""
+                "testField":127
+                """));
         }
 
         /// <summary>
@@ -6099,13 +6475,15 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             // Act
             encoder.WriteSByte("testField", -50);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"testField\":-50"));
+            Assert.That(result, Does.Contain("""
+                "testField":-50
+                """));
         }
 
         /// <summary>
@@ -6119,7 +6497,7 @@ namespace Opc.Ua.UnitTests
             CultureInfo.CurrentCulture = new CultureInfo("de-DE");
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             try
             {
@@ -6127,7 +6505,9 @@ namespace Opc.Ua.UnitTests
                 encoder.WriteSByte("testField", -123);
                 // Assert
                 string result = GetJsonOutput(encoder, stream);
-                Assert.That(result, Does.Contain("\"testField\":-123"));
+                Assert.That(result, Does.Contain("""
+                    "testField":-123
+                    """));
             }
             finally
             {
@@ -6144,7 +6524,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, true, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, true, stream, true);
             encoder.PushArray(null);
             // Act
             encoder.WriteSByte(string.Empty, 10);
@@ -6162,13 +6542,15 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             // Act
             encoder.WriteSByte("  ", 25);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"  \":25"));
+            Assert.That(result, Does.Contain("""
+                "  ":25
+                """));
         }
 
         /// <summary>
@@ -6180,13 +6562,15 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             // Act
-            encoder.WriteSByte("field\"name", 15);
+            encoder.WriteSByte("""field"name""", 15);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"field\\\"name\":15"));
+            Assert.That(result, Does.Contain("""
+                "field\"name":15
+                """));
         }
 
         /// <summary>
@@ -6198,13 +6582,15 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             // Act
             encoder.WriteSByte("testField", -1);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"testField\":-1"));
+            Assert.That(result, Does.Contain("""
+                "testField":-1
+                """));
         }
 
         /// <summary>
@@ -6216,7 +6602,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, true, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, true, stream, true);
             encoder.PushArray(null);
             // Act
             encoder.WriteSByte(null, 0);
@@ -6252,13 +6638,15 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             // Act
             encoder.WriteSByte("testField", 1);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"testField\":1"));
+            Assert.That(result, Does.Contain("""
+                "testField":1
+                """));
         }
 
         /// <summary>
@@ -6297,7 +6685,7 @@ namespace Opc.Ua.UnitTests
             encoder.WriteString(null, "testValue");
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Is.EqualTo("[\"testValue\"]"));
+            Assert.That(result, Is.EqualTo("""["testValue"]"""));
         }
 
         /// <summary>
@@ -6315,7 +6703,7 @@ namespace Opc.Ua.UnitTests
             encoder.WriteString(null, string.Empty);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Is.EqualTo("[\"\"]"));
+            Assert.That(result, Is.EqualTo("""[""]"""));
         }
 
         /// <summary>
@@ -6334,7 +6722,7 @@ namespace Opc.Ua.UnitTests
             encoder.WriteString("testField", null);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"{\"testField\":null}"));
+            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"""{"testField":null}"""));
         }
 
         /// <summary>
@@ -6348,13 +6736,15 @@ namespace Opc.Ua.UnitTests
             var messageContext = new ServiceMessageContext(telemetryContext);
             using var stream = new MemoryStream();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
-            string longFieldName = new string ('a', 10000);
+            string longFieldName = new('a', 10000);
             // Act
             encoder.WriteString(longFieldName, "value");
             string result = GetJsonOutput(encoder, stream);
             // Assert
             Assert.That(result, Does.Contain(longFieldName));
-            Assert.That(result, Does.Contain("\"value\""));
+            Assert.That(result, Does.Contain("""
+                "value"
+                """));
         }
 
         /// <summary>
@@ -6372,7 +6762,7 @@ namespace Opc.Ua.UnitTests
             encoder.WriteString("测试字段", "测试值");
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"{\"测试字段\":\"测试值\"}"));
+            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"""{"测试字段":"测试值"}"""));
         }
 
         /// <summary>
@@ -6390,7 +6780,7 @@ namespace Opc.Ua.UnitTests
             encoder.WriteString("field", "Café ☕ 日本語");
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"{\"field\":\"Café ☕ 日本語\"}"));
+            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"""{"field":"Café ☕ 日本語"}"""));
         }
 
         /// <summary>
@@ -6408,7 +6798,7 @@ namespace Opc.Ua.UnitTests
             encoder.WriteString("🔑field", "🎉value🎊");
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"{\"🔑field\":\"🎉value🎊\"}"));
+            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"""{"🔑field":"🎉value🎊"}"""));
         }
 
         /// <summary>
@@ -6429,7 +6819,7 @@ namespace Opc.Ua.UnitTests
             encoder.WriteString("field3", "value3");
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"{\"field1\":\"value1\",\"field3\":\"value3\"}"));
+            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"""{"field1":"value1","field3":"value3"}"""));
         }
 
         /// <summary>
@@ -6465,7 +6855,7 @@ namespace Opc.Ua.UnitTests
             encoder.WriteString("field\nname", "value");
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"{\"field\\nname\":\"value\"}"));
+            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"""{"field\nname":"value"}"""));
         }
 
         /// <summary>
@@ -6487,7 +6877,7 @@ namespace Opc.Ua.UnitTests
             encoder.WriteString("d", "valueD");
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"{\"a\":\"valueA\",\"d\":\"valueD\"}"));
+            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"""{"a":"valueA","d":"valueD"}"""));
         }
 
         /// <summary>
@@ -6502,7 +6892,7 @@ namespace Opc.Ua.UnitTests
             var messageContext = new ServiceMessageContext(telemetryContext);
             using var stream = new MemoryStream();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
-            string extremelyLongValue = new string ('x', 100000); // Use 100k to keep test reasonable
+            string extremelyLongValue = new('x', 100000); // Use 100k to keep test reasonable
             // Act
             encoder.WriteString("field", extremelyLongValue);
             string result = GetJsonOutput(encoder, stream);
@@ -6526,13 +6916,15 @@ namespace Opc.Ua.UnitTests
             encoder.WriteString("field\t\r\n\b\f\\\"", "value");
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\\t"));
-            Assert.That(result, Does.Contain("\\r"));
-            Assert.That(result, Does.Contain("\\n"));
-            Assert.That(result, Does.Contain("\\b"));
-            Assert.That(result, Does.Contain("\\f"));
-            Assert.That(result, Does.Contain("\\\\"));
-            Assert.That(result, Does.Contain("\\\""));
+            Assert.That(result, Does.Contain("""\t"""));
+            Assert.That(result, Does.Contain("""\r"""));
+            Assert.That(result, Does.Contain("""\n"""));
+            Assert.That(result, Does.Contain("""\b"""));
+            Assert.That(result, Does.Contain("""\f"""));
+            Assert.That(result, Does.Contain("""\\"""));
+            Assert.That(result, Does.Contain("""
+                \"
+                """));
         }
 
         /// <summary>
@@ -6552,7 +6944,7 @@ namespace Opc.Ua.UnitTests
             encoder.WriteString("afterSwitch", "value");
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"{\"afterSwitch\":\"value\"}"));
+            Assert.That(result, Is.EqualTo( /*lang=json,strict*/"""{"afterSwitch":"value"}"""));
         }
 
         /// <summary>
@@ -6565,7 +6957,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             ExtensionObject value = ExtensionObject.Null;
             // Act
@@ -6586,7 +6978,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, true, stream);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, true, stream, true);
             ExtensionObject value = ExtensionObject.Null;
             // Act
             encoder.WriteExtensionObject(null, value);
@@ -6605,14 +6997,16 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, false, stream);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, false, stream, true);
             encoder.PushStructure(null);
             ExtensionObject value = ExtensionObject.Null;
             // Act
             encoder.WriteExtensionObject("testField", value);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
         }
 
         /// <summary>
@@ -6625,7 +7019,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             var typeId = new ExpandedNodeId(100);
             ExtensionObject value = new ExtensionObject(typeId);
@@ -6647,17 +7041,21 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             var typeId = new ExpandedNodeId(777);
-            string jsonBody = "{\"field1\":\"value1\",\"field2\":42}";
+            string jsonBody = /*lang=json,strict*/ """{"field1":"value1","field2":42}""";
             ExtensionObject value = new ExtensionObject(typeId, jsonBody);
             // Act
             encoder.WriteExtensionObject("testField", value);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Contain("\"UaTypeId\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "UaTypeId"
+                """));
             Assert.That(result, Does.Contain("field1"));
             Assert.That(result, Does.Contain("value1"));
         }
@@ -6672,18 +7070,22 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             encoder.SuppressArtifacts = true;
             encoder.PushStructure(null);
             var typeId = new ExpandedNodeId(888);
-            string jsonBody = "{\"data\":\"test\"}";
+            string jsonBody = /*lang=json,strict*/ """{"data":"test"}""";
             ExtensionObject value = new ExtensionObject(typeId, jsonBody);
             // Act
             encoder.WriteExtensionObject("testField", value);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Not.Contain("\"UaTypeId\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "UaTypeId"
+                """));
             Assert.That(result, Does.Contain("data"));
         }
 
@@ -6697,7 +7099,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             var typeId = new ExpandedNodeId(1001);
             var binaryData = new ByteString(new byte[] { 0x01, 0x02, 0x03, 0x04 });
@@ -6706,10 +7108,18 @@ namespace Opc.Ua.UnitTests
             encoder.WriteExtensionObject("testField", value);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Contain("\"UaTypeId\""));
-            Assert.That(result, Does.Contain("\"UaEncoding\""));
-            Assert.That(result, Does.Contain("\"UaBody\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "UaTypeId"
+                """));
+            Assert.That(result, Does.Contain("""
+                "UaEncoding"
+                """));
+            Assert.That(result, Does.Contain("""
+                "UaBody"
+                """));
         }
 
         /// <summary>
@@ -6722,7 +7132,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             encoder.SuppressArtifacts = true;
             encoder.PushStructure(null);
             var typeId = new ExpandedNodeId(2002);
@@ -6732,10 +7142,18 @@ namespace Opc.Ua.UnitTests
             encoder.WriteExtensionObject("testField", value);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Not.Contain("\"UaTypeId\""));
-            Assert.That(result, Does.Contain("\"UaEncoding\""));
-            Assert.That(result, Does.Contain("\"UaBody\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "UaTypeId"
+                """));
+            Assert.That(result, Does.Contain("""
+                "UaEncoding"
+                """));
+            Assert.That(result, Does.Contain("""
+                "UaBody"
+                """));
         }
 
         /// <summary>
@@ -6757,10 +7175,18 @@ namespace Opc.Ua.UnitTests
             encoder.WriteExtensionObject("testField", value);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Contain("\"UaTypeId\""));
-            Assert.That(result, Does.Contain("\"UaEncoding\""));
-            Assert.That(result, Does.Contain("\"UaBody\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "UaTypeId"
+                """));
+            Assert.That(result, Does.Contain("""
+                "UaEncoding"
+                """));
+            Assert.That(result, Does.Contain("""
+                "UaBody"
+                """));
         }
 
         /// <summary>
@@ -6773,7 +7199,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, false, stream);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, false, stream, true);
             encoder.SuppressArtifacts = true;
             encoder.PushStructure(null);
             var typeId = new ExpandedNodeId(4004);
@@ -6783,10 +7209,18 @@ namespace Opc.Ua.UnitTests
             encoder.WriteExtensionObject("testField", value);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Not.Contain("\"UaTypeId\""));
-            Assert.That(result, Does.Contain("\"UaEncoding\""));
-            Assert.That(result, Does.Contain("\"UaBody\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "UaTypeId"
+                """));
+            Assert.That(result, Does.Contain("""
+                "UaEncoding"
+                """));
+            Assert.That(result, Does.Contain("""
+                "UaBody"
+                """));
         }
 
         /// <summary>
@@ -6799,17 +7233,21 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, (JsonEncodingType)99, false, stream);
+            using var encoder = new JsonEncoder(messageContext, (JsonEncodingType)99, false, stream, true);
             encoder.PushStructure(null);
             var typeId = new ExpandedNodeId(6006);
-            string jsonBody = "{\"key\":\"value\"}";
+            string jsonBody = /*lang=json,strict*/ """{"key":"value"}""";
             ExtensionObject value = new ExtensionObject(typeId, jsonBody);
             // Act
             encoder.WriteExtensionObject("testField", value);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Contain("\"TypeId\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "TypeId"
+                """));
             Assert.That(result, Does.Contain("key"));
         }
 
@@ -6823,7 +7261,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, (JsonEncodingType)99, false, stream);
+            using var encoder = new JsonEncoder(messageContext, (JsonEncodingType)99, false, stream, true);
             encoder.PushStructure(null);
             var typeId = new ExpandedNodeId(7007);
             var binaryData = new ByteString(new byte[] { 0xFF, 0xEE, 0xDD });
@@ -6832,10 +7270,18 @@ namespace Opc.Ua.UnitTests
             encoder.WriteExtensionObject("testField", value);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Contain("\"TypeId\""));
-            Assert.That(result, Does.Contain("\"Encoding\""));
-            Assert.That(result, Does.Contain("\"Body\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "TypeId"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Encoding"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Body"
+                """));
         }
 
         /// <summary>
@@ -6848,7 +7294,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, (JsonEncodingType)99, false, stream);
+            using var encoder = new JsonEncoder(messageContext, (JsonEncodingType)99, false, stream, true);
             encoder.PushStructure(null);
             var typeId = new ExpandedNodeId(8008);
             var xmlElement = new XmlElement("<test>content</test>");
@@ -6857,10 +7303,18 @@ namespace Opc.Ua.UnitTests
             encoder.WriteExtensionObject("testField", value);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Contain("\"TypeId\""));
-            Assert.That(result, Does.Contain("\"Encoding\""));
-            Assert.That(result, Does.Contain("\"Body\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "TypeId"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Encoding"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Body"
+                """));
         }
 
         /// <summary>
@@ -6873,7 +7327,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, (JsonEncodingType)99, false, stream);
+            using var encoder = new JsonEncoder(messageContext, (JsonEncodingType)99, false, stream, true);
             encoder.PushStructure(null);
             var typeId = new ExpandedNodeId(13013);
             ExtensionObject value = new ExtensionObject(typeId);
@@ -6881,8 +7335,12 @@ namespace Opc.Ua.UnitTests
             encoder.WriteExtensionObject("testField", value);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Contain("\"TypeId\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "TypeId"
+                """));
         }
 
         /// <summary>
@@ -6895,7 +7353,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             var typeId1 = new ExpandedNodeId(14014);
             var typeId2 = new ExpandedNodeId(15015);
@@ -6906,9 +7364,15 @@ namespace Opc.Ua.UnitTests
             encoder.WriteExtensionObject("field2", value2);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\"field1\""));
-            Assert.That(result, Does.Contain("\"field2\""));
-            Assert.That(result, Does.Contain("\"UaEncoding\""));
+            Assert.That(result, Does.Contain("""
+                "field1"
+                """));
+            Assert.That(result, Does.Contain("""
+                "field2"
+                """));
+            Assert.That(result, Does.Contain("""
+                "UaEncoding"
+                """));
         }
 
         /// <summary>
@@ -6921,17 +7385,21 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             var typeId = new ExpandedNodeId(16016);
-            var binaryData = new ByteString(new byte[0]);
+            var binaryData = new ByteString(Array.Empty<byte>());
             ExtensionObject value = new ExtensionObject(typeId, binaryData);
             // Act
             encoder.WriteExtensionObject("testField", value);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Contain("\"UaBody\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "UaBody"
+                """));
         }
 
         /// <summary>
@@ -6944,7 +7412,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             var typeId = new ExpandedNodeId(17017);
             var largeData = new byte[10000];
@@ -6959,8 +7427,12 @@ namespace Opc.Ua.UnitTests
             encoder.WriteExtensionObject("testField", value);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Contain("\"UaBody\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "UaBody"
+                """));
             Assert.That(result.Length, Is.GreaterThan(1000));
         }
 
@@ -6974,7 +7446,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             var typeId = new ExpandedNodeId(18018);
             string jsonBody = "{}";
@@ -6983,7 +7455,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteExtensionObject("testField", value);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
         }
 
         /// <summary>
@@ -7005,8 +7479,12 @@ namespace Opc.Ua.UnitTests
             encoder.WriteExtensionObject("testField", value);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Contain("\"UaBody\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "UaBody"
+                """));
         }
 
         /// <summary>
@@ -7026,7 +7504,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":null"));
+            Assert.That(result, Does.Contain("""
+                "testField":null
+                """));
         }
 
         /// <summary>
@@ -7046,7 +7526,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":null"));
+            Assert.That(result, Does.Contain("""
+                "testField":null
+                """));
         }
 
         /// <summary>
@@ -7059,14 +7541,16 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
-            var values = new ArrayOf<double>(Array.Empty<double>());
+            var values = new ArrayOf<double>([]);
             // Act
             encoder.PushStructure("root");
             encoder.WriteDoubleArray("testField", values);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":null"));
+            Assert.That(result, Does.Contain("""
+                "testField":null
+                """));
         }
 
         /// <summary>
@@ -7079,14 +7563,16 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
-            var values = new ArrayOf<double>(Array.Empty<double>());
+            var values = new ArrayOf<double>([]);
             // Act
             encoder.PushStructure("root");
             encoder.WriteDoubleArray("testField", values);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":[]"));
+            Assert.That(result, Does.Contain("""
+                "testField":[]
+                """));
         }
 
         /// <summary>
@@ -7106,7 +7592,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":[42.5]"));
+            Assert.That(result, Does.Contain("""
+                "testField":[42.5]
+                """));
         }
 
         /// <summary>
@@ -7126,7 +7614,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":[1,2.5,3.14159]"));
+            Assert.That(result, Does.Contain("""
+                "testField":[1,2.5,3.14159]
+                """));
         }
 
         /// <summary>
@@ -7146,7 +7636,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"NaN\""));
+            Assert.That(result, Does.Contain("""
+                "NaN"
+                """));
         }
 
         /// <summary>
@@ -7166,7 +7658,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"Infinity\""));
+            Assert.That(result, Does.Contain("""
+                "Infinity"
+                """));
         }
 
         /// <summary>
@@ -7186,7 +7680,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"-Infinity\""));
+            Assert.That(result, Does.Contain("""
+                "-Infinity"
+                """));
         }
 
         /// <summary>
@@ -7246,7 +7742,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":[0]"));
+            Assert.That(result, Does.Contain("""
+                "testField":[0]
+                """));
         }
 
         /// <summary>
@@ -7326,10 +7824,18 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":"));
-            Assert.That(result, Does.Contain("\"NaN\""));
-            Assert.That(result, Does.Contain("\"Infinity\""));
-            Assert.That(result, Does.Contain("\"-Infinity\""));
+            Assert.That(result, Does.Contain("""
+                "testField":
+                """));
+            Assert.That(result, Does.Contain("""
+                "NaN"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Infinity"
+                """));
+            Assert.That(result, Does.Contain("""
+                "-Infinity"
+                """));
         }
 
         /// <summary>
@@ -7349,7 +7855,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":"));
+            Assert.That(result, Does.Contain("""
+                "testField":
+                """));
             Assert.That(result, Is.Not.Empty);
         }
 
@@ -7370,7 +7878,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":"));
+            Assert.That(result, Does.Contain("""
+                "testField":
+                """));
             Assert.That(result, Is.Not.Empty);
         }
 
@@ -7392,7 +7902,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":null"));
+            Assert.That(result, Does.Contain("""
+                "TestField":null
+                """));
         }
 
         /// <summary>
@@ -7413,7 +7925,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":null"));
+            Assert.That(result, Does.Contain("""
+                "TestField":null
+                """));
         }
 
         /// <summary>
@@ -7428,13 +7942,15 @@ namespace Opc.Ua.UnitTests
             var context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
-            var emptyArray = new ArrayOf<DataValue>(Array.Empty<DataValue>());
+            var emptyArray = new ArrayOf<DataValue>([]);
             // Act
             encoder.WriteDataValueArray("TestField", emptyArray);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":null"));
+            Assert.That(result, Does.Contain("""
+                "TestField":null
+                """));
         }
 
         /// <summary>
@@ -7449,13 +7965,15 @@ namespace Opc.Ua.UnitTests
             var context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             encoder.PushStructure(null);
-            var emptyArray = new ArrayOf<DataValue>(Array.Empty<DataValue>());
+            var emptyArray = new ArrayOf<DataValue>([]);
             // Act
             encoder.WriteDataValueArray("TestField", emptyArray);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":[]"));
+            Assert.That(result, Does.Contain("""
+                "TestField":[]
+                """));
         }
 
         /// <summary>
@@ -7477,8 +7995,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":["));
-            Assert.That(result, Does.Contain("\"Value\":42"));
+            Assert.That(result, Does.Contain("""
+                "TestField":[
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value":42
+                """));
         }
 
         /// <summary>
@@ -7502,10 +8024,18 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":["));
-            Assert.That(result, Does.Contain("\"Value\":10"));
-            Assert.That(result, Does.Contain("\"Value\":20"));
-            Assert.That(result, Does.Contain("\"Value\":30"));
+            Assert.That(result, Does.Contain("""
+                "TestField":[
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value":10
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value":20
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value":30
+                """));
         }
 
         /// <summary>
@@ -7525,8 +8055,12 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDataValueArray(null, array);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"Value\":100"));
-            Assert.That(result, Does.Not.Contain("\"TestField\":"));
+            Assert.That(result, Does.Contain("""
+                "Value":100
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "TestField":
+                """));
         }
 
         /// <summary>
@@ -7546,7 +8080,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDataValueArray("", array);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"Value\":200"));
+            Assert.That(result, Does.Contain("""
+                "Value":200
+                """));
         }
 
         /// <summary>
@@ -7564,11 +8100,11 @@ namespace Opc.Ua.UnitTests
             var dataValue = new DataValue(new Variant(123));
             var array = new ArrayOf<DataValue>([dataValue]);
             // Act
-            encoder.WriteDataValueArray("Test\"Field\\Name", array);
+            encoder.WriteDataValueArray("""Test"Field\Name""", array);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("Test\\\"Field\\\\Name"));
+            Assert.That(result, Does.Contain("""Test\"Field\\Name"""));
         }
 
         /// <summary>
@@ -7621,10 +8157,18 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":["));
-            Assert.That(result, Does.Contain("\"Value\":1"));
-            Assert.That(result, Does.Contain("\"Value\":2"));
-            Assert.That(result, Does.Contain("\"Value\":3"));
+            Assert.That(result, Does.Contain("""
+                "TestField":[
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value":1
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value":2
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value":3
+                """));
         }
 
         /// <summary>
@@ -7651,9 +8195,15 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":["));
-            Assert.That(result, Does.Contain("\"Value\":100"));
-            Assert.That(result, Does.Contain("\"Value\":200"));
+            Assert.That(result, Does.Contain("""
+                "TestField":[
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value":100
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value":200
+                """));
         }
 
         /// <summary>
@@ -7681,10 +8231,18 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":["));
-            Assert.That(result, Does.Contain("\"Value\":1"));
-            Assert.That(result, Does.Contain("\"Value\":2"));
-            Assert.That(result, Does.Contain("\"Value\":3"));
+            Assert.That(result, Does.Contain("""
+                "TestField":[
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value":1
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value":2
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value":3
+                """));
         }
 
         /// <summary>
@@ -7705,8 +8263,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":["));
-            Assert.That(result, Does.Contain("\"Value\":42"));
+            Assert.That(result, Does.Contain("""
+                "TestField":[
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value":42
+                """));
         }
 
         /// <summary>
@@ -7736,8 +8298,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":["));
-            Assert.That(result, Does.Contain("\"Value\":123"));
+            Assert.That(result, Does.Contain("""
+                "TestField":[
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value":123
+                """));
         }
 
         /// <summary>
@@ -7788,9 +8354,15 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":["));
-            Assert.That(result, Does.Contain("\"Value\":999"));
-            Assert.That(result, Does.Contain("\"Value\":888"));
+            Assert.That(result, Does.Contain("""
+                "TestField":[
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value":999
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value":888
+                """));
         }
 
         /// <summary>
@@ -7864,8 +8436,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\""));
-            Assert.That(result, Does.Contain("\"Value\""));
+            Assert.That(result, Does.Contain("""
+                "TestField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value"
+                """));
             Assert.That(result, Does.Contain("42"));
         }
 
@@ -7885,7 +8461,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\""));
+            Assert.That(result, Does.Contain("""
+                "TestField"
+                """));
             Assert.That(result, Does.Contain("{"));
             Assert.That(result, Does.Contain("}"));
         }
@@ -7906,8 +8484,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\""));
-            Assert.That(result, Does.Contain("\"Value\""));
+            Assert.That(result, Does.Contain("""
+                "TestField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value"
+                """));
             Assert.That(result, Does.Contain("true"));
         }
 
@@ -7927,7 +8509,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"Value\""));
+            Assert.That(result, Does.Contain("""
+                "Value"
+                """));
             Assert.That(result, Does.Contain("123"));
         }
 
@@ -7947,8 +8531,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"Field\""));
-            Assert.That(result, Does.Contain("\"Value\""));
+            Assert.That(result, Does.Contain("""
+                "Field"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value"
+                """));
             Assert.That(result, Does.Contain("test string"));
         }
 
@@ -7968,8 +8556,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"DoubleField\""));
-            Assert.That(result, Does.Contain("\"Value\""));
+            Assert.That(result, Does.Contain("""
+                "DoubleField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value"
+                """));
             Assert.That(result, Does.Contain("3.14159"));
         }
 
@@ -7990,8 +8582,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"DateField\""));
-            Assert.That(result, Does.Contain("\"Value\""));
+            Assert.That(result, Does.Contain("""
+                "DateField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value"
+                """));
         }
 
         /// <summary>
@@ -8018,8 +8614,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"ArrayField\""));
-            Assert.That(result, Does.Contain("\"Value\""));
+            Assert.That(result, Does.Contain("""
+                "ArrayField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value"
+                """));
         }
 
         /// <summary>
@@ -8038,8 +8638,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"BoolField\""));
-            Assert.That(result, Does.Contain("\"Value\""));
+            Assert.That(result, Does.Contain("""
+                "BoolField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value"
+                """));
             Assert.That(result, Does.Contain("false"));
         }
 
@@ -8060,8 +8664,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"NodeIdField\""));
-            Assert.That(result, Does.Contain("\"Value\""));
+            Assert.That(result, Does.Contain("""
+                "NodeIdField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value"
+                """));
         }
 
         /// <summary>
@@ -8080,8 +8688,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"ByteField\""));
-            Assert.That(result, Does.Contain("\"Value\""));
+            Assert.That(result, Does.Contain("""
+                "ByteField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value"
+                """));
             Assert.That(result, Does.Contain("255"));
         }
 
@@ -8103,8 +8715,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"Field1\""));
-            Assert.That(result, Does.Contain("\"Field2\""));
+            Assert.That(result, Does.Contain("""
+                "Field1"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Field2"
+                """));
         }
 
         /// <summary>
@@ -8123,8 +8739,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"ZeroField\""));
-            Assert.That(result, Does.Contain("\"Value\""));
+            Assert.That(result, Does.Contain("""
+                "ZeroField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value"
+                """));
             Assert.That(result, Does.Contain("0"));
         }
 
@@ -8144,8 +8764,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"NegField\""));
-            Assert.That(result, Does.Contain("\"Value\""));
+            Assert.That(result, Does.Contain("""
+                "NegField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value"
+                """));
             Assert.That(result, Does.Contain("-999"));
         }
 
@@ -8165,8 +8789,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"MaxLong\""));
-            Assert.That(result, Does.Contain("\"Value\""));
+            Assert.That(result, Does.Contain("""
+                "MaxLong"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value"
+                """));
         }
 
         /// <summary>
@@ -8185,8 +8813,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"MinLong\""));
-            Assert.That(result, Does.Contain("\"Value\""));
+            Assert.That(result, Does.Contain("""
+                "MinLong"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value"
+                """));
         }
 
         /// <summary>
@@ -8205,8 +8837,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"MaxULong\""));
-            Assert.That(result, Does.Contain("\"Value\""));
+            Assert.That(result, Does.Contain("""
+                "MaxULong"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value"
+                """));
         }
 
         /// <summary>
@@ -8225,7 +8861,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"Value\""));
+            Assert.That(result, Does.Contain("""
+                "Value"
+                """));
             Assert.That(result, Does.Contain("42"));
         }
 
@@ -8241,13 +8879,17 @@ namespace Opc.Ua.UnitTests
             var variant = new Variant(100);
             // Act
             encoder.PushStructure(null);
-            encoder.WriteVariant("field\"with\\quotes", variant);
+            encoder.WriteVariant("""field"with\quotes""", variant);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\\\""));
-            Assert.That(result, Does.Contain("\\\\"));
-            Assert.That(result, Does.Contain("\"Value\""));
+            Assert.That(result, Does.Contain("""
+                \"
+                """));
+            Assert.That(result, Does.Contain("""\\"""));
+            Assert.That(result, Does.Contain("""
+                "Value"
+                """));
         }
 
         /// <summary>
@@ -8266,7 +8908,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopArray();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"Value\""));
+            Assert.That(result, Does.Contain("""
+                "Value"
+                """));
             Assert.That(result, Does.Contain("777"));
         }
 
@@ -8286,7 +8930,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopArray();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"Value\""));
+            Assert.That(result, Does.Contain("""
+                "Value"
+                """));
             Assert.That(result, Does.Contain("888"));
         }
 
@@ -8308,7 +8954,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":null"));
+            Assert.That(result, Does.Contain("""
+                "TestField":null
+                """));
         }
 
         /// <summary>
@@ -8323,7 +8971,7 @@ namespace Opc.Ua.UnitTests
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
-            ArrayOf<ushort> emptyArray = ArrayOf<ushort>.Empty;
+            ArrayOf<ushort> emptyArray = [];
             // Act
             encoder.WriteUInt16Array("TestField", emptyArray);
             encoder.PopStructure();
@@ -8344,13 +8992,15 @@ namespace Opc.Ua.UnitTests
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose);
             encoder.PushStructure(null);
-            ArrayOf<ushort> emptyArray = ArrayOf<ushort>.Empty;
+            ArrayOf<ushort> emptyArray = [];
             // Act
             encoder.WriteUInt16Array("TestField", emptyArray);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":[]"));
+            Assert.That(result, Does.Contain("""
+                "TestField":[]
+                """));
         }
 
         /// <summary>
@@ -8374,7 +9024,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":[42]"));
+            Assert.That(result, Does.Contain("""
+                "TestField":[42]
+                """));
         }
 
         /// <summary>
@@ -8402,7 +9054,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":[10,20,30,40,50]"));
+            Assert.That(result, Does.Contain("""
+                "TestField":[10,20,30,40,50]
+                """));
         }
 
         /// <summary>
@@ -8428,7 +9082,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain($"\"TestField\":[{minVal},{maxVal}]"));
+            Assert.That(result, Does.Contain($"""
+                "TestField":[{minVal},{maxVal}]
+                """));
         }
 
         /// <summary>
@@ -8539,7 +9195,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":[10,20,30]"));
+            Assert.That(result, Does.Contain("""
+                "TestField":[10,20,30]
+                """));
         }
 
         /// <summary>
@@ -8576,7 +9234,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":[1,2,3,4,5,6,7,8,9,10]"));
+            Assert.That(result, Does.Contain("""
+                "TestField":[1,2,3,4,5,6,7,8,9,10]
+                """));
         }
 
         /// <summary>
@@ -8596,11 +9256,13 @@ namespace Opc.Ua.UnitTests
                 123
             };
             // Act
-            encoder.WriteUInt16Array("Test\"Field", values);
+            encoder.WriteUInt16Array("""Test"Field""", values);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"Test\\\"Field\":[123]"));
+            Assert.That(result, Does.Contain("""
+                "Test\"Field":[123]
+                """));
         }
 
         /// <summary>
@@ -8626,7 +9288,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":[5,10,15]"));
+            Assert.That(result, Does.Contain("""
+                "TestField":[5,10,15]
+                """));
         }
 
         /// <summary>
@@ -8653,7 +9317,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":[0,1000,32768,65535]"));
+            Assert.That(result, Does.Contain("""
+                "TestField":[0,1000,32768,65535]
+                """));
         }
 
         /// <summary>
@@ -8684,7 +9350,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":"));
+            Assert.That(result, Does.Contain("""
+                "TestField":
+                """));
             Assert.That(result, Does.Contain("[0,100,200"));
         }
 
@@ -8729,7 +9397,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"items\":null"));
+            Assert.That(result, Does.Contain("""
+                "items":null
+                """));
         }
 
         /// <summary>
@@ -8771,7 +9441,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"enumArray\":null"));
+            Assert.That(result, Does.Contain("""
+                "enumArray":null
+                """));
         }
 
         /// <summary>
@@ -8783,14 +9455,16 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose);
-            ArrayOf<TestEnum> values = ArrayOf<TestEnum>.Empty;
+            ArrayOf<TestEnum> values = [];
             // Act
             encoder.PushStructure(null);
             encoder.WriteEnumeratedArray("enumArray", values);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"enumArray\":null"));
+            Assert.That(result, Does.Contain("""
+                "enumArray":null
+                """));
         }
 
         /// <summary>
@@ -8812,7 +9486,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"enumArray\":["));
+            Assert.That(result, Does.Contain("""
+                "enumArray":[
+                """));
             Assert.That(result, Does.Contain("1"));
         }
 
@@ -8837,7 +9513,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"enumArray\":["));
+            Assert.That(result, Does.Contain("""
+                "enumArray":[
+                """));
             Assert.That(result, Does.Contain("1"));
             Assert.That(result, Does.Contain("2"));
             Assert.That(result, Does.Contain("3"));
@@ -8893,7 +9571,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"enumArray\":["));
+            Assert.That(result, Does.Contain("""
+                "enumArray":[
+                """));
             Assert.That(result, Does.Contain("1"));
             Assert.That(result, Does.Contain("2"));
             Assert.That(result, Does.Contain("3"));
@@ -8924,7 +9604,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"enumArray\":["));
+            Assert.That(result, Does.Contain("""
+                "enumArray":[
+                """));
             Assert.That(result, Does.Contain("1"));
             Assert.That(result, Does.Contain("2"));
             Assert.That(result, Does.Contain("3"));
@@ -8947,7 +9629,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEnumeratedArray(null, values);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Not.Contain("\"enumArray\""));
+            Assert.That(result, Does.Not.Contain("""
+                "enumArray"
+                """));
             Assert.That(result, Does.Contain("[1]"));
         }
 
@@ -9003,11 +9687,13 @@ namespace Opc.Ua.UnitTests
             };
             // Act
             encoder.PushStructure(null);
-            encoder.WriteEnumeratedArray("enum\"Array", values);
+            encoder.WriteEnumeratedArray("""enum"Array""", values);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\\\""));
+            Assert.That(result, Does.Contain("""
+                \"
+                """));
         }
 
         /// <summary>
@@ -9030,7 +9716,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"flagsArray\":["));
+            Assert.That(result, Does.Contain("""
+                "flagsArray":[
+                """));
             Assert.That(result, Does.Contain("1"));
             Assert.That(result, Does.Contain("3"));
         }
@@ -9054,7 +9742,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"enumArray\":["));
+            Assert.That(result, Does.Contain("""
+                "enumArray":[
+                """));
             Assert.That(result, Does.Contain("0"));
         }
 
@@ -9080,7 +9770,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"enumArray\":["));
+            Assert.That(result, Does.Contain("""
+                "enumArray":[
+                """));
             Assert.That(result.Length, Is.GreaterThan(0));
         }
 
@@ -9100,7 +9792,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Not.Contain("\"enumArray\""));
+            Assert.That(result, Does.Not.Contain("""
+                "enumArray"
+                """));
         }
 
         /// <summary>
@@ -9125,7 +9819,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"enumArray\":["));
+            Assert.That(result, Does.Contain("""
+                "enumArray":[
+                """));
             Assert.That(result, Does.Contain("0"));
             Assert.That(result, Does.Contain("1"));
             Assert.That(result, Does.Contain("2"));
@@ -9176,7 +9872,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"enumArray\":["));
+            Assert.That(result, Does.Contain("""
+                "enumArray":[
+                """));
             Assert.That(result, Does.Contain("99"));
         }
 
@@ -9408,7 +10106,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Does.Contain("empty"));
-            Assert.That(result, Does.Contain("\"\""));
+            Assert.That(result, Does.Contain("""
+                ""
+                """));
         }
 
         /// <summary>
@@ -9430,7 +10130,7 @@ namespace Opc.Ua.UnitTests
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Does.Contain("special"));
-            Assert.That(result, Does.Contain("\\n").Or.Contains("\\t"));
+            Assert.That(result, Does.Contain("""\n""").Or.Contains("""\t"""));
         }
 
         /// <summary>
@@ -9516,14 +10216,18 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             // Act
             encoder.WriteInt64("TestField", 42L);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"TestField\""));
-            Assert.That(result, Does.Contain("\"42\""));
+            Assert.That(result, Does.Contain("""
+                "TestField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "42"
+                """));
         }
 
         /// <summary>
@@ -9535,7 +10239,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             // Act
             encoder.WriteInt64("TestField", 0L);
@@ -9559,8 +10263,12 @@ namespace Opc.Ua.UnitTests
             encoder.WriteInt64("TestField", 0L);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"TestField\""));
-            Assert.That(result, Does.Contain("\"0\""));
+            Assert.That(result, Does.Contain("""
+                "TestField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "0"
+                """));
         }
 
         /// <summary>
@@ -9572,14 +10280,18 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             // Act
             encoder.WriteInt64("TestField", long.MinValue);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"TestField\""));
-            Assert.That(result, Does.Contain("\"-9223372036854775808\""));
+            Assert.That(result, Does.Contain("""
+                "TestField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "-9223372036854775808"
+                """));
         }
 
         /// <summary>
@@ -9591,14 +10303,18 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             // Act
             encoder.WriteInt64("TestField", long.MaxValue);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"TestField\""));
-            Assert.That(result, Does.Contain("\"9223372036854775807\""));
+            Assert.That(result, Does.Contain("""
+                "TestField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "9223372036854775807"
+                """));
         }
 
         /// <summary>
@@ -9610,14 +10326,18 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             // Act
             encoder.WriteInt64("TestField", -1234567890123L);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"TestField\""));
-            Assert.That(result, Does.Contain("\"-1234567890123\""));
+            Assert.That(result, Does.Contain("""
+                "TestField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "-1234567890123"
+                """));
         }
 
         /// <summary>
@@ -9639,7 +10359,9 @@ namespace Opc.Ua.UnitTests
                 encoder.WriteInt64("TestField", 1234567890L);
                 // Assert
                 string result = GetJsonOutput(encoder, stream);
-                Assert.That(result, Does.Contain("\"1234567890\""));
+                Assert.That(result, Does.Contain("""
+                    "1234567890"
+                    """));
                 Assert.That(result, Does.Not.Contain("."));
                 Assert.That(result, Does.Not.Contain(","));
             }
@@ -9664,7 +10386,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteInt64("", 123L);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"123\""));
+            Assert.That(result, Does.Contain("""
+                "123"
+                """));
         }
 
         /// <summary>
@@ -9676,14 +10400,18 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             // Act
             encoder.WriteInt64(" ", 456L);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\" \""));
-            Assert.That(result, Does.Contain("\"456\""));
+            Assert.That(result, Does.Contain("""
+                " "
+                """));
+            Assert.That(result, Does.Contain("""
+                "456"
+                """));
         }
 
         /// <summary>
@@ -9695,14 +10423,18 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             // Act
             encoder.WriteInt64("Test\nField", 789L);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"Test\\nField\""));
-            Assert.That(result, Does.Contain("\"789\""));
+            Assert.That(result, Does.Contain("""
+                "Test\nField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "789"
+                """));
         }
 
         /// <summary>
@@ -9714,14 +10446,18 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             // Act
             encoder.WriteInt64("TestField", -1L);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"TestField\""));
-            Assert.That(result, Does.Contain("\"-1\""));
+            Assert.That(result, Does.Contain("""
+                "TestField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "-1"
+                """));
         }
 
         /// <summary>
@@ -9733,13 +10469,15 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushArray(null);
             // Act
             encoder.WriteInt64(null, 0L);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"0\""));
+            Assert.That(result, Does.Contain("""
+                "0"
+                """));
         }
 
         /// <summary>
@@ -9757,7 +10495,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteInt64(null, 999L);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"999\""));
+            Assert.That(result, Does.Contain("""
+                "999"
+                """));
         }
 
         /// <summary>
@@ -9798,7 +10538,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":\"\""));
+            Assert.That(result, Does.Contain("""
+                "testField":""
+                """));
         }
 
         /// <summary>
@@ -9818,7 +10560,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopArray();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"\""));
+            Assert.That(result, Does.Contain("""
+                ""
+                """));
         }
 
         /// <summary>
@@ -9838,7 +10582,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":\"TestName\""));
+            Assert.That(result, Does.Contain("""
+                "testField":"TestName"
+                """));
         }
 
         /// <summary>
@@ -9859,7 +10605,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":\"2:TestName\""));
+            Assert.That(result, Does.Contain("""
+                "testField":"2:TestName"
+                """));
         }
 
         /// <summary>
@@ -9901,7 +10649,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopArray();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestName\""));
+            Assert.That(result, Does.Contain("""
+                "TestName"
+                """));
             Assert.That(result, Does.Not.Contain("testField"));
         }
 
@@ -9921,7 +10671,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestName\""));
+            Assert.That(result, Does.Contain("""
+                "TestName"
+                """));
         }
 
         /// <summary>
@@ -9940,7 +10692,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"  \":\"TestName\""));
+            Assert.That(result, Does.Contain("""
+                "  ":"TestName"
+                """));
         }
 
         /// <summary>
@@ -9955,11 +10709,13 @@ namespace Opc.Ua.UnitTests
             var value = new QualifiedName("TestName", 0);
             // Act
             encoder.PushStructure("TestObject");
-            encoder.WriteQualifiedName("test\"field", value);
+            encoder.WriteQualifiedName("""test"field""", value);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"test\\\"field\":\"TestName\""));
+            Assert.That(result, Does.Contain("""
+                "test\"field":"TestName"
+                """));
         }
 
         /// <summary>
@@ -9971,7 +10727,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
-            var value = new QualifiedName("Test\"Name\\Value", 0);
+            var value = new QualifiedName("""Test"Name\Value""", 0);
             // Act
             encoder.PushStructure("TestObject");
             encoder.WriteQualifiedName("testField", value);
@@ -9979,8 +10735,10 @@ namespace Opc.Ua.UnitTests
             string result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(result, Does.Contain("testField"));
-            Assert.That(result, Does.Contain("\\\""));
-            Assert.That(result, Does.Contain("\\\\"));
+            Assert.That(result, Does.Contain("""
+                \"
+                """));
+            Assert.That(result, Does.Contain("""\\"""));
         }
 
         /// <summary>
@@ -10001,8 +10759,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"field1\":\"Name1\""));
-            Assert.That(result, Does.Contain("\"field2\":\"1:Name2\""));
+            Assert.That(result, Does.Contain("""
+                "field1":"Name1"
+                """));
+            Assert.That(result, Does.Contain("""
+                "field2":"1:Name2"
+                """));
         }
 
         /// <summary>
@@ -10021,7 +10783,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":\"\""));
+            Assert.That(result, Does.Contain("""
+                "testField":""
+                """));
         }
 
         /// <summary>
@@ -10033,7 +10797,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
-            string longName = new string ('A', 10000);
+            string longName = new('A', 10000);
             var value = new QualifiedName(longName, 0);
             // Act
             encoder.PushStructure("TestObject");
@@ -10062,7 +10826,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain($"\"{ushort.MaxValue}:TestName\""));
+            Assert.That(result, Does.Contain($"""
+                "{ushort.MaxValue}:TestName"
+                """));
         }
 
         /// <summary>
@@ -10082,7 +10848,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopArray();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"\""));
+            Assert.That(result, Does.Contain("""
+                ""
+                """));
         }
 
         /// <summary>
@@ -10101,7 +10869,7 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Is.EqualTo("{\"data\":null}"));
+            Assert.That(result, Is.EqualTo(/*lang=json,strict*/ """{"data":null}"""));
         }
 
         /// <summary>
@@ -10120,7 +10888,7 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Is.EqualTo("{\"data\":null}"));
+            Assert.That(result, Is.EqualTo(/*lang=json,strict*/ """{"data":null}"""));
         }
 
         /// <summary>
@@ -10150,13 +10918,13 @@ namespace Opc.Ua.UnitTests
             var context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
-            var values = new ArrayOf<byte>(Array.Empty<byte>());
+            var values = new ArrayOf<byte>([]);
             // Act
             encoder.WriteByteArray("data", values);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Is.EqualTo("{\"data\":[]}"));
+            Assert.That(result, Is.EqualTo(/*lang=json,strict*/ """{"data":[]}"""));
         }
 
         /// <summary>
@@ -10175,7 +10943,7 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Is.EqualTo("{\"data\":[42]}"));
+            Assert.That(result, Is.EqualTo(/*lang=json,strict*/ """{"data":[42]}"""));
         }
 
         /// <summary>
@@ -10194,7 +10962,7 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Is.EqualTo("{\"data\":[0,1,127,128,254,255]}"));
+            Assert.That(result, Is.EqualTo(/*lang=json,strict*/ """{"data":[0,1,127,128,254,255]}"""));
         }
 
         /// <summary>
@@ -10247,7 +11015,7 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Is.EqualTo("{\"bytes\":[11,22,33]}"));
+            Assert.That(result, Is.EqualTo(/*lang=json,strict*/ """{"bytes":[11,22,33]}"""));
         }
 
         /// <summary>
@@ -10262,11 +11030,13 @@ namespace Opc.Ua.UnitTests
             encoder.PushStructure(null);
             var values = new ArrayOf<byte>([99]);
             // Act
-            encoder.WriteByteArray("field\"with\\quotes", values);
+            encoder.WriteByteArray("""field"with\quotes""", values);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"field\\\"with\\\\quotes\""));
+            Assert.That(result, Does.Contain("""
+                "field\"with\\quotes"
+                """));
             Assert.That(result, Does.Contain("[99]"));
         }
 
@@ -10292,7 +11062,7 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.StartWith("{\"data\":["));
+            Assert.That(result, Does.StartWith("""{"data":["""));
             Assert.That(result, Does.EndWith("]}"));
             Assert.That(result, Does.Contain("0,1,2,3,4,5,6,7,8,9"));
         }
@@ -10315,7 +11085,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"data\":[]"));
+            Assert.That(result, Does.Contain("""
+                "data":[]
+                """));
         }
 
         /// <summary>
@@ -10353,7 +11125,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEncodeableArray("testField", values);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":null"));
+            Assert.That(result, Does.Contain("""
+                "testField":null
+                """));
         }
 
         /// <summary>
@@ -10365,12 +11139,14 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
-            var values = new ArrayOf<IEncodeable>(Array.Empty<IEncodeable>());
+            var values = new ArrayOf<IEncodeable>([]);
             // Act
             encoder.WriteEncodeableArray("testField", values);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":[]"));
+            Assert.That(result, Does.Contain("""
+                "testField":[]
+                """));
         }
 
         /// <summary>
@@ -10382,12 +11158,14 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
-            var values = new ArrayOf<IEncodeable>(Array.Empty<IEncodeable>());
+            var values = new ArrayOf<IEncodeable>([]);
             // Act
             encoder.WriteEncodeableArray("testField", values);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":null"));
+            Assert.That(result, Does.Contain("""
+                "testField":null
+                """));
         }
 
         /// <summary>
@@ -10440,8 +11218,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Contain("\"0\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "0"
+                """));
         }
 
         /// <summary>
@@ -10459,8 +11241,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Contain("\"42\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "42"
+                """));
         }
 
         /// <summary>
@@ -10479,7 +11265,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopArray();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"0\""));
+            Assert.That(result, Does.Contain("""
+                "0"
+                """));
         }
 
         /// <summary>
@@ -10498,8 +11286,12 @@ namespace Opc.Ua.UnitTests
             string result = encoder.CloseAndReturnText();
             // Assert
             string expectedValue = ulong.MaxValue.ToString(CultureInfo.InvariantCulture);
-            Assert.That(result, Does.Contain("\"maxValue\""));
-            Assert.That(result, Does.Contain($"\"{expectedValue}\""));
+            Assert.That(result, Does.Contain("""
+                "maxValue"
+                """));
+            Assert.That(result, Does.Contain($"""
+                "{expectedValue}"
+                """));
         }
 
         /// <summary>
@@ -10517,8 +11309,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"minValue\""));
-            Assert.That(result, Does.Contain("\"0\""));
+            Assert.That(result, Does.Contain("""
+                "minValue"
+                """));
+            Assert.That(result, Does.Contain("""
+                "0"
+                """));
         }
 
         /// <summary>
@@ -10539,8 +11335,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Contain($"\"{expectedString}\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Contain($"""
+                "{expectedString}"
+                """));
         }
 
         /// <summary>
@@ -10558,7 +11358,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopArray();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"123\""));
+            Assert.That(result, Does.Contain("""
+                "123"
+                """));
         }
 
         /// <summary>
@@ -10572,12 +11374,14 @@ namespace Opc.Ua.UnitTests
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose);
             encoder.PushStructure(null);
             // Act
-            encoder.WriteUInt64("field\"with\\quotes", 100);
+            encoder.WriteUInt64("""field"with\quotes""", 100);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("field\\\"with\\\\quotes"));
-            Assert.That(result, Does.Contain("\"100\""));
+            Assert.That(result, Does.Contain("""field\"with\\quotes"""));
+            Assert.That(result, Does.Contain("""
+                "100"
+                """));
         }
 
         /// <summary>
@@ -10597,9 +11401,15 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"field1\":\"100\""));
-            Assert.That(result, Does.Contain("\"field2\":\"200\""));
-            Assert.That(result, Does.Contain("\"field3\":\"300\""));
+            Assert.That(result, Does.Contain("""
+                "field1":"100"
+                """));
+            Assert.That(result, Does.Contain("""
+                "field2":"200"
+                """));
+            Assert.That(result, Does.Contain("""
+                "field3":"300"
+                """));
         }
 
         /// <summary>
@@ -10617,7 +11427,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Match("\"testField\"\\s*:\\s*\"42\""));
+            Assert.That(result, Does.Match("""
+                "testField"\s*:\s*"42"
+                """));
         }
 
         /// <summary>
@@ -10637,10 +11449,18 @@ namespace Opc.Ua.UnitTests
             encoder.PopArray();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"111\""));
-            Assert.That(result, Does.Contain("\"222\""));
-            Assert.That(result, Does.Contain("\"333\""));
-            Assert.That(result, Does.Not.Contain("\"testField\""));
+            Assert.That(result, Does.Contain("""
+                "111"
+                """));
+            Assert.That(result, Does.Contain("""
+                "222"
+                """));
+            Assert.That(result, Does.Contain("""
+                "333"
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "testField"
+                """));
         }
 
         /// <summary>
@@ -10658,8 +11478,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"   \""));
-            Assert.That(result, Does.Contain("\"50\""));
+            Assert.That(result, Does.Contain("""
+                "   "
+                """));
+            Assert.That(result, Does.Contain("""
+                "50"
+                """));
         }
 
         /// <summary>
@@ -10682,7 +11506,9 @@ namespace Opc.Ua.UnitTests
                 encoder.PopStructure();
                 string result = encoder.CloseAndReturnText();
                 // Assert - should use InvariantCulture (no thousand separators)
-                Assert.That(result, Does.Contain("\"1234567890\""));
+                Assert.That(result, Does.Contain("""
+                    "1234567890"
+                    """));
                 Assert.That(result, Does.Not.Contain("."));
             }
             finally
@@ -10706,7 +11532,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopArray();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"0\""));
+            Assert.That(result, Does.Contain("""
+                "0"
+                """));
         }
 
         /// <summary>
@@ -10726,7 +11554,7 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Is.EqualTo("{\"root\":{}}"));
+            Assert.That(result, Is.EqualTo(/*lang=json,strict*/ """{"root":{}}"""));
         }
 
         /// <summary>
@@ -10746,7 +11574,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":{}"));
+            Assert.That(result, Does.Contain("""
+                "testField":{}
+                """));
         }
 
         /// <summary>
@@ -10785,9 +11615,15 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"message\":{"));
-            Assert.That(result, Does.Contain("\"Text\":\"Hello World\""));
-            Assert.That(result, Does.Not.Contain("\"Locale\""));
+            Assert.That(result, Does.Contain("""
+                "message":{
+                """));
+            Assert.That(result, Does.Contain("""
+                "Text":"Hello World"
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "Locale"
+                """));
         }
 
         /// <summary>
@@ -10806,9 +11642,15 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"message\":{"));
-            Assert.That(result, Does.Contain("\"Text\":\"Hello World\""));
-            Assert.That(result, Does.Contain("\"Locale\":\"en-US\""));
+            Assert.That(result, Does.Contain("""
+                "message":{
+                """));
+            Assert.That(result, Does.Contain("""
+                "Text":"Hello World"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Locale":"en-US"
+                """));
         }
 
         /// <summary>
@@ -10827,8 +11669,10 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\\\"quotes\\\""));
-            Assert.That(result, Does.Contain("\\n"));
+            Assert.That(result, Does.Contain("""
+                \"quotes\"
+                """));
+            Assert.That(result, Does.Contain("""\n"""));
         }
 
         /// <summary>
@@ -10840,14 +11684,16 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
-            var value = new LocalizedText("en\"US", "Test");
+            var value = new LocalizedText("""en"US""", "Test");
             // Act
             encoder.PushStructure("root");
             encoder.WriteLocalizedText("message", value);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"Locale\":\"en\\\"US\""));
+            Assert.That(result, Does.Contain("""
+                "Locale":"en\"US"
+                """));
         }
 
         /// <summary>
@@ -10866,8 +11712,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"Text\":\"Test Text\""));
-            Assert.That(result, Does.Not.Contain("\"Locale\""));
+            Assert.That(result, Does.Contain("""
+                "Text":"Test Text"
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "Locale"
+                """));
         }
 
         /// <summary>
@@ -10886,8 +11736,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"Text\":\"Test Text\""));
-            Assert.That(result, Does.Not.Contain("\"Locale\""));
+            Assert.That(result, Does.Contain("""
+                "Text":"Test Text"
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "Locale"
+                """));
         }
 
         /// <summary>
@@ -10926,8 +11780,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"   \":{"));
-            Assert.That(result, Does.Contain("\"Text\":\"Test\""));
+            Assert.That(result, Does.Contain("""
+                "   ":{
+                """));
+            Assert.That(result, Does.Contain("""
+                "Text":"Test"
+                """));
         }
 
         /// <summary>
@@ -10939,7 +11797,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
-            string longText = new string ('A', 10000);
+            string longText = new('A', 10000);
             var value = new LocalizedText(longText);
             // Act
             encoder.PushStructure("root");
@@ -10968,12 +11826,24 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"msg1\":{"));
-            Assert.That(result, Does.Contain("\"Text\":\"First\""));
-            Assert.That(result, Does.Contain("\"Locale\":\"en-US\""));
-            Assert.That(result, Does.Contain("\"msg2\":{"));
-            Assert.That(result, Does.Contain("\"Text\":\"Second\""));
-            Assert.That(result, Does.Contain("\"Locale\":\"fr-FR\""));
+            Assert.That(result, Does.Contain("""
+                "msg1":{
+                """));
+            Assert.That(result, Does.Contain("""
+                "Text":"First"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Locale":"en-US"
+                """));
+            Assert.That(result, Does.Contain("""
+                "msg2":{
+                """));
+            Assert.That(result, Does.Contain("""
+                "Text":"Second"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Locale":"fr-FR"
+                """));
         }
 
         /// <summary>
@@ -10992,9 +11862,15 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"message\":{"));
-            Assert.That(result, Does.Contain("\"Text\":\"Test\""));
-            Assert.That(result, Does.Contain("\"Locale\":\"en-US\""));
+            Assert.That(result, Does.Contain("""
+                "message":{
+                """));
+            Assert.That(result, Does.Contain("""
+                "Text":"Test"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Locale":"en-US"
+                """));
         }
 
         /// <summary>
@@ -11013,16 +11889,18 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"Text\":\"   \""));
+            Assert.That(result, Does.Contain("""
+                "Text":"   "
+                """));
         }
 
         /// <summary>
         /// Tests that WriteLocalizedText handles control characters in text.
         /// </summary>
-        [TestCase("\t", "\\t")]
-        [TestCase("\r", "\\r")]
-        [TestCase("\b", "\\b")]
-        [TestCase("\f", "\\f")]
+        [TestCase("\t", """\t""")]
+        [TestCase("\r", """\r""")]
+        [TestCase("\b", """\b""")]
+        [TestCase("\f", """\f""")]
         public void WriteLocalizedText_TextWithControlCharacters_EscapesCorrectly(string input, string expected)
         {
             // Arrange
@@ -11054,8 +11932,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"Text\":\"\""));
-            Assert.That(result, Does.Contain("\"Locale\":\"en-US\""));
+            Assert.That(result, Does.Contain("""
+                "Text":""
+                """));
+            Assert.That(result, Does.Contain("""
+                "Locale":"en-US"
+                """));
         }
 
         /// <summary>
@@ -11075,8 +11957,12 @@ namespace Opc.Ua.UnitTests
             string result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(result, Does.Contain("{"));
-            Assert.That(result, Does.Contain("\"Text\":\"Test\""));
-            Assert.That(result, Does.Contain("\"Locale\":\"en-US\""));
+            Assert.That(result, Does.Contain("""
+                "Text":"Test"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Locale":"en-US"
+                """));
             Assert.That(result, Does.Contain("}"));
         }
 
@@ -11099,7 +11985,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Not.Contain("\"TestField\""));
+            Assert.That(result, Does.Not.Contain("""
+                "TestField"
+                """));
         }
 
         /// <summary>
@@ -11113,7 +12001,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose, false, stream, false);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose, false, stream, true);
             encoder.PushStructure(null);
             var nullArray = default(ArrayOf<short>);
             // Act
@@ -11121,7 +12009,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"TestField\":null"));
+            Assert.That(result, Does.Contain("""
+                "TestField":null
+                """));
         }
 
         /// <summary>
@@ -11135,15 +12025,17 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
-            var emptyArray = new ArrayOf<short>(Array.Empty<short>());
+            var emptyArray = new ArrayOf<short>([]);
             // Act
             encoder.WriteInt16Array("TestField", emptyArray);
             // Assert
             encoder.PopStructure();
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Not.Contain("\"TestField\""));
+            Assert.That(result, Does.Not.Contain("""
+                "TestField"
+                """));
         }
 
         /// <summary>
@@ -11159,13 +12051,15 @@ namespace Opc.Ua.UnitTests
             using var stream = new MemoryStream();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose, false, stream, true);
             encoder.PushStructure(null);
-            var emptyArray = new ArrayOf<short>(Array.Empty<short>());
+            var emptyArray = new ArrayOf<short>([]);
             // Act
             encoder.WriteInt16Array("TestField", emptyArray);
             // Assert
             encoder.PopStructure();
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"TestField\":[]"));
+            Assert.That(result, Does.Contain("""
+                "TestField":[]
+                """));
         }
 
         /// <summary>
@@ -11187,7 +12081,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"TestField\":[42]"));
+            Assert.That(result, Does.Contain("""
+                "TestField":[42]
+                """));
         }
 
         /// <summary>
@@ -11201,7 +12097,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             var values = new ArrayOf<short>([1, 2, 3, 4, 5]);
             // Act
@@ -11209,7 +12105,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"TestField\":[1,2,3,4,5]"));
+            Assert.That(result, Does.Contain("""
+                "TestField":[1,2,3,4,5]
+                """));
         }
 
         /// <summary>
@@ -11223,7 +12121,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             var values = new ArrayOf<short>([short.MinValue]);
             // Act
@@ -11231,7 +12129,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"TestField\":[-32768]"));
+            Assert.That(result, Does.Contain("""
+                "TestField":[-32768]
+                """));
         }
 
         /// <summary>
@@ -11245,7 +12145,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             var values = new ArrayOf<short>([short.MaxValue]);
             // Act
@@ -11253,7 +12153,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"TestField\":[32767]"));
+            Assert.That(result, Does.Contain("""
+                "TestField":[32767]
+                """));
         }
 
         /// <summary>
@@ -11267,7 +12169,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             var values = new ArrayOf<short>([-100, 0, 100]);
             // Act
@@ -11275,7 +12177,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"TestField\":[-100,0,100]"));
+            Assert.That(result, Does.Contain("""
+                "TestField":[-100,0,100]
+                """));
         }
 
         /// <summary>
@@ -11289,7 +12193,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             var values = new ArrayOf<short>([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
             // Act
@@ -11297,7 +12201,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"TestField\":[1,2,3,4,5,6,7,8,9,10]"));
+            Assert.That(result, Does.Contain("""
+                "TestField":[1,2,3,4,5,6,7,8,9,10]
+                """));
         }
 
         /// <summary>
@@ -11353,15 +12259,17 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             var values = new ArrayOf<short>([1]);
             // Act
-            encoder.WriteInt16Array("Field\"Name", values);
+            encoder.WriteInt16Array("""Field"Name""", values);
             // Assert
             encoder.PopStructure();
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"Field\\\"Name\":[1]"));
+            Assert.That(result, Does.Contain("""
+                "Field\"Name":[1]
+                """));
         }
 
         /// <summary>
@@ -11375,7 +12283,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             var values = new ArrayOf<short>([0, 0, 0]);
             // Act
@@ -11383,7 +12291,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"TestField\":[0,0,0]"));
+            Assert.That(result, Does.Contain("""
+                "TestField":[0,0,0]
+                """));
         }
 
         /// <summary>
@@ -11397,7 +12307,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             var values = new ArrayOf<short>([short.MinValue, -1, 0, 1, short.MaxValue]);
             // Act
@@ -11405,7 +12315,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"TestField\":[-32768,-1,0,1,32767]"));
+            Assert.That(result, Does.Contain("""
+                "TestField":[-32768,-1,0,1,32767]
+                """));
         }
 
         /// <summary>
@@ -11419,7 +12331,7 @@ namespace Opc.Ua.UnitTests
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
-            encoder.WriteNodeIdArray("nodeIds", ArrayOf<NodeId>.Empty);
+            encoder.WriteNodeIdArray("nodeIds", []);
             // Assert - no exception and minimal output
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
@@ -11437,11 +12349,13 @@ namespace Opc.Ua.UnitTests
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose);
             encoder.PushStructure(null);
             // Act
-            encoder.WriteNodeIdArray("nodeIds", default(ArrayOf<NodeId>));
+            encoder.WriteNodeIdArray("nodeIds", default);
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"nodeIds\":null"));
+            Assert.That(result, Does.Contain("""
+                "nodeIds":null
+                """));
         }
 
         /// <summary>
@@ -11454,13 +12368,15 @@ namespace Opc.Ua.UnitTests
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose);
             encoder.PushStructure(null);
-            var emptyArray = new ArrayOf<NodeId>(Array.Empty<NodeId>());
+            var emptyArray = new ArrayOf<NodeId>([]);
             // Act
             encoder.WriteNodeIdArray("nodeIds", emptyArray);
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"nodeIds\":[]"));
+            Assert.That(result, Does.Contain("""
+                "nodeIds":[]
+                """));
         }
 
         /// <summary>
@@ -11480,7 +12396,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"nodeIds\""));
+            Assert.That(result, Does.Contain("""
+                "nodeIds"
+                """));
             Assert.That(result, Does.Contain("123"));
         }
 
@@ -11500,7 +12418,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"nodeIds\""));
+            Assert.That(result, Does.Contain("""
+                "nodeIds"
+                """));
             Assert.That(result, Does.Contain("100"));
             Assert.That(result, Does.Contain("200"));
             Assert.That(result, Does.Contain("300"));
@@ -11547,7 +12467,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             Assert.That(result, Is.Not.Null);
-            Assert.That(result, Does.Contain("\"nodeIds\""));
+            Assert.That(result, Does.Contain("""
+                "nodeIds"
+                """));
         }
 
         /// <summary>
@@ -11571,7 +12493,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             Assert.That(result, Is.Not.Null);
-            Assert.That(result, Does.Contain("\"nodeIds\""));
+            Assert.That(result, Does.Contain("""
+                "nodeIds"
+                """));
         }
 
         /// <summary>
@@ -11628,7 +12552,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"nodeIds\""));
+            Assert.That(result, Does.Contain("""
+                "nodeIds"
+                """));
         }
 
         /// <summary>
@@ -11647,7 +12573,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"nodeIds\""));
+            Assert.That(result, Does.Contain("""
+                "nodeIds"
+                """));
             Assert.That(result, Does.Contain("Node1"));
             Assert.That(result, Does.Contain("Node2"));
         }
@@ -11670,7 +12598,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"nodeIds\""));
+            Assert.That(result, Does.Contain("""
+                "nodeIds"
+                """));
         }
 
         /// <summary>
@@ -11689,7 +12619,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"nodeIds\""));
+            Assert.That(result, Does.Contain("""
+                "nodeIds"
+                """));
             Assert.That(result, Does.Contain("123"));
             Assert.That(result, Does.Contain("StringNode"));
         }
@@ -11710,7 +12642,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"nodeIds\""));
+            Assert.That(result, Does.Contain("""
+                "nodeIds"
+                """));
         }
 
         /// <summary>
@@ -11732,7 +12666,9 @@ namespace Opc.Ua.UnitTests
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Does.StartWith("{"));
             Assert.That(result, Does.EndWith("}"));
-            Assert.That(result, Does.Contain("\"nodeIds\":["));
+            Assert.That(result, Does.Contain("""
+                "nodeIds":[
+                """));
         }
 
         /// <summary>
@@ -11751,7 +12687,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"nodeIds\""));
+            Assert.That(result, Does.Contain("""
+                "nodeIds"
+                """));
             Assert.That(result, Is.Not.Null);
         }
 
@@ -11767,7 +12705,7 @@ namespace Opc.Ua.UnitTests
             encoder.PushStructure(null);
             var array = new ArrayOf<NodeId>([new NodeId(123)]);
             // Act
-            encoder.WriteNodeIdArray("field\"with\\quotes", array);
+            encoder.WriteNodeIdArray("""field"with\quotes""", array);
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
@@ -11800,7 +12738,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"nodeIds\""));
+            Assert.That(result, Does.Contain("""
+                "nodeIds"
+                """));
             Assert.That(result.Length, Is.GreaterThan(0));
         }
 
@@ -11820,7 +12760,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"nodeIds\""));
+            Assert.That(result, Does.Contain("""
+                "nodeIds"
+                """));
             Assert.That(result, Does.Contain("100"));
             Assert.That(result, Does.Contain("200"));
         }
@@ -11906,7 +12848,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"MyField\":"));
+            Assert.That(result, Does.Contain("""
+                "MyField":
+                """));
             Assert.That(result, Does.Contain("99"));
         }
 
@@ -11924,12 +12868,14 @@ namespace Opc.Ua.UnitTests
             var variant = new Variant(true);
             // Act
             encoder.PushStructure(null);
-            encoder.WriteVariantValue("field\"with\\quotes", variant);
+            encoder.WriteVariantValue("""field"with\quotes""", variant);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\\\""));
-            Assert.That(result, Does.Contain("\\\\"));
+            Assert.That(result, Does.Contain("""
+                \"
+                """));
+            Assert.That(result, Does.Contain("""\\"""));
         }
 
         /// <summary>
@@ -11950,7 +12896,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"BoolField\":true"));
+            Assert.That(result, Does.Contain("""
+                "BoolField":true
+                """));
         }
 
         /// <summary>
@@ -11971,7 +12919,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"StringField\":\"TestString\""));
+            Assert.That(result, Does.Contain("""
+                "StringField":"TestString"
+                """));
         }
 
         /// <summary>
@@ -11992,7 +12942,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"DoubleField\":"));
+            Assert.That(result, Does.Contain("""
+                "DoubleField":
+                """));
             Assert.That(result, Does.Contain("3.14159"));
         }
 
@@ -12018,9 +12970,15 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"Field1\":10"));
-            Assert.That(result, Does.Contain("\"Field2\":\"test\""));
-            Assert.That(result, Does.Contain("\"Field3\":true"));
+            Assert.That(result, Does.Contain("""
+                "Field1":10
+                """));
+            Assert.That(result, Does.Contain("""
+                "Field2":"test"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Field3":true
+                """));
         }
 
         /// <summary>
@@ -12041,7 +12999,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"   \""));
+            Assert.That(result, Does.Contain("""
+                "   "
+                """));
             Assert.That(result, Does.Contain("555"));
         }
 
@@ -12063,8 +13023,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"LongField\":"));
-            Assert.That(result, Does.Contain("\"9223372036854775807\""));
+            Assert.That(result, Does.Contain("""
+                "LongField":
+                """));
+            Assert.That(result, Does.Contain("""
+                "9223372036854775807"
+                """));
         }
 
         /// <summary>
@@ -12085,7 +13049,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"ByteField\":255"));
+            Assert.That(result, Does.Contain("""
+                "ByteField":255
+                """));
         }
 
         /// <summary>
@@ -12107,7 +13073,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"DateField\":"));
+            Assert.That(result, Does.Contain("""
+                "DateField":
+                """));
             Assert.That(result, Does.Contain("2023-06-15"));
         }
 
@@ -12123,7 +13091,7 @@ namespace Opc.Ua.UnitTests
             var messageContext = new ServiceMessageContext(telemetryContext);
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             var variant = new Variant(777);
-            string longFieldName = new string ('A', 1000);
+            string longFieldName = new('A', 1000);
             // Act
             encoder.PushStructure(null);
             encoder.WriteVariantValue(longFieldName, variant);
@@ -12162,9 +13130,9 @@ namespace Opc.Ua.UnitTests
         /// Tests that WriteVariantValue handles field name with control characters correctly.
         /// The fieldName contains control characters that require escaping.
         /// </summary>
-        [TestCase("\t", "\\t")]
-        [TestCase("\n", "\\n")]
-        [TestCase("\r", "\\r")]
+        [TestCase("\t", """\t""")]
+        [TestCase("\n", """\n""")]
+        [TestCase("\r", """\r""")]
         public void WriteVariantValue_FieldNameWithControlCharacters_EscapesCorrectly(string controlChar, string expected)
         {
             // Arrange
@@ -12199,7 +13167,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"NegativeField\":-12345"));
+            Assert.That(result, Does.Contain("""
+                "NegativeField":-12345
+                """));
         }
 
         /// <summary>
@@ -12220,7 +13190,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"ZeroField\":0"));
+            Assert.That(result, Does.Contain("""
+                "ZeroField":0
+                """));
         }
 
         /// <summary>
@@ -12241,7 +13213,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"FloatField\":"));
+            Assert.That(result, Does.Contain("""
+                "FloatField":
+                """));
             Assert.That(result, Does.Contain("2.5"));
         }
 
@@ -12263,7 +13237,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":"));
+            Assert.That(result, Does.Contain("""
+                "TestField":
+                """));
             Assert.That(result, Does.Contain("42"));
         }
 
@@ -12280,7 +13256,7 @@ namespace Opc.Ua.UnitTests
             // Act
             encoder.PushNamespace("http://opcfoundation.org/UA/");
             // Assert
-            Assert.DoesNotThrow(() => encoder.PopNamespace());
+            Assert.DoesNotThrow(encoder.PopNamespace);
         }
 
         /// <summary>
@@ -12296,7 +13272,7 @@ namespace Opc.Ua.UnitTests
             // Act
             encoder.PushNamespace(null);
             // Assert
-            Assert.DoesNotThrow(() => encoder.PopNamespace());
+            Assert.DoesNotThrow(encoder.PopNamespace);
         }
 
         /// <summary>
@@ -12312,7 +13288,7 @@ namespace Opc.Ua.UnitTests
             // Act
             encoder.PushNamespace(string.Empty);
             // Assert
-            Assert.DoesNotThrow(() => encoder.PopNamespace());
+            Assert.DoesNotThrow(encoder.PopNamespace);
         }
 
         /// <summary>
@@ -12328,7 +13304,7 @@ namespace Opc.Ua.UnitTests
             // Act
             encoder.PushNamespace("   ");
             // Assert
-            Assert.DoesNotThrow(() => encoder.PopNamespace());
+            Assert.DoesNotThrow(encoder.PopNamespace);
         }
 
         /// <summary>
@@ -12341,11 +13317,11 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
-            string longNamespace = new string ('a', 10000);
+            string longNamespace = new('a', 10000);
             // Act
             encoder.PushNamespace(longNamespace);
             // Assert
-            Assert.DoesNotThrow(() => encoder.PopNamespace());
+            Assert.DoesNotThrow(encoder.PopNamespace);
         }
 
         /// <summary>
@@ -12361,7 +13337,7 @@ namespace Opc.Ua.UnitTests
             // Act
             encoder.PushNamespace("http://example.com/namespace?param=value&other=\"test\"\t\n\r");
             // Assert
-            Assert.DoesNotThrow(() => encoder.PopNamespace());
+            Assert.DoesNotThrow(encoder.PopNamespace);
         }
 
         /// <summary>
@@ -12379,11 +13355,11 @@ namespace Opc.Ua.UnitTests
             encoder.PushNamespace("second");
             encoder.PushNamespace("third");
             // Assert - pop in reverse order (LIFO)
-            Assert.DoesNotThrow(() => encoder.PopNamespace()); // third
-            Assert.DoesNotThrow(() => encoder.PopNamespace()); // second
-            Assert.DoesNotThrow(() => encoder.PopNamespace()); // first
+            Assert.DoesNotThrow(encoder.PopNamespace); // third
+            Assert.DoesNotThrow(encoder.PopNamespace); // second
+            Assert.DoesNotThrow(encoder.PopNamespace); // first
             // Stack should be empty now - popping should throw
-            Assert.Throws<InvalidOperationException>(() => encoder.PopNamespace());
+            Assert.Throws<InvalidOperationException>(encoder.PopNamespace);
         }
 
         /// <summary>
@@ -12400,7 +13376,7 @@ namespace Opc.Ua.UnitTests
             encoder.PushNamespace("test");
             encoder.PopNamespace();
             // Assert - popping from empty stack should throw
-            Assert.Throws<InvalidOperationException>(() => encoder.PopNamespace());
+            Assert.Throws<InvalidOperationException>(encoder.PopNamespace);
         }
 
         /// <summary>
@@ -12417,7 +13393,7 @@ namespace Opc.Ua.UnitTests
             // Act
             encoder.PushNamespace("http://opcfoundation.org/UA/");
             // Assert
-            Assert.DoesNotThrow(() => encoder.PopNamespace());
+            Assert.DoesNotThrow(encoder.PopNamespace);
         }
 
         /// <summary>
@@ -12433,7 +13409,7 @@ namespace Opc.Ua.UnitTests
             // Act
             encoder.PushNamespace("http://example.com/测试/namespace/Ω");
             // Assert
-            Assert.DoesNotThrow(() => encoder.PopNamespace());
+            Assert.DoesNotThrow(encoder.PopNamespace);
         }
 
         /// <summary>
@@ -12453,7 +13429,7 @@ namespace Opc.Ua.UnitTests
             // Act
             encoder.PushNamespace(controlChar);
             // Assert
-            Assert.DoesNotThrow(() => encoder.PopNamespace());
+            Assert.DoesNotThrow(encoder.PopNamespace);
         }
 
         /// <summary>
@@ -12471,7 +13447,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDateTime("timestamp", dateTime);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"timestamp\""));
+            Assert.That(result, Does.Contain("""
+                "timestamp"
+                """));
             Assert.That(result, Does.Contain("2023-06-15T14:30:45"));
         }
 
@@ -12506,7 +13484,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDateTime("timestamp", DateTime.MinValue);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"timestamp\""));
+            Assert.That(result, Does.Contain("""
+                "timestamp"
+                """));
             Assert.That(result, Does.Contain("0001-01-01T00:00:00Z"));
         }
 
@@ -12524,7 +13504,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDateTime("timestamp", DateTime.MaxValue);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"timestamp\""));
+            Assert.That(result, Does.Contain("""
+                "timestamp"
+                """));
             Assert.That(result, Does.Contain("9999-12-31T23:59:59Z"));
         }
 
@@ -12544,7 +13526,9 @@ namespace Opc.Ua.UnitTests
             string result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(result, Does.Contain("2023-06-15T14:30:45"));
-            Assert.That(result, Does.Not.Contain("\"timestamp\""));
+            Assert.That(result, Does.Not.Contain("""
+                "timestamp"
+                """));
         }
 
         /// <summary>
@@ -12580,7 +13564,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDateTime("timestamp", localDateTime);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"timestamp\""));
+            Assert.That(result, Does.Contain("""
+                "timestamp"
+                """));
             Assert.That(result, Does.Contain("Z"));
         }
 
@@ -12599,7 +13585,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDateTime("timestamp", unspecifiedDateTime);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"timestamp\""));
+            Assert.That(result, Does.Contain("""
+                "timestamp"
+                """));
             Assert.That(result, Does.Contain("2023-06-15"));
         }
 
@@ -12618,7 +13606,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDateTime("timestamp", dateTime);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"timestamp\""));
+            Assert.That(result, Does.Contain("""
+                "timestamp"
+                """));
             Assert.That(result, Does.Contain("2023-06-15T14:30:45"));
         }
 
@@ -12634,10 +13624,10 @@ namespace Opc.Ua.UnitTests
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
-            encoder.WriteDateTime("time\"stamp", dateTime);
+            encoder.WriteDateTime("""time"stamp""", dateTime);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("time\\\"stamp"));
+            Assert.That(result, Does.Contain("""time\"stamp"""));
             Assert.That(result, Does.Contain("2023-06-15T14:30:45"));
         }
 
@@ -12656,7 +13646,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDateTime("   ", dateTime);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"   \""));
+            Assert.That(result, Does.Contain("""
+                "   "
+                """));
             Assert.That(result, Does.Contain("2023-06-15T14:30:45"));
         }
 
@@ -12675,7 +13667,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDateTime("timestamp", dateTime);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"timestamp\""));
+            Assert.That(result, Does.Contain("""
+                "timestamp"
+                """));
             Assert.That(result, Does.Contain("2023-06-15T00:00:00Z"));
         }
 
@@ -12694,7 +13688,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDateTime("timestamp", dateTime);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"timestamp\""));
+            Assert.That(result, Does.Contain("""
+                "timestamp"
+                """));
             Assert.That(result, Does.Contain("2024-02-29T12:00:00Z"));
         }
 
@@ -12715,8 +13711,12 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDateTime("end", dateTime2);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"start\""));
-            Assert.That(result, Does.Contain("\"end\""));
+            Assert.That(result, Does.Contain("""
+                "start"
+                """));
+            Assert.That(result, Does.Contain("""
+                "end"
+                """));
             Assert.That(result, Does.Contain("2023-06-15T14:30:45"));
             Assert.That(result, Does.Contain("2023-12-31T23:59:59"));
         }
@@ -12736,7 +13736,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDateTime("timestamp", dateTime);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"timestamp\""));
+            Assert.That(result, Does.Contain("""
+                "timestamp"
+                """));
             Assert.That(result, Does.Contain("0001-01-01"));
         }
 
@@ -12755,7 +13757,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDateTime("timestamp", dateTime);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"timestamp\""));
+            Assert.That(result, Does.Contain("""
+                "timestamp"
+                """));
             Assert.That(result, Does.Contain("9999-12-31T23:59:59"));
         }
 
@@ -12773,7 +13777,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDateTime("timestamp", DateTime.MinValue);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"timestamp\""));
+            Assert.That(result, Does.Contain("""
+                "timestamp"
+                """));
             Assert.That(result, Does.Contain("0001-01-01T00:00:00Z"));
         }
 
@@ -12828,7 +13834,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDataValue("testField", null);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
             Assert.That(result, Does.Contain("{}"));
         }
 
@@ -12864,11 +13872,21 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDataValue("testField", dataValue);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Contain("\"Value\""));
-            Assert.That(result, Does.Not.Contain("\"StatusCode\""));
-            Assert.That(result, Does.Not.Contain("\"SourceTimestamp\""));
-            Assert.That(result, Does.Not.Contain("\"ServerTimestamp\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value"
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "StatusCode"
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "SourceTimestamp"
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "ServerTimestamp"
+                """));
         }
 
         /// <summary>
@@ -12885,8 +13903,12 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDataValue("testField", dataValue);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Not.Contain("\"Value\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "Value"
+                """));
         }
 
         /// <summary>
@@ -12903,9 +13925,15 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDataValue("testField", dataValue);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Contain("\"Value\""));
-            Assert.That(result, Does.Contain("\"StatusCode\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value"
+                """));
+            Assert.That(result, Does.Contain("""
+                "StatusCode"
+                """));
         }
 
         /// <summary>
@@ -12922,9 +13950,15 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDataValue("testField", dataValue);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Contain("\"Value\""));
-            Assert.That(result, Does.Not.Contain("\"StatusCode\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value"
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "StatusCode"
+                """));
         }
 
         /// <summary>
@@ -12942,10 +13976,18 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDataValue("testField", dataValue);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Contain("\"Value\""));
-            Assert.That(result, Does.Contain("\"SourceTimestamp\""));
-            Assert.That(result, Does.Not.Contain("\"SourcePicoseconds\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value"
+                """));
+            Assert.That(result, Does.Contain("""
+                "SourceTimestamp"
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "SourcePicoseconds"
+                """));
         }
 
         /// <summary>
@@ -12962,10 +14004,18 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDataValue("testField", dataValue);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Contain("\"Value\""));
-            Assert.That(result, Does.Not.Contain("\"SourceTimestamp\""));
-            Assert.That(result, Does.Not.Contain("\"SourcePicoseconds\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value"
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "SourceTimestamp"
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "SourcePicoseconds"
+                """));
         }
 
         /// <summary>
@@ -12986,9 +14036,15 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDataValue("testField", dataValue);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Contain("\"SourceTimestamp\""));
-            Assert.That(result, Does.Contain("\"SourcePicoseconds\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "SourceTimestamp"
+                """));
+            Assert.That(result, Does.Contain("""
+                "SourcePicoseconds"
+                """));
             Assert.That(result, Does.Contain("500"));
         }
 
@@ -13010,9 +14066,15 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDataValue("testField", dataValue);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Contain("\"SourceTimestamp\""));
-            Assert.That(result, Does.Not.Contain("\"SourcePicoseconds\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "SourceTimestamp"
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "SourcePicoseconds"
+                """));
         }
 
         /// <summary>
@@ -13031,10 +14093,18 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDataValue("testField", dataValue);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Contain("\"Value\""));
-            Assert.That(result, Does.Contain("\"ServerTimestamp\""));
-            Assert.That(result, Does.Not.Contain("\"ServerPicoseconds\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value"
+                """));
+            Assert.That(result, Does.Contain("""
+                "ServerTimestamp"
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "ServerPicoseconds"
+                """));
         }
 
         /// <summary>
@@ -13051,10 +14121,18 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDataValue("testField", dataValue);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Contain("\"Value\""));
-            Assert.That(result, Does.Not.Contain("\"ServerTimestamp\""));
-            Assert.That(result, Does.Not.Contain("\"ServerPicoseconds\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value"
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "ServerTimestamp"
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "ServerPicoseconds"
+                """));
         }
 
         /// <summary>
@@ -13076,9 +14154,15 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDataValue("testField", dataValue);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Contain("\"ServerTimestamp\""));
-            Assert.That(result, Does.Contain("\"ServerPicoseconds\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "ServerTimestamp"
+                """));
+            Assert.That(result, Does.Contain("""
+                "ServerPicoseconds"
+                """));
             Assert.That(result, Does.Contain("750"));
         }
 
@@ -13101,9 +14185,15 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDataValue("testField", dataValue);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Contain("\"ServerTimestamp\""));
-            Assert.That(result, Does.Not.Contain("\"ServerPicoseconds\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "ServerTimestamp"
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "ServerPicoseconds"
+                """));
         }
 
         /// <summary>
@@ -13126,13 +14216,27 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDataValue("testField", dataValue);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\""));
-            Assert.That(result, Does.Contain("\"Value\""));
-            Assert.That(result, Does.Contain("\"StatusCode\""));
-            Assert.That(result, Does.Contain("\"SourceTimestamp\""));
-            Assert.That(result, Does.Contain("\"SourcePicoseconds\""));
-            Assert.That(result, Does.Contain("\"ServerTimestamp\""));
-            Assert.That(result, Does.Contain("\"ServerPicoseconds\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Value"
+                """));
+            Assert.That(result, Does.Contain("""
+                "StatusCode"
+                """));
+            Assert.That(result, Does.Contain("""
+                "SourceTimestamp"
+                """));
+            Assert.That(result, Does.Contain("""
+                "SourcePicoseconds"
+                """));
+            Assert.That(result, Does.Contain("""
+                "ServerTimestamp"
+                """));
+            Assert.That(result, Does.Contain("""
+                "ServerPicoseconds"
+                """));
         }
 
         /// <summary>
@@ -13151,7 +14255,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopArray();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"Value\""));
+            Assert.That(result, Does.Contain("""
+                "Value"
+                """));
         }
 
         /// <summary>
@@ -13172,8 +14278,10 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDataValue("testField", dataValue);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"SourcePicoseconds\""));
-            Assert.That(result, Does.Contain(ushort.MaxValue.ToString()));
+            Assert.That(result, Does.Contain("""
+                "SourcePicoseconds"
+                """));
+            Assert.That(result, Does.Contain(ushort.MaxValue.ToString(CultureInfo.InvariantCulture)));
         }
 
         /// <summary>
@@ -13195,8 +14303,10 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDataValue("testField", dataValue);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"ServerPicoseconds\""));
-            Assert.That(result, Does.Contain(ushort.MaxValue.ToString()));
+            Assert.That(result, Does.Contain("""
+                "ServerPicoseconds"
+                """));
+            Assert.That(result, Does.Contain(ushort.MaxValue.ToString(CultureInfo.InvariantCulture)));
         }
 
         /// <summary>
@@ -13214,7 +14324,9 @@ namespace Opc.Ua.UnitTests
             string result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(result, Is.Not.Empty);
-            Assert.That(result, Does.Contain("\"testField\""));
+            Assert.That(result, Does.Contain("""
+                "testField"
+                """));
         }
 
         /// <summary>
@@ -13228,10 +14340,10 @@ namespace Opc.Ua.UnitTests
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose);
             var dataValue = new DataValue(new Variant(42));
             // Act
-            encoder.WriteDataValue("test\"Field\\Name", dataValue);
+            encoder.WriteDataValue("""test"Field\Name""", dataValue);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("test\\\"Field\\\\Name"));
+            Assert.That(result, Does.Contain("""test\"Field\\Name"""));
         }
 
         /// <summary>
@@ -13248,8 +14360,12 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDataValue("testField", dataValue);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"SourceTimestamp\""));
-            Assert.That(result, Does.Contain("\"ServerTimestamp\""));
+            Assert.That(result, Does.Contain("""
+                "SourceTimestamp"
+                """));
+            Assert.That(result, Does.Contain("""
+                "ServerTimestamp"
+                """));
         }
 
         /// <summary>
@@ -13264,11 +14380,13 @@ namespace Opc.Ua.UnitTests
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose);
             encoder.PushStructure(null);
             // Act
-            encoder.WriteInt32Array("testField", default(ArrayOf<int>));
+            encoder.WriteInt32Array("testField", default);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":null"));
+            Assert.That(result, Does.Contain("""
+                "testField":null
+                """));
         }
 
         /// <summary>
@@ -13284,14 +14402,18 @@ namespace Opc.Ua.UnitTests
             encoder.PushStructure(null);
             encoder.WriteString("before", "value");
             // Act
-            encoder.WriteInt32Array("testField", default(ArrayOf<int>));
+            encoder.WriteInt32Array("testField", default);
             encoder.WriteString("after", "value");
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(result, Does.Not.Contain("testField"));
-            Assert.That(result, Does.Contain("\"before\":\"value\""));
-            Assert.That(result, Does.Contain("\"after\":\"value\""));
+            Assert.That(result, Does.Contain("""
+                "before":"value"
+                """));
+            Assert.That(result, Does.Contain("""
+                "after":"value"
+                """));
         }
 
         /// <summary>
@@ -13305,13 +14427,15 @@ namespace Opc.Ua.UnitTests
             var messageContext = new ServiceMessageContext(context);
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
-            var emptyArray = new ArrayOf<int>(Array.Empty<int>());
+            var emptyArray = new ArrayOf<int>([]);
             // Act
             encoder.WriteInt32Array("testField", emptyArray);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":[]"));
+            Assert.That(result, Does.Contain("""
+                "testField":[]
+                """));
         }
 
         /// <summary>
@@ -13331,7 +14455,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":[42]"));
+            Assert.That(result, Does.Contain("""
+                "testField":[42]
+                """));
         }
 
         /// <summary>
@@ -13351,7 +14477,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":[1,2,3,4,5]"));
+            Assert.That(result, Does.Contain("""
+                "testField":[1,2,3,4,5]
+                """));
         }
 
         /// <summary>
@@ -13394,7 +14522,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":[10,20,30]"));
+            Assert.That(result, Does.Contain("""
+                "testField":[10,20,30]
+                """));
         }
 
         /// <summary>
@@ -13417,7 +14547,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":[1,2,3,4,5,6,7,8,9,10]"));
+            Assert.That(result, Does.Contain("""
+                "testField":[1,2,3,4,5,6,7,8,9,10]
+                """));
         }
 
         /// <summary>
@@ -13437,7 +14569,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":[-2147483648,0,2147483647]"));
+            Assert.That(result, Does.Contain("""
+                "testField":[-2147483648,0,2147483647]
+                """));
         }
 
         /// <summary>
@@ -13457,7 +14591,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain($"\"testField\":[{int.MaxValue}]"));
+            Assert.That(result, Does.Contain($"""
+                "testField":[{int.MaxValue}]
+                """));
         }
 
         /// <summary>
@@ -13477,7 +14613,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":[0,0,0]"));
+            Assert.That(result, Does.Contain("""
+                "testField":[0,0,0]
+                """));
         }
 
         /// <summary>
@@ -13497,7 +14635,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":[-1,-100,-999]"));
+            Assert.That(result, Does.Contain("""
+                "testField":[-1,-100,-999]
+                """));
         }
 
         /// <summary>
@@ -13537,7 +14677,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"\":[1,2]"));
+            Assert.That(result, Does.Contain("""
+                "":[1,2]
+                """));
         }
 
         /// <summary>
@@ -13553,11 +14695,13 @@ namespace Opc.Ua.UnitTests
             encoder.PushStructure(null);
             var array = new ArrayOf<int>([1]);
             // Act
-            encoder.WriteInt32Array("field\"name", array);
+            encoder.WriteInt32Array("""field"name""", array);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"field\\\"name\":[1]"));
+            Assert.That(result, Does.Contain("""
+                "field\"name":[1]
+                """));
         }
 
         /// <summary>
@@ -13583,7 +14727,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":["));
+            Assert.That(result, Does.Contain("""
+                "testField":[
+                """));
             Assert.That(result, Does.Contain(",99]"));
         }
 
@@ -13604,7 +14750,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":[1,2]"));
+            Assert.That(result, Does.Contain("""
+                "testField":[1,2]
+                """));
         }
 
         /// <summary>
@@ -13626,8 +14774,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"first\":[1,2]"));
-            Assert.That(result, Does.Contain("\"second\":[3,4]"));
+            Assert.That(result, Does.Contain("""
+                "first":[1,2]
+                """));
+            Assert.That(result, Does.Contain("""
+                "second":[3,4]
+                """));
         }
 
         /// <summary>
@@ -13647,7 +14799,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":[-5,10,-15,20,0]"));
+            Assert.That(result, Does.Contain("""
+                "testField":[-5,10,-15,20,0]
+                """));
         }
 
         /// <summary>
@@ -13668,7 +14822,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"StatusCodes\":[]"));
+            Assert.That(result, Does.Contain("""
+                "StatusCodes":[]
+                """));
         }
 
         /// <summary>
@@ -13687,7 +14843,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":{"));
+            Assert.That(result, Does.Contain("""
+                "testField":{
+                """));
         }
 
         /// <summary>
@@ -13707,7 +14865,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"innerField\""));
+            Assert.That(result, Does.Contain("""
+                "innerField"
+                """));
             Assert.That(result, Does.Not.StartWith("{"));
         }
 
@@ -13728,7 +14888,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"innerField\""));
+            Assert.That(result, Does.Contain("""
+                "innerField"
+                """));
             Assert.That(result, Does.Not.StartWith("{"));
         }
 
@@ -13750,7 +14912,9 @@ namespace Opc.Ua.UnitTests
             string result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(result, Does.StartWith("{"));
-            Assert.That(result, Does.Contain("\"innerField\""));
+            Assert.That(result, Does.Contain("""
+                "innerField"
+                """));
         }
 
         /// <summary>
@@ -13769,7 +14933,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"   \":{"));
+            Assert.That(result, Does.Contain("""
+                "   ":{
+                """));
         }
 
         /// <summary>
@@ -13784,11 +14950,13 @@ namespace Opc.Ua.UnitTests
             ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             // Act
-            encoder.PushStructure("test\"field");
+            encoder.PushStructure("""test"field""");
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"test\\\"field\":{"));
+            Assert.That(result, Does.Contain("""
+                "test\"field":{
+                """));
         }
 
         /// <summary>
@@ -13803,11 +14971,13 @@ namespace Opc.Ua.UnitTests
             ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             // Act
-            encoder.PushStructure("test\\field");
+            encoder.PushStructure("""test\field""");
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"test\\\\field\":{"));
+            Assert.That(result, Does.Contain("""
+                "test\\field":{
+                """));
         }
 
         /// <summary>
@@ -13826,7 +14996,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"test\\nfield\":{"));
+            Assert.That(result, Does.Contain("""
+                "test\nfield":{
+                """));
         }
 
         /// <summary>
@@ -13849,8 +15021,12 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"field1\":{"));
-            Assert.That(result, Does.Contain("\"field2\":{"));
+            Assert.That(result, Does.Contain("""
+                "field1":{
+                """));
+            Assert.That(result, Does.Contain("""
+                "field2":{
+                """));
             Assert.That(result, Does.Match(".*field1.*,.*field2.*"));
         }
 
@@ -13873,9 +15049,15 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"outer\":{"));
-            Assert.That(result, Does.Contain("\"inner\":{"));
-            Assert.That(result, Does.Contain("\"value\":\"test\""));
+            Assert.That(result, Does.Contain("""
+                "outer":{
+                """));
+            Assert.That(result, Does.Contain("""
+                "inner":{
+                """));
+            Assert.That(result, Does.Contain("""
+                "value":"test"
+                """));
         }
 
         /// <summary>
@@ -13898,9 +15080,13 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"field1\":\"value1\""));
-            Assert.That(result, Does.Contain("\"field2\":\"value2\""));
-            Assert.That(result, Does.Match(".*field1.*,.*\\{.*field2.*"));
+            Assert.That(result, Does.Contain("""
+                "field1":"value1"
+                """));
+            Assert.That(result, Does.Contain("""
+                "field2":"value2"
+                """));
+            Assert.That(result, Does.Match(""".*field1.*,.*\{.*field2.*"""));
         }
 
         /// <summary>
@@ -13923,9 +15109,13 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"field1\":\"value1\""));
-            Assert.That(result, Does.Contain("\"field2\":\"value2\""));
-            Assert.That(result, Does.Match(".*field1.*,.*\\{.*field2.*"));
+            Assert.That(result, Does.Contain("""
+                "field1":"value1"
+                """));
+            Assert.That(result, Does.Contain("""
+                "field2":"value2"
+                """));
+            Assert.That(result, Does.Match(""".*field1.*,.*\{.*field2.*"""));
         }
 
         /// <summary>
@@ -13944,7 +15134,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"test\\tfield\":{"));
+            Assert.That(result, Does.Contain("""
+                "test\tfield":{
+                """));
         }
 
         /// <summary>
@@ -13963,7 +15155,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"test\\rfield\":{"));
+            Assert.That(result, Does.Contain("""
+                "test\rfield":{
+                """));
         }
 
         /// <summary>
@@ -13977,13 +15171,15 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
-            string longFieldName = new string ('a', 1000);
+            string longFieldName = new('a', 1000);
             // Act
             encoder.PushStructure(longFieldName);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain($"\"{longFieldName}\":{{"));
+            Assert.That(result, Does.Contain($$"""
+                "{{longFieldName}}":{
+                """));
         }
 
         /// <summary>
@@ -14002,7 +15198,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":{"));
+            Assert.That(result, Does.Contain("""
+                "testField":{
+                """));
         }
 
         /// <summary>
@@ -14021,7 +15219,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"test\\bfield\":{"));
+            Assert.That(result, Does.Contain("""
+                "test\bfield":{
+                """));
         }
 
         /// <summary>
@@ -14040,7 +15240,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"test\\ffield\":{"));
+            Assert.That(result, Does.Contain("""
+                "test\ffield":{
+                """));
         }
 
         /// <summary>
@@ -14064,10 +15266,18 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"level1\":{"));
-            Assert.That(result, Does.Contain("\"level2\":{"));
-            Assert.That(result, Does.Contain("\"level3\":{"));
-            Assert.That(result, Does.Contain("\"value\":\"deep\""));
+            Assert.That(result, Does.Contain("""
+                "level1":{
+                """));
+            Assert.That(result, Does.Contain("""
+                "level2":{
+                """));
+            Assert.That(result, Does.Contain("""
+                "level3":{
+                """));
+            Assert.That(result, Does.Contain("""
+                "value":"deep"
+                """));
         }
 
         /// <summary>
@@ -14082,7 +15292,7 @@ namespace Opc.Ua.UnitTests
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushNamespace("http://test.namespace.uri");
             // Act & Assert
-            Assert.That(() => encoder.PopNamespace(), Throws.Nothing);
+            Assert.That(encoder.PopNamespace, Throws.Nothing);
         }
 
         /// <summary>
@@ -14096,7 +15306,7 @@ namespace Opc.Ua.UnitTests
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             // Act & Assert
-            Assert.That(() => encoder.PopNamespace(), Throws.TypeOf<InvalidOperationException>());
+            Assert.That(encoder.PopNamespace, Throws.TypeOf<InvalidOperationException>());
         }
 
         /// <summary>
@@ -14113,9 +15323,9 @@ namespace Opc.Ua.UnitTests
             encoder.PushNamespace("http://namespace2.uri");
             encoder.PushNamespace("http://namespace3.uri");
             // Act & Assert
-            Assert.That(() => encoder.PopNamespace(), Throws.Nothing);
-            Assert.That(() => encoder.PopNamespace(), Throws.Nothing);
-            Assert.That(() => encoder.PopNamespace(), Throws.Nothing);
+            Assert.That(encoder.PopNamespace, Throws.Nothing);
+            Assert.That(encoder.PopNamespace, Throws.Nothing);
+            Assert.That(encoder.PopNamespace, Throws.Nothing);
         }
 
         /// <summary>
@@ -14131,7 +15341,7 @@ namespace Opc.Ua.UnitTests
             encoder.PushNamespace("http://test.namespace.uri");
             encoder.PopNamespace();
             // Act & Assert
-            Assert.That(() => encoder.PopNamespace(), Throws.TypeOf<InvalidOperationException>());
+            Assert.That(encoder.PopNamespace, Throws.TypeOf<InvalidOperationException>());
         }
 
         /// <summary>
@@ -14146,7 +15356,7 @@ namespace Opc.Ua.UnitTests
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose);
             encoder.PushNamespace("http://single.namespace.uri");
             // Act & Assert
-            Assert.That(() => encoder.PopNamespace(), Throws.Nothing);
+            Assert.That(encoder.PopNamespace, Throws.Nothing);
         }
 
         /// <summary>
@@ -14164,7 +15374,7 @@ namespace Opc.Ua.UnitTests
             encoder.PopNamespace();
             encoder.PopNamespace();
             // Act & Assert - stack is now empty
-            Assert.That(() => encoder.PopNamespace(), Throws.TypeOf<InvalidOperationException>());
+            Assert.That(encoder.PopNamespace, Throws.TypeOf<InvalidOperationException>());
         }
 
         /// <summary>
@@ -14179,7 +15389,7 @@ namespace Opc.Ua.UnitTests
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushNamespace(null);
             // Act & Assert
-            Assert.That(() => encoder.PopNamespace(), Throws.Nothing);
+            Assert.That(encoder.PopNamespace, Throws.Nothing);
         }
 
         /// <summary>
@@ -14194,7 +15404,7 @@ namespace Opc.Ua.UnitTests
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushNamespace(string.Empty);
             // Act & Assert
-            Assert.That(() => encoder.PopNamespace(), Throws.Nothing);
+            Assert.That(encoder.PopNamespace, Throws.Nothing);
         }
 
         /// <summary>
@@ -14207,10 +15417,10 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
-            string longNamespace = new string ('a', 10000);
+            string longNamespace = new('a', 10000);
             encoder.PushNamespace(longNamespace);
             // Act & Assert
-            Assert.That(() => encoder.PopNamespace(), Throws.Nothing);
+            Assert.That(encoder.PopNamespace, Throws.Nothing);
         }
 
         /// <summary>
@@ -14222,12 +15432,14 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             // Act
             encoder.WriteDouble("testField", double.NaN);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":\"NaN\""));
+            Assert.That(result, Does.Contain("""
+                "testField":"NaN"
+                """));
         }
 
         /// <summary>
@@ -14239,12 +15451,14 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             // Act
             encoder.WriteDouble("testField", double.PositiveInfinity);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":\"Infinity\""));
+            Assert.That(result, Does.Contain("""
+                "testField":"Infinity"
+                """));
         }
 
         /// <summary>
@@ -14261,7 +15475,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDouble("testField", double.NegativeInfinity);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":\"-Infinity\""));
+            Assert.That(result, Does.Contain("""
+                "testField":"-Infinity"
+                """));
         }
 
         /// <summary>
@@ -14273,7 +15489,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             // Act
             encoder.WriteDouble("testField", 0.0);
             string result = GetJsonOutput(encoder, stream);
@@ -14290,12 +15506,14 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, false, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, false, stream, true);
             // Act
             encoder.WriteDouble("testField", 0.0);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":0"));
+            Assert.That(result, Does.Contain("""
+                "testField":0
+                """));
         }
 
         /// <summary>
@@ -14307,7 +15525,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, true, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, true, stream, true);
             encoder.PushArray(null);
             // Act
             encoder.WriteDouble(null, 0.0);
@@ -14325,7 +15543,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             double verySmallValue = double.Epsilon / 2.0;
             // Act
             encoder.WriteDouble("testField", verySmallValue);
@@ -14343,13 +15561,15 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, false, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, false, stream, true);
             double verySmallValue = double.Epsilon / 2.0;
             // Act
             encoder.WriteDouble("testField", verySmallValue);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":"));
+            Assert.That(result, Does.Contain("""
+                "testField":
+                """));
         }
 
         /// <summary>
@@ -14361,12 +15581,14 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             // Act
             encoder.WriteDouble("testField", double.MaxValue);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":"));
+            Assert.That(result, Does.Contain("""
+                "testField":
+                """));
             Assert.That(result, Does.Contain(double.MaxValue.ToString("R", CultureInfo.InvariantCulture)));
         }
 
@@ -14379,12 +15601,14 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             // Act
             encoder.WriteDouble("testField", double.MinValue);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":"));
+            Assert.That(result, Does.Contain("""
+                "testField":
+                """));
             Assert.That(result, Does.Contain(double.MinValue.ToString("R", CultureInfo.InvariantCulture)));
         }
 
@@ -14397,13 +15621,15 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             double value = 123.456;
             // Act
             encoder.WriteDouble("testField", value);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":123.456"));
+            Assert.That(result, Does.Contain("""
+                "testField":123.456
+                """));
         }
 
         /// <summary>
@@ -14415,13 +15641,15 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             double value = -987.654;
             // Act
             encoder.WriteDouble("testField", value);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":-987.654"));
+            Assert.That(result, Does.Contain("""
+                "testField":-987.654
+                """));
         }
 
         /// <summary>
@@ -14437,7 +15665,7 @@ namespace Opc.Ua.UnitTests
                 CultureInfo.CurrentCulture = new CultureInfo("de-DE");
                 ServiceMessageContext messageContext = CreateMockServiceMessageContext();
                 using var stream = new MemoryStream();
-                using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, false);
+                using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
                 double value = 1234.5678;
                 // Act
                 encoder.WriteDouble("testField", value);
@@ -14479,13 +15707,15 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             // Act
             encoder.WriteDouble("test\"Field\nName", 100.0);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\\\""));
-            Assert.That(result, Does.Contain("\\n"));
+            Assert.That(result, Does.Contain("""
+                \"
+                """));
+            Assert.That(result, Does.Contain("""\n"""));
             Assert.That(result, Does.Contain("100"));
         }
 
@@ -14498,12 +15728,14 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             // Act
             encoder.WriteDouble("testField", double.Epsilon);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":"));
+            Assert.That(result, Does.Contain("""
+                "testField":
+                """));
         }
 
         /// <summary>
@@ -14515,12 +15747,14 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             // Act
             encoder.WriteDouble("testField", -double.Epsilon);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":"));
+            Assert.That(result, Does.Contain("""
+                "testField":
+                """));
         }
 
         /// <summary>
@@ -14532,16 +15766,22 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             // Act
             encoder.WriteDouble("field1", 1.1);
             encoder.WriteDouble("field2", 2.2);
             encoder.WriteDouble("field3", 3.3);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\"field1\":1.1"));
-            Assert.That(result, Does.Contain("\"field2\":2.2"));
-            Assert.That(result, Does.Contain("\"field3\":3.3"));
+            Assert.That(result, Does.Contain("""
+                "field1":1.1
+                """));
+            Assert.That(result, Does.Contain("""
+                "field2":2.2
+                """));
+            Assert.That(result, Does.Contain("""
+                "field3":3.3
+                """));
         }
 
         /// <summary>
@@ -14549,20 +15789,28 @@ namespace Opc.Ua.UnitTests
         /// </summary>
         /// <param name = "value">The double value to test.</param>
         /// <param name = "expectedContent">The expected JSON content for the value.</param>
-        [TestCase(double.NaN, "\"NaN\"")]
-        [TestCase(double.PositiveInfinity, "\"Infinity\"")]
-        [TestCase(double.NegativeInfinity, "\"-Infinity\"")]
+        [TestCase(double.NaN, """
+            "NaN"
+            """)]
+        [TestCase(double.PositiveInfinity, """
+            "Infinity"
+            """)]
+        [TestCase(double.NegativeInfinity, """
+            "-Infinity"
+            """)]
         public void WriteDouble_SpecialValues_WritesCorrectFormat(double value, string expectedContent)
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, false, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, false, stream, true);
             // Act
             encoder.WriteDouble("testField", value);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain($"\"testField\":{expectedContent}"));
+            Assert.That(result, Does.Contain($"""
+                "testField":{expectedContent}
+                """));
         }
 
         /// <summary>
@@ -14582,13 +15830,15 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, false, stream, true);
             string expectedValue = value.ToString("R", CultureInfo.InvariantCulture);
             // Act
             encoder.WriteDouble("testField", value);
             string result = GetJsonOutput(encoder, stream);
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":"));
+            Assert.That(result, Does.Contain("""
+                "testField":
+                """));
             Assert.That(result, Does.Contain(expectedValue));
         }
 
@@ -14605,11 +15855,13 @@ namespace Opc.Ua.UnitTests
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose);
             encoder.PushStructure(null);
             // Act
-            encoder.WriteExpandedNodeIdArray("TestField", default(ArrayOf<ExpandedNodeId>));
+            encoder.WriteExpandedNodeIdArray("TestField", default);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":null"));
+            Assert.That(result, Does.Contain("""
+                "TestField":null
+                """));
         }
 
         /// <summary>
@@ -14626,7 +15878,7 @@ namespace Opc.Ua.UnitTests
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
-            encoder.WriteExpandedNodeIdArray("TestField", default(ArrayOf<ExpandedNodeId>));
+            encoder.WriteExpandedNodeIdArray("TestField", default);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
@@ -14646,13 +15898,15 @@ namespace Opc.Ua.UnitTests
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose);
             encoder.PushStructure(null);
-            var emptyArray = new ArrayOf<ExpandedNodeId>(Array.Empty<ExpandedNodeId>());
+            var emptyArray = new ArrayOf<ExpandedNodeId>([]);
             // Act
             encoder.WriteExpandedNodeIdArray("TestField", emptyArray);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":[]"));
+            Assert.That(result, Does.Contain("""
+                "TestField":[]
+                """));
         }
 
         /// <summary>
@@ -14668,7 +15922,7 @@ namespace Opc.Ua.UnitTests
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             encoder.PushStructure(null);
-            var emptyArray = new ArrayOf<ExpandedNodeId>(Array.Empty<ExpandedNodeId>());
+            var emptyArray = new ArrayOf<ExpandedNodeId>([]);
             // Act
             encoder.WriteExpandedNodeIdArray("TestField", emptyArray);
             encoder.PopStructure();
@@ -14696,7 +15950,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"NodeIds\":["));
+            Assert.That(result, Does.Contain("""
+                "NodeIds":[
+                """));
             Assert.That(result, Does.Contain("100"));
         }
 
@@ -14785,7 +16041,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"NodeIds\":["));
+            Assert.That(result, Does.Contain("""
+                "NodeIds":[
+                """));
             Assert.That(result, Does.Contain("100"));
         }
 
@@ -14804,8 +16062,12 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEnumerated("field", 0);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"field\":0"));
-            Assert.That(result, Does.Not.Contain("\"field\":\"0\""));
+            Assert.That(result, Does.Contain("""
+                "field":0
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "field":"0"
+                """));
         }
 
         /// <summary>
@@ -14823,8 +16085,12 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEnumerated("field", 0);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"field\":\"0\""));
-            Assert.That(result, Does.Not.Contain("\"field\":0,"));
+            Assert.That(result, Does.Contain("""
+                "field":"0"
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "field":0,
+                """));
         }
 
         /// <summary>
@@ -14842,7 +16108,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEnumerated("status", 42);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"status\":42"));
+            Assert.That(result, Does.Contain("""
+                "status":42
+                """));
         }
 
         /// <summary>
@@ -14860,7 +16128,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEnumerated("status", 42);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"status\":\"42\""));
+            Assert.That(result, Does.Contain("""
+                "status":"42"
+                """));
         }
 
         /// <summary>
@@ -14878,7 +16148,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEnumerated("error", -1);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"error\":-1"));
+            Assert.That(result, Does.Contain("""
+                "error":-1
+                """));
         }
 
         /// <summary>
@@ -14896,7 +16168,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEnumerated("error", -1);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"error\":\"-1\""));
+            Assert.That(result, Does.Contain("""
+                "error":"-1"
+                """));
         }
 
         /// <summary>
@@ -14918,11 +16192,15 @@ namespace Opc.Ua.UnitTests
             // Assert
             if (encodingType == JsonEncodingType.Compact)
             {
-                Assert.That(result, Does.Contain($"\"minValue\":{expectedValue}"));
+                Assert.That(result, Does.Contain($"""
+                    "minValue":{expectedValue}
+                    """));
             }
             else
             {
-                Assert.That(result, Does.Contain($"\"minValue\":\"{expectedValue}\""));
+                Assert.That(result, Does.Contain($"""
+                    "minValue":"{expectedValue}"
+                    """));
             }
         }
 
@@ -14945,11 +16223,15 @@ namespace Opc.Ua.UnitTests
             // Assert
             if (encodingType == JsonEncodingType.Compact)
             {
-                Assert.That(result, Does.Contain($"\"maxValue\":{expectedValue}"));
+                Assert.That(result, Does.Contain($"""
+                    "maxValue":{expectedValue}
+                    """));
             }
             else
             {
-                Assert.That(result, Does.Contain($"\"maxValue\":\"{expectedValue}\""));
+                Assert.That(result, Does.Contain($"""
+                    "maxValue":"{expectedValue}"
+                    """));
             }
         }
 
@@ -14969,7 +16251,9 @@ namespace Opc.Ua.UnitTests
             string result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(result, Does.Contain("123"));
-            Assert.That(result, Does.Not.Contain("\"123\""));
+            Assert.That(result, Does.Not.Contain("""
+                "123"
+                """));
         }
 
         /// <summary>
@@ -14987,7 +16271,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEnumerated(null, 123);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"123\""));
+            Assert.That(result, Does.Contain("""
+                "123"
+                """));
         }
 
         /// <summary>
@@ -15006,7 +16292,9 @@ namespace Opc.Ua.UnitTests
             string result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(result, Does.Contain("456"));
-            Assert.That(result, Does.Not.Contain("\"\":"));
+            Assert.That(result, Does.Not.Contain("""
+                "":
+                """));
         }
 
         /// <summary>
@@ -15021,10 +16309,10 @@ namespace Opc.Ua.UnitTests
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
             // Act
-            encoder.WriteEnumerated("field\"with\\quotes", 789);
+            encoder.WriteEnumerated("""field"with\quotes""", 789);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("field\\\"with\\\\quotes"));
+            Assert.That(result, Does.Contain("""field\"with\\quotes"""));
             Assert.That(result, Does.Contain(":789"));
         }
 
@@ -15043,7 +16331,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEnumerated("   ", 999);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"   \":999"));
+            Assert.That(result, Does.Contain("""
+                "   ":999
+                """));
         }
 
         /// <summary>
@@ -15066,7 +16356,9 @@ namespace Opc.Ua.UnitTests
                 encoder.WriteEnumerated("value", 1000);
                 string result = encoder.CloseAndReturnText();
                 // Assert - should use invariant culture format (no thousands separator)
-                Assert.That(result, Does.Contain("\"value\":1000"));
+                Assert.That(result, Does.Contain("""
+                    "value":1000
+                    """));
                 Assert.That(result, Does.Not.Contain("1.000"));
             }
             finally
@@ -15092,9 +16384,15 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEnumerated("third", 3);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"first\":1"));
-            Assert.That(result, Does.Contain("\"second\":2"));
-            Assert.That(result, Does.Contain("\"third\":3"));
+            Assert.That(result, Does.Contain("""
+                "first":1
+                """));
+            Assert.That(result, Does.Contain("""
+                "second":2
+                """));
+            Assert.That(result, Does.Contain("""
+                "third":3
+                """));
         }
 
         /// <summary>
@@ -15114,9 +16412,15 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEnumerated("third", 3);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"first\":\"1\""));
-            Assert.That(result, Does.Contain("\"second\":\"2\""));
-            Assert.That(result, Does.Contain("\"third\":\"3\""));
+            Assert.That(result, Does.Contain("""
+                "first":"1"
+                """));
+            Assert.That(result, Does.Contain("""
+                "second":"2"
+                """));
+            Assert.That(result, Does.Contain("""
+                "third":"3"
+                """));
         }
 
         /// <summary>
@@ -15137,7 +16441,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopArray();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"values\":[10,20,30]"));
+            Assert.That(result, Does.Contain("""
+                "values":[10,20,30]
+                """));
         }
 
         /// <summary>
@@ -15155,9 +16461,12 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEnumerated(null, 10);
             encoder.WriteEnumerated(null, 20);
             encoder.WriteEnumerated(null, 30);
+            encoder.PopArray();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"values\":[\"10\",\"20\",\"30\"]"));
+            Assert.That(result, Does.Contain("""
+                "values":["10","20","30"]
+                """));
         }
 
         /// <summary>
@@ -15453,7 +16762,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             // Act
             encoder.WriteUInt32("testField", 0);
@@ -15472,13 +16781,15 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose, false, stream, false);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose, false, stream, true);
             encoder.PushStructure(null);
             // Act
             encoder.WriteUInt32("testField", 0);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"testField\":0"));
+            Assert.That(result, Does.Contain("""
+                "testField":0
+                """));
         }
 
         /// <summary>
@@ -15510,13 +16821,15 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             // Act
             encoder.WriteUInt32("testField", 100);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"testField\":100"));
+            Assert.That(result, Does.Contain("""
+                "testField":100
+                """));
         }
 
         /// <summary>
@@ -15529,13 +16842,15 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             // Act
             encoder.WriteUInt32("maxField", uint.MaxValue);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain($"\"maxField\":{uint.MaxValue}"));
+            Assert.That(result, Does.Contain($"""
+                "maxField":{uint.MaxValue}
+                """));
         }
 
         /// <summary>
@@ -15554,7 +16869,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteUInt32("minField", 0);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"minField\":0"));
+            Assert.That(result, Does.Contain("""
+                "minField":0
+                """));
         }
 
         /// <summary>
@@ -15577,7 +16894,9 @@ namespace Opc.Ua.UnitTests
                 encoder.WriteUInt32("largeField", 1234567890);
                 // Assert
                 string result = GetJsonOutput(encoder, stream);
-                Assert.That(result, Does.Contain("\"largeField\":1234567890"));
+                Assert.That(result, Does.Contain("""
+                    "largeField":1234567890
+                    """));
                 Assert.That(result, Does.Not.Contain("."));
                 Assert.That(result, Does.Not.Contain(","));
             }
@@ -15616,13 +16935,15 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             // Act
             encoder.WriteUInt32(" ", 456);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\" \":456"));
+            Assert.That(result, Does.Contain("""
+                " ":456
+                """));
         }
 
         /// <summary>
@@ -15635,13 +16956,15 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             // Act
-            encoder.WriteUInt32("field\"name", 789);
+            encoder.WriteUInt32("""field"name""", 789);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\\\""));
+            Assert.That(result, Does.Contain("""
+                \"
+                """));
             Assert.That(result, Does.Contain("789"));
         }
 
@@ -15655,7 +16978,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             // Act
             encoder.WriteUInt32("field1", 100);
@@ -15663,9 +16986,15 @@ namespace Opc.Ua.UnitTests
             encoder.WriteUInt32("field3", 200);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"field1\":100"));
-            Assert.That(result, Does.Not.Contain("\"field2\""));
-            Assert.That(result, Does.Contain("\"field3\":200"));
+            Assert.That(result, Does.Contain("""
+                "field1":100
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "field2"
+                """));
+            Assert.That(result, Does.Contain("""
+                "field3":200
+                """));
         }
 
         /// <summary>
@@ -15678,7 +17007,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose, false, stream, false);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose, false, stream, true);
             encoder.PushStructure(null);
             // Act
             encoder.WriteUInt32("field1", 100);
@@ -15686,9 +17015,15 @@ namespace Opc.Ua.UnitTests
             encoder.WriteUInt32("field3", 200);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"field1\":100"));
-            Assert.That(result, Does.Contain("\"field2\":0"));
-            Assert.That(result, Does.Contain("\"field3\":200"));
+            Assert.That(result, Does.Contain("""
+                "field1":100
+                """));
+            Assert.That(result, Does.Contain("""
+                "field2":0
+                """));
+            Assert.That(result, Does.Contain("""
+                "field3":200
+                """));
         }
 
         /// <summary>
@@ -15701,13 +17036,15 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, false);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
             // Act
             encoder.WriteUInt32("oneField", 1);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"oneField\":1"));
+            Assert.That(result, Does.Contain("""
+                "oneField":1
+                """));
         }
 
         /// <summary>
@@ -15722,7 +17059,7 @@ namespace Opc.Ua.UnitTests
             using var stream = new MemoryStream();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact, false, stream, true);
             encoder.PushStructure(null);
-            string longFieldName = new string ('a', 1000);
+            string longFieldName = new('a', 1000);
             // Act
             encoder.WriteUInt32(longFieldName, 999);
             // Assert
@@ -15766,13 +17103,15 @@ namespace Opc.Ua.UnitTests
             // Arrange
             ServiceMessageContext context = CreateMockServiceMessageContext();
             using var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose, false, stream, false);
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose, false, stream, true);
             encoder.PushStructure(null);
             // Act
             encoder.WriteUInt32("testField", value);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain($"\"testField\":{expected}"));
+            Assert.That(result, Does.Contain($"""
+                "testField":{expected}
+                """));
         }
 
         /// <summary>
@@ -15786,7 +17125,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, stream: stream, leaveOpen: false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, stream: stream, leaveOpen: true);
             encoder.PushArray(null);
             // Act
             encoder.WriteDiagnosticInfo(null, null);
@@ -15806,7 +17145,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, stream: stream, leaveOpen: false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
             // Act
             encoder.WriteDiagnosticInfo("TestField", null);
@@ -15826,13 +17165,15 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
             // Act
             encoder.WriteDiagnosticInfo("TestField", null);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"TestField\""));
+            Assert.That(result, Does.Contain("""
+                "TestField"
+                """));
             Assert.That(result, Does.Contain("null"));
         }
 
@@ -15868,7 +17209,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
             var diagnosticInfo = new DiagnosticInfo
             {
@@ -15883,13 +17224,27 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDiagnosticInfo("DiagInfo", diagnosticInfo);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"DiagInfo\""));
-            Assert.That(result, Does.Contain("\"SymbolicId\""));
-            Assert.That(result, Does.Contain("\"NamespaceUri\""));
-            Assert.That(result, Does.Contain("\"Locale\""));
-            Assert.That(result, Does.Contain("\"LocalizedText\""));
-            Assert.That(result, Does.Contain("\"AdditionalInfo\""));
-            Assert.That(result, Does.Contain("\"InnerStatusCode\""));
+            Assert.That(result, Does.Contain("""
+                "DiagInfo"
+                """));
+            Assert.That(result, Does.Contain("""
+                "SymbolicId"
+                """));
+            Assert.That(result, Does.Contain("""
+                "NamespaceUri"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Locale"
+                """));
+            Assert.That(result, Does.Contain("""
+                "LocalizedText"
+                """));
+            Assert.That(result, Does.Contain("""
+                "AdditionalInfo"
+                """));
+            Assert.That(result, Does.Contain("""
+                "InnerStatusCode"
+                """));
         }
 
         /// <summary>
@@ -15903,7 +17258,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, stream: stream, leaveOpen: false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
             var diagnosticInfo = new DiagnosticInfo
             {
@@ -15913,10 +17268,16 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDiagnosticInfo("DiagInfo", diagnosticInfo);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"SymbolicId\""));
+            Assert.That(result, Does.Contain("""
+                "SymbolicId"
+                """));
             Assert.That(result, Does.Contain("42"));
-            Assert.That(result, Does.Not.Contain("\"NamespaceUri\""));
-            Assert.That(result, Does.Not.Contain("\"Locale\""));
+            Assert.That(result, Does.Not.Contain("""
+                "NamespaceUri"
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "Locale"
+                """));
         }
 
         /// <summary>
@@ -15930,7 +17291,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
             var innerDiagnosticInfo = new DiagnosticInfo
             {
@@ -15946,7 +17307,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDiagnosticInfo("DiagInfo", diagnosticInfo);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"InnerDiagnosticInfo\""));
+            Assert.That(result, Does.Contain("""
+                "InnerDiagnosticInfo"
+                """));
             Assert.That(result, Does.Contain("100"));
             Assert.That(result, Does.Contain("Inner info"));
         }
@@ -15962,7 +17325,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
             encoder.PushArray(null);
             var diagnosticInfo = new DiagnosticInfo
             {
@@ -15972,7 +17335,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDiagnosticInfo(string.Empty, diagnosticInfo);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"SymbolicId\""));
+            Assert.That(result, Does.Contain("""
+                "SymbolicId"
+                """));
             Assert.That(result, Does.Contain("1"));
         }
 
@@ -15987,7 +17352,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
             var diagnosticInfo = new DiagnosticInfo
             {
@@ -15997,7 +17362,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDiagnosticInfo("   ", diagnosticInfo);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"   \""));
+            Assert.That(result, Does.Contain("""
+                "   "
+                """));
         }
 
         /// <summary>
@@ -16011,7 +17378,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
             var diagnosticInfo = new DiagnosticInfo
             {
@@ -16021,8 +17388,10 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDiagnosticInfo("Test\"Field\nName", diagnosticInfo);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\\\""));
-            Assert.That(result, Does.Contain("\\n"));
+            Assert.That(result, Does.Contain("""
+                \"
+                """));
+            Assert.That(result, Does.Contain("""\n"""));
         }
 
         /// <summary>
@@ -16036,7 +17405,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
             var diagnosticInfo = new DiagnosticInfo
             {
@@ -16050,11 +17419,21 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDiagnosticInfo("DiagInfo", diagnosticInfo);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"AdditionalInfo\""));
-            Assert.That(result, Does.Not.Contain("\"SymbolicId\""));
-            Assert.That(result, Does.Not.Contain("\"NamespaceUri\""));
-            Assert.That(result, Does.Not.Contain("\"Locale\""));
-            Assert.That(result, Does.Not.Contain("\"LocalizedText\""));
+            Assert.That(result, Does.Contain("""
+                "AdditionalInfo"
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "SymbolicId"
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "NamespaceUri"
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "Locale"
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "LocalizedText"
+                """));
         }
 
         /// <summary>
@@ -16068,7 +17447,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
             var diagnosticInfo = new DiagnosticInfo
             {
@@ -16081,10 +17460,18 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDiagnosticInfo("DiagInfo", diagnosticInfo);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"SymbolicId\""));
-            Assert.That(result, Does.Contain("\"NamespaceUri\""));
-            Assert.That(result, Does.Contain("\"Locale\""));
-            Assert.That(result, Does.Contain("\"LocalizedText\""));
+            Assert.That(result, Does.Contain("""
+                "SymbolicId"
+                """));
+            Assert.That(result, Does.Contain("""
+                "NamespaceUri"
+                """));
+            Assert.That(result, Does.Contain("""
+                "Locale"
+                """));
+            Assert.That(result, Does.Contain("""
+                "LocalizedText"
+                """));
         }
 
         /// <summary>
@@ -16098,7 +17485,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
             var diagnosticInfo = new DiagnosticInfo
             {
@@ -16136,7 +17523,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDiagnosticInfo("DiagInfo", diagnosticInfo);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Not.Contain("\"InnerStatusCode\""));
+            Assert.That(result, Does.Not.Contain("""
+                "InnerStatusCode"
+                """));
         }
 
         /// <summary>
@@ -16150,7 +17539,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
             var diagnosticInfo = new DiagnosticInfo
             {
@@ -16161,7 +17550,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDiagnosticInfo("DiagInfo", diagnosticInfo);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"InnerStatusCode\""));
+            Assert.That(result, Does.Contain("""
+                "InnerStatusCode"
+                """));
         }
 
         /// <summary>
@@ -16186,9 +17577,11 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDiagnosticInfo("DiagInfo", diagnosticInfo);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\\n"));
-            Assert.That(result, Does.Contain("\\t"));
-            Assert.That(result, Does.Contain("\\\""));
+            Assert.That(result, Does.Contain("""\n"""));
+            Assert.That(result, Does.Contain("""\t"""));
+            Assert.That(result, Does.Contain("""
+                \"
+                """));
         }
 
         /// <summary>
@@ -16239,7 +17632,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDiagnosticInfo("DiagInfo", diagnosticInfo);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Not.Contain("\"AdditionalInfo\""));
+            Assert.That(result, Does.Not.Contain("""
+                "AdditionalInfo"
+                """));
         }
 
         /// <summary>
@@ -16253,7 +17648,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
             var diagnosticInfo = new DiagnosticInfo
             {
@@ -16264,7 +17659,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDiagnosticInfo("DiagInfo", diagnosticInfo);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"AdditionalInfo\":\"\""));
+            Assert.That(result, Does.Contain("""
+                "AdditionalInfo":""
+                """));
         }
 
         /// <summary>
@@ -16282,7 +17679,7 @@ namespace Opc.Ua.UnitTests
             try
             {
                 CultureInfo.CurrentCulture = new CultureInfo("de-DE");
-                using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: false);
+                using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
                 encoder.PushStructure(null);
                 var diagnosticInfo = new DiagnosticInfo
                 {
@@ -16324,7 +17721,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteDiagnosticInfo(null, diagnosticInfo);
             // Assert
             string result = GetJsonOutput(encoder, stream);
-            Assert.That(result, Does.Contain("\"SymbolicId\""));
+            Assert.That(result, Does.Contain("""
+                "SymbolicId"
+                """));
             Assert.That(result, Does.Contain("1"));
         }
 
@@ -16339,7 +17738,7 @@ namespace Opc.Ua.UnitTests
             // Arrange
             var messageContext = CreateMockServiceMessageContext();
             var stream = new MemoryStream();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: false);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose, stream: stream, leaveOpen: true);
             encoder.PushStructure(null);
             var diagnosticInfo = new DiagnosticInfo
             {
@@ -16350,7 +17749,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             string result = GetJsonOutput(encoder, stream);
             Assert.That(result, Is.Not.Empty);
-            Assert.That(result, Does.Contain("\"SymbolicId\""));
+            Assert.That(result, Does.Contain("""
+                "SymbolicId"
+                """));
         }
 
         /// <summary>
@@ -16369,7 +17770,7 @@ namespace Opc.Ua.UnitTests
             encoder.WriteSByteArray("field", values);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Is.EqualTo("{\"field\":null}"));
+            Assert.That(result, Is.EqualTo(/*lang=json,strict*/ """{"field":null}"""));
         }
 
         /// <summary>
@@ -16388,7 +17789,7 @@ namespace Opc.Ua.UnitTests
             encoder.WriteSByteArray("field", values);
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Is.EqualTo("{\"field\":[]}"));
+            Assert.That(result, Is.EqualTo(/*lang=json,strict*/ """{"field":[]}"""));
         }
 
         /// <summary>
@@ -16409,7 +17810,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"Guids\""));
+            Assert.That(result, Does.Contain("""
+                "Guids"
+                """));
             Assert.That(result, Does.Contain("[]"));
         }
 
@@ -16425,13 +17828,15 @@ namespace Opc.Ua.UnitTests
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Verbose);
             encoder.PushStructure(null);
-            var emptyArray = new ArrayOf<IEncodeable>(Array.Empty<IEncodeable>());
+            var emptyArray = new ArrayOf<IEncodeable>([]);
             // Act
             encoder.WriteEncodeableArrayAsExtensionObjects("TestField", emptyArray);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"TestField\":[]"));
+            Assert.That(result, Does.Contain("""
+                "TestField":[]
+                """));
         }
 
         /// <summary>
@@ -16473,7 +17878,9 @@ namespace Opc.Ua.UnitTests
             string result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(result, Does.Contain("testField"));
-            Assert.That(result, Does.Contain("\"testField\":1"));
+            Assert.That(result, Does.Contain("""
+                "testField":1
+                """));
         }
 
         /// <summary>
@@ -16494,7 +17901,9 @@ namespace Opc.Ua.UnitTests
             string result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(result, Does.Contain("testField"));
-            Assert.That(result, Does.Contain("\"testField\":0"));
+            Assert.That(result, Does.Contain("""
+                "testField":0
+                """));
         }
 
         /// <summary>
@@ -16525,12 +17934,10 @@ namespace Opc.Ua.UnitTests
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
-            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
+            using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact, topLevelIsArray: true);
             byte value = 42;
             // Act
-            encoder.PushArray(null);
             encoder.WriteByte(null, value);
-            encoder.PopArray();
             string result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(result, Does.Contain("42"));
@@ -16557,7 +17964,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             if (shouldWrite)
             {
-                Assert.That(result, Does.Contain("\"field\":0"));
+                Assert.That(result, Does.Contain("""
+                    "field":0
+                    """));
             }
             else
             {
@@ -16583,7 +17992,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"maxField\":255"));
+            Assert.That(result, Does.Contain("""
+                "maxField":255
+                """));
         }
 
         /// <summary>
@@ -16607,7 +18018,9 @@ namespace Opc.Ua.UnitTests
                 encoder.PopStructure();
                 string result = encoder.CloseAndReturnText();
                 // Assert
-                Assert.That(result, Does.Contain("\"testField\":123"));
+                Assert.That(result, Does.Contain("""
+                    "testField":123
+                    """));
                 Assert.That(result, Does.Not.Contain(","));
             }
             finally
@@ -16654,7 +18067,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"  \":50"));
+            Assert.That(result, Does.Contain("""
+                "  ":50
+                """));
         }
 
         /// <summary>
@@ -16668,7 +18083,7 @@ namespace Opc.Ua.UnitTests
             ServiceMessageContext messageContext = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(messageContext, JsonEncodingType.Compact);
             byte value = 75;
-            string fieldName = "field\"with\\quotes";
+            string fieldName = """field"with\quotes""";
             // Act
             encoder.PushStructure(null);
             encoder.WriteByte(fieldName, value);
@@ -16676,7 +18091,7 @@ namespace Opc.Ua.UnitTests
             string result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(result, Does.Contain("75"));
-            Assert.That(result, Does.Contain("field\\\"with\\\\quotes"));
+            Assert.That(result, Does.Contain("""field\"with\\quotes"""));
         }
 
         /// <summary>
@@ -16697,10 +18112,16 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"first\":10"));
-            Assert.That(result, Does.Contain("\"second\":20"));
-            Assert.That(result, Does.Contain("\"third\":30"));
-            Assert.That(result, Is.EqualTo("{\"first\":10,\"second\":20,\"third\":30}"));
+            Assert.That(result, Does.Contain("""
+                "first":10
+                """));
+            Assert.That(result, Does.Contain("""
+                "second":20
+                """));
+            Assert.That(result, Does.Contain("""
+                "third":30
+                """));
+            Assert.That(result, Is.EqualTo(/*lang=json,strict*/ """{"first":10,"second":20,"third":30}"""));
         }
 
         /// <summary>
@@ -16724,7 +18145,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain($"\"value\":{expectedString}"));
+            Assert.That(result, Does.Contain($"""
+                "value":{expectedString}
+                """));
         }
 
         /// <summary>
@@ -16783,7 +18206,9 @@ namespace Opc.Ua.UnitTests
             string result = encoder.CloseAndReturnText();
             // Assert
             string expectedBase64 = Convert.ToBase64String([1, 2, 3, 4, 5]);
-            Assert.That(result, Does.Contain($"\"data\":\"{expectedBase64}\""));
+            Assert.That(result, Does.Contain($"""
+                "data":"{expectedBase64}"
+                """));
         }
 
         /// <summary>
@@ -16796,13 +18221,15 @@ namespace Opc.Ua.UnitTests
             var context = CreateMockServiceMessageContext();
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.PushStructure(null);
-            var byteString = new ByteString(new byte[0]);
+            var byteString = new ByteString(Array.Empty<byte>());
             // Act
             encoder.WriteByteString("data", byteString);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"data\":\"\""));
+            Assert.That(result, Does.Contain("""
+                "data":""
+                """));
         }
 
         /// <summary>
@@ -16822,7 +18249,9 @@ namespace Opc.Ua.UnitTests
             string result = encoder.CloseAndReturnText();
             // Assert
             string expectedBase64 = Convert.ToBase64String([1, 2, 3]);
-            Assert.That(result, Does.Contain($"\"{expectedBase64}\""));
+            Assert.That(result, Does.Contain($"""
+                "{expectedBase64}"
+                """));
         }
 
         /// <summary>
@@ -16842,8 +18271,12 @@ namespace Opc.Ua.UnitTests
             string result = encoder.CloseAndReturnText();
             // Assert
             string expectedBase64 = Convert.ToBase64String([1, 2, 3]);
-            Assert.That(result, Does.Contain("\"  \":"));
-            Assert.That(result, Does.Contain($"\"{expectedBase64}\""));
+            Assert.That(result, Does.Contain("""
+                "  ":
+                """));
+            Assert.That(result, Does.Contain($"""
+                "{expectedBase64}"
+                """));
         }
 
         /// <summary>
@@ -16869,7 +18302,9 @@ namespace Opc.Ua.UnitTests
             string result = encoder.CloseAndReturnText();
             // Assert
             string expectedBase64 = Convert.ToBase64String(bytes);
-            Assert.That(result, Does.Contain($"\"data\":\"{expectedBase64}\""));
+            Assert.That(result, Does.Contain($"""
+                "data":"{expectedBase64}"
+                """));
         }
 
         /// <summary>
@@ -16889,7 +18324,9 @@ namespace Opc.Ua.UnitTests
             string result = encoder.CloseAndReturnText();
             // Assert
             string expectedBase64 = Convert.ToBase64String([255]);
-            Assert.That(result, Does.Contain($"\"data\":\"{expectedBase64}\""));
+            Assert.That(result, Does.Contain($"""
+                "data":"{expectedBase64}"
+                """));
         }
 
         /// <summary>
@@ -16907,8 +18344,12 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEnumerated("TestField", TestEnum.Second);
             // Assert
             string result = GetJsonOutput(encoder, memoryStream);
-            Assert.That(result, Does.Contain("\"TestField\":2"));
-            Assert.That(result, Does.Not.Contain("\"Second"));
+            Assert.That(result, Does.Contain("""
+                "TestField":2
+                """));
+            Assert.That(result, Does.Not.Contain("""
+                "Second
+                """));
         }
 
         /// <summary>
@@ -16926,7 +18367,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEnumerated("TestField", TestEnum.Second);
             // Assert
             string result = GetJsonOutput(encoder, memoryStream);
-            Assert.That(result, Does.Contain("\"TestField\":\"Second_2\""));
+            Assert.That(result, Does.Contain("""
+                "TestField":"Second_2"
+                """));
         }
 
         /// <summary>
@@ -16944,7 +18387,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEnumerated("TestField", (TestEnum)999);
             // Assert
             string result = GetJsonOutput(encoder, memoryStream);
-            Assert.That(result, Does.Contain("\"TestField\":\"999\""));
+            Assert.That(result, Does.Contain("""
+                "TestField":"999"
+                """));
         }
 
         /// <summary>
@@ -16962,7 +18407,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEnumerated("TestField", TestEnum.None);
             // Assert
             string result = GetJsonOutput(encoder, memoryStream);
-            Assert.That(result, Does.Contain("\"TestField\":0"));
+            Assert.That(result, Does.Contain("""
+                "TestField":0
+                """));
         }
 
         /// <summary>
@@ -16980,7 +18427,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEnumerated("TestField", TestEnum.None);
             // Assert
             string result = GetJsonOutput(encoder, memoryStream);
-            Assert.That(result, Does.Contain("\"TestField\":\"None_0\""));
+            Assert.That(result, Does.Contain("""
+                "TestField":"None_0"
+                """));
         }
 
         /// <summary>
@@ -16999,7 +18448,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             string result = GetJsonOutput(encoder, memoryStream);
             Assert.That(result, Does.Contain("1"));
-            Assert.That(result, Does.Not.Contain("\"TestField\""));
+            Assert.That(result, Does.Not.Contain("""
+                "TestField"
+                """));
         }
 
         /// <summary>
@@ -17017,7 +18468,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEnumerated(null, TestEnum.First);
             // Assert
             string result = GetJsonOutput(encoder, memoryStream);
-            Assert.That(result, Does.Contain("\"First_1\""));
+            Assert.That(result, Does.Contain("""
+                "First_1"
+                """));
         }
 
         /// <summary>
@@ -17055,9 +18508,15 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEnumerated("Third", TestEnum.Third);
             // Assert
             string result = GetJsonOutput(encoder, memoryStream);
-            Assert.That(result, Does.Contain("\"First\":1"));
-            Assert.That(result, Does.Contain("\"Second\":2"));
-            Assert.That(result, Does.Contain("\"Third\":3"));
+            Assert.That(result, Does.Contain("""
+                "First":1
+                """));
+            Assert.That(result, Does.Contain("""
+                "Second":2
+                """));
+            Assert.That(result, Does.Contain("""
+                "Third":3
+                """));
         }
 
         /// <summary>
@@ -17075,7 +18534,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEnumerated("Flags", TestFlagsEnum.Combined);
             // Assert
             string result = GetJsonOutput(encoder, memoryStream);
-            Assert.That(result, Does.Contain("\"Flags\":3"));
+            Assert.That(result, Does.Contain("""
+                "Flags":3
+                """));
         }
 
         /// <summary>
@@ -17093,7 +18554,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEnumerated("Flags", TestFlagsEnum.Combined);
             // Assert
             string result = GetJsonOutput(encoder, memoryStream);
-            Assert.That(result, Does.Contain("\"Flags\":\"Combined_3\""));
+            Assert.That(result, Does.Contain("""
+                "Flags":"Combined_3"
+                """));
         }
 
         /// <summary>
@@ -17111,7 +18574,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEnumerated("Flags", TestFlagsEnum.Flag1 | TestFlagsEnum.Flag3);
             // Assert
             string result = GetJsonOutput(encoder, memoryStream);
-            Assert.That(result, Does.Contain("\"Flags\":\"Flag1, Flag3_5\""));
+            Assert.That(result, Does.Contain("""
+                "Flags":"Flag1, Flag3_5"
+                """));
         }
 
         /// <summary>
@@ -17133,7 +18598,9 @@ namespace Opc.Ua.UnitTests
                 encoder.WriteEnumerated("TestField", TestEnum.Second);
                 // Assert
                 string result = GetJsonOutput(encoder, memoryStream);
-                Assert.That(result, Does.Contain("\"TestField\":2"));
+                Assert.That(result, Does.Contain("""
+                    "TestField":2
+                    """));
                 Assert.That(result, Does.Not.Contain(","));
             }
             finally
@@ -17157,7 +18624,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEnumerated("TestField", (TestEnum)(-1));
             // Assert
             string result = GetJsonOutput(encoder, memoryStream);
-            Assert.That(result, Does.Contain("\"TestField\":-1"));
+            Assert.That(result, Does.Contain("""
+                "TestField":-1
+                """));
         }
 
         /// <summary>
@@ -17175,7 +18644,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEnumerated("TestField", (TestEnum)(-5));
             // Assert
             string result = GetJsonOutput(encoder, memoryStream);
-            Assert.That(result, Does.Contain("\"TestField\":\"-5\""));
+            Assert.That(result, Does.Contain("""
+                "TestField":"-5"
+                """));
         }
 
         /// <summary>
@@ -17193,7 +18664,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEnumerated("TestField", (TestEnum)2147483647);
             // Assert
             string result = GetJsonOutput(encoder, memoryStream);
-            Assert.That(result, Does.Contain("\"TestField\":2147483647"));
+            Assert.That(result, Does.Contain("""
+                "TestField":2147483647
+                """));
         }
 
         /// <summary>
@@ -17211,7 +18684,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEnumerated("TestField", (TestEnum)int.MaxValue);
             // Assert
             string result = GetJsonOutput(encoder, memoryStream);
-            Assert.That(result, Does.Contain("\"TestField\":\"2147483647\""));
+            Assert.That(result, Does.Contain("""
+                "TestField":"2147483647"
+                """));
         }
 
         /// <summary>
@@ -17229,7 +18704,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEnumerated("TestField", (TestEnum)int.MinValue);
             // Assert
             string result = GetJsonOutput(encoder, memoryStream);
-            Assert.That(result, Does.Contain("\"TestField\":-2147483648"));
+            Assert.That(result, Does.Contain("""
+                "TestField":-2147483648
+                """));
         }
 
         /// <summary>
@@ -17247,7 +18724,9 @@ namespace Opc.Ua.UnitTests
             encoder.WriteEnumerated("  ", TestEnum.First);
             // Assert
             string result = GetJsonOutput(encoder, memoryStream);
-            Assert.That(result, Does.Contain("\"  \":1"));
+            Assert.That(result, Does.Contain("""
+                "  ":1
+                """));
         }
 
         /// <summary>
@@ -17267,7 +18746,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":null"));
+            Assert.That(result, Does.Contain("""
+                "testField":null
+                """));
         }
 
         /// <summary>
@@ -17307,7 +18788,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":[]"));
+            Assert.That(result, Does.Contain("""
+                "testField":[]
+                """));
         }
 
         /// <summary>
@@ -17327,7 +18810,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":[\"12345\"]"));
+            Assert.That(result, Does.Contain("""
+                "testField":["12345"]
+                """));
         }
 
         /// <summary>
@@ -17347,7 +18832,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":[\"100\",\"200\",\"300\"]"));
+            Assert.That(result, Does.Contain("""
+                "testField":["100","200","300"]
+                """));
         }
 
         /// <summary>
@@ -17367,7 +18854,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":[\"0\"]"));
+            Assert.That(result, Does.Contain("""
+                "testField":["0"]
+                """));
         }
 
         /// <summary>
@@ -17387,7 +18876,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain($"\"testField\":[\"{ulong.MaxValue}\"]"));
+            Assert.That(result, Does.Contain($"""
+                "testField":["{ulong.MaxValue}"]
+                """));
         }
 
         /// <summary>
@@ -17407,7 +18898,7 @@ namespace Opc.Ua.UnitTests
             encoder.PopArray();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("[\"111\",\"222\"]"));
+            Assert.That(result, Does.Contain("""["111","222"]"""));
         }
 
         /// <summary>
@@ -17427,7 +18918,7 @@ namespace Opc.Ua.UnitTests
             encoder.PopArray();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("[\"999\"]"));
+            Assert.That(result, Does.Contain("""["999"]"""));
         }
 
         /// <summary>
@@ -17443,11 +18934,11 @@ namespace Opc.Ua.UnitTests
             var values = new ArrayOf<ulong>([123UL]);
             // Act
             encoder.PushStructure(null);
-            encoder.WriteUInt64Array("test\"Field", values);
+            encoder.WriteUInt64Array("""test"Field""", values);
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("test\\\"Field"));
+            Assert.That(result, Does.Contain("""test\"Field"""));
         }
 
         /// <summary>
@@ -17467,9 +18958,15 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":[\"0\",\"1\""));
-            Assert.That(result, Does.Contain($"\"{ulong.MaxValue - 1}\""));
-            Assert.That(result, Does.Contain($"\"{ulong.MaxValue}\"]"));
+            Assert.That(result, Does.Contain("""
+                "testField":["0","1"
+                """));
+            Assert.That(result, Does.Contain($"""
+                "{ulong.MaxValue - 1}"
+                """));
+            Assert.That(result, Does.Contain($"""
+                "{ulong.MaxValue}"]
+                """));
         }
 
         /// <summary>
@@ -17489,7 +18986,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"testField\":[]"));
+            Assert.That(result, Does.Contain("""
+                "testField":[]
+                """));
         }
 
         /// <summary>
@@ -17510,7 +19009,9 @@ namespace Opc.Ua.UnitTests
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
             // Assert
-            Assert.That(result, Does.Contain("\"names\""));
+            Assert.That(result, Does.Contain("""
+                "names"
+                """));
             Assert.That(result, Does.Contain("[]"));
         }
 
@@ -17589,7 +19090,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"data\":[]"));
+            Assert.That(result, Does.Contain("""
+                "data":[]
+                """));
         }
 
         /// <summary>
@@ -17629,7 +19132,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"level1\":[[[]]]"));
+            Assert.That(result, Does.Contain("""
+                "level1":[[[]]]
+                """));
         }
 
         /// <summary>
@@ -17649,7 +19154,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"first\":[],\"second\":\"value\""));
+            Assert.That(result, Does.Contain("""
+                "first":[],"second":"value"
+                """));
         }
 
         /// <summary>
@@ -17671,7 +19178,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"numbers\":[1,2,3]"));
+            Assert.That(result, Does.Contain("""
+                "numbers":[1,2,3]
+                """));
         }
 
         /// <summary>
@@ -17712,7 +19221,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"mixed\":[\"text\",42,true]"));
+            Assert.That(result, Does.Contain("""
+                "mixed":["text",42,true]
+                """));
         }
 
         /// <summary>
@@ -17735,8 +19246,12 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"first\":[1]"));
-            Assert.That(result, Does.Contain("\"second\":[2]"));
+            Assert.That(result, Does.Contain("""
+                "first":[1]
+                """));
+            Assert.That(result, Does.Contain("""
+                "second":[2]
+                """));
         }
 
         /// <summary>
@@ -17762,7 +19277,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"level1\":[[[[42]]]]"));
+            Assert.That(result, Does.Contain("""
+                "level1":[[[[42]]]]
+                """));
         }
 
         /// <summary>
@@ -17783,7 +19300,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"items\":[\"item1\",\"item2\"]"));
+            Assert.That(result, Does.Contain("""
+                "items":["item1","item2"]
+                """));
         }
 
         /// <summary>
@@ -17805,8 +19324,12 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"name\":\"test\""));
-            Assert.That(result, Does.Contain("\"values\":[1,2]"));
+            Assert.That(result, Does.Contain("""
+                "name":"test"
+                """));
+            Assert.That(result, Does.Contain("""
+                "values":[1,2]
+                """));
         }
 
         /// <summary>
@@ -17831,7 +19354,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"objects\":[{\"key\":\"value1\"},{\"key\":\"value2\"}]"));
+            Assert.That(result, Does.Contain("""
+                "objects":[{"key":"value1"},{"key":"value2"}]
+                """));
         }
 
         /// <summary>
@@ -17866,7 +19391,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"single\":[\"onlyElement\"]"));
+            Assert.That(result, Does.Contain("""
+                "single":["onlyElement"]
+                """));
         }
 
         /// <summary>
@@ -17888,7 +19415,9 @@ namespace Opc.Ua.UnitTests
             // Assert
             encoder.PopStructure();
             string result = encoder.CloseAndReturnText();
-            Assert.That(result, Does.Contain("\"data\":[{\"value\":123}]"));
+            Assert.That(result, Does.Contain("""
+                "data":[{"value":123}]
+                """));
         }
     }
 }
