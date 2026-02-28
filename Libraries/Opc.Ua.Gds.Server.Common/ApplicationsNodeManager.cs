@@ -1863,15 +1863,16 @@ namespace Opc.Ua.Gds.Server
                         "CertificateGroups folder node was not found in the address space.");
                 }
 
-                certificateGroup.Id = GenerateNodeId();
-
                 var customGroupNode = new Ua.CertificateGroupState(certGroupsFolder);
                 customGroupNode.Create(
                     SystemContext,
-                    certificateGroup.Id,
+                    NodeId.Null,
                     new QualifiedName(groupId, NamespaceIndex),
                     new LocalizedText(groupId),
                     true);
+
+                // Read back the NodeId assigned by Create (assignNodeIds: true reassigns the root id).
+                certificateGroup.Id = customGroupNode.NodeId;
 
                 if (customGroupNode.CertificateTypes != null)
                 {
