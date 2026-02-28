@@ -389,5 +389,80 @@ namespace Opc.Ua.Gds.Tests
                 Assert.AreEqual(1, crls.Count);
             }
         }
+
+        [Test]
+        public void TestCustomCertificateTypeNodeIdIsAccepted()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            // A custom certificate type specified as a NodeId string should be accepted
+            var customCertTypeNodeId = "ns=2;i=12345";
+            var configuration = new CertificateGroupConfiguration
+            {
+                SubjectName = "CN=GDS Custom CA, O=OPC Foundation",
+                BaseStorePath = m_path,
+                CertificateTypes = [customCertTypeNodeId]
+            };
+
+            ICertificateGroup certificateGroup = new CertificateGroup(telemetry).Create(
+                m_path + "/authorities",
+                configuration);
+
+            Assert.That(certificateGroup.CertificateTypes, Has.Count.EqualTo(1));
+            Assert.That(
+                certificateGroup.CertificateTypes[0],
+                Is.EqualTo(NodeId.Parse(customCertTypeNodeId)));
+        }
+
+        [Test]
+        public void TestUnknownCertificateTypeStringThrowsNotImplemented()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            // An unrecognized certificate type string (not a well-known OPC UA name nor a NodeId)
+            // should throw NotImplementedException
+            var configuration = new CertificateGroupConfiguration
+            {
+                SubjectName = "CN=GDS Custom CA, O=OPC Foundation",
+                BaseStorePath = m_path,
+                CertificateTypes = ["NotAKnownCertificateType"]
+            };
+
+            Assert.That(
+                () => new CertificateGroup(telemetry).Create(m_path + "/authorities", configuration),
+                Throws.TypeOf<NotImplementedException>());
+        }
+
+        [Test]
+        public void TestMixedKnownAndCustomCertificateTypes()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            // A mix of a well-known type and a custom NodeId type
+            var customCertTypeNodeId = "ns=2;i=9999";
+            var configuration = new CertificateGroupConfiguration
+            {
+                SubjectName = "CN=GDS Mixed CA, O=OPC Foundation",
+                BaseStorePath = m_path,
+                CertificateTypes =
+                [
+                    nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType),
+                    customCertTypeNodeId
+                ]
+            };
+
+            ICertificateGroup certificateGroup = new CertificateGroup(telemetry).Create(
+                m_path + "/authorities",
+                configuration);
+
+            // Both types should be present
+            Assert.That(certificateGroup.CertificateTypes, Has.Count.EqualTo(2));
+            Assert.That(
+                certificateGroup.CertificateTypes,
+                Has.Member(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType));
+            Assert.That(
+                certificateGroup.CertificateTypes,
+                Has.Member(NodeId.Parse(customCertTypeNodeId)));
+        }
     }
 }

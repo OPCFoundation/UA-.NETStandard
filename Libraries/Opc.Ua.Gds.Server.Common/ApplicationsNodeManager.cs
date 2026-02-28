@@ -1882,9 +1882,42 @@ namespace Opc.Ua.Gds.Server
             }
             else
             {
-                throw new NotImplementedException(
-                    $"Unknown certificate type {string.Join(",", certificateGroup.CertificateTypes.Select(n => n.ToString()))}. " +
-                    "Use ApplicationCertificateType, HttpsCertificateType or UserCredentialCertificateType");
+                // Create a new custom certificate group node in the address space
+                // for certificate types that do not match any of the predefined groups.
+                var certGroupsFolder = FindPredefinedNode<Ua.CertificateGroupFolderState>(
+                    ExpandedNodeId.ToNodeId(ObjectIds.Directory_CertificateGroups, Server.NamespaceUris));
+
+                if (certGroupsFolder == null)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInternalError,
+                        "CertificateGroups folder node was not found in the address space.");
+                }
+
+                certificateGroup.Id = GenerateNodeId();
+
+                var customGroupNode = new Ua.CertificateGroupState(certGroupsFolder);
+                customGroupNode.Create(
+                    SystemContext,
+                    certificateGroup.Id,
+                    new QualifiedName(certificateGroup.Configuration.Id, NamespaceIndex),
+                    new LocalizedText(certificateGroup.Configuration.Id),
+                    true);
+
+                if (customGroupNode.CertificateTypes != null)
+                {
+                    customGroupNode.CertificateTypes.Value = [.. certificateGroup.CertificateTypes];
+                }
+
+                certGroupsFolder.AddChild(customGroupNode);
+                AddPredefinedNode(SystemContext, customGroupNode);
+
+                certificateGroup.DefaultTrustList = customGroupNode.TrustList;
+
+                m_logger.LogInformation(
+                    "Created custom certificate group node: {Id} with NodeId {NodeId}",
+                    certificateGroup.Configuration.Id,
+                    certificateGroup.Id);
             }
 
             certificateGroup.DefaultTrustList?.Handle = new TrustList(
