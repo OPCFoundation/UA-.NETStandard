@@ -178,10 +178,19 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             expected.Value
                 = AdjustExpectedBoundaryValues(encoderType, builtInType, expected.Value);
             // currently: Pico are lost
-            Assert.AreEqual(expected, result, encodeInfo);
-            Assert.IsTrue(
-                Utils.IsEqual(expected, result),
-                "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
+            if (expected.SourcePicoseconds != 0 && expected.SourceTimestamp == new DateTime() ||
+                expected.ServerPicoseconds != 0 && expected.ServerTimestamp == new DateTime())
+            {
+                Assert.That(expected, Is.Not.EqualTo(result), encodeInfo);
+                Assert.IsFalse(Utils.IsEqual(expected, result),"Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
+            }
+            else
+            {
+                Assert.That(expected, Is.EqualTo(result), encodeInfo);
+                Assert.IsTrue(
+                    Utils.IsEqual(expected, result),
+                    "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
+            }
         }
 
         /// <summary>

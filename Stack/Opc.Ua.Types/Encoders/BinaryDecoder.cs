@@ -687,10 +687,14 @@ namespace Opc.Ua
             if ((encodingByte & (byte)DataValueEncodingBits.SourceTimestamp) != 0)
             {
                 value.SourceTimestamp = ReadDateTime(null);
+                if (hasPicoseconds)
+                {
+                    sourcePicoseconds = ReadUInt16(null);
+                }
             }
-            if (hasPicoseconds)
+            else if (hasPicoseconds)
             {
-                sourcePicoseconds = ReadUInt16(null);
+                _ = ReadUInt16(null);
             }
             value.SourcePicoseconds = sourcePicoseconds;
 
@@ -699,12 +703,17 @@ namespace Opc.Ua
             if ((encodingByte & (byte)DataValueEncodingBits.ServerTimestamp) != 0)
             {
                 value.ServerTimestamp = ReadDateTime(null);
+                if (hasPicoseconds)
+                {
+                    serverPicoseconds = ReadUInt16(null);
+                }
             }
-            if (hasPicoseconds)
+            else if (hasPicoseconds)
             {
-                serverPicoseconds = ReadUInt16(null);
+                _ = ReadUInt16(null);
             }
             value.ServerPicoseconds = serverPicoseconds;
+
             return value;
         }
 
