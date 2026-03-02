@@ -93,6 +93,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Theory]
         [Category("BuiltInType")]
+        [Description("Ensures the Decoder reflects the Spec.: https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.2.17 -> " +
+            "SourcePicoseconds: [...] Not present if the SourcePicoseconds bit in the EncodingMask is False. " +
+            "If the source timestamp is missing the Picoseconds are ignored." +
+            "ServerPicoseconds: [...] Not present if the ServerPicoseconds bit in the EncodingMask is False. " +
+            "If the Server timestamp is missing the Picoseconds are ignored.")]
         public void EncodeDataValueWithoutValueProperty()
         {
             var dataValue = new DataValue() { SourcePicoseconds = 1 };
@@ -177,7 +182,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.IsNotNull(result, "Resulting DataValue is Null, " + encodeInfo);
             expected.Value
                 = AdjustExpectedBoundaryValues(encoderType, builtInType, expected.Value);
-            // currently: Pico are lost
+            // see: https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.2.17
             if (expected.SourcePicoseconds != 0 && expected.SourceTimestamp == new DateTime() ||
                 expected.ServerPicoseconds != 0 && expected.ServerTimestamp == new DateTime())
             {
