@@ -2332,7 +2332,7 @@ namespace Opc.Ua.Client
                         "Reconnect: Endpoint does not support the user identity type provided.");
 
                     throw ServiceResultException.Create(
-                        StatusCodes.BadIdentityTokenRejected,
+                        StatusCodes.BadIdentityTokenInvalid,
                         "Endpoint does not support the user identity type provided.");
                 }
 
